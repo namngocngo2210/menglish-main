@@ -1,0 +1,418 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="gW59SiizQH7oMWbXKxm_" name="Trang-1">
+    <mxGraphModel dx="1620" dy="750" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="8100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="pool-17" parent="1" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;resizeParent=1;resizeParentMax=0;startSize=30;whiteSpace=wrap;" value="Module ho tro - Buoc 17: Tru loi &amp; ky luat" vertex="1">
+          <mxGeometry height="1450" width="800" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-pool-17-1" parent="pool-17" style="swimlane;html=1;startSize=25;whiteSpace=wrap;" value="CM/Admin" vertex="1">
+          <mxGeometry height="1450" width="400" as="geometry" />
+        </mxCell>
+        <mxCell id="start-17" parent="lane-pool-17-1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="Start" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="task-17-1" parent="lane-pool-17-1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="17. Ghi nhan vi pham &amp; dinh bang chung" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="task-17-1a" parent="lane-pool-17-1" style="verticalLabelPosition=middle;verticalAlign=middle;html=1;shape=trapezoid;perimeter=trapezoidPerimeter;whiteSpace=wrap;size=0.23;arcSize=10;flipV=1;labelPosition=center;align=center;fontStyle=1;fontSize=14;" value="17a. Giai trinh (doi tuong vi pham)" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="gateway-17-1" parent="lane-pool-17-1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.decision;whiteSpace=wrap;" value="Loai vi pham?" vertex="1">
+          <mxGeometry height="100" width="100" x="150" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="task-17-1c" parent="lane-pool-17-1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="17c. CM chot phat (vi pham van hanh/ky luat chung)" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="task-17-1d" parent="lane-pool-17-1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="17d. Nop phat (2 ngay) &amp; lien ket khoan tru luong" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="end-17" parent="lane-pool-17-1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="End (-&gt; noi khoan tru Buoc 16 Luong)" vertex="1">
+          <mxGeometry height="60" width="160" x="120" y="1200" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-pool-17-2" parent="pool-17" style="swimlane;html=1;startSize=25;whiteSpace=wrap;" value="HT (Hoc thuat)" vertex="1">
+          <mxGeometry height="1450" width="400" x="400" as="geometry" />
+        </mxCell>
+        <mxCell id="task-17-1b" parent="lane-pool-17-2" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="17b. HT chot phat (vi pham hoc thuat)" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-17-s-1" edge="1" parent="pool-17" source="start-17" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-17-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-17-1-1a" edge="1" parent="pool-17" source="task-17-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-17-1a">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-17-1a-gw" edge="1" parent="pool-17" source="task-17-1a" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="gateway-17-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-17-gw-1b" edge="1" parent="pool-17" source="gateway-17-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" target="task-17-1b" value="Hoc thuat">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-17-gw-1c" edge="1" parent="pool-17" source="gateway-17-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="task-17-1c" value="Van hanh/ky luat chung">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-17-1b-1d" edge="1" parent="pool-17" source="task-17-1b" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.3;" target="task-17-1d">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-17-1c-1d" edge="1" parent="pool-17" source="task-17-1c" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-17-1d">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-17-1d-end" edge="1" parent="pool-17" source="task-17-1d" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="end-17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pool-18" parent="1" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;resizeParent=1;resizeParentMax=0;startSize=30;whiteSpace=wrap;" value="Module ho tro - Buoc 18: Quan ly kho sach/hang hoa" vertex="1">
+          <mxGeometry height="1350" width="400" y="1550" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-pool-18-1" parent="pool-18" style="swimlane;html=1;startSize=40;whiteSpace=wrap;" value="CM" vertex="1">
+          <mxGeometry height="1320" width="400" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="start-18" parent="lane-pool-18-1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="Start" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="task-18-1" parent="lane-pool-18-1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="18. Nhap sach (tu nha in)" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="task-18-1b" parent="lane-pool-18-1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="18b. Xuat sach (phat HS)" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="gateway-18-1" parent="lane-pool-18-1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.decision;whiteSpace=wrap;" value="Ton duoi nguong?" vertex="1">
+          <mxGeometry height="100" width="100" x="150" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="task-18-1c" parent="lane-pool-18-1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="18c. Canh bao ton kho" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="task-18-1d" parent="lane-pool-18-1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="18d. Doi chieu dinh ky (ngay 30)" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="end-18" parent="lane-pool-18-1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="End" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="1200" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-18-s-1" edge="1" parent="pool-18" source="start-18" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-18-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-18-1-1b" edge="1" parent="pool-18" source="task-18-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-18-1b">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-18-1b-gw" edge="1" parent="pool-18" source="task-18-1b" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="gateway-18-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-18-gw-1c" edge="1" parent="pool-18" source="gateway-18-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-18-1c" value="Co">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-18-gw-1d" edge="1" parent="pool-18" source="gateway-18-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;exitX=1;exitY=0.5;entryX=1;entryY=0.5;" target="task-18-1d" value="Khong">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="370" y="650" />
+              <mxPoint x="370" y="1055" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-18-1c-1d" edge="1" parent="pool-18" source="task-18-1c" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-18-1d">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-18-1d-end" edge="1" parent="pool-18" source="task-18-1d" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="end-18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pool-19" parent="1" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;resizeParent=1;resizeParentMax=0;startSize=30;whiteSpace=wrap;" value="Module ho tro - Buoc 19: Quan ly nguoi dung &amp; audit" vertex="1">
+          <mxGeometry height="1200" width="1200" y="3000" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-pool-19-1" parent="pool-19" style="swimlane;html=1;startSize=25;whiteSpace=wrap;" value="Admin" vertex="1">
+          <mxGeometry height="1200" width="400" as="geometry" />
+        </mxCell>
+        <mxCell id="start-19a" parent="lane-pool-19-1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="Start" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="task-19-1" parent="lane-pool-19-1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="19. CRUD toan bo tai khoan (nhan su/HS/PH)" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="task-19-1d" parent="lane-pool-19-1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="19d. Cau hinh ho so nhan su (han hop dong)" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="task-19-1e" parent="lane-pool-19-1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="19e. He thong canh bao sap het han" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="task-19-1f" parent="lane-pool-19-1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="19f. Ghi audit log (moi thay doi)" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="end-19" parent="lane-pool-19-1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="End" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-pool-19-2" parent="pool-19" style="swimlane;html=1;startSize=25;whiteSpace=wrap;" value="CM/Hoc vu" vertex="1">
+          <mxGeometry height="1200" width="400" x="400" as="geometry" />
+        </mxCell>
+        <mxCell id="start-19b" parent="lane-pool-19-2" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="Start" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="task-19-1b" parent="lane-pool-19-2" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="19b. CRU hoc vien/TA + sua thong tin hanh chinh GV (khong Delete)" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-pool-19-3" parent="pool-19" style="swimlane;html=1;startSize=25;whiteSpace=wrap;" value="HT/Hoc thuat" vertex="1">
+          <mxGeometry height="1200" width="400" x="800" as="geometry" />
+        </mxCell>
+        <mxCell id="start-19c" parent="lane-pool-19-3" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="Start" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="task-19-1c" parent="lane-pool-19-3" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="19c. Sua thong tin hoc thuat cua GV (khong Delete)" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-19-sa-1" edge="1" parent="pool-19" source="start-19a" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-19-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-19-1-1d" edge="1" parent="pool-19" source="task-19-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-19-1d">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-19-1d-1e" edge="1" parent="pool-19" source="task-19-1d" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-19-1e">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-19-1e-1f" edge="1" parent="pool-19" source="task-19-1e" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-19-1f">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-19-1f-end" edge="1" parent="pool-19" source="task-19-1f" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="end-19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-19-sb-1b" edge="1" parent="pool-19" source="start-19b" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-19-1b">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-19-1b-1f" edge="1" parent="pool-19" source="task-19-1b" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="task-19-1f">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="600" y="750" />
+              <mxPoint x="200" y="750" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-19-sc-1c" edge="1" parent="pool-19" source="start-19c" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-19-1c">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-19-1c-1f" edge="1" parent="pool-19" source="task-19-1c" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;exitX=0.5;exitY=1;entryX=1;entryY=0.5;" target="task-19-1f">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1000" y="855" />
+              <mxPoint x="280" y="855" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="pool-20" parent="1" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;resizeParent=1;resizeParentMax=0;startSize=30;whiteSpace=wrap;" value="Module ho tro - Buoc 20: Phan cong cong viec &amp; bao cao tuan" vertex="1">
+          <mxGeometry height="1000" width="800" y="4300" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-pool-20-1" parent="pool-20" style="swimlane;html=1;startSize=25;whiteSpace=wrap;" value="Admin" vertex="1">
+          <mxGeometry height="1000" width="400" as="geometry" />
+        </mxCell>
+        <mxCell id="start-20a" parent="lane-pool-20-1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="Start" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="task-20-1" parent="lane-pool-20-1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="20. Tao task Kanban giao CM/GV/TA" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="task-20-1d" parent="lane-pool-20-1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="20d. Nhan viec tu CM/GV/TA &amp; thuc hien" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="task-20-1e" parent="lane-pool-20-1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="20e. Cap nhat trang thai" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="end-20a" parent="lane-pool-20-1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="End" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-pool-20-2" parent="pool-20" style="swimlane;html=1;startSize=25;whiteSpace=wrap;" value="CM/GV/TA" vertex="1">
+          <mxGeometry height="1000" width="400" x="400" as="geometry" />
+        </mxCell>
+        <mxCell id="start-20b" parent="lane-pool-20-2" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="Start" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="task-20-1b" parent="lane-pool-20-2" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="20b. Tao task Kanban giao Admin" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="task-20-1c" parent="lane-pool-20-2" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="20c. Nhan viec tu Admin &amp; thuc hien" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="task-20-1f" parent="lane-pool-20-2" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="20f. Cap nhat trang thai" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="end-20b" parent="lane-pool-20-2" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="End" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-20-sa-1" edge="1" parent="pool-20" source="start-20a" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-20-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-20-1-1c" edge="1" parent="pool-20" source="task-20-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-20-1c" value="giao viec">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-20-sb-1b" edge="1" parent="pool-20" source="start-20b" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-20-1b">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-20-1b-1d" edge="1" parent="pool-20" source="task-20-1b" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-20-1d" value="giao viec">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-20-1c-1f" edge="1" parent="pool-20" source="task-20-1c" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-20-1f">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-20-1d-1e" edge="1" parent="pool-20" source="task-20-1d" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-20-1e">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-20-1f-endb" edge="1" parent="pool-20" source="task-20-1f" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="end-20b">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-20-1e-enda" edge="1" parent="pool-20" source="task-20-1e" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="end-20a">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pool-21" parent="1" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;resizeParent=1;resizeParentMax=0;startSize=30;whiteSpace=wrap;" value="Module ho tro - Buoc 21: On thi hoc ky" vertex="1">
+          <mxGeometry height="1600" width="1200" y="5400" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-pool-21-1" parent="pool-21" style="swimlane;html=1;startSize=25;whiteSpace=wrap;" value="HT/Hoc thuat" vertex="1">
+          <mxGeometry height="1600" width="400" as="geometry" />
+        </mxCell>
+        <mxCell id="start-21a" parent="lane-pool-21-1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="Start" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="task-21-1" parent="lane-pool-21-1" style="verticalLabelPosition=middle;verticalAlign=middle;html=1;shape=trapezoid;perimeter=trapezoidPerimeter;whiteSpace=wrap;size=0.23;arcSize=10;flipV=1;labelPosition=center;align=center;fontStyle=1;fontSize=14;" value="21. Soan de cuong &amp; day ve CM" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="task-21-1f" parent="lane-pool-21-1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="21f. HT theo doi &amp; luu ket qua" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="1200" as="geometry" />
+        </mxCell>
+        <mxCell id="end-21a" parent="lane-pool-21-1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="End" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="1400" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-pool-21-2" parent="pool-21" style="swimlane;html=1;startSize=25;whiteSpace=wrap;" value="CM" vertex="1">
+          <mxGeometry height="1600" width="400" x="400" as="geometry" />
+        </mxCell>
+        <mxCell id="start-21b" parent="lane-pool-21-2" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="Start" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="task-21-1b" parent="lane-pool-21-2" style="verticalLabelPosition=middle;verticalAlign=middle;html=1;shape=trapezoid;perimeter=trapezoidPerimeter;whiteSpace=wrap;size=0.23;arcSize=10;flipV=1;labelPosition=center;align=center;fontStyle=1;fontSize=14;" value="21b. Thu thap de cuong tu truong (ngoai he thong)" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="task-21-1c" parent="lane-pool-21-2" style="verticalLabelPosition=middle;verticalAlign=middle;html=1;shape=trapezoid;perimeter=trapezoidPerimeter;whiteSpace=wrap;size=0.23;arcSize=10;flipV=1;labelPosition=center;align=center;fontStyle=1;fontSize=14;" value="21c. In de cuong" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-pool-21-3" parent="pool-21" style="swimlane;html=1;startSize=25;whiteSpace=wrap;" value="GV" vertex="1">
+          <mxGeometry height="1600" width="400" x="800" as="geometry" />
+        </mxCell>
+        <mxCell id="task-21-1d" parent="lane-pool-21-3" style="verticalLabelPosition=middle;verticalAlign=middle;html=1;shape=trapezoid;perimeter=trapezoidPerimeter;whiteSpace=wrap;size=0.23;arcSize=10;flipV=1;labelPosition=center;align=center;fontStyle=1;fontSize=14;" value="21d. Cho lam pre-test/mock test" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="task-21-1e" parent="lane-pool-21-3" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="21e. Nhap diem he thong" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="gateway-21-1" parent="lane-pool-21-3" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.decision;whiteSpace=wrap;" value="Diem &lt;7?" vertex="1">
+          <mxGeometry height="100" width="100" x="150" y="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="end-21b" parent="lane-pool-21-3" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="End (-&gt; noi Buoc 11 Bo tro)" vertex="1">
+          <mxGeometry height="60" width="160" x="120" y="1200" as="geometry" />
+        </mxCell>
+        <mxCell id="end-21c" parent="lane-pool-21-3" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="End" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="1400" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-21-sa-1" edge="1" parent="pool-21" source="start-21a" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-21-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-21-sb-1b" edge="1" parent="pool-21" source="start-21b" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-21-1b">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-21-1-1c" edge="1" parent="pool-21" source="task-21-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-21-1c">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-21-1b-1c" edge="1" parent="pool-21" source="task-21-1b" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-21-1c">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-21-1c-1d" edge="1" parent="pool-21" source="task-21-1c" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-21-1d">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-21-1d-1e" edge="1" parent="pool-21" source="task-21-1d" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-21-1e">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-21-1e-1f" edge="1" parent="pool-21" source="task-21-1e" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" target="task-21-1f" value="Luon (moi HV)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-21-1e-gw" edge="1" parent="pool-21" source="task-21-1e" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="gateway-21-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-21-gw-endb" edge="1" parent="pool-21" source="gateway-21-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="end-21b" value="Co">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-21-gw-endc" edge="1" parent="pool-21" source="gateway-21-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="end-21c" value="Khong">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-21-1f-enda" edge="1" parent="pool-21" source="task-21-1f" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="end-21a">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pool-22" parent="1" style="swimlane;html=1;childLayout=stackLayout;horizontal=1;resizeParent=1;resizeParentMax=0;startSize=30;whiteSpace=wrap;" value="Module ho tro - Buoc 22: Dashboard &amp; bao cao" vertex="1">
+          <mxGeometry height="800" width="1600" y="7100" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-pool-22-1" parent="pool-22" style="swimlane;html=1;startSize=25;whiteSpace=wrap;" value="He thong" vertex="1">
+          <mxGeometry height="800" width="400" as="geometry" />
+        </mxCell>
+        <mxCell id="start-22" parent="lane-pool-22-1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="Start" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="task-22-1" parent="lane-pool-22-1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="22. Tong hop du lieu real-time" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-pool-22-2" parent="pool-22" style="swimlane;html=1;startSize=25;whiteSpace=wrap;" value="Admin" vertex="1">
+          <mxGeometry height="800" width="400" x="400" as="geometry" />
+        </mxCell>
+        <mxCell id="task-22-1b" parent="lane-pool-22-2" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="22b. Xem Dashboard (tien, HS dang hoc, lop can thu)" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="end-22b" parent="lane-pool-22-2" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="End" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-pool-22-3" parent="pool-22" style="swimlane;html=1;startSize=25;whiteSpace=wrap;" value="HT" vertex="1">
+          <mxGeometry height="800" width="400" x="800" as="geometry" />
+        </mxCell>
+        <mxCell id="task-22-1c" parent="lane-pool-22-3" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="22c. Xem Dashboard (order test, lop sap het chang)" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="end-22c" parent="lane-pool-22-3" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="End" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-pool-22-4" parent="pool-22" style="swimlane;html=1;startSize=25;whiteSpace=wrap;" value="CM" vertex="1">
+          <mxGeometry height="800" width="400" x="1200" as="geometry" />
+        </mxCell>
+        <mxCell id="task-22-1d" parent="lane-pool-22-4" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;" value="22d. Xem Dashboard (lop den han thu, HS nghi nhieu, data moi)" vertex="1">
+          <mxGeometry height="110" width="160" x="120" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="end-22d" parent="lane-pool-22-4" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" value="End" vertex="1">
+          <mxGeometry height="60" width="100" x="150" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-22-s-1" edge="1" parent="pool-22" source="start-22" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="task-22-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-22-1-1b" edge="1" parent="pool-22" source="task-22-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="task-22-1b">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="200" y="350" />
+              <mxPoint x="600" y="350" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-22-1-1c" edge="1" parent="pool-22" source="task-22-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="task-22-1c">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="200" y="350" />
+              <mxPoint x="1000" y="350" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-22-1-1d" edge="1" parent="pool-22" source="task-22-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="task-22-1d">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="200" y="350" />
+              <mxPoint x="1400" y="350" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-22-1b-end" edge="1" parent="pool-22" source="task-22-1b" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="end-22b">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-22-1c-end" edge="1" parent="pool-22" source="task-22-1c" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="end-22c">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-22-1d-end" edge="1" parent="pool-22" source="task-22-1d" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" target="end-22d">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,376 @@
+<mxGraphModel dx="786" dy="417" grid="1" gridSize="10" guides="1"
+              tooltips="1" connect="1" arrows="1" fold="1" page="1"
+              pageScale="1" pageWidth="2200" pageHeight="5200" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <!-- ===================== POOL ===================== -->
+    <mxCell id="pool-1" parent="1"
+      style="swimlane;html=1;childLayout=stackLayout;horizontal=1;resizeParent=1;resizeParentMax=0;startSize=30;whiteSpace=wrap;"
+      value="Quy trinh TO-BE: He thong ME - Quan ly Trung tam Ngoai ngu (Buoc 1-16)" vertex="1">
+      <mxGeometry width="2000" height="5000" as="geometry" />
+    </mxCell>
+
+    <!-- ===================== LANES ===================== -->
+    <mxCell id="lane-pool-1-1" parent="pool-1"
+      style="swimlane;html=1;startSize=25;whiteSpace=wrap;"
+      value="CM / Hoc vu" vertex="1">
+      <mxGeometry x="0" y="0" width="400" height="5000" as="geometry" />
+    </mxCell>
+
+    <mxCell id="lane-pool-1-2" parent="pool-1"
+      style="swimlane;html=1;startSize=25;whiteSpace=wrap;"
+      value="Admin / Ke toan" vertex="1">
+      <mxGeometry x="400" y="0" width="400" height="5000" as="geometry" />
+    </mxCell>
+
+    <mxCell id="lane-pool-1-3" parent="pool-1"
+      style="swimlane;html=1;startSize=25;whiteSpace=wrap;"
+      value="GV / GVNN" vertex="1">
+      <mxGeometry x="800" y="0" width="400" height="5000" as="geometry" />
+    </mxCell>
+
+    <mxCell id="lane-pool-1-4" parent="pool-1"
+      style="swimlane;html=1;startSize=25;whiteSpace=wrap;"
+      value="HT (Huyen)" vertex="1">
+      <mxGeometry x="1200" y="0" width="400" height="5000" as="geometry" />
+    </mxCell>
+
+    <mxCell id="lane-pool-1-5" parent="pool-1"
+      style="swimlane;html=1;startSize=25;whiteSpace=wrap;"
+      value="PH / HV (Cong thong tin)" vertex="1">
+      <mxGeometry x="1600" y="0" width="400" height="5000" as="geometry" />
+    </mxCell>
+
+    <!-- ===================== START ===================== -->
+    <mxCell id="start-1" parent="lane-pool-1-1"
+      style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;"
+      value="Start" vertex="1">
+      <mxGeometry height="60" width="100" x="150" y="60" as="geometry" />
+    </mxCell>
+
+    <!-- ===================== ROW 1-6: LANE CM/HOC VU (Tuyen sinh) ===================== -->
+    <mxCell id="task-1" parent="lane-pool-1-1"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="1. Tiep nhan lead vao CRM" vertex="1">
+      <mxGeometry x="120" y="200" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <mxCell id="task-2" parent="lane-pool-1-1"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="2. Tu van &amp; hen test" vertex="1">
+      <mxGeometry x="120" y="400" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <mxCell id="gateway-1" parent="lane-pool-1-1"
+      style="strokeWidth=2;html=1;shape=mxgraph.flowchart.decision;whiteSpace=wrap;"
+      value="Co lam test?" vertex="1">
+      <mxGeometry x="150" y="600" width="100" height="100" as="geometry" />
+    </mxCell>
+
+    <mxCell id="task-3" parent="lane-pool-1-1"
+      style="verticalLabelPosition=middle;verticalAlign=middle;html=1;shape=trapezoid;
+             perimeter=trapezoidPerimeter;whiteSpace=wrap;size=0.23;arcSize=10;
+             flipV=1;labelPosition=center;align=center;fontStyle=1;fontSize=14;"
+      value="3. Hoc thu &amp; xin feedback" vertex="1">
+      <mxGeometry x="120" y="800" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <mxCell id="task-4-wait" parent="lane-pool-1-1"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=13;"
+      value="Xep lop cho (danh sach cho khai giang - nhanh khong test)" vertex="1">
+      <mxGeometry x="120" y="915" width="160" height="70" as="geometry" />
+    </mxCell>
+
+    <mxCell id="gateway-2" parent="lane-pool-1-1"
+      style="strokeWidth=2;html=1;shape=mxgraph.flowchart.decision;whiteSpace=wrap;"
+      value="Chot lop?" vertex="1">
+      <mxGeometry x="150" y="1000" width="100" height="100" as="geometry" />
+    </mxCell>
+
+    <mxCell id="end-1" parent="lane-pool-1-1"
+      style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;"
+      value="End" vertex="1">
+      <mxGeometry height="60" width="100" x="280" y="1020" as="geometry" />
+    </mxCell>
+
+    <mxCell id="task-4" parent="lane-pool-1-1"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="4. Chot lead &amp; xep lop" vertex="1">
+      <mxGeometry x="120" y="1200" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <!-- ===================== ROW 7-8: LANE ADMIN (Cau hinh + Lich day) ===================== -->
+    <mxCell id="task-5" parent="lane-pool-1-2"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="5. Cau hinh ca hoc, phong, giao trinh (hoac CM/Hoc vu)" vertex="1">
+      <mxGeometry x="120" y="1400" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <mxCell id="task-6" parent="lane-pool-1-2"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="6. Xep lich day &amp; khai giang (hoac CM/Hoc vu)" vertex="1">
+      <mxGeometry x="120" y="1600" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <!-- ===================== ROW 9: LANE HT (Syllabus) ===================== -->
+    <mxCell id="task-7" parent="lane-pool-1-4"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="7. Soan &amp; giao syllabus theo chang (giao chang: HT/Admin/Hoc vu)" vertex="1">
+      <mxGeometry x="120" y="1800" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <!-- ===================== ROW 10-11: LANE GV/GVNN (Day + Cham cong) ===================== -->
+    <mxCell id="task-8" parent="lane-pool-1-3"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="8. Xem lich, nhan chang &amp; day" vertex="1">
+      <mxGeometry x="120" y="2000" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <mxCell id="task-9" parent="lane-pool-1-3"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="9. Tu check-in cham cong" vertex="1">
+      <mxGeometry x="120" y="2200" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <!-- ===================== ROW 12: LANE CM/HOC VU (Doi soat cham cong) ===================== -->
+    <mxCell id="task-9b" parent="lane-pool-1-1"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="9b. Doi soat &amp; chot bang cong (hoac Admin)" vertex="1">
+      <mxGeometry x="120" y="2400" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <!-- ===================== ROW 13: LANE GV/GVNN (Diem danh) ===================== -->
+    <mxCell id="task-10" parent="lane-pool-1-3"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="10. Day hoc &amp; diem danh (GV chinh; CM/Hoc vu du phong khi GV khong the diem danh)" vertex="1">
+      <mxGeometry x="120" y="2600" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <!-- ===================== ROW 14-16: LANE CM/HOC VU (Doi soat diem danh + Bo tro) ===================== -->
+    <mxCell id="task-10b" parent="lane-pool-1-1"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="10b. Doi soat diem danh tu GV" vertex="1">
+      <mxGeometry x="120" y="2800" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <mxCell id="task-11" parent="lane-pool-1-1"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="11. Xep lich bo tro cho HV vang" vertex="1">
+      <mxGeometry x="120" y="3000" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <mxCell id="task-11b" parent="lane-pool-1-1"
+      style="verticalLabelPosition=middle;verticalAlign=middle;html=1;shape=trapezoid;
+             perimeter=trapezoidPerimeter;whiteSpace=wrap;size=0.23;arcSize=10;
+             flipV=1;labelPosition=center;align=center;fontStyle=1;fontSize=14;"
+      value="11b. Day bo tro (CM/Hoc vu hoac TA - khong con GV)" vertex="1">
+      <mxGeometry x="120" y="3200" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <!-- ===================== ROW 17: LANE HT (Duyet de test) ===================== -->
+    <mxCell id="task-12a" parent="lane-pool-1-4"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="12a. Duyet &amp; cung ung de test" vertex="1">
+      <mxGeometry x="120" y="3400" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <!-- ===================== ROW 18: LANE GV/GVNN (Test & nhap diem) ===================== -->
+    <mxCell id="task-12b" parent="lane-pool-1-3"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="12b. Test theo chang &amp; nhap diem" vertex="1">
+      <mxGeometry x="120" y="3600" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <!-- ===================== ROW 19: LANE CM/HOC VU (Cham soc) ===================== -->
+    <mxCell id="task-13" parent="lane-pool-1-1"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="13. Cham soc HV &amp; sinh nhat" vertex="1">
+      <mxGeometry x="120" y="3800" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <!-- ===================== ROW 20: LANE PH/HV (Cong thong tin) ===================== -->
+    <mxCell id="task-14" parent="lane-pool-1-5"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="14. Xem tien do tren Cong PH/HV" vertex="1">
+      <mxGeometry x="120" y="4000" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <!-- ===================== ROW 21: LANE CM/HOC VU (Thu hoc phi) ===================== -->
+    <mxCell id="task-15" parent="lane-pool-1-1"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="15. Lap phieu thu hoc phi" vertex="1">
+      <mxGeometry x="120" y="4200" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <!-- ===================== ROW 22-24: LANE ADMIN (Duyet + Luong) ===================== -->
+    <mxCell id="task-15b" parent="lane-pool-1-2"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="15b. Duyet phieu thu &amp; xuat hoa don, bien lai (Admin/Ke toan, phoi hop Hoc vu)" vertex="1">
+      <mxGeometry x="120" y="4400" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <mxCell id="task-16" parent="lane-pool-1-2"
+      style="rounded=1;whiteSpace=wrap;html=1;fontStyle=1;fontSize=14;"
+      value="16. Tinh luong &amp; duyet" vertex="1">
+      <mxGeometry x="120" y="4600" width="160" height="110" as="geometry" />
+    </mxCell>
+
+    <mxCell id="end-2" parent="lane-pool-1-2"
+      style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;"
+      value="End" vertex="1">
+      <mxGeometry height="60" width="100" x="150" y="4800" as="geometry" />
+    </mxCell>
+
+    <!-- ===================== EDGES ===================== -->
+    <mxCell id="edge-start-t1" edge="1" parent="pool-1" source="start-1" target="task-1"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t1-t2" edge="1" parent="pool-1" source="task-1" target="task-2"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t2-g1" edge="1" parent="pool-1" source="task-2" target="gateway-1"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-g1-t3" edge="1" parent="pool-1" source="gateway-1" target="task-3"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" value="Co">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-g1-t4wait" edge="1" parent="pool-1" source="gateway-1" target="task-4-wait"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;exitX=1;exitY=0.5;entryX=1;entryY=0.5;"
+      value="Khong">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="370" y="650" />
+          <mxPoint x="370" y="950" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+
+    <mxCell id="edge-t4wait-t4" edge="1" parent="pool-1" source="task-4-wait" target="task-4"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;exitX=0.5;exitY=1;entryX=1;entryY=0.5;">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="200" y="985" />
+          <mxPoint x="395" y="985" />
+          <mxPoint x="395" y="1255" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+
+    <mxCell id="edge-t3-g2" edge="1" parent="pool-1" source="task-3" target="gateway-2"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-g2-end1" edge="1" parent="pool-1" source="gateway-2" target="end-1"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"
+      value="Khong (luu ly do fail)">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-g2-t4" edge="1" parent="pool-1" source="gateway-2" target="task-4"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;" value="Co">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t4-t5" edge="1" parent="pool-1" source="task-4" target="task-5"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t5-t6" edge="1" parent="pool-1" source="task-5" target="task-6"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t6-t7" edge="1" parent="pool-1" source="task-6" target="task-7"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t7-t8" edge="1" parent="pool-1" source="task-7" target="task-8"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t8-t9" edge="1" parent="pool-1" source="task-8" target="task-9"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t9-t9b" edge="1" parent="pool-1" source="task-9" target="task-9b"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t9b-t10" edge="1" parent="pool-1" source="task-9b" target="task-10"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t10-t10b" edge="1" parent="pool-1" source="task-10" target="task-10b"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t10b-t11" edge="1" parent="pool-1" source="task-10b" target="task-11"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t11-t11b" edge="1" parent="pool-1" source="task-11" target="task-11b"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t11b-t12a" edge="1" parent="pool-1" source="task-11b" target="task-12a"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t12a-t12b" edge="1" parent="pool-1" source="task-12a" target="task-12b"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t12b-t13" edge="1" parent="pool-1" source="task-12b" target="task-13"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t13-t14" edge="1" parent="pool-1" source="task-13" target="task-14"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t14-t15" edge="1" parent="pool-1" source="task-14" target="task-15"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t15-t15b" edge="1" parent="pool-1" source="task-15" target="task-15b"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t15b-t16" edge="1" parent="pool-1" source="task-15b" target="task-16"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="edge-t16-end2" edge="1" parent="pool-1" source="task-16" target="end-2"
+      style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+  </root>
+</mxGraphModel>
