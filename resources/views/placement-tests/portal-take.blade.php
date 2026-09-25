@@ -47,6 +47,16 @@
         <!-- Form Submission -->
         <form action="{{ route('portal.test.submit', $test->code) }}" method="POST" class="space-y-6">
             @csrf
+            @if ($errors->any())
+                <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800" role="alert">
+                    <p class="font-bold">Vui lòng kiểm tra lại thông tin:</p>
+                    <ul class="mt-1 list-inside list-disc space-y-0.5">
+                        @foreach ($errors->all() as $message)
+                            <li>{{ $message }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
             @if ($leadToken)
                 <input type="hidden" name="lead_token" value="{{ $leadToken }}">
             @endif
@@ -60,15 +70,18 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                     <div>
                         <label class="block font-semibold text-slate-700 mb-1">Họ và tên thí sinh <span class="text-rose-500">*</span></label>
-                        <input type="text" name="candidate_name" value="{{ old('candidate_name', $lead?->name) }}" required placeholder="Nguyễn Văn A" class="w-full text-xs rounded-xl border border-slate-200 p-2.5 font-bold" />
+                        <input type="text" name="candidate_name" value="{{ old('candidate_name', $lead?->name) }}" required placeholder="Họ và tên" class="w-full text-xs rounded-xl border border-slate-200 p-2.5 font-bold" />
+                        <x-input-error :messages="$errors->get('candidate_name')" class="mt-1" />
                     </div>
                     <div>
                         <label class="block font-semibold text-slate-700 mb-1">Số điện thoại liên hệ <span class="text-rose-500">*</span></label>
-                        <input type="text" name="candidate_phone" value="{{ old('candidate_phone', $lead?->phone) }}" required placeholder="0912 345 678" class="w-full text-xs rounded-xl border border-slate-200 p-2.5 font-mono font-bold" />
+                        <input type="text" name="candidate_phone" value="{{ old('candidate_phone', $lead?->phone) }}" required placeholder="VD: 0912 345 678" class="w-full text-xs rounded-xl border border-slate-200 p-2.5 font-mono font-bold" />
+                        <x-input-error :messages="$errors->get('candidate_phone')" class="mt-1" />
                     </div>
                     <div>
                         <label class="block font-semibold text-slate-700 mb-1">Email nhận bảng điểm</label>
                         <input type="email" name="candidate_email" value="{{ old('candidate_email', $lead?->email) }}" placeholder="hocvien@gmail.com" class="w-full text-xs rounded-xl border border-slate-200 p-2.5" />
+                        <x-input-error :messages="$errors->get('candidate_email')" class="mt-1" />
                     </div>
                 </div>
             </div>

@@ -58,6 +58,7 @@
                             required 
                             class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 uppercase"
                         />
+                        <x-input-error :messages="$errors->get('code')" class="mt-1" />
                         <p class="text-[10px] text-gray-400 mt-1">Mã định danh duy nhất của hàng hóa trong hệ thống.</p>
                     </div>
 
@@ -77,6 +78,7 @@
                                 </option>
                             @endforeach
                         </select>
+                        <x-input-error :messages="$errors->get('category')" class="mt-1" />
                     </div>
                 </div>
 
@@ -93,6 +95,7 @@
                         required 
                         class="w-full text-xs font-bold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 text-gray-900"
                     />
+                    <x-input-error :messages="$errors->get('name')" class="mt-1" />
                 </div>
 
                 <!-- Đơn vị tính -->
@@ -109,6 +112,7 @@
                             required 
                             class="w-full text-xs font-semibold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2"
                         />
+                        <x-input-error :messages="$errors->get('unit')" class="mt-1" />
                     </div>
 
                     <!-- Đơn giá niêm yết bán -->
@@ -125,6 +129,7 @@
                             required 
                             class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 text-primary-container"
                         />
+                        <x-input-error :messages="$errors->get('price')" class="mt-1" />
                         <p class="text-[10px] text-gray-400 mt-1">Giá tính vào hợp đồng &amp; hoá đơn.</p>
                     </div>
 
@@ -142,6 +147,7 @@
                             placeholder="Tùy chọn" 
                             class="w-full text-xs font-mono rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 text-gray-600"
                         />
+                        <x-input-error :messages="$errors->get('cost_price')" class="mt-1" />
                     </div>
                 </div>
 
@@ -159,6 +165,7 @@
                             required 
                             class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 text-gray-800"
                         />
+                        <x-input-error :messages="$errors->get('stock_quantity')" class="mt-1" />
                     </div>
 
                     <div class="flex items-center pt-5">
@@ -186,6 +193,7 @@
                         placeholder="Nhập thông tin chi tiết về sách, độ tuổi phù hợp, chất liệu đồng phục hoặc phụ kiện đi kèm..." 
                         class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container p-3 text-gray-800"
                     >{{ old('description', $item->description) }}</textarea>
+                    <x-input-error :messages="$errors->get('description')" class="mt-1" />
                 </div>
             </div>
 

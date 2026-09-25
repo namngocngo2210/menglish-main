@@ -21,7 +21,8 @@
             <div class="space-y-4 text-xs">
                 <div>
                     <label class="block font-semibold text-gray-700 mb-1">Tiêu đề sự cố / yêu cầu <span class="text-rose-500">*</span></label>
-                    <input type="text" name="title" required placeholder="Ví dụ: Lỗi không xuất được hóa đơn điện tử cho học viên HV-0012" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold focus:border-primary-container focus:ring-primary-container" />
+                    <input type="text" name="title" required placeholder="Ví dụ: Lỗi không xuất được hóa đơn điện tử cho học viên HV-0012" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold focus:border-primary-container focus:ring-primary-container" value="{{ old('title') }}">
+                    <x-input-error :messages="$errors->get('title')" class="mt-1" />
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -34,6 +35,7 @@
                             <option value="customer_complaint">Khiếu Nại Học Viên</option>
                             <option value="other">Yêu Cầu Hỗ Trợ Khác</option>
                         </select>
+                        <x-input-error :messages="$errors->get('category')" class="mt-1" />
                     </div>
 
                     <div>
@@ -44,6 +46,7 @@
                             <option value="high">Cao (High)</option>
                             <option value="urgent">Khẩn cấp (Urgent)</option>
                         </select>
+                        <x-input-error :messages="$errors->get('priority')" class="mt-1" />
                     </div>
 
                     <div>
@@ -51,15 +54,17 @@
                         <select name="assignee_id" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container">
                             <option value="">-- Để mở (Chưa gán) --</option>
                             @foreach ($staffs as $staff)
-                                <option value="{{ $staff->id }}">{{ $staff->name }}</option>
+                                <option value="{{ $staff->id }}" @selected((string) old('assignee_id') === (string) $staff->id)>{{ $staff->name }}</option>
                             @endforeach
                         </select>
+                        <x-input-error :messages="$errors->get('assignee_id')" class="mt-1" />
                     </div>
                 </div>
 
                 <div>
                     <label class="block font-semibold text-gray-700 mb-1">Mô tả chi tiết sự cố / Nội dung yêu cầu <span class="text-rose-500">*</span></label>
-                    <textarea name="description" rows="4" required placeholder="Mô tả cụ thể các bước tái hiện lỗi, đường dẫn URL bị lỗi hoặc yêu cầu nghiệp vụ cần xử lý..." class="w-full text-xs rounded-xl border border-gray-200 p-3 focus:border-primary-container focus:ring-primary-container"></textarea>
+                    <textarea name="description" rows="4" required placeholder="Mô tả cụ thể các bước tái hiện lỗi, đường dẫn URL bị lỗi hoặc yêu cầu nghiệp vụ cần xử lý..." class="w-full text-xs rounded-xl border border-gray-200 p-3 focus:border-primary-container focus:ring-primary-container">{{ old('description') }}</textarea>
+                    <x-input-error :messages="$errors->get('description')" class="mt-1" />
                 </div>
 
                 <!-- Drag and Drop Image Upload Zone -->
