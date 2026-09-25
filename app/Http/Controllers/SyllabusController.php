@@ -998,13 +998,61 @@ class SyllabusController extends Controller
             ->get()
             ->sortBy(fn ($a) => $a->classModel?->name)
             ->values();
-        $orders = BigTestOrder::where('test_type', 'big')
-            ->whereIn('class_id', $assignments->pluck('class_id'))
-            ->latest('id')
-            ->get()
-            ->groupBy('class_id');
+        $plans = $this->stageExamPlans($assignments);
 
-        return view('syllabus.teaching-stages', compact('assignments', 'orders'));
+        return view('syllabus.teaching-stages', compact('assignments', 'plans'));
+    }
+
+    /**
+     * Kế hoạch Big Test cuối chặng của từng chặng đang mở: ngày thi (đợt Big Test của chặng → ngày dự kiến GV đặt →
+     * ngày thi trong order), order đề mới nhất và trạng thái đề (đã duyệt / chờ duyệt / chưa order).
+     *
+     * @return Collection<int, array{date: ?\Carbon\CarbonInterface, order: ?BigTestOrder, bigTest: ?BigTest, exam: string}>
+     */
+    private function stageExamPlans(Collection $assignments): Collection
+    {
+        $classIds = $assignments->pluck('class_id')->filter()->unique();
+        $orders = BigTestOrder::where('test_type', 'big')->whereIn('class_id', $classIds)->latest('id')->get()->groupBy('class_id');
+        $tests = BigTest::whereIn('class_id', $classIds)->whereNotNull('syllabus_stage_id')->latest('scheduled_at')->get()->groupBy('class_id');
+
+        return $assignments->mapWithKeys(function (SyllabusAssignment $as) use ($orders, $tests) {
+            $label = $as->stage?->label ?? $as->stage_name;
+            $order = ($orders[$as->class_id] ?? collect())->first(fn ($o) => $as->stage_id && $o->syllabus_stage_id
+                ? (int) $o->syllabus_stage_id === (int) $as->stage_id
+                : $o->stage_name === $label);
+            $bigTest = ($tests[$as->class_id] ?? collect())->first(fn ($t) => (int) $t->syllabus_stage_id === (int) $as->stage_id);
+            $approved = ($bigTest && $bigTest->is_distributed) || $order?->status === 'approved';
+
+            return [$as->id => [
+                'date' => $bigTest?->scheduled_at ?? $as->expected_big_test_date ?? $order?->exam_date,
+                'order' => $order,
+                'bigTest' => $bigTest,
+                'exam' => $approved ? 'approved' : ($order?->status === 'pending' ? 'pending' : 'none'),
+            ]];
+        });
+    }
+
+    /**
+     * GV chính (hoặc GVNN) đặt / sửa ngày dự kiến Big Test cuối chặng đang mở; trợ giảng chỉ xem.
+     * Học thuật (syllabus.approve_adjustment) cũng sửa được.
+     */
+    public function updateExpectedBigTestDate(Request $request, int $id)
+    {
+        $assignment = SyllabusAssignment::with('classModel')->findOrFail($id);
+        $user = $request->user();
+        $class = $assignment->classModel;
+        $isMainTeacher = $class && in_array((int) $user->id, [(int) $class->teacher_id, (int) $class->foreign_teacher_id], true);
+        abort_unless($isMainTeacher || $user->can('syllabus.approve_adjustment'), 403, 'Chỉ giáo viên chính của lớp được đặt lịch dự kiến Big Test.');
+        if (! $assignment->isOpen()) {
+            throw ValidationException::withMessages(['expected_big_test_date' => 'Chặng đã đóng.']);
+        }
+        $validated = $request->validate([
+            'expected_big_test_date' => ['required', 'date', 'after_or_equal:today'],
+        ], ['expected_big_test_date.required' => 'Vui lòng chọn ngày dự kiến Big Test.']);
+
+        $assignment->update(['expected_big_test_date' => $validated['expected_big_test_date']]);
+
+        return redirect()->back()->with('status', "Đã lưu ngày dự kiến Big Test {$assignment->stage_name} lớp {$class?->name}: ".$assignment->expected_big_test_date->format('d/m/Y').'.');
     }
 
     public function bigTestDistribution(Request $request)
@@ -1168,12 +1216,18 @@ class SyllabusController extends Controller
         $user = $request->user();
         $bigTests = BigTest::with(['classModel.branch', 'proctor'])->visibleTo($user)->latest()->paginate($request->perPage(20))->withQueryString();
 
-        // Đợt thi trong 7 ngày tới (mockup "Nhắc lịch Big Test"): ngày thi, trạng thái đề, số ngày còn lại.
-        $upcoming = BigTest::with('classModel')
-            ->visibleTo($user)
-            ->whereBetween('scheduled_at', [now(), now()->addDays(7)->endOfDay()])
-            ->orderBy('scheduled_at')
+        // Mockup "Nhắc lịch Big Test": chặng đang mở sắp đến hạn thi Big Test (trong 7 ngày) mà đề chưa được duyệt.
+        $openAssignments = SyllabusAssignment::open()->with(['stage', 'classModel'])
+            ->whereIn('class_id', ClassModel::visibleTo($user)->select('id'))
             ->get();
+        $plans = $this->stageExamPlans($openAssignments);
+        $upcoming = $openAssignments
+            ->map(fn ($as) => ['assignment' => $as] + $plans[$as->id])
+            ->filter(fn ($row) => $row['date'] && $row['exam'] !== 'approved'
+                && $row['date']->copy()->startOfDay()->betweenIncluded(today(), today()->addDays(7)))
+            ->map(fn ($row) => $row + ['days_left' => (int) today()->diffInDays($row['date']->copy()->startOfDay())])
+            ->sortBy('days_left')
+            ->values();
 
         return view('syllabus.big-test-schedules', compact('bigTests', 'upcoming'));
     }

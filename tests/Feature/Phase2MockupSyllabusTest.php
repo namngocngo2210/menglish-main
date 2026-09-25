@@ -428,4 +428,46 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSessionHasNoErrors();
         $this->actingAs($this->teacher)->get(route('syllabus.teaching-stages'))->assertOk()->assertSee('Đã có đề');
     }
+
+    // ---- 01_Web_Admin/08 — Nhắc lịch Big Test; 03_Cong_Giao_Vien/10–11 — Lịch dự kiến Big Test ----
+
+    public function test_big_test_schedule_reminder_lists_stages_due_within_seven_days(): void
+    {
+        $this->actingAs($this->academic)->get(route('syllabus.big-tests.schedules'))->assertOk()
+            ->assertSee('Nhắc lịch Big Test')
+            ->assertSee('Danh sách các chặng học sắp đến hạn thi Big Test (trong vòng 7 ngày) chưa được duyệt đề thi.')
+            ->assertSee('Tổng số chặng')
+            ->assertSee('Khẩn cấp (1-2 ngày)')
+            ->assertSee('Tất cả đều ổn!');
+
+        $assignment = $this->openStage();
+
+        // GV chính đặt ngày dự kiến; trợ giảng chỉ xem
+        $this->actingAs($this->teacher)->get(route('syllabus.teaching-stages'))->assertOk()
+            ->assertSee('Ngày dự kiến Big Test:')->assertSee('Chưa đặt lịch')->assertSee('Chọn ngày')->assertSee('Tháng '.now()->month.', '.now()->year);
+        $this->actingAs($this->assistant)->get(route('syllabus.teaching-stages'))->assertOk()->assertDontSee('Chọn ngày');
+        $this->actingAs($this->assistant)->post(route('syllabus.assignments.expected-date', $assignment->id), ['expected_big_test_date' => now()->addDays(2)->toDateString()])
+            ->assertForbidden();
+        $this->actingAs($this->teacher)->post(route('syllabus.assignments.expected-date', $assignment->id), ['expected_big_test_date' => now()->subDay()->toDateString()])
+            ->assertSessionHasErrors('expected_big_test_date');
+        $this->actingAs($this->teacher)->post(route('syllabus.assignments.expected-date', $assignment->id), ['expected_big_test_date' => now()->addDays(2)->toDateString()])
+            ->assertSessionHasNoErrors();
+        $this->actingAs($this->teacher)->get(route('syllabus.teaching-stages'))->assertOk()
+            ->assertSee(now()->addDays(2)->format('d/m/Y'))->assertSee('Sửa ngày')->assertSee('Cập nhật');
+
+        // Màn nhắc lịch: chặng sắp thi (2 ngày → khẩn cấp), chưa order đề
+        $this->actingAs($this->academic)->get(route('syllabus.big-tests.schedules'))->assertOk()
+            ->assertSee($assignment->fresh()->code)
+            ->assertSee('Lớp Mockup 01')
+            ->assertSee(now()->addDays(2)->format('d/m/Y'))
+            ->assertSee('Chưa order đề')
+            ->assertDontSee('Tất cả đều ổn!');
+
+        // Đề đã duyệt → không còn trong danh sách nhắc
+        BigTestOrder::create([
+            'code' => 'ORDTEST-MK', 'class_id' => $this->class->id, 'syllabus_stage_id' => $assignment->stage_id, 'teacher_id' => $this->teacher->id,
+            'stage_name' => 'Chặng 1: Nền tảng', 'test_type' => 'big', 'status' => 'approved', 'test_link' => 'https://x.test',
+        ]);
+        $this->actingAs($this->academic)->get(route('syllabus.big-tests.schedules'))->assertOk()->assertSee('Tất cả đều ổn!');
+    }
 }

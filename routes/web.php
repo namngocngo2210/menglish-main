@@ -428,6 +428,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/adjustment-requests/{id}/approve', [SyllabusController::class, 'approveAdjustmentRequest'])->middleware('can:syllabus.approve_adjustment')->name('adjustment-requests.approve');
         Route::post('/adjustment-requests/{id}/reject', [SyllabusController::class, 'rejectAdjustmentRequest'])->middleware('can:syllabus.approve_adjustment')->name('adjustment-requests.reject');
         Route::get('/teaching-stages', [SyllabusController::class, 'teachingStages'])->name('teaching-stages');
+        Route::post('/assignments/{id}/expected-big-test-date', [SyllabusController::class, 'updateExpectedBigTestDate'])->whereNumber('id')->name('assignments.expected-date');
         Route::get('/big-tests/distribution', [SyllabusController::class, 'bigTestDistribution'])->name('big-tests.distribution');
         Route::post('/big-tests/{id}/stage', [SyllabusController::class, 'assignBigTestStage'])->whereNumber('id')->middleware('can:syllabus.approve_adjustment')->name('big-tests.stage');
         Route::post('/big-tests/distribution', [SyllabusController::class, 'storeBigTest'])->middleware('can:syllabus.manage')->name('big-tests.store');
