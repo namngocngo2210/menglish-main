@@ -15,9 +15,11 @@ class MiniTestScore extends Model
         'class_id',
         'student_id',
         'user_id',
+        'syllabus_unit_id',
         'name',
         'score',
         'max_score',
+        'skill_scores',
         'test_date',
         'note',
     ];
@@ -26,7 +28,11 @@ class MiniTestScore extends Model
         'score' => 'decimal:2',
         'max_score' => 'decimal:2',
         'test_date' => 'date',
+        'skill_scores' => 'array',
     ];
+
+    /** 4 kỹ năng của mini test (mockup "Nhập điểm mini test"). */
+    public const SKILLS = ['listening' => 'Nghe', 'speaking' => 'Nói', 'reading' => 'Đọc', 'writing' => 'Viết'];
 
     protected static function booted(): void
     {

@@ -718,6 +718,11 @@ class TeacherPortalController extends Controller
     }
 
     // ───────────────────────── NHẬP ĐIỂM MINI TEST ─────────────────────────
+
+    /**
+     * Nhập điểm mini test (mockup 03_Cong_Giao_Vien/06): chọn Unit (giáo trình của lớp) và học sinh, nhập đủ điểm
+     * 4 kỹ năng Nghe / Nói / Đọc / Viết + nhận xét chung. Điểm tổng = trung bình 4 kỹ năng (cùng thang điểm tối đa).
+     */
     public function scores(Request $request, int $classId)
     {
         $this->guardTeacher();
@@ -725,16 +730,24 @@ class TeacherPortalController extends Controller
         $this->authorizeClass($class);
         // Danh sách lớp thật (gồm học viên liên kết lớp khác, bỏ Thôi học/Hoàn thành/Bảo lưu).
         $class->setRelation('students', $class->rosterStudents());
+        $units = app(\App\Services\SessionLessonService::class)->unitsForClass($class);
+
+        $unitId = $request->integer('unit_id') ?: null;
+        $unit = $unitId ? $units->firstWhere('id', $unitId) : null;
+        $testName = $unit ? self::unitTestName($unit) : $request->input('name', $units->isEmpty() ? 'Mini Test' : null);
         $testDate = $request->input('test_date', now()->toDateString());
-        $testName = $request->input('name', 'Mini Test');
 
-        $existing = MiniTestScore::where('class_id', $classId)
-            ->where('name', $testName)
-            ->whereDate('test_date', $testDate)
-            ->get()
-            ->keyBy('student_id');
+        $existing = $testName
+            ? MiniTestScore::where('class_id', $classId)->where('name', $testName)->get()->keyBy('student_id')
+            : collect();
+        $selectedStudentId = $request->integer('student_id') ?: null;
 
-        return view('teacher.scores', compact('class', 'existing', 'testDate', 'testName'));
+        return view('teacher.scores', compact('class', 'units', 'unit', 'existing', 'testDate', 'testName', 'selectedStudentId'));
+    }
+
+    private static function unitTestName(\App\Models\SyllabusUnit $unit): string
+    {
+        return 'Unit '.$unit->unit_number.': '.$unit->title;
     }
 
     public function scoresStore(Request $request, int $classId)
@@ -742,6 +755,58 @@ class TeacherPortalController extends Controller
         $this->guardTeacher();
         $class = ClassModel::findOrFail($classId);
         $this->authorizeClass($class);
+
+        // Form theo mockup: 1 học sinh + 4 kỹ năng.
+        if ($request->has('skills')) {
+            $validated = $request->validate([
+                'unit_id' => 'nullable|integer',
+                'name' => 'nullable|string|max:255',
+                'student_id' => 'required|integer',
+                'test_date' => 'nullable|date',
+                'max_score' => 'nullable|numeric|min:1|max:100',
+                'skills' => 'required|array',
+                'skills.*' => 'nullable|numeric|min:0',
+                'note' => 'nullable|string|max:1000',
+            ], ['student_id.required' => 'Vui lòng chọn học sinh.']);
+            $max = (float) ($validated['max_score'] ?? 10);
+            $skills = collect(array_keys(MiniTestScore::SKILLS))->mapWithKeys(fn ($k) => [$k => $validated['skills'][$k] ?? null]);
+            if ($skills->contains(fn ($v) => $v === null || $v === '')) {
+                return back()->withInput()->withErrors(['skills' => 'Cần nhập đủ điểm 4 kỹ năng.']);
+            }
+            if ($skills->contains(fn ($v) => (float) $v > $max)) {
+                return back()->withInput()->withErrors(['skills' => 'Điểm kỹ năng không được vượt quá điểm tối đa ('.$max.').']);
+            }
+            $unit = filled($validated['unit_id'] ?? null)
+                ? app(\App\Services\SessionLessonService::class)->unitsForClass($class)->firstWhere('id', (int) $validated['unit_id'])
+                : null;
+            if (filled($validated['unit_id'] ?? null) && ! $unit) {
+                return back()->withInput()->withErrors(['unit_id' => 'Unit không thuộc giáo trình của lớp.']);
+            }
+            $name = $unit ? self::unitTestName($unit) : trim((string) ($validated['name'] ?? ''));
+            if ($name === '') {
+                return back()->withInput()->withErrors(['unit_id' => 'Vui lòng chọn Unit bài học.']);
+            }
+            abort_unless($class->hasOnRoster((int) $validated['student_id']), 422, 'Học viên không thuộc lớp này.');
+
+            MiniTestScore::updateOrCreate(
+                ['class_id' => $classId, 'student_id' => $validated['student_id'], 'name' => $name],
+                [
+                    'user_id' => Auth::id(),
+                    'syllabus_unit_id' => $unit?->id,
+                    'score' => round($skills->avg(fn ($v) => (float) $v), 2),
+                    'max_score' => $max,
+                    'skill_scores' => $skills->map(fn ($v) => (float) $v)->all(),
+                    'test_date' => $validated['test_date'] ?? now()->toDateString(),
+                    'note' => $validated['note'] ?? null,
+                ]
+            );
+            $student = Student::find($validated['student_id']);
+
+            return redirect()->route('teacher.scores', array_filter(['classId' => $class->id, 'unit_id' => $unit?->id, 'name' => $unit ? null : $name]))
+                ->with('success', "Đã lưu điểm {$name} cho {$student?->name}.");
+        }
+
+        // Nhập nhanh cả lớp (một điểm tổng / học sinh) — giữ tương thích.
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'test_date' => 'required|date',

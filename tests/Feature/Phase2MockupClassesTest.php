@@ -456,4 +456,38 @@ class Phase2MockupClassesTest extends TestCase
         $this->actingAs($this->teacher)->delete(route('teacher.homework.destroy', [$this->classModel->id, $homework->id]))->assertSessionHasErrors('homework');
         $this->assertModelExists($homework);
     }
+
+    public function test_teacher_mini_test_scores_use_unit_student_and_four_required_skills(): void
+    {
+        $curriculum = SyllabusCurriculum::create(['code' => 'SYL-K1', 'title' => 'Kids Early Start']);
+        CourseLevel::create(['code' => 'KID-BEG-01', 'name' => 'Kids Beginner 1', 'target' => 'Starters', 'lessons_count' => 24,
+            'is_active' => true, 'syllabus_curriculum_id' => $curriculum->id]);
+        $unit = \App\Models\SyllabusUnit::create(['curriculum_id' => $curriculum->id, 'stage_id' => $curriculum->stages()->first()->id,
+            'unit_number' => 2, 'title' => 'Daily Routines']);
+        $student = $this->student('Nguyễn Văn Điểm');
+
+        $this->actingAs($this->teacher)->get(route('teacher.scores', $this->classModel->id))->assertOk()
+            ->assertSee('Nhập điểm mini test')->assertSee('Vui lòng chọn thông tin và nhập điểm cho học sinh')
+            ->assertSee('Chọn Unit')->assertSee('Unit 2: Daily Routines')->assertSee('Chọn học sinh')->assertSee('Nguyễn Văn Điểm')
+            ->assertSee('Điểm kỹ năng')->assertSee('Nghe')->assertSee('Nói')->assertSee('Đọc')->assertSee('Viết')
+            ->assertSee('Nhận xét chung (Không bắt buộc)')->assertSee('Lưu điểm');
+
+        $this->actingAs($this->teacher)->post(route('teacher.scores.store', $this->classModel->id), [
+            'unit_id' => $unit->id, 'student_id' => $student->id, 'skills' => ['listening' => 8, 'speaking' => 7, 'reading' => '', 'writing' => 6],
+        ])->assertSessionHasErrors('skills');
+        $this->assertSame('Cần nhập đủ điểm 4 kỹ năng.', session('errors')->first('skills'));
+
+        $this->actingAs($this->teacher)->post(route('teacher.scores.store', $this->classModel->id), [
+            'unit_id' => $unit->id, 'student_id' => $student->id, 'skills' => ['listening' => 8, 'speaking' => 7, 'reading' => 9, 'writing' => 6],
+            'note' => 'Cần luyện viết',
+        ])->assertSessionHasNoErrors();
+        $score = \App\Models\MiniTestScore::sole();
+        $this->assertSame('Unit 2: Daily Routines', $score->name);
+        $this->assertSame($unit->id, $score->syllabus_unit_id);
+        $this->assertEquals(7.5, (float) $score->score);
+        $this->assertEquals(['listening' => 8, 'speaking' => 7, 'reading' => 9, 'writing' => 6], $score->skill_scores);
+
+        $this->actingAs($this->teacher)->get(route('teacher.scores', ['classId' => $this->classModel->id, 'unit_id' => $unit->id]))
+            ->assertSee('Điểm đã nhập — Unit 2: Daily Routines')->assertSee('7.5/10');
+    }
 }
