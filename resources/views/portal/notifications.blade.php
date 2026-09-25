@@ -67,7 +67,7 @@
                     <div class="flex items-start px-4 py-3.5 hover:bg-gray-50 transition-colors relative group {{ !$isUnread ? 'opacity-80' : 'bg-orange-50/20' }}">
                         @if($isUnread)
                             <!-- Unread Indicator Dot -->
-                            <div class="absolute left-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-primary rounded-full shadow-xs"></div>
+                            <div class="absolute left-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-primary-container rounded-full shadow-xs"></div>
                         @endif
 
                         <div class="ml-2 mr-3 shrink-0 w-10 h-10 rounded-full {{ $bgColor }} flex items-center justify-center">

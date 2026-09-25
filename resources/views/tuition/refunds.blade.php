@@ -24,15 +24,15 @@
             <div>
                 <label class="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-2">1. Chọn loại nghiệp vụ xử lý</label>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <button type="button" @click="actionType = 'transfer'" class="p-3.5 rounded-2xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer" :class="actionType === 'transfer' ? 'border-primary bg-orange-50/70 text-primary shadow-xs ring-1 ring-primary' : 'border-gray-200 text-gray-700 hover:bg-gray-50'">
+                    <button type="button" @click="actionType = 'transfer'" class="p-3.5 rounded-2xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer" :class="actionType === 'transfer' ? 'border-primary-container bg-orange-50/70 text-primary shadow-xs ring-1 ring-primary-container' : 'border-gray-200 text-gray-700 hover:bg-gray-50'">
                         <span class="material-symbols-outlined text-base">swap_horiz</span>
                         <span>Xé lẻ &amp; Chuyển nhượng số dư</span>
                     </button>
-                    <button type="button" @click="actionType = 'refund'" class="p-3.5 rounded-2xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer" :class="actionType === 'refund' ? 'border-primary bg-orange-50/70 text-primary shadow-xs ring-1 ring-primary' : 'border-gray-200 text-gray-700 hover:bg-gray-50'">
+                    <button type="button" @click="actionType = 'refund'" class="p-3.5 rounded-2xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer" :class="actionType === 'refund' ? 'border-primary-container bg-orange-50/70 text-primary shadow-xs ring-1 ring-primary-container' : 'border-gray-200 text-gray-700 hover:bg-gray-50'">
                         <span class="material-symbols-outlined text-base">undo</span>
                         <span>Hoàn trả học phí (Rút tiền)</span>
                     </button>
-                    <button type="button" @click="actionType = 'extension'" class="p-3.5 rounded-2xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer" :class="actionType === 'extension' ? 'border-primary bg-orange-50/70 text-primary shadow-xs ring-1 ring-primary' : 'border-gray-200 text-gray-700 hover:bg-gray-50'">
+                    <button type="button" @click="actionType = 'extension'" class="p-3.5 rounded-2xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer" :class="actionType === 'extension' ? 'border-primary-container bg-orange-50/70 text-primary shadow-xs ring-1 ring-primary-container' : 'border-gray-200 text-gray-700 hover:bg-gray-50'">
                         <span class="material-symbols-outlined text-base">update</span>
                         <span>Xin gia hạn / Bảo lưu công nợ</span>
                     </button>
@@ -52,7 +52,7 @@
                     <label class="block font-semibold text-gray-700 mb-1">
                         Học viên nguồn (Chuyển / Hoàn phí) <span class="text-rose-500">*</span>
                     </label>
-                    <select name="student_id" x-model="selectedStudentId" @change="updateStudentInfo($event)" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold focus:border-primary focus:ring-primary">
+                    <select name="student_id" x-model="selectedStudentId" @change="updateStudentInfo($event)" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold focus:border-primary-container focus:ring-primary-container">
                         @foreach ($students as $st)
                             <option value="{{ $st->id }}" data-paid="{{ $st->tuition?->paid_amount ?? 12500000 }}">
                                 {{ $st->code }} - {{ $st->name }} ({{ $st->currentClass?->name ?? 'Chưa gán lớp' }}) · Đã nộp: {{ number_format($st->tuition?->paid_amount ?? 0) }}đ
@@ -134,12 +134,12 @@
 
                 <div class="md:col-span-2">
                     <label class="block font-semibold text-gray-700 mb-1">Lý do &amp; Căn cứ phê duyệt <span class="text-rose-500">*</span></label>
-                    <textarea name="reason" rows="3" required placeholder="Ghi rõ lý do (Ví dụ: Học viên bận công tác, chuyển nhượng 8 buổi học thừa sang cho bạn Nguyễn Văn B học lớp IELTS Intensive)..." class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary focus:ring-primary"></textarea>
+                    <textarea name="reason" rows="3" required placeholder="Ghi rõ lý do (Ví dụ: Học viên bận công tác, chuyển nhượng 8 buổi học thừa sang cho bạn Nguyễn Văn B học lớp IELTS Intensive)..." class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container"></textarea>
                 </div>
             </div>
 
             <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                <button type="submit" class="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                <button type="submit" class="px-6 py-2.5 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer">
                     <span class="material-symbols-outlined text-base">send</span>
                     <span>Gửi yêu cầu phê duyệt vào CSDL</span>
                 </button>

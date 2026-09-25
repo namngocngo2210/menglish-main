@@ -10,7 +10,7 @@
                     <span class="material-symbols-outlined text-[18px]">download</span>
                     Xuất báo cáo
                 </button>
-                <a href="{{ route('tasks.schedule-config') }}" class="bg-[#F5691A] text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-[#d85a15] transition shadow-sm flex items-center gap-1.5">
+                <a href="{{ route('tasks.schedule-config') }}" class="bg-primary-container text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-primary transition shadow-sm flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-[18px]">add</span>
                     Thêm / Cấu hình lớp
                 </a>
@@ -25,13 +25,13 @@
             <!-- Tab Headers -->
             <div class="flex border-b border-gray-200 px-6 bg-gray-50/50">
                 <button @click="activeTab = 'day'"
-                        :class="activeTab === 'day' ? 'border-[#F5691A] text-[#F5691A] font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'"
+                        :class="activeTab === 'day' ? 'border-primary-container text-primary-container font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'"
                         class="px-5 py-3.5 text-sm font-medium border-b-2 transition flex items-center gap-2">
                     <span class="material-symbols-outlined text-[18px]">today</span>
                     Theo ngày
                 </button>
                 <button @click="activeTab = 'week'"
-                        :class="activeTab === 'week' ? 'border-[#F5691A] text-[#F5691A] font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'"
+                        :class="activeTab === 'week' ? 'border-primary-container text-primary-container font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'"
                         class="px-5 py-3.5 text-sm font-medium border-b-2 transition flex items-center gap-2">
                     <span class="material-symbols-outlined text-[18px]">calendar_view_week</span>
                     Theo tuần (Ma trận khung giờ)
@@ -44,7 +44,7 @@
                 <div class="flex flex-col sm:flex-row items-center gap-4 bg-gray-50/80 p-4 rounded-xl border border-gray-200">
                     <div class="w-full sm:w-64">
                         <label class="block text-[11px] font-bold uppercase text-gray-500 mb-1">Chi nhánh</label>
-                        <select class="w-full bg-white border-gray-200 rounded-lg text-sm focus:ring-primary focus:border-primary">
+                        <select class="w-full bg-white border-gray-200 rounded-lg text-sm focus:ring-primary-container focus:border-primary-container">
                             <option>Tất cả chi nhánh</option>
                             @foreach($branches as $b)
                                 <option value="{{ $b->id }}">{{ $b->name }}</option>
@@ -53,7 +53,7 @@
                     </div>
                     <div class="w-full sm:w-64">
                         <label class="block text-[11px] font-bold uppercase text-gray-500 mb-1">Chọn ngày</label>
-                        <input type="date" value="{{ $date }}" class="w-full bg-white border-gray-200 rounded-lg text-sm focus:ring-primary focus:border-primary">
+                        <input type="date" value="{{ $date }}" class="w-full bg-white border-gray-200 rounded-lg text-sm focus:ring-primary-container focus:border-primary-container">
                     </div>
                     <div class="sm:self-end w-full sm:w-auto">
                         <button class="w-full sm:w-auto px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition flex items-center justify-center gap-2">
@@ -101,7 +101,7 @@
                                                     </span>
                                                 </td>
                                                 <td class="py-4 px-4 text-right whitespace-nowrap">
-                                                    <a href="{{ route('payroll.timesheets.manual') }}" class="inline-block bg-[#F5691A] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#d85a15] transition shadow-sm">
+                                                    <a href="{{ route('payroll.timesheets.manual') }}" class="inline-block bg-primary-container text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-primary transition shadow-sm">
                                                         Chấm công
                                                     </a>
                                                 </td>
@@ -121,14 +121,14 @@
                     <div class="lg:col-span-1">
                         <div class="bg-gray-50/80 border border-gray-200 rounded-xl p-5 space-y-4">
                             <div class="flex items-center gap-2 border-b border-gray-200 pb-3">
-                                <span class="material-symbols-outlined text-[#F5691A]">support_agent</span>
+                                <span class="material-symbols-outlined text-primary-container">support_agent</span>
                                 <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide">Trợ giảng phụ trách</h3>
                             </div>
 
                             <ul class="space-y-3 text-sm">
                                 @forelse($assistantsToday as $ta)
                                     <li class="p-3 bg-white border border-gray-200 rounded-xl flex items-center gap-3 shadow-xs">
-                                        <div class="w-9 h-9 rounded-full bg-orange-100 text-[#F5691A] font-bold flex items-center justify-center text-xs shrink-0">
+                                        <div class="w-9 h-9 rounded-full bg-orange-100 text-primary-container font-bold flex items-center justify-center text-xs shrink-0">
                                             {{ Str::substr($ta->name, 0, 1) }}
                                         </div>
                                         <div class="overflow-hidden">

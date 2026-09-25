@@ -18,7 +18,7 @@
                     <span>Thang điểm &amp; Tiêu chí</span>
                 </a>
                 <a href="{{ route('placement-tests.create') }}" 
-                   class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-xs transition active:scale-95">
+                   class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-xs transition active:scale-95">
                     <span class="material-symbols-outlined text-[17px]">add_circle</span>
                     <span>Tạo Đề Mới</span>
                 </a>
@@ -30,7 +30,7 @@
     <div class="border-b border-gray-200 bg-white -mt-4 -mx-4 sm:-mt-6 sm:-mx-6 px-6 pt-3 mb-6">
         <div class="flex items-center gap-6 overflow-x-auto text-xs font-semibold scrollbar-none">
             <a href="{{ route('placement-tests.index') }}" 
-               class="pb-3 border-b-2 border-primary text-primary font-bold transition whitespace-nowrap flex items-center gap-1.5">
+               class="pb-3 border-b-2 border-primary-container text-primary font-bold transition whitespace-nowrap flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[17px]">quiz</span>
                 <span>Ngân hàng Bộ Đề ({{ $tests->count() }})</span>
             </a>
@@ -109,7 +109,7 @@
                             type="text" 
                             x-model="search" 
                             placeholder="Nhập tên đề, mã đề (VD: Starters, G1, IELTS, SPEAKING)..." 
-                            class="w-full h-10 pl-9 pr-8 bg-gray-50/50 border border-gray-200 rounded-xl text-xs text-gray-800 placeholder-gray-400 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary transition"
+                            class="w-full h-10 pl-9 pr-8 bg-gray-50/50 border border-gray-200 rounded-xl text-xs text-gray-800 placeholder-gray-400 focus:bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-container transition"
                         >
                         <button 
                             x-show="search.length > 0" 
@@ -128,7 +128,7 @@
                     <div class="relative">
                         <select 
                             x-model="levelFilter" 
-                            class="w-full h-10 px-3 pr-8 bg-gray-50/50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary transition appearance-none"
+                            class="w-full h-10 px-3 pr-8 bg-gray-50/50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-container transition appearance-none"
                         >
                             <option value="">Tất cả cấp độ</option>
                             <option value="Pre-Starters">Mầm non &amp; Tiền tiểu học (Pre-Starters)</option>
@@ -148,7 +148,7 @@
                     <div class="relative">
                         <select 
                             x-model="typeFilter" 
-                            class="w-full h-10 px-3 pr-8 bg-gray-50/50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary transition appearance-none"
+                            class="w-full h-10 px-3 pr-8 bg-gray-50/50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-container transition appearance-none"
                         >
                             <option value="">Tất cả loại đề</option>
                             <option value="speaking">Chuyên kỹ năng Nói (Speaking)</option>
@@ -309,7 +309,7 @@
                                         <!-- Open Portal link -->
                                         <a href="{{ route('portal.test.take', $t->code) }}" 
                                            target="_blank" 
-                                           class="px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-primary hover:text-white text-primary border border-orange-200/80 font-bold text-[11px] transition inline-flex items-center gap-1 shadow-2xs group" 
+                                           class="px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-primary-container hover:text-white text-primary border border-orange-200/80 font-bold text-[11px] transition inline-flex items-center gap-1 shadow-2xs group" 
                                            title="Mở cổng làm bài thi trực tuyến cho thí sinh">
                                             <span class="material-symbols-outlined text-[14px] group-hover:rotate-12 transition">play_circle</span>
                                             <span>Link thi</span>
@@ -460,7 +460,7 @@
                                 <td class="py-3.5 px-4 font-semibold text-primary whitespace-nowrap">{{ $sub->recommended_course }}</td>
                                 <td class="py-3.5 px-4 text-right whitespace-nowrap">
                                     <div class="flex items-center justify-end gap-1.5 whitespace-nowrap">
-                                        <a href="{{ route('portal.test.scorecard', $sub->id) }}" target="_blank" class="px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-primary hover:text-white text-primary font-bold text-[11px] transition inline-flex items-center gap-1 shrink-0 whitespace-nowrap border border-orange-200">
+                                        <a href="{{ route('portal.test.scorecard', $sub->id) }}" target="_blank" class="px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-primary-container hover:text-white text-primary font-bold text-[11px] transition inline-flex items-center gap-1 shrink-0 whitespace-nowrap border border-orange-200">
                                             <span class="material-symbols-outlined text-[13px]">description</span>
                                             <span>Phiếu điểm</span>
                                         </a>

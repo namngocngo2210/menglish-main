@@ -23,7 +23,7 @@
                     @click="folderModal.open = true" 
                     class="px-3.5 py-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-xs font-bold rounded-xl shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
                 >
-                    <span class="material-symbols-outlined text-base text-[#ea580c]">create_new_folder</span>
+                    <span class="material-symbols-outlined text-base text-primary-container">create_new_folder</span>
                     <span>Tạo thư mục mới</span>
                 </button>
 
@@ -31,7 +31,7 @@
                 <button 
                     type="button" 
                     @click="uploadCardOpen = !uploadCardOpen" 
-                    class="px-3.5 py-1.5 bg-[#ea580c] hover:bg-[#c2410c] text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                    class="px-3.5 py-1.5 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
                 >
                     <span class="material-symbols-outlined text-base" x-text="uploadCardOpen ? 'expand_less' : 'cloud_upload'"></span>
                     <span x-text="uploadCardOpen ? 'Đóng tải lên' : 'Kéo thả tải tệp'"></span>
@@ -51,7 +51,7 @@
         >
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-gray-100">
                 <div class="flex items-center gap-2">
-                    <span class="w-8 h-8 rounded-xl bg-orange-50 text-[#ea580c] flex items-center justify-center font-bold">
+                    <span class="w-8 h-8 rounded-xl bg-orange-50 text-primary-container flex items-center justify-center font-bold">
                         <span class="material-symbols-outlined text-lg">cloud_upload</span>
                     </span>
                     <div>
@@ -65,7 +65,7 @@
                     <span class="text-gray-500 font-medium">Lưu vào thư mục:</span>
                     <select 
                         x-model="targetFolder" 
-                        class="text-xs font-bold rounded-xl border border-gray-200 py-1.5 px-3 focus:ring-1 focus:ring-[#ea580c] focus:border-[#ea580c] bg-gray-50"
+                        class="text-xs font-bold rounded-xl border border-gray-200 py-1.5 px-3 focus:ring-1 focus:ring-primary-container focus:border-primary-container bg-gray-50"
                     >
                         <option value="{{ $currentFolder ?: 'auto_date' }}">
                             📁 {{ $currentFolder ? 'Thư mục hiện tại (uploads/' . $currentFolder . ')' : 'uploads/' . date('Y') . '/' . date('m') . ' (Theo ngày tháng năm)' }}
@@ -97,16 +97,16 @@
                 @dragleave.prevent.stop="isDragging = false"
                 @drop.prevent.stop="handleFilesDrop($event)"
                 class="border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-200 flex flex-col items-center justify-center space-y-3"
-                :class="isDragging ? 'border-[#ea580c] bg-orange-50/80 scale-[1.01]' : 'border-gray-300 bg-gray-50/50 hover:bg-orange-50/20 hover:border-[#ea580c]/60'"
+                :class="isDragging ? 'border-primary-container bg-orange-50/80 scale-[1.01]' : 'border-gray-300 bg-gray-50/50 hover:bg-orange-50/20 hover:border-primary-container/60'"
             >
-                <div class="w-14 h-14 rounded-2xl bg-orange-100 text-[#ea580c] flex items-center justify-center shadow-xs transition transform cursor-pointer" @click="$refs.fileInput.click()" :class="isDragging ? 'scale-110' : ''">
+                <div class="w-14 h-14 rounded-2xl bg-orange-100 text-primary-container flex items-center justify-center shadow-xs transition transform cursor-pointer" @click="$refs.fileInput.click()" :class="isDragging ? 'scale-110' : ''">
                     <span class="material-symbols-outlined text-3xl">upload_file</span>
                 </div>
 
                 <div class="space-y-1">
                     <p class="text-sm font-bold text-gray-900">
-                        <span class="text-[#ea580c]">Kéo thả tệp tin vào đây</span> hoặc 
-                        <button type="button" @click.stop="$refs.fileInput.click()" class="text-[#ea580c] underline hover:text-[#c2410c] font-bold cursor-pointer inline">
+                        <span class="text-primary-container">Kéo thả tệp tin vào đây</span> hoặc 
+                        <button type="button" @click.stop="$refs.fileInput.click()" class="text-primary-container underline hover:text-primary font-bold cursor-pointer inline">
                             chọn tệp từ máy tính
                         </button>
                     </p>
@@ -119,10 +119,10 @@
                 <div x-show="isUploading" x-cloak class="w-full max-w-md space-y-2 pt-2" @click.stop>
                     <div class="flex items-center justify-between text-xs font-bold text-gray-700">
                         <span x-text="uploadStatusText"></span>
-                        <span class="font-mono text-[#ea580c]" x-text="uploadProgress + '%'"></span>
+                        <span class="font-mono text-primary-container" x-text="uploadProgress + '%'"></span>
                     </div>
                     <div class="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                        <div class="bg-[#ea580c] h-full rounded-full transition-all duration-200" :style="`width: ${uploadProgress}%`"></div>
+                        <div class="bg-primary-container h-full rounded-full transition-all duration-200" :style="`width: ${uploadProgress}%`"></div>
                     </div>
                 </div>
             </div>
@@ -138,7 +138,7 @@
                     @endif
 
                     @if ($loop->last && $currentFolder !== '')
-                        <span class="px-2.5 py-1 rounded-xl bg-orange-50 text-[#ea580c] border border-orange-200 flex items-center gap-1">
+                        <span class="px-2.5 py-1 rounded-xl bg-orange-50 text-primary-container border border-orange-200 flex items-center gap-1">
                             <span class="material-symbols-outlined text-sm">folder_open</span>
                             <span>{{ $bc['name'] }}</span>
                         </span>
@@ -160,7 +160,7 @@
                 @click="folderModal.open = true" 
                 class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl transition flex items-center gap-1 shrink-0"
             >
-                <span class="material-symbols-outlined text-sm text-[#ea580c]">add</span>
+                <span class="material-symbols-outlined text-sm text-primary-container">add</span>
                 <span>Tạo thư mục con</span>
             </button>
         </div>
@@ -175,10 +175,10 @@
 
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5">
                     @foreach ($subFolders as $sf)
-                        <div class="bg-white rounded-2xl border border-gray-200/90 shadow-xs hover:shadow-md hover:border-[#ea580c]/40 transition p-3.5 flex flex-col justify-between group relative">
+                        <div class="bg-white rounded-2xl border border-gray-200/90 shadow-xs hover:shadow-md hover:border-primary-container/40 transition p-3.5 flex flex-col justify-between group relative">
                             <a href="{{ route('media.index', ['folder' => $sf['path']]) }}" class="block space-y-2">
                                 <div class="flex items-center justify-between">
-                                    <div class="w-10 h-10 rounded-xl bg-orange-50 text-[#ea580c] flex items-center justify-center group-hover:scale-105 transition">
+                                    <div class="w-10 h-10 rounded-xl bg-orange-50 text-primary-container flex items-center justify-center group-hover:scale-105 transition">
                                         <span class="material-symbols-outlined text-2xl">folder</span>
                                     </div>
 
@@ -194,7 +194,7 @@
                                 </div>
 
                                 <div>
-                                    <h4 class="text-xs font-bold text-gray-900 group-hover:text-[#ea580c] transition truncate" title="{{ $sf['name'] }}">
+                                    <h4 class="text-xs font-bold text-gray-900 group-hover:text-primary-container transition truncate" title="{{ $sf['name'] }}">
                                         {{ $sf['name'] }}
                                     </h4>
                                     <p class="text-[10px] text-gray-400 font-mono mt-0.5">
@@ -225,9 +225,9 @@
             <div class="bg-white rounded-2xl p-4 border border-gray-200/90 shadow-sm flex items-center justify-between">
                 <div>
                     <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Tổng dung lượng</span>
-                    <div class="text-xl font-black text-gray-900 mt-1 font-mono text-[#ea580c]">{{ $stats['total_size_human'] }}</div>
+                    <div class="text-xl font-black text-gray-900 mt-1 font-mono text-primary-container">{{ $stats['total_size_human'] }}</div>
                 </div>
-                <div class="w-11 h-11 rounded-xl bg-orange-50 text-[#ea580c] flex items-center justify-center">
+                <div class="w-11 h-11 rounded-xl bg-orange-50 text-primary-container flex items-center justify-center">
                     <span class="material-symbols-outlined text-2xl">hard_drive</span>
                 </div>
             </div>
@@ -272,7 +272,7 @@
                             name="search" 
                             value="{{ $filters['search'] }}" 
                             placeholder="Nhập tên tệp tin hoặc đường dẫn..." 
-                            class="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-[#ea580c] focus:border-[#ea580c]"
+                            class="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container"
                         />
                     </div>
                 </div>
@@ -280,7 +280,7 @@
                 <!-- File Type -->
                 <div>
                     <label class="block text-[11px] font-bold text-gray-600 mb-1">Loại tệp</label>
-                    <select name="type" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-[#ea580c] focus:border-[#ea580c]">
+                    <select name="type" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
                         <option value="all" {{ $filters['type'] === 'all' ? 'selected' : '' }}>Tất cả loại tệp</option>
                         <option value="image" {{ $filters['type'] === 'image' ? 'selected' : '' }}>🖼️ Hình ảnh</option>
                         <option value="document" {{ $filters['type'] === 'document' ? 'selected' : '' }}>📄 Tài liệu (PDF/Doc)</option>
@@ -294,7 +294,7 @@
                 <!-- Directory / Folder -->
                 <div>
                     <label class="block text-[11px] font-bold text-gray-600 mb-1">Thư mục lưu trữ</label>
-                    <select name="directory" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-[#ea580c] focus:border-[#ea580c]">
+                    <select name="directory" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
                         <option value="all" {{ $filters['directory'] === 'all' ? 'selected' : '' }}>Tất cả thư mục</option>
                         @foreach ($directories as $dir)
                             <option value="{{ $dir }}" {{ $filters['directory'] === $dir ? 'selected' : '' }}>📁 {{ $dir }}/</option>
@@ -305,7 +305,7 @@
                 <!-- Size Range -->
                 <div>
                     <label class="block text-[11px] font-bold text-gray-600 mb-1">Kích thước</label>
-                    <select name="size_range" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-[#ea580c] focus:border-[#ea580c]">
+                    <select name="size_range" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
                         <option value="all" {{ $filters['size_range'] === 'all' ? 'selected' : '' }}>Mọi kích thước</option>
                         <option value="lt_1mb" {{ $filters['size_range'] === 'lt_1mb' ? 'selected' : '' }}>Dưới 1 MB</option>
                         <option value="1mb_10mb" {{ $filters['size_range'] === '1mb_10mb' ? 'selected' : '' }}>1 MB — 10 MB</option>
@@ -316,7 +316,7 @@
                 <!-- Date Range -->
                 <div>
                     <label class="block text-[11px] font-bold text-gray-600 mb-1">Thời gian tải lên</label>
-                    <select name="date_range" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-[#ea580c] focus:border-[#ea580c]">
+                    <select name="date_range" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
                         <option value="all" {{ $filters['date_range'] === 'all' ? 'selected' : '' }}>Tất cả thời gian</option>
                         <option value="today" {{ $filters['date_range'] === 'today' ? 'selected' : '' }}>Hôm nay</option>
                         <option value="last_7_days" {{ $filters['date_range'] === 'last_7_days' ? 'selected' : '' }}>7 ngày trước</option>
@@ -329,14 +329,14 @@
                 <div class="lg:col-span-6 flex items-center justify-between pt-2 border-t border-gray-100 mt-1">
                     <div class="text-xs text-gray-500">
                         Kết quả lọc: <strong class="text-gray-900">{{ number_format($totalFilteredCount) }}</strong> tệp 
-                        (<strong class="text-[#ea580c] font-mono">{{ $totalFilteredSize }}</strong>)
+                        (<strong class="text-primary-container font-mono">{{ $totalFilteredSize }}</strong>)
                     </div>
 
                     <div class="flex items-center gap-2">
                         <a href="{{ route('media.index', $currentFolder ? ['folder' => $currentFolder] : []) }}" class="px-3 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-xl transition">
                             Đặt lại
                         </a>
-                        <button type="submit" class="px-4 py-1.5 text-xs font-bold text-white bg-[#ea580c] hover:bg-[#c2410c] rounded-xl shadow-xs transition flex items-center gap-1">
+                        <button type="submit" class="px-4 py-1.5 text-xs font-bold text-white bg-primary-container hover:bg-primary rounded-xl shadow-xs transition flex items-center gap-1">
                             <span class="material-symbols-outlined text-[16px]">filter_alt</span>
                             <span>Lọc tệp</span>
                         </button>
@@ -354,7 +354,7 @@
                         type="checkbox" 
                         @change="toggleSelectAll($event)" 
                         :checked="isAllSelected"
-                        class="rounded text-[#ea580c] focus:ring-[#ea580c] border-gray-300 w-4 h-4 cursor-pointer"
+                        class="rounded text-primary-container focus:ring-primary-container border-gray-300 w-4 h-4 cursor-pointer"
                     />
                     <span>Chọn tất cả trang này</span>
                 </label>
@@ -417,7 +417,7 @@
                     type="button" 
                     @click="viewMode = 'grid'" 
                     class="p-1.5 rounded-lg text-xs font-semibold transition"
-                    :class="viewMode === 'grid' ? 'bg-white text-[#ea580c] shadow-xs font-bold' : 'text-gray-600 hover:text-gray-900'"
+                    :class="viewMode === 'grid' ? 'bg-white text-primary-container shadow-xs font-bold' : 'text-gray-600 hover:text-gray-900'"
                     title="Chế độ xem lưới (Grid)"
                 >
                     <span class="material-symbols-outlined text-[18px]">grid_view</span>
@@ -426,7 +426,7 @@
                     type="button" 
                     @click="viewMode = 'table'" 
                     class="p-1.5 rounded-lg text-xs font-semibold transition"
-                    :class="viewMode === 'table' ? 'bg-white text-[#ea580c] shadow-xs font-bold' : 'text-gray-600 hover:text-gray-900'"
+                    :class="viewMode === 'table' ? 'bg-white text-primary-container shadow-xs font-bold' : 'text-gray-600 hover:text-gray-900'"
                     title="Chế độ xem bảng (Table)"
                 >
                     <span class="material-symbols-outlined text-[18px]">table_rows</span>
@@ -444,7 +444,7 @@
                 </div>
             @else
                 <div class="bg-white rounded-3xl border border-gray-200 p-12 text-center">
-                    <div class="w-16 h-16 rounded-full bg-orange-50 text-[#ea580c] mx-auto flex items-center justify-center mb-3">
+                    <div class="w-16 h-16 rounded-full bg-orange-50 text-primary-container mx-auto flex items-center justify-center mb-3">
                         <span class="material-symbols-outlined text-3xl">folder_off</span>
                     </div>
                     <h3 class="text-sm font-bold text-gray-900">Không tìm thấy tệp tin nào trong thư mục này</h3>
@@ -459,7 +459,7 @@
             <!-- 6A. Grid Card View -->
             <div x-show="viewMode === 'grid'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5">
                 @foreach ($files as $file)
-                    <div class="bg-white rounded-2xl border border-gray-200/90 shadow-sm hover:shadow-md hover:border-[#ea580c]/50 transition flex flex-col justify-between overflow-hidden group relative">
+                    <div class="bg-white rounded-2xl border border-gray-200/90 shadow-sm hover:shadow-md hover:border-primary-container/50 transition flex flex-col justify-between overflow-hidden group relative">
                         <!-- Top Bar / Checkbox & Actions -->
                         <div class="p-2.5 flex items-center justify-between bg-gray-50/70 border-b border-gray-100">
                             <label class="cursor-pointer">
@@ -467,7 +467,7 @@
                                     type="checkbox" 
                                     value="{{ $file['id'] }}" 
                                     x-model="selectedFiles" 
-                                    class="file-checkbox rounded text-[#ea580c] focus:ring-[#ea580c] border-gray-300 w-3.5 h-3.5 cursor-pointer"
+                                    class="file-checkbox rounded text-primary-container focus:ring-primary-container border-gray-300 w-3.5 h-3.5 cursor-pointer"
                                 />
                             </label>
 
@@ -573,7 +573,7 @@
                                     type="checkbox" 
                                     @change="toggleSelectAll($event)" 
                                     :checked="isAllSelected"
-                                    class="rounded text-[#ea580c] focus:ring-[#ea580c] border-gray-300 w-3.5 h-3.5 cursor-pointer"
+                                    class="rounded text-primary-container focus:ring-primary-container border-gray-300 w-3.5 h-3.5 cursor-pointer"
                                 />
                             </th>
                             <th class="p-3.5">Tên tệp tin</th>
@@ -592,7 +592,7 @@
                                         type="checkbox" 
                                         value="{{ $file['id'] }}" 
                                         x-model="selectedFiles" 
-                                        class="rounded text-[#ea580c] focus:ring-[#ea580c] border-gray-300 w-3.5 h-3.5 cursor-pointer"
+                                        class="rounded text-primary-container focus:ring-primary-container border-gray-300 w-3.5 h-3.5 cursor-pointer"
                                     />
                                 </td>
                                 <td class="p-3.5 font-medium">
@@ -674,7 +674,7 @@
             <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4" @click.stop>
                 <div class="flex items-center justify-between pb-3 border-b border-gray-100">
                     <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[#ea580c]">create_new_folder</span>
+                        <span class="material-symbols-outlined text-primary-container">create_new_folder</span>
                         <span>Tạo thư mục mới</span>
                     </h3>
                     <button type="button" @click="folderModal.open = false" class="text-gray-400 hover:text-gray-600 p-1">
@@ -693,7 +693,7 @@
                             name="folder_name" 
                             required 
                             placeholder="Ví dụ: hop_dong_2026, anh_su_kien..." 
-                            class="w-full text-xs font-semibold rounded-xl border border-gray-200 p-2.5 focus:border-[#ea580c] focus:ring-[#ea580c]"
+                            class="w-full text-xs font-semibold rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container"
                             autofocus
                         />
                         <p class="text-[10px] text-gray-400 mt-1">
@@ -705,7 +705,7 @@
                         <button type="button" @click="folderModal.open = false" class="px-4 py-2 border border-gray-200 text-xs font-semibold text-gray-700 rounded-xl hover:bg-gray-50 transition">
                             Hủy
                         </button>
-                        <button type="submit" class="px-5 py-2 bg-[#ea580c] hover:bg-[#c2410c] text-white text-xs font-bold rounded-xl shadow-xs transition">
+                        <button type="submit" class="px-5 py-2 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition">
                             Tạo thư mục
                         </button>
                     </div>
@@ -723,7 +723,7 @@
             <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4" @click.stop>
                 <div class="flex items-center justify-between pb-3 border-b border-gray-100">
                     <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[#ea580c]">drive_file_move</span>
+                        <span class="material-symbols-outlined text-primary-container">drive_file_move</span>
                         <span>Di chuyển <span x-text="selectedFiles.length"></span> tệp tin</span>
                     </h3>
                     <button type="button" @click="moveModal.open = false" class="text-gray-400 hover:text-gray-600 p-1">
@@ -742,7 +742,7 @@
                         <select 
                             name="target_folder" 
                             required 
-                            class="w-full text-xs font-semibold rounded-xl border border-gray-200 p-2.5 focus:border-[#ea580c] focus:ring-[#ea580c]"
+                            class="w-full text-xs font-semibold rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container"
                         >
                             <option value="">📁 /uploads (Thư mục gốc)</option>
                             <option value="{{ date('Y') }}/{{ date('m') }}">📁 /uploads/{{ date('Y') }}/{{ date('m') }}</option>
@@ -802,7 +802,7 @@
                     <button type="button" @click="copyUrl(preview.url)" class="px-3 py-1.5 rounded-xl border bg-white text-gray-700 font-semibold hover:bg-gray-100 transition">
                         Sao chép Link
                     </button>
-                    <a :href="preview.url" target="_blank" class="px-3 py-1.5 rounded-xl bg-[#ea580c] text-white font-bold hover:bg-[#c2410c] transition">
+                    <a :href="preview.url" target="_blank" class="px-3 py-1.5 rounded-xl bg-primary-container text-white font-bold hover:bg-primary transition">
                         Mở tệp gốc
                     </a>
                 </div>

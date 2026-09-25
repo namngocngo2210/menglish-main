@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                <div class="w-10 h-10 rounded-xl bg-primary-container/10 border border-primary-container/20 flex items-center justify-center text-primary shrink-0">
                     <span class="material-symbols-outlined text-2xl">inventory_2</span>
                 </div>
                 <div>
@@ -12,7 +12,7 @@
             </div>
 
             <div class="flex items-center gap-2">
-                <a href="{{ route('merchandise.create') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-hover shadow-sm shadow-primary/30 transition">
+                <a href="{{ route('merchandise.create') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-container text-white text-xs font-bold hover:bg-primary-hover shadow-sm shadow-primary-container/30 transition">
                     <span class="material-symbols-outlined text-base">add_circle</span>
                     <span>Thêm Hàng hóa mới</span>
                 </a>
@@ -88,7 +88,7 @@
                             name="q" 
                             value="{{ $search }}" 
                             placeholder="Tìm kiếm theo mã hàng, tên sách, đồng phục..." 
-                            class="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary placeholder-gray-400"
+                            class="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container placeholder-gray-400"
                         />
                     </div>
 
@@ -97,7 +97,7 @@
                         <select 
                             name="category" 
                             onchange="this.form.submit()" 
-                            class="w-full py-2 px-3 text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary text-gray-700"
+                            class="w-full py-2 px-3 text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container text-gray-700"
                         >
                             <option value="">-- Tất cả nhóm hàng --</option>
                             @foreach ($categories as $catKey => $cat)
@@ -113,7 +113,7 @@
                         <select 
                             name="status" 
                             onchange="this.form.submit()" 
-                            class="w-full py-2 px-3 text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary text-gray-700"
+                            class="w-full py-2 px-3 text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container text-gray-700"
                         >
                             <option value="">-- Trạng thái --</option>
                             <option value="active" {{ $selectedStatus === 'active' ? 'selected' : '' }}>Đang kinh doanh</option>
@@ -138,14 +138,14 @@
             <div class="flex flex-wrap gap-1.5 pt-2 border-t border-gray-100 text-xs">
                 <a 
                     href="{{ route('merchandise.index', array_filter(['q' => $search, 'status' => $selectedStatus])) }}" 
-                    class="px-3 py-1 rounded-lg font-medium transition {{ empty($selectedCategory) ? 'bg-primary text-white font-bold' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}"
+                    class="px-3 py-1 rounded-lg font-medium transition {{ empty($selectedCategory) ? 'bg-primary-container text-white font-bold' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}"
                 >
                     Tất cả ({{ $metrics['total'] }})
                 </a>
                 @foreach ($categories as $catKey => $cat)
                     <a 
                         href="{{ route('merchandise.index', array_filter(['q' => $search, 'category' => $catKey, 'status' => $selectedStatus])) }}" 
-                        class="px-3 py-1 rounded-lg font-medium transition flex items-center gap-1.5 {{ $selectedCategory === $catKey ? 'bg-primary text-white font-bold' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}"
+                        class="px-3 py-1 rounded-lg font-medium transition flex items-center gap-1.5 {{ $selectedCategory === $catKey ? 'bg-primary-container text-white font-bold' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}"
                     >
                         <span class="material-symbols-outlined text-sm">{{ $cat['icon'] }}</span>
                         <span>{{ $cat['label'] }}</span>
@@ -205,7 +205,7 @@
                                 </td>
 
                                 <!-- Đơn giá niêm yết -->
-                                <td class="py-3 px-4 text-right font-mono font-black text-[#ea580c] text-sm">
+                                <td class="py-3 px-4 text-right font-mono font-black text-primary-container text-sm">
                                     {{ $item->formatted_price }}
                                 </td>
 
@@ -236,7 +236,7 @@
                                     <div class="flex items-center justify-end gap-1">
                                         <a 
                                             href="{{ route('merchandise.edit', $item) }}" 
-                                            class="p-1 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition"
+                                            class="p-1 text-gray-400 hover:text-primary hover:bg-primary-container/10 rounded-lg transition"
                                             title="Sửa mặt hàng"
                                         >
                                             <span class="material-symbols-outlined text-[17px]">edit</span>

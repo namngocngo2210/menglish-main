@@ -8,7 +8,7 @@
                         <span>Trang chủ</span>
                     </a>
                     <span class="material-symbols-outlined text-[14px]">chevron_right</span>
-                    <span class="text-[#F5691A] font-semibold">Cơ sở &amp; Chi nhánh</span>
+                    <span class="text-primary-container font-semibold">Cơ sở &amp; Chi nhánh</span>
                 </nav>
                 <h1 class="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-indigo-600">apartment</span>
@@ -18,7 +18,7 @@
             </div>
 
             <div class="flex items-center gap-2 flex-wrap">
-                <button type="button" onclick="document.getElementById('createBranchModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#F5691A] hover:bg-[#d85a15] text-white text-xs font-bold shadow-sm transition cursor-pointer">
+                <button type="button" onclick="document.getElementById('createBranchModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary-container hover:bg-primary text-white text-xs font-bold shadow-sm transition cursor-pointer">
                     <span class="material-symbols-outlined text-[18px]">add_business</span>
                     <span>Thêm Chi Nhánh Mới</span>
                 </button>
@@ -73,7 +73,7 @@
             </div>
 
             <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-orange-50 text-[#F5691A] flex items-center justify-center font-bold">
+                <div class="w-10 h-10 rounded-xl bg-orange-50 text-primary-container flex items-center justify-center font-bold">
                     <span class="material-symbols-outlined text-xl">school</span>
                 </div>
                 <div>
@@ -98,9 +98,9 @@
             <form action="{{ route('branches.index') }}" method="GET" class="flex items-center gap-2 w-full sm:w-auto flex-1">
                 <div class="relative flex-1 sm:max-w-xs">
                     <span class="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-lg">search</span>
-                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Tìm tên, mã, địa chỉ, số hotline..." class="w-full text-xs pl-9 pr-3 py-2 rounded-xl border border-gray-200 focus:border-[#F5691A] focus:ring-[#F5691A] shadow-2xs" />
+                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Tìm tên, mã, địa chỉ, số hotline..." class="w-full text-xs pl-9 pr-3 py-2 rounded-xl border border-gray-200 focus:border-primary-container focus:ring-primary-container shadow-2xs" />
                 </div>
-                <select name="status" class="text-xs rounded-xl border border-gray-200 py-2 px-3 bg-white focus:border-[#F5691A] focus:ring-[#F5691A] shadow-2xs" onchange="this.form.submit()">
+                <select name="status" class="text-xs rounded-xl border border-gray-200 py-2 px-3 bg-white focus:border-primary-container focus:ring-primary-container shadow-2xs" onchange="this.form.submit()">
                     <option value="">Tất cả trạng thái</option>
                     <option value="1" @selected(request('status') === '1')>Đang hoạt động</option>
                     <option value="0" @selected(request('status') === '0')>Tạm dừng</option>
@@ -185,7 +185,7 @@
                                 </td>
                                 <td class="py-4 px-4 text-right whitespace-nowrap">
                                     <div class="flex items-center justify-end gap-1">
-                                        <button type="button" @click="openEdit({{ Js::from($branch) }})" class="p-1.5 rounded-lg text-gray-500 hover:text-[#F5691A] hover:bg-orange-50 transition cursor-pointer" title="Chỉnh sửa">
+                                        <button type="button" @click="openEdit({{ Js::from($branch) }})" class="p-1.5 rounded-lg text-gray-500 hover:text-primary-container hover:bg-orange-50 transition cursor-pointer" title="Chỉnh sửa">
                                             <span class="material-symbols-outlined text-[18px]">edit</span>
                                         </button>
                                         <form action="{{ route('branches.destroy', $branch->id) }}" method="POST" class="inline" data-confirm="Bạn có chắc chắn muốn xóa chi nhánh {{ $branch->name }}?">
@@ -218,7 +218,7 @@
             <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
                 <div class="flex justify-between items-center pb-2 border-b border-gray-100">
                     <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[#F5691A]">add_business</span>
+                        <span class="material-symbols-outlined text-primary-container">add_business</span>
                         <span>Thêm Cơ Sở Chi Nhánh Mới</span>
                     </h3>
                     <button type="button" onclick="document.getElementById('createBranchModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 cursor-pointer">
@@ -231,22 +231,22 @@
                     <div class="grid grid-cols-3 gap-3">
                         <div class="col-span-1">
                             <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Mã chi nhánh <span class="text-rose-500">*</span></label>
-                            <input type="text" name="code" required placeholder="VD: CG" class="w-full text-xs font-mono font-bold uppercase rounded-xl border border-gray-300 p-2.5 focus:border-[#F5691A] focus:ring-[#F5691A]" />
+                            <input type="text" name="code" required placeholder="VD: CG" class="w-full text-xs font-mono font-bold uppercase rounded-xl border border-gray-300 p-2.5 focus:border-primary-container focus:ring-primary-container" />
                         </div>
                         <div class="col-span-2">
                             <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Tên chi nhánh <span class="text-rose-500">*</span></label>
-                            <input type="text" name="name" required placeholder="VD: Chi nhánh Cầu Giấy" class="w-full text-xs font-bold rounded-xl border border-gray-300 p-2.5 focus:border-[#F5691A] focus:ring-[#F5691A]" />
+                            <input type="text" name="name" required placeholder="VD: Chi nhánh Cầu Giấy" class="w-full text-xs font-bold rounded-xl border border-gray-300 p-2.5 focus:border-primary-container focus:ring-primary-container" />
                         </div>
                     </div>
 
                     <div>
                         <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Địa chỉ chi nhánh <span class="text-rose-500">*</span></label>
-                        <input type="text" name="address" required placeholder="Số nhà, Đường, Quận, Thành phố..." class="w-full text-xs rounded-xl border border-gray-300 p-2.5 focus:border-[#F5691A] focus:ring-[#F5691A]" />
+                        <input type="text" name="address" required placeholder="Số nhà, Đường, Quận, Thành phố..." class="w-full text-xs rounded-xl border border-gray-300 p-2.5 focus:border-primary-container focus:ring-primary-container" />
                     </div>
 
                     <div>
                         <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Số điện thoại Hotline</label>
-                        <input type="text" name="phone" placeholder="0243 555 0101" class="w-full text-xs font-mono rounded-xl border border-gray-300 p-2.5 focus:border-[#F5691A] focus:ring-[#F5691A]" />
+                        <input type="text" name="phone" placeholder="0243 555 0101" class="w-full text-xs font-mono rounded-xl border border-gray-300 p-2.5 focus:border-primary-container focus:ring-primary-container" />
                     </div>
 
                     <div class="pt-1 flex items-center gap-2">
@@ -256,7 +256,7 @@
 
                     <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
                         <button type="button" onclick="document.getElementById('createBranchModal').classList.add('hidden')" class="px-3 py-2 rounded-xl border text-xs text-gray-600 hover:bg-gray-50 cursor-pointer">Hủy</button>
-                        <button type="submit" class="px-4 py-2 bg-[#F5691A] hover:bg-[#d85a15] text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer">Tạo Chi Nhánh</button>
+                        <button type="submit" class="px-4 py-2 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer">Tạo Chi Nhánh</button>
                     </div>
                 </form>
             </div>
@@ -284,22 +284,22 @@
                     <div class="grid grid-cols-3 gap-3">
                         <div class="col-span-1">
                             <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Mã chi nhánh <span class="text-rose-500">*</span></label>
-                            <input type="text" name="code" x-model="editData.code" required class="w-full text-xs font-mono font-bold uppercase rounded-xl border border-gray-300 p-2.5 focus:border-[#F5691A] focus:ring-[#F5691A]" />
+                            <input type="text" name="code" x-model="editData.code" required class="w-full text-xs font-mono font-bold uppercase rounded-xl border border-gray-300 p-2.5 focus:border-primary-container focus:ring-primary-container" />
                         </div>
                         <div class="col-span-2">
                             <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Tên chi nhánh <span class="text-rose-500">*</span></label>
-                            <input type="text" name="name" x-model="editData.name" required class="w-full text-xs font-bold rounded-xl border border-gray-300 p-2.5 focus:border-[#F5691A] focus:ring-[#F5691A]" />
+                            <input type="text" name="name" x-model="editData.name" required class="w-full text-xs font-bold rounded-xl border border-gray-300 p-2.5 focus:border-primary-container focus:ring-primary-container" />
                         </div>
                     </div>
 
                     <div>
                         <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Địa chỉ chi nhánh <span class="text-rose-500">*</span></label>
-                        <input type="text" name="address" x-model="editData.address" required class="w-full text-xs rounded-xl border border-gray-300 p-2.5 focus:border-[#F5691A] focus:ring-[#F5691A]" />
+                        <input type="text" name="address" x-model="editData.address" required class="w-full text-xs rounded-xl border border-gray-300 p-2.5 focus:border-primary-container focus:ring-primary-container" />
                     </div>
 
                     <div>
                         <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Số điện thoại Hotline</label>
-                        <input type="text" name="phone" x-model="editData.phone" class="w-full text-xs font-mono rounded-xl border border-gray-300 p-2.5 focus:border-[#F5691A] focus:ring-[#F5691A]" />
+                        <input type="text" name="phone" x-model="editData.phone" class="w-full text-xs font-mono rounded-xl border border-gray-300 p-2.5 focus:border-primary-container focus:ring-primary-container" />
                     </div>
 
                     <div class="pt-1 flex items-center gap-2">
@@ -309,7 +309,7 @@
 
                     <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
                         <button type="button" @click="editModal = false" class="px-3 py-2 rounded-xl border text-xs text-gray-600 hover:bg-gray-50 cursor-pointer">Hủy</button>
-                        <button type="submit" class="px-4 py-2 bg-[#F5691A] hover:bg-[#d85a15] text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer">Lưu Thay Đổi</button>
+                        <button type="submit" class="px-4 py-2 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer">Lưu Thay Đổi</button>
                     </div>
                 </form>
             </div>

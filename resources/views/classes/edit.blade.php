@@ -44,7 +44,7 @@
             <div class="p-6 md:p-8 space-y-6">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                        <div class="w-2.5 h-2.5 rounded-full bg-primary"></div>
+                        <div class="w-2.5 h-2.5 rounded-full bg-primary-container"></div>
                         <h2 class="text-base font-bold text-gray-900 uppercase tracking-wide">1. Thông tin cơ bản &amp; Phân loại</h2>
                     </div>
                     <span class="text-xs text-gray-400 font-medium italic">(<span class="text-rose-500 font-bold">*</span>) Trường bắt buộc</span>
@@ -59,7 +59,7 @@
                         <input type="text" id="ten_lop" name="ten_lop"
                                value="{{ old('ten_lop', $class->name) }}"
                                required
-                               class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                               class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
                         @error('ten_lop') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
                     </div>
 
@@ -70,7 +70,7 @@
                         </label>
                         <input type="text" id="ma_lop" name="ma_lop"
                                value="{{ old('ma_lop', $class->code) }}"
-                               class="w-full px-3.5 py-2.5 text-xs font-mono uppercase bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                               class="w-full px-3.5 py-2.5 text-xs font-mono uppercase bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
                     </div>
 
                     <!-- Chi nhánh -->
@@ -79,7 +79,7 @@
                             Chi nhánh đào tạo <span class="text-rose-500">*</span>
                         </label>
                         <select id="chi_nhanh" name="chi_nhanh" required
-                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition cursor-pointer">
+                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition cursor-pointer">
                             @foreach($branches as $b)
                                 <option value="{{ $b->id }}" {{ old('chi_nhanh', $class->branch_id) == $b->id ? 'selected' : '' }}>
                                     {{ $b->name }} ({{ $b->code }})
@@ -94,7 +94,7 @@
                             Chương trình học <span class="text-rose-500">*</span>
                         </label>
                         <select id="chuong_trinh" name="chuong_trinh" required
-                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition cursor-pointer">
+                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition cursor-pointer">
                             @foreach(['IELTS' => 'IELTS Học thuật (Academic)', 'TOEIC' => 'TOEIC 4 kỹ năng', 'COMMUNICATION' => 'Tiếng Anh Giao tiếp phản xạ', 'JUNIOR' => 'Tiếng Anh Thiếu niên (Junior)', 'BUSINESS' => 'Tiếng Anh Doanh nghiệp'] as $val => $label)
                                 <option value="{{ $val }}" {{ old('chuong_trinh', $class->program) === $val ? 'selected' : '' }}>{{ $label }}</option>
                             @endforeach
@@ -110,7 +110,7 @@
                             Cấp độ <span class="text-rose-500">*</span>
                         </label>
                         <select id="cap_do" name="cap_do" required
-                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition cursor-pointer">
+                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition cursor-pointer">
                             @foreach(['B1' => 'Cấp độ B1 (Mục tiêu 5.5 - 6.0)', 'FOUNDATION' => 'Foundation (Mục tiêu 4.0 - 5.0)', 'B2' => 'Cấp độ B2 (Mục tiêu 6.5 - 7.0)', 'ADVANCED' => 'Mastery (Mục tiêu 7.5+)'] as $val => $label)
                                 <option value="{{ $val }}" {{ old('cap_do', $class->level) === $val ? 'selected' : '' }}>{{ $label }}</option>
                             @endforeach
@@ -130,7 +130,7 @@
                                    min="1" max="100"
                                    value="{{ old('si_so_toi_da', $class->max_capacity) }}"
                                    required
-                                   class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                                   class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
                             <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[11px] text-gray-400 font-medium">học viên</div>
                         </div>
                     </div>
@@ -139,7 +139,7 @@
                     <div class="md:col-span-4">
                         <label for="status" class="block text-xs font-bold text-gray-700 mb-1.5">Trạng thái lớp</label>
                         <select id="status" name="status"
-                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition cursor-pointer">
+                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition cursor-pointer">
                             <option value="pending_schedule" {{ old('status', $class->status) === 'pending_schedule' ? 'selected' : '' }}>Chờ cấu hình lịch</option>
                             <option value="active" {{ old('status', $class->status) === 'active' ? 'selected' : '' }}>Đang hoạt động</option>
                             <option value="completed" {{ old('status', $class->status) === 'completed' ? 'selected' : '' }}>Đã kết thúc</option>
@@ -152,13 +152,13 @@
                         <label for="start_date" class="block text-xs font-bold text-gray-700 mb-1.5">Ngày khai giảng</label>
                         <input type="date" id="start_date" name="start_date"
                                value="{{ old('start_date', $class->start_date?->format('Y-m-d')) }}"
-                               class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                               class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
                     </div>
                     <div class="md:col-span-4">
                         <label for="end_date" class="block text-xs font-bold text-gray-700 mb-1.5">Ngày kết thúc</label>
                         <input type="date" id="end_date" name="end_date"
                                value="{{ old('end_date', $class->end_date?->format('Y-m-d')) }}"
-                               class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                               class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
                     </div>
 
                     <!-- Lịch học text -->
@@ -167,7 +167,7 @@
                         <input type="text" id="schedule_text" name="schedule_text"
                                value="{{ old('schedule_text', $class->schedule_text) }}"
                                placeholder="VD: T2-T4-T6 18:00-20:00"
-                               class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                               class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
                         <p class="text-[11px] text-gray-400 mt-1">Dùng để hiển thị trên danh sách lớp và đặt lịch học thử.</p>
                     </div>
                 </div>
@@ -244,7 +244,7 @@
                             <input type="number" id="hoc_phi" name="hoc_phi"
                                    value="{{ old('hoc_phi', $class->tuition_fee) }}"
                                    min="0" step="50000"
-                                   class="w-full pl-3.5 pr-14 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition font-mono font-bold">
+                                   class="w-full pl-3.5 pr-14 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition font-mono font-bold">
                             <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-xs font-bold text-gray-400">VNĐ</div>
                         </div>
                     </div>
@@ -252,7 +252,7 @@
                     <div class="md:col-span-12">
                         <label for="ghi_chu" class="block text-xs font-bold text-gray-700 mb-1.5">Ghi chú vận hành</label>
                         <textarea id="ghi_chu" name="ghi_chu" rows="3"
-                                  class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition">{{ old('ghi_chu', $class->notes) }}</textarea>
+                                  class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">{{ old('ghi_chu', $class->notes) }}</textarea>
                     </div>
                 </div>
             </div>

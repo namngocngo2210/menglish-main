@@ -70,7 +70,7 @@
                             <td class="py-3 px-4">{{ $cls->course?->name ?? $cls->program ?? '—' }}</td>
                             <td class="py-3 px-4">
                                 @if ($cls->teacher_id === auth()->id())
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary">GV chính</span>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-container/10 text-primary">GV chính</span>
                                 @endif
                                 @if ($cls->foreign_teacher_id === auth()->id())
                                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700">GVNN</span>

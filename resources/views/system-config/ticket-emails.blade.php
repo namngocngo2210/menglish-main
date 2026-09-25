@@ -136,7 +136,7 @@
 
             <a 
                 href="{{ route('system-config.ticket-emails') }}"
-                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-[#ea580c] bg-[#ea580c] text-white font-bold shadow-xs shrink-0"
+                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-primary-container bg-primary-container text-white font-bold shadow-xs shrink-0"
             >
                 <span class="material-symbols-outlined text-base">mail</span>
                 <span>Email &amp; SMTP Ticket (<span x-text="emails.length"></span>)</span>
@@ -230,13 +230,13 @@
                                         x-model="newEmail" 
                                         @keydown.enter.prevent="addEmail()" 
                                         placeholder="Nhập email (ví dụ: cskh@menglish.edu.vn) rồi nhấn Enter hoặc bấm Thêm..." 
-                                        class="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary font-mono"
+                                        class="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary-container focus:border-primary-container font-mono"
                                     />
                                 </div>
                                 <button 
                                     type="button" 
                                     @click="addEmail()" 
-                                    class="px-4 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                                    class="px-4 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 shrink-0 cursor-pointer"
                                 >
                                     <span class="material-symbols-outlined text-[18px]">add</span>
                                     <span>Thêm</span>
@@ -342,7 +342,7 @@
                                     x-model="host" 
                                     required 
                                     placeholder="smtp.gmail.com" 
-                                    class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-mono focus:border-primary focus:ring-primary"
+                                    class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-mono focus:border-primary-container focus:ring-primary-container"
                                 />
                                 <span class="text-[10px] text-gray-400 mt-1 block">Gmail: <code>smtp.gmail.com</code> | Mail tên miền: <code>mail.meducation.vn</code></span>
                             </div>
@@ -357,7 +357,7 @@
                                         x-model="port" 
                                         required 
                                         placeholder="587" 
-                                        class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-mono focus:border-primary focus:ring-primary"
+                                        class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-mono focus:border-primary-container focus:ring-primary-container"
                                     />
                                     <span class="text-[10px] text-gray-400 mt-1 block">TLS: <code>587</code> | SSL: <code>465</code></span>
                                 </div>
@@ -366,7 +366,7 @@
                                     <select 
                                         name="mail_encryption" 
                                         x-model="encryption" 
-                                        class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-mono focus:border-primary focus:ring-primary"
+                                        class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-mono focus:border-primary-container focus:ring-primary-container"
                                     >
                                         <option value="tls">TLS</option>
                                         <option value="ssl">SSL</option>
@@ -384,7 +384,7 @@
                                     x-model="username" 
                                     required 
                                     placeholder="tech.vmst@gmail.com" 
-                                    class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-mono focus:border-primary focus:ring-primary"
+                                    class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-mono focus:border-primary-container focus:ring-primary-container"
                                 />
                                 <span class="text-[10px] text-gray-400 mt-1 block">Tài khoản email dùng để xác thực với máy chủ SMTP</span>
                             </div>
@@ -407,7 +407,7 @@
                                         :type="showPassword ? 'text' : 'password'" 
                                         name="mail_password" 
                                         placeholder="{{ $mailConfig['has_password'] ? '•••••••••••••••• (Đã cấu hình mật khẩu, nhập mới nếu muốn đổi)' : 'Nhập 16 ký tự Mật khẩu ứng dụng Gmail...' }}" 
-                                        class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-mono focus:border-primary focus:ring-primary pr-8"
+                                        class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-mono focus:border-primary-container focus:ring-primary-container pr-8"
                                     />
                                 </div>
                                 <span class="text-[10px] text-gray-400 mt-1 block">Đối với @gmail.com: dùng <strong>Mật khẩu ứng dụng 16 ký tự</strong> (không dùng mật khẩu đăng nhập cá nhân)</span>
@@ -421,7 +421,7 @@
                                     name="mail_from_address" 
                                     x-model="fromAddress" 
                                     placeholder="tech.vmst@gmail.com" 
-                                    class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-mono focus:border-primary focus:ring-primary"
+                                    class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-mono focus:border-primary-container focus:ring-primary-container"
                                 />
                                 <span class="text-[10px] text-gray-400 mt-1 block">Thường để trùng với email đăng nhập ở trên</span>
                             </div>
@@ -434,7 +434,7 @@
                                     name="mail_from_name" 
                                     x-model="fromName" 
                                     placeholder="MEnglish Support" 
-                                    class="w-full text-xs rounded-xl border border-gray-300 p-2.5 focus:border-primary focus:ring-primary"
+                                    class="w-full text-xs rounded-xl border border-gray-300 p-2.5 focus:border-primary-container focus:ring-primary-container"
                                 />
                                 <span class="text-[10px] text-gray-400 mt-1 block">Tên hiển thị trong hộp thư người nhận (ví dụ: MEnglish Support)</span>
                             </div>
@@ -479,7 +479,7 @@
                                     name="notify_created" 
                                     value="1" 
                                     {{ $isCreatedEnabled ? 'checked' : '' }}
-                                    class="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                                    class="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary-container w-4 h-4 cursor-pointer"
                                 />
                                 <div>
                                     <div class="text-xs font-bold text-gray-900 flex items-center gap-2">
@@ -497,7 +497,7 @@
                                     name="notify_comment" 
                                     value="1" 
                                     {{ $isCommentEnabled ? 'checked' : '' }}
-                                    class="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                                    class="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary-container w-4 h-4 cursor-pointer"
                                 />
                                 <div>
                                     <div class="text-xs font-bold text-gray-900">Khi có phản hồi / tin nhắn trao đổi mới</div>
@@ -512,7 +512,7 @@
                                     name="notify_status_changed" 
                                     value="1" 
                                     {{ $isStatusChangedEnabled ? 'checked' : '' }}
-                                    class="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                                    class="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary-container w-4 h-4 cursor-pointer"
                                 />
                                 <div>
                                     <div class="text-xs font-bold text-gray-900">Khi cập nhật trạng thái Ticket (Đang xử lý, Hoàn thành, Đóng)</div>
@@ -535,7 +535,7 @@
                                     name="notify_stale_lead" 
                                     value="1" 
                                     {{ $isStaleLeadEnabled ? 'checked' : '' }}
-                                    class="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                                    class="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary-container w-4 h-4 cursor-pointer"
                                 />
                                 <div>
                                     <div class="text-xs font-bold text-gray-900 flex items-center gap-2">
@@ -561,7 +561,7 @@
                                     name="notify_transaction" 
                                     value="1" 
                                     {{ $isTransactionEnabled ? 'checked' : '' }}
-                                    class="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                                    class="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary-container w-4 h-4 cursor-pointer"
                                 />
                                 <div>
                                     <div class="text-xs font-bold text-gray-900 flex items-center gap-2">
@@ -579,7 +579,7 @@
                                     name="notify_overdue_debt" 
                                     value="1" 
                                     {{ $isOverdueDebtEnabled ? 'checked' : '' }}
-                                    class="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                                    class="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary-container w-4 h-4 cursor-pointer"
                                 />
                                 <div>
                                     <div class="text-xs font-bold text-gray-900 flex items-center gap-2">
@@ -605,7 +605,7 @@
                                     name="notify_homework" 
                                     value="1" 
                                     {{ $isHomeworkEnabled ? 'checked' : '' }}
-                                    class="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                                    class="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary-container w-4 h-4 cursor-pointer"
                                 />
                                 <div>
                                     <div class="text-xs font-bold text-gray-900 flex items-center gap-2">
@@ -625,7 +625,7 @@
                         </div>
                         <button 
                             type="submit" 
-                            class="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer"
+                            class="px-6 py-2.5 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer"
                         >
                             <span class="material-symbols-outlined text-[20px]">save</span>
                             <span>Lưu Cấu Hình Vào Database</span>
@@ -655,7 +655,7 @@
                                 name="test_email" 
                                 value="{{ auth()->user()?->email ?? 'tech.vmst@gmail.com' }}"
                                 placeholder="Nhập email nhận thư test..." 
-                                class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-mono focus:border-primary focus:ring-primary" 
+                                class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-mono focus:border-primary-container focus:ring-primary-container" 
                                 required
                             />
                             <p class="text-[10px] text-gray-400 mt-1">Để trống nếu muốn bắn đồng loạt tới tất cả email đã cấu hình ở bên trái.</p>

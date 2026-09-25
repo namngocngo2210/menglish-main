@@ -7,7 +7,7 @@
                 </a>
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[#F5691A]">military_tech</span>
+                        <span class="material-symbols-outlined text-primary-container">military_tech</span>
                         <span>Cấu Hình Mốc Hoa Hồng &amp; Thưởng Tái Tục</span>
                     </h1>
                     <p class="text-xs text-gray-500">Quản lý và thiết lập các mốc chính sách hoa hồng tuyển mới và duy trì học viên</p>
@@ -68,7 +68,7 @@
                 <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                     <div class="p-4 border-b border-gray-100 bg-slate-50/70 flex justify-between items-center">
                         <h3 class="font-bold text-xs uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-[#F5691A] text-base">percent</span>
+                            <span class="material-symbols-outlined text-primary-container text-base">percent</span>
                             <span>Danh Sách Các Mốc Thưởng &amp; Hoa Hồng Đang Hiệu Lực</span>
                         </h3>
                         <span class="text-xs font-bold text-gray-500 font-mono">{{ $tiers->count() }} bậc</span>
@@ -103,12 +103,12 @@
                                                 {{ $tier->renew_percent }}%
                                             </span>
                                         </td>
-                                        <td class="py-3.5 px-4 text-right font-mono font-black text-[#F5691A]">
+                                        <td class="py-3.5 px-4 text-right font-mono font-black text-primary-container">
                                             {{ number_format($tier->bonus_amount) }}đ
                                         </td>
                                         <td class="py-3.5 px-4 text-right whitespace-nowrap">
                                             <div class="flex items-center justify-end gap-1">
-                                                <button @click="openEdit({{ json_encode($tier) }})" class="p-1 rounded-lg text-gray-500 hover:text-[#F5691A] hover:bg-orange-50 transition cursor-pointer" title="Sửa bậc hoa hồng">
+                                                <button @click="openEdit({{ json_encode($tier) }})" class="p-1 rounded-lg text-gray-500 hover:text-primary-container hover:bg-orange-50 transition cursor-pointer" title="Sửa bậc hoa hồng">
                                                     <span class="material-symbols-outlined text-[18px]">edit</span>
                                                 </button>
                                                 <form action="{{ route('payroll.config.commission-tiers.destroy', $tier) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc muốn xóa bậc hoa hồng này?');">
@@ -136,7 +136,7 @@
             <div class="lg:col-span-4 space-y-4">
                 <div class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-4">
                     <h3 class="font-bold text-xs uppercase tracking-wider text-gray-900 flex items-center gap-1.5 pb-2 border-b border-gray-100">
-                        <span class="material-symbols-outlined text-[#F5691A] text-base">add_circle</span>
+                        <span class="material-symbols-outlined text-primary-container text-base">add_circle</span>
                         <span>Thiết lập mốc hoa hồng mới</span>
                     </h3>
 
@@ -144,32 +144,32 @@
                         @csrf
                         <div>
                             <label class="block font-bold text-gray-700 mb-1 text-[11px] uppercase">Tên bậc thưởng <span class="text-rose-500">*</span></label>
-                            <input type="text" name="tier_name" placeholder="VD: Bậc 4 (Kim Cương)" required class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 bg-white text-gray-900 focus:ring-[#F5691A] focus:border-[#F5691A] shadow-2xs" />
+                            <input type="text" name="tier_name" placeholder="VD: Bậc 4 (Kim Cương)" required class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 bg-white text-gray-900 focus:ring-primary-container focus:border-primary-container shadow-2xs" />
                         </div>
 
                         <div>
                             <label class="block font-bold text-gray-700 mb-1 text-[11px] uppercase">Doanh số tối thiểu (VNĐ) <span class="text-rose-500">*</span></label>
-                            <input type="number" name="min_revenue" value="200000000" step="5000000" min="0" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2.5 bg-white text-gray-900 focus:ring-[#F5691A] focus:border-[#F5691A] shadow-2xs" />
+                            <input type="number" name="min_revenue" value="200000000" step="5000000" min="0" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2.5 bg-white text-gray-900 focus:ring-primary-container focus:border-primary-container shadow-2xs" />
                         </div>
 
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block font-bold text-gray-700 mb-1 text-[11px] uppercase">% Tuyển mới <span class="text-rose-500">*</span></label>
-                                <input type="number" step="0.1" min="0" max="100" name="new_sale_percent" value="10.0" required class="w-full text-xs font-mono font-bold text-emerald-700 rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-[#F5691A] focus:border-[#F5691A] shadow-2xs" />
+                                <input type="number" step="0.1" min="0" max="100" name="new_sale_percent" value="10.0" required class="w-full text-xs font-mono font-bold text-emerald-700 rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-primary-container focus:border-primary-container shadow-2xs" />
                             </div>
                             <div>
                                 <label class="block font-bold text-gray-700 mb-1 text-[11px] uppercase">% Tái tục <span class="text-rose-500">*</span></label>
-                                <input type="number" step="0.1" min="0" max="100" name="renew_percent" value="15.0" required class="w-full text-xs font-mono font-bold text-blue-700 rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-[#F5691A] focus:border-[#F5691A] shadow-2xs" />
+                                <input type="number" step="0.1" min="0" max="100" name="renew_percent" value="15.0" required class="w-full text-xs font-mono font-bold text-blue-700 rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-primary-container focus:border-primary-container shadow-2xs" />
                             </div>
                         </div>
 
                         <div>
                             <label class="block font-bold text-gray-700 mb-1 text-[11px] uppercase">Thưởng nóng vượt mốc (VNĐ)</label>
-                            <input type="number" name="bonus_amount" value="5000000" step="500000" min="0" class="w-full text-xs font-mono font-bold text-[#F5691A] rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-[#F5691A] focus:border-[#F5691A] shadow-2xs" />
+                            <input type="number" name="bonus_amount" value="5000000" step="500000" min="0" class="w-full text-xs font-mono font-bold text-primary-container rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-primary-container focus:border-primary-container shadow-2xs" />
                         </div>
 
                         <div class="pt-2 border-t border-gray-100">
-                            <button type="submit" class="w-full py-2.5 bg-[#F5691A] hover:bg-[#d85a15] text-white font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <button type="submit" class="w-full py-2.5 bg-primary-container hover:bg-primary text-white font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
                                 <span class="material-symbols-outlined text-[16px]">save</span>
                                 <span>Lưu Mốc Thưởng Mới</span>
                             </button>
@@ -198,7 +198,7 @@
                         <div class="bg-white p-6 space-y-4">
                             <div class="flex items-center justify-between border-b border-gray-100 pb-3">
                                 <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">
-                                    <span class="material-symbols-outlined text-[#F5691A]">edit</span>
+                                    <span class="material-symbols-outlined text-primary-container">edit</span>
                                     <span>Chỉnh Sửa Mốc Hoa Hồng</span>
                                 </h3>
                                 <button type="button" @click="closeEdit()" class="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition">
@@ -217,28 +217,28 @@
                             <div class="space-y-3 text-xs">
                                 <div>
                                     <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Tên bậc thưởng <span class="text-rose-500">*</span></label>
-                                    <input type="text" name="tier_name" x-model="editingTier.tier_name" required class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 bg-white text-gray-900 focus:ring-[#F5691A] focus:border-[#F5691A] shadow-2xs" />
+                                    <input type="text" name="tier_name" x-model="editingTier.tier_name" required class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 bg-white text-gray-900 focus:ring-primary-container focus:border-primary-container shadow-2xs" />
                                 </div>
 
                                 <div>
                                     <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Doanh số tối thiểu (VNĐ) <span class="text-rose-500">*</span></label>
-                                    <input type="number" name="min_revenue" x-model="editingTier.min_revenue" step="5000000" min="0" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2.5 bg-white text-gray-900 focus:ring-[#F5691A] focus:border-[#F5691A] shadow-2xs" />
+                                    <input type="number" name="min_revenue" x-model="editingTier.min_revenue" step="5000000" min="0" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2.5 bg-white text-gray-900 focus:ring-primary-container focus:border-primary-container shadow-2xs" />
                                 </div>
 
                                 <div class="grid grid-cols-2 gap-3">
                                     <div>
                                         <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">% Tuyển mới <span class="text-rose-500">*</span></label>
-                                        <input type="number" step="0.1" min="0" max="100" name="new_sale_percent" x-model="editingTier.new_sale_percent" required class="w-full text-xs font-mono font-bold text-emerald-700 rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-[#F5691A] focus:border-[#F5691A] shadow-2xs" />
+                                        <input type="number" step="0.1" min="0" max="100" name="new_sale_percent" x-model="editingTier.new_sale_percent" required class="w-full text-xs font-mono font-bold text-emerald-700 rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-primary-container focus:border-primary-container shadow-2xs" />
                                     </div>
                                     <div>
                                         <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">% Tái tục <span class="text-rose-500">*</span></label>
-                                        <input type="number" step="0.1" min="0" max="100" name="renew_percent" x-model="editingTier.renew_percent" required class="w-full text-xs font-mono font-bold text-blue-700 rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-[#F5691A] focus:border-[#F5691A] shadow-2xs" />
+                                        <input type="number" step="0.1" min="0" max="100" name="renew_percent" x-model="editingTier.renew_percent" required class="w-full text-xs font-mono font-bold text-blue-700 rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-primary-container focus:border-primary-container shadow-2xs" />
                                     </div>
                                 </div>
 
                                 <div>
                                     <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Thưởng nóng vượt mốc (VNĐ)</label>
-                                    <input type="number" name="bonus_amount" x-model="editingTier.bonus_amount" step="500000" min="0" class="w-full text-xs font-mono font-bold text-[#F5691A] rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-[#F5691A] focus:border-[#F5691A] shadow-2xs" />
+                                    <input type="number" name="bonus_amount" x-model="editingTier.bonus_amount" step="500000" min="0" class="w-full text-xs font-mono font-bold text-primary-container rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-primary-container focus:border-primary-container shadow-2xs" />
                                 </div>
                             </div>
                         </div>
@@ -247,7 +247,7 @@
                             <button type="button" @click="closeEdit()" class="px-4 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold transition shadow-2xs">
                                 Hủy
                             </button>
-                            <button type="submit" class="px-5 py-2 rounded-xl bg-[#F5691A] hover:bg-[#d85a15] text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                            <button type="submit" class="px-5 py-2 rounded-xl bg-primary-container hover:bg-primary text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer">
                                 <span class="material-symbols-outlined text-[16px]">save</span>
                                 <span>Cập nhật bậc hoa hồng</span>
                             </button>

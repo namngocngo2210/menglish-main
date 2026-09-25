@@ -7,7 +7,7 @@
                 </a>
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[#F5691A]">post_add</span>
+                        <span class="material-symbols-outlined text-primary-container">post_add</span>
                         Tạo Đề Thi Mới &amp; Soạn Thảo Câu Hỏi
                     </h1>
                     <p class="text-xs text-gray-500">Soạn thảo bộ đề kiểm tra năng lực đầu vào theo quy chuẩn MEnglish Admin</p>
@@ -15,7 +15,7 @@
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <a href="{{ route('placement-tests.index') }}" class="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 text-xs font-semibold shadow-2xs transition">Hủy</a>
-                <button type="submit" form="createPlacementTestForm" class="px-5 py-2 rounded-xl bg-[#F5691A] hover:bg-[#d85a15] text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                <button type="submit" form="createPlacementTestForm" class="px-5 py-2 rounded-xl bg-primary-container hover:bg-primary text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer">
                     <span class="material-symbols-outlined text-[18px]">save</span>
                     <span>Lưu đề thi</span>
                 </button>
@@ -151,7 +151,7 @@
                     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
                         <div class="flex items-center justify-between pb-2 border-b border-gray-100">
                             <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                                <span class="material-symbols-outlined text-[#F5691A] text-[18px]">info</span>
+                                <span class="material-symbols-outlined text-primary-container text-[18px]">info</span>
                                 <span>Thông tin chung</span>
                             </h3>
                             <span class="text-[10px] text-rose-500 font-medium">* Bắt buộc</span>
@@ -160,23 +160,23 @@
                         <div class="space-y-2.5 text-xs">
                             <div>
                                 <label class="block font-bold text-gray-700 mb-1 text-[11px]">Tên đề thi <span class="text-rose-500">*</span></label>
-                                <input type="text" name="title" value="{{ old('title', 'Đề Kiểm Tra Trình Độ 4 Kỹ Năng - Standard ' . date('Y')) }}" required placeholder="VD: Đề Test Đầu Vào IELTS 6.5" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-bold focus:border-[#F5691A] focus:ring-[#F5691A] bg-white shadow-2xs" />
+                                <input type="text" name="title" value="{{ old('title', 'Đề Kiểm Tra Trình Độ 4 Kỹ Năng - Standard ' . date('Y')) }}" required placeholder="VD: Đề Test Đầu Vào IELTS 6.5" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-bold focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs" />
                             </div>
 
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <label class="block font-bold text-gray-700 mb-1 text-[11px]">Mã đề (Code) <span class="text-rose-500">*</span></label>
-                                    <input type="text" name="code" value="{{ old('code', 'TEST-IE-' . date('ymd-His')) }}" required placeholder="TEST-01" class="w-full text-xs font-mono font-bold rounded-xl border border-gray-300 p-2.5 focus:border-[#F5691A] focus:ring-[#F5691A] bg-white shadow-2xs" />
+                                    <input type="text" name="code" value="{{ old('code', 'TEST-IE-' . date('ymd-His')) }}" required placeholder="TEST-01" class="w-full text-xs font-mono font-bold rounded-xl border border-gray-300 p-2.5 focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs" />
                                 </div>
                                 <div>
                                     <label class="block font-bold text-gray-700 mb-1 text-[11px]">Thời gian (phút) <span class="text-rose-500">*</span></label>
-                                    <input type="number" name="duration_minutes" value="{{ old('duration_minutes', 45) }}" min="5" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-300 p-2.5 focus:border-[#F5691A] focus:ring-[#F5691A] bg-white shadow-2xs" />
+                                    <input type="number" name="duration_minutes" value="{{ old('duration_minutes', 45) }}" min="5" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-300 p-2.5 focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs" />
                                 </div>
                             </div>
 
                             <div>
                                 <label class="block font-bold text-gray-700 mb-1 text-[11px]">Cấp độ / Trình độ mục tiêu</label>
-                                <select name="target_level" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-semibold focus:border-[#F5691A] focus:ring-[#F5691A] bg-white shadow-2xs">
+                                <select name="target_level" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-semibold focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs">
                                     <option value="Lớp 1-2 (Starters)">Lớp 1-2 (Starters)</option>
                                     <option value="Lớp 3-4 (Movers)" selected>Lớp 3-4 (Movers)</option>
                                     <option value="Lớp 5-6 (Flyers)">Lớp 5-6 (Flyers)</option>
@@ -188,7 +188,7 @@
 
                             <div>
                                 <label class="block font-bold text-gray-700 mb-1 text-[11px]">Mô tả / Hướng dẫn làm bài</label>
-                                <textarea name="description" rows="2" placeholder="Ghi chú hướng dẫn..." class="w-full text-xs rounded-xl border border-gray-300 p-2.5 focus:border-[#F5691A] focus:ring-[#F5691A] bg-white shadow-2xs">{{ old('description', 'Bài kiểm tra đánh giá năng lực ngôn ngữ toàn diện gồm 4 kỹ năng: Nghe, Đọc, Viết và Nói.') }}</textarea>
+                                <textarea name="description" rows="2" placeholder="Ghi chú hướng dẫn..." class="w-full text-xs rounded-xl border border-gray-300 p-2.5 focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs">{{ old('description', 'Bài kiểm tra đánh giá năng lực ngôn ngữ toàn diện gồm 4 kỹ năng: Nghe, Đọc, Viết và Nói.') }}</textarea>
                             </div>
                         </div>
                     </div>
@@ -200,7 +200,7 @@
                                 <span class="material-symbols-outlined text-indigo-600 text-[18px]">format_list_numbered</span>
                                 <span>Danh sách câu hỏi</span>
                             </h3>
-                            <span class="text-xs font-bold bg-orange-100 text-[#F5691A] px-2.5 py-0.5 rounded-full font-mono" x-text="questions.length + ' Câu'"></span>
+                            <span class="text-xs font-bold bg-orange-100 text-primary-container px-2.5 py-0.5 rounded-full font-mono" x-text="questions.length + ' Câu'"></span>
                         </div>
 
                         <!-- Action Toolbar: Quick Add Types -->
@@ -228,7 +228,7 @@
                             <template x-for="(q, idx) in questions" :key="q.id">
                                 <div 
                                     @click="selectQuestion(idx)" 
-                                    :class="currentIndex === idx ? 'bg-[#F5691A] text-white shadow-md border-[#d85a15] ring-2 ring-orange-200' : 'bg-white text-gray-800 border-gray-200 hover:border-orange-300 hover:bg-slate-50'"
+                                    :class="currentIndex === idx ? 'bg-primary-container text-white shadow-md border-primary ring-2 ring-orange-200' : 'bg-white text-gray-800 border-gray-200 hover:border-orange-300 hover:bg-slate-50'"
                                     class="p-3 rounded-xl border transition-all cursor-pointer space-y-1"
                                 >
                                     <div class="flex justify-between items-center">
@@ -261,7 +261,7 @@
                         <button 
                             type="button" 
                             @click="addNewQuestion('multiple_choice', 'reading')" 
-                            class="w-full py-2.5 border-2 border-dashed border-orange-300 bg-orange-50/50 rounded-xl text-[#F5691A] font-bold text-xs hover:bg-orange-100/50 hover:border-orange-400 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                            class="w-full py-2.5 border-2 border-dashed border-orange-300 bg-orange-50/50 rounded-xl text-primary-container font-bold text-xs hover:bg-orange-100/50 hover:border-orange-400 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
                         >
                             <span class="material-symbols-outlined text-[18px]">add_circle</span>
                             <span>Thêm câu hỏi mới vào đề</span>
@@ -280,12 +280,12 @@
                             <!-- Editor Header -->
                             <div class="flex items-center justify-between pb-3 border-b border-gray-200 flex-wrap gap-2">
                                 <div class="flex items-center gap-2">
-                                    <span class="w-8 h-8 rounded-xl bg-[#F5691A] text-white font-black text-sm flex items-center justify-center font-mono shadow-xs">
+                                    <span class="w-8 h-8 rounded-xl bg-primary-container text-white font-black text-sm flex items-center justify-center font-mono shadow-xs">
                                         #<span x-text="String(currentIndex + 1).padStart(2, '0')"></span>
                                     </span>
                                     <div>
                                         <h2 class="text-sm font-black text-gray-900">
-                                            Soạn Thảo Chi Tiết Câu Hỏi Số <span class="text-[#F5691A] font-mono" x-text="currentIndex + 1"></span>
+                                            Soạn Thảo Chi Tiết Câu Hỏi Số <span class="text-primary-container font-mono" x-text="currentIndex + 1"></span>
                                         </h2>
                                         <span class="text-[11px] text-gray-500">Thiết lập nội dung đề, phương án, đoạn văn, file nghe &amp; đáp án chấm tự động</span>
                                     </div>
@@ -315,11 +315,11 @@
                             <div class="grid grid-cols-1 md:grid-cols-12 gap-3 text-xs">
                                 <div class="md:col-span-6">
                                     <label class="block font-bold text-gray-800 mb-1 text-[11px]">Phần thi (Section / Tiêu đề nhóm câu)</label>
-                                    <input type="text" x-model="currentQ.section" placeholder="VD: A. LISTENING - Exercise 1" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-semibold focus:ring-[#F5691A] focus:border-[#F5691A] bg-white shadow-2xs" />
+                                    <input type="text" x-model="currentQ.section" placeholder="VD: A. LISTENING - Exercise 1" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-semibold focus:ring-primary-container focus:border-primary-container bg-white shadow-2xs" />
                                 </div>
                                 <div class="md:col-span-3">
                                     <label class="block font-bold text-gray-800 mb-1 text-[11px]">Kỹ năng (Skill) <span class="text-rose-500">*</span></label>
-                                    <select x-model="currentQ.skill" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-bold focus:ring-[#F5691A] focus:border-[#F5691A] bg-white shadow-2xs">
+                                    <select x-model="currentQ.skill" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-bold focus:ring-primary-container focus:border-primary-container bg-white shadow-2xs">
                                         <option value="listening">🎧 Listening (Nghe)</option>
                                         <option value="reading">📖 Reading (Đọc hiểu)</option>
                                         <option value="grammar">🔤 Grammar / Vocab</option>
@@ -329,7 +329,7 @@
                                 </div>
                                 <div class="md:col-span-3">
                                     <label class="block font-bold text-gray-800 mb-1 text-[11px]">Điểm số (Points)</label>
-                                    <input type="number" x-model.number="currentQ.points" step="0.25" min="0.25" class="w-full text-xs font-mono font-black text-orange-600 rounded-xl border border-gray-300 p-2.5 focus:ring-[#F5691A] focus:border-[#F5691A] bg-white shadow-2xs" />
+                                    <input type="number" x-model.number="currentQ.points" step="0.25" min="0.25" class="w-full text-xs font-mono font-black text-orange-600 rounded-xl border border-gray-300 p-2.5 focus:ring-primary-container focus:border-primary-container bg-white shadow-2xs" />
                                 </div>
                             </div>
 
@@ -340,7 +340,7 @@
                                     <button 
                                         type="button" 
                                         @click="setType('multiple_choice')" 
-                                        :class="currentQ.type === 'multiple_choice' ? 'border-2 border-[#F5691A] bg-orange-50 text-[#F5691A] font-black shadow-xs' : 'border border-gray-200 bg-white text-gray-700 hover:bg-slate-50'"
+                                        :class="currentQ.type === 'multiple_choice' ? 'border-2 border-primary-container bg-orange-50 text-primary-container font-black shadow-xs' : 'border border-gray-200 bg-white text-gray-700 hover:bg-slate-50'"
                                         class="p-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-xs"
                                     >
                                         <span class="material-symbols-outlined text-[18px]">list_alt</span>
@@ -350,7 +350,7 @@
                                     <button 
                                         type="button" 
                                         @click="setType('fill_blank')" 
-                                        :class="currentQ.type === 'fill_blank' ? 'border-2 border-[#F5691A] bg-orange-50 text-[#F5691A] font-black shadow-xs' : 'border border-gray-200 bg-white text-gray-700 hover:bg-slate-50'"
+                                        :class="currentQ.type === 'fill_blank' ? 'border-2 border-primary-container bg-orange-50 text-primary-container font-black shadow-xs' : 'border border-gray-200 bg-white text-gray-700 hover:bg-slate-50'"
                                         class="p-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-xs"
                                     >
                                         <span class="material-symbols-outlined text-[18px]">edit_square</span>
@@ -360,7 +360,7 @@
                                     <button 
                                         type="button" 
                                         @click="setType('essay')" 
-                                        :class="currentQ.type === 'essay' ? 'border-2 border-[#F5691A] bg-orange-50 text-[#F5691A] font-black shadow-xs' : 'border border-gray-200 bg-white text-gray-700 hover:bg-slate-50'"
+                                        :class="currentQ.type === 'essay' ? 'border-2 border-primary-container bg-orange-50 text-primary-container font-black shadow-xs' : 'border border-gray-200 bg-white text-gray-700 hover:bg-slate-50'"
                                         class="p-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-xs"
                                     >
                                         <span class="material-symbols-outlined text-[18px]">edit_note</span>
@@ -370,7 +370,7 @@
                                     <button 
                                         type="button" 
                                         @click="setType('speaking_prompt')" 
-                                        :class="currentQ.type === 'speaking_prompt' ? 'border-2 border-[#F5691A] bg-orange-50 text-[#F5691A] font-black shadow-xs' : 'border border-gray-200 bg-white text-gray-700 hover:bg-slate-50'"
+                                        :class="currentQ.type === 'speaking_prompt' ? 'border-2 border-primary-container bg-orange-50 text-primary-container font-black shadow-xs' : 'border border-gray-200 bg-white text-gray-700 hover:bg-slate-50'"
                                         class="p-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-xs"
                                     >
                                         <span class="material-symbols-outlined text-[18px]">record_voice_over</span>
@@ -399,13 +399,13 @@
                             <!-- Reading / Context Passage Content -->
                             <div class="space-y-1 text-xs">
                                 <label class="block font-bold text-gray-800 text-[11px]">Đoạn văn đọc hiểu / Bối cảnh câu hỏi (Passage / Reading Text)</label>
-                                <textarea x-model="currentQ.passage" rows="3" placeholder="Nhập đoạn văn đọc hiểu hoặc ngữ cảnh của câu hỏi (nếu có)..." class="w-full text-xs rounded-xl border border-gray-300 p-3 focus:ring-[#F5691A] focus:border-[#F5691A] bg-white font-serif shadow-2xs leading-relaxed"></textarea>
+                                <textarea x-model="currentQ.passage" rows="3" placeholder="Nhập đoạn văn đọc hiểu hoặc ngữ cảnh của câu hỏi (nếu có)..." class="w-full text-xs rounded-xl border border-gray-300 p-3 focus:ring-primary-container focus:border-primary-container bg-white font-serif shadow-2xs leading-relaxed"></textarea>
                             </div>
 
                             <!-- Question Text Content -->
                             <div class="space-y-1 text-xs">
                                 <label class="block font-bold text-gray-800 text-[11px]">Nội dung câu hỏi / Yêu cầu đề bài <span class="text-rose-500">*</span></label>
-                                <textarea x-model="currentQ.title" rows="2" placeholder="VD: According to the passage, what is the primary benefit of renewable energy?" class="w-full text-xs font-bold rounded-xl border border-gray-300 p-3 focus:ring-[#F5691A] focus:border-[#F5691A] bg-white shadow-2xs"></textarea>
+                                <textarea x-model="currentQ.title" rows="2" placeholder="VD: According to the passage, what is the primary benefit of renewable energy?" class="w-full text-xs font-bold rounded-xl border border-gray-300 p-3 focus:ring-primary-container focus:border-primary-container bg-white shadow-2xs"></textarea>
                             </div>
 
                             <!-- MULTIPLE CHOICE OPTIONS EDITOR -->
@@ -413,7 +413,7 @@
                                 <div class="space-y-3 text-xs bg-slate-50/70 p-4 rounded-2xl border border-gray-200">
                                     <div class="flex items-center justify-between pb-2 border-b border-gray-200">
                                         <h4 class="font-bold text-gray-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                                            <span class="material-symbols-outlined text-[#F5691A] text-base">tune</span>
+                                            <span class="material-symbols-outlined text-primary-container text-base">tune</span>
                                             <span>Các phương án trả lời (Tích chọn radio vào đáp án đúng)</span>
                                         </h4>
                                         <button type="button" @click="addOption()" class="px-2.5 py-1 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
@@ -433,8 +433,8 @@
                                                         @change="currentQ.correct_answer = opt.key" 
                                                         class="w-4 h-4 text-orange-600 focus:ring-orange-500 cursor-pointer"
                                                     />
-                                                    <span class="font-black text-sm font-mono w-5" :class="currentQ.correct_answer === opt.key ? 'text-[#F5691A]' : 'text-gray-700'" x-text="opt.key + '.'"></span>
-                                                    <input type="text" x-model="opt.text" placeholder="Nhập nội dung phương án..." class="flex-1 text-xs rounded-lg border border-gray-300 p-2 bg-white font-medium focus:ring-[#F5691A] focus:border-[#F5691A]" />
+                                                    <span class="font-black text-sm font-mono w-5" :class="currentQ.correct_answer === opt.key ? 'text-primary-container' : 'text-gray-700'" x-text="opt.key + '.'"></span>
+                                                    <input type="text" x-model="opt.text" placeholder="Nhập nội dung phương án..." class="flex-1 text-xs rounded-lg border border-gray-300 p-2 bg-white font-medium focus:ring-primary-container focus:border-primary-container" />
                                                     <button type="button" @click="removeOption(oIdx)" :disabled="currentQ.options.length <= 2" class="p-1 text-gray-400 hover:text-rose-600 disabled:opacity-20 cursor-pointer" title="Xóa phương án">
                                                         <span class="material-symbols-outlined text-[16px]">close</span>
                                                     </button>
@@ -486,7 +486,7 @@
                             <!-- Explanation Box -->
                             <div class="p-4 bg-amber-50/50 border border-amber-200 rounded-2xl space-y-1.5 text-xs">
                                 <label class="block font-bold text-amber-950 uppercase text-[11px] flex items-center gap-1.5">
-                                    <span class="material-symbols-outlined text-[#F5691A] text-base">lightbulb</span>
+                                    <span class="material-symbols-outlined text-primary-container text-base">lightbulb</span>
                                     <span>Lời giải thích chi tiết &amp; Dẫn chứng bài làm (Explanation)</span>
                                 </label>
                                 <textarea x-model="currentQ.explanation" rows="2" placeholder="Giải thích vì sao đáp án này đúng, trích dẫn transcript bài nghe hoặc đoạn văn bài đọc..." class="w-full text-xs rounded-xl border border-amber-300 p-2.5 bg-white shadow-2xs leading-relaxed"></textarea>

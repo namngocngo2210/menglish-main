@@ -71,9 +71,9 @@
 
 <div class="bg-surface-container-lowest border border-gray-200 rounded-2xl shadow-sm mb-6 overflow-hidden">
     <!-- Top Flow Status Bar -->
-    <div class="px-5 py-3.5 bg-gradient-to-r from-orange-500/10 via-primary/5 to-transparent border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
+    <div class="px-5 py-3.5 bg-gradient-to-r from-orange-500/10 via-primary-container/5 to-transparent border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2.5">
-            <span class="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center font-bold text-sm shadow-sm">
+            <span class="w-8 h-8 rounded-xl bg-primary-container text-white flex items-center justify-center font-bold text-sm shadow-sm">
                 <span class="material-symbols-outlined text-[18px]">meeting_room</span>
             </span>
             <div>
@@ -88,7 +88,7 @@
 
         <div class="flex items-center gap-2">
             <span class="text-xs text-gray-500 hidden sm:inline">Bước hiện tại:</span>
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary text-white shadow-2xs">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary-container text-white shadow-2xs">
                 <span>#{{ $currentStepData['num'] }}</span>
                 <span>{{ $currentStepData['title'] }}</span>
             </span>
@@ -107,8 +107,8 @@
                     $isPassed = $s['num'] < $activeStep;
                 @endphp
                 <a href="{{ $s['url'] }}"
-                   class="group flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left transition-all relative {{ $isCurrent ? 'bg-primary/10 border-2 border-primary shadow-2xs' : ($isPassed ? 'bg-gray-50/70 hover:bg-gray-100/70 border border-gray-200 text-gray-700' : 'bg-white hover:bg-gray-50 border border-gray-100 text-gray-500') }}">
-                    <div class="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 transition-colors {{ $isCurrent ? 'bg-primary text-white shadow-xs' : ($isPassed ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-600 group-hover:bg-gray-300') }}">
+                   class="group flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left transition-all relative {{ $isCurrent ? 'bg-primary-container/10 border-2 border-primary-container shadow-2xs' : ($isPassed ? 'bg-gray-50/70 hover:bg-gray-100/70 border border-gray-200 text-gray-700' : 'bg-white hover:bg-gray-50 border border-gray-100 text-gray-500') }}">
+                    <div class="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 transition-colors {{ $isCurrent ? 'bg-primary-container text-white shadow-xs' : ($isPassed ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-600 group-hover:bg-gray-300') }}">
                         @if($isPassed)
                             <span class="material-symbols-outlined text-[15px]">check</span>
                         @else

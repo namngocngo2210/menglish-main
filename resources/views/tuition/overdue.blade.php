@@ -56,19 +56,19 @@
 
         <!-- Tab selector for 3 Statistics & Aggregations -->
         <div class="flex items-center gap-2 border-b border-gray-200 pb-1 text-xs">
-            <button type="button" @click="activeTab = 'all'" :class="activeTab === 'all' ? 'border-primary text-primary font-bold' : 'border-transparent text-gray-500 hover:text-gray-900'" class="py-2 px-3 border-b-2 transition flex items-center gap-1.5">
+            <button type="button" @click="activeTab = 'all'" :class="activeTab === 'all' ? 'border-primary-container text-primary font-bold' : 'border-transparent text-gray-500 hover:text-gray-900'" class="py-2 px-3 border-b-2 transition flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[16px]">list_alt</span>
                 <span>Danh sách học viên ({{ $overdueTuitions->count() }})</span>
             </button>
-            <button type="button" @click="activeTab = 'branch'" :class="activeTab === 'branch' ? 'border-primary text-primary font-bold' : 'border-transparent text-gray-500 hover:text-gray-900'" class="py-2 px-3 border-b-2 transition flex items-center gap-1.5">
+            <button type="button" @click="activeTab = 'branch'" :class="activeTab === 'branch' ? 'border-primary-container text-primary font-bold' : 'border-transparent text-gray-500 hover:text-gray-900'" class="py-2 px-3 border-b-2 transition flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[16px]">domain</span>
                 <span>Thống kê theo Chi nhánh ({{ $statsByBranch->count() }})</span>
             </button>
-            <button type="button" @click="activeTab = 'class'" :class="activeTab === 'class' ? 'border-primary text-primary font-bold' : 'border-transparent text-gray-500 hover:text-gray-900'" class="py-2 px-3 border-b-2 transition flex items-center gap-1.5">
+            <button type="button" @click="activeTab = 'class'" :class="activeTab === 'class' ? 'border-primary-container text-primary font-bold' : 'border-transparent text-gray-500 hover:text-gray-900'" class="py-2 px-3 border-b-2 transition flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[16px]">school</span>
                 <span>Thống kê theo Lớp học ({{ $statsByClass->count() }})</span>
             </button>
-            <button type="button" @click="activeTab = 'top_students'" :class="activeTab === 'top_students' ? 'border-primary text-primary font-bold' : 'border-transparent text-gray-500 hover:text-gray-900'" class="py-2 px-3 border-b-2 transition flex items-center gap-1.5">
+            <button type="button" @click="activeTab = 'top_students'" :class="activeTab === 'top_students' ? 'border-primary-container text-primary font-bold' : 'border-transparent text-gray-500 hover:text-gray-900'" class="py-2 px-3 border-b-2 transition flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[16px]">person_alert</span>
                 <span>Top nợ theo Học viên</span>
             </button>
@@ -80,10 +80,10 @@
                 <div class="relative flex-1 w-full">
                     <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
                     <input type="text" name="search" value="{{ request('search') }}" placeholder="Tìm theo tên học viên, SĐT hoặc mã học viên..."
-                           class="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:ring-primary focus:border-primary">
+                           class="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:ring-primary-container focus:border-primary-container">
                 </div>
                 <div class="w-full sm:w-48">
-                    <select name="branch_id" class="w-full bg-white border border-gray-200 rounded-xl text-xs focus:ring-primary focus:border-primary py-2">
+                    <select name="branch_id" class="w-full bg-white border border-gray-200 rounded-xl text-xs focus:ring-primary-container focus:border-primary-container py-2">
                         <option value="">Tất cả cơ sở</option>
                         @foreach ($branches as $b)
                             <option value="{{ $b->id }}" @selected(request('branch_id') == $b->id)>{{ $b->name }}</option>
@@ -91,7 +91,7 @@
                     </select>
                 </div>
                 <div class="w-full sm:w-48">
-                    <select name="class_id" class="w-full bg-white border border-gray-200 rounded-xl text-xs focus:ring-primary focus:border-primary py-2">
+                    <select name="class_id" class="w-full bg-white border border-gray-200 rounded-xl text-xs focus:ring-primary-container focus:border-primary-container py-2">
                         <option value="">Tất cả lớp</option>
                         @foreach ($classes as $cl)
                             <option value="{{ $cl->id }}" @selected(request('class_id') == $cl->id)>{{ $cl->name }} ({{ $cl->code }})</option>
@@ -99,7 +99,7 @@
                     </select>
                 </div>
                 <div class="w-full sm:w-44">
-                    <select name="type" class="w-full bg-white border border-gray-200 rounded-xl text-xs focus:ring-primary focus:border-primary py-2 font-semibold">
+                    <select name="type" class="w-full bg-white border border-gray-200 rounded-xl text-xs focus:ring-primary-container focus:border-primary-container py-2 font-semibold">
                         <option value="all" @selected(request('type', 'all') === 'all')>Tất cả (Quá hạn &amp; Sắp đến)</option>
                         <option value="overdue" @selected(request('type') === 'overdue')>🔴 Chỉ Quá hạn</option>
                         <option value="upcoming" @selected(request('type') === 'upcoming')>🟡 Chỉ Sắp đến hạn (T-3)</option>
@@ -161,7 +161,7 @@
                                 </td>
                                 <td class="py-3.5 px-4 text-right whitespace-nowrap">
                                     <div class="flex items-center justify-end gap-1.5">
-                                        <a href="{{ route('tuition.receipts.create') }}?tuition_id={{ $ot->id }}" class="px-2.5 py-1 rounded-lg bg-primary hover:bg-primary-hover text-white font-bold text-xs shadow-sm transition">
+                                        <a href="{{ route('tuition.receipts.create') }}?tuition_id={{ $ot->id }}" class="px-2.5 py-1 rounded-lg bg-primary-container hover:bg-primary-hover text-white font-bold text-xs shadow-sm transition">
                                             Thu phí
                                         </a>
                                         @if ($isOverdue)
@@ -295,7 +295,7 @@
                                 <td class="py-3.5 px-4 text-right font-mono text-emerald-600">{{ number_format($st->paid_amount) }}đ</td>
                                 <td class="py-3.5 px-4 text-right font-mono font-black text-rose-600">{{ number_format($st->debt_amount) }}đ</td>
                                 <td class="py-3.5 px-4 text-right">
-                                    <a href="{{ route('tuition.receipts.create') }}?tuition_id={{ $st->id }}" class="px-3 py-1 rounded-lg bg-primary hover:bg-primary-hover text-white font-bold text-xs shadow-sm transition">
+                                    <a href="{{ route('tuition.receipts.create') }}?tuition_id={{ $st->id }}" class="px-3 py-1 rounded-lg bg-primary-container hover:bg-primary-hover text-white font-bold text-xs shadow-sm transition">
                                         Lập phiếu thu
                                     </a>
                                 </td>

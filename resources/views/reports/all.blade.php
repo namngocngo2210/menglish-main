@@ -36,14 +36,14 @@
 
         <!-- Filter -->
         <form method="GET" class="flex flex-wrap items-center gap-3 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-            <select name="type" class="text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
+            <select name="type" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
                 <option value="">Tất cả loại</option>
                 @foreach (\App\Models\StaffReport::TYPE_LABELS as $val => $lbl)
                     <option value="{{ $val }}" @selected(request('type')===$val)>{{ $lbl }}</option>
                 @endforeach
             </select>
-            <input type="date" name="date" value="{{ request('date') }}" class="text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
-            <button type="submit" class="px-4 py-2 rounded-lg bg-primary text-white text-xs font-bold">Lọc</button>
+            <input type="date" name="date" value="{{ request('date') }}" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
+            <button type="submit" class="px-4 py-2 rounded-lg bg-primary-container text-white text-xs font-bold">Lọc</button>
             <a href="{{ route('reports.all') }}" class="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold">Xóa lọc</a>
         </form>
 

@@ -21,7 +21,7 @@
             <div class="flex flex-wrap items-center gap-4 w-full sm:w-auto">
                 <div class="w-full sm:w-64">
                     <label class="block text-[11px] font-bold uppercase text-gray-500 mb-1" for="staff-filter">Chọn nhân sự</label>
-                    <select id="staff-filter" x-model="staffFilter" class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary focus:border-primary">
+                    <select id="staff-filter" x-model="staffFilter" class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container">
                         <option value="all">Tất cả nhân sự</option>
                         @foreach($kpiData as $kp)
                             <option value="{{ $kp['code'] }}">{{ $kp['name'] }} ({{ $kp['code'] }})</option>

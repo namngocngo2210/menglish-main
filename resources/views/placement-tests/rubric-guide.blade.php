@@ -58,7 +58,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                 <div>
                     <label class="block font-bold text-slate-700 uppercase mb-1">Chọn Khối Lớp</label>
-                    <select x-model="khoiKey" @change="recalc()" class="w-full text-xs font-semibold border-slate-300 rounded-xl focus:ring-primary focus:border-primary p-2.5 bg-slate-50">
+                    <select x-model="khoiKey" @change="recalc()" class="w-full text-xs font-semibold border-slate-300 rounded-xl focus:ring-primary-container focus:border-primary-container p-2.5 bg-slate-50">
                         <option value="khoi1_2">KHỐI 1 - 2</option>
                         <option value="khoi2_3">KHỐI 2 LÊN 3</option>
                         <option value="khoi3_4">KHỐI 3 LÊN 4</option>
@@ -67,15 +67,15 @@
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 uppercase mb-1">Điểm Nghe (Listening)</label>
-                    <input type="number" x-model.number="scoreL" @input="recalc()" step="0.5" min="0" class="w-full text-xs font-mono font-bold border-slate-300 rounded-xl focus:ring-primary focus:border-primary p-2.5">
+                    <input type="number" x-model.number="scoreL" @input="recalc()" step="0.5" min="0" class="w-full text-xs font-mono font-bold border-slate-300 rounded-xl focus:ring-primary-container focus:border-primary-container p-2.5">
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 uppercase mb-1">Điểm Đọc &amp; Viết (R&amp;W)</label>
-                    <input type="number" x-model.number="scoreR" @input="recalc()" step="0.5" min="0" class="w-full text-xs font-mono font-bold border-slate-300 rounded-xl focus:ring-primary focus:border-primary p-2.5">
+                    <input type="number" x-model.number="scoreR" @input="recalc()" step="0.5" min="0" class="w-full text-xs font-mono font-bold border-slate-300 rounded-xl focus:ring-primary-container focus:border-primary-container p-2.5">
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 uppercase mb-1">Điểm Speaking (Nói)</label>
-                    <input type="number" x-model.number="scoreS" @input="recalc()" step="0.5" min="0" class="w-full text-xs font-mono font-bold border-slate-300 rounded-xl focus:ring-primary focus:border-primary p-2.5">
+                    <input type="number" x-model.number="scoreS" @input="recalc()" step="0.5" min="0" class="w-full text-xs font-mono font-bold border-slate-300 rounded-xl focus:ring-primary-container focus:border-primary-container p-2.5">
                 </div>
             </div>
 

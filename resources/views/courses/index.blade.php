@@ -15,7 +15,7 @@
                 <button 
                     type="button" 
                     onclick="openCreateModal()" 
-                    class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition"
+                    class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition"
                 >
                     <span class="material-symbols-outlined text-[18px]">add_circle</span>
                     <span>Thêm khóa học &amp; Giá mới</span>
@@ -27,7 +27,7 @@
     <!-- Navigation Sub-Tabs -->
     <div class="border-b border-gray-200 bg-white -mt-4 -mx-4 sm:-mt-6 sm:-mx-6 px-6 pt-3 mb-5">
         <div class="flex items-center gap-6 overflow-x-auto text-xs font-semibold scrollbar-none">
-            <a href="{{ route('courses.index') }}" class="pb-3 border-b-2 border-primary text-primary font-bold transition whitespace-nowrap flex items-center gap-1.5">
+            <a href="{{ route('courses.index') }}" class="pb-3 border-b-2 border-primary-container text-primary font-bold transition whitespace-nowrap flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[17px]">sell</span>
                 <span>Bảng giá &amp; Danh mục Khóa học</span>
             </a>
@@ -99,7 +99,7 @@
                             name="search" 
                             value="{{ request('search') }}" 
                             placeholder="Nhập tên khóa học, mã code (IE-65, GT-B1)..." 
-                            class="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary"
+                            class="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container"
                         />
                     </div>
                 </div>
@@ -107,7 +107,7 @@
                 <!-- Level -->
                 <div>
                     <label class="block text-[11px] font-bold text-gray-600 mb-1">Khung trình độ</label>
-                    <select name="course_level_id" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary focus:border-primary">
+                    <select name="course_level_id" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
                         <option value="">-- Tất cả trình độ --</option>
                         @foreach ($levels as $lv)
                             <option value="{{ $lv->id }}" {{ request('course_level_id') == $lv->id ? 'selected' : '' }}>
@@ -120,7 +120,7 @@
                 <!-- Status -->
                 <div>
                     <label class="block text-[11px] font-bold text-gray-600 mb-1">Trạng thái mở bán</label>
-                    <select name="status" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary focus:border-primary">
+                    <select name="status" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
                         <option value="">-- Tất cả trạng thái --</option>
                         <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>🟢 Đang mở bán</option>
                         <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>⚪ Tạm ngưng</option>
@@ -132,7 +132,7 @@
                     <a href="{{ route('courses.index') }}" class="px-3 py-2 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-xl transition">
                         Đặt lại
                     </a>
-                    <button type="submit" class="flex-1 px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-xs transition flex items-center justify-center gap-1">
+                    <button type="submit" class="flex-1 px-4 py-2 text-xs font-bold text-white bg-primary-container hover:bg-primary-hover rounded-xl shadow-xs transition flex items-center justify-center gap-1">
                         <span class="material-symbols-outlined text-[16px]">filter_alt</span>
                         <span>Lọc</span>
                     </button>
@@ -296,17 +296,17 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block font-bold text-gray-700 mb-1">Mã khóa học <span class="text-rose-500">*</span></label>
-                            <input type="text" name="code" placeholder="Ví dụ: IE-65, GT-B1" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary focus:border-primary" />
+                            <input type="text" name="code" placeholder="Ví dụ: IE-65, GT-B1" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container" />
                         </div>
                         <div>
                             <label class="block font-bold text-gray-700 mb-1">Số buổi học <span class="text-rose-500">*</span></label>
-                            <input type="number" name="total_lessons" value="24" min="1" required class="w-full text-xs font-mono rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary focus:border-primary" />
+                            <input type="number" name="total_lessons" value="24" min="1" required class="w-full text-xs font-mono rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container" />
                         </div>
                     </div>
 
                     <div>
                         <label class="block font-bold text-gray-700 mb-1">Tên khóa học <span class="text-rose-500">*</span></label>
-                        <input type="text" name="name" placeholder="Ví dụ: IELTS 6.5 Intensive, Giao tiếp Pro B1" required class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary focus:border-primary" />
+                        <input type="text" name="name" placeholder="Ví dụ: IELTS 6.5 Intensive, Giao tiếp Pro B1" required class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container" />
                     </div>
 
                     <!-- TUITION FEE (Giá học phí) -->
@@ -323,7 +323,7 @@
                                 min="0" 
                                 step="10000" 
                                 required 
-                                class="w-full text-sm font-mono font-black text-primary rounded-xl border border-orange-300 bg-white p-2.5 pr-10 focus:ring-2 focus:ring-primary focus:border-primary" 
+                                class="w-full text-sm font-mono font-black text-primary rounded-xl border border-orange-300 bg-white p-2.5 pr-10 focus:ring-2 focus:ring-primary-container focus:border-primary-container" 
                             />
                             <span class="absolute right-3 top-2.5 text-xs font-bold text-orange-400">VNĐ</span>
                         </div>
@@ -331,7 +331,7 @@
 
                     <div>
                         <label class="block font-bold text-gray-700 mb-1">Khung trình độ trực thuộc</label>
-                        <select name="course_level_id" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary focus:border-primary">
+                        <select name="course_level_id" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
                             <option value="">-- Chọn khung trình độ (CEFR/IELTS) --</option>
                             @foreach ($levels as $lv)
                                 <option value="{{ $lv->id }}">{{ $lv->name }} ({{ $lv->code }})</option>
@@ -341,17 +341,17 @@
 
                     <div>
                         <label class="block font-bold text-gray-700 mb-1">Mô tả &amp; Cam kết đầu ra</label>
-                        <textarea name="description" rows="2" placeholder="Cam kết band điểm, tài liệu độc quyền..." class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary focus:border-primary"></textarea>
+                        <textarea name="description" rows="2" placeholder="Cam kết band điểm, tài liệu độc quyền..." class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container"></textarea>
                     </div>
 
                     <div class="flex items-center gap-2 pt-1">
-                        <input type="checkbox" name="is_active" id="create_is_active" value="1" checked class="rounded text-primary focus:ring-primary border-gray-300 w-4 h-4 cursor-pointer" />
+                        <input type="checkbox" name="is_active" id="create_is_active" value="1" checked class="rounded text-primary focus:ring-primary-container border-gray-300 w-4 h-4 cursor-pointer" />
                         <label for="create_is_active" class="font-bold text-gray-700 cursor-pointer">Kích hoạt mở bán ngay sau khi tạo</label>
                     </div>
 
                     <div class="flex justify-end gap-2.5 pt-3 border-t border-gray-100">
                         <button type="button" onclick="closeCreateModal()" class="px-4 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50">Hủy</button>
-                        <button type="submit" class="px-5 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-md">Lưu Khóa Học</button>
+                        <button type="submit" class="px-5 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-md">Lưu Khóa Học</button>
                     </div>
                 </form>
             </div>
@@ -377,17 +377,17 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block font-bold text-gray-700 mb-1">Mã khóa học <span class="text-rose-500">*</span></label>
-                            <input type="text" name="code" id="edit_code" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary focus:border-primary" />
+                            <input type="text" name="code" id="edit_code" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container" />
                         </div>
                         <div>
                             <label class="block font-bold text-gray-700 mb-1">Số buổi học <span class="text-rose-500">*</span></label>
-                            <input type="number" name="total_lessons" id="edit_total_lessons" min="1" required class="w-full text-xs font-mono rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary focus:border-primary" />
+                            <input type="number" name="total_lessons" id="edit_total_lessons" min="1" required class="w-full text-xs font-mono rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container" />
                         </div>
                     </div>
 
                     <div>
                         <label class="block font-bold text-gray-700 mb-1">Tên khóa học <span class="text-rose-500">*</span></label>
-                        <input type="text" name="name" id="edit_name" required class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary focus:border-primary" />
+                        <input type="text" name="name" id="edit_name" required class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container" />
                     </div>
 
                     <!-- EDIT TUITION FEE (Chỉnh sửa giá học phí) -->
@@ -404,7 +404,7 @@
                                 min="0" 
                                 step="10000" 
                                 required 
-                                class="w-full text-base font-mono font-black text-primary rounded-xl border border-orange-300 bg-white p-2.5 pr-10 focus:ring-2 focus:ring-primary focus:border-primary" 
+                                class="w-full text-base font-mono font-black text-primary rounded-xl border border-orange-300 bg-white p-2.5 pr-10 focus:ring-2 focus:ring-primary-container focus:border-primary-container" 
                             />
                             <span class="absolute right-3 top-3 text-xs font-bold text-orange-400">VNĐ</span>
                         </div>
@@ -412,7 +412,7 @@
 
                     <div>
                         <label class="block font-bold text-gray-700 mb-1">Khung trình độ trực thuộc</label>
-                        <select name="course_level_id" id="edit_course_level_id" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary focus:border-primary">
+                        <select name="course_level_id" id="edit_course_level_id" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
                             <option value="">-- Chưa gắn khung trình độ --</option>
                             @foreach ($levels as $lv)
                                 <option value="{{ $lv->id }}">{{ $lv->name }} ({{ $lv->code }})</option>
@@ -422,17 +422,17 @@
 
                     <div>
                         <label class="block font-bold text-gray-700 mb-1">Mô tả &amp; Mục tiêu</label>
-                        <textarea name="description" id="edit_description" rows="2" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary focus:border-primary"></textarea>
+                        <textarea name="description" id="edit_description" rows="2" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container"></textarea>
                     </div>
 
                     <div class="flex items-center gap-2 pt-1">
-                        <input type="checkbox" name="is_active" id="edit_is_active" value="1" class="rounded text-primary focus:ring-primary border-gray-300 w-4 h-4 cursor-pointer" />
+                        <input type="checkbox" name="is_active" id="edit_is_active" value="1" class="rounded text-primary focus:ring-primary-container border-gray-300 w-4 h-4 cursor-pointer" />
                         <label for="edit_is_active" class="font-bold text-gray-700 cursor-pointer">Đang mở bán khóa học này</label>
                     </div>
 
                     <div class="flex justify-end gap-2.5 pt-3 border-t border-gray-100">
                         <button type="button" onclick="closeEditModal()" class="px-4 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50">Hủy</button>
-                        <button type="submit" class="px-5 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-md">Cập Nhật Học Phí</button>
+                        <button type="submit" class="px-5 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-md">Cập Nhật Học Phí</button>
                     </div>
                 </form>
             </div>

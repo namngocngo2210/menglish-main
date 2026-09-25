@@ -35,7 +35,7 @@
 
             <div class="py-6 text-center text-xs text-gray-500">
                 <span>Phát triển bởi</span>
-                <a href="https://vmst.vn" target="_blank" rel="noopener noreferrer" class="font-bold text-[#ea580c] hover:underline">VMST Media</a>
+                <a href="https://vmst.vn" target="_blank" rel="noopener noreferrer" class="font-bold text-primary-container hover:underline">VMST Media</a>
             </div>
         </div>
     </body>

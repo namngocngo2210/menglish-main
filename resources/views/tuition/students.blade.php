@@ -13,7 +13,7 @@
                     <span class="material-symbols-outlined text-[18px]">upload_file</span>
                     <span>Nhập Excel</span>
                 </a>
-                <a href="{{ route('tuition.receipts.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
+                <a href="{{ route('tuition.receipts.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
                     <span class="material-symbols-outlined text-[18px]">add_card</span>
                     <span>Lập Phiếu thu mới</span>
                 </a>
@@ -55,7 +55,7 @@
                 <div class="flex items-center gap-2 flex-1 min-w-[260px]">
                     <div class="relative w-full max-w-sm">
                         <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
-                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Tìm theo tên học viên, mã HV, SĐT..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary" />
+                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Tìm theo tên học viên, mã HV, SĐT..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container" />
                     </div>
                     <select name="branch_id" class="text-xs rounded-xl border border-gray-200 py-1.5 px-3" onchange="this.form.submit()">
                         <option value="">Tất cả cơ sở</option>
@@ -117,7 +117,7 @@
                                 </td>
                                 <td class="py-3 px-4 text-right whitespace-nowrap">
                                     @if ($t->debt_amount > 0)
-                                        <a href="{{ route('tuition.receipts.create') }}" class="px-2.5 py-1 bg-primary text-white rounded-lg text-[11px] font-bold hover:bg-primary-hover shadow-sm transition">
+                                        <a href="{{ route('tuition.receipts.create') }}" class="px-2.5 py-1 bg-primary-container text-white rounded-lg text-[11px] font-bold hover:bg-primary-hover shadow-sm transition">
                                             Thu tiền
                                         </a>
                                     @else

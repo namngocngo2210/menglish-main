@@ -19,13 +19,13 @@
         <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm flex items-center justify-between">
             <span class="text-xs font-bold text-gray-700 uppercase tracking-wider">Chọn vai trò hiển thị:</span>
             <div class="flex items-center gap-2">
-                <button @click="currentRole = 'teacher'" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition" :class="currentRole === 'teacher' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'">
+                <button @click="currentRole = 'teacher'" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition" :class="currentRole === 'teacher' ? 'bg-primary-container text-white' : 'bg-gray-100 text-gray-700'">
                     👨‍🏫 Giáo viên (Chỉ xem học tập)
                 </button>
-                <button @click="currentRole = 'academic'" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition" :class="currentRole === 'academic' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'">
+                <button @click="currentRole = 'academic'" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition" :class="currentRole === 'academic' ? 'bg-primary-container text-white' : 'bg-gray-100 text-gray-700'">
                     📚 Học vụ (Điểm & Chuyên cần)
                 </button>
-                <button @click="currentRole = 'accountant'" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition" :class="currentRole === 'accountant' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'">
+                <button @click="currentRole = 'accountant'" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition" :class="currentRole === 'accountant' ? 'bg-primary-container text-white' : 'bg-gray-100 text-gray-700'">
                     💰 Kế toán (Học phí & Hóa đơn)
                 </button>
             </div>

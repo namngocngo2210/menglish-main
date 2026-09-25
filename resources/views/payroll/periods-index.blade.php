@@ -13,7 +13,7 @@
                     <span class="material-symbols-outlined text-[18px]">edit_calendar</span>
                     <span>Chấm công</span>
                 </a>
-                <button class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
+                <button class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
                     <span class="material-symbols-outlined text-[18px]">add_chart</span>
                     <span>Tạo kỳ lương mới</span>
                 </button>
@@ -24,7 +24,7 @@
     <div class="space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             @foreach ($periods as $period)
-                <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md hover:border-primary/40 transition flex flex-col justify-between space-y-4">
+                <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md hover:border-primary-container/40 transition flex flex-col justify-between space-y-4">
                     <div>
                         <div class="flex items-center justify-between mb-2">
                             <span class="text-xs font-bold font-mono px-2 py-0.5 rounded bg-gray-100 text-gray-700">{{ $period['id'] }}</span>
@@ -51,7 +51,7 @@
                     </div>
 
                     <div class="flex items-center gap-2 pt-2">
-                        <a href="{{ route('payroll.periods.show', $period['id']) }}" class="flex-1 text-center py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold shadow-sm transition">
+                        <a href="{{ route('payroll.periods.show', $period['id']) }}" class="flex-1 text-center py-2 bg-primary-container hover:bg-primary-hover text-white rounded-xl text-xs font-bold shadow-sm transition">
                             Chi tiết bảng lương
                         </a>
                     </div>

@@ -30,8 +30,8 @@
             <!-- Workspace Overview Banner -->
             <div class="relative overflow-hidden bg-gradient-to-r from-navy via-navy-light to-navy rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-white/10">
                 <div class="relative z-10 max-w-2xl space-y-3">
-                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 text-orange-400 border border-primary/30 text-xs font-bold">
-                        <span class="w-2 h-2 rounded-full bg-primary animate-ping"></span>
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-container/20 text-orange-400 border border-primary-container/30 text-xs font-bold">
+                        <span class="w-2 h-2 rounded-full bg-primary-container animate-ping"></span>
                         Không gian điều hành trung tâm MEnglish
                     </div>
                     <h2 class="text-2xl sm:text-3xl font-black tracking-tight text-white leading-tight">
@@ -41,7 +41,7 @@
                         Hệ thống điều hành tích hợp CRM Tuyển sinh, Quản lý Học vụ, Học phí, Chấm công Tính lương và Ngân hàng Đề thi chuẩn hóa.
                     </p>
                     <div class="flex flex-wrap items-center gap-3 pt-2">
-                        <a href="{{ route('crm.pipeline') }}" class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
+                        <a href="{{ route('crm.pipeline') }}" class="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
                             <span class="material-symbols-outlined text-[18px]">view_kanban</span>
                             <span>CRM Tuyển sinh</span>
                         </a>
@@ -55,7 +55,7 @@
                         </a>
                     </div>
                 </div>
-                <div class="absolute -right-10 -bottom-10 w-80 h-80 bg-primary/20 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -right-10 -bottom-10 w-80 h-80 bg-primary-container/20 rounded-full blur-3xl pointer-events-none"></div>
             </div>
         @else
             <!-- Welcome Banner for Staff / Teachers -->
@@ -93,7 +93,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             @if($canLead)
                 <!-- CRM Lead KPI -->
-                <a href="{{ route('crm.pipeline') }}" class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:border-primary hover:shadow-md transition group">
+                <a href="{{ route('crm.pipeline') }}" class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:border-primary-container hover:shadow-md transition group">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Leads Tuyển Sinh</span>
                         <div class="w-10 h-10 rounded-xl bg-orange-50 text-primary flex items-center justify-center group-hover:scale-110 transition">
@@ -170,7 +170,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 @if($canLead)
                     <!-- Module 1: CRM -->
-                    <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:border-primary/50 transition space-y-3">
+                    <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:border-primary-container/50 transition space-y-3">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2.5">
                                 <div class="w-9 h-9 rounded-xl bg-orange-50 text-primary flex items-center justify-center">

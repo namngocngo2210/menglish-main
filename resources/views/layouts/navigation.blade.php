@@ -387,7 +387,7 @@
                         if (savedScroll !== null) {
                             nav.scrollTop = parseInt(savedScroll, 10);
                         } else {
-                            const activeItem = nav.querySelector('.bg-primary');
+                            const activeItem = nav.querySelector('.bg-primary-container');
                             if (activeItem) {
                                 activeItem.scrollIntoView({ block: 'nearest', behavior: 'instant' });
                             }
@@ -429,14 +429,14 @@
     <div class="h-16 flex items-center gap-3 px-5 border-b border-white/10 shrink-0 bg-navy-dark">
         <!-- Orange ME EDUCATION Logo & Brand Header linking to Dashboard -->
         <a href="{{ route('dashboard') }}" class="flex items-center gap-3 group focus:outline-none transition cursor-pointer" title="Về Bảng Điều Khiển Trung Tâm (Dashboard)">
-            <div class="w-10 h-10 rounded-xl bg-primary flex flex-col items-center justify-center shadow-md shadow-primary/20 shrink-0 select-none text-white leading-tight group-hover:scale-105 transition-transform">
+            <div class="w-10 h-10 rounded-xl bg-primary-container flex flex-col items-center justify-center shadow-md shadow-primary-container/20 shrink-0 select-none text-white leading-tight group-hover:scale-105 transition-transform">
                 <span class="font-extrabold text-[15px] tracking-tight leading-none">ME</span>
                 <span class="text-[7px] font-bold tracking-tighter uppercase scale-90 leading-none pt-0.5 opacity-95">EDUCATION</span>
             </div>
             <div>
                 <div class="font-extrabold text-base tracking-wider text-white flex items-center gap-1.5 group-hover:text-primary transition-colors">
                     MENGLISH
-                    <span class="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-primary/20 text-orange-400 border border-primary/30">Admin</span>
+                    <span class="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-primary-container/20 text-orange-400 border border-primary-container/30">Admin</span>
                 </div>
             </div>
         </a>
@@ -485,7 +485,7 @@
             >
                 <button 
                     type="button"
-                    class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-150 {{ $isGroupActive ? 'bg-primary text-white font-bold shadow-sm shadow-primary/30' : 'text-gray-300 hover:bg-white/5 hover:text-white' }}"
+                    class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-150 {{ $isGroupActive ? 'bg-primary-container text-white font-bold shadow-sm shadow-primary-container/30' : 'text-gray-300 hover:bg-white/5 hover:text-white' }}"
                 >
                     <div class="flex items-center gap-3">
                         <span class="material-symbols-outlined text-[20px] {{ $isGroupActive ? 'text-white' : 'text-gray-400' }}">{{ $group['icon'] }}</span>
@@ -511,7 +511,7 @@
                         x-transition:leave="transition ease-in duration-100"
                         x-transition:leave-start="opacity-100 translate-x-0"
                         x-transition:leave-end="opacity-0 -translate-x-2"
-                        class="fixed z-[100] w-64 bg-[#1e293b] shadow-2xl shadow-black/60 border border-white/10 rounded-xl py-2 max-h-[calc(100vh-16px)] overflow-y-auto scrollbar-thin before:absolute before:top-0 before:bottom-0 before:-left-3 before:w-3 before:bg-transparent"
+                        class="fixed z-[100] w-64 bg-slate-800 shadow-2xl shadow-black/60 border border-white/10 rounded-xl py-2 max-h-[calc(100vh-16px)] overflow-y-auto scrollbar-thin before:absolute before:top-0 before:bottom-0 before:-left-3 before:w-3 before:bg-transparent"
                         :style="`top: ${top}px; left: ${left + 5}px;`"
                     >
                         <div class="px-4 py-2 border-b border-white/10 mb-2">
@@ -521,7 +521,7 @@
                             @foreach ($group['items'] as $subItem)
                                 <a 
                                     href="{{ $subItem['url'] }}" 
-                                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] font-medium transition duration-150 {{ $subItem['active'] ? 'bg-primary text-white font-bold' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}"
+                                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] font-medium transition duration-150 {{ $subItem['active'] ? 'bg-primary-container text-white font-bold' : 'text-gray-300 hover:bg-white/10 hover:text-white' }}"
                                 >
                                     {{ $subItem['label'] }}
                                 </a>

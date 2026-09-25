@@ -14,7 +14,7 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('syllabus.big-tests.distribution') }}" class="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                <a href="{{ route('syllabus.big-tests.distribution') }}" class="px-3.5 py-1.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-[16px]">add_circle</span>
                     <span>Tạo Đợt Big Test</span>
                 </a>

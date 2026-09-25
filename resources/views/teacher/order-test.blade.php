@@ -68,11 +68,11 @@
                     <label class="block text-xs font-bold text-gray-700 mb-1">Loại đề <span class="text-rose-500">*</span></label>
                     <div class="grid grid-cols-2 gap-2">
                         <label class="flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 cursor-pointer hover:bg-orange-50/30">
-                            <input type="radio" name="test_type" value="mini" checked class="text-primary focus:ring-primary" />
+                            <input type="radio" name="test_type" value="mini" checked class="text-primary focus:ring-primary-container" />
                             <span class="text-xs font-semibold">Mini Test (cuối chặng)</span>
                         </label>
                         <label class="flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 cursor-pointer hover:bg-orange-50/30">
-                            <input type="radio" name="test_type" value="big" class="text-primary focus:ring-primary" />
+                            <input type="radio" name="test_type" value="big" class="text-primary focus:ring-primary-container" />
                             <span class="text-xs font-semibold">Big Test (giữa/cuối khóa)</span>
                         </label>
                     </div>
@@ -82,7 +82,7 @@
                     <textarea name="note" rows="3" placeholder="VD: đề trọng tâm Listening Part 1-2, độ khó vừa phải..."
                               class="w-full text-xs rounded-xl border border-gray-200 px-3 py-2"></textarea>
                 </div>
-                <button type="submit" class="w-full px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition">
+                <button type="submit" class="w-full px-4 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition">
                     Gửi yêu cầu tới Ban Học thuật
                 </button>
             </form>

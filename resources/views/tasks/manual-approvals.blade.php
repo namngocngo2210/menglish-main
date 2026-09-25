@@ -37,7 +37,7 @@
                             $isSelected = $selectedTask && $selectedTask->id === $task->id;
                         @endphp
                         <div onclick="window.location.href='{{ route('tasks.manual-approvals', ['selected_id' => $task->id]) }}'"
-                             class="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 items-center cursor-pointer transition relative {{ $isSelected ? 'bg-orange-50/50 border-l-4 border-[#F5691A]' : 'hover:bg-gray-50/80' }}">
+                             class="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 items-center cursor-pointer transition relative {{ $isSelected ? 'bg-orange-50/50 border-l-4 border-primary-container' : 'hover:bg-gray-50/80' }}">
                             <div class="col-span-1 md:col-span-5 space-y-1">
                                 <div class="flex items-center gap-2">
                                     <span class="bg-orange-100 text-orange-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-orange-200">
@@ -56,7 +56,7 @@
                             </div>
 
                             <div class="col-span-1 md:col-span-3 flex items-center gap-2">
-                                <div class="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                                <div class="w-7 h-7 rounded-full bg-primary-container/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
                                     {{ Str::substr($task->assignee?->name ?? 'TA', 0, 2) }}
                                 </div>
                                 <span class="text-gray-900 text-xs font-medium truncate">{{ $task->assignee?->name ?? 'Chưa phân công' }}</span>
@@ -69,7 +69,7 @@
                             <div class="col-span-1 md:col-span-2 flex justify-end" onclick="event.stopPropagation()">
                                 <form action="{{ route('tasks.approve', $task->id) }}" method="POST">
                                     @csrf
-                                    <button type="submit" class="bg-[#F5691A] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#d85a15] transition shadow-xs">
+                                    <button type="submit" class="bg-primary-container text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-primary transition shadow-xs">
                                         Xác nhận
                                     </button>
                                 </form>
@@ -159,14 +159,14 @@
                                 <div>
                                     <label class="block font-bold text-gray-700 uppercase text-[11px] mb-1" for="admin_note">Ghi chú xác nhận (Tùy chọn)</label>
                                     <textarea name="admin_note" id="admin_note" rows="2" placeholder="Nhập ghi chú hoặc phản hồi cho TA..."
-                                              class="w-full rounded-xl border-gray-200 text-xs focus:ring-primary focus:border-primary"></textarea>
+                                              class="w-full rounded-xl border-gray-200 text-xs focus:ring-primary-container focus:border-primary-container"></textarea>
                                 </div>
                             </form>
                         </div>
 
                         <!-- Detail Actions -->
                         <div class="p-5 border-t border-gray-100 bg-gray-50 flex flex-col gap-3">
-                            <button type="submit" form="approvalForm" class="w-full bg-[#F5691A] text-white hover:bg-[#d85a15] font-bold text-xs py-3 rounded-xl transition shadow-sm flex items-center justify-center gap-2">
+                            <button type="submit" form="approvalForm" class="w-full bg-primary-container text-white hover:bg-primary font-bold text-xs py-3 rounded-xl transition shadow-sm flex items-center justify-center gap-2">
                                 <span class="material-symbols-outlined text-[16px]">check_circle</span>
                                 Xác nhận hoàn thành
                             </button>

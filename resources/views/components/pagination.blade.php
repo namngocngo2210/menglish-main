@@ -22,7 +22,7 @@
                             url.searchParams.set('page', '1');
                             window.location.href = url.toString();
                         "
-                        class="px-2.5 py-1 text-xs font-semibold rounded-md transition {{ $isSelected ? 'bg-primary text-white shadow-xs' : 'text-gray-600 hover:text-gray-900 hover:bg-white/80' }}"
+                        class="px-2.5 py-1 text-xs font-semibold rounded-md transition {{ $isSelected ? 'bg-primary-container text-white shadow-xs' : 'text-gray-600 hover:text-gray-900 hover:bg-white/80' }}"
                     >
                         {{ $opt === 'all' ? 'Tất cả' : $opt }}
                     </button>

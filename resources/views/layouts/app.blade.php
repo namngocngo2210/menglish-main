@@ -130,7 +130,7 @@
                         <x-dropdown align="right" width="56">
                             <x-slot name="trigger">
                                 <button class="inline-flex items-center gap-1.5 p-1 text-sm font-medium text-gray-700 hover:text-gray-900 rounded-lg">
-                                    <span class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">{{ Str::substr(Auth::user()?->name ?? 'A', 0, 1) }}</span>
+                                    <span class="w-8 h-8 rounded-full bg-primary-container/10 text-primary flex items-center justify-center font-bold">{{ Str::substr(Auth::user()?->name ?? 'A', 0, 1) }}</span>
                                     <span class="hidden md:inline font-semibold">{{ Auth::user()?->name ?? 'Admin User' }}</span>
                                     <span class="material-symbols-outlined text-sm text-gray-400">expand_more</span>
                                 </button>
@@ -179,7 +179,7 @@
                             href="https://vmst.vn" 
                             target="_blank" 
                             rel="noopener noreferrer" 
-                            class="font-bold text-[#ea580c] hover:text-[#c2410c] hover:underline transition inline-flex items-center gap-0.5"
+                            class="font-bold text-primary-container hover:text-primary hover:underline transition inline-flex items-center gap-0.5"
                             title="Truy cập website VMST Media"
                         >
                             <span>VMST Media</span>

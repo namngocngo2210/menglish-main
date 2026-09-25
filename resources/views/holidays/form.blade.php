@@ -35,7 +35,7 @@
             </div>
 
             <label class="flex items-center gap-2 text-sm">
-                <input type="checkbox" name="is_system_wide" value="1" x-model="systemWide" class="rounded border-gray-300 text-primary focus:ring-primary">
+                <input type="checkbox" name="is_system_wide" value="1" x-model="systemWide" class="rounded border-gray-300 text-primary focus:ring-primary-container">
                 Áp dụng toàn hệ thống
             </label>
 
@@ -44,7 +44,7 @@
                 <div class="grid grid-cols-2 gap-1 mt-1">
                     @foreach ($branches as $branch)
                         <label class="flex items-center gap-2 text-sm">
-                            <input type="checkbox" name="branch_ids[]" value="{{ $branch->id }}" @checked(in_array($branch->id, old('branch_ids', $selectedBranchIds))) class="rounded border-gray-300 text-primary focus:ring-primary">
+                            <input type="checkbox" name="branch_ids[]" value="{{ $branch->id }}" @checked(in_array($branch->id, old('branch_ids', $selectedBranchIds))) class="rounded border-gray-300 text-primary focus:ring-primary-container">
                             {{ $branch->name }}
                         </label>
                     @endforeach
@@ -53,7 +53,7 @@
 
             <div class="pt-4 flex justify-end gap-3">
                 <a href="{{ route('holidays.index') }}" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm">Hủy</a>
-                <button type="submit" class="px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-medium">Lưu thông tin</button>
+                <button type="submit" class="px-4 py-2 rounded-lg bg-primary-container hover:bg-primary-hover text-white text-sm font-medium">Lưu thông tin</button>
             </div>
         </form>
     </div>

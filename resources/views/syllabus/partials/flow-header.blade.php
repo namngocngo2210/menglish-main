@@ -88,7 +88,7 @@
     <!-- Top Flow Status Bar -->
     <div class="px-5 py-3.5 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2.5">
-            <span class="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center font-bold text-sm shadow-sm">
+            <span class="w-8 h-8 rounded-xl bg-primary-container text-white flex items-center justify-center font-bold text-sm shadow-sm">
                 <span class="material-symbols-outlined text-[18px]">menu_book</span>
             </span>
             <div>
@@ -104,8 +104,8 @@
 
         <div class="flex items-center gap-2">
             <span class="text-xs text-gray-500 font-medium hidden md:inline">Đang xem:</span>
-            <span class="px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-bold text-xs flex items-center gap-1.5 border border-primary/20">
-                <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+            <span class="px-2.5 py-1 rounded-lg bg-primary-container/10 text-primary font-bold text-xs flex items-center gap-1.5 border border-primary-container/20">
+                <span class="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
                 <span>#{{ $currentStepData['num'] }} {{ $currentStepData['title'] }}</span>
             </span>
 
@@ -119,8 +119,8 @@
                 @php
                     $isActive = ($step['num'] === (int)$activeStep);
                 @endphp
-                <a href="{{ $step['url'] }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs transition-all {{ $isActive ? 'bg-white border-primary shadow-sm ring-2 ring-primary/10 text-gray-900 font-bold' : 'bg-white/80 border-gray-200 hover:border-gray-300 text-gray-600 hover:bg-white hover:text-gray-900' }}">
-                    <div class="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[11px] shrink-0 {{ $isActive ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-600' }}">
+                <a href="{{ $step['url'] }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs transition-all {{ $isActive ? 'bg-white border-primary-container shadow-sm ring-2 ring-primary-container/10 text-gray-900 font-bold' : 'bg-white/80 border-gray-200 hover:border-gray-300 text-gray-600 hover:bg-white hover:text-gray-900' }}">
+                    <div class="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[11px] shrink-0 {{ $isActive ? 'bg-primary-container text-white shadow-sm' : 'bg-gray-100 text-gray-600' }}">
                         {{ $step['num'] }}
                     </div>
                     <div class="flex flex-col text-left">

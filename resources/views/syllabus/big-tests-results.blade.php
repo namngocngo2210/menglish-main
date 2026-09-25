@@ -39,7 +39,7 @@
             <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-2xs p-4 space-y-3">
                 <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">Chọn Kỳ Thi Big Test:</label>
                 <div class="flex items-center gap-2">
-                    <select onchange="window.location.href='{{ route('syllabus.big-tests.results') }}/' + this.value" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-semibold text-gray-900 bg-white focus:ring-primary focus:border-primary">
+                    <select onchange="window.location.href='{{ route('syllabus.big-tests.results') }}/' + this.value" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-semibold text-gray-900 bg-white focus:ring-primary-container focus:border-primary-container">
                         @foreach ($allTests as $t)
                             <option value="{{ $t->id }}" {{ $test?->id === $t->id ? 'selected' : '' }}>
                                 [{{ $t->code }}] {{ $t->title }} · {{ $t->classModel?->name }}
@@ -152,7 +152,7 @@
                 </table>
             </div>
             @if($test && $students->isNotEmpty())
-                <div class="p-4 border-t text-right"><button class="px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold">Lưu điểm chờ duyệt</button></div>
+                <div class="p-4 border-t text-right"><button class="px-4 py-2 bg-primary-container text-white rounded-xl text-xs font-bold">Lưu điểm chờ duyệt</button></div>
             @endif
             </form>
         </div>

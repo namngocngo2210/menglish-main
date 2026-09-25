@@ -65,17 +65,17 @@
             <div class="border-b border-gray-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div class="flex items-center gap-2">
                     <a href="{{ route('recruitment.index', ['tab' => 'candidates']) }}"
-                       class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap {{ $tab === 'candidates' ? 'bg-primary text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                       class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap {{ $tab === 'candidates' ? 'bg-primary-container text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
                         1. Danh sách Hồ sơ CV ({{ $totalCvs }})
                     </a>
                     <a href="{{ route('recruitment.index', ['tab' => 'jobs']) }}"
-                       class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap {{ $tab === 'jobs' ? 'bg-primary text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                       class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap {{ $tab === 'jobs' ? 'bg-primary-container text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
                         2. Tin Tuyển dụng ({{ $jobs->count() }})
                     </a>
                 </div>
 
                 @if($tab === 'jobs')
-                    <button type="button" @click="showNewJobModal = true" class="px-3.5 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 self-start sm:self-auto">
+                    <button type="button" @click="showNewJobModal = true" class="px-3.5 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 self-start sm:self-auto">
                         <span class="material-symbols-outlined text-[18px]">add_circle</span>
                         <span>Đăng tin tuyển dụng</span>
                     </button>
@@ -178,7 +178,7 @@
                                                 <textarea name="notes" rows="2" placeholder="Ghi chú đánh giá, lịch hẹn PV..." class="w-full text-xs rounded-lg border-gray-200 p-1.5"></textarea>
                                                 <div class="flex items-center justify-end gap-1.5 pt-1">
                                                     <button type="button" @click="openEdit = false" class="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded">Đóng</button>
-                                                    <button type="submit" class="px-3 py-1 bg-primary text-white text-xs font-bold rounded-lg shadow-xs">Lưu</button>
+                                                    <button type="submit" class="px-3 py-1 bg-primary-container text-white text-xs font-bold rounded-lg shadow-xs">Lưu</button>
                                                 </div>
                                             </form>
                                         </div>
@@ -335,7 +335,7 @@
 
                     <div class="flex items-center justify-end gap-2 pt-3 border-t">
                         <button type="button" @click="showNewJobModal = false" class="px-4 py-2 border rounded-xl text-gray-600 hover:bg-gray-50">Hủy</button>
-                        <button type="submit" class="px-5 py-2 bg-primary text-white font-bold rounded-xl shadow-sm hover:bg-primary-hover">Đăng tin ngay</button>
+                        <button type="submit" class="px-5 py-2 bg-primary-container text-white font-bold rounded-xl shadow-sm hover:bg-primary-hover">Đăng tin ngay</button>
                     </div>
                 </form>
             </div>

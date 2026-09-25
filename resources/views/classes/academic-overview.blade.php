@@ -14,7 +14,7 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('classes.academic-list') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary-dark transition">
+                <a href="{{ route('classes.academic-list') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-dark transition">
                     <span class="material-symbols-outlined text-[18px]">table_view</span>
                     <span>Danh sách lớp chi tiết (Bước #5)</span>
                 </a>
@@ -36,7 +36,7 @@
                     <span class="material-symbols-outlined text-[18px]">location_on</span>
                 </div>
                 <select onchange="window.location.href = '{{ route('classes.academic-overview') }}?branch=' + this.value"
-                        class="block w-full pl-9 pr-8 py-2 text-xs font-bold bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none cursor-pointer">
+                        class="block w-full pl-9 pr-8 py-2 text-xs font-bold bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container appearance-none cursor-pointer">
                     <option value="all" {{ $selectedBranch === 'all' ? 'selected' : '' }}>Tất cả cơ sở</option>
                     @foreach($branches as $b)
                         <option value="{{ $b->id }}" {{ $selectedBranch == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
@@ -120,7 +120,7 @@
                 <!-- Card 4: Giao tiếp -->
                 <a href="{{ route('classes.academic-list') }}?program=communication"
                    class="bg-white border border-gray-200 rounded-2xl p-4 hover:bg-orange-50/20 hover:border-orange-300 transition cursor-pointer group flex justify-between items-center relative overflow-hidden shadow-2xs">
-                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-primary"></div>
+                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-primary-container"></div>
                     <div class="pl-2">
                         <div class="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors">Giao tiếp</div>
                         <div class="text-[11px] text-gray-400 font-medium">Sinh viên &amp; Người lớn</div>
@@ -152,7 +152,7 @@
 
                 @foreach($levels as $lvl)
                     <a href="{{ route('classes.academic-list') }}?search={{ $lvl['name'] }}"
-                       class="bg-white border border-gray-200 rounded-2xl p-4 hover:shadow-md hover:border-primary/40 transition cursor-pointer flex flex-col gap-3 group">
+                       class="bg-white border border-gray-200 rounded-2xl p-4 hover:shadow-md hover:border-primary-container/40 transition cursor-pointer flex flex-col gap-3 group">
                         <div class="text-xs font-bold text-gray-700 truncate group-hover:text-primary transition-colors">
                             {{ $lvl['name'] }}
                         </div>

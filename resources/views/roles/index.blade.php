@@ -10,7 +10,7 @@
             </div>
             @can('role.create')
                 <div class="flex items-center gap-2">
-                    <a href="{{ route('roles.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
+                    <a href="{{ route('roles.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
                         <span class="material-symbols-outlined text-[18px]">add_circle</span>
                         <span>Thêm Vai Trò Mới</span>
                     </a>

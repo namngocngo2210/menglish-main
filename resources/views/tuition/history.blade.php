@@ -13,7 +13,7 @@
                     <span class="material-symbols-outlined text-[18px]">settings</span>
                     <span>Cấu hình dải số HĐĐT</span>
                 </a>
-                <a href="{{ route('tuition.receipts.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
+                <a href="{{ route('tuition.receipts.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
                     <span class="material-symbols-outlined text-[18px]">add_card</span>
                     <span>Lập Phiếu thu mới</span>
                 </a>
@@ -105,7 +105,7 @@
                                             created_at: '{{ $rc->created_at->format('d/m/Y') }}',
                                             notes: '{{ addslashes($rc->notes ?? 'Thu học phí khóa học') }}'
                                         })"
-                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-primary hover:text-white text-gray-700 text-xs font-semibold transition cursor-pointer"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-primary-container hover:text-white text-gray-700 text-xs font-semibold transition cursor-pointer"
                                         title="Xem &amp; In Phiếu thu học phí chuẩn"
                                     >
                                         <span class="material-symbols-outlined text-[15px]">print</span>
@@ -145,7 +145,7 @@
                         <button 
                             type="button" 
                             @click="printVoucher()" 
-                            class="px-4 py-1.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                            class="px-4 py-1.5 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
                         >
                             <span class="material-symbols-outlined text-[16px]">print</span>
                             <span>In phiếu ngay (A4/A5)</span>

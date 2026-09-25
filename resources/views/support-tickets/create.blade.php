@@ -21,13 +21,13 @@
             <div class="space-y-4 text-xs">
                 <div>
                     <label class="block font-semibold text-gray-700 mb-1">Tiêu đề sự cố / yêu cầu <span class="text-rose-500">*</span></label>
-                    <input type="text" name="title" required placeholder="Ví dụ: Lỗi không xuất được hóa đơn điện tử cho học viên HV-0012" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold focus:border-primary focus:ring-primary" />
+                    <input type="text" name="title" required placeholder="Ví dụ: Lỗi không xuất được hóa đơn điện tử cho học viên HV-0012" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold focus:border-primary-container focus:ring-primary-container" />
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label class="block font-semibold text-gray-700 mb-1">Phân loại danh mục <span class="text-rose-500">*</span></label>
-                        <select name="category" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold focus:border-primary focus:ring-primary">
+                        <select name="category" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold focus:border-primary-container focus:ring-primary-container">
                             <option value="technical_issue">Lỗi Hệ Thống / IT</option>
                             <option value="curriculum">Giáo Trình / Học Vụ</option>
                             <option value="tuition">Học Phí / Hóa Đơn</option>
@@ -38,7 +38,7 @@
 
                     <div>
                         <label class="block font-semibold text-gray-700 mb-1">Mức độ ưu tiên <span class="text-rose-500">*</span></label>
-                        <select name="priority" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold focus:border-primary focus:ring-primary">
+                        <select name="priority" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold focus:border-primary-container focus:ring-primary-container">
                             <option value="low">Thấp (Low)</option>
                             <option value="medium" selected>Trung bình (Medium)</option>
                             <option value="high">Cao (High)</option>
@@ -48,7 +48,7 @@
 
                     <div>
                         <label class="block font-semibold text-gray-700 mb-1">Phân công người xử lý</label>
-                        <select name="assignee_id" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary focus:ring-primary">
+                        <select name="assignee_id" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container">
                             <option value="">-- Để mở (Chưa gán) --</option>
                             @foreach ($staffs as $staff)
                                 <option value="{{ $staff->id }}">{{ $staff->name }}</option>
@@ -59,7 +59,7 @@
 
                 <div>
                     <label class="block font-semibold text-gray-700 mb-1">Mô tả chi tiết sự cố / Nội dung yêu cầu <span class="text-rose-500">*</span></label>
-                    <textarea name="description" rows="4" required placeholder="Mô tả cụ thể các bước tái hiện lỗi, đường dẫn URL bị lỗi hoặc yêu cầu nghiệp vụ cần xử lý..." class="w-full text-xs rounded-xl border border-gray-200 p-3 focus:border-primary focus:ring-primary"></textarea>
+                    <textarea name="description" rows="4" required placeholder="Mô tả cụ thể các bước tái hiện lỗi, đường dẫn URL bị lỗi hoặc yêu cầu nghiệp vụ cần xử lý..." class="w-full text-xs rounded-xl border border-gray-200 p-3 focus:border-primary-container focus:ring-primary-container"></textarea>
                 </div>
 
                 <!-- Drag and Drop Image Upload Zone -->
@@ -70,7 +70,7 @@
                     
                     <div 
                         class="border-2 border-dashed rounded-2xl p-6 text-center transition cursor-pointer flex flex-col items-center justify-center gap-2 relative bg-gray-50/50 hover:bg-orange-50/30"
-                        :class="isDragging ? 'border-primary bg-orange-50/60 ring-2 ring-primary/20' : 'border-gray-300 hover:border-primary'"
+                        :class="isDragging ? 'border-primary-container bg-orange-50/60 ring-2 ring-primary-container/20' : 'border-gray-300 hover:border-primary-container'"
                         @dragover.prevent="isDragging = true"
                         @dragleave.prevent="isDragging = false"
                         @drop.prevent="handleDrop($event)"
@@ -97,7 +97,7 @@
                             <p class="text-[11px] text-gray-500">
                                 Hỗ trợ: PNG, JPG, GIF, WEBP hoặc tài liệu PDF/Excel (Tối đa 15MB/file)
                             </p>
-                            <div class="inline-flex items-center gap-1 text-[10px] text-primary bg-primary/10 px-2.5 py-0.5 rounded-full font-semibold mt-1">
+                            <div class="inline-flex items-center gap-1 text-[10px] text-primary bg-primary-container/10 px-2.5 py-0.5 rounded-full font-semibold mt-1">
                                 <span class="material-symbols-outlined text-[13px]">content_paste</span>
                                 <span>Có thể dán trực tiếp ảnh từ Clipboard (Ctrl + V / Cmd + V)</span>
                             </div>
@@ -143,7 +143,7 @@
                 <a href="{{ route('tickets.index') }}" class="px-4 py-2 border border-gray-200 text-xs font-semibold text-gray-700 rounded-xl hover:bg-gray-50">
                     Hủy
                 </a>
-                <button type="submit" class="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
+                <button type="submit" class="px-5 py-2.5 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-base">send</span>
                     <span>Tạo &amp; Gửi Ticket</span>
                 </button>

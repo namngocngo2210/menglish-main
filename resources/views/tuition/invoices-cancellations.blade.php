@@ -90,7 +90,7 @@
             <div class="flex flex-wrap items-center gap-3">
                 <div class="relative w-72">
                     <span class="material-symbols-outlined absolute left-3 top-2 text-slate-400 text-base pointer-events-none">search</span>
-                    <input type="text" name="q" value="{{ request('q') }}" placeholder="Tìm theo mã phiếu, số hóa đơn, học viên..." class="pl-9 pr-8 py-2 text-xs border border-slate-200 rounded-lg w-full focus:ring-primary focus:border-primary" />
+                    <input type="text" name="q" value="{{ request('q') }}" placeholder="Tìm theo mã phiếu, số hóa đơn, học viên..." class="pl-9 pr-8 py-2 text-xs border border-slate-200 rounded-lg w-full focus:ring-primary-container focus:border-primary-container" />
                     @if (request('q'))
                         <a href="{{ route('tuition.invoices.cancellations', request()->except('q')) }}" class="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600">
                             <span class="material-symbols-outlined text-base">close</span>
@@ -138,9 +138,9 @@
                             $isSelected = $selectedCancellation && $selectedCancellation->id === $can->id;
                             $st = $can->student ?? $can->receipt?->tuition?->student ?? $can->receipt?->student;
                         @endphp
-                        <a href="{{ route('tuition.invoices.cancellations', array_merge(request()->all(), ['selected_id' => $can->id])) }}" class="block bg-white rounded-2xl p-4 shadow-sm relative cursor-pointer transition border {{ $isSelected ? 'border-primary ring-2 ring-primary/20 shadow-md' : 'border-slate-200 hover:border-slate-300' }}">
+                        <a href="{{ route('tuition.invoices.cancellations', array_merge(request()->all(), ['selected_id' => $can->id])) }}" class="block bg-white rounded-2xl p-4 shadow-sm relative cursor-pointer transition border {{ $isSelected ? 'border-primary-container ring-2 ring-primary-container/20 shadow-md' : 'border-slate-200 hover:border-slate-300' }}">
                             @if ($isSelected)
-                                <div class="absolute -left-1 top-6 bottom-6 w-1 bg-primary rounded-r"></div>
+                                <div class="absolute -left-1 top-6 bottom-6 w-1 bg-primary-container rounded-r"></div>
                             @endif
 
                             <div class="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-100">
@@ -376,7 +376,7 @@
                                         @if ($rc && $rc->surcharge_amount > 0)
                                             <tr>
                                                 <td class="py-2.5 px-3 font-semibold text-primary flex items-center gap-1">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-primary"></span> Phụ thu phát sinh
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span> Phụ thu phát sinh
                                                 </td>
                                                 <td class="py-2.5 px-3 text-slate-600">{{ $rc->surcharge_reason ?: 'Phụ thu giáo trình & học liệu' }}</td>
                                                 <td class="py-2.5 px-3 text-right font-mono font-semibold text-primary">+{{ number_format($rc->surcharge_amount) }} VNĐ</td>

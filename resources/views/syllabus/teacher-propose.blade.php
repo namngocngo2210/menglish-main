@@ -18,7 +18,7 @@
                     <span class="material-symbols-outlined text-[18px]">checklist_rtl</span>
                     <span>Admin duyệt đề xuất (Bước #6)</span>
                 </a>
-                <a href="{{ route('syllabus.teacher-adjust') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
+                <a href="{{ route('syllabus.teacher-adjust') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
                     <span class="material-symbols-outlined text-[18px]">speed</span>
                     <span>Xin điều chỉnh tiến độ (Bước #7)</span>
                 </a>
@@ -41,7 +41,7 @@
                 <form onsubmit="event.preventDefault(); alert('Đã gửi đề xuất sửa giáo trình tới Ban Học thuật thành công!');" class="flex flex-col gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Chọn giáo trình <span class="text-rose-500">*</span></label>
-                        <select required class="w-full rounded-xl border border-gray-200 bg-white text-xs p-2.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                        <select required class="w-full rounded-xl border border-gray-200 bg-white text-xs p-2.5 focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none">
                             <option value="">Chọn giáo trình...</option>
                             @foreach ($curriculums as $c)
                                 <option value="{{ $c->id }}">{{ $c->title }} ({{ $c->version }})</option>
@@ -51,7 +51,7 @@
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Chọn buổi học / Unit (Tùy chọn)</label>
-                        <select class="w-full rounded-xl border border-gray-200 bg-white text-xs p-2.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                        <select class="w-full rounded-xl border border-gray-200 bg-white text-xs p-2.5 focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none">
                             <option value="">-- Toàn bộ giáo trình (Chung) --</option>
                             <option value="1">Buổi 1: Introduction to IELTS &amp; Greetings</option>
                             <option value="2">Buổi 2: Present Simple &amp; Daily Routine</option>
@@ -62,7 +62,7 @@
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Loại đề xuất</label>
-                        <select class="w-full rounded-xl border border-gray-200 bg-white text-xs p-2.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                        <select class="w-full rounded-xl border border-gray-200 bg-white text-xs p-2.5 focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none">
                             <option>Sửa lỗi chính tả / ngữ pháp trong bài giảng</option>
                             <option>Cập nhật link file Audio nghe bị lỗi</option>
                             <option>Thay đổi độ dài / thời gian bài tập Writing</option>
@@ -72,10 +72,10 @@
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Mô tả thay đổi đề xuất <span class="text-rose-500">*</span></label>
-                        <textarea required rows="4" class="w-full rounded-xl border border-gray-200 p-2.5 text-xs focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none" placeholder="Nhập chi tiết nội dung cần sửa đổi, số trang tài liệu và giải thích lý do..."></textarea>
+                        <textarea required rows="4" class="w-full rounded-xl border border-gray-200 p-2.5 text-xs focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none resize-none" placeholder="Nhập chi tiết nội dung cần sửa đổi, số trang tài liệu và giải thích lý do..."></textarea>
                     </div>
 
-                    <button type="submit" class="w-full bg-primary hover:bg-primary-hover text-white py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
+                    <button type="submit" class="w-full bg-primary-container hover:bg-primary-hover text-white py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
                         <span class="material-symbols-outlined text-[18px]">send</span>
                         <span>Gửi đề xuất tới Ban Học thuật</span>
                     </button>

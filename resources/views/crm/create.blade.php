@@ -58,7 +58,7 @@
                         value="{{ old('name') }}" 
                         required 
                         placeholder="Nhập họ và tên khách" 
-                        class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary px-3.5 py-2.5 bg-white transition placeholder:text-gray-400"
+                        class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5 bg-white transition placeholder:text-gray-400"
                     />
                     @error('name') <span class="text-rose-500 text-[11px] mt-1 block">{{ $message }}</span> @enderror
                 </div>
@@ -66,12 +66,12 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1.5">Email</label>
-                        <input type="email" name="email" value="{{ old('email') }}" placeholder="hocvien@example.com" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary px-3.5 py-2.5" />
+                        <input type="email" name="email" value="{{ old('email') }}" placeholder="hocvien@example.com" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5" />
                         @error('email') <span class="text-rose-500 text-[11px] mt-1 block">{{ $message }}</span> @enderror
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1.5">Ngày sinh</label>
-                        <input type="date" name="dob" value="{{ old('dob') }}" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary px-3.5 py-2.5" />
+                        <input type="date" name="dob" value="{{ old('dob') }}" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5" />
                     </div>
                 </div>
 
@@ -105,7 +105,7 @@
                         value="{{ old('phone') }}" 
                         required 
                         placeholder="Nhập số điện thoại" 
-                        class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary px-3.5 py-2.5 bg-white transition placeholder:text-gray-400 font-mono"
+                        class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5 bg-white transition placeholder:text-gray-400 font-mono"
                     />
                     @error('phone') <span class="text-rose-500 text-[11px] mt-1 block">{{ $message }}</span> @enderror
                 </div>
@@ -120,7 +120,7 @@
                         name="parent_name" 
                         value="{{ old('parent_name') }}" 
                         placeholder="Nhập tên phụ huynh nếu có" 
-                        class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary px-3.5 py-2.5 bg-white transition placeholder:text-gray-400"
+                        class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5 bg-white transition placeholder:text-gray-400"
                     />
                     @error('parent_name') <span class="text-rose-500 text-[11px] mt-1 block">{{ $message }}</span> @enderror
                 </div>
@@ -134,7 +134,7 @@
                         <select 
                             name="source" 
                             required 
-                            class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary px-3.5 py-2.5 bg-white transition appearance-none pr-10 cursor-pointer text-gray-700"
+                            class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5 bg-white transition appearance-none pr-10 cursor-pointer text-gray-700"
                         >
                             <option value="">Chọn nguồn khách</option>
                             @foreach ($leadSources as $src)
@@ -155,7 +155,7 @@
                         <select 
                             name="branch_id" 
                             required 
-                            class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary px-3.5 py-2.5 bg-white transition appearance-none pr-10 cursor-pointer text-gray-700 font-semibold"
+                            class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5 bg-white transition appearance-none pr-10 cursor-pointer text-gray-700 font-semibold"
                         >
                             <option value="">-- Chọn cơ sở chi nhánh --</option>
                             @foreach ($branches as $br)
@@ -178,7 +178,7 @@
                     <div class="relative">
                         <select 
                             name="assigned_user_id" 
-                            class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary px-3.5 py-2.5 bg-white transition appearance-none pr-10 cursor-pointer text-gray-700"
+                            class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5 bg-white transition appearance-none pr-10 cursor-pointer text-gray-700"
                         >
                             <option value="">-- Chọn tư vấn viên / Sales phụ trách --</option>
                             @foreach ($salesUsers as $u)
@@ -207,7 +207,7 @@
                     <a href="{{ route('crm.customers.index') }}" class="px-4 py-2.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">
                         Hủy
                     </a>
-                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-md transition flex items-center gap-1.5">
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-md transition flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-[18px]">person_add</span>
                         <span>Thêm khách mới</span>
                     </button>

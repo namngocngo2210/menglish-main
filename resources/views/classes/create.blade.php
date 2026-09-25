@@ -48,7 +48,7 @@
             <div class="p-6 md:p-8 space-y-6">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                        <div class="w-2.5 h-2.5 rounded-full bg-primary"></div>
+                        <div class="w-2.5 h-2.5 rounded-full bg-primary-container"></div>
                         <h2 class="text-base font-bold text-gray-900 uppercase tracking-wide">
                             1. Thông tin cơ bản &amp; Phân loại
                         </h2>
@@ -70,7 +70,7 @@
                                value="{{ old('ten_lop') }}"
                                placeholder="VD: ENG-B1 · IELTS Căn Bản K26"
                                required
-                               class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition placeholder:text-gray-400">
+                               class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition placeholder:text-gray-400">
                         <p class="text-[11px] text-gray-400 mt-1">Tên hiển thị rõ ràng trên sổ điểm danh và cổng giáo viên.</p>
                         @error('ten_lop') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
                     </div>
@@ -85,7 +85,7 @@
                                name="ma_lop"
                                value="{{ old('ma_lop') }}"
                                placeholder="VD: ENG-B1-K26"
-                               class="w-full px-3.5 py-2.5 text-xs font-mono uppercase bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition placeholder:text-gray-400">
+                               class="w-full px-3.5 py-2.5 text-xs font-mono uppercase bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition placeholder:text-gray-400">
                         <p class="text-[11px] text-gray-400 mt-1">Để trống hệ thống sẽ tự sinh theo quy tắc.</p>
                         @error('ma_lop') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
                     </div>
@@ -98,7 +98,7 @@
                         <select id="chi_nhanh"
                                 name="chi_nhanh"
                                 required
-                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition text-gray-900 cursor-pointer">
+                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition text-gray-900 cursor-pointer">
                             <option value="" disabled {{ old('chi_nhanh') ? '' : 'selected' }}>-- Chọn chi nhánh --</option>
                             @foreach($branches as $b)
                                 <option value="{{ $b->id }}" {{ old('chi_nhanh') == $b->id ? 'selected' : '' }}>
@@ -117,7 +117,7 @@
                         <select id="chuong_trinh"
                                 name="chuong_trinh"
                                 required
-                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition text-gray-900 cursor-pointer">
+                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition text-gray-900 cursor-pointer">
                             <option value="" disabled {{ old('chuong_trinh') ? '' : 'selected' }}>-- Chọn chương trình học --</option>
                             
                             @foreach($courses as $c)
@@ -135,7 +135,7 @@
                         <select id="cap_do"
                                 name="cap_do"
                                 required
-                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition text-gray-900 cursor-pointer">
+                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition text-gray-900 cursor-pointer">
                             <option value="" disabled {{ old('cap_do') ? '' : 'selected' }}>-- Chọn cấp độ --</option>
                             
                             @foreach($levels as $lvl)
@@ -159,7 +159,7 @@
                                    value="{{ old('si_so_toi_da') }}"
                                    placeholder="VD: 16"
                                    required
-                                   class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                                   class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
                             <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[11px] text-gray-400 font-medium">
                                 học viên
                             </div>
@@ -287,12 +287,12 @@
                     <!-- Start Date -->
                     <div class="md:col-span-3">
                         <label class="block text-xs font-bold text-gray-700 mb-1.5">Ngày bắt đầu</label>
-                        <input type="date" x-model="startDate" class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:ring-primary focus:border-primary">
+                        <input type="date" x-model="startDate" class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:ring-primary-container focus:border-primary-container">
                     </div>
                     <!-- End Date -->
                     <div class="md:col-span-3">
                         <label class="block text-xs font-bold text-gray-700 mb-1.5">Ngày kết thúc</label>
-                        <input type="date" x-model="endDate" class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:ring-primary focus:border-primary">
+                        <input type="date" x-model="endDate" class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:ring-primary-container focus:border-primary-container">
                     </div>
                     <!-- Days of Week -->
                     <div class="md:col-span-6">
@@ -300,7 +300,7 @@
                         <div class="flex flex-wrap gap-2">
                             <template x-for="day in daysOfWeek" :key="day.value">
                                 <label class="flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-200">
-                                    <input type="checkbox" :value="day.value" x-model="selectedDays" class="text-primary focus:ring-primary rounded">
+                                    <input type="checkbox" :value="day.value" x-model="selectedDays" class="text-primary focus:ring-primary-container rounded">
                                     <span class="text-xs font-medium text-gray-700" x-text="day.label"></span>
                                 </label>
                             </template>
@@ -349,7 +349,7 @@
                                     </td>
                                     <td class="py-3 px-4 relative">
                                         <div x-show="session.loading" class="text-xs text-gray-500">Đang kiểm tra...</div>
-                                        <select x-show="!session.loading" x-model="session.room" class="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-primary focus:border-primary">
+                                        <select x-show="!session.loading" x-model="session.room" class="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-primary-container focus:border-primary-container">
                                             <option value="">-- Chọn phòng --</option>
                                             <template x-for="room in allRooms">
                                                 <option :value="room" :disabled="session.occupiedRooms.includes(room)" x-text="room + (session.occupiedRooms.includes(room) ? ' (Đã trùng lịch)' : ' (Trống)')"></option>
@@ -394,7 +394,7 @@
                                    placeholder="VD: 8500000"
                                    min="0"
                                    step="50000"
-                                   class="w-full pl-3.5 pr-14 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition font-mono font-bold text-gray-900">
+                                   class="w-full pl-3.5 pr-14 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition font-mono font-bold text-gray-900">
                             <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-xs font-bold text-gray-400">
                                 VNĐ
                             </div>
@@ -412,7 +412,7 @@
                                   name="ghi_chu"
                                   rows="3"
                                   placeholder="Ghi chú thêm về yêu cầu đầu vào, lớp liên kết doanh nghiệp hoặc lưu ý đặc biệt cho giáo viên phụ trách..."
-                                  class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition placeholder:text-gray-400">{{ old('ghi_chu') }}</textarea>
+                                  class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition placeholder:text-gray-400">{{ old('ghi_chu') }}</textarea>
                     </div>
                 </div>
             </div>
@@ -427,7 +427,7 @@
                     <a href="{{ route('classes.academic-list') }}" class="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-700 text-xs font-semibold hover:bg-gray-100 transition text-center">
                         Hủy bỏ
                     </a>
-                    <button type="submit" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-sm hover:bg-primary-dark transition flex items-center justify-center gap-2">
+                    <button type="submit" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-primary-container text-white text-xs font-bold shadow-sm hover:bg-primary-dark transition flex items-center justify-center gap-2">
                         <span class="material-symbols-outlined text-[18px]">save</span>
                         <span>Lưu &amp; Chuyển sang Hồ sơ lớp</span>
                     </button>

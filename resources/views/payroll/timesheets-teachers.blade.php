@@ -9,7 +9,7 @@
                 <p class="text-xs text-gray-500">Tra cứu ca dạy thực tế, đối soát giờ dạy FaceID và tính thù lao</p>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('payroll.timesheets.manual') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
+                <a href="{{ route('payroll.timesheets.manual') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
                     <span class="material-symbols-outlined text-[18px]">add_circle</span>
                     <span>Thêm ca dạy thủ công</span>
                 </a>

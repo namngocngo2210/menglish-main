@@ -41,7 +41,7 @@
 
                     <div class="relative">
                         <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
-                        <input type="text" placeholder="Tìm tên hoặc mã giáo viên..." class="w-full text-xs rounded-xl border border-gray-300 pl-9 pr-3 py-2 bg-slate-50 focus:bg-white focus:ring-primary focus:border-primary transition" />
+                        <input type="text" placeholder="Tìm tên hoặc mã giáo viên..." class="w-full text-xs rounded-xl border border-gray-300 pl-9 pr-3 py-2 bg-slate-50 focus:bg-white focus:ring-primary-container focus:border-primary-container transition" />
                     </div>
 
                     <!-- Selected Teacher Profile Box -->
@@ -106,19 +106,19 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                             <div>
                                 <label class="block font-bold text-gray-700 mb-1 text-[11px]">Cấp bậc / Bậc xếp hạng <span class="text-rose-500">*</span></label>
-                                <input type="text" name="rank_title" value="Senior IELTS Trainer" required placeholder="VD: Lead Trainer, Master Trainer" class="w-full text-xs font-bold rounded-xl border border-gray-300 p-2.5 bg-slate-50 focus:bg-white focus:ring-primary focus:border-primary" />
+                                <input type="text" name="rank_title" value="Senior IELTS Trainer" required placeholder="VD: Lead Trainer, Master Trainer" class="w-full text-xs font-bold rounded-xl border border-gray-300 p-2.5 bg-slate-50 focus:bg-white focus:ring-primary-container focus:border-primary-container" />
                             </div>
                             <div>
                                 <label class="block font-bold text-gray-700 mb-1 text-[11px]">Yêu cầu chứng chỉ &amp; Kinh nghiệm</label>
-                                <input type="text" name="criteria" value="IELTS 8.0+, TESOL, 3 năm KN" placeholder="IELTS 8.0+, 3 năm KN" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 bg-slate-50 focus:bg-white focus:ring-primary focus:border-primary" />
+                                <input type="text" name="criteria" value="IELTS 8.0+, TESOL, 3 năm KN" placeholder="IELTS 8.0+, 3 năm KN" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 bg-slate-50 focus:bg-white focus:ring-primary-container focus:border-primary-container" />
                             </div>
                             <div>
                                 <label class="block font-bold text-gray-700 mb-1 text-[11px]">Đơn giá lớp Giao tiếp (VNĐ/giờ) <span class="text-rose-500">*</span></label>
-                                <input type="number" name="communication_rate" value="300000" step="10000" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-300 p-2.5 bg-slate-50 focus:bg-white focus:ring-primary focus:border-primary" />
+                                <input type="number" name="communication_rate" value="300000" step="10000" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-300 p-2.5 bg-slate-50 focus:bg-white focus:ring-primary-container focus:border-primary-container" />
                             </div>
                             <div>
                                 <label class="block font-bold text-gray-700 mb-1 text-[11px]">Đơn giá lớp IELTS / Cambridge (VNĐ/giờ) <span class="text-rose-500">*</span></label>
-                                <input type="number" name="ielts_rate" value="400000" step="10000" required class="w-full text-xs font-mono font-bold text-orange-600 rounded-xl border border-gray-300 p-2.5 bg-slate-50 focus:bg-white focus:ring-primary focus:border-primary" />
+                                <input type="number" name="ielts_rate" value="400000" step="10000" required class="w-full text-xs font-mono font-bold text-orange-600 rounded-xl border border-gray-300 p-2.5 bg-slate-50 focus:bg-white focus:ring-primary-container focus:border-primary-container" />
                             </div>
                         </div>
 
