@@ -788,6 +788,18 @@ class PayrollController extends Controller
             ->paginate($request->perPage(15))
             ->withQueryString();
 
+        // "Đến ngày" của từng phiên bản = ngày trước phiên bản kế tiếp của cùng GV (null = hiện tại).
+        $versionsByUser = TeacherHourlyRate::whereIn('user_id', $history->getCollection()->pluck('user_id')->unique())
+            ->orderBy('effective_from')->orderBy('id')->get(['id', 'user_id', 'effective_from'])->groupBy('user_id');
+        $endDates = [];
+        foreach ($versionsByUser as $versions) {
+            $versions = $versions->values();
+            foreach ($versions as $i => $version) {
+                $next = $versions->slice($i + 1)->first(fn ($v) => $v->effective_from->gt($version->effective_from));
+                $endDates[$version->id] = $next?->effective_from->copy()->subDay();
+            }
+        }
+
         // Đơn giá đang hiệu lực hôm nay của từng GV (dòng effective_from gần nhất ≤ hôm nay).
         $currentRates = TeacherHourlyRate::whereDate('effective_from', '<=', now()->toDateString())
             ->orderBy('effective_from')
@@ -795,8 +807,11 @@ class PayrollController extends Controller
             ->keyBy('user_id');
 
         $selectedTeacher = $teacherId ? $teachers->firstWhere('id', $teacherId) : null;
+        $selectedType = $selectedTeacher
+            ? ($currentRates->get($selectedTeacher->id)?->teacher_type ?? TeacherHourlyRate::defaultTeacherType($selectedTeacher))
+            : null;
 
-        return view('payroll.config-rates', compact('rates', 'teachers', 'history', 'currentRates', 'selectedTeacher'));
+        return view('payroll.config-rates', compact('rates', 'teachers', 'history', 'currentRates', 'selectedTeacher', 'selectedType', 'endDates'));
     }
 
     /**
@@ -810,6 +825,7 @@ class PayrollController extends Controller
             'hourly_rate' => ['required', 'numeric', 'min:1000'],
             // Q3 Part-time: mặc định đơn giá theo BUỔI; 'hour' giữ cho trường hợp cũ.
             'rate_unit' => ['nullable', 'in:session,hour'],
+            'teacher_type' => ['nullable', 'in:'.implode(',', array_keys(TeacherHourlyRate::TEACHER_TYPES))],
             'effective_from' => [
                 'required', 'date',
                 function ($attribute, $value, $fail) use ($request) {
@@ -824,6 +840,7 @@ class PayrollController extends Controller
         ]);
 
         $validated['rate_unit'] ??= TeacherHourlyRate::UNIT_HOUR;
+        $validated['teacher_type'] ??= TeacherHourlyRate::defaultTeacherType(User::findOrFail($validated['user_id']));
         $rate = TeacherHourlyRate::create($validated + ['created_by' => $request->user()->id]);
 
         activity('teacher_rate')->causedBy($request->user())->performedOn($rate)

@@ -272,4 +272,40 @@ class Phase3MockupParityTest extends TestCase
             ->assertSessionHas('locked_penalty', fn ($m) => str_contains($m, 'Kỳ lương hiện tại của nhân viên GV Mockup P3 đã khóa. Không thể thực hiện chốt mức phạt.'));
         $this->assertSame('confirmed', $confirmed->fresh()->status);
     }
+
+    /** Màn "Đơn giá GV" (epic-7/cau-hinh-don-gia-giao-vien): theo từng GV, loại GV, hiệu lực, lịch sử có "Đến ngày". */
+    public function test_teacher_rate_screen_matches_mockup(): void
+    {
+        Carbon::setTestNow('2026-09-20 09:00:00');
+        $this->actingAs($this->admin)->post(route('payroll.config.teacher-rates.personal.store'), [
+            'user_id' => $this->teacher->id, 'teacher_type' => 'parttime', 'rate_unit' => 'session',
+            'hourly_rate' => 250000, 'effective_from' => '2026-01-01', 'note' => 'Đơn giá khởi điểm',
+        ])->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('payroll.config.teacher-rates.personal.store'), [
+            'user_id' => $this->teacher->id, 'rate_unit' => 'session',
+            'hourly_rate' => 300000, 'effective_from' => '2026-06-15', 'note' => 'Tăng bậc',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('parttime', \App\Models\TeacherHourlyRate::latest('id')->first()->teacher_type); // mặc định theo vai trò
+
+        $this->actingAs($this->admin)->get(route('payroll.config.teacher-rates', ['teacher_id' => $this->teacher->id]))
+            ->assertOk()
+            ->assertSee('1. Chọn giáo viên')
+            ->assertSee('Tìm tên hoặc mã nhân viên...')
+            ->assertSee('Mã NV: GV-0492')
+            ->assertSee('Đang giảng dạy')
+            ->assertSee('Đơn giá hiện hành')
+            ->assertSee('Mức lương đang áp dụng')
+            ->assertSee('300.000 VNĐ / buổi')
+            ->assertSee('Hiệu lực từ: 15/06/2026')
+            ->assertSee('2. Cập nhật đơn giá mới')
+            ->assertSee('Loại giáo viên')->assertSee('Giáo viên nước ngoài')->assertSee('Trợ giảng')
+            ->assertSee('Ghi chú / Lý do thay đổi')
+            ->assertSee('Cập nhật đơn giá mới')
+            ->assertSee('Lịch sử thay đổi đơn giá')
+            ->assertSeeInOrder(['Loại GV', 'Đơn giá', 'Đơn vị tính', 'Hiệu lực từ', 'Đến ngày', 'Trạng thái'])
+            ->assertSee('14/06/2026')   // phiên bản cũ kết thúc trước phiên bản mới 1 ngày
+            ->assertSee('Hiện tại')
+            ->assertSee('Đang áp dụng')
+            ->assertSee('Đã hết hạn');
+    }
 }
