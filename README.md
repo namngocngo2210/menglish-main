@@ -37,6 +37,30 @@ Tài khoản demo (mật khẩu chung = `SEED_DEFAULT_PASSWORD` trong `.env`, m�
 
 Học viên tạo khi chốt khách nhận mật khẩu ngẫu nhiên (bắt buộc đổi khi đăng nhập). Kiểm thử nghiệm thu Phase 1: `php artisan test --filter=Phase1AcceptanceTest`.
 
+## MEnglish — Dữ liệu demo (Phase 2: vận hành lớp học)
+
+`DemoPhase2Seeder` chạy ngay sau `DemoPhase1Seeder` (cùng điều kiện môi trường, gọi từ `DatabaseSeeder`) và dựng trên lớp / học viên của Phase 1. Chạy riêng: `php artisan db:seed --class=DemoPhase2Seeder` (cần dữ liệu Phase 1 trước). Idempotent, ~1,5 giây. Seeder **luôn ép Zalo ZNS về chế độ sandbox** (chỉ ghi log, không gửi tin thật) kể cả khi `.env` có `ZALO_ACCESS_TOKEN`.
+
+Có gì trong dữ liệu:
+- **Giáo trình → Chặng → Unit → Buổi**: `DEMO-SYL-STARTERS` (3 chặng, 18 buổi, gắn trình độ `DEMO-STARTERS` → lớp FAM 0 / FAM 1) và `DEMO-SYL-MOVERS` (2 chặng, gắn `DEMO-MOVERS` → FAM 2).
+- **Chặng của lớp** (mỗi lớp 1 chặng mở): `DEMO-CG-FAM1` đã **đóng Chặng 1** nhờ Big Test đã duyệt và gửi PH (có 1 HV vắng thi) và **tự mở Chặng 2**, kèm order đề Chặng 2 **chờ duyệt**; `DEMO-CG-FAM0` Big Test **đã duyệt, chưa gửi PH**; `DEMO-BD-FAM1` Big Test GV vừa nhập điểm, **chờ Học thuật duyệt**; `DEMO-BD-FAM0` order đã duyệt kèm link đề, **đợt thi trong 5 ngày tới** (đã nhắc lịch 7 ngày) + 1 order mini test **bị từ chối**. Lớp FAM 2 (sắp khai giảng) chưa giao chặng — dùng để thử màn Giao chặng.
+- **Giảng dạy**: điểm danh theo buổi (6 buổi gần nhất; buổi gần nhất để trống để thử **điểm danh bù**; 1 buổi Học vụ điểm danh thay), vắng / vắng có phép → **danh sách bổ trợ**; nhận xét buổi học; mini test (điểm < 7 → bổ trợ); 2 bài tập + bài nộp (1 bài đã chấm); mỗi lớp 2 **buổi bổ trợ** (1 đã dạy xong, 1 ngày mai).
+- **Lịch**: GVNN `gv.native1@…` trên các buổi sắp tới của `DEMO-CG-FAM1`; ngày nghỉ thêm sau `HOL-DEMO2-<CN>` hủy 1 buổi FAM 1 và tự xếp **buổi học bù** cuối lịch.
+- **Việc**: việc trực ca trợ giảng hôm qua + hôm nay (1 việc hoàn thành có ảnh, 1 việc chờ xác nhận); việc **chăm sóc tháng đầu** (mốc ngày 3/7/14/30) cho Học vụ; nhắc **sinh nhật** (HV `HV-DEMO-<CN>-02` sinh nhật hôm nay).
+
+Đăng nhập để xem (mật khẩu như trên):
+
+| Vai trò | Email | Xem gì |
+|---|---|---|
+| Giáo viên | `nguyenvanan@menglish.edu.vn` (CG: FAM 1, FAM 0) · `gv.cohuu2@menglish.edu.vn` (BD) | Lịch dạy hôm nay / tuần, điểm danh từng buổi, nhận xét, mini test, order đề, nhập kết quả Big Test, Xem giáo trình |
+| GVNN | `gv.native1@menglish.edu.vn` | Lịch dạy các buổi sắp tới của `DEMO-CG-FAM1` |
+| Trợ giảng | `ta.tuan@menglish.edu.vn` (CG) · `ta.yen@menglish.edu.vn` (BD) | Nhiệm vụ hôm nay (`/portal/ta-tasks`), buổi bổ trợ được xếp |
+| Học vụ | `nva@menglish.edu.vn` / `giaovu2@menglish.edu.vn` | Danh sách bổ trợ + xếp buổi, dashboard lớp, điểm danh thay, việc chăm sóc tháng đầu |
+| Học thuật | `academiclead@menglish.edu.vn` | Soạn syllabus, Giao chặng, Duyệt & phân phối đề, Duyệt kết quả & gửi PH |
+| Học viên | `hocvien1@menglish.edu.vn` (`HV-DEMO-CG-01`, FAM 1) · `hocvien2@menglish.edu.vn` (`HV-DEMO-CG-08`, FAM 0) · `hocvien3@menglish.edu.vn` (`HV-DEMO-BD-01`) | Cổng học viên: lịch học, điểm danh, kết quả Big Test, nhận xét, bài tập |
+
+Kiểm thử nghiệm thu Phase 2: `php artisan test --filter='Phase2AcceptanceTest|DemoPhase2SeederTest'`.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
