@@ -22,6 +22,7 @@ class SyllabusLesson extends Model
         'session_no',
         'title',
         'objectives',
+        'content',
         'vocabulary_focus',
         'grammar_focus',
         'homework_guide',

@@ -413,6 +413,7 @@ class SyllabusController extends Controller
             'session_no' => ['required', 'integer', 'min:1', 'max:1000'],
             'title' => ['required', 'string', 'max:255'],
             'objectives' => ['nullable', 'string'],
+            'content' => ['nullable', 'string'],
             'vocabulary_focus' => ['nullable', 'string'],
             'grammar_focus' => ['nullable', 'string'],
             'homework_guide' => ['nullable', 'string'],
