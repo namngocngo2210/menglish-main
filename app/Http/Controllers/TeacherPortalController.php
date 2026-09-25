@@ -120,6 +120,12 @@ class TeacherPortalController extends Controller
         ]);
 
         $now = now();
+        if (\App\Models\PayrollPeriod::isLockedFor($now)) {
+            $message = \App\Models\PayrollPeriod::lockedMessage($now);
+
+            return back()->withErrors(['class_ids' => $message])->with('error', $message);
+        }
+
         $count = 0;
         foreach ($validated['class_ids'] as $classId) {
             $class = ClassModel::findOrFail($classId);

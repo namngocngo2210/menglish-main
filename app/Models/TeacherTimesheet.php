@@ -56,6 +56,23 @@ class TeacherTimesheet extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
+    /** Đơn giá mặc định khi cả ca dạy lẫn nhân sự đều chưa cấu hình. */
+    public const DEFAULT_HOURLY_RATE = 250000;
+
+    /**
+     * Đơn giá áp dụng khi tính lương: timesheet.hourly_rate → user.hourly_rate → mặc định.
+     */
+    public function effectiveHourlyRate(?User $user = null): float
+    {
+        if ((float) $this->hourly_rate > 0) {
+            return (float) $this->hourly_rate;
+        }
+
+        $user ??= $this->teacher;
+
+        return (float) ($user?->hourly_rate) > 0 ? (float) $user->hourly_rate : self::DEFAULT_HOURLY_RATE;
+    }
+
     public function getTypeLabelAttribute(): string
     {
         return match ($this->type) {

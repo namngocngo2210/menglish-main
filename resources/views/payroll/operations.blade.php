@@ -67,8 +67,10 @@
                                 <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
                                     <th class="py-3 px-4">Nhân sự</th>
                                     <th class="py-3 px-4 text-right">Lương cứng</th>
+                                    <th class="py-3 px-4 text-right">Thù lao dạy</th>
+                                    <th class="py-3 px-4 text-right">Thưởng KPI</th>
+                                    <th class="py-3 px-4 text-right">Phụ cấp</th>
                                     <th class="py-3 px-4 text-right">Hoa hồng Tuyển sinh</th>
-                                    <th class="py-3 px-4 text-right">Thưởng Tái tục</th>
                                     <th class="py-3 px-4 text-right">Giảm trừ</th>
                                     <th class="py-3 px-4 text-right font-black">Thực lĩnh</th>
                                 </tr>
@@ -88,18 +90,18 @@
                                             </div>
                                         </td>
                                         <td class="py-3.5 px-4 text-right font-mono font-semibold">{{ number_format($r->base_salary) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">{{ number_format($r->kpi_bonus) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono text-amber-600 font-semibold">{{ number_format($r->allowance) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono text-rose-600">
-                                            -{{ number_format($r->penalty_deduction + $r->insurance_deduction) }}đ
-                                        </td>
+                                        <td class="py-3.5 px-4 text-right font-mono text-indigo-600 font-semibold">{{ number_format($r->teaching_salary) }}đ</td>
+                                        <td class="py-3.5 px-4 text-right font-mono text-amber-600 font-semibold">{{ number_format($r->kpi_bonus) }}đ</td>
+                                        <td class="py-3.5 px-4 text-right font-mono">{{ number_format($r->allowance) }}đ</td>
+                                        <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">{{ number_format($r->commission_bonus + $r->renew_bonus) }}đ</td>
+                                        <td class="py-3.5 px-4 text-right font-mono text-rose-600">-{{ number_format($r->total_deductions) }}đ</td>
                                         <td class="py-3.5 px-4 text-right font-mono font-black text-orange-600 text-sm">
                                             {{ number_format($r->net_salary) }}đ
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="text-center py-8 text-gray-400 text-xs">Chưa có bản ghi lương nhân sự học vụ trong kỳ này.</td>
+                                        <td colspan="8" class="text-center py-8 text-gray-400 text-xs">Chưa có bản ghi lương nhân sự học vụ trong kỳ này.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -150,7 +152,7 @@
                         </div>
                         <div>
                             <span class="text-blue-300 block text-[10px] uppercase font-bold">Tổng hoa hồng:</span>
-                            <span class="font-bold font-mono text-sm">{{ number_format($records->sum('kpi_bonus') + $records->sum('allowance')) }}đ</span>
+                            <span class="font-bold font-mono text-sm">{{ number_format($records->sum('commission_bonus') + $records->sum('renew_bonus')) }}đ</span>
                         </div>
                     </div>
                 </div>

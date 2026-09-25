@@ -69,8 +69,11 @@
                                     <th class="py-3 px-4 text-right">Lương cứng</th>
                                     <th class="py-3 px-4 text-center">Định mức</th>
                                     <th class="py-3 px-4 text-center">Thực dạy</th>
-                                    <th class="py-3 px-4 text-right">Thù lao vượt giờ</th>
+                                    <th class="py-3 px-4 text-right">Thù lao dạy</th>
                                     <th class="py-3 px-4 text-right">Thưởng KPI</th>
+                                    <th class="py-3 px-4 text-right">Phụ cấp</th>
+                                    <th class="py-3 px-4 text-right">Hoa hồng</th>
+                                    <th class="py-3 px-4 text-right">Giảm trừ</th>
                                     <th class="py-3 px-4 text-right font-black">Thực lĩnh</th>
                                 </tr>
                             </thead>
@@ -93,13 +96,16 @@
                                         <td class="py-3.5 px-4 text-center font-mono font-bold text-indigo-700">{{ $r->actual_hours }}h</td>
                                         <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">{{ number_format($r->teaching_salary) }}đ</td>
                                         <td class="py-3.5 px-4 text-right font-mono text-amber-600 font-semibold">{{ number_format($r->kpi_bonus) }}đ</td>
+                                        <td class="py-3.5 px-4 text-right font-mono">{{ number_format($r->allowance) }}đ</td>
+                                        <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">{{ number_format($r->commission_bonus + $r->renew_bonus) }}đ</td>
+                                        <td class="py-3.5 px-4 text-right font-mono text-rose-600">-{{ number_format($r->total_deductions) }}đ</td>
                                         <td class="py-3.5 px-4 text-right font-mono font-black text-orange-600 text-sm">
                                             {{ number_format($r->net_salary) }}đ
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="text-center py-8 text-gray-400 text-xs">Chưa có bản ghi lương giáo viên full-time trong kỳ này.</td>
+                                        <td colspan="10" class="text-center py-8 text-gray-400 text-xs">Chưa có bản ghi lương giáo viên full-time trong kỳ này.</td>
                                     </tr>
                                 @endforelse
                             </tbody>

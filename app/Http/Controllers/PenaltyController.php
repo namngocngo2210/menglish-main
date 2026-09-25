@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClassModel;
+use App\Models\PayrollPeriod;
 use App\Models\Penalty;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -29,6 +31,10 @@ class PenaltyController extends Controller
             'class_id' => 'nullable|exists:classes,id',
             'notes' => 'nullable|string|max:500',
         ]);
+
+        if (PayrollPeriod::isLockedFor($validated['violation_date'])) {
+            return $this->rejectLockedDate($validated['violation_date']);
+        }
 
         $code = Penalty::generateCode();
 
@@ -63,6 +69,9 @@ class PenaltyController extends Controller
 
         $penalty = Penalty::findOrFail($id);
         abort_unless(in_array($penalty->status, ['pending', 'confirmed'], true), 422, 'Biên bản không ở trạng thái cho phép xác nhận.');
+        if (PayrollPeriod::isLockedFor($penalty->violation_date)) {
+            return $this->rejectLockedDate($penalty->violation_date);
+        }
 
         $penalty->update(['status' => $decision === 'fine' ? 'fined' : 'confirmed']);
 
@@ -107,5 +116,16 @@ class PenaltyController extends Controller
         $penalty->update(['status' => 'cancelled']);
 
         return redirect()->back()->with('status', "Đã hủy bỏ biên bản vi phạm {$penalty->code}!");
+    }
+
+    /**
+     * Ngày vi phạm thuộc kỳ lương đã khoá: kỳ sau không quét lại ngày này nên
+     * biên bản sẽ không bao giờ được trừ lương.
+     */
+    private function rejectLockedDate($date): RedirectResponse
+    {
+        $message = PayrollPeriod::lockedMessage($date);
+
+        return redirect()->back()->withInput()->withErrors(['violation_date' => $message])->with('error', $message);
     }
 }

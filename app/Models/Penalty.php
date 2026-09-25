@@ -21,6 +21,7 @@ class Penalty extends Model
         'amount',
         'reporter_id',
         'status',
+        'payroll_record_id',
         'notes',
     ];
 
@@ -37,6 +38,12 @@ class Penalty extends Model
     public function classModel(): BelongsTo
     {
         return $this->belongsTo(ClassModel::class, 'class_id');
+    }
+
+    /** Bản ghi lương đã trừ biên bản này ở lần tính gần nhất. */
+    public function payrollRecord(): BelongsTo
+    {
+        return $this->belongsTo(PayrollRecord::class, 'payroll_record_id');
     }
 
     public function reporter(): BelongsTo

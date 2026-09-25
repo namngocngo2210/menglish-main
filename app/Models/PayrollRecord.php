@@ -23,6 +23,7 @@ class PayrollRecord extends Model
         'teaching_salary',
         'kpi_bonus',
         'renew_bonus',
+        'commission_bonus',
         'allowance',
         'insurance_deduction',
         'tax_deduction',
@@ -43,6 +44,7 @@ class PayrollRecord extends Model
         'teaching_salary' => 'decimal:2',
         'kpi_bonus' => 'decimal:2',
         'renew_bonus' => 'decimal:2',
+        'commission_bonus' => 'decimal:2',
         'allowance' => 'decimal:2',
         'insurance_deduction' => 'decimal:2',
         'tax_deduction' => 'decimal:2',
@@ -63,16 +65,31 @@ class PayrollRecord extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    /**
+     * Tổng thu nhập (gross): mọi khoản cộng của bản ghi lương.
+     */
+    public function getGrossIncomeAttribute(): float
+    {
+        return (float) $this->base_salary + (float) $this->teaching_salary + (float) $this->kpi_bonus
+            + (float) $this->renew_bonus + (float) $this->commission_bonus + (float) $this->allowance;
+    }
+
+    /**
+     * Tổng khấu trừ: BHXH + thuế TNCN + phạt + giảm trừ GVNN.
+     */
+    public function getTotalDeductionsAttribute(): float
+    {
+        return (float) $this->insurance_deduction + (float) $this->tax_deduction
+            + (float) $this->penalty_deduction + (float) $this->foreign_teacher_deduction;
+    }
+
     public function calculateNetSalary(): void
     {
         $settings = PayrollPeriod::payrollSettings();
-        $gross = $this->base_salary + $this->teaching_salary + $this->kpi_bonus + $this->renew_bonus + $this->allowance;
-        $foreignDeduction = $this->foreign_teacher_deduction > 0
+        $this->foreign_teacher_deduction = $this->foreign_teacher_deduction > 0
             ? $this->foreign_teacher_deduction
             : ($this->foreign_teacher_sessions_count * ($this->foreign_teacher_deduction_rate ?: $settings['foreign_teacher_deduction_rate']));
-        $this->foreign_teacher_deduction = $foreignDeduction;
 
-        $deductions = $this->insurance_deduction + $this->tax_deduction + $this->penalty_deduction + $foreignDeduction;
-        $this->net_salary = max(0, $gross - $deductions);
+        $this->net_salary = max(0, $this->gross_income - $this->total_deductions);
     }
 }
