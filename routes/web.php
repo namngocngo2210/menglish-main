@@ -394,6 +394,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/documents', [SyllabusController::class, 'documents'])->name('documents');
         Route::post('/documents', [SyllabusController::class, 'storeDocument'])->middleware('can:syllabus.upload')->name('documents.store');
         Route::get('/documents/{id}/file', [SyllabusController::class, 'documentFile'])->whereNumber('id')->name('documents.file');
+        Route::post('/documents/{id}/viewed', [SyllabusController::class, 'markDocumentViewed'])->whereNumber('id')->name('documents.viewed');
         Route::delete('/documents/{id}', [SyllabusController::class, 'destroyDocument'])->whereNumber('id')->middleware('can:syllabus.upload')->name('documents.destroy');
         Route::get('/builder', [SyllabusController::class, 'builder'])->name('builder');
         Route::post('/curriculums', [SyllabusController::class, 'storeCurriculum'])->middleware('can:syllabus.manage')->name('curriculums.store');

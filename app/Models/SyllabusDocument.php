@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Tài liệu giáo trình (file thật). File nằm trên disk private, chỉ đọc qua
@@ -28,6 +29,7 @@ class SyllabusDocument extends Model
 
     protected $fillable = [
         'curriculum_id',
+        'stage_id',
         'title',
         'stage_name',
         'file_path',
@@ -51,6 +53,28 @@ class SyllabusDocument extends Model
     public function curriculum(): BelongsTo
     {
         return $this->belongsTo(SyllabusCurriculum::class, 'curriculum_id');
+    }
+
+    public function stage(): BelongsTo
+    {
+        return $this->belongsTo(SyllabusStage::class, 'stage_id');
+    }
+
+    /** Lượt "Đánh dấu đã xem" của giáo viên / trợ giảng. */
+    public function views(): HasMany
+    {
+        return $this->hasMany(SyllabusDocumentView::class, 'document_id');
+    }
+
+    public function viewedBy(User $user): bool
+    {
+        return $this->views()->where('user_id', $user->id)->exists();
+    }
+
+    /** Tên chặng hiển thị: chặng gắn thật, hoặc tên chặng nhập tự do của dữ liệu cũ. */
+    public function getStageLabelAttribute(): ?string
+    {
+        return $this->stage?->label ?? $this->stage_name;
     }
 
     public function uploader(): BelongsTo
@@ -135,11 +159,13 @@ class SyllabusDocument extends Model
         return round($bytes / 1048576, 1).' MB';
     }
 
-    /** Nhãn đối tượng được xem (Admin / Học thuật / Học vụ luôn xem được). */
+    /** Nhãn đối tượng được xem (Admin / Học vụ / Học thuật luôn xem được). */
     public function getAudienceLabelsAttribute(): array
     {
         return array_values(array_filter([
-            'Admin / Học thuật',
+            'Admin',
+            'Học vụ',
+            'Học thuật',
             $this->visible_to_teachers ? 'Giáo viên' : null,
             $this->visible_to_assistants ? 'Trợ giảng' : null,
         ]));

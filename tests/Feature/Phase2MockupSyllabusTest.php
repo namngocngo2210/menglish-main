@@ -8,6 +8,7 @@ use App\Models\CourseLevel;
 use App\Models\Student;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusCurriculum;
+use App\Models\SyllabusDocument;
 use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
@@ -15,6 +16,8 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -131,5 +134,65 @@ class Phase2MockupSyllabusTest extends TestCase
 
         // Giáo viên xem được nhưng không có nút soạn
         $this->actingAs($this->teacher)->get($url)->assertOk()->assertDontSee('Thêm buổi học mới vào chặng');
+    }
+
+    // ---- 01_Web_Admin/01 — Quản lý tài liệu giáo trình; 03_Cong_Giao_Vien/08 — Xem tài liệu giáo trình ----
+
+    public function test_documents_pick_real_stage_and_teacher_view_has_mockup_tabs(): void
+    {
+        Storage::fake('local');
+        $pdf = UploadedFile::fake()->createWithContent('starter.pdf', "%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n".str_repeat('x', 2048));
+
+        $this->actingAs($this->academic)->get(route('syllabus.documents'))->assertOk()
+            ->assertSee('Quản lý tài liệu giáo trình')
+            ->assertSee('Chọn chặng học')
+            ->assertSee('Chọn đối tượng xem')
+            ->assertSee('Học vụ')
+            ->assertSee('Kéo thả file vào đây hoặc')
+            ->assertSee('Chọn file từ máy tính')
+            ->assertSee('Khóa tải xuống — Giáo viên chỉ được phép xem trực tuyến để bảo vệ tài liệu.');
+
+        // Chặng phải thuộc giáo trình đã chọn
+        $other = SyllabusCurriculum::create(['code' => 'CUR-OT', 'title' => 'Khác', 'version' => 'v1']);
+        $this->actingAs($this->academic)->post(route('syllabus.documents.store'), [
+            'curriculum_id' => $other->id, 'stage_id' => $this->stages[1]->id, 'title' => 'Sai chặng', 'file' => $pdf,
+        ])->assertSessionHasErrors('stage_id');
+
+        $this->actingAs($this->academic)->post(route('syllabus.documents.store'), [
+            'curriculum_id' => $this->curriculum->id, 'stage_id' => $this->stages[1]->id, 'title' => 'Giáo trình Starter - Bài 3',
+            'file' => $pdf, 'visible_to_teachers' => '1',
+        ])->assertSessionHasNoErrors();
+        $doc = SyllabusDocument::firstOrFail();
+        $this->assertSame($this->stages[1]->id, $doc->stage_id);
+        $this->assertSame('Chặng 2: Giao tiếp cơ bản', $doc->stage_name);
+
+        $this->actingAs($this->academic)->get(route('syllabus.documents'))->assertOk()
+            ->assertSee('Danh sách tài liệu đã tải lên')->assertSee('Trạng thái')->assertSee('Chỉ xem online')
+            ->assertSee('Giáo trình Starter - Bài 3');
+
+        // Màn GV: tab, nhóm theo chặng, watermark bảo mật, đánh dấu đã xem, tìm kiếm
+        $this->openStage();
+        $this->actingAs($this->teacher)->get(route('syllabus.teacher-view'))->assertOk()
+            ->assertSee('Xem tài liệu giáo trình')
+            ->assertSee('Tổng quan syllabus')
+            ->assertSee('Nội dung buổi học')
+            ->assertSee('Starter Mockup · Chặng 2: Giao tiếp cơ bản')
+            ->assertSee('MENGLISH INTERNAL ONLY')
+            ->assertSee($this->teacher->email)
+            ->assertSee('Xem mục lục chặng')
+            ->assertSee('Thực hành giao tiếp hằng ngày')
+            ->assertSee('Hoạt động:')
+            ->assertSee('Hoạt động đóng vai 1')
+            ->assertSee('Đánh dấu đã xem');
+
+        $this->actingAs($this->teacher)->post(route('syllabus.documents.viewed', $doc->id))->assertRedirect();
+        $this->assertDatabaseHas('syllabus_document_views', ['document_id' => $doc->id, 'user_id' => $this->teacher->id]);
+        $this->actingAs($this->teacher)->get(route('syllabus.teacher-view'))->assertOk()->assertDontSee('Đánh dấu đã xem');
+
+        $this->actingAs($this->teacher)->get(route('syllabus.teacher-view', ['q' => 'không-có']))->assertOk()
+            ->assertSee('Không tìm thấy tài liệu phù hợp');
+
+        // Trợ giảng không được chia sẻ → không đánh dấu được
+        $this->actingAs($this->assistant)->post(route('syllabus.documents.viewed', $doc->id))->assertNotFound();
     }
 }

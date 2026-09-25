@@ -16,6 +16,7 @@ use App\Models\SyllabusAssignment;
 use App\Models\SyllabusChangeProposal;
 use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusDocument;
+use App\Models\SyllabusDocumentView;
 use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
@@ -42,9 +43,9 @@ class SyllabusController extends Controller
     public function documents(Request $request)
     {
         $user = $request->user();
-        $curriculums = SyllabusCurriculum::with('course')->orderBy('title')->get();
+        $curriculums = SyllabusCurriculum::with(['course', 'stages'])->orderBy('title')->get();
         $courses = Course::orderBy('name')->get();
-        $documents = SyllabusDocument::with(['curriculum', 'uploader'])
+        $documents = SyllabusDocument::with(['curriculum', 'uploader', 'stage'])
             ->visibleTo($user)
             ->when($request->filled('curriculum_id'), fn ($q) => $q->where('curriculum_id', $request->integer('curriculum_id')))
             ->when($request->filled('search'), fn ($q) => $q->where('title', 'like', '%'.$request->string('search').'%'))
@@ -60,6 +61,7 @@ class SyllabusController extends Controller
         $validated = $request->validate([
             'curriculum_id' => ['required', 'exists:syllabus_curriculums,id'],
             'title' => ['required', 'string', 'max:255'],
+            'stage_id' => ['nullable', Rule::exists('syllabus_stages', 'id')->where('curriculum_id', $request->input('curriculum_id'))],
             'stage_name' => ['nullable', 'string', 'max:255'],
             'file' => ['required', 'file', 'max:'.SyllabusDocument::MAX_KB],
             'visible_to_teachers' => ['nullable', 'boolean'],
@@ -68,7 +70,9 @@ class SyllabusController extends Controller
         ], [
             'file.required' => 'Vui lòng chọn file tài liệu.',
             'file.max' => 'Dung lượng file tối đa 100 MB.',
+            'stage_id.exists' => 'Chặng không thuộc giáo trình đã chọn.',
         ]);
+        $stage = ! empty($validated['stage_id']) ? SyllabusStage::find($validated['stage_id']) : null;
 
         $file = $request->file('file');
         $size = (int) $file->getSize();
@@ -78,7 +82,8 @@ class SyllabusController extends Controller
         $doc = SyllabusDocument::create([
             'curriculum_id' => $validated['curriculum_id'],
             'title' => $validated['title'],
-            'stage_name' => $validated['stage_name'] ?? null,
+            'stage_id' => $stage?->id,
+            'stage_name' => $stage?->label ?? ($validated['stage_name'] ?? null),
             'file_path' => $path,
             'original_name' => mb_substr($file->getClientOriginalName(), 0, 255),
             'extension' => pathinfo($path, PATHINFO_EXTENSION),
@@ -101,6 +106,18 @@ class SyllabusController extends Controller
         $doc->delete();
 
         return redirect()->back()->with('status', "Đã xóa tài liệu {$doc->title}.");
+    }
+
+    /** Giáo viên / trợ giảng "Đánh dấu đã xem" tài liệu được chia sẻ. */
+    public function markDocumentViewed(Request $request, int $id)
+    {
+        $doc = SyllabusDocument::findOrFail($id);
+        abort_unless($doc->isVisibleTo($request->user()), 404);
+
+        $doc->views()->updateOrCreate(['user_id' => $request->user()->id], ['viewed_at' => now()]);
+
+        return redirect()->route('syllabus.teacher-view', array_filter(['document' => $doc->id, 'class' => $request->input('class')]))
+            ->with('status', "Đã đánh dấu đã xem tài liệu {$doc->title}.");
     }
 
     /**
@@ -722,11 +739,14 @@ class SyllabusController extends Controller
     public function teacherView(Request $request, SyllabusProgressionService $progression)
     {
         $user = $request->user();
-        $documents = SyllabusDocument::with('curriculum.course')->visibleTo($user)->latest()->get();
+        $search = trim((string) $request->query('q', ''));
+        $visible = SyllabusDocument::with(['curriculum.course', 'stage'])->visibleTo($user)->latest()->get();
+        $documents = $search === '' ? $visible : $visible->filter(fn ($d) => str_contains(mb_strtolower($d->title.' '.$d->original_name), mb_strtolower($search)))->values();
         $selected = $request->filled('document')
-            ? $documents->firstWhere('id', $request->integer('document'))
+            ? $visible->firstWhere('id', $request->integer('document'))
             : $documents->first();
         abort_if($request->filled('document') && ! $selected, 404);
+        $viewedIds = SyllabusDocumentView::where('user_id', $user->id)->pluck('document_id');
 
         // Lớp người dùng được xem và đang có chặng mở.
         $classes = ClassModel::visibleTo($user)
@@ -743,7 +763,14 @@ class SyllabusController extends Controller
             ? SyllabusAssignment::where('class_id', $class->id)->where('status', SyllabusAssignment::STATUS_CLOSED)->pluck('stage_id')->filter()
             : collect();
 
-        return view('syllabus.teacher-view', compact('documents', 'selected', 'classes', 'class', 'assignment', 'position', 'stages', 'closedStageIds'));
+        // Tab "Tổng quan syllabus": các chặng của giáo trình lớp đang học, hoặc của tài liệu đang xem.
+        $overviewCurriculum = $assignment?->curriculum ?? $selected?->curriculum;
+        $overviewStages = $stages->isNotEmpty() ? $stages : ($overviewCurriculum ? $overviewCurriculum->stages()->with('units.lessons')->get() : collect());
+
+        return view('syllabus.teacher-view', compact(
+            'documents', 'selected', 'classes', 'class', 'assignment', 'position', 'stages', 'closedStageIds',
+            'search', 'viewedIds', 'overviewCurriculum', 'overviewStages'
+        ));
     }
 
     // ─────────────────────────────────────────────
