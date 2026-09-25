@@ -21,7 +21,25 @@ class PlacementTestController extends Controller
 {
     public function index(Request $request)
     {
-        $tests = PlacementTest::withCount('submissions')->latest()->get();
+        $allTests = PlacementTest::withCount('submissions')->latest()->get()
+            ->each(fn (PlacementTest $test) => $test->setAttribute('grade_group', PlacementRubricService::detectGradeGroup($test->code)));
+
+        // Mockup quan-ly-de-dau-vao: lọc Cấp độ (khối lớp theo thang điểm A6 Q2), Trạng thái (Hoạt động / Ẩn), Tìm kiếm tên đề — phía server.
+        $search = Str::lower(trim((string) $request->input('search')));
+        $gradeGroup = (string) $request->input('grade_group');
+        $status = (string) $request->input('status');
+        $filtered = $allTests
+            ->when($search !== '', fn ($tests) => $tests->filter(fn (PlacementTest $t) => str_contains(Str::lower($t->title), $search) || str_contains(Str::lower($t->code), $search)))
+            ->when(PlacementRubricService::isValidGroup($gradeGroup), fn ($tests) => $tests->where('grade_group', $gradeGroup))
+            ->when($status === 'active', fn ($tests) => $tests->where('is_active', true))
+            ->when($status === 'hidden', fn ($tests) => $tests->where('is_active', false))
+            ->values();
+        $perPage = $request->perPage(20);
+        $page = max(1, $request->integer('page', 1));
+        $tests = new \Illuminate\Pagination\LengthAwarePaginator(
+            $filtered->forPage($page, $perPage)->values(), $filtered->count(), $perPage, $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
 
         $submissionsQuery = $this->visibleSubmissionsQuery()->with(['test', 'grader', 'customer'])->latest();
 
@@ -34,20 +52,42 @@ class PlacementTestController extends Controller
         $recentSubmissions = $submissionsQuery->take(50)->get();
 
         $stats = [
-            'total_tests' => $tests->count(),
-            'preset_tests' => $tests->where('is_preset', true)->count(),
-            'custom_tests' => $tests->where('is_preset', false)->count(),
-            'total_submissions' => PlacementTestSubmission::count(),
-            'avg_duration' => round($tests->avg('duration_minutes') ?: 0),
+            'total_tests' => $allTests->count(),
+            'active_tests' => $allTests->where('is_active', true)->count(),
+            'hidden_tests' => $allTests->where('is_active', false)->count(),
+            // Chỉ đếm bài làm trong phạm vi được xem (Quản lý / Học vụ: chi nhánh mình).
+            'total_submissions' => $this->visibleSubmissionsQuery()->count(),
+            'pending_submissions' => $this->visibleSubmissionsQuery()->where('status', 'pending')->count(),
         ];
 
         return view('placement-tests.index', compact('tests', 'recentSubmissions', 'selectedTest', 'stats'));
     }
 
+    /** Mockup: nút Ẩn / Kích hoạt đề ngay trên danh sách (đề đã có bài làm không xóa được — ẩn để ngừng phát hành). */
+    public function toggleActive($id)
+    {
+        $test = PlacementTest::where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $test->update(['is_active' => ! $test->is_active]);
+
+        return back()->with('status', $test->is_active ? "Đã kích hoạt đề {$test->code}." : "Đã ẩn đề {$test->code} — link làm bài của đề này ngừng hoạt động.");
+    }
+
     public function create()
     {
-        return view('placement-tests.create');
+        return view('placement-tests.create', [
+            'gradeGroups' => PlacementRubricService::gradeGroups(),
+            'gradeCodeTokens' => self::GRADE_CODE_TOKENS,
+        ]);
     }
+
+    /** Mã đề phải chứa khối lớp để hệ thống chấm theo thang điểm (PlacementRubricService::detectGradeGroup). */
+    public const GRADE_CODE_TOKENS = [
+        'khoi_1_2' => 'G1-G2',
+        'khoi_2_3' => 'G2-G3',
+        'khoi_3_4' => 'G3-G4',
+        'khoi_4_5' => 'G4-G5',
+        PlacementRubricService::MANUAL_GROUP => 'KHAC',
+    ];
 
     public function storeTest(Request $request)
     {
@@ -55,11 +95,22 @@ class PlacementTestController extends Controller
             'code' => 'required|string|unique:placement_tests,code|max:50',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'target_level' => 'required|string|max:255',
+            'grade_group' => 'nullable|string|in:'.implode(',', array_keys(PlacementRubricService::gradeGroups())),
+            'target_level' => 'required_without:grade_group|nullable|string|max:255',
             'duration_minutes' => 'required|integer|min:10',
             'questions_count' => 'nullable|integer|min:1',
             'questions' => 'nullable',
+            'save_mode' => 'nullable|in:draft,publish',
         ]);
+        // Mockup Tạo đề — "Cấp độ" = khối lớp (A6 Q2); mã đề phải khớp khối để chấm đúng thang điểm.
+        $gradeGroup = $validated['grade_group'] ?? null;
+        if ($gradeGroup && PlacementRubricService::hasRubric($gradeGroup)
+            && PlacementRubricService::detectGradeGroup($validated['code']) !== $gradeGroup) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'code' => 'Mã đề phải chứa "'.self::GRADE_CODE_TOKENS[$gradeGroup].'" để hệ thống chấm theo thang điểm '.PlacementRubricService::groupLabel($gradeGroup).'.',
+            ]);
+        }
+        $validated['target_level'] = ($validated['target_level'] ?? null) ?: PlacementRubricService::groupLabel($gradeGroup);
 
         $questions = $request->input('questions');
         if (is_string($questions)) {
@@ -76,11 +127,31 @@ class PlacementTestController extends Controller
             'duration_minutes' => $validated['duration_minutes'],
             'questions_count' => max(1, $questionsCount),
             'questions' => $questions,
-            'is_active' => true,
+            // "Lưu nháp" = đề ẩn (chưa phát hành link làm bài).
+            'is_active' => ($validated['save_mode'] ?? 'publish') !== 'draft',
         ]);
 
         return redirect()->route('placement-tests.index')
-            ->with('status', "Đã tạo đề kiểm tra trình độ {$test->title} ({$test->code}) thành công!");
+            ->with('status', $test->is_active
+                ? "Đã tạo đề kiểm tra trình độ {$test->title} ({$test->code}) thành công!"
+                : "Đã lưu nháp đề {$test->title} ({$test->code}) — đề đang ẩn, bấm Kích hoạt khi sẵn sàng.");
+    }
+
+    /**
+     * Mockup Tạo đề: "Tải file nghe (.mp3)" và "Tải ảnh lên" cho phương án.
+     * File lưu disk public (thí sinh không đăng nhập vẫn nghe/xem được), đuôi kiểm theo nội dung (SafeUploadService).
+     */
+    public function uploadMedia(Request $request)
+    {
+        abort_unless($request->user()->can('placement_test.create') || $request->user()->can('placement_test.update'), 403);
+        $validated = $request->validate([
+            'kind' => 'required|in:audio,image',
+            'file' => 'required|file|max:'.($request->input('kind') === 'audio' ? 20480 : 5120),
+        ], ['file.max' => 'File quá lớn (âm thanh tối đa 20 MB, ảnh tối đa 5 MB).']);
+        $allowed = $validated['kind'] === 'audio' ? \App\Services\SafeUploadService::AUDIO : \App\Services\SafeUploadService::IMAGES;
+        $path = \App\Services\SafeUploadService::store($request->file('file'), 'placement_tests/'.now()->format('Y/m'), $allowed, 'file');
+
+        return response()->json(['url' => \Illuminate\Support\Facades\Storage::disk('public')->url($path), 'path' => $path]);
     }
 
     public function showTest($id)
@@ -176,7 +247,7 @@ class PlacementTestController extends Controller
         $submissionCount = $test->submissions()->count();
         if ($submissionCount > 0) {
             return redirect()->route('placement-tests.index')
-                ->with('error', "Đề [{$test->code}] đã có {$submissionCount} bài làm nên không thể xóa. Hãy tắt kích hoạt đề (Sửa đề → bỏ chọn Hoạt động) để ngừng phát hành.");
+                ->with('error', "Đề [{$test->code}] đã có {$submissionCount} bài làm nên không thể xóa. Hãy bấm \"Ẩn\" trên danh sách đề để ngừng phát hành.");
         }
 
         $title = $test->title;
@@ -245,6 +316,16 @@ class PlacementTestController extends Controller
 
         $submission->applyRubricGrade($validated);
         $submission->grader_id = Auth::id();
+
+        // Mockup: "Lưu bản nháp" giữ bài ở trạng thái Chờ chấm (chưa đồng bộ sang khách, chưa chuyển "Đã test");
+        // "Xác nhận kết quả" chốt điểm. Bài đã chấm không lùi về nháp.
+        if ($request->input('action') === 'draft' && $submission->isPending()) {
+            $submission->save();
+
+            return redirect()->route('placement-tests.results.show', $submission->id)
+                ->with('status', 'Đã lưu bản nháp điểm — bài vẫn ở trạng thái Chờ chấm cho tới khi Xác nhận kết quả.');
+        }
+
         $submission->status = PlacementTestSubmission::STATUS_GRADED;
         $submission->save();
 

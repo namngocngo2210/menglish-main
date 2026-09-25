@@ -6,11 +6,8 @@
                     <span class="material-symbols-outlined text-[18px]">arrow_back</span>
                 </a>
                 <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary-container">post_add</span>
-                        Tạo Đề Thi Mới &amp; Soạn Thảo Câu Hỏi
-                    </h1>
-                    <p class="text-xs text-gray-500">Soạn thảo bộ đề kiểm tra năng lực đầu vào theo quy chuẩn MEnglish Admin</p>
+                    <h1 class="font-h1 text-h1 text-on-surface">Tạo đề thi mới</h1>
+                    <p class="font-body-small text-body-small text-on-surface-variant">Soạn đề test đầu vào theo khối lớp — chấm theo "Thang điểm + hướng dẫn nhận xét"</p>
                 </div>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
@@ -70,8 +67,15 @@
         }
     @endphp
 
+    @php
+        $initialGroup = old('grade_group', 'khoi_3_4');
+    @endphp
     <div class="space-y-6" x-data="testCreatorApp({
-        questions: {{ Js::from($initialQuestions) }}
+        questions: {{ Js::from($initialQuestions) }},
+        gradeGroup: {{ Js::from($initialGroup) }},
+        code: {{ Js::from(old('code', 'TEST-'.($gradeCodeTokens[$initialGroup] ?? 'KHAC').'-'.date('ymd-His'))) }},
+        codeTouched: {{ old('code') ? 'true' : 'false' }},
+        codeTokens: {{ Js::from($gradeCodeTokens) }},
     })">
         <form id="createPlacementTestForm" action="{{ route('placement-tests.store') }}" method="POST" @submit="syncBeforeSubmit($event)">
             @csrf
@@ -105,7 +109,8 @@
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <label class="block font-bold text-gray-700 mb-1 text-[11px]">Mã đề (Code) <span class="text-rose-500">*</span></label>
-                                    <input type="text" name="code" value="{{ old('code', 'TEST-IE-' . date('ymd-His')) }}" required placeholder="TEST-01" class="w-full text-xs font-mono font-bold rounded-xl border border-gray-300 p-2.5 focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs" />
+                                    <input type="text" name="code" x-model="code" @input="codeTouched = true" required placeholder="TEST-G3-G4-01" class="w-full text-xs font-mono font-bold rounded-xl border p-2.5 focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs {{ $errors->has('code') ? 'border-error' : 'border-gray-300' }}" />
+                                    @error('code')<p class="mt-1 text-[11px] text-error">{{ $message }}</p>@enderror
                                 </div>
                                 <div>
                                     <label class="block font-bold text-gray-700 mb-1 text-[11px]">Thời gian (phút) <span class="text-rose-500">*</span></label>
@@ -114,15 +119,13 @@
                             </div>
 
                             <div>
-                                <label class="block font-bold text-gray-700 mb-1 text-[11px]">Cấp độ / Trình độ mục tiêu</label>
-                                <select name="target_level" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-semibold focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs">
-                                    <option value="Lớp 1-2 (Starters)">Lớp 1-2 (Starters)</option>
-                                    <option value="Lớp 3-4 (Movers)" selected>Lớp 3-4 (Movers)</option>
-                                    <option value="Lớp 5-6 (Flyers)">Lớp 5-6 (Flyers)</option>
-                                    <option value="IELTS Foundation (3.0 - 4.5)">IELTS Foundation (3.0 - 4.5)</option>
-                                    <option value="IELTS Intensive (5.0 - 6.5)">IELTS Intensive (5.0 - 6.5)</option>
-                                    <option value="IELTS Master (6.5 - 7.5+)">IELTS Master (6.5 - 7.5+)</option>
+                                <label class="block font-bold text-gray-700 mb-1 text-[11px]">Cấp độ (khối lớp) <span class="text-rose-500">*</span></label>
+                                <select name="grade_group" x-model="gradeGroup" @change="syncCode()" required class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-semibold focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs">
+                                    @foreach ($gradeGroups as $groupKey => $groupLabel)
+                                        <option value="{{ $groupKey }}">{{ $groupLabel }}</option>
+                                    @endforeach
                                 </select>
+                                <p class="mt-1 text-[11px] text-gray-500">Mã đề chứa khối lớp (vd. <span class="font-mono">G3-G4</span>) để hệ thống chấm theo thang điểm khối; khối chưa có thang điểm thì Học thuật chọn lớp thủ công.</p>
                             </div>
 
                             <div>
@@ -327,7 +330,14 @@
                                     </span>
                                     <span class="text-[10px] text-indigo-700 font-mono italic">Phát trực tiếp trên giao diện thi</span>
                                 </div>
-                                <input type="text" x-model="currentQ.audio_url" placeholder="/uploads/2026/dethitest/audio-track-01.mp3" class="w-full text-xs rounded-xl border border-indigo-300 p-2.5 bg-white font-mono shadow-2xs" />
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <label class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-indigo-300 bg-white px-3 py-2 font-bold text-indigo-700 hover:bg-indigo-50">
+                                        <span class="material-symbols-outlined text-[16px]">upload_file</span>
+                                        <span x-text="uploading === 'audio' ? 'Đang tải lên...' : 'Tải file nghe (.mp3)'"></span>
+                                        <input type="file" accept="audio/*" class="sr-only" @change="uploadMedia($event, 'audio', (url) => currentQ.audio_url = url)" />
+                                    </label>
+                                    <input type="text" x-model="currentQ.audio_url" placeholder="hoặc dán đường dẫn file nghe" class="min-w-[200px] flex-1 text-xs rounded-xl border border-indigo-300 p-2.5 bg-white font-mono shadow-2xs" />
+                                </div>
                                 <template x-if="currentQ.audio_url">
                                     <div class="pt-1">
                                         <audio controls class="w-full h-8" :src="currentQ.audio_url"></audio>
@@ -377,6 +387,18 @@
                                                     <button type="button" @click="removeOption(oIdx)" :disabled="currentQ.options.length <= 2" class="p-1 text-gray-400 hover:text-rose-600 disabled:opacity-20 cursor-pointer" title="Xóa phương án">
                                                         <span class="material-symbols-outlined text-[16px]">close</span>
                                                     </button>
+                                                </div>
+                                                <div class="flex items-center gap-2 pl-6">
+                                                    <label class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-dashed border-gray-300 px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-50">
+                                                        <span class="material-symbols-outlined text-[14px]">add_photo_alternate</span>Tải ảnh lên
+                                                        <input type="file" accept="image/*" class="sr-only" @change="uploadMedia($event, 'image', (url) => opt.image_url = url)" />
+                                                    </label>
+                                                    <template x-if="opt.image_url">
+                                                        <div class="flex items-center gap-1">
+                                                            <img :src="opt.image_url" :alt="'Ảnh phương án ' + opt.key" class="h-10 w-10 rounded border border-gray-200 object-cover">
+                                                            <button type="button" @click="opt.image_url = ''" class="text-gray-400 hover:text-rose-600" title="Bỏ ảnh"><span class="material-symbols-outlined text-[14px]">close</span></button>
+                                                        </div>
+                                                    </template>
                                                 </div>
                                             </div>
                                         </template>
@@ -440,6 +462,14 @@
                                 <textarea x-model="currentQ.teacher_note" rows="2" placeholder="Ghi chú thêm về tiêu chí, bẫy từ vựng..." class="w-full text-xs rounded-xl border border-gray-300 p-2.5 bg-white shadow-2xs"></textarea>
                             </div>
 
+                            <!-- Form Action Footer (mockup): Lưu nháp = lưu đề ở trạng thái Ẩn; Lưu và Tiếp theo = sang câu kế tiếp -->
+                            <div class="flex flex-wrap items-center justify-end gap-sm border-t border-surface-container-highest pt-md">
+                                <button type="submit" name="save_mode" value="draft" class="rounded-lg border border-outline-variant px-lg py-sm font-body-medium text-body-medium text-on-surface hover:bg-surface-container-low">Lưu nháp</button>
+                                <button type="button" @click="saveAndNext()" class="inline-flex items-center gap-xs rounded-lg bg-secondary px-lg py-sm font-body-medium text-body-medium text-white hover:opacity-90">
+                                    Lưu và Tiếp theo<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+                                </button>
+                            </div>
+
                         </div>
                     </template>
                 </main>
@@ -453,6 +483,55 @@
             return {
                 questions: cfg.questions || [],
                 currentIndex: 0,
+                gradeGroup: cfg.gradeGroup,
+                code: cfg.code,
+                codeTouched: cfg.codeTouched,
+                codeTokens: cfg.codeTokens,
+                uploading: null,
+
+                // Mã đề gợi ý theo khối lớp (người dùng sửa tay thì giữ nguyên).
+                syncCode() {
+                    if (this.codeTouched) return;
+                    const stamp = new Date().toISOString().slice(2, 10).replace(/-/g, '') + '-' + String(Date.now()).slice(-4);
+                    this.code = 'TEST-' + (this.codeTokens[this.gradeGroup] || 'KHAC') + '-' + stamp;
+                },
+
+                async uploadMedia(event, kind, apply) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    const data = new FormData();
+                    data.append('file', file);
+                    data.append('kind', kind);
+                    this.uploading = kind;
+                    try {
+                        const response = await fetch(@js(route('placement-tests.media.store')), {
+                            method: 'POST',
+                            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'), 'Accept': 'application/json' },
+                            body: data,
+                        });
+                        const json = await response.json();
+                        if (!response.ok) throw new Error((json.errors && Object.values(json.errors)[0][0]) || json.message || 'Tải file thất bại');
+                        apply(json.url);
+                        window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Đã tải file lên.', type: 'success' } }));
+                    } catch (error) {
+                        window.dispatchEvent(new CustomEvent('toast', { detail: { message: error.message, type: 'error' } }));
+                    } finally {
+                        this.uploading = null;
+                        event.target.value = '';
+                    }
+                },
+
+                saveAndNext() {
+                    if (!this.currentQ || !String(this.currentQ.title || '').trim()) {
+                        window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Nhập nội dung câu hỏi trước khi sang câu tiếp theo.', type: 'error' } }));
+                        return;
+                    }
+                    if (this.currentIndex < this.questions.length - 1) {
+                        this.currentIndex++;
+                    } else {
+                        this.addNewQuestion(this.currentQ.type, this.currentQ.skill);
+                    }
+                },
 
                 init() {
                     if (this.questions.length === 0) {

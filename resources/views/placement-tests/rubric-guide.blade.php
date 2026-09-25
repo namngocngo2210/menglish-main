@@ -6,10 +6,7 @@
                     <span class="material-symbols-outlined text-[18px]">arrow_back</span>
                 </a>
                 <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">auto_awesome</span>
-                        Thang Điểm &amp; Hướng Dẫn Nhận Xét Tự Động
-                    </h1>
+                    <h1 class="font-h1 text-h1 text-on-surface">Thang Điểm &amp; Hướng Dẫn Nhận Xét Tự Động</h1>
                     <p class="text-xs text-gray-500">Hệ thống quy chuẩn điểm số, nhận xét theo từng kỹ năng và gợi ý xếp lớp chuẩn Cambridge YLE (Starters - Movers)</p>
                 </div>
             </div>
@@ -23,7 +20,7 @@
         </div>
     </x-slot>
 
-    <div class="max-w-6xl mx-auto space-y-6" x-data="rubricApp()">
+    <div class="max-w-6xl mx-auto space-y-6" x-data="rubricApp({{ Js::from(\App\Services\PlacementRubricService::clientConfig()) }})">
         
         <!-- Header Banner -->
         <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 text-white rounded-2xl p-6 shadow-md border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -34,7 +31,8 @@
                 </div>
                 <h2 class="text-2xl font-black tracking-tight">Quy Chuẩn Đánh Giá Năng Lực Đầu Vào</h2>
                 <p class="text-slate-300 text-xs leading-relaxed max-w-2xl">
-                    Hệ thống tự động tính toán band điểm 4 kỹ năng (Listening, Reading, Writing, Speaking), sinh nhận xét chuyên môn và gợi ý lộ trình lớp học tương ứng cho CRM và Phụ huynh.
+                    Chấm theo khối lớp: Tổng = Nghe + Đọc &amp; Viết + Nói (điểm thô), tra tổng điểm ra lớp đề xuất; nhận xét từng kỹ năng gợi ý theo băng điểm (người chấm sửa được). Nói luôn nhập tay.
+                    Khối chưa có thang (lớp 5–9, IELTS, người đi làm, mầm non): {{ \App\Services\PlacementRubricService::noRubricNotice() }}.
                 </p>
             </div>
             <div class="flex items-center gap-2">
@@ -52,17 +50,16 @@
                     <span class="material-symbols-outlined text-orange-600 text-[20px]">calculate</span>
                     <h3>Công cụ Tính Điểm &amp; Tạo Nhận Xét Trực Tiếp (Live Simulator)</h3>
                 </div>
-                <span class="text-xs bg-orange-50 text-orange-700 border border-orange-200 font-bold px-2.5 py-0.5 rounded-full">Interactive Tool</span>
+                <span class="text-xs bg-orange-50 text-orange-700 border border-orange-200 font-bold px-2.5 py-0.5 rounded-full">Dùng đúng thang điểm hệ thống</span>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                 <div>
                     <label class="block font-bold text-slate-700 uppercase mb-1">Chọn Khối Lớp</label>
                     <select x-model="khoiKey" @change="recalc()" class="w-full text-xs font-semibold border-slate-300 rounded-xl focus:ring-primary-container focus:border-primary-container p-2.5 bg-slate-50">
-                        <option value="khoi1_2">KHỐI 1 - 2</option>
-                        <option value="khoi2_3">KHỐI 2 LÊN 3</option>
-                        <option value="khoi3_4">KHỐI 3 LÊN 4</option>
-                        <option value="khoi4_5">KHỐI 4 LÊN 5</option>
+                        @foreach (\App\Services\PlacementRubricService::rubrics() as $groupKey => $groupRubric)
+                            <option value="{{ $groupKey }}">{{ mb_strtoupper($groupRubric['label']) }}</option>
+                        @endforeach
                     </select>
                 </div>
                 <div>
@@ -464,71 +461,48 @@
     </div>
 
     <script>
-        function rubricApp() {
+        // Bộ mô phỏng dùng chung cấu hình với form chấm điểm (PlacementRubricService::clientConfig) — không lặp lại thang điểm trong JS.
+        function rubricApp(config) {
             return {
+                config,
                 activeTab: 'tab2',
-                khoiKey: 'khoi2_3',
+                khoiKey: 'khoi_2_3',
                 scoreL: 11,
                 scoreR: 12,
                 scoreS: 8,
-                totalScore: 31,
-                maxTotal: 40,
-                placementCourse: 'STARTERS (FAM 1 _ UNIT 7 - 12)',
+                totalScore: 0,
+                maxTotal: 0,
+                placementCourse: '',
                 generatedComment: '',
 
                 init() {
                     this.recalc();
                 },
 
+                band(rubric, skill, score) {
+                    let text = '';
+                    (rubric.bands[skill] || []).forEach((b) => { if (score >= b.min) text = b.text; });
+                    return text || '—';
+                },
+
                 recalc() {
-                    const RUBRICS = {
-                        khoi1_2: {
-                            maxL: 10, maxR: 15, maxS: 10,
-                            listening: s => s>=8 ? "Con nghe tốt, nắm được hệ thống từ vựng các chủ đề xung quanh..." : (s>=5 ? "Con đã có kĩ năng nghe cơ bản, nhận diện từ vựng qua tranh..." : "Con bắt đầu hình thành kĩ năng nghe cơ bản..."),
-                            reading: s => s>=11 ? "Con có vốn từ cơ bản, nhớ chính tả, nắm câu đơn giản." : (s>=6 ? "Con nhận diện cơ bản từ vựng, chưa nhớ chính tả..." : "Con chưa có nền từ tốt..."),
-                            speaking: s => s>=8 ? "Con nói trôi chảy, nắm câu hỏi Starters..." : (s>=5 ? "Con có kĩ năng nghe nói cơ bản, nhận diện câu hỏi tranh..." : "Con chưa hình thành kĩ năng nghe nói cơ bản..."),
-                            placement: t => t<10 ? "PRE STARTERS (FAM 0)" : (t<=15 ? "STARTERS (FAM 1 _ Ở NHỮNG BÀI ĐẦU)" : (t<=25 ? "STARTERS (FAM 1 _ TỪ BÀI 5 - 10)" : "STARTERS (FAM 1 _ NÂNG CAO)"))
-                        },
-                        khoi2_3: {
-                            maxL: 15, maxR: 15, maxS: 10,
-                            listening: s => s>=11 ? "Con nghe khá, phân biệt thông tin gây nhiễu..." : (s>=6 ? "Con nghe trung bình khá, nhận diện thông tin 1 chiều..." : "Con nghe cơ bản, chưa quen bài nghe đa dạng..."),
-                            reading: s => s>=11 ? "Con có nền từ khá tốt, đọc hiểu câu cơ bản..." : (s>=6 ? "Con nhận diện cơ bản một số từ vựng..." : "Con chưa có nền từ tốt, gặp khó khăn điền từ..."),
-                            speaking: s => s>=8 ? "Con nói trôi chảy, khá tự tin và trả lời tốt..." : (s>=5 ? "Con có kĩ năng nghe nói cơ bản, phát âm tốt..." : "Con chưa hình thành kĩ năng nghe nói..."),
-                            placement: t => t<20 ? "PRE STARTERS _ FAM 1 (TỪ ĐẦU _ DƯỚI U5)" : (t<=30 ? "STARTERS (FAM 1 _ UNIT 6 - 10)" : "STARTERS (FAM 1 _ UNIT 7 - 12)")
-                        },
-                        khoi3_4: {
-                            maxL: 15, maxR: 20, maxS: 10,
-                            listening: s => s>=11 ? "Con nghe khá/tốt, nắm nội dung Movers..." : (s>=6 ? "Con nghe trung bình khá..." : "Kĩ năng nghe ở mức hình thành cơ bản..."),
-                            reading: s => s>=15 ? "Con có nền từ vựng khá, xử lí bài Movers tốt..." : (s>=7 ? "Con có kiến thức cơ bản, đọc hiểu câu ngắn..." : "Con nhận diện từ đơn cơ bản..."),
-                            speaking: s => s>=8 ? "Con nói trôi chảy, mô tả tranh khá..." : (s>=5 ? "Con có kĩ năng nghe nói cơ bản..." : "Con nghe hiểu cơ bản, nền từ yếu..."),
-                            placement: t => t<20 ? "FAM 2 (NỬA ĐẦU)" : (t<=35 ? "FAM 2 (NỬA SAU)" : "LUYỆN THI MOVERS")
-                        },
-                        khoi4_5: {
-                            maxL: 15, maxR: 15, maxS: 10,
-                            listening: s => s>=11 ? "Con nghe khá/tốt..." : (s>=6 ? "Con nghe trung bình khá..." : "Kĩ năng nghe hình thành cơ bản..."),
-                            reading: s => s>=11 ? "Con có nền từ vựng khá..." : (s>=6 ? "Con có kiến thức cơ bản..." : "Con nhận diện từ đơn..."),
-                            speaking: s => s>=8 ? "Con nói trôi chảy..." : (s>=5 ? "Con có kĩ năng nghe nói..." : "Con nghe hiểu cơ bản..."),
-                            placement: t => t<20 ? "FAM 2 (NỬA ĐẦU)" : (t<=30 ? "FAM 2 (NỬA SAU)" : "LUYỆN THI MOVERS")
-                        }
-                    };
+                    const r = this.config.groups[this.khoiKey];
+                    if (!r) return;
+                    const clamp = (v, max) => Math.min(Math.max(parseFloat(v) || 0, 0), max);
+                    const l = clamp(this.scoreL, r.max.listening);
+                    const rw = clamp(this.scoreR, r.max.reading_writing);
+                    const s = clamp(this.scoreS, r.max.speaking);
 
-                    const r = RUBRICS[this.khoiKey];
-                    let l = parseFloat(this.scoreL) || 0;
-                    let rd = parseFloat(this.scoreR) || 0;
-                    let s = parseFloat(this.scoreS) || 0;
+                    this.totalScore = Math.round((l + rw + s) * 10) / 10;
+                    this.maxTotal = r.max.listening + r.max.reading_writing + r.max.speaking;
+                    const t = this.totalScore;
+                    const hit = (r.placements || []).find((p) => (p.lt !== null ? t < p.lt : (p.lte !== null ? t <= p.lte : true)));
+                    this.placementCourse = hit ? hit.class : 'Chưa có lớp tương ứng — Học thuật chọn thủ công';
 
-                    l = Math.min(Math.max(l, 0), r.maxL);
-                    rd = Math.min(Math.max(rd, 0), r.maxR);
-                    s = Math.min(Math.max(s, 0), r.maxS);
-
-                    this.totalScore = Math.round((l + rd + s) * 10) / 10;
-                    this.maxTotal = r.maxL + r.maxR + r.maxS;
-                    this.placementCourse = r.placement(this.totalScore);
-
-                    this.generatedComment = 
-                        `【Kỹ năng Nghe】: ${r.listening(l)}\n` +
-                        `【Kỹ năng Đọc & Viết】: ${r.reading(rd)}\n` +
-                        `【Kỹ năng Nói】: ${r.speaking(s)}\n` +
+                    this.generatedComment =
+                        `【Kỹ năng Nghe】: ${this.band(r, 'listening', l)}\n` +
+                        `【Kỹ năng Đọc & Viết】: ${this.band(r, 'reading_writing', rw)}\n` +
+                        `【Kỹ năng Nói】: ${this.band(r, 'speaking', s)}\n` +
                         `【Đề xuất Xếp lớp】: ${this.placementCourse}`;
                 }
             };

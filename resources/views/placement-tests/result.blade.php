@@ -7,12 +7,12 @@
                 </a>
                 <div>
                     <div class="flex items-center gap-2 flex-wrap">
-                        <h1 class="text-xl font-black text-gray-900 tracking-tight">Chi Tiết Bài Làm &amp; Chấm Điểm Thí Sinh</h1>
+                        <h1 class="font-h1 text-h1 text-on-surface">Chi tiết bài làm &amp; chấm điểm</h1>
                         <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-primary-container border border-orange-200">
                             {{ $submission->scoreSummary() ?? 'Chưa có điểm' }}
                         </span>
                         <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase border {{ $submission->isPending() ? 'bg-sky-50 text-sky-700 border-sky-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200' }}">
-                            {{ $submission->isPending() ? 'Chờ Chấm' : 'Đã Chấm Điểm' }}
+                            {{ $submission->isPending() ? 'Chờ chấm' : 'Đã chấm điểm' }}
                         </span>
                     </div>
                     <p class="text-xs text-gray-500 font-mono mt-0.5">
@@ -25,16 +25,16 @@
                 @if ($submission->customer_id)
                     <a href="{{ route('crm.customers.show', $submission->customer_id) }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold transition shadow-2xs">
                         <span class="material-symbols-outlined text-[16px] text-indigo-600">person</span>
-                        <span>Hồ Sơ Lead CRM</span>
+                        <span>Hồ sơ khách</span>
                     </a>
                 @endif
                 <a href="{{ \Illuminate\Support\Facades\URL::signedRoute('portal.test.scorecard', ['id' => $submission->id]) }}" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs">
                     <span class="material-symbols-outlined text-[16px] text-amber-400">military_tech</span>
-                    <span>Xem Bảng Điểm Scorecard</span>
+                    <span>Bảng điểm (Scorecard)</span>
                 </a>
                 <a href="{{ route('placement-tests.rubric-guide') }}" class="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 hover:bg-orange-100 text-primary-container text-xs font-bold transition">
                     <span class="material-symbols-outlined text-[16px]">menu_book</span>
-                    <span>Thang Điểm Rubric</span>
+                    <span>Thang điểm &amp; hướng dẫn nhận xét</span>
                 </a>
             </div>
         </div>
@@ -56,7 +56,7 @@
             <div class="flex items-center justify-between border-b border-gray-100 pb-3 flex-wrap gap-2">
                 <div class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary-container text-xl">fact_check</span>
-                    <h2 class="font-black text-gray-900 text-sm uppercase tracking-wide">Chấm điểm theo thang điểm khối lớp</h2>
+                    <h2 class="font-h3 text-h3 text-on-surface">Chấm điểm theo thang điểm khối lớp</h2>
                 </div>
                 <span class="px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-bold">Tổng = Nghe + Đọc &amp; Viết + Nói → lớp đề xuất</span>
                 <div class="text-xs text-gray-500 font-mono">
@@ -83,10 +83,14 @@
                     <span class="material-symbols-outlined text-[16px] text-primary">info</span>
                     <span>Khi lưu điểm, hệ thống tính tổng điểm, tra lớp đề xuất và đồng bộ kết quả sang hồ sơ khách CRM.</span>
                 </div>
-                <button type="submit" class="px-6 py-2.5 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
-                    <span class="material-symbols-outlined text-base">save</span>
-                    <span>Lưu &amp; Cập Nhật Kết Quả Chấm Điểm</span>
-                </button>
+                <div class="flex items-center gap-sm">
+                    @if ($submission->isPending())
+                        <button type="submit" name="action" value="draft" class="rounded-lg border border-outline-variant px-lg py-sm font-body-medium text-body-medium text-on-surface hover:bg-surface-container-low">Lưu bản nháp</button>
+                    @endif
+                    <button type="submit" name="action" value="confirm" class="inline-flex items-center gap-xs rounded-lg bg-primary-container px-lg py-sm font-body-medium text-body-medium text-white shadow-sm hover:bg-primary">
+                        <span class="material-symbols-outlined text-[18px]">check</span>Xác nhận kết quả
+                    </button>
+                </div>
             </div>
         </form>
 

@@ -1,234 +1,148 @@
 <x-app-layout>
     @include('crm.partials.header-tabs')
 
-    <div class="space-y-6">
-        <!-- Page Title & Realtime Status -->
-        <div class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Báo cáo doanh số</h1>
-                <p class="text-xs text-gray-500 mt-0.5">Tổng quan hiệu suất chuyển đổi &amp; lý do thất bại theo khoảng thời gian</p>
+    @php
+        $trend = function (float|int $delta, bool $upIsGood = true) {
+            $good = $delta == 0 ? null : (($delta > 0) === $upIsGood);
+            return [
+                'arrow' => $delta > 0 ? 'trending_up' : ($delta < 0 ? 'trending_down' : 'trending_flat'),
+                'tone' => $good === null ? 'text-on-surface-variant' : ($good ? 'text-tertiary' : 'text-error'),
+                'sign' => $delta > 0 ? '+' : '',
+            ];
+        };
+        $cards = [
+            ['Số lượng khách', $metricTotalLeads, 'group', 'text-secondary', $leadDeltaPercent.'%', $trend($leadDiff), ($leadDiff >= 0 ? 'Tăng ' : 'Giảm ').abs($leadDiff).' khách so với kỳ trước'],
+            ['Khách đã chốt', $metricWonDeals, 'check_circle', 'text-tertiary', $wonDeltaPercent.'%', $trend($wonDiff), ($wonDiff >= 0 ? 'Tăng ' : 'Giảm ').abs($wonDiff).' khách so với kỳ trước'],
+            ['Tỷ lệ chốt thành công', $metricConversionRate.'%', 'bookmark', 'text-primary-container', $conversionDeltaPercent.' điểm %', $trend($conversionDeltaPercent), 'So với tỷ lệ kỳ trước'],
+            ['Khách không chốt', $metricLostDeals, 'person_remove', 'text-error', $lostDeltaPercent.'%', $trend($lostDiff, false), ($lostDiff >= 0 ? 'Tăng ' : 'Giảm ').abs($lostDiff).' khách thất bại so với kỳ trước'],
+        ];
+    @endphp
+
+    {{-- Mockup crm-ui-mockup/bao-cao-doanh-so: bộ lọc (khoảng thời gian, chi nhánh), giai đoạn chuyển đổi, lý do không chốt, ghi chú nguồn dữ liệu --}}
+    <div class="flex flex-col gap-lg">
+        <header class="flex flex-col gap-xs sm:flex-row sm:items-baseline sm:justify-between">
+            <h2 class="font-h2 text-h2 text-on-surface">Báo cáo doanh số</h2>
+            <span class="font-body-small text-body-small italic text-on-surface-variant">Cập nhật: {{ now()->format('H:i d/m/Y') }}</span>
+        </header>
+
+        <form method="GET" action="{{ route('crm.reports') }}" class="space-y-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
+            <div class="flex flex-wrap items-center gap-sm">
+                <span class="font-label text-label uppercase text-on-surface-variant">Chọn nhanh:</span>
+                @foreach (['today' => 'Hôm nay', 'yesterday' => 'Hôm qua', 'last_7_days' => '7 ngày', 'last_week' => 'Tuần trước', 'last_30_days' => '30 ngày', 'last_60_days' => '60 ngày', 'last_90_days' => '90 ngày', 'last_6_months' => '6 tháng', 'last_year' => '1 năm'] as $key => $label)
+                    <button type="submit" name="preset" value="{{ $key }}"
+                            class="rounded-full px-md py-xs font-body-small text-body-small transition-colors {{ $preset === $key ? 'bg-primary-container font-semibold text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high' }}">{{ $label }}</button>
+                @endforeach
             </div>
-            <div class="text-xs text-gray-500 italic">
-                Cập nhật: Realtime
-            </div>
-        </div>
-
-        <!-- Filter Card matching Screenshot 1 -->
-        <form method="GET" action="{{ route('crm.reports') }}" class="bg-white rounded-2xl border border-gray-200 p-5 shadow-xs space-y-4">
-            <!-- CHỌN NHANH MỐC THỜI GIAN -->
-            <div>
-                <div class="text-[11px] font-bold uppercase tracking-wider text-gray-700 mb-2">
-                    CHỌN NHANH MỐC THỜI GIAN
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    @php
-                        $presetButtons = [
-                            'today' => 'Hôm nay',
-                            'yesterday' => 'Hôm qua',
-                            'last_7_days' => '7 ngày trước',
-                            'last_week' => 'Tuần trước',
-                            'last_30_days' => '30 ngày trước',
-                            'last_60_days' => '60 ngày',
-                            'last_90_days' => '90 ngày',
-                            'last_6_months' => '6 tháng',
-                            'last_year' => '1 năm',
-                        ];
-                    @endphp
-
-                    @foreach ($presetButtons as $key => $label)
-                        <button 
-                            type="submit" 
-                            name="preset" 
-                            value="{{ $key }}"
-                            class="px-3.5 py-1.5 rounded-xl text-xs transition {{ $preset === $key ? 'bg-primary-container text-white font-bold shadow-xs' : 'bg-[#f0f4f9] text-slate-700 hover:bg-slate-200 font-medium' }}"
-                        >
-                            {{ $label }}
-                        </button>
-                    @endforeach
-                </div>
-            </div>
-
-            <div class="border-t border-gray-100 pt-3.5 grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
-                <!-- KHOẢNG THỜI GIAN -->
-                <div class="lg:col-span-7 space-y-1">
-                    <div class="text-[11px] font-bold uppercase tracking-wider text-gray-700">
-                        KHOẢNG THỜI GIAN
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <div class="relative flex-1">
-                            <input 
-                                type="date" 
-                                name="start_date" 
-                                value="{{ $startDate->format('Y-m-d') }}" 
-                                class="w-full text-xs font-medium rounded-xl border border-gray-200 px-3.5 py-2 bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-container"
-                            />
-                        </div>
-                        <span class="text-xs text-gray-500 font-medium shrink-0">đến</span>
-                        <div class="relative flex-1">
-                            <input 
-                                type="date" 
-                                name="end_date" 
-                                value="{{ $endDate->format('Y-m-d') }}" 
-                                class="w-full text-xs font-medium rounded-xl border border-gray-200 px-3.5 py-2 bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-container"
-                            />
-                        </div>
+            <div class="flex flex-col gap-md border-t border-surface-container pt-md lg:flex-row lg:items-end">
+                <div class="flex flex-col gap-xs">
+                    <label class="font-label text-label uppercase text-on-surface-variant">Khoảng thời gian</label>
+                    <div class="flex items-center gap-sm">
+                        <input type="date" name="start_date" value="{{ $startDate->format('Y-m-d') }}" aria-label="Từ ngày" class="rounded-lg border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base focus:border-primary-container focus:ring-primary-container/20" />
+                        <span class="font-body-small text-body-small text-on-surface-variant">đến</span>
+                        <input type="date" name="end_date" value="{{ $endDate->format('Y-m-d') }}" aria-label="Đến ngày" class="rounded-lg border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base focus:border-primary-container focus:ring-primary-container/20" />
                     </div>
                 </div>
-
-                <!-- CHI NHÁNH & NÚT LỌC DỮ LIỆU -->
-                <div class="lg:col-span-5 space-y-1">
-                    <div class="text-[11px] font-bold uppercase tracking-wider text-gray-700">
-                        CHI NHÁNH
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <select 
-                            name="branch_id" 
-                            class="w-full text-xs font-medium rounded-xl border border-gray-200 px-3.5 py-2 bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-container"
-                        >
-                            <option value="">Tất cả chi nhánh</option>
-                            @foreach ($branches as $branch)
-                                <option value="{{ $branch->id }}" {{ (string)$branchId === (string)$branch->id ? 'selected' : '' }}>
-                                    {{ $branch->name }}
-                                </option>
-                            @endforeach
-                        </select>
-
-                        <button 
-                            type="submit" 
-                            name="preset" 
-                            value="custom"
-                            class="px-4 py-2 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition inline-flex items-center gap-1.5 shrink-0"
-                        >
-                            <span class="material-symbols-outlined text-base">search</span>
-                            <span>Lọc dữ liệu</span>
-                        </button>
-                    </div>
+                <div class="flex min-w-[220px] flex-col gap-xs">
+                    <label for="report_branch" class="font-label text-label uppercase text-on-surface-variant">Chi nhánh</label>
+                    <select id="report_branch" name="branch_id" class="rounded-lg border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base focus:border-primary-container focus:ring-primary-container/20">
+                        <option value="">Tất cả</option>
+                        @foreach ($branches as $branch)
+                            <option value="{{ $branch->id }}" @selected((string) $branchId === (string) $branch->id)>{{ $branch->name }}</option>
+                        @endforeach
+                    </select>
                 </div>
+                <x-ui.button type="submit" name="preset" value="custom" icon="search">Lọc dữ liệu</x-ui.button>
             </div>
         </form>
 
-        <!-- 4 Top Metric Cards matching Screenshot 1 -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <!-- Card 1: Số lượng Lead -->
-            <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-xs relative">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-gray-700">Số lượng Lead</span>
-                    <span class="material-symbols-outlined text-blue-500 text-xl font-light">group</span>
-                </div>
-                <div class="mt-3 flex items-baseline justify-between">
-                    <div class="text-3xl font-black text-gray-900 font-mono tracking-tight">
-                        {{ $metricTotalLeads }}
+        <div class="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-4">
+            @foreach ($cards as [$label, $value, $icon, $tone, $delta, $t, $hint])
+                <div class="rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="font-body-medium text-body-medium text-on-surface-variant">{{ $label }}</span>
+                        <span class="material-symbols-outlined {{ $tone }}">{{ $icon }}</span>
                     </div>
-                    <div class="text-xs font-bold text-emerald-600 flex items-center gap-0.5">
-                        <span>↗</span>
-                        <span>+{{ $leadDeltaPercent }}%</span>
+                    <div class="mt-sm flex items-baseline justify-between">
+                        <span class="font-h1 text-h1 {{ $tone }}">{{ $value }}</span>
+                        <span class="flex items-center gap-xs font-body-small text-body-small font-semibold {{ $t['tone'] }}">
+                            <span class="material-symbols-outlined text-[16px]">{{ $t['arrow'] }}</span>{{ $t['sign'] }}{{ $delta }}
+                        </span>
                     </div>
+                    <p class="mt-xs font-caption text-caption text-on-surface-variant">{{ $hint }}</p>
                 </div>
-                <div class="text-[11px] text-gray-500 mt-2">
-                    Tăng <span class="font-bold text-gray-800">+{{ $leadDiff }} lead</span> so với kỳ trước
-                </div>
-            </div>
-
-            <!-- Card 2: Khách đã chốt -->
-            <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-xs relative">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-gray-700">Khách đã chốt</span>
-                    <span class="material-symbols-outlined text-emerald-500 text-xl font-light">check_circle</span>
-                </div>
-                <div class="mt-3 flex items-baseline justify-between">
-                    <div class="text-3xl font-black text-emerald-600 font-mono tracking-tight">
-                        {{ $metricWonDeals }}
-                    </div>
-                    <div class="text-xs font-bold text-emerald-600 flex items-center gap-0.5">
-                        <span>↗</span>
-                        <span>+{{ $wonDeltaPercent }}%</span>
-                    </div>
-                </div>
-                <div class="text-[11px] text-gray-500 mt-2">
-                    Tăng <span class="font-bold text-gray-800">+{{ $wonDiff }} khách</span> so với kỳ trước
-                </div>
-            </div>
-
-            <!-- Card 3: Tỷ lệ chốt thành công -->
-            <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-xs relative">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-gray-700">Tỷ lệ chốt thành công</span>
-                    <span class="material-symbols-outlined text-primary-container text-xl font-light">bookmark</span>
-                </div>
-                <div class="mt-3 flex items-baseline justify-between">
-                    <div class="text-3xl font-black text-primary-container font-mono tracking-tight">
-                        {{ $metricConversionRate }}%
-                    </div>
-                    <div class="text-xs font-bold text-emerald-600 flex items-center gap-0.5">
-                        <span>↗</span>
-                        <span>+{{ $conversionDeltaPercent }}%</span>
-                    </div>
-                </div>
-                <div class="text-[11px] text-gray-500 mt-2">
-                    Cải thiện so với trung bình kỳ trước
-                </div>
-            </div>
-
-            <!-- Card 4: Khách không chốt -->
-            <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-xs relative">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-gray-700">Khách không chốt</span>
-                    <span class="material-symbols-outlined text-rose-500 text-xl font-light">person_remove</span>
-                </div>
-                <div class="mt-3 flex items-baseline justify-between">
-                    <div class="text-3xl font-black text-rose-600 font-mono tracking-tight">
-                        {{ $metricLostDeals }}
-                    </div>
-                    <div class="text-xs font-bold text-emerald-600 flex items-center gap-0.5">
-                        <span>↘</span>
-                        <span>{{ $lostDeltaPercent }}%</span>
-                    </div>
-                </div>
-                <div class="text-[11px] text-gray-500 mt-2">
-                    Giảm <span class="font-bold text-gray-800">{{ $lostDiff }} lead fail</span> so với kỳ trước
-                </div>
-            </div>
+            @endforeach
         </div>
 
-        <!-- Conversion Funnel (Giai đoạn chuyển đổi) matching Screenshot 2 -->
-        <div class="space-y-3">
-            <h2 class="text-lg font-bold text-gray-900 tracking-tight">Giai đoạn chuyển đổi</h2>
-
-            <div class="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-xs space-y-3">
+        {{-- Giai đoạn chuyển đổi (8 bước A6) --}}
+        <section class="space-y-md">
+            <h2 class="font-h3 text-h3 text-on-surface">Giai đoạn chuyển đổi</h2>
+            <div class="space-y-sm rounded-xl border border-surface-container-highest bg-surface-container-lowest p-lg shadow-sm">
                 @forelse ($funnelStages as $stage)
-                    @php $indent = $loop->first ? 0 : min(42, $loop->index * 10); @endphp
-                    <div class="{{ $loop->first ? 'w-full' : 'flex justify-end' }}">
-                        <div class="w-full flex items-stretch rounded-xl overflow-hidden bg-gray-50 text-gray-800 border border-gray-200 shadow-2xs"
-                             title="{{ $stage['desc'] }}"
-                             @unless($loop->first) style="max-width: {{ 100 - $indent }}%;" @endunless>
-                            <div class="w-24 sm:w-28 flex items-center justify-center font-bold text-base {{ $stage['bar_color'] }} text-white shrink-0 py-3.5">
-                                {{ $stage['count'] }}
-                            </div>
-                            <div class="flex-1 flex items-center justify-between px-4 sm:px-6">
-                                <span class="text-xs sm:text-[13px] font-bold uppercase tracking-wider">
-                                    {{ mb_strtoupper($stage['name']) }}
+                    <div class="flex justify-center">
+                        <div class="flex w-full items-stretch overflow-hidden rounded-lg border border-surface-container-highest bg-surface-container-low" title="{{ $stage['desc'] }}" style="max-width: {{ 100 - ($loop->first ? 0 : min(42, $loop->index * 6)) }}%;">
+                            <div class="flex w-24 shrink-0 items-center justify-center py-sm font-h3 text-h3 text-white {{ $stage['bar_color'] }}">{{ number_format($stage['count'], 0, ',', '.') }}</div>
+                            <div class="flex flex-1 items-center justify-between px-md">
+                                <span class="font-body-semibold text-body-semibold text-on-surface">{{ $stage['name'] }}</span>
+                                <span class="flex items-center gap-sm font-body-small text-body-small text-on-surface-variant">
+                                    {{ $stage['percent'] }}%
+                                    <span class="material-symbols-outlined {{ $stage['text_color'] }}">{{ $stage['icon'] }}</span>
                                 </span>
-                                <div class="flex items-center gap-3 font-semibold">
-                                    <span class="text-xs">{{ $stage['percent'] }}%</span>
-                                    <span class="material-symbols-outlined text-lg">{{ $loop->first ? 'group' : ($loop->last ? 'check_circle' : 'filter_alt') }}</span>
-                                </div>
                             </div>
                         </div>
                     </div>
                 @empty
-                    <p class="text-xs text-gray-400 text-center py-4">Chưa có lead nào trong kỳ.</p>
+                    <p class="py-md text-center font-body-small text-body-small text-on-surface-variant">Chưa có khách nào trong kỳ.</p>
                 @endforelse
             </div>
-        </div>
+        </section>
+
+        {{-- Lý do khách không chốt --}}
+        <section class="space-y-md">
+            <div class="flex flex-wrap items-baseline justify-between gap-sm">
+                <h2 class="font-h3 text-h3 text-on-surface">Lý do khách không chốt</h2>
+                <p class="font-body-small text-body-small text-on-surface-variant">Tổng cộng <span class="font-semibold text-error">{{ $metricLostDeals }}</span> hồ sơ thất bại trong kỳ</p>
+            </div>
+            <x-ui.data-table min-width="760px">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Khách hàng</th>
+                            <th>Thời điểm ghi nhận</th>
+                            <th>Nội dung lý do (Log chi tiết)</th>
+                            <th>Nhân viên phụ trách</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($lostReasons as $lost)
+                            <tr>
+                                <td class="whitespace-nowrap"><a href="{{ route('crm.customers.show', $lost->id) }}" class="font-body-medium text-body-medium text-on-surface hover:text-primary">{{ $lost->name }}</a></td>
+                                <td class="whitespace-nowrap font-code text-code text-on-surface-variant">{{ ($lost->lost_at ?? $lost->created_at)->format('d/m/Y H:i') }}</td>
+                                <td class="text-on-surface">{{ $lost->lost_reason ?? 'Chưa ghi nhận lý do' }}</td>
+                                <td class="whitespace-nowrap text-on-surface-variant">{{ $lost->assignedUser?->name ?? 'Chưa phân công' }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="4"><x-ui.empty-state icon="sentiment_satisfied" title="Không có khách thất bại trong kỳ" /></td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+                @if ($metricLostDeals > $lostReasons->count())
+                    <x-slot:footer>
+                        <div class="flex justify-center p-sm">
+                            <x-ui.button variant="ghost" icon="expand_more" :href="route('crm.lost-deals', array_filter(['from' => $startDate->toDateString(), 'to' => $endDate->toDateString(), 'branch_id' => $branchId]))">Xem thêm lý do không chốt</x-ui.button>
+                        </div>
+                    </x-slot:footer>
+                @endif
+            </x-ui.data-table>
+        </section>
 
         <!-- Sales Performance Table by Rep (Bảng hiệu suất & Tỷ lệ chốt theo người phụ trách) -->
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-xs p-5 sm:p-6 space-y-4">
+        <div class="space-y-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-lg shadow-sm">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-gray-100 gap-2">
                 <div>
-                    <h2 class="text-base font-bold text-gray-900 tracking-tight">
+                    <h2 class="font-h3 text-h3 text-on-surface">
                         Bảng hiệu suất &amp; Tỷ lệ chốt theo người phụ trách
                     </h2>
-                    <p class="text-xs text-gray-500">Thống kê chi tiết số lượng Lead, doanh số và hoa hồng theo từng chuyên viên</p>
+                    <p class="text-xs text-gray-500">Thống kê số lượng khách, doanh số và hoa hồng theo từng chuyên viên</p>
                 </div>
 
                 <div class="flex items-center gap-2">
@@ -249,7 +163,7 @@
                     <thead class="bg-slate-50 text-gray-600 font-bold uppercase tracking-wider border-b border-gray-200 text-[11px]">
                         <tr>
                             <th class="py-3 px-4">Người phụ trách</th>
-                            <th class="py-3 px-3 text-center">Số lượng Lead</th>
+                            <th class="py-3 px-3 text-center">Số lượng khách</th>
                             <th class="py-3 px-3 text-center">SL chốt thành công</th>
                             <th class="py-3 px-3 text-center">% Chốt thành công</th>
                             <th class="py-3 px-4 text-right">Doanh thu</th>
@@ -321,16 +235,15 @@
                 </table>
             </div>
 
-            <!-- Footer Plugin Note matching Prompt -->
-            <div class="pt-2 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-gray-500 gap-2">
-                <div>
-                    <span class="font-mono font-bold text-gray-700">[Plugin: crm_sales_report_tab]</span>
-                    <span>Dữ liệu được tổng hợp theo thời gian thực từ CRM.</span>
-                </div>
-                <div>
-                    Công thức hoa hồng được tính tự động @can('commission_config.manage') từ <a href="{{ route('payroll.config.commission-tiers') }}" class="font-bold text-primary-container hover:underline">Cấu hình Mốc Hoa hồng</a> @endcan
-                </div>
-            </div>
         </div>
+
+        <footer class="flex items-start gap-md rounded-xl border border-surface-container-highest bg-surface-container-low p-md">
+            <span class="material-symbols-outlined text-secondary">info</span>
+            <div>
+                <p class="font-body-semibold text-body-semibold text-on-surface">Ghi chú về nguồn dữ liệu</p>
+                <p class="font-body-small text-body-small text-on-surface-variant">Báo cáo được tổng hợp dựa trên số lượng hồ sơ thực tế trong CRM. Doanh thu = tiền thực thu của khách mới (phiếu thu đã duyệt trong kỳ). Các giai đoạn được sắp xếp theo quy trình 8 bước.
+                    @can('commission_config.manage') Hoa hồng tính tự động theo <a href="{{ route('payroll.config.commission-tiers') }}" class="font-semibold text-primary hover:underline">Cấu hình mốc hoa hồng</a>. @endcan</p>
+            </div>
+        </footer>
     </div>
 </x-app-layout>

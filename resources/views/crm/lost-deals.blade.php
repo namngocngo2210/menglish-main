@@ -1,51 +1,74 @@
 <x-app-layout>
     @include('crm.partials.header-tabs')
 
-    <div class="space-y-4">
-        @include('crm.partials.list-filters', ['dateLabel' => 'Ngày thất bại', 'exportable' => true])
-
-        <!-- Lost deals table -->
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs min-w-[1040px]">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
-                            <th class="py-3 px-4 min-w-[180px] whitespace-nowrap">Khách hàng</th>
-                            <th class="py-3 px-4 min-w-[160px] whitespace-nowrap">Khóa quan tâm</th>
-                            <th class="py-3 px-4 min-w-[140px] whitespace-nowrap">Giá trị dự kiến</th>
-                            <th class="py-3 px-4 min-w-[160px] whitespace-nowrap">Lý do thất bại</th>
-                            <th class="py-3 px-4 min-w-[140px] whitespace-nowrap">Sales phụ trách</th>
-                            <th class="py-3 px-4 min-w-[110px] whitespace-nowrap">Ngày thất bại</th>
-                            <th class="py-3 px-4 min-w-[160px] whitespace-nowrap">Ghi chú</th>
-                            <th class="py-3 px-4 text-right min-w-[100px] whitespace-nowrap">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
-                        @forelse ($lostCustomers as $lc)
-                            <tr class="hover:bg-rose-50/20 transition">
-                                <td class="py-3.5 px-4 font-medium whitespace-nowrap">
-                                    <a href="{{ route('crm.customers.show', $lc->id) }}" class="font-bold text-gray-900 hover:text-primary transition whitespace-nowrap">{{ $lc->name }}</a>
-                                    <div class="text-[11px] text-gray-400 font-mono whitespace-nowrap">{{ $lc->phone }} · {{ $lc->branch?->name ?? '—' }}</div>
-                                </td>
-                                <td class="py-3.5 px-4 font-semibold text-gray-900 whitespace-nowrap">{{ $lc->course_interest }}</td>
-                                <td class="py-3.5 px-4 font-mono font-bold text-rose-600 whitespace-nowrap">{{ number_format($lc->deal_value) }}đ</td>
-                                <td class="py-3.5 px-4 text-rose-700 font-medium">{{ $lc->lost_reason ?? 'Chưa ghi nhận lý do' }}</td>
-                                <td class="py-3.5 px-4 whitespace-nowrap">{{ $lc->assignedUser?->name ?? 'Chưa phân công' }}</td>
-                                <td class="py-3.5 px-4 whitespace-nowrap font-mono text-gray-500">{{ $lc->lost_at?->format('d/m/Y') ?? '—' }}</td>
-                                <td class="py-3.5 px-4 text-gray-600">{{ $lc->notes }}</td>
-                                <td class="py-3.5 px-4 text-right whitespace-nowrap">
-                                    <a href="{{ route('crm.customers.show', $lc->id) }}" class="text-primary hover:underline font-semibold whitespace-nowrap">Xem chi tiết</a>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="8"><x-ui.empty-state icon="search_off" title="Không có khách không chốt" description="Không có khách thất bại phù hợp bộ lọc." /></td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+    {{-- Mockup crm-ui-mockup/khach-khong-chot-lost-deals. A6: khách Thất bại không mở lại, chỉ xem để đối soát. --}}
+    <div class="flex flex-col gap-lg">
+        <div class="flex flex-col gap-md lg:flex-row lg:items-center">
+            <div class="flex items-center gap-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm lg:min-w-[280px]">
+                <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-error-container text-error">
+                    <span class="material-symbols-outlined">person_off</span>
+                </div>
+                <div>
+                    <p class="font-body-small text-body-small text-on-surface-variant">Tổng số khách không chốt</p>
+                    <h2 class="font-h2 text-h2 text-on-surface">{{ number_format($lostTotal, 0, ',', '.') }}</h2>
+                </div>
             </div>
-            <x-ui.pagination :paginator="$lostCustomers" unit="khách" class="border-t border-gray-100" />
+            <div class="flex-1 [&>form]:mb-0">
+                @include('crm.partials.list-filters', ['dateLabel' => 'Thời điểm dừng', 'exportable' => true, 'searchPlaceholder' => 'Tìm theo lý do không chốt, tên, SĐT...', 'exportLabel' => 'Xuất báo cáo'])
+            </div>
         </div>
+
+        <x-ui.data-table min-width="1040px">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Họ tên khách hàng</th>
+                        <th>Số điện thoại</th>
+                        <th>Lý do không chốt</th>
+                        <th>Người phụ trách trước khi fail</th>
+                        <th>Thời điểm dừng</th>
+                        <th class="text-right">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($lostCustomers as $lc)
+                        <tr>
+                            <td>
+                                <div class="flex items-center gap-sm">
+                                    <x-ui.avatar :name="$lc->name" size="sm" />
+                                    <div class="min-w-0">
+                                        <a href="{{ route('crm.customers.show', $lc->id) }}" class="font-body-medium text-body-medium text-on-surface hover:text-primary">{{ $lc->name }}</a>
+                                        <div class="font-caption text-caption text-on-surface-variant">Nhu cầu: {{ $lc->course_interest ?: 'Chưa ghi nhận' }} · {{ $lc->branch?->name ?? '—' }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="whitespace-nowrap font-code text-code text-on-surface-variant">{{ $lc->phone }}</td>
+                            <td class="min-w-[280px] max-w-md">
+                                <div class="rounded-lg border border-error/10 bg-error-container/30 p-sm">
+                                    <p class="line-clamp-3 font-body-small text-body-small text-on-surface" title="{{ $lc->lost_reason }}">{{ $lc->lost_reason ?? 'Chưa ghi nhận lý do' }}</p>
+                                </div>
+                            </td>
+                            <td class="whitespace-nowrap">
+                                <div class="flex items-center gap-xs text-on-surface-variant">
+                                    <span class="material-symbols-outlined text-[18px]">account_circle</span>
+                                    <span>{{ $lc->assignedUser?->name ?? 'Chưa phân công' }}</span>
+                                </div>
+                            </td>
+                            <td class="whitespace-nowrap font-code text-caption text-on-surface-variant">{{ $lc->lost_at?->format('H:i - d/m/Y') ?? '—' }}</td>
+                            <td class="text-right">
+                                <x-ui.button variant="ghost" size="sm" icon="visibility" :href="route('crm.customers.show', $lc->id)" title="Xem chi tiết (không mở lại khách Thất bại)">Xem chi tiết</x-ui.button>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6"><x-ui.empty-state icon="search_off" title="Không có khách không chốt" description="Không có khách thất bại phù hợp bộ lọc." /></td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+            <x-slot:footer>
+                <x-ui.pagination :paginator="$lostCustomers" unit="khách" />
+            </x-slot:footer>
+        </x-ui.data-table>
     </div>
 </x-app-layout>

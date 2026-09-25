@@ -84,7 +84,7 @@ class CrmSalesDataScopeTest extends TestCase
         $resAlice = $this->actingAs($this->saleAlice)->get(route('crm.pipeline'));
         $resAlice->assertStatus(200);
         $resAlice->assertSee('Khách của Alice');
-        $resAlice->assertSee('Sale:');
+        $resAlice->assertSee('Phụ trách:');
         $resAlice->assertSee('Sale Alice');
         $resAlice->assertDontSee('Khách của Bob');
 
@@ -92,7 +92,7 @@ class CrmSalesDataScopeTest extends TestCase
         $resBob = $this->actingAs($this->saleBob)->get(route('crm.pipeline'));
         $resBob->assertStatus(200);
         $resBob->assertSee('Khách của Bob');
-        $resBob->assertSee('Sale:');
+        $resBob->assertSee('Phụ trách:');
         $resBob->assertSee('Sale Bob');
         $resBob->assertDontSee('Khách của Alice');
 

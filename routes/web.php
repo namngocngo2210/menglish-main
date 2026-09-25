@@ -374,11 +374,13 @@ Route::middleware('auth')->group(function () {
     Route::prefix('placement-tests')->name('placement-tests.')->group(function () {        Route::get('/', [PlacementTestController::class, 'index'])->middleware('can:placement_test.view')->name('index');
         Route::get('/create', [PlacementTestController::class, 'create'])->middleware('can:placement_test.create')->name('create');
         Route::post('/', [PlacementTestController::class, 'storeTest'])->middleware('can:placement_test.create')->name('store');
+        Route::post('/media', [PlacementTestController::class, 'uploadMedia'])->name('media.store');
         Route::get('/rubric-guide', [PlacementTestController::class, 'rubricGuide'])->middleware('can:placement_test.view')->name('rubric-guide');
         Route::get('/results/{id}', [PlacementTestController::class, 'showResult'])->middleware('can:placement_test.grade')->name('results.show');
         Route::post('/results/{id}', [PlacementTestController::class, 'updateResult'])->middleware('can:placement_test.grade')->name('results.update');
         Route::post('/{id}/duplicate', [PlacementTestController::class, 'duplicateTest'])->middleware('can:placement_test.create')->name('duplicate');
         Route::post('/{id}/distribute', [PlacementTestController::class, 'distributeTest'])->middleware('can:placement_test.distribute')->name('distribute');
+        Route::post('/{id}/toggle-active', [PlacementTestController::class, 'toggleActive'])->middleware('can:placement_test.update')->name('toggle-active');
         Route::get('/{id}', [PlacementTestController::class, 'showTest'])->middleware('can:placement_test.view')->name('show');
         Route::get('/{id}/edit', [PlacementTestController::class, 'editTest'])->middleware('can:placement_test.update')->name('edit');
         Route::put('/{id}', [PlacementTestController::class, 'updateTest'])->middleware('can:placement_test.update')->name('update');

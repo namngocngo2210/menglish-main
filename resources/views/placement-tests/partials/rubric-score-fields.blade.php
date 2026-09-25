@@ -25,9 +25,9 @@
         ],
     ];
     $skillStyles = [
-        'listening' => 'text-indigo-700 border-indigo-200 bg-indigo-50/60',
-        'reading_writing' => 'text-emerald-700 border-emerald-200 bg-emerald-50/60',
-        'speaking' => 'text-rose-700 border-rose-200 bg-rose-50/60',
+        'listening' => 'text-secondary border-secondary/20 bg-secondary/5',
+        'reading_writing' => 'text-tertiary border-tertiary/20 bg-tertiary/5',
+        'speaking' => 'text-primary border-primary/20 bg-primary/5',
     ];
 @endphp
 
@@ -84,84 +84,126 @@
                     return text;
                 },
                 overMax(skill) { const v = this.num(skill); return v !== null && v > this.max(skill); },
+                percent(skill) { const v = this.num(skill); return v === null ? 0 : Math.max(0, Math.min(100, Math.round(v / this.max(skill) * 100))); },
+                // Nhận xét đang khớp gợi ý theo thang điểm (chưa sửa tay).
+                get synced() { return this.hasRubric && this.complete && ['listening', 'reading_writing', 'speaking'].every((s) => !this.edited[s]); },
+                // "Tự động tạo nhận xét & Xếp lớp": áp lại gợi ý cho cả 3 kỹ năng và lớp đề xuất.
+                applyAll() {
+                    ['listening', 'reading_writing', 'speaking'].forEach((s) => this.resetComment(s));
+                    if (this.suggestedClass) this.chosen = this.suggestedClass;
+                },
                 resetComment(skill) { this.edited[skill] = false; this.comments[skill] = this.suggestion(skill) || ''; },
             };
         };
     </script>
 @endonce
 
-<div x-data="rubricScoreForm({{ Js::from($rubricConfig) }}, {{ Js::from($initial) }})" class="space-y-3.5 text-xs">
-    <div>
-        <label class="block font-bold text-gray-700 mb-1">Khối lớp (thang điểm) <span class="text-rose-600">*</span></label>
-        <select name="grade_group" x-model="group" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 bg-white font-semibold shadow-2xs">
-            @foreach ($Rubric::gradeGroups() as $key => $label)
-                <option value="{{ $key }}">{{ $label }}</option>
-            @endforeach
-        </select>
-        @error('grade_group')<p class="text-rose-600 mt-1">{{ $message }}</p>@enderror
-        <p x-show="!hasRubric" x-cloak class="mt-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 px-2.5 py-1.5 font-semibold">
-            {{ $Rubric::noRubricNotice() }}. Điểm từng kỹ năng nhập theo thang tạm 0–10, không quy đổi ra lớp.
-        </p>
+<div x-data="rubricScoreForm({{ Js::from($rubricConfig) }}, {{ Js::from($initial) }})" class="space-y-md font-body-small text-body-small" data-rubric-form>
+    {{-- Mockup kh_i_test_online: "Select Khối / Thang điểm tự động" + "Tự động tạo nhận xét & Xếp lớp" --}}
+    <div class="flex flex-col gap-sm rounded-lg bg-surface-container-low p-md sm:flex-row sm:items-end">
+        <div class="flex-1">
+            <label class="mb-xs flex items-center gap-xs font-label text-label uppercase text-on-surface-variant">
+                <span class="material-symbols-outlined text-[16px]">school</span>Khối lớp / Thang điểm tự động <span class="text-error">*</span>
+            </label>
+            <select name="grade_group" x-model="group" required class="w-full rounded-lg border-outline-variant bg-surface-container-lowest font-body-base text-body-base">
+                @foreach ($Rubric::gradeGroups() as $key => $label)
+                    <option value="{{ $key }}">{{ $label }}</option>
+                @endforeach
+            </select>
+            @error('grade_group')<p class="mt-xs text-error">{{ $message }}</p>@enderror
+        </div>
+        <button type="button" @click="applyAll()" :disabled="!hasRubric"
+                class="inline-flex items-center justify-center gap-xs rounded-lg bg-secondary px-md py-sm font-body-medium text-body-medium text-white hover:opacity-90 disabled:opacity-50">
+            <span class="material-symbols-outlined text-[18px]">auto_awesome</span>Tự động tạo nhận xét &amp; Xếp lớp
+        </button>
     </div>
+    <p x-show="!hasRubric" x-cloak class="rounded-lg border-l-4 border-amber-500 bg-amber-50 px-md py-sm font-semibold text-amber-900">
+        {{ $Rubric::noRubricNotice() }}. Điểm từng kỹ năng nhập theo thang tạm 0–10, không quy đổi ra lớp.
+    </p>
 
-    <div class="grid grid-cols-3 gap-2.5">
+    {{-- Ô điểm từng kỹ năng: điểm / tối đa, thanh tiến độ, nhận xét gợi ý --}}
+    <div class="grid grid-cols-1 gap-md md:grid-cols-3">
         @foreach ($Rubric::SKILLS as $skill => $label)
-            <div class="p-2.5 rounded-xl border {{ $skillStyles[$skill] }} space-y-1">
-                <label class="block text-[10px] font-black uppercase tracking-wide">
-                    {{ $label }} <span class="font-mono" x-text="'/' + max('{{ $skill }}')"></span>
-                    @if ($skill === 'speaking')<span class="font-semibold text-[10px] block text-gray-500">Luôn nhập tay</span>@endif
-                </label>
-                <input type="number" step="0.5" min="0" :max="max('{{ $skill }}')" name="{{ $skill }}_score" x-model="scores.{{ $skill }}" required
-                       :class="overMax('{{ $skill }}') ? 'border-rose-300 ring-2' : 'border-gray-200'"
-                       class="w-full text-center font-mono font-black text-base rounded-lg border bg-white p-1.5 shadow-2xs" />
-                @error($skill.'_score')<p class="text-rose-600">{{ $message }}</p>@enderror
+            <div class="space-y-sm rounded-lg border p-md {{ $skillStyles[$skill] }}">
+                <div class="flex items-center justify-between gap-xs">
+                    <label for="score_{{ $skill }}" class="font-label text-label uppercase">
+                        Điểm {{ $label }}
+                        @if ($skill === 'speaking')<span class="block normal-case text-on-surface-variant">(Nhập tay)</span>@endif
+                    </label>
+                    <span class="font-code text-code" x-text="'/ ' + max('{{ $skill }}')"></span>
+                </div>
+                <input id="score_{{ $skill }}" type="number" step="0.5" min="0" :max="max('{{ $skill }}')" name="{{ $skill }}_score" x-model="scores.{{ $skill }}" required
+                       :class="overMax('{{ $skill }}') ? 'border-error ring-2 ring-error/20' : 'border-outline-variant'"
+                       class="w-full rounded-lg border bg-surface-container-lowest p-sm text-center font-code text-h3" />
+                <div class="h-1.5 w-full overflow-hidden rounded-full bg-surface-container-high">
+                    <div class="h-full rounded-full bg-current transition-all" :style="'width: ' + percent('{{ $skill }}') + '%'"></div>
+                </div>
+                <p class="min-h-[2.5rem] font-caption text-caption italic text-on-surface-variant" x-text="suggestion('{{ $skill }}') || 'Nhận xét {{ mb_strtolower($label) }} sẽ tự động sinh...'"></p>
+                @error($skill.'_score')<p class="text-error">{{ $message }}</p>@enderror
             </div>
         @endforeach
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        <div class="rounded-xl border border-orange-200 bg-orange-50/60 p-3">
-            <div class="text-[10px] font-black uppercase tracking-wide text-orange-800">Tổng điểm</div>
-            <div class="font-mono font-black text-xl text-gray-900"><span x-text="complete ? total : '—'"></span><span class="text-sm text-gray-500" x-text="' / ' + maxTotal"></span></div>
+    {{-- Nhận xét gợi ý (tự động theo thang điểm) — người chấm sửa được --}}
+    <div class="space-y-sm rounded-lg border border-surface-container-highest p-md">
+        <div class="flex flex-wrap items-center justify-between gap-sm">
+            <span class="flex items-center gap-xs font-body-semibold text-body-semibold text-on-surface">
+                <span class="material-symbols-outlined text-[18px] text-secondary">auto_awesome</span>Nhận xét gợi ý (Tự động theo Thang điểm)
+            </span>
+            <span x-show="synced" class="inline-flex items-center gap-xs rounded-full bg-tertiary/10 px-sm py-0.5 font-caption text-caption font-bold text-tertiary">
+                <span class="material-symbols-outlined text-[14px]">check_circle</span>Đã đồng bộ Thang điểm
+            </span>
         </div>
-        <div class="rounded-xl border border-gray-200 bg-gray-50 p-3">
-            <div class="text-[10px] font-black uppercase tracking-wide text-gray-600">Lớp đề xuất theo thang điểm</div>
-            <div class="font-bold text-gray-900" x-text="hasRubric ? (suggestedClass || 'Nhập đủ 3 kỹ năng để tra lớp') : 'Không có — chọn lớp thủ công'"></div>
+        @foreach ($Rubric::SKILLS as $skill => $label)
+            <div>
+                <div class="mb-0.5 flex items-center justify-between gap-sm">
+                    <label for="comment_{{ $skill }}" class="font-caption text-caption font-semibold text-on-surface-variant">{{ $label }}</label>
+                    <button type="button" x-show="edited.{{ $skill }} && suggestion('{{ $skill }}')" x-cloak @click="resetComment('{{ $skill }}')" class="font-caption text-caption font-semibold text-primary hover:underline">Dùng lại gợi ý</button>
+                </div>
+                <textarea id="comment_{{ $skill }}" name="{{ $skill }}_comment" rows="2" x-model="comments.{{ $skill }}" @input="edited.{{ $skill }} = true" maxlength="3000"
+                          class="w-full rounded-lg border-outline-variant bg-surface-container-lowest font-body-small text-body-small leading-relaxed"
+                          placeholder="Nhận xét {{ mb_strtolower($label) }}..."></textarea>
+            </div>
+        @endforeach
+        <div>
+            <label for="teacher_comments" class="mb-0.5 block font-caption text-caption font-semibold text-on-surface-variant">Ghi chú chung / lời khuyên của người chấm</label>
+            <textarea id="teacher_comments" name="teacher_comments" rows="2" maxlength="3000" class="w-full rounded-lg border-outline-variant bg-surface-container-lowest font-body-small text-body-small" placeholder="Định hướng lộ trình, lưu ý cho tư vấn viên...">{{ old('teacher_comments', $sub?->teacher_comments) }}</textarea>
+        </div>
+        <p class="flex items-center gap-xs font-caption text-caption text-on-surface-variant"><span class="material-symbols-outlined text-[14px]">info</span>CM/Tư vấn viên có thể chỉnh sửa bổ sung nội dung này trước khi lưu.</p>
+    </div>
+
+    {{-- Tổng điểm hệ thống + Đề xuất xếp lớp tự động --}}
+    <div class="flex flex-col gap-md rounded-lg bg-inverse-surface p-md text-inverse-on-surface sm:flex-row sm:items-center">
+        <div class="flex items-center gap-md">
+            <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary-container font-h3 text-h3 text-white" x-text="complete ? total : '—'"></div>
+            <div>
+                <p class="font-label text-label uppercase opacity-80">Tổng điểm hệ thống</p>
+                <p class="font-h2 text-h2"><span x-text="complete ? total : '—'"></span> <span class="font-body-medium text-body-medium opacity-70" x-text="'/ ' + maxTotal + ' điểm'"></span></p>
+            </div>
+        </div>
+        <div class="hidden h-10 w-px bg-white/20 sm:block"></div>
+        <div class="flex-1">
+            <p class="font-label text-label uppercase opacity-80">Đề xuất xếp lớp tự động</p>
+            <p class="flex items-center gap-xs font-body-semibold text-body-semibold">
+                <span class="material-symbols-outlined text-[18px]">school</span>
+                <span x-text="hasRubric ? (suggestedClass || 'Nhập đủ 3 kỹ năng để tra lớp') : 'Không có — chọn lớp thủ công'"></span>
+            </p>
         </div>
     </div>
 
     <div>
-        <label class="block font-bold text-gray-700 mb-1">
-            Lớp xếp cho học viên <span x-show="!hasRubric" class="text-rose-600">*</span>
-            <span x-show="hasRubric" class="font-normal text-gray-500">(để trống = theo lớp đề xuất; có thể chọn lại)</span>
+        <label for="chosen_class" class="mb-xs block font-body-medium text-body-medium text-on-surface">
+            Lớp xếp cho học viên <span x-show="!hasRubric" class="text-error">*</span>
+            <span x-show="hasRubric" class="font-body-small text-body-small text-on-surface-variant">(để trống = theo lớp đề xuất; có thể chọn lại)</span>
         </label>
-        <input type="text" name="chosen_class" x-model="chosen" list="rubric-class-options" :required="!hasRubric" maxlength="255"
+        <input id="chosen_class" type="text" name="chosen_class" x-model="chosen" list="rubric-class-options" :required="!hasRubric" maxlength="255"
                :placeholder="suggestedClass || 'Nhập / chọn lớp phù hợp'"
-               class="w-full text-xs font-bold text-primary-container rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
+               class="w-full rounded-lg border-outline-variant bg-surface-container-lowest font-body-medium text-body-medium text-primary" />
         <datalist id="rubric-class-options">
             @foreach ($Rubric::classOptions() as $option)
                 <option value="{{ $option }}"></option>
             @endforeach
         </datalist>
-        @error('chosen_class')<p class="text-rose-600 mt-1">{{ $message }}</p>@enderror
-    </div>
-
-    <div class="space-y-2.5">
-        <div class="font-bold text-gray-700">Nhận xét từng kỹ năng <span class="font-normal text-gray-500">(gợi ý theo băng điểm — người chấm sửa được)</span></div>
-        @foreach ($Rubric::SKILLS as $skill => $label)
-            <div>
-                <div class="flex items-center justify-between gap-2 mb-0.5">
-                    <label class="text-[11px] font-semibold text-gray-600">{{ $label }}</label>
-                    <button type="button" x-show="edited.{{ $skill }} && suggestion('{{ $skill }}')" x-cloak @click="resetComment('{{ $skill }}')" class="text-[10px] font-semibold text-primary hover:underline">Dùng lại gợi ý</button>
-                </div>
-                <textarea name="{{ $skill }}_comment" rows="2" x-model="comments.{{ $skill }}" @input="edited.{{ $skill }} = true" maxlength="3000"
-                          class="w-full text-xs text-gray-800 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs leading-relaxed"
-                          placeholder="Nhận xét {{ mb_strtolower($label) }}..."></textarea>
-            </div>
-        @endforeach
-        <div>
-            <label class="text-[11px] font-semibold text-gray-600 mb-0.5 block">Ghi chú chung / lời khuyên của người chấm</label>
-            <textarea name="teacher_comments" rows="2" maxlength="3000" class="w-full text-xs text-gray-800 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" placeholder="Định hướng lộ trình, lưu ý cho tư vấn viên...">{{ old('teacher_comments', $sub?->teacher_comments) }}</textarea>
-        </div>
+        @error('chosen_class')<p class="mt-xs text-error">{{ $message }}</p>@enderror
     </div>
 </div>
