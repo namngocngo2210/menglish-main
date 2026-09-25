@@ -146,6 +146,24 @@ class Phase1MockupParityTest extends TestCase
             ->assertSessionHasErrors('sent_at');
     }
 
+    // ── 5. Khách không chốt ──────────────────────────────────────────────
+
+    public function test_lost_deals_match_mockup_and_search_by_reason(): void
+    {
+        $this->lead('lost', ['name' => 'Khách Học Phí', 'course_interest' => 'Giao tiếp', 'lost_reason' => 'Học phí cao so với ngân sách', 'lost_at' => now()->subDay()]);
+        $this->lead('lost', ['name' => 'Khách Không Nghe Máy', 'lost_reason' => 'Gọi 5 lần không nghe máy', 'lost_at' => now()->subDays(2)]);
+
+        $this->actingAs($this->manager)->get(route('crm.lost-deals'))->assertOk()
+            ->assertSee('Tổng số khách không chốt')->assertSee('Tìm theo lý do không chốt')->assertSee('Xuất báo cáo')
+            ->assertSee('Lý do không chốt')->assertSee('Người phụ trách trước khi fail')->assertSee('Thời điểm dừng')
+            ->assertSee('Nhu cầu: Giao tiếp')
+            // A6: không mở lại khách Thất bại
+            ->assertDontSee('Mở lại');
+
+        $this->actingAs($this->manager)->get(route('crm.lost-deals', ['search' => 'ngân sách']))
+            ->assertSee('Khách Học Phí')->assertDontSee('Khách Không Nghe Máy');
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────
 
     private function lead(string $stage, array $attributes = []): CrmCustomer

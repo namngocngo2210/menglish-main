@@ -202,12 +202,15 @@ class CrmController extends Controller
      * Bộ lọc dùng chung cho Pipeline / Khách chốt / Khách không chốt:
      * search (tên, SĐT, mã, email, phụ huynh), branch_id (Admin), assigned_user_id, source, from/to theo $dateColumn.
      */
-    protected function applyListFilters(Builder $query, Request $request, string $dateColumn): Builder
+    protected function applyListFilters(Builder $query, Request $request, string $dateColumn, array $extraSearchColumns = []): Builder
     {
         if ($search = trim((string) $request->input('search'))) {
             $digits = $this->normalizePhone($search);
-            $query->where(function (Builder $q) use ($search, $digits) {
-                $q->where('name', 'like', "%{$search}%")
+            $query->where(function (Builder $q) use ($search, $digits, $extraSearchColumns) {
+                foreach ($extraSearchColumns as $column) {
+                    $q->orWhere($column, 'like', "%{$search}%");
+                }
+                $q->orWhere('name', 'like', "%{$search}%")
                     ->orWhere('phone', 'like', "%{$search}%")
                     ->orWhere('code', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%")
@@ -2005,7 +2008,8 @@ class CrmController extends Controller
     public function lostDeals(Request $request)
     {
         $query = $this->scopeCustomerQuery()->with(['branch', 'assignedUser'])->where('stage', 'lost');
-        $this->applyListFilters($query, $request, 'lost_at');
+        // Mockup khach-khong-chot: tìm cả theo lý do không chốt.
+        $this->applyListFilters($query, $request, 'lost_at', ['lost_reason']);
 
         if (in_array($request->input('export'), ['xlsx', 'csv'], true)) {
             $rows = (clone $query)->latest('lost_at')->get()->map(fn (CrmCustomer $c) => [
@@ -2025,9 +2029,10 @@ class CrmController extends Controller
             return $this->downloadTable('khach-khong-chot', ['Mã KH', 'Họ tên', 'SĐT', 'Cơ sở', 'Nguồn', 'Khóa quan tâm', 'Giá trị dự kiến', 'Lý do thất bại', 'Sales phụ trách', 'Ngày thất bại', 'Ghi chú'], $rows, $request->input('export'));
         }
 
+        $lostTotal = $this->scopeCustomerQuery()->where('stage', 'lost')->count();
         $lostCustomers = $query->latest('lost_at')->latest()->paginate($request->perPage(20))->withQueryString();
 
-        return view('crm.lost-deals', compact('lostCustomers') + $this->listFilterOptions());
+        return view('crm.lost-deals', compact('lostCustomers', 'lostTotal') + $this->listFilterOptions());
     }
 
     public function reports(Request $request)
