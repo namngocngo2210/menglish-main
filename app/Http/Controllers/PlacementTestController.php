@@ -74,8 +74,20 @@ class PlacementTestController extends Controller
 
     public function create()
     {
-        return view('placement-tests.create');
+        return view('placement-tests.create', [
+            'gradeGroups' => PlacementRubricService::gradeGroups(),
+            'gradeCodeTokens' => self::GRADE_CODE_TOKENS,
+        ]);
     }
+
+    /** Mã đề phải chứa khối lớp để hệ thống chấm theo thang điểm (PlacementRubricService::detectGradeGroup). */
+    public const GRADE_CODE_TOKENS = [
+        'khoi_1_2' => 'G1-G2',
+        'khoi_2_3' => 'G2-G3',
+        'khoi_3_4' => 'G3-G4',
+        'khoi_4_5' => 'G4-G5',
+        PlacementRubricService::MANUAL_GROUP => 'KHAC',
+    ];
 
     public function storeTest(Request $request)
     {
@@ -83,11 +95,22 @@ class PlacementTestController extends Controller
             'code' => 'required|string|unique:placement_tests,code|max:50',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'target_level' => 'required|string|max:255',
+            'grade_group' => 'nullable|string|in:'.implode(',', array_keys(PlacementRubricService::gradeGroups())),
+            'target_level' => 'required_without:grade_group|nullable|string|max:255',
             'duration_minutes' => 'required|integer|min:10',
             'questions_count' => 'nullable|integer|min:1',
             'questions' => 'nullable',
+            'save_mode' => 'nullable|in:draft,publish',
         ]);
+        // Mockup Tạo đề — "Cấp độ" = khối lớp (A6 Q2); mã đề phải khớp khối để chấm đúng thang điểm.
+        $gradeGroup = $validated['grade_group'] ?? null;
+        if ($gradeGroup && PlacementRubricService::hasRubric($gradeGroup)
+            && PlacementRubricService::detectGradeGroup($validated['code']) !== $gradeGroup) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'code' => 'Mã đề phải chứa "'.self::GRADE_CODE_TOKENS[$gradeGroup].'" để hệ thống chấm theo thang điểm '.PlacementRubricService::groupLabel($gradeGroup).'.',
+            ]);
+        }
+        $validated['target_level'] = ($validated['target_level'] ?? null) ?: PlacementRubricService::groupLabel($gradeGroup);
 
         $questions = $request->input('questions');
         if (is_string($questions)) {
@@ -104,11 +127,31 @@ class PlacementTestController extends Controller
             'duration_minutes' => $validated['duration_minutes'],
             'questions_count' => max(1, $questionsCount),
             'questions' => $questions,
-            'is_active' => true,
+            // "Lưu nháp" = đề ẩn (chưa phát hành link làm bài).
+            'is_active' => ($validated['save_mode'] ?? 'publish') !== 'draft',
         ]);
 
         return redirect()->route('placement-tests.index')
-            ->with('status', "Đã tạo đề kiểm tra trình độ {$test->title} ({$test->code}) thành công!");
+            ->with('status', $test->is_active
+                ? "Đã tạo đề kiểm tra trình độ {$test->title} ({$test->code}) thành công!"
+                : "Đã lưu nháp đề {$test->title} ({$test->code}) — đề đang ẩn, bấm Kích hoạt khi sẵn sàng.");
+    }
+
+    /**
+     * Mockup Tạo đề: "Tải file nghe (.mp3)" và "Tải ảnh lên" cho phương án.
+     * File lưu disk public (thí sinh không đăng nhập vẫn nghe/xem được), đuôi kiểm theo nội dung (SafeUploadService).
+     */
+    public function uploadMedia(Request $request)
+    {
+        abort_unless($request->user()->can('placement_test.create') || $request->user()->can('placement_test.update'), 403);
+        $validated = $request->validate([
+            'kind' => 'required|in:audio,image',
+            'file' => 'required|file|max:'.($request->input('kind') === 'audio' ? 20480 : 5120),
+        ], ['file.max' => 'File quá lớn (âm thanh tối đa 20 MB, ảnh tối đa 5 MB).']);
+        $allowed = $validated['kind'] === 'audio' ? \App\Services\SafeUploadService::AUDIO : \App\Services\SafeUploadService::IMAGES;
+        $path = \App\Services\SafeUploadService::store($request->file('file'), 'placement_tests/'.now()->format('Y/m'), $allowed, 'file');
+
+        return response()->json(['url' => \Illuminate\Support\Facades\Storage::disk('public')->url($path), 'path' => $path]);
     }
 
     public function showTest($id)

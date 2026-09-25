@@ -15,67 +15,12 @@
     </x-slot>
 
     @php
-        $defaultQuestions = [
-            [
-                'id' => 1,
-                'skill' => 'listening',
-                'type' => 'multiple_choice',
-                'title' => "What is the passenger's final destination in the conversation?",
-                'audio_url' => '/uploads/2026/dethitest/de-test-lop-6-len-7/track-1-4-20260819105025-7k9aa.mp3',
-                'passage' => 'Listen to the audio clip at Customer Service Desk.',
-                'options' => [
-                    ['key' => 'A', 'text' => 'London Heathrow'],
-                    ['key' => 'B', 'text' => 'Melbourne International Airport'],
-                    ['key' => 'C', 'text' => 'Tokyo Narita'],
-                    ['key' => 'D', 'text' => 'Singapore Changi'],
-                ],
-                'correct_answer' => 'B',
-                'points' => 1,
-                'explanation' => 'The passenger confirms connecting flight to Melbourne.',
-            ],
-            [
-                'id' => 2,
-                'skill' => 'reading',
-                'type' => 'multiple_choice',
-                'title' => 'According to the passage, what is the primary benefit of renewable energy?',
-                'passage' => 'Renewable energy sources, such as solar and wind power, emit little to no greenhouse gases during operation. In addition, they decrease reliance on finite fossil fuel reserves and stimulate local job growth in clean tech sectors.',
-                'options' => [
-                    ['key' => 'A', 'text' => 'It eliminates the need for power grids'],
-                    ['key' => 'B', 'text' => 'It significantly reduces greenhouse gas emissions'],
-                    ['key' => 'C', 'text' => 'It requires no initial capital investment'],
-                    ['key' => 'D', 'text' => 'It operates without any maintenance'],
-                ],
-                'correct_answer' => 'B',
-                'points' => 1,
-                'explanation' => 'The passage explicitly states that renewable energy emits little to no greenhouse gases.',
-            ],
-            [
-                'id' => 3,
-                'skill' => 'grammar',
-                'type' => 'fill_blank',
-                'title' => 'Complete the sentence: If she _____ (study) harder last month, she would have passed the IELTS exam.',
-                'correct_answer' => 'had studied',
-                'points' => 1,
-                'explanation' => 'Third conditional structure: If + S + had + V3/ed, S + would have + V3/ed.',
-            ],
-            [
-                'id' => 4,
-                'skill' => 'writing',
-                'type' => 'essay',
-                'title' => 'Writing Task: Some people believe that studying online is more effective than traditional classroom learning. Discuss both views and give your opinion.',
-                'min_words' => 120,
-                'rubric_note' => 'Chấm theo tiêu chí: Task Response, Coherence & Cohesion, Lexical Resource, Grammar Accuracy.',
-                'points' => 9,
-            ],
-            [
-                'id' => 5,
-                'skill' => 'speaking',
-                'type' => 'speaking_prompt',
-                'title' => 'Speaking Part 2: Describe a memorable journey or trip you took.',
-                'cue_points' => "• Where you went and who you went with\n• How you travelled there\n• What you did during the trip\n• And explain why this trip was so memorable for you",
-                'points' => 9,
-            ],
-        ];
+        // Đề chưa có câu hỏi: bắt đầu với 1 câu trống (không soạn sẵn nội dung mẫu / file nghe giả).
+        $defaultQuestions = [[
+            'id' => 1, 'skill' => 'reading', 'type' => 'multiple_choice', 'title' => '', 'audio_url' => '', 'passage' => '',
+            'options' => [['key' => 'A', 'text' => ''], ['key' => 'B', 'text' => ''], ['key' => 'C', 'text' => ''], ['key' => 'D', 'text' => '']],
+            'correct_answer' => 'A', 'points' => 1, 'explanation' => '',
+        ]];
 
         $currentQuestions = old('questions', $test->questions ?? $defaultQuestions);
         if (empty($currentQuestions)) {
@@ -434,7 +379,7 @@
                     <template x-if="modalForm.skill === 'listening'">
                         <div class="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 space-y-1.5">
                             <label class="block font-semibold text-indigo-950">Đường dẫn file Audio MP3 (Audio URL)</label>
-                            <input type="text" x-model="modalForm.audio_url" placeholder="/uploads/2026/dethitest/de-test-lop-6-len-7/track-1-4-20260819105025-7k9aa.mp3" class="w-full text-xs rounded-lg border border-indigo-200 p-2 bg-white font-mono" />
+                            <input type="text" x-model="modalForm.audio_url" placeholder="Đường dẫn file nghe (.mp3)" class="w-full text-xs rounded-lg border border-indigo-200 p-2 bg-white font-mono" />
                             <span class="text-[10px] text-indigo-600">Hỗ trợ tệp MP3 lưu tại Media Manager hoặc link CDN trực tiếp.</span>
                         </div>
                     </template>
