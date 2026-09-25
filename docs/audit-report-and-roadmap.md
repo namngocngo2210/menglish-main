@@ -506,8 +506,7 @@
 | Phase | Nội dung | Trạng thái | % hoàn thành (ước lượng) | Ghi chú |
 |---|---|---|---|---|
 | 1 | Chặn rủi ro khẩn + Tuyển sinh → vào lớp | ✅ | 100% (phạm vi đã chốt) | Xong: 23 P0, CRM pipeline 8 bước + luật lùi bước/Thất bại/không hủy chốt, test đầu vào chấm theo khối lớp (Q2), học thử nhận xét theo khách, chốt & xếp lớp / Chờ xếp lớp / xác nhận chính thức, hồ sơ học viên, bộ sinh mã, nền giao diện + quét dữ liệu giả (B2), đối chiếu 12 màn mockup, dữ liệu demo + test nghiệm thu trọn luồng (725 test pass). **Chờ BA:** thang điểm học viên lớn (Q2); Học vụ có được chốt khách (`lead.convert`) không. Các mục "chưa làm" có lý do: xem nhật ký `feat/phase1-mockup-parity` |
-
-| 2 | Vận hành lớp học | 🟦 | ~60% | Xong: lịch/TKB/dashboard lớp, GVNN, nghỉ lễ, trình độ, giáo trình, Big Test, portal trợ giảng, KPI board. Đang làm: điểm danh theo buổi, bổ trợ, portal học viên, mô hình Giáo trình → Chặng → Unit → Buổi (Q4). Chờ tới lượt: đối chiếu mockup màn Phase 2 |
+| 2 | Vận hành lớp học | 🟦 | ~85% | Xong: lịch/TKB/dashboard lớp, GVNN, nghỉ lễ (+ xếp bù), trình độ, giáo trình Giáo trình → Chặng → Unit → Buổi (Q4, 1 chặng mở, tự đóng/mở theo Big Test), Big Test (order → duyệt → nhắc 7 ngày → kết quả → duyệt → Zalo PH), điểm danh theo buổi, bổ trợ, cổng học viên, chăm sóc tháng đầu, sinh nhật, portal trợ giảng, KPI board; **nghiệm thu trọn luồng qua HTTP + dữ liệu demo Phase 2** (xem "Nghiệm thu Phase 2"). Đang làm: đối chiếu mockup màn Phase 2 (nhánh giao diện). Chờ BA: xem mục Nghiệm thu Phase 2 |
 | 3 | Chấm công → Lương | 🟦 | ~45% | Xong: chấm công tay, quy trình phạt, đơn giá theo GV, phiếu lương từng người, hoa hồng theo tiền thực thu. Chờ tới lượt: công thức lương PT/FT (Q3 mới chốt), KPI Học vụ, gate kép hoa hồng, thưởng tái tục. Cần bảng lương Excel để đối chiếu |
 | 4 | Thu học phí, hỗ trợ, nghiệm thu | 🟦 | ~55% | Xong: học phí (dải số theo chi nhánh, bảo lưu/khất nợ, quá hạn, chống trùng chuyển khoản), nhật ký, phân quyền cá nhân, giao việc, ticket, dashboard vai trò, dọn view chết. Chờ tới lượt: hoàn phí 1 tuần, trực lớp (Q8), đối chiếu mockup, nghiệm thu |
 
@@ -812,6 +811,81 @@
 **Test:** thêm `tests/Feature/Phase1MockupParityTest.php` (12 test, 1 test / màn). Sửa test đang khẳng định UI cũ: `CrmSalesDataScopeTest` ("Sale:" → "Phụ trách:" theo mockup Pipeline), `CrmTest` ("Đã Làm Bài Test (…)" → "Đã làm bài test (…)").
 **Assets:** build lại `public/build` (commit riêng "chore: rebuild assets").
 **Triển khai:** chạy `php artisan storage:link` nếu máy chủ chưa có (file nghe / ảnh đề lưu disk `public`).
+
+#### Nghiệm thu Phase 2 — Mở lớp → sinh lịch → giao chặng → dạy & điểm danh → Big Test → Zalo PH (nhánh `feat/phase2-seed-acceptance`)
+**Kịch bản đã kiểm thử** (`tests/Feature/Phase2AcceptanceTest.php`, một luồng liền mạch qua HTTP bằng đúng vai trò, theo A6/Q4):
+- [x] Học thuật soạn giáo trình: tạo giáo trình gắn Trình độ (Chặng 1 tự có), thêm Chặng 2, Unit, Buổi; trùng số buổi bị chặn.
+- [x] Học vụ mở lớp có TKB: **trùng GVNN** với lớp khác bị chặn, **trùng phòng** bị chặn, **ngày nghỉ chi nhánh bị bỏ** (13/14 buổi), buổi lưu GV / GVNN / TA. Admin thêm ngày nghỉ sau → buổi trùng bị **hủy + xếp 1 buổi học bù** sau buổi cuối. Dashboard lớp theo ngày hiện lớp.
+- [x] Học thuật **mở Chặng 1** (giáo trình lấy theo Trình độ, GV = GV chính); mở chặng thứ hai khi đang có chặng mở → bị từ chối, vẫn 1 chặng mở.
+- [x] GV thấy buổi hôm nay ở Lịch dạy; **điểm danh theo buổi** (vắng → danh sách bổ trợ); điểm danh bù buổi đã qua do **Học vụ điểm danh thay** (`user_id` = GV, `recorded_by` = Học vụ); buổi chưa tới bị chặn; nhận xét buổi học; mini test (12/20 = 6/10 → bổ trợ, 15/20 thì không). GV không mở / không lưu được lớp khác (403); GV khác không mở được buổi của lớp này.
+- [x] Học vụ thấy dòng bổ trợ và **xếp buổi bổ trợ** (tạo buổi `support`, dòng bổ trợ không còn ở "chờ xếp").
+- [x] GV **order đề** (hạn xử lý = ngày thi − 3), GV không tự duyệt được; Học thuật tạo đợt Big Test (tự gắn **chặng đang mở**) rồi **duyệt order kèm link + gắn đợt thi** → đợt thi được phân phối; lệnh **nhắc lịch 7 ngày** báo GV / GVNN / TA, chạy lại không nhắc trùng.
+- [x] GV nhập kết quả: 1 HV **vắng thi** (điểm để trống, không lưu 0), điểm < 7 → bổ trợ. GV lớp khác bị 404 cả khi xem lẫn khi lưu. Kết quả chưa duyệt không hiện ở cổng HV. GV không duyệt được; Học thuật duyệt; **kết quả đã duyệt / đã gửi không sửa được**.
+- [x] **Gửi Zalo ZNS** ở chế độ live, API Zalo giả lập bằng `Http::fake`: gửi tới **SĐT phụ huynh** (hồ sơ khách CRM) kèm `access_token`, không gửi cho HV vắng thi. Số bị Zalo báo lỗi thì kết quả đó **không** bị đánh dấu đã gửi và chặng chưa đóng. Gửi lại **chỉ gửi phần còn thiếu**; lần thứ ba báo không còn gì để gửi và không gọi API.
+- [x] Big Test đã duyệt và gửi đủ → **Chặng 1 đóng** (`closed_by_big_test_id`), **Chặng 2 tự mở** cùng GV, GV nhận thông báo.
+- [x] Cổng học viên: lịch học sắp tới của lớp mình, lịch sử điểm danh của mình, kết quả Big Test đã gửi, điểm mini test, nhận xét buổi học; mở hồ sơ học viên khác → 403.
+- [x] Quản lý cơ sở không chấm công tay cho lớp của chi nhánh khác (403).
+
+**Lỗi phát hiện và đã sửa:**
+- [x] **Lưu nhận xét buổi học lỗi 500**: `TeacherPortalController::remarksStore` không ghi `academic_records.screen_key` (cột NOT NULL), nên GV không lưu được nhận xét nào và cổng HV không có nhận xét. Đã thêm `screen_key` (`TeacherPortalController::REMARKS_SCREEN_KEY`).
+- [x] Mở chặng mặc định chỉ tìm giáo trình theo `classes.level` = mã trình độ. Lớp tạo từ CRM hoặc dữ liệu cũ lưu tên hiển thị ("STARTERS (FAM 1)") nên bị báo "trình độ của lớp chưa gắn giáo trình". Nay lấy thêm theo Trình độ của khóa học (`SyllabusController::storeAssignment`).
+- [x] Duyệt & phân phối order đề có gắn đợt Big Test nhưng đợt thi vẫn ở "nháp", nên GV không nhập được kết quả ("Đề thi chưa được duyệt và phân phối"). Nay duyệt order có gắn đợt thi thì đợt thi được phân phối (`approveBigTestOrder`).
+- [x] Gửi Zalo kết quả dùng SĐT của **học viên** chứ không phải phụ huynh. Nay ưu tiên `crm_customers.parent_phone` của khách đã chốt thành học viên này (không có thì dùng SĐT học viên). Mẫu ZNS lấy tên và hotline trung tâm từ `CenterInfo` thay cho chuỗi viết cứng.
+- [x] Chấm công tay không kiểm tra phạm vi lớp (A3). Nay chỉ cho lớp người dùng được xem (`ClassModel::visibleTo`): Quản lý cơ sở chỉ chấm được lớp chi nhánh mình.
+- [x] `MasterEntitySeeder` nhân bản 1 dòng chấm công mỗi lần `db:seed` (so `teaching_date` kiểu ngày với chuỗi).
+
+**Đối chiếu A3 + Phase 2 (Phần C):**
+
+| Mục | Kết quả | Bằng chứng / ghi chú |
+|---|---|---|
+| A3 · Sinh lịch không bỏ ngày nghỉ | ✅ Xong | `SessionScheduleService::generate/withoutHolidays`, tạo lớp bỏ ngày nghỉ; test nghiệm thu |
+| A3 · Ngày nghỉ thêm sau (dời lịch) | ✅ Xong | `HolidayRescheduleService`: hủy + xếp bù cuối lịch, khôi phục khi xóa ngày nghỉ; test nghiệm thu + demo `HOL-DEMO2-*` |
+| A3 · Điểm danh gắn cứng hôm nay | ✅ Xong | Điểm danh theo `class_session_id`, điểm danh bù, Học vụ điểm danh thay; test |
+| A3 · Tự chấm công (lớp bất kỳ, mặc định 2 giờ) | ✅ Xong + sửa thêm | Check-in chỉ tính buổi thật (Phase 3). **Sửa trong nhánh này:** chấm công tay chỉ cho lớp trong phạm vi. Học vụ vẫn xem được mọi lớp → xem câu hỏi BA |
+| A3 · GVNN không kiểm tra trùng lịch | ✅ Xong | `findConflict` tính GV / GVNN / TA / phòng; test (GVNN bận → chặn) |
+| A3 · Sĩ số / ngưỡng khai giảng / Xác nhận chính thức | ✅ Xong (Phase 1) | `hasSeatsFor`, `min_students`, màn Xác nhận chính thức; `StudentProfileController::assertClassHasSeat` đã dùng `hasSeatsFor()` |
+| A3 · Trạng thái HV / nghỉ học vẫn trong lớp | ✅ Xong | Q5 6 trạng thái; Thôi học bỏ `current_class_id`; `roster()` bỏ Bảo lưu / Thôi học |
+| A3 · Sinh mã HV trùng | ✅ Xong | `DocumentCodeGenerator` |
+| A3 · Dashboard lớp / lịch dạy GV dùng dữ liệu giả | ✅ Xong | `ClassDashboardService`, `teacher.home` lấy từ `class_sessions`; test |
+| A3 · Vắng / điểm < 7 → bổ trợ | ✅ Xong | `SupportListService` (vắng, mini test, Big Test) + xếp buổi bổ trợ; test + demo |
+| A3 · Zalo gửi lại cả lớp / lỗi vẫn báo thành công | ✅ Xong | Chỉ gửi kết quả `parent_notified = false`, chỉ đánh dấu đã gửi khi API trả `error = 0`; test với `Http::fake` |
+| A3 · Kết quả đã duyệt/gửi vẫn sửa được; vắng lưu 0 | ✅ Xong | `LOCKED_STATUSES`, cờ vắng thi (điểm null); test |
+| A3 · Giãn tiến độ không đổi lịch; lý do từ chối | ✅ Xong | `ScheduleExtensionService`; test có sẵn `Phase2SyllabusTest` |
+| A3 · Trình soạn chỉ sửa được giáo trình đầu tiên | ✅ Xong | Chọn được giáo trình bất kỳ; test |
+| A3 · 1 lớp được giao 2 chặng cùng lúc | ✅ Xong | Service + UNIQUE `open_class_id`; test nghiệm thu |
+| A3 · Order đề không tới màn duyệt | ✅ Xong + sửa thêm | Bảng `big_test_orders`; test. **Sửa trong nhánh này:** duyệt order có gắn đợt thi thì phân phối đợt thi |
+| A3 · Upload tài liệu / đề xuất sửa chỉ là giao diện | ✅ Xong | `SyllabusDocument`, `SyllabusChangeProposal`; test có sẵn |
+| A3 · Mọi GV/TA xem được passcode đề | ✅ Xong | `BigTest::passcodeVisibleTo` dùng ở cả 2 view |
+| A3 · Media Manager đụng file module khác | ✅ Xong | Chỉ quản lý `uploads/media` |
+| C2.1 Lớp và lịch học | ✅ Xong | Như các dòng trên |
+| C2.2 Giảng dạy, điểm danh, bổ trợ | ✅ Xong + sửa thêm | **Sửa trong nhánh này:** lỗi 500 khi lưu nhận xét |
+| C2.3 Giáo trình (soạn, giao chặng, tài liệu, đề xuất, giãn tiến độ) | ✅ Xong + sửa thêm | **Sửa trong nhánh này:** mở chặng theo trình độ của khóa học |
+| C2.4 Big Test (order, duyệt, nhắc 7 ngày, GV chỉ nhập lớp mình, duyệt, Zalo PH) | ✅ Xong (Zalo còn thiếu cấu hình thật) | Xem dòng Zalo ZNS |
+| C2.5 Học viên (lộ trình, điểm danh thật, cổng HV, chăm sóc tháng đầu, sinh nhật) | ✅ Xong | `FirstMonthCareService` (ngày 3/7/14/30), lệnh sinh nhật; test + demo |
+| Zalo ZNS | ⚠️ Có tích hợp thật, **chưa vận hành** | `ZaloZnsService`: chế độ `live` gọi `POST business.openapi.zalo.me/message/template` với `access_token`, template `ZALO_ZNS_TEMPLATE_BIGTEST`. Mặc định `sandbox` chỉ ghi log **nhưng vẫn trả thành công**, nên kết quả bị đánh dấu "Đã gửi PH" dù không có tin nào. Chưa có: làm mới access token (hết hạn sau khoảng 25 giờ), lưu `msg_id` / trạng thái giao tin, template ZNS đã được Zalo duyệt (id mặc định `342918` chỉ là giá trị giả định) |
+| Mockup các màn Phase 2 | 🟦 Nhánh khác đang làm | Nhánh này không sửa view |
+
+**Dữ liệu demo:** `Database\Seeders\DemoPhase2Seeder` (`DatabaseSeeder` gọi ngay sau `DemoPhase1Seeder`, cùng điều kiện môi trường). Seeder đi qua controller / service thật, **ép Zalo về sandbox**, idempotent, chạy khoảng 1,5 giây. Số dòng sau `migrate:fresh --seed` trên SQLite trắng:
+- Giáo trình: 2 giáo trình (5 chặng / 10 unit / 30 buổi). Chặng của lớp: 4 đang mở, 1 đã đóng (CG FAM 1 đã sang Chặng 2).
+- Giảng dạy: 132 lượt điểm danh (18 vắng, 10 vắng có phép); 12 nhận xét buổi; 40 điểm mini test; 8 bài tập / 12 bài nộp.
+- Bổ trợ: danh sách 45 dòng (vắng 28, mini test 12, Big Test 5); 8 buổi bổ trợ (4 đã dạy xong).
+- Big Test: 6 order đề (4 đã duyệt, 1 chờ duyệt, 1 bị từ chối); 4 đợt thi; 20 kết quả (6 đã gửi PH, 7 đã duyệt, 7 chờ duyệt; 3 vắng thi).
+- Lịch và việc: 2 buổi hủy do nghỉ lễ + 2 buổi học bù; 12 việc trực ca TA; 68 việc chăm sóc tháng đầu; 7 nhắc sinh nhật; 2 nhắc lịch Big Test.
+
+Test: `tests/Feature/DemoPhase2SeederTest.php` kiểm tra chạy lại không đổi số dòng, không gọi HTTP ra ngoài và mở được các màn bằng tài khoản demo. Tài khoản demo: xem `README.md`.
+
+**Còn tồn / cần BA xác nhận:**
+- [ ] **Zalo vận hành thật:** cần OA, template ZNS đã được duyệt, cơ chế làm mới access token, lưu mã tin / trạng thái giao tin. Ở sandbox hệ thống vẫn đánh dấu "Đã gửi PH" → cần BA/PO chọn: đổi nhãn thành "Đã gửi (thử nghiệm)" hay không đánh dấu khi chạy sandbox.
+- [ ] **SĐT phụ huynh:** hồ sơ học viên chưa có cột SĐT phụ huynh, chỉ học viên chốt từ CRM mới có. Có thêm cột `students.parent_phone` không?
+- [ ] **Ai duyệt order đề / kết quả Big Test:** quyền `syllabus.approve_adjustment` đang cấp cả cho Học vụ (`academic_staff` có `syllabus.*`), trong khi luồng ghi "Học thuật duyệt". Có thu hồi quyền này của Học vụ không?
+- [ ] **Phạm vi của Học vụ:** Học vụ xem / điểm danh thay / chấm công tay được **mọi lớp ở mọi chi nhánh** (chỉ Quản lý cơ sở bị giới hạn chi nhánh), trong khi A6 giới hạn Học vụ theo chi nhánh ở CRM và hồ sơ học viên. Có giới hạn lớp theo chi nhánh cho Học vụ không?
+- [ ] Duyệt order đề **không tự tạo** đợt Big Test: Học thuật tạo đợt thi rồi gắn vào order. Order vẫn nhập tên chặng tự do.
+- [ ] Nhận xét buổi học vẫn lưu theo **lớp + ngày**, chưa theo buổi. Trạng thái kết quả "Nháp" chưa được dùng: GV lưu là thành "Chờ duyệt" luôn.
+- [ ] Mốc chăm sóc tháng đầu (ngày 3/7/14/30) khác 3 mốc của gate hoa hồng A6 (buổi 1, buổi 4–5, đủ 30 ngày) → chốt khi làm gate hoa hồng ở Phase 3.
+- [ ] Nghiệm thu mới chạy ở mức HTTP/test. Đối chiếu ảnh chụp mockup các màn Phase 2 do nhánh giao diện làm song song.
+
+**Test:** toàn bộ bộ test xanh — 727 test (thêm `Phase2AcceptanceTest`, `DemoPhase2SeederTest`). Sửa 1 test cũ: `PayrollModuleTest::test_can_record_manual_timesheet` tạo Quản lý cơ sở và lớp không có chi nhánh → nay cùng chi nhánh (theo quy tắc phạm vi mới).
+**Triển khai:** không có migration. Môi trường demo/staging: `php artisan migrate:fresh --seed`, hoặc `php artisan db:seed --class=DemoPhase2Seeder` (chạy sau Phase 1). Production **không** đặt `SEED_DEMO=true`. Muốn gửi Zalo thật phải đặt `ZALO_ZNS_MODE=live` + `ZALO_ACCESS_TOKEN` + `ZALO_ZNS_TEMPLATE_BIGTEST`.
 
 ---
 

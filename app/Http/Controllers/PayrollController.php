@@ -338,6 +338,13 @@ class PayrollController extends Controller
             'notes.min' => 'Lý do chấm công tay cần ít nhất 5 ký tự.',
         ]);
 
+        // A3: Học vụ / Quản lý cơ sở chỉ chấm công tay cho lớp trong phạm vi mình quản lý (chi nhánh), không phải lớp bất kỳ.
+        abort_unless(
+            ClassModel::query()->visibleTo($request->user())->whereKey($validated['class_id'])->exists(),
+            403,
+            'Lớp này nằm ngoài phạm vi bạn được chấm công.'
+        );
+
         if (PayrollPeriod::isLockedFor($validated['teaching_date'])) {
             return $this->rejectLockedDate('teaching_date', $validated['teaching_date']);
         }

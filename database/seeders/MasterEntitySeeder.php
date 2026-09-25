@@ -448,9 +448,11 @@ class MasterEntitySeeder extends Seeder
             ]
         );
 
-        TeacherTimesheet::query()->firstOrCreate(
-            ['user_id' => $teacher?->id, 'teaching_date' => now()->format('Y-m-d')],
-            [
+        // teaching_date lưu dạng datetime trên SQLite: so theo ngày để chạy lại không nhân bản.
+        if (! TeacherTimesheet::query()->where('user_id', $teacher?->id)->whereDate('teaching_date', now()->toDateString())->exists()) {
+            TeacherTimesheet::query()->create([
+                'user_id' => $teacher?->id,
+                'teaching_date' => now()->format('Y-m-d'),
                 'class_id' => $classIE2408?->id,
                 'scheduled_time' => '19:30 - 21:30',
                 'checkin_time' => '19:20',
@@ -459,8 +461,8 @@ class MasterEntitySeeder extends Seeder
                 'type' => 'regular',
                 'status' => 'valid',
                 'notes' => 'Giảng dạy buổi 4: IELTS Writing Task 2',
-            ]
-        );
+            ]);
+        }
 
         // Không seed TimesheetSyncLog: chưa có tích hợp máy chấm công nào ghi log,
         // dòng giả sẽ bị hiểu nhầm là lần đồng bộ thật trên màn Lịch sử đồng bộ.

@@ -37,6 +37,9 @@ class TeacherPortalController extends Controller
     /** Vai trò được điểm danh thay giáo viên (trong phạm vi lớp mình được xem). */
     private const ON_BEHALF_ROLES = ['academic_staff', 'academic_lead', 'manager'];
 
+    /** Khóa màn của bản ghi nhận xét buổi học (academic_records, module teacher_remarks). */
+    public const REMARKS_SCREEN_KEY = '03_Cong_Giao_Vien/nhan_xet_buoi_hoc';
+
     /** Số ngày nhìn lại để nhắc "buổi chưa điểm danh" (điểm danh bù). */
     private const MAKEUP_LOOKBACK_DAYS = 30;
 
@@ -610,6 +613,8 @@ class TeacherPortalController extends Controller
         AcademicRecord::updateOrCreate(
             ['module' => 'teacher_remarks', 'record_code' => $classId.'-'.$today],
             [
+                // academic_records.screen_key NOT NULL: thiếu cột này thì lưu nhận xét lỗi 500 (không lưu được).
+                'screen_key' => self::REMARKS_SCREEN_KEY,
                 'title' => 'Nhận xét lớp '.$classId.' ngày '.$today,
                 'status' => 'completed',
                 'user_id' => Auth::id(),
