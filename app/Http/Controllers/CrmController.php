@@ -119,6 +119,11 @@ class CrmController extends Controller
         $this->applyListFilters($query, $request, 'created_at');
 
         $allCustomers = $query->latest()->get()->groupBy('stage');
+        // "Đã hoàn tất hồ sơ" (mockup cột Đã chốt) = ghi danh từ CRM đã Xác nhận chính thức.
+        $confirmedIds = ClassEnrollment::query()
+            ->whereIn('customer_id', $allCustomers->get('won', collect())->pluck('id'))
+            ->whereNotNull('confirmed_at')
+            ->pluck('customer_id')->flip();
 
         $stageColumns = [];
         foreach (CrmCustomer::PIPELINE_STAGES as $key => $label) {
@@ -130,9 +135,14 @@ class CrmController extends Controller
                 'name' => $label,
                 'next' => $stages->nextStage($key),
                 'count' => $group->count(),
+                'amount_raw' => (float) $group->sum('deal_value'),
                 'amount' => number_format($group->sum('deal_value')).'đ',
                 'color' => $style['border'],
                 'bg_badge' => $style['badge'],
+                'dot' => $style['bar'],
+                'text' => $style['text'],
+                'header_border' => $style['header_border'],
+                'source_badge' => $style['source_badge'],
                 'leads' => $group->map(fn (CrmCustomer $c) => [
                     'id' => $c->id,
                     'code' => $c->code,
@@ -145,10 +155,16 @@ class CrmController extends Controller
                     'agent' => $c->assignedUser?->name ?? 'Chưa phân công',
                     'days' => $c->created_at->diffForHumans(),
                     'score' => $c->test_score ?? 'Chưa test',
+                    'has_test_result' => filled($c->test_score),
+                    'confirmed' => $confirmedIds->has($c->id),
                     'status' => $c->converted_student_id ? ($c->convertedStudent?->tuition?->status_label ?? 'Chưa có học phí') : null,
                     'payment_status' => $c->convertedStudent?->tuition?->status,
                     'follow_up_status' => $c->followUpStatus(),
                     'follow_up_at' => $c->next_follow_up_at?->format('d/m/Y H:i'),
+                    // Mockup: Quá hạn / Sắp hết hạn / Còn hạn + "10:30 Hôm nay", "09:00 Mai".
+                    'follow_up_state' => $c->followUpStatus()
+                        ?? ($c->next_follow_up_at && in_array($c->stage, CrmCustomer::ACTIVE_STAGES, true) ? 'on_time' : null),
+                    'follow_up_label' => $this->relativeDeadlineLabel($c->next_follow_up_at),
                 ])->values()->all(),
             ];
         }
@@ -164,6 +180,22 @@ class CrmController extends Controller
         ];
 
         return view('crm.pipeline', ['stages' => $stageColumns, 'stagePermissions' => $stagePermissions] + $this->listFilterOptions());
+    }
+
+    /** "10:30 Hôm nay" / "09:00 Mai" / "15:00 Hôm qua" / "09:00 28/09" như mockup Pipeline. */
+    protected function relativeDeadlineLabel(?Carbon $at): ?string
+    {
+        if (! $at) {
+            return null;
+        }
+        $day = match (true) {
+            $at->isToday() => 'Hôm nay',
+            $at->isTomorrow() => 'Mai',
+            $at->isYesterday() => 'Hôm qua',
+            default => $at->format('d/m'.($at->year === now()->year ? '' : '/Y')),
+        };
+
+        return $at->format('H:i').' '.$day;
     }
 
     /**

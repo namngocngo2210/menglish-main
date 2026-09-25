@@ -1,16 +1,15 @@
 <x-app-layout>
     @include('crm.partials.header-tabs')
 
-    {{-- Lớp màu động của stage (CrmCustomer::stageStyle) — liệt kê để Tailwind quét:
-         border-sky-500 bg-sky-50 text-sky-700 border-amber-500 bg-amber-50 text-amber-700 border-indigo-500 bg-indigo-50 text-indigo-700
-         border-violet-500 bg-violet-50 text-violet-700 bg-violet-500 text-violet-600 border-purple-500 bg-purple-50 text-purple-700
-         border-cyan-500 bg-cyan-50 text-cyan-700 bg-cyan-500 text-cyan-600 border-yellow-500 bg-yellow-50 text-yellow-700 bg-yellow-500 text-yellow-600
-         border-emerald-500 bg-emerald-50 text-emerald-700 bg-sky-500 text-sky-600 bg-amber-500 text-amber-600 bg-indigo-500 text-indigo-600
-         bg-purple-500 text-purple-600 bg-emerald-500 text-emerald-600 --}}
-    <div class="space-y-4" x-data="crmKanban(@js($stagePermissions))">
+    {{-- Màu cột theo mockup pipeline-tong-quan-giai-doan (CrmCustomer::stageStyle, chuỗi đầy đủ để Tailwind quét):
+         bg-secondary text-secondary border-secondary/20 bg-tertiary text-tertiary border-tertiary/20 bg-primary text-primary border-primary/20
+         bg-blue-600 text-blue-600 border-blue-600/20 bg-purple-600 text-purple-600 border-purple-600/20 bg-orange-500 text-orange-500 border-orange-500/20
+         bg-indigo-600 text-indigo-600 border-indigo-600/20 bg-emerald-600 text-emerald-600 border-emerald-600/20
+         border-l-error border-l-amber-500 border-l-tertiary border-l-emerald-600 border-l-outline-variant --}}
+    <div class="space-y-md" x-data="crmKanban(@js($stagePermissions))">
         <!-- Toast Notification -->
-        <div 
-            x-show="toast.show" 
+        <div
+            x-show="toast.show"
             x-cloak
             x-transition:enter="transition ease-out duration-300 transform"
             x-transition:enter-start="opacity-0 translate-y-2"
@@ -18,208 +17,195 @@
             x-transition:leave="transition ease-in duration-200 transform"
             x-transition:leave-start="opacity-100 translate-y-0"
             x-transition:leave-end="opacity-0 translate-y-2"
-            class="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border text-xs font-semibold"
-            :class="toast.type === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'"
+            class="fixed bottom-6 right-6 z-50 flex items-center gap-sm rounded-xl border px-md py-sm font-body-small text-body-small font-semibold shadow-level-3"
+            :class="toast.type === 'error' ? 'bg-error-container border-error/20 text-on-error-container' : 'bg-tertiary-fixed/30 border-tertiary/20 text-on-tertiary-fixed-variant'"
         >
-            <span class="material-symbols-outlined text-lg" x-text="toast.type === 'error' ? 'error' : 'check_circle'"></span>
+            <span class="material-symbols-outlined text-[20px]" x-text="toast.type === 'error' ? 'error' : 'check_circle'"></span>
             <span x-text="toast.message"></span>
         </div>
 
         @unless ($stagePermissions['canForward'])
-            <div class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-xs text-sky-800 flex items-center gap-2">
-                <span class="material-symbols-outlined text-base">info</span>
-                <span>Giai đoạn Lead do Học vụ / Quản lý cơ sở chuyển. Bạn vẫn cập nhật thông tin và ghi nhật ký chăm sóc trong hồ sơ Lead.</span>
-            </div>
+            <x-ui.alert type="info">Giai đoạn khách do Học vụ / Quản lý cơ sở chuyển. Bạn vẫn cập nhật thông tin và ghi nhật ký chăm sóc trong hồ sơ khách.</x-ui.alert>
         @endunless
 
         @include('crm.partials.list-filters', ['dateLabel' => 'Ngày tạo'])
 
-        <!-- Pipeline summary cards -->
-        <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
-            @foreach ($stages as $stage)
-                <div class="bg-white rounded-2xl p-3.5 border border-gray-200 shadow-xs border-t-4 {{ $stage['color'] }}">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-semibold text-gray-600 truncate" title="{{ $stage['name'] }}">{{ $stage['name'] }}</span>
-                        <span class="text-xs font-bold px-2 py-0.5 rounded-full {{ $stage['bg_badge'] }}" id="summary-count-{{ $stage['id'] }}">{{ $stage['count'] }}</span>
-                    </div>
-                    <div class="mt-2 text-sm font-black text-gray-900 font-mono">{{ $stage['amount'] }}</div>
-                </div>
-            @endforeach
-        </div>
-
-        <!-- Kanban Board Columns -->
-        <div class="flex gap-4 overflow-x-auto pb-6 items-start min-h-[calc(100vh-280px)]">
-            @foreach ($stages as $index => $stage)
-                <div 
-                    class="kanban-column w-80 shrink-0 bg-slate-50 rounded-2xl p-3 border border-gray-200/90 flex flex-col gap-3 transition-colors duration-200"
-                    data-stage-id="{{ $stage['id'] }}"
-                    data-stage-index="{{ $index }}"
-                    @dragover.prevent="onDragOver($event, @js($stage['id']))"
-                    @dragleave="onDragLeave($event)"
-                    @drop="onDrop($event, @js($stage['id']))"
-                >
-                    <!-- Column Header -->
-                    <div class="flex items-center justify-between px-1">
-                        <div class="flex items-center gap-2">
-                            <h3 class="font-bold text-xs text-gray-900 uppercase tracking-wider">{{ $stage['name'] }}</h3>
-                            <span class="text-[11px] font-bold px-2 py-0.5 rounded-full {{ $stage['bg_badge'] }}" id="badge-count-{{ $stage['id'] }}">
-                                {{ count($stage['leads']) }}
-                            </span>
+        <!-- Kanban 8 cột (mockup: tiêu đề cột = chấm màu + TÊN (số lượng)) -->
+        <div class="custom-scrollbar overflow-x-auto pb-md">
+            <div class="flex min-h-[calc(100vh-320px)] min-w-max items-start gap-md">
+                @foreach ($stages as $index => $stage)
+                    <div
+                        class="kanban-column flex w-[280px] shrink-0 flex-col gap-md rounded-xl transition-colors duration-200"
+                        data-stage-id="{{ $stage['id'] }}"
+                        data-stage-index="{{ $index }}"
+                        @dragover.prevent="onDragOver($event, @js($stage['id']))"
+                        @dragleave="onDragLeave($event)"
+                        @drop="onDrop($event, @js($stage['id']))"
+                    >
+                        <!-- Column Header -->
+                        <div class="flex items-center justify-between border-b px-xs py-xs {{ $stage['header_border'] }}">
+                            <h3 class="flex items-center gap-sm font-label text-label uppercase {{ $stage['text'] }}">
+                                <span class="h-2 w-2 rounded-full {{ $stage['dot'] }}"></span>
+                                {{ $stage['name'] }} (<span id="badge-count-{{ $stage['id'] }}">{{ $stage['count'] }}</span>)
+                            </h3>
+                            @if ((float) $stage['amount_raw'] > 0)
+                                <span class="font-code text-caption text-on-surface-variant" title="Tổng giá trị hợp đồng">{{ $stage['amount'] }}</span>
+                            @endif
                         </div>
-                        <span class="text-[11px] text-gray-400 font-mono font-bold">#{{ $index + 1 }}</span>
-                    </div>
 
-                    <!-- Cards list container -->
-                    <div class="cards-container space-y-2.5 min-h-[120px]" id="column-cards-{{ $stage['id'] }}">
-                        @foreach ($stage['leads'] as $lead)
-                            @php($draggable = ($stagePermissions['canForward'] && $stage['next'] && ! in_array($stage['next'], $stagePermissions['closed'], true))
-                                || ($stagePermissions['canBackward'] && $index > 0 && ! in_array($stage['id'], $stagePermissions['closed'], true)))
-                            <div 
-                                class="kanban-card bg-white rounded-xl p-3.5 border border-gray-200 shadow-xs hover:shadow-md hover:border-primary-container/50 transition duration-150 {{ $draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer' }} group relative"
-                                draggable="{{ $draggable ? 'true' : 'false' }}"
-                                data-customer-id="{{ $lead['id'] }}"
-                                data-stage-id="{{ $stage['id'] }}"
-                                data-stage-index="{{ $index }}"
-                                @dragstart="onDragStart($event, {{ (int) $lead['id'] }}, @js($stage['id']), @js($lead['name']))"
-                                @dragend="onDragEnd($event)"
-                                @click="openLeadDetails(@js(route('crm.customers.show', $lead['id'])))"
-                            >
-                                <div class="flex items-start justify-between gap-2 mb-1.5">
-                                    <div class="min-w-0">
-                                        <h4 class="font-bold text-xs text-gray-900 group-hover:text-primary-container transition line-clamp-1">
-                                            {{ $lead['name'] }}
-                                        </h4>
-                                        @if ($lead['parent_name'])
-                                            <div class="text-[10px] text-gray-500 line-clamp-1">PH: {{ $lead['parent_name'] }}</div>
-                                        @endif
-                                    </div>
-                                    <span class="text-[10px] text-gray-400 whitespace-nowrap shrink-0">{{ $lead['days'] }}</span>
-                                </div>
-
-                                @if ($lead['follow_up_status'] === 'overdue')
-                                    <div class="mb-1.5"><x-ui.badge color="status-overdue" title="Hạn liên hệ: {{ $lead['follow_up_at'] }}">Quá hạn · {{ $lead['follow_up_at'] }}</x-ui.badge></div>
-                                @elseif ($lead['follow_up_status'] === 'due_soon')
-                                    <div class="mb-1.5"><x-ui.badge color="warning" title="Hạn liên hệ: {{ $lead['follow_up_at'] }}">Sắp hết hạn · {{ $lead['follow_up_at'] }}</x-ui.badge></div>
-                                @endif
-
-                                <div class="text-xs font-bold text-primary-container mb-2 flex items-center justify-between">
-                                    <span>{{ $lead['tuition'] }}</span>
-                                    <span class="text-[10px] font-mono font-normal text-gray-400">{{ $lead['code'] }}</span>
-                                </div>
-
-                                <div class="space-y-1.5 text-[11px] text-gray-600 mb-3">
-                                    <div class="flex items-center gap-1.5">
-                                        <span class="material-symbols-outlined text-[13px] text-gray-400">call</span>
-                                        <span class="font-mono">{{ $lead['phone'] }}</span>
-                                    </div>
-                                    <div class="flex items-center gap-1.5">
-                                        <span class="material-symbols-outlined text-[13px] text-gray-400">school</span>
-                                        <span class="font-medium text-gray-800 line-clamp-1">{{ $lead['course'] }}</span>
-                                    </div>
-
-                                    <!-- Sale chăm sóc -->
-                                    <div class="flex items-center gap-1.5 text-indigo-900 bg-indigo-50/80 px-2 py-1 rounded-lg border border-indigo-100/80 font-medium">
-                                        <span class="material-symbols-outlined text-[14px] text-indigo-600">person</span>
-                                        <span class="text-[10px] text-indigo-500 font-semibold">Sale:</span>
-                                        <span class="text-indigo-950 font-bold truncate">{{ $lead['agent'] }}</span>
-                                    </div>
-
-                                    @isset($lead['score'])
-                                        <div class="flex items-center gap-1.5 text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md font-medium text-[10px]">
-                                            <span class="material-symbols-outlined text-[12px]">quiz</span>
-                                            <span>Điểm test: {{ $lead['score'] }}</span>
-                                        </div>
-                                    @endisset
-                                    @if($lead['status'])
-                                        <div class="px-2 py-1 rounded-lg text-[10px] font-bold {{ $lead['payment_status'] === 'paid' ? 'bg-emerald-50 text-emerald-700' : ($lead['payment_status'] === 'partial' ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-700') }}">
-                                            Học phí: {{ $lead['status'] }}
-                                        </div>
+                        <!-- Cards list container -->
+                        <div class="cards-container min-h-[120px] space-y-md py-xs" id="column-cards-{{ $stage['id'] }}">
+                            @forelse ($stage['leads'] as $lead)
+                                @php
+                                    $draggable = ($stagePermissions['canForward'] && $stage['next'] && ! in_array($stage['next'], $stagePermissions['closed'], true))
+                                        || ($stagePermissions['canBackward'] && $index > 0 && ! in_array($stage['id'], $stagePermissions['closed'], true));
+                                    $accent = match (true) {
+                                        $stage['id'] === 'won' => 'border-l-emerald-600',
+                                        $lead['follow_up_state'] === 'overdue' => 'border-l-error',
+                                        $lead['follow_up_state'] === 'due_soon' => 'border-l-amber-500',
+                                        $lead['follow_up_state'] === 'on_time' => 'border-l-tertiary',
+                                        default => 'border-l-outline-variant',
+                                    };
+                                    $canEditStage = ($stagePermissions['canForward'] || $stagePermissions['canBackward']) && ! in_array($stage['id'], $stagePermissions['closed'], true);
+                                @endphp
+                                <div
+                                    class="kanban-card group relative space-y-md rounded-lg border border-l-4 border-outline-variant/30 bg-surface-container-lowest p-md shadow-level-2 transition-all hover:shadow-level-3 {{ $accent }} {{ $draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer' }}"
+                                    draggable="{{ $draggable ? 'true' : 'false' }}"
+                                    data-customer-id="{{ $lead['id'] }}"
+                                    data-stage-id="{{ $stage['id'] }}"
+                                    data-stage-index="{{ $index }}"
+                                    @dragstart="onDragStart($event, {{ (int) $lead['id'] }}, @js($stage['id']), @js($lead['name']))"
+                                    @dragend="onDragEnd($event)"
+                                    @click="openLeadDetails(@js(route('crm.customers.show', $lead['id'])))"
+                                >
+                                    @if ($canEditStage)
+                                        <button
+                                            type="button"
+                                            @click.stop="openStageEdit({{ (int) $lead['id'] }}, @js($lead['name']), @js($stage['id']))"
+                                            class="absolute right-2 top-2 rounded bg-surface-container-low px-1 font-caption text-[10px] text-on-surface-variant opacity-100 transition-opacity hover:text-primary md:opacity-0 md:group-hover:opacity-100"
+                                            title="Sửa giai đoạn"
+                                        >Sửa giai đoạn</button>
                                     @endif
-                                </div>
 
-                                <div class="flex items-center justify-between gap-1 pt-2 border-t border-gray-100 text-[10px]">
-                                    <span class="px-2 py-0.5 rounded bg-gray-100 text-gray-600 font-medium truncate">{{ $lead['source'] }}</span>
+                                    <div class="flex items-start justify-between gap-sm pr-md">
+                                        <div class="min-w-0">
+                                            <h4 class="line-clamp-2 font-h3 text-[14px] font-bold uppercase leading-tight text-on-surface">{{ $lead['name'] }}</h4>
+                                            <p class="mt-1 font-code text-body-small text-on-surface-variant">{{ $lead['phone'] }}</p>
+                                        </div>
+                                        <span class="max-w-[96px] shrink-0 truncate rounded px-sm py-[2px] font-caption text-[10px] font-bold {{ $stage['source_badge'] }}" title="Nguồn: {{ $lead['source'] }}">{{ $lead['source'] }}</span>
+                                    </div>
 
-                                    <div class="flex items-center gap-1 shrink-0">
-                                        @if (in_array($stage['id'], \App\Models\CrmCustomer::CLOSABLE_STAGES, true) && $stagePermissions['canConvert'])
-                                            <a href="{{ route('crm.closing-wizard', ['customer_id' => $lead['id']]) }}" @click.stop class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-50 hover:bg-orange-600 text-orange-700 hover:text-white border border-orange-200 text-[11px] font-bold transition">
-                                                <span>Chốt</span>
-                                                <span class="material-symbols-outlined text-[14px]">payments</span>
-                                            </a>
+                                    <div class="space-y-1.5 text-body-small">
+                                        <div class="flex items-center gap-xs text-on-surface-variant">
+                                            <span class="material-symbols-outlined text-[16px]">person</span>
+                                            <span class="truncate">Phụ huynh: {{ $lead['parent_name'] ?: '—' }}</span>
+                                        </div>
+                                        <div class="flex items-center gap-xs text-on-surface-variant">
+                                            <span class="material-symbols-outlined text-[16px]">account_circle</span>
+                                            <span class="truncate">Phụ trách: <span class="font-medium text-on-surface">{{ $lead['agent'] }}</span></span>
+                                        </div>
+                                        @if ($lead['has_test_result'])
+                                            <div class="flex items-center gap-xs text-on-surface-variant">
+                                                <span class="material-symbols-outlined text-[16px]">quiz</span>
+                                                <span class="truncate">Điểm test: {{ $lead['score'] }}</span>
+                                            </div>
                                         @endif
+                                        @if ($lead['status'])
+                                            <div class="flex items-center gap-xs text-on-surface-variant">
+                                                <span class="material-symbols-outlined text-[16px]">payments</span>
+                                                <span class="truncate">Học phí: {{ $lead['status'] }}</span>
+                                            </div>
+                                        @endif
+                                    </div>
 
-                                        @if ($stage['id'] === 'waiting_class')
-                                            @can('student.assign_class')
-                                                <a href="{{ route('crm.customers.won') }}#waiting-class" @click.stop class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-50 hover:bg-yellow-600 text-yellow-800 hover:text-white border border-yellow-200 text-[11px] font-bold transition">
-                                                    <span>Gán lớp</span>
-                                                    <span class="material-symbols-outlined text-[14px]">assignment_turned_in</span>
+                                    <div class="space-y-md border-t border-surface-container-highest pt-sm">
+                                        @if ($stage['id'] === 'won')
+                                            <div class="flex items-center gap-xs font-body-small text-body-small font-medium text-emerald-600">
+                                                <span class="material-symbols-outlined text-[18px]">verified</span>
+                                                {{ $lead['confirmed'] ? 'Đã hoàn tất hồ sơ' : 'Đã chốt — chờ xác nhận chính thức' }}
+                                            </div>
+                                        @else
+                                            @if ($lead['follow_up_state'])
+                                                <div class="flex items-center justify-between gap-sm">
+                                                    @if ($lead['follow_up_state'] === 'overdue')
+                                                        <span class="flex shrink-0 items-center gap-xs rounded-full bg-error-container px-sm py-xs font-caption text-[10px] font-bold text-error">
+                                                            <span class="material-symbols-outlined text-[14px]">alarm_on</span>Quá hạn
+                                                        </span>
+                                                    @elseif ($lead['follow_up_state'] === 'due_soon')
+                                                        <span class="flex shrink-0 items-center gap-xs rounded-full bg-orange-100 px-sm py-xs font-caption text-[10px] font-bold text-orange-600">
+                                                            <span class="material-symbols-outlined text-[14px]">priority_high</span>Sắp hết hạn
+                                                        </span>
+                                                    @else
+                                                        <span class="flex shrink-0 items-center gap-xs rounded-full bg-green-100 px-sm py-xs font-caption text-[10px] font-bold text-green-600">
+                                                            <span class="material-symbols-outlined text-[14px]">check_circle</span>Còn hạn
+                                                        </span>
+                                                    @endif
+                                                    <div class="text-right font-caption text-caption font-medium text-on-surface-variant" title="{{ $lead['follow_up_at'] }}">
+                                                        {{ $stage['id'] === 'new' ? 'Hạn liên hệ' : 'Hạn chăm sóc tiếp theo' }}: {{ $lead['follow_up_label'] }}
+                                                    </div>
+                                                </div>
+                                            @endif
+
+                                            @if ($stage['id'] === 'waiting_class')
+                                                @can('student.assign_class')
+                                                    <a href="{{ route('crm.waiting-list') }}" @click.stop class="flex w-full items-center justify-center gap-xs rounded-lg bg-primary-container py-2 font-body-medium text-body-medium text-white shadow-sm transition-all hover:brightness-110">
+                                                        <span class="material-symbols-outlined text-[18px]">assignment_turned_in</span>Gán lớp
+                                                    </a>
+                                                @endcan
+                                            @elseif ($stagePermissions['canForward'] && $stage['next'] && ! in_array($stage['next'], $stagePermissions['closed'], true))
+                                                <button
+                                                    type="button"
+                                                    @click.stop="moveToNextStage({{ (int) $lead['id'] }}, @js($lead['name']))"
+                                                    class="w-full rounded-lg bg-primary-container py-2 font-body-medium text-body-medium text-white shadow-sm transition-all hover:brightness-110"
+                                                    title="Chuyển sang: {{ $stagePermissions['labels'][$stage['next']] }}"
+                                                >Sang bước tiếp theo</button>
+                                            @endif
+
+                                            @if (in_array($stage['id'], \App\Models\CrmCustomer::CLOSABLE_STAGES, true) && $stagePermissions['canConvert'])
+                                                <a href="{{ route('crm.closing-wizard', ['customer_id' => $lead['id']]) }}" @click.stop
+                                                   class="flex w-full items-center justify-center gap-xs rounded-lg border border-primary-container/40 py-1.5 font-body-medium text-body-small text-primary transition-colors hover:bg-primary-container/10">
+                                                    <span class="material-symbols-outlined text-[16px]">how_to_reg</span>Chốt &amp; Xếp lớp
                                                 </a>
-                                            @endcan
-                                        @elseif ($stage['id'] === 'won')
-                                            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold flex items-center gap-0.5">
-                                                <span class="material-symbols-outlined text-[12px]">check</span>
-                                                <span>Đã chốt</span>
-                                            </span>
-                                        @elseif ($stagePermissions['canForward'] && $stage['next'] && ! in_array($stage['next'], $stagePermissions['closed'], true))
-                                            <button
-                                                type="button"
-                                                @click.stop="moveToNextStage({{ (int) $lead['id'] }}, @js($lead['name']))"
-                                                class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 text-[11px] font-bold transition shadow-xs cursor-pointer"
-                                                title="Chuyển sang: {{ $stagePermissions['labels'][$stage['next']] }}"
-                                            >
-                                                <span>Tiếp theo</span>
-                                                <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-                                            </button>
-                                        @endif
-
-                                        @if (($stagePermissions['canForward'] || $stagePermissions['canBackward']) && ! in_array($stage['id'], $stagePermissions['closed'], true))
-                                            <button
-                                                type="button"
-                                                @click.stop="openStageEdit({{ (int) $lead['id'] }}, @js($lead['name']), @js($stage['id']))"
-                                                class="inline-flex items-center px-1.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-bold transition cursor-pointer"
-                                                title="Sửa giai đoạn"
-                                                aria-label="Sửa giai đoạn"
-                                            >
-                                                <span class="material-symbols-outlined text-[14px]">edit_note</span>
-                                            </button>
+                                            @endif
                                         @endif
                                     </div>
                                 </div>
-                            </div>
-                        @endforeach
-                    </div>
+                            @empty
+                                <p class="px-xs py-md text-center font-caption text-caption text-on-surface-variant/70">Chưa có khách</p>
+                            @endforelse
+                        </div>
 
-                    @can('lead.create')
-                    @if ($stage['id'] === 'new')
-                    <!-- Add button -->
-                    <a href="{{ route('crm.customers.create') }}" class="w-full py-2.5 border-2 border-dashed border-gray-200 hover:border-primary-container/50 hover:bg-orange-50/40 rounded-xl text-xs font-bold text-gray-500 hover:text-primary-container transition flex items-center justify-center gap-1.5 bg-white/70">
-                        <span class="material-symbols-outlined text-sm">add</span>
-                        <span>Thêm deal mới</span>
-                    </a>
-                    @endif
-                    @endcan
-                </div>
-            @endforeach
+                        @can('lead.create')
+                            @if ($stage['id'] === 'new')
+                                <a href="{{ route('crm.customers.create') }}" class="flex w-full items-center justify-center gap-xs rounded-lg border-2 border-dashed border-outline-variant py-sm font-body-small text-body-small font-bold text-on-surface-variant transition hover:border-primary-container/50 hover:text-primary">
+                                    <span class="material-symbols-outlined text-[18px]">add</span>
+                                    <span>Thêm khách mới</span>
+                                </a>
+                            @endif
+                        @endcan
+                    </div>
+                @endforeach
+            </div>
         </div>
 
         @if ($stagePermissions['canForward'] || $stagePermissions['canBackward'])
             <!-- Sửa giai đoạn (A6): CM tiến 1 bước; chỉ Admin lùi bước (bắt buộc lý do); Thất bại bắt buộc lý do -->
-            <div x-show="stageEdit.open" x-cloak class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-                <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-3 text-xs" @click.outside="stageEdit.open = false">
-                    <h3 class="font-bold text-sm">Sửa giai đoạn: <span x-text="stageEdit.name"></span></h3>
-                    <p class="text-gray-500">Hiện tại: <strong x-text="permissions.labels[stageEdit.from]"></strong>. Học vụ / Quản lý cơ sở chỉ chuyển tiến 1 bước; chỉ Admin được lùi bước. Mọi thay đổi được lưu vào lịch sử khách.</p>
+            <div x-show="stageEdit.open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-md" role="dialog" aria-modal="true">
+                <div class="w-full max-w-md space-y-sm rounded-xl bg-surface-container-lowest p-lg font-body-small text-body-small shadow-level-3" @click.outside="stageEdit.open = false">
+                    <h3 class="font-h3 text-h3 text-on-surface">Sửa giai đoạn: <span x-text="stageEdit.name"></span></h3>
+                    <p class="text-on-surface-variant">Hiện tại: <strong x-text="permissions.labels[stageEdit.from]"></strong>. Học vụ / Quản lý cơ sở chỉ chuyển tiến 1 bước; chỉ Admin được lùi bước. Mọi thay đổi được lưu vào lịch sử khách.</p>
                     @if ($stagePermissions['canBackward'])
-                        <p class="text-rose-700 font-semibold">Lùi giai đoạn: bắt buộc nhập lý do (không áp dụng cho khách đã chốt).</p>
+                        <p class="font-semibold text-error">Lùi giai đoạn: bắt buộc nhập lý do (không áp dụng cho khách đã chốt).</p>
                     @endif
-                    <select x-model="stageEdit.target" class="w-full rounded-xl border-gray-200 text-xs" aria-label="Giai đoạn mới">
+                    <select x-model="stageEdit.target" class="w-full rounded-lg border-outline-variant font-body-base text-body-base" aria-label="Giai đoạn mới">
                         <template x-for="option in stageEditOptions()" :key="option.value">
                             <option :value="option.value" x-text="option.label"></option>
                         </template>
                     </select>
-                    <textarea x-show="stageEditNeedsReason()" x-model="stageEdit.reason" rows="3" :placeholder="stageEdit.target === 'lost' ? 'Lý do thất bại (bắt buộc)' : 'Lý do lùi giai đoạn (bắt buộc)'" class="w-full rounded-xl border-gray-200 text-xs"></textarea>
-                    <div class="flex justify-end gap-2">
-                        <button type="button" @click="stageEdit.open = false" class="px-3 py-2 border rounded-xl">Hủy</button>
-                        <button type="button" @click="submitStageEdit()" :disabled="!stageEdit.target || (stageEditNeedsReason() && !stageEdit.reason.trim())" class="px-4 py-2 bg-primary-container disabled:opacity-50 text-white font-bold rounded-xl">Lưu giai đoạn</button>
+                    <textarea x-show="stageEditNeedsReason()" x-model="stageEdit.reason" rows="3" :placeholder="stageEdit.target === 'lost' ? 'Lý do thất bại (bắt buộc)' : 'Lý do lùi giai đoạn (bắt buộc)'" class="w-full rounded-lg border-outline-variant font-body-base text-body-base"></textarea>
+                    <div class="flex justify-end gap-sm">
+                        <button type="button" @click="stageEdit.open = false" class="rounded-lg border border-outline-variant px-md py-sm font-body-medium text-body-medium">Hủy</button>
+                        <button type="button" @click="submitStageEdit()" :disabled="!stageEdit.target || (stageEditNeedsReason() && !stageEdit.reason.trim())" class="rounded-lg bg-primary-container px-md py-sm font-body-medium text-body-medium text-white disabled:opacity-50">Lưu giai đoạn</button>
                     </div>
                 </div>
             </div>

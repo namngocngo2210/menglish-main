@@ -245,40 +245,41 @@ class CrmCustomer extends Model
         return self::PIPELINE_STAGES[$stage] ?? ($stage === self::STAGE_LOST ? 'Thất bại' : (string) $stage);
     }
 
+    /** Nhãn giai đoạn dạng "soft badge" theo màu cột mockup Pipeline. */
     public static function stageBadge(?string $stage): string
     {
         return match ($stage) {
-            'new' => 'bg-sky-50 text-sky-700 border-sky-200',
-            'consulting' => 'bg-amber-50 text-amber-700 border-amber-200',
-            'test_scheduled' => 'bg-indigo-50 text-indigo-700 border-indigo-200',
-            'testing' => 'bg-violet-50 text-violet-700 border-violet-200',
-            'tested' => 'bg-purple-50 text-purple-700 border-purple-200',
-            'result_sent' => 'bg-cyan-50 text-cyan-700 border-cyan-200',
-            'waiting_class' => 'bg-yellow-50 text-yellow-700 border-yellow-200',
-            'won' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
-            'lost' => 'bg-rose-50 text-rose-700 border-rose-200',
-            default => 'bg-gray-50 text-gray-700 border-gray-200',
+            'new' => 'bg-secondary/10 text-secondary border-secondary/20',
+            'consulting' => 'bg-tertiary/10 text-tertiary border-tertiary/20',
+            'test_scheduled' => 'bg-primary/10 text-primary border-primary/20',
+            'testing' => 'bg-blue-600/10 text-blue-600 border-blue-600/20',
+            'tested' => 'bg-purple-600/10 text-purple-600 border-purple-600/20',
+            'result_sent' => 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+            'waiting_class' => 'bg-indigo-600/10 text-indigo-600 border-indigo-600/20',
+            'won' => 'bg-emerald-600/10 text-emerald-700 border-emerald-600/20',
+            'lost' => 'bg-error/10 text-error border-error/20',
+            default => 'bg-on-surface-variant/10 text-on-surface-variant border-outline-variant',
         };
     }
 
     /**
-     * Lớp màu cho cột Kanban / thanh funnel (chuỗi đầy đủ để Tailwind quét được — xem
-     * danh sách lặp lại trong crm/pipeline.blade.php).
+     * Lớp màu cho cột Kanban / thanh funnel theo mockup pipeline-tong-quan-giai-doan
+     * (chuỗi đầy đủ để Tailwind quét được — tailwind.config.js quét app/**).
      *
-     * @return array{border: string, badge: string, bar: string, text: string}
+     * @return array{border: string, badge: string, bar: string, text: string, header_border: string, source_badge: string}
      */
     public static function stageStyle(string $stage): array
     {
         return match ($stage) {
-            'new' => ['border' => 'border-sky-500', 'badge' => 'bg-sky-50 text-sky-700', 'bar' => 'bg-sky-500', 'text' => 'text-sky-600'],
-            'consulting' => ['border' => 'border-amber-500', 'badge' => 'bg-amber-50 text-amber-700', 'bar' => 'bg-amber-500', 'text' => 'text-amber-600'],
-            'test_scheduled' => ['border' => 'border-indigo-500', 'badge' => 'bg-indigo-50 text-indigo-700', 'bar' => 'bg-indigo-500', 'text' => 'text-indigo-600'],
-            'testing' => ['border' => 'border-violet-500', 'badge' => 'bg-violet-50 text-violet-700', 'bar' => 'bg-violet-500', 'text' => 'text-violet-600'],
-            'tested' => ['border' => 'border-purple-500', 'badge' => 'bg-purple-50 text-purple-700', 'bar' => 'bg-purple-500', 'text' => 'text-purple-600'],
-            'result_sent' => ['border' => 'border-cyan-500', 'badge' => 'bg-cyan-50 text-cyan-700', 'bar' => 'bg-cyan-500', 'text' => 'text-cyan-600'],
-            'waiting_class' => ['border' => 'border-yellow-500', 'badge' => 'bg-yellow-50 text-yellow-700', 'bar' => 'bg-yellow-500', 'text' => 'text-yellow-600'],
-            'won' => ['border' => 'border-emerald-500', 'badge' => 'bg-emerald-50 text-emerald-700', 'bar' => 'bg-emerald-500', 'text' => 'text-emerald-600'],
-            default => ['border' => 'border-rose-500', 'badge' => 'bg-rose-50 text-rose-700', 'bar' => 'bg-rose-500', 'text' => 'text-rose-600'],
+            'new' => ['border' => 'border-secondary', 'badge' => 'bg-secondary/10 text-secondary', 'bar' => 'bg-secondary', 'text' => 'text-secondary', 'header_border' => 'border-secondary/20', 'source_badge' => 'bg-secondary/10 text-secondary'],
+            'consulting' => ['border' => 'border-tertiary', 'badge' => 'bg-tertiary/10 text-tertiary', 'bar' => 'bg-tertiary', 'text' => 'text-tertiary', 'header_border' => 'border-tertiary/20', 'source_badge' => 'bg-tertiary/10 text-tertiary'],
+            'test_scheduled' => ['border' => 'border-primary', 'badge' => 'bg-primary/10 text-primary', 'bar' => 'bg-primary', 'text' => 'text-primary', 'header_border' => 'border-primary/20', 'source_badge' => 'bg-primary/10 text-primary'],
+            'testing' => ['border' => 'border-blue-600', 'badge' => 'bg-blue-600/10 text-blue-600', 'bar' => 'bg-blue-600', 'text' => 'text-blue-600', 'header_border' => 'border-blue-600/20', 'source_badge' => 'bg-blue-600/10 text-blue-600'],
+            'tested' => ['border' => 'border-purple-600', 'badge' => 'bg-purple-600/10 text-purple-600', 'bar' => 'bg-purple-600', 'text' => 'text-purple-600', 'header_border' => 'border-purple-600/20', 'source_badge' => 'bg-purple-600/10 text-purple-600'],
+            'result_sent' => ['border' => 'border-orange-500', 'badge' => 'bg-orange-500/10 text-orange-600', 'bar' => 'bg-orange-500', 'text' => 'text-orange-500', 'header_border' => 'border-orange-500/20', 'source_badge' => 'bg-orange-500/10 text-orange-600'],
+            'waiting_class' => ['border' => 'border-indigo-600', 'badge' => 'bg-indigo-600/10 text-indigo-600', 'bar' => 'bg-indigo-600', 'text' => 'text-indigo-600', 'header_border' => 'border-indigo-600/20', 'source_badge' => 'bg-indigo-600/10 text-indigo-600'],
+            'won' => ['border' => 'border-emerald-600', 'badge' => 'bg-emerald-100 text-emerald-700', 'bar' => 'bg-emerald-600', 'text' => 'text-emerald-600', 'header_border' => 'border-emerald-600/20', 'source_badge' => 'bg-emerald-100 text-emerald-700'],
+            default => ['border' => 'border-error', 'badge' => 'bg-error/10 text-error', 'bar' => 'bg-error', 'text' => 'text-error', 'header_border' => 'border-error/20', 'source_badge' => 'bg-error/10 text-error'],
         };
     }
 
