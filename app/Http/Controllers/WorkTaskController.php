@@ -14,9 +14,12 @@ use App\Models\SupportSession;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\ClassDashboardService;
+use App\Services\KpiBoardService;
 use App\Services\SafeUploadService;
 use App\Services\SessionScheduleService;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -171,35 +174,49 @@ class WorkTaskController extends Controller
     /**
      * 3. Dashboard Lớp học theo ngày / Ma trận khung giờ tuần
      */
-    public function classesDashboard(Request $request)
+    public function classesDashboard(Request $request, ClassDashboardService $dashboard)
     {
-        $branchId = $request->get('branch_id');
-        $date = $request->get('date', now()->format('Y-m-d'));
-        $week = $request->get('week', now()->format('Y-\WW'));
+        $validated = $request->validate([
+            'tab' => ['nullable', 'in:day,week'],
+            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
+            'date' => ['nullable', 'date'],
+            'week' => ['nullable', 'regex:/^\d{4}-W\d{2}$/'],
+        ]);
+        $viewer = $request->user();
+        $tab = $validated['tab'] ?? 'day';
+        $branchId = isset($validated['branch_id']) ? (int) $validated['branch_id'] : null;
+        $today = CarbonImmutable::today();
+        $day = CarbonImmutable::parse($validated['date'] ?? $today)->startOfDay();
+        $weekStart = ClassDashboardService::weekStart($validated['week'] ?? $day->format('o-\WW'));
+        $date = $day->toDateString();
+        $week = $weekStart->format('o-\WW');
 
-        $branches = Branch::where('is_active', true)->get();
-        $selectedBranch = $branchId ? Branch::find($branchId) : $branches->first();
+        $branches = Branch::where('is_active', true)->orderBy('name')->get();
+        $selectedBranch = $branchId ? $branches->firstWhere('id', $branchId) : null;
 
-        // Danh sách lớp hôm nay
-        $classes = ClassModel::with(['course', 'teacher', 'assistant', 'branch'])
-            ->where('status', 'active')
+        // Theo ngày: buổi học thật của ngày được chọn (kể cả buổi đã hủy/nghỉ lễ để học vụ nắm được).
+        $daySessions = $dashboard->sessionsQuery($viewer, $branchId)->whereDate('date', $date)->get();
+        $dayStats = [
+            'total' => $daySessions->where('status', '!=', 'cancelled')->count(),
+            'done' => $daySessions->filter(fn ($s) => $s->status !== 'cancelled' && $s->attendances_count > 0)->count(),
+            'missing' => $daySessions->filter(fn ($s) => $dashboard->attendanceState($s, $today)['key'] === 'missing')->count(),
+            'cancelled' => $daySessions->where('status', 'cancelled')->count(),
+        ];
+        $seats = $daySessions->pluck('classModel')->filter()->unique('id')
+            ->mapWithKeys(fn (ClassModel $class) => [$class->id => $class->occupiedSeats()]);
+        $assistantsToday = $dashboard->assistantsOnDuty($daySessions);
+
+        // Theo tuần: ma trận khung giờ sinh từ buổi học trong tuần.
+        $weekSessions = $dashboard->sessionsQuery($viewer, $branchId)
+            ->whereDate('date', '>=', $weekStart->toDateString())
+            ->whereDate('date', '<=', $weekStart->addDays(6)->toDateString())
             ->get();
+        $matrix = $dashboard->weekMatrix($weekSessions, $weekStart);
 
-        // Danh sách trợ giảng làm việc hôm nay
-        $assistantsToday = User::role('assistant')
-            ->where('is_active', true)
-            ->get();
-
-        if ($assistantsToday->isEmpty()) {
-            $assistantsToday = User::where('email', 'like', 'ta.%')
-                ->orWhere('name', 'like', '%Trợ giảng%')
-                ->orWhere('name', 'like', '%Anh Tuấn%')
-                ->orWhere('name', 'like', '%Ngọc Trâm%')
-                ->orWhere('name', 'like', '%Hải Yến%')
-                ->get();
-        }
-
-        return view('tasks.classes-dashboard', compact('branches', 'selectedBranch', 'classes', 'assistantsToday', 'date', 'week'));
+        return view('tasks.classes-dashboard', compact(
+            'tab', 'branches', 'branchId', 'selectedBranch', 'date', 'week', 'today',
+            'daySessions', 'dayStats', 'seats', 'assistantsToday', 'weekStart', 'matrix', 'dashboard'
+        ));
     }
 
     /**

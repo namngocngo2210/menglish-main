@@ -197,7 +197,12 @@ class WorkTaskModuleTest extends TestCase
 
     public function test_can_view_all_task_and_ta_pages(): void
     {
-        // 1. Dashboard lớp học
+        // 1. Dashboard lớp học — chỉ hiển thị lớp có buổi học thật trong ngày (Phase 2).
+        \App\Models\ClassSession::create([
+            'class_id' => $this->class->id, 'branch_id' => $this->branch->id, 'date' => now()->toDateString(),
+            'shift_name' => 'Slot 1', 'start_time' => '18:00', 'end_time' => '19:30', 'room' => 'P101',
+            'teacher_id' => $this->admin->id, 'assistant_id' => $this->ta->id, 'status' => 'scheduled',
+        ]);
         $resDashboard = $this->actingAs($this->admin)->get(route('tasks.classes-dashboard'));
         $resDashboard->assertOk();
         $resDashboard->assertSee('Dashboard lớp học');
