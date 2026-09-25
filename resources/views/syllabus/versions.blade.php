@@ -46,7 +46,7 @@
                                 <td>
                                     <a href="{{ route('syllabus.versions', array_filter(['proposal' => $p->id, 'status' => $status, 'page' => request('page')])) }}" class="block">
                                         <p class="font-bold text-gray-900 text-xs">{{ $p->curriculum?->title }}</p>
-                                        <p class="text-[11px] text-gray-500">{{ $p->unit ? 'Buổi '.$p->unit->unit_number.': '.$p->unit->title : 'Chung toàn giáo trình' }}</p>
+                                        <p class="text-[11px] text-gray-500">{{ $p->unit ? 'Unit '.$p->unit->unit_number.': '.$p->unit->title : 'Chung toàn giáo trình' }}</p>
                                         <p class="text-[11px] text-gray-400">{{ $p->proposer?->name }} · {{ $p->created_at->format('d/m/Y H:i') }}</p>
                                     </a>
                                 </td>
@@ -85,7 +85,7 @@
                             </div>
                             <div>
                                 <dt class="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Buổi học / Unit cần sửa</dt>
-                                <dd class="font-bold text-gray-900 mt-0.5">{{ $selected->unit ? 'Buổi '.$selected->unit->unit_number.': '.$selected->unit->title : 'Chung toàn giáo trình' }}</dd>
+                                <dd class="font-bold text-gray-900 mt-0.5">{{ $selected->unit ? 'Unit '.$selected->unit->unit_number.': '.$selected->unit->title : 'Chung toàn giáo trình' }}</dd>
                             </div>
                             <div>
                                 <dt class="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Người đề xuất</dt>

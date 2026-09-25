@@ -54,6 +54,9 @@
                         <span class="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold">Lớp: {{ $test->classModel?->name }}</span>
                         <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">Mã: {{ $test->code }}</span>
                         <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">Phòng: {{ $test->room }}</span>
+                        @if ($test->stage)
+                            <span class="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-bold" title="Duyệt và gửi đủ kết quả cho phụ huynh sẽ đóng chặng này và tự mở chặng kế tiếp">Big Test cuối {{ $test->stage->label }}{{ $test->results_completed_at ? ' · đã hoàn tất' : '' }}</span>
+                        @endif
                     </div>
                 @endif
             </div>

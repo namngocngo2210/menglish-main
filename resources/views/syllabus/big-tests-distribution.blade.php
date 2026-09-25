@@ -25,6 +25,7 @@
                 <x-ui.select name="test_type" label="Loại kỳ thi" :options="['midterm' => 'Giữa kỳ (Mid-term)', 'final' => 'Cuối khóa (Final)']" />
                 <x-ui.input type="datetime-local" name="scheduled_at" label="Thời gian thi" required :value="now()->addDays(7)->format('Y-m-d\TH:i')" />
                 <x-ui.input name="room" label="Phòng thi" required value="Phòng Lab 201" />
+                <p class="text-[11px] text-gray-500">Đợt thi tự gắn với <strong>chặng đang mở</strong> của lớp (Big Test cuối chặng). Khi kết quả được duyệt và gửi phụ huynh, chặng đóng và chặng kế tiếp tự mở.</p>
             </form>
             <x-slot:footer>
                 <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'new-big-test')">Hủy</x-ui.button>
@@ -165,7 +166,7 @@
                         <tr>
                             <td class="font-mono font-bold text-gray-900">{{ $bt->code }}</td>
                             <td class="font-bold text-gray-900">{{ $bt->title }}</td>
-                            <td class="font-semibold text-primary">{{ $bt->classModel?->name }}</td>
+                            <td class="font-semibold text-primary">{{ $bt->classModel?->name }}@if ($bt->stage)<span class="block text-[10px] font-normal text-gray-500">{{ $bt->stage->label }}</span>@endif</td>
                             <td>
                                 <div>{{ $bt->scheduled_at ? $bt->scheduled_at->format('d/m/Y H:i') : '—' }}</div>
                                 <div class="text-[10px] text-gray-400">{{ $bt->room }}</div>

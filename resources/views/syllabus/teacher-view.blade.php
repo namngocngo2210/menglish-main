@@ -110,27 +110,89 @@
         </section>
     </div>
 
-    @if ($curriculum)
-        <section class="mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-            <h2 class="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+    {{-- Chặng đang mở của lớp: Chặng → Unit → Buổi, buổi đang dạy --}}
+    <section class="mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h2 class="text-sm font-bold text-gray-900 flex items-center gap-2">
                 <span class="material-symbols-outlined text-primary">list_alt</span>
-                Nội dung buổi học — {{ $curriculum->title }}
+                Nội dung giảng dạy theo chặng
             </h2>
-            <div class="space-y-2">
-                @forelse ($units as $u)
-                    <details class="border border-gray-200 rounded-xl p-3 text-xs">
-                        <summary class="font-bold text-gray-900 cursor-pointer">Buổi {{ $u->unit_number }}: {{ $u->title }}</summary>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 text-gray-700">
-                            <p class="whitespace-pre-line"><span class="font-semibold">Mục tiêu:</span> {{ $u->objectives ?: '—' }}</p>
-                            <p class="whitespace-pre-line"><span class="font-semibold">Bài tập về nhà:</span> {{ $u->homework_guide ?: '—' }}</p>
-                            <p class="whitespace-pre-line"><span class="font-semibold">Từ vựng:</span> {{ $u->vocabulary_focus ?: '—' }}</p>
-                            <p class="whitespace-pre-line"><span class="font-semibold">Ngữ pháp:</span> {{ $u->grammar_focus ?: '—' }}</p>
+            @if ($classes->isNotEmpty())
+                <form method="GET" action="{{ route('syllabus.teacher-view') }}">
+                    @if ($selected)<input type="hidden" name="document" value="{{ $selected->id }}">@endif
+                    <x-ui.select name="class" inline-label="Lớp" :value="$class?->id" :options="$classes->pluck('name', 'id')" onchange="this.form.submit()" />
+                </form>
+            @endif
+        </div>
+
+        @if (! $assignment)
+            <x-ui.empty-state icon="school" title="Chưa có lớp nào đang học chặng" description="Học thuật mở chặng cho lớp ở màn Chặng học của lớp; nội dung buổi học sẽ hiện ở đây." />
+        @else
+            {{-- Tiến trình các chặng của giáo trình --}}
+            <ol class="flex flex-wrap gap-2 text-[11px]">
+                @foreach ($stages as $s)
+                    @php($state = $s->id === $assignment->stage_id ? 'open' : ($closedStageIds->contains($s->id) ? 'done' : 'todo'))
+                    <li class="px-2.5 py-1 rounded-lg border {{ ['open' => 'border-primary-container bg-primary-container/10 text-primary font-bold', 'done' => 'border-emerald-200 bg-emerald-50 text-emerald-700', 'todo' => 'border-gray-200 text-gray-400'][$state] }}">
+                        <span class="material-symbols-outlined text-[13px] align-middle">{{ ['open' => 'play_circle', 'done' => 'check_circle', 'todo' => 'lock'][$state] }}</span>
+                        {{ $s->label }}
+                    </li>
+                @endforeach
+            </ol>
+
+            @php($current = $position['current'])
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                <div class="rounded-xl border border-gray-200 p-3">
+                    <p class="text-[10px] uppercase font-bold text-gray-400">Chặng đang học</p>
+                    <p class="font-bold text-gray-900">{{ $assignment->stage?->label ?? $assignment->stage_name }}</p>
+                    <p class="text-gray-500">{{ $assignment->curriculum?->title }} · mở {{ ($assignment->opened_at ?? $assignment->created_at)?->format('d/m/Y') }}</p>
+                </div>
+                <div class="rounded-xl border border-gray-200 p-3">
+                    <p class="text-[10px] uppercase font-bold text-gray-400">Tiến độ</p>
+                    <p class="font-bold text-gray-900">Đã dạy {{ $position['taught'] }} / {{ $position['lessons']->count() }} buổi của chặng</p>
+                    @if ($assignment->extra_sessions)
+                        <p class="text-amber-700">+{{ $assignment->extra_sessions }} buổi giãn tiến độ đã duyệt</p>
+                    @endif
+                </div>
+                <div class="rounded-xl border border-gray-200 p-3">
+                    <p class="text-[10px] uppercase font-bold text-gray-400">Big Test cuối chặng</p>
+                    <p class="font-bold text-purple-700">{{ $assignment->stage?->big_test_title ?: 'Big Test cuối chặng' }}</p>
+                    <p class="text-gray-500">Chặng đóng khi kết quả được duyệt và gửi phụ huynh.</p>
+                </div>
+            </div>
+
+            @if ($current)
+                <x-ui.alert type="info" title="Buổi tiếp theo: Buổi {{ $current->session_no }} — Unit {{ $current->unit?->unit_number }}">{{ $current->title }}</x-ui.alert>
+            @elseif ($position['lessons']->isNotEmpty())
+                <x-ui.alert type="warning">Lớp đã dạy hết {{ $position['lessons']->count() }} buổi của chặng{{ $position['over'] ? ' (vượt '.$position['over'].' buổi)' : '' }} — ôn tập và tổ chức Big Test cuối chặng, hoặc gửi yêu cầu giãn tiến độ.</x-ui.alert>
+            @endif
+
+            <div class="space-y-3">
+                @forelse ($assignment->stage?->units()->with('lessons')->get() ?? [] as $u)
+                    <div class="border border-gray-200 rounded-xl">
+                        <p class="px-4 py-2.5 text-xs font-bold text-gray-900 bg-gray-50/60 rounded-t-xl">Unit {{ $u->unit_number }}: {{ $u->title }}</p>
+                        <div class="divide-y divide-gray-100">
+                            @forelse ($u->lessons as $lesson)
+                                <details class="px-4 py-2.5 text-xs {{ $current?->id === $lesson->id ? 'bg-orange-50/60' : '' }}" @if ($current?->id === $lesson->id) open @endif>
+                                    <summary class="font-semibold text-gray-800 cursor-pointer">
+                                        Buổi {{ $lesson->session_no }}: {{ $lesson->title }}
+                                        @if ($current?->id === $lesson->id)<x-ui.badge color="primary">Buổi tiếp theo</x-ui.badge>@endif
+                                    </summary>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 text-gray-700">
+                                        <p class="whitespace-pre-line"><span class="font-semibold">Mục tiêu:</span> {{ $lesson->objectives ?: '—' }}</p>
+                                        <p class="whitespace-pre-line"><span class="font-semibold">Bài tập về nhà:</span> {{ $lesson->homework_guide ?: '—' }}</p>
+                                        <p class="whitespace-pre-line"><span class="font-semibold">Từ vựng:</span> {{ $lesson->vocabulary_focus ?: '—' }}</p>
+                                        <p class="whitespace-pre-line"><span class="font-semibold">Ngữ pháp:</span> {{ $lesson->grammar_focus ?: '—' }}</p>
+                                    </div>
+                                </details>
+                            @empty
+                                <p class="px-4 py-2.5 text-[11px] text-gray-400">Unit chưa có buổi học.</p>
+                            @endforelse
                         </div>
-                    </details>
+                    </div>
                 @empty
-                    <p class="text-xs text-gray-400">Giáo trình chưa có buổi học nào.</p>
+                    <p class="text-xs text-gray-400">Chặng chưa có unit / buổi học nào.</p>
                 @endforelse
             </div>
-        </section>
-    @endif
+        @endif
+    </section>
 </x-app-layout>

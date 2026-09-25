@@ -9,17 +9,23 @@ use App\Models\BigTestOrder;
 use App\Models\BigTestResult;
 use App\Models\ClassModel;
 use App\Models\Course;
+use App\Models\CourseLevel;
 use App\Models\SyllabusAdjustmentRequest;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusChangeProposal;
 use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusDocument;
+use App\Models\SyllabusLesson;
+use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
 use App\Models\User;
+use App\Services\DocumentCodeGenerator;
 use App\Services\SafeUploadService;
 use App\Services\ScheduleExtensionService;
+use App\Services\SyllabusProgressionService;
 use App\Services\ZaloZnsService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -127,34 +133,65 @@ class SyllabusController extends Controller
     }
 
     // ─────────────────────────────────────────────
-    // 2. Soạn syllabus: chọn giáo trình, thông tin chặng, CRUD bài học
+    // 2. Soạn syllabus: Giáo trình → Chặng → Unit → Buổi (Q4)
     // ─────────────────────────────────────────────
 
+    /**
+     * Màn soạn syllabus. Ô soạn thảo (chặng / unit / buổi) mở theo query:
+     * new_stage=1, edit_stage={id}, new_unit={stage_id}, edit_unit={id}, new_lesson={unit_id}, edit_lesson={id}.
+     */
     public function builder(Request $request)
     {
         $curriculums = SyllabusCurriculum::with('course')->orderBy('title')->get();
+        $query = SyllabusCurriculum::with(['stages.units.lessons', 'levels']);
         $curriculum = $request->filled('curriculum')
-            ? SyllabusCurriculum::with('units')->findOrFail($request->integer('curriculum'))
-            : SyllabusCurriculum::with('units')->orderBy('title')->first();
-        $units = $curriculum ? $curriculum->units : collect();
-        $editUnit = $request->filled('edit_unit') && $curriculum
-            ? $units->firstWhere('id', $request->integer('edit_unit'))
-            : null;
-        $courses = Course::orderBy('name')->get();
+            ? $query->findOrFail($request->integer('curriculum'))
+            : $query->orderBy('title')->first();
+        $stages = $curriculum ? $curriculum->stages : collect();
+        $units = $stages->flatMap->units;
+        $lessons = $units->flatMap->lessons;
 
-        return view('syllabus.builder', compact('curriculums', 'curriculum', 'units', 'editUnit', 'courses'));
+        $editor = null;
+        if ($curriculum && $request->user()->can('syllabus.manage')) {
+            $editor = match (true) {
+                $request->boolean('new_stage') => ['type' => 'stage', 'model' => null, 'parent' => $curriculum],
+                $request->filled('edit_stage') => ['type' => 'stage', 'model' => $stages->firstWhere('id', $request->integer('edit_stage')), 'parent' => $curriculum],
+                $request->filled('new_unit') => ['type' => 'unit', 'model' => null, 'parent' => $stages->firstWhere('id', $request->integer('new_unit'))],
+                $request->filled('edit_unit') => ['type' => 'unit', 'model' => $units->firstWhere('id', $request->integer('edit_unit')), 'parent' => null],
+                $request->filled('new_lesson') => ['type' => 'lesson', 'model' => null, 'parent' => $units->firstWhere('id', $request->integer('new_lesson'))],
+                $request->filled('edit_lesson') => ['type' => 'lesson', 'model' => $lessons->firstWhere('id', $request->integer('edit_lesson')), 'parent' => null],
+                default => null,
+            };
+            // Id không thuộc giáo trình đang mở → bỏ qua ô soạn thảo.
+            if ($editor && ! $editor['model'] && ! $editor['parent']) {
+                $editor = null;
+            }
+        }
+
+        $courses = Course::orderBy('name')->get();
+        $levels = CourseLevel::orderBy('name')->get(['id', 'code', 'name', 'syllabus_curriculum_id']);
+        $openClassesByStage = $curriculum
+            ? SyllabusAssignment::open()->where('curriculum_id', $curriculum->id)->with('classModel:id,name')->get()->groupBy('stage_id')
+            : collect();
+
+        return view('syllabus.builder', compact(
+            'curriculums', 'curriculum', 'stages', 'units', 'lessons', 'editor', 'courses', 'levels', 'openClassesByStage'
+        ));
     }
 
     public function storeCurriculum(Request $request)
     {
         $validated = $request->validate($this->curriculumRules() + [
             'code' => ['required', 'string', 'max:50', 'unique:syllabus_curriculums,code'],
+            'stage_name' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $curriculum = SyllabusCurriculum::create($validated);
+        // Model tự tạo "Chặng 1" (tên lấy từ ô Chặng học nếu có).
+        $curriculum = SyllabusCurriculum::create(collect($validated)->except('level_ids')->all());
+        $this->syncCurriculumLevels($curriculum, $validated['level_ids'] ?? null);
 
         return redirect()->route('syllabus.builder', ['curriculum' => $curriculum->id])
-            ->with('status', "Đã tạo giáo trình {$curriculum->title}.");
+            ->with('status', "Đã tạo giáo trình {$curriculum->title} (kèm Chặng 1).");
     }
 
     public function updateCurriculum(Request $request, int $id)
@@ -164,17 +201,19 @@ class SyllabusController extends Controller
             'code' => ['required', 'string', 'max:50', Rule::unique('syllabus_curriculums', 'code')->ignore($curriculum->id)],
         ]);
 
-        $curriculum->update($validated);
+        $curriculum->update(collect($validated)->except('level_ids')->all());
+        // Form có khối "Trình độ áp dụng" (levels_submitted) → bỏ chọn hết nghĩa là gỡ giáo trình khỏi mọi trình độ.
+        $this->syncCurriculumLevels($curriculum, $request->has('levels_submitted') ? ($validated['level_ids'] ?? []) : ($validated['level_ids'] ?? null));
 
         return redirect()->route('syllabus.builder', ['curriculum' => $curriculum->id])
-            ->with('status', "Đã lưu thông tin chặng / giáo trình {$curriculum->title}.");
+            ->with('status', "Đã lưu thông tin giáo trình {$curriculum->title}.");
     }
 
     public function destroyCurriculum(int $id)
     {
-        $curriculum = SyllabusCurriculum::withCount(['assignments' => fn ($q) => $q->where('status', 'in_progress')])->findOrFail($id);
+        $curriculum = SyllabusCurriculum::withCount(['assignments' => fn ($q) => $q->open()])->findOrFail($id);
         if ($curriculum->assignments_count > 0) {
-            return redirect()->back()->with('error', "Giáo trình {$curriculum->title} đang được giao cho lớp, không thể xóa.");
+            return redirect()->back()->with('error', "Giáo trình {$curriculum->title} đang được lớp học, không thể xóa.");
         }
 
         foreach ($curriculum->documents()->get() as $doc) {
@@ -191,45 +230,155 @@ class SyllabusController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'course_id' => ['nullable', 'exists:courses,id'],
             'version' => ['required', 'string', 'max:20'],
-            'stage_name' => ['nullable', 'string', 'max:255'],
-            'unlock_policy' => ['nullable', Rule::in(array_keys(SyllabusCurriculum::UNLOCK_POLICIES))],
-            'overview_link' => ['nullable', 'url', 'max:500'],
             'description' => ['nullable', 'string', 'max:5000'],
+            'level_ids' => ['nullable', 'array'],
+            'level_ids.*' => ['integer', 'exists:course_levels,id'],
         ];
     }
+
+    /** Gắn giáo trình cho Trình độ (course_levels.syllabus_curriculum_id). null = không đổi. */
+    private function syncCurriculumLevels(SyllabusCurriculum $curriculum, ?array $levelIds): void
+    {
+        if ($levelIds === null) {
+            return;
+        }
+        CourseLevel::where('syllabus_curriculum_id', $curriculum->id)->whereNotIn('id', $levelIds)->update(['syllabus_curriculum_id' => null]);
+        CourseLevel::whereIn('id', $levelIds)->update(['syllabus_curriculum_id' => $curriculum->id]);
+    }
+
+    // ---- Chặng ----
+
+    private function stageRules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:5000'],
+            'overview_link' => ['nullable', 'url', 'max:500'],
+            'big_test_title' => ['nullable', 'string', 'max:255'],
+            'big_test_note' => ['nullable', 'string', 'max:5000'],
+        ];
+    }
+
+    public function storeStage(Request $request)
+    {
+        $validated = $request->validate($this->stageRules() + [
+            'curriculum_id' => ['required', 'exists:syllabus_curriculums,id'],
+        ]);
+        $position = (int) SyllabusStage::where('curriculum_id', $validated['curriculum_id'])->max('position') + 1;
+        $stage = SyllabusStage::create($validated + ['position' => $position]);
+
+        return redirect()->route('syllabus.builder', ['curriculum' => $stage->curriculum_id])
+            ->with('status', "Đã thêm {$stage->label}.");
+    }
+
+    public function updateStage(Request $request, int $id)
+    {
+        $stage = SyllabusStage::findOrFail($id);
+        $stage->update($request->validate($this->stageRules()));
+
+        return redirect()->route('syllabus.builder', ['curriculum' => $stage->curriculum_id])
+            ->with('status', "Đã lưu thông tin {$stage->label}.");
+    }
+
+    public function destroyStage(int $id)
+    {
+        $stage = SyllabusStage::withCount(['units', 'assignments', 'bigTests'])->findOrFail($id);
+        $error = match (true) {
+            SyllabusStage::where('curriculum_id', $stage->curriculum_id)->count() <= 1 => 'Giáo trình phải có ít nhất 1 chặng.',
+            $stage->units_count > 0 => "{$stage->label} còn {$stage->units_count} unit — hãy xóa hoặc chuyển unit sang chặng khác trước.",
+            $stage->assignments_count > 0 || $stage->big_tests_count > 0 => "{$stage->label} đã được giao cho lớp / gắn Big Test, không thể xóa.",
+            default => null,
+        };
+        if ($error) {
+            return redirect()->back()->with('error', $error);
+        }
+
+        $stage->delete();
+        $this->renumberStages($stage->curriculum_id);
+
+        return redirect()->route('syllabus.builder', ['curriculum' => $stage->curriculum_id])
+            ->with('status', "Đã xóa {$stage->label}.");
+    }
+
+    /** Đổi thứ tự chặng (lên / xuống 1 bậc). Thứ tự quyết định chặng nào tự mở sau Big Test. */
+    public function moveStage(Request $request, int $id)
+    {
+        $stage = SyllabusStage::findOrFail($id);
+        $direction = $request->validate(['direction' => ['required', Rule::in(['up', 'down'])]])['direction'];
+
+        DB::transaction(function () use ($stage, $direction) {
+            $ordered = $this->renumberStages($stage->curriculum_id);
+            $index = $ordered->search(fn ($s) => $s->id === $stage->id);
+            $swapIndex = $direction === 'up' ? $index - 1 : $index + 1;
+            if ($index === false || ! $ordered->has($swapIndex)) {
+                return;
+            }
+            $other = $ordered[$swapIndex];
+            $current = $ordered[$index];
+            [$a, $b] = [$current->position, $other->position];
+            $current->update(['position' => $b]);
+            $other->update(['position' => $a]);
+        });
+
+        return redirect()->route('syllabus.builder', ['curriculum' => $stage->curriculum_id])
+            ->with('status', 'Đã đổi thứ tự chặng.');
+    }
+
+    /** Đánh số lại position 1..n theo thứ tự hiện tại. */
+    private function renumberStages(int $curriculumId): Collection
+    {
+        $stages = SyllabusStage::where('curriculum_id', $curriculumId)->orderBy('position')->orderBy('id')->get()->values();
+        foreach ($stages as $i => $stage) {
+            if ($stage->position !== $i + 1) {
+                $stage->update(['position' => $i + 1]);
+            }
+        }
+
+        return $stages;
+    }
+
+    // ---- Unit ----
 
     public function storeUnit(Request $request)
     {
         $validated = $request->validate($this->unitRules() + [
             'curriculum_id' => ['required', 'exists:syllabus_curriculums,id'],
-        ]);
+            'stage_id' => ['nullable', Rule::exists('syllabus_stages', 'id')->where('curriculum_id', $request->input('curriculum_id'))],
+        ], ['stage_id.exists' => 'Chặng không thuộc giáo trình đã chọn.']);
         $this->ensureUniqueUnitNumber((int) $validated['curriculum_id'], (int) $validated['unit_number']);
+        // Không chọn chặng → đưa vào chặng cuối của giáo trình.
+        $validated['stage_id'] ??= SyllabusStage::where('curriculum_id', $validated['curriculum_id'])->orderByDesc('position')->orderByDesc('id')->value('id');
 
         $unit = SyllabusUnit::create($validated);
 
         return redirect()->route('syllabus.builder', ['curriculum' => $unit->curriculum_id])
-            ->with('status', "Đã lưu bài {$unit->title}.");
+            ->with('status', "Đã lưu Unit {$unit->unit_number}: {$unit->title}.");
     }
 
     public function updateUnit(Request $request, int $id)
     {
         $unit = SyllabusUnit::findOrFail($id);
-        $validated = $request->validate($this->unitRules());
+        $validated = $request->validate($this->unitRules() + [
+            'stage_id' => ['nullable', Rule::exists('syllabus_stages', 'id')->where('curriculum_id', $unit->curriculum_id)],
+        ], ['stage_id.exists' => 'Chặng không thuộc giáo trình này.']);
         $this->ensureUniqueUnitNumber($unit->curriculum_id, (int) $validated['unit_number'], $unit->id);
+        if (empty($validated['stage_id'])) {
+            unset($validated['stage_id']);
+        }
 
         $unit->update($validated);
 
         return redirect()->route('syllabus.builder', ['curriculum' => $unit->curriculum_id])
-            ->with('status', "Đã cập nhật bài {$unit->title}.");
+            ->with('status', "Đã cập nhật Unit {$unit->unit_number}: {$unit->title}.");
     }
 
     public function destroyUnit(int $id)
     {
-        $unit = SyllabusUnit::findOrFail($id);
+        $unit = SyllabusUnit::withCount('lessons')->findOrFail($id);
         $unit->delete();
 
         return redirect()->route('syllabus.builder', ['curriculum' => $unit->curriculum_id])
-            ->with('status', "Đã xóa bài {$unit->title}.");
+            ->with('status', "Đã xóa Unit {$unit->title}".($unit->lessons_count ? " cùng {$unit->lessons_count} buổi." : '.'));
     }
 
     private function unitRules(): array
@@ -251,59 +400,169 @@ class SyllabusController extends Controller
             ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
             ->exists();
         if ($exists) {
-            throw ValidationException::withMessages(['unit_number' => "Buổi số {$number} đã có trong giáo trình này."]);
+            throw ValidationException::withMessages(['unit_number' => "Unit {$number} đã có trong giáo trình này."]);
         }
     }
 
+    // ---- Buổi ----
+
+    private function lessonRules(): array
+    {
+        return [
+            'session_no' => ['required', 'integer', 'min:1', 'max:1000'],
+            'title' => ['required', 'string', 'max:255'],
+            'objectives' => ['nullable', 'string'],
+            'vocabulary_focus' => ['nullable', 'string'],
+            'grammar_focus' => ['nullable', 'string'],
+            'homework_guide' => ['nullable', 'string'],
+        ];
+    }
+
+    private function ensureUniqueSessionNo(int $curriculumId, int $number, ?int $ignoreId = null): void
+    {
+        $exists = SyllabusLesson::where('curriculum_id', $curriculumId)
+            ->where('session_no', $number)
+            ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
+            ->exists();
+        if ($exists) {
+            throw ValidationException::withMessages(['session_no' => "Buổi {$number} đã có trong giáo trình này (số buổi đánh liên tục trong cả giáo trình)."]);
+        }
+    }
+
+    public function storeLesson(Request $request)
+    {
+        $validated = $request->validate($this->lessonRules() + [
+            'unit_id' => ['required', 'exists:syllabus_units,id'],
+        ]);
+        $unit = SyllabusUnit::findOrFail($validated['unit_id']);
+        $this->ensureUniqueSessionNo($unit->curriculum_id, (int) $validated['session_no']);
+
+        $lesson = SyllabusLesson::create($validated + ['curriculum_id' => $unit->curriculum_id]);
+
+        return redirect()->route('syllabus.builder', ['curriculum' => $unit->curriculum_id])
+            ->with('status', "Đã lưu Buổi {$lesson->session_no}: {$lesson->title} (Unit {$unit->unit_number}).");
+    }
+
+    public function updateLesson(Request $request, int $id)
+    {
+        $lesson = SyllabusLesson::findOrFail($id);
+        $validated = $request->validate($this->lessonRules() + [
+            'unit_id' => ['nullable', Rule::exists('syllabus_units', 'id')->where('curriculum_id', $lesson->curriculum_id)],
+        ], ['unit_id.exists' => 'Unit không thuộc giáo trình này.']);
+        $this->ensureUniqueSessionNo($lesson->curriculum_id, (int) $validated['session_no'], $lesson->id);
+        if (empty($validated['unit_id'])) {
+            unset($validated['unit_id']);
+        }
+
+        $lesson->update($validated);
+
+        return redirect()->route('syllabus.builder', ['curriculum' => $lesson->curriculum_id])
+            ->with('status', "Đã cập nhật Buổi {$lesson->session_no}: {$lesson->title}.");
+    }
+
+    public function destroyLesson(int $id)
+    {
+        $lesson = SyllabusLesson::findOrFail($id);
+        $lesson->delete();
+
+        return redirect()->route('syllabus.builder', ['curriculum' => $lesson->curriculum_id])
+            ->with('status', "Đã xóa Buổi {$lesson->session_no}: {$lesson->title}.");
+    }
+
     // ─────────────────────────────────────────────
-    // 3. Giao chặng cho lớp: mỗi lớp chỉ 1 chặng đang áp dụng
+    // 3. Chặng của lớp: mỗi lớp chỉ 1 chặng đang mở; đóng khi Big Test duyệt & gửi → tự mở chặng kế
     // ─────────────────────────────────────────────
 
     public function assignments(Request $request)
     {
-        $assignments = SyllabusAssignment::with(['teacher', 'curriculum', 'classModel'])
-            ->latest()
+        $assignments = SyllabusAssignment::with(['teacher', 'curriculum', 'classModel', 'stage', 'closer', 'opener', 'closingBigTest'])
+            ->when($request->filled('class_id'), fn ($q) => $q->where('class_id', $request->integer('class_id')))
+            ->orderByRaw("CASE WHEN status = 'in_progress' THEN 0 ELSE 1 END")
+            ->latest('id')
             ->paginate($request->perPage(20))
             ->withQueryString();
         $teachers = User::whereHas('roles', fn ($query) => $query->whereIn('name', ['teacher', 'teacher_fulltime', 'teacher_parttime', 'academic_lead']))->orderBy('name')->get();
-        $curriculums = SyllabusCurriculum::orderBy('title')->get();
+        $curriculums = SyllabusCurriculum::with('stages')->orderBy('title')->get();
         $classes = ClassModel::where('status', '!=', 'cancelled')->orderBy('name')->get();
+        $levelCurriculum = CourseLevel::whereNotNull('syllabus_curriculum_id')->pluck('syllabus_curriculum_id', 'code');
+        $openByClass = SyllabusAssignment::open()->whereNotNull('class_id')->with('stage')->get()->keyBy('class_id');
 
-        return view('syllabus.assignments', compact('assignments', 'teachers', 'curriculums', 'classes'));
+        return view('syllabus.assignments', compact('assignments', 'teachers', 'curriculums', 'classes', 'levelCurriculum', 'openByClass'));
     }
 
-    public function storeAssignment(Request $request)
+    /**
+     * Mở chặng cho lớp. Mặc định: giáo trình theo Trình độ của lớp, chặng = chặng đầu tiên lớp chưa học xong,
+     * GV = GV chính của lớp. Lớp đang mở chặng khác thì từ chối, trừ khi Học thuật chọn "chuyển chặng" kèm lý do.
+     */
+    public function storeAssignment(Request $request, SyllabusProgressionService $progression)
     {
         $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'curriculum_id' => 'required|exists:syllabus_curriculums,id',
-            'class_id' => 'required|exists:classes,id',
-            'assigned_chapters' => 'required|string',
-            'stage_name' => 'required|string|max:255',
-            'deadline' => 'required|date',
+            'class_id' => ['required', 'exists:classes,id'],
+            'curriculum_id' => ['nullable', 'exists:syllabus_curriculums,id'],
+            'stage_id' => ['nullable', 'exists:syllabus_stages,id'],
+            'user_id' => ['nullable', 'exists:users,id'],
+            'assigned_chapters' => ['nullable', 'string', 'max:255'],
+            'stage_name' => ['nullable', 'string', 'max:255'],
+            'deadline' => ['nullable', 'date'],
+            'replace_current' => ['nullable', 'boolean'],
+            'reason' => ['nullable', 'string', 'max:2000'],
         ]);
+        $class = ClassModel::findOrFail($validated['class_id']);
 
-        // R19: mỗi lớp chỉ có 1 chặng đang áp dụng; phải hoàn thành chặng hiện tại trước khi giao chặng mới.
-        $current = SyllabusAssignment::where('class_id', $validated['class_id'])->where('status', 'in_progress')->first();
-        if ($current) {
-            throw ValidationException::withMessages([
-                'class_id' => "Lớp đang áp dụng chặng \"{$current->stage_name}\". Hãy đánh dấu hoàn thành chặng hiện tại trước khi giao chặng mới.",
-            ]);
+        $stage = ! empty($validated['stage_id']) ? SyllabusStage::findOrFail($validated['stage_id']) : null;
+        $curriculumId = $validated['curriculum_id'] ?? $stage?->curriculum_id
+            ?? CourseLevel::where('code', $class->level)->value('syllabus_curriculum_id');
+        if (! $curriculumId) {
+            throw ValidationException::withMessages(['curriculum_id' => 'Chọn giáo trình (trình độ của lớp chưa gắn giáo trình).']);
+        }
+        if ($stage && (int) $stage->curriculum_id !== (int) $curriculumId) {
+            throw ValidationException::withMessages(['stage_id' => 'Chặng không thuộc giáo trình đã chọn.']);
+        }
+        $stage ??= $progression->nextStageFor($class, SyllabusCurriculum::findOrFail($curriculumId));
+        if (! $stage) {
+            throw ValidationException::withMessages(['stage_id' => 'Lớp đã học hết các chặng của giáo trình này.']);
         }
 
-        SyllabusAssignment::create($validated + ['progress_percent' => 0, 'status' => 'in_progress']);
+        $attributes = array_filter([
+            'assigned_chapters' => $validated['assigned_chapters'] ?? null,
+            'deadline' => $validated['deadline'] ?? null,
+        ]);
+        $reason = trim((string) ($validated['reason'] ?? '')) ?: null;
+
+        if ($request->boolean('replace_current') && $progression->openAssignment($class)) {
+            abort_unless($request->user()->can('syllabus.approve_adjustment'), 403, 'Chỉ Học thuật được chuyển chặng đang mở.');
+            if (! $reason) {
+                throw ValidationException::withMessages(['reason' => 'Vui lòng nhập lý do chuyển chặng.']);
+            }
+            $assignment = $progression->switchTo($class, $stage, $validated['user_id'] ?? null, $request->user(), $reason, $attributes);
+        } else {
+            $assignment = $progression->open($class, $stage, $validated['user_id'] ?? null, $request->user(), $reason, $attributes);
+        }
+
+        AdminNotification::create([
+            'user_id' => $assignment->user_id,
+            'type' => 'syllabus_stage',
+            'title' => "Lớp {$class->name} mở {$assignment->stage_name}",
+            'message' => 'Nội dung chặng đã mở trong màn Xem giáo trình.',
+            'data' => ['link' => route('syllabus.teacher-view', ['class' => $class->id])],
+            'is_read' => false,
+        ]);
 
         return redirect()->route('syllabus.assignments')
-            ->with('status', 'Đã giao chặng cho lớp và giáo viên thành công!');
+            ->with('status', "Đã mở {$assignment->stage_name} cho lớp {$class->name}.");
     }
 
-    public function completeAssignment(int $id)
+    /** Học thuật đóng tay chặng đang mở (bắt buộc lý do); mặc định tự mở chặng kế tiếp. */
+    public function closeAssignment(Request $request, int $id, SyllabusProgressionService $progression)
     {
         $assignment = SyllabusAssignment::findOrFail($id);
-        abort_unless($assignment->status === 'in_progress', 422, 'Chặng này không ở trạng thái đang áp dụng.');
-        $assignment->update(['status' => 'completed', 'progress_percent' => 100]);
+        $validated = $request->validate(['reason' => ['required', 'string', 'max:2000']], [
+            'reason.required' => 'Vui lòng nhập lý do đóng chặng.',
+        ]);
 
-        return redirect()->back()->with('status', "Đã đóng chặng {$assignment->stage_name}; có thể giao chặng tiếp theo cho lớp.");
+        $outcome = $progression->close($assignment, $request->user(), 'Học thuật đóng tay: '.$validated['reason'], null, $request->boolean('open_next'));
+
+        return redirect()->back()->with('status', trim($progression->describe($outcome)));
     }
 
     // ─────────────────────────────────────────────
@@ -449,7 +708,11 @@ class SyllabusController extends Controller
         return $disk->download($proposal->attachment_path, $name, ['X-Content-Type-Options' => 'nosniff']);
     }
 
-    public function teacherView(Request $request)
+    /**
+     * Màn GV xem giáo trình: tài liệu được chia sẻ + chặng đang mở của lớp mình
+     * (các chặng của giáo trình, Unit / Buổi của chặng hiện tại, buổi đang dạy).
+     */
+    public function teacherView(Request $request, SyllabusProgressionService $progression)
     {
         $user = $request->user();
         $documents = SyllabusDocument::with('curriculum.course')->visibleTo($user)->latest()->get();
@@ -458,15 +721,22 @@ class SyllabusController extends Controller
             : $documents->first();
         abort_if($request->filled('document') && ! $selected, 404);
 
-        $curriculumIds = SyllabusAssignment::where('user_id', $user->id)->pluck('curriculum_id');
-        $curriculum = SyllabusCurriculum::with(['course', 'units'])
-            ->when(! SyllabusDocument::userManages($user), fn ($query) => $query->whereIn('id', $curriculumIds))
-            ->when($selected, fn ($query) => $query->orderByRaw('id = ? desc', [$selected->curriculum_id]))
-            ->latest()
-            ->first();
-        $units = $curriculum ? $curriculum->units : collect();
+        // Lớp người dùng được xem và đang có chặng mở.
+        $classes = ClassModel::visibleTo($user)
+            ->whereIn('id', SyllabusAssignment::open()->whereNotNull('class_id')->select('class_id'))
+            ->orderBy('name')
+            ->get();
+        $class = $request->filled('class') ? $classes->firstWhere('id', $request->integer('class')) : $classes->first();
+        abort_if($request->filled('class') && ! $class, 404);
 
-        return view('syllabus.teacher-view', compact('documents', 'selected', 'curriculum', 'units'));
+        $assignment = $class ? $progression->openAssignment($class) : null;
+        $position = $assignment ? $progression->position($assignment) : null;
+        $stages = $assignment?->curriculum ? $assignment->curriculum->stages()->with('units.lessons')->get() : collect();
+        $closedStageIds = $class
+            ? SyllabusAssignment::where('class_id', $class->id)->where('status', SyllabusAssignment::STATUS_CLOSED)->pluck('stage_id')->filter()
+            : collect();
+
+        return view('syllabus.teacher-view', compact('documents', 'selected', 'classes', 'class', 'assignment', 'position', 'stages', 'closedStageIds'));
     }
 
     // ─────────────────────────────────────────────
@@ -519,6 +789,8 @@ class SyllabusController extends Controller
 
         SyllabusAdjustmentRequest::create([
             'class_id' => $class->id,
+            // Gắn chặng đang mở để biết giãn tiến độ cho chặng nào.
+            'syllabus_assignment_id' => SyllabusAssignment::open()->where('class_id', $class->id)->value('id'),
             'user_id' => $user->id,
             'request_type' => $validated['request_type'],
             'reason' => $validated['reason'],
@@ -550,10 +822,19 @@ class SyllabusController extends Controller
                 $appliedNote = 'Đã thêm '.count($created).' buổi: '
                     .collect($created)->map(fn ($s) => $s->date->format('d/m/Y'))->implode(', ')
                     .'. Ngày kết thúc lớp: '.$req->classModel->fresh()->end_date?->format('d/m/Y').'.';
+
+                // Chặng đang mở được cộng thêm số buổi giãn (buổi thêm dùng để dạy chậm lại / ôn trước Big Test).
+                $assignment = SyllabusAssignment::open()->where('class_id', $req->class_id)->first();
+                if ($assignment) {
+                    $assignment->increment('extra_sessions', count($created));
+                    $req->syllabus_assignment_id ??= $assignment->id;
+                    $appliedNote .= " {$assignment->stage_name}: +".count($created).' buổi giãn tiến độ.';
+                }
             }
 
             $req->update([
                 'status' => 'approved',
+                'syllabus_assignment_id' => $req->syllabus_assignment_id,
                 'approver_id' => Auth::id(),
                 'extra_sessions' => $count ?: $req->extra_sessions,
                 'reviewed_at' => now(),
@@ -619,7 +900,7 @@ class SyllabusController extends Controller
     {
         $user = $request->user();
         $classes = ClassModel::visibleTo($user)->where('status', '!=', 'cancelled')->orderBy('name')->get();
-        $bigTests = BigTest::with(['classModel', 'proctor'])->visibleTo($user)->latest()->paginate($request->perPage(15), ['*'], 'tests_page')->withQueryString();
+        $bigTests = BigTest::with(['classModel', 'proctor', 'stage'])->visibleTo($user)->latest()->paginate($request->perPage(15), ['*'], 'tests_page')->withQueryString();
 
         $orderStatus = $request->query('order_status', 'pending');
         $orders = BigTestOrder::with(['classModel', 'teacher', 'reviewer'])
@@ -695,9 +976,12 @@ class SyllabusController extends Controller
             'test_type' => 'required|string',
             'scheduled_at' => 'required|date',
             'room' => 'required|string',
+            'syllabus_stage_id' => 'nullable|exists:syllabus_stages,id',
         ]);
+        // Big Test cuối chặng: mặc định gắn chặng đang mở của lớp.
+        $validated['syllabus_stage_id'] ??= SyllabusAssignment::open()->where('class_id', $validated['class_id'])->value('stage_id');
 
-        $code = app(\App\Services\DocumentCodeGenerator::class)->bigTestCode();
+        $code = app(DocumentCodeGenerator::class)->bigTestCode();
 
         $bt = BigTest::create($validated + [
             'code' => $code,
@@ -801,7 +1085,7 @@ class SyllabusController extends Controller
         $allTests = BigTest::with('classModel')->visibleTo($user)->latest()->get();
 
         if ($testId) {
-            $test = BigTest::with('classModel')->find($testId);
+            $test = BigTest::with(['classModel', 'stage'])->find($testId);
             abort_unless($test && $test->isAccessibleBy($user), 404);
         } else {
             $test = $allTests->first();
@@ -887,17 +1171,20 @@ class SyllabusController extends Controller
         return redirect()->back()->with('status', "Đã lưu kết quả {$rows->count()} học viên; kết quả đang chờ Học thuật duyệt.");
     }
 
-    public function approveBigTestResults(int $id)
+    public function approveBigTestResults(int $id, SyllabusProgressionService $progression)
     {
         $test = BigTest::findOrFail($id);
         BigTestResult::where('big_test_id', $test->id)
             ->where('status', 'pending_review')
             ->update(['status' => 'approved', 'approved_by' => Auth::id(), 'approved_at' => now()]);
 
-        return redirect()->back()->with('status', 'Đã duyệt kết quả Big Test; có thể gửi cho phụ huynh.');
+        // Trường hợp mọi kết quả đã gửi / vắng thi: duyệt xong là đủ điều kiện đóng chặng.
+        $stageNote = $progression->describe($progression->syncBigTest($test, Auth::user()));
+
+        return redirect()->back()->with('status', 'Đã duyệt kết quả Big Test; có thể gửi cho phụ huynh.'.$stageNote);
     }
 
-    public function sendZaloResults($id)
+    public function sendZaloResults($id, SyllabusProgressionService $progression)
     {
         $test = BigTest::with('classModel')->findOrFail($id);
         abort_unless($test->is_distributed, 422, 'Đề thi chưa được duyệt và phân phối.');
@@ -926,8 +1213,10 @@ class SyllabusController extends Controller
         }
 
         $message = "Kỳ thi [{$test->title}]: đã gửi Zalo ZNS {$sent} phụ huynh";
+        // Q4: Big Test của chặng đã duyệt và gửi đủ → đóng chặng, tự mở chặng kế tiếp.
+        $stageNote = $sent > 0 ? $progression->describe($progression->syncBigTest($test->fresh(), Auth::user())) : '';
         if ($failed === [] && $skipped === []) {
-            return redirect()->back()->with('status', $message.'.');
+            return redirect()->back()->with('status', $message.'.'.$stageNote);
         }
         if ($failed !== []) {
             $message .= '; gửi lỗi '.count($failed).' ('.implode(', ', $failed).')';
@@ -936,10 +1225,10 @@ class SyllabusController extends Controller
             $message .= '; bỏ qua '.count($skipped).' do thiếu số điện thoại ('.implode(', ', $skipped).')';
         }
 
-        return redirect()->back()->with('warning', $message.'.');
+        return redirect()->back()->with('warning', $message.'.'.$stageNote);
     }
 
-    public function sendSingleZaloResult($resultId)
+    public function sendSingleZaloResult($resultId, SyllabusProgressionService $progression)
     {
         $res = BigTestResult::with(['student', 'bigTest.classModel'])->findOrFail($resultId);
         $studentName = $res->student?->name ?? 'Học viên';
@@ -953,7 +1242,8 @@ class SyllabusController extends Controller
         }
 
         return match ($this->deliverZaloResult($res, $res->bigTest)) {
-            'sent' => redirect()->back()->with('status', "Đã gửi thông báo điểm qua Zalo ZNS đến Phụ huynh em {$studentName} thành công!"),
+            'sent' => redirect()->back()->with('status', "Đã gửi thông báo điểm qua Zalo ZNS đến Phụ huynh em {$studentName} thành công!"
+                .$progression->describe($progression->syncBigTest($res->bigTest, Auth::user()))),
             'skipped' => redirect()->back()->with('error', "Không gửi được: học viên {$studentName} chưa có số điện thoại liên hệ."),
             default => redirect()->back()->with('error', "Gửi Zalo ZNS cho phụ huynh em {$studentName} thất bại, vui lòng thử lại."),
         };
