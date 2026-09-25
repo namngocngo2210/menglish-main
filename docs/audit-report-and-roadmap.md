@@ -528,6 +528,24 @@
 **Lỗi còn tồn:** —
 **MR:** —
 
+#### Phase 2 — Giáo trình & Big Test (nhánh `feat/phase2-syllabus`)
+**Đã làm:**
+- [x] Soạn syllabus: chọn giáo trình bất kỳ, tạo/sửa/xóa giáo trình và bài (chặn trùng số buổi), lưu thông tin chặng (tên chặng, chính sách mở khóa, link tổng quan). Bỏ dòng "tự động lưu". Sửa bài chỉ dành cho quyền `syllabus.manage` (GV đi qua đề xuất sửa).
+- [x] Giao chặng: lớp đang có chặng `in_progress` thì không giao chặng mới; thêm nút "Hoàn thành" để đóng chặng hiện tại.
+- [x] Tài liệu giáo trình: upload file thật qua `SafeUploadService` (pdf, doc(x), ppt(x), xls(x), ảnh, mp3/wav/m4a/ogg, mp4/mov/webm; ≤100 MB) lưu disk private `storage/app/private/syllabus_documents`; lưu loại/dung lượng thật, chặng, đối tượng xem (GV / TG) và quyền tải; xem qua route có kiểm tra quyền (không tải được thì chỉ xem inline); xóa xóa cả file. Màn GV xem tài liệu đọc dữ liệu thật.
+- [x] Đề xuất sửa giáo trình: bảng `syllabus_change_proposals` (giáo trình, bài, nội dung cũ/mới, lý do, file đính kèm). Học thuật (`syllabus.approve_adjustment`) duyệt / từ chối bắt buộc lý do; GV chỉ thấy đề xuất của mình; có thông báo cho GV.
+- [x] Giãn tiến độ: lưu lý do từ chối (bắt buộc). Khi duyệt, nếu yêu cầu có "số buổi cần thêm" N thì hệ thống **thêm N buổi chính khóa nối tiếp sau buổi cuối của lớp** theo ca lặp tuần trong TKB (hoặc suy ra từ các buổi gần nhất), bỏ qua ngày nghỉ lễ, chặn trùng phòng/nhân sự, rồi lùi `classes.end_date`. Không thêm được (chưa có TKB, trùng lịch) thì không duyệt. N = 0 chỉ ghi nhận.
+- [x] Media Manager chỉ quản lý `public/uploads/media` (whitelist). CV ứng viên, minh chứng công việc, bài nộp, ghi âm, báo cáo lớp, phiếu thu học phí, file ticket (`uploads/YYYY/MM/DD`), tài liệu giáo trình… nằm ngoài vùng này nên không liệt kê / di chuyển / xóa được.
+- [x] Order đề: GV order lưu bảng `big_test_orders` (kèm ngày thi dự kiến, hạn xử lý = ngày thi − 3 ngày); màn Duyệt & phân phối đề hiện order, hạn xử lý / trễ hạn, duyệt bắt buộc link đề, từ chối bắt buộc lý do. Order cũ trong `academic_records` (ORDTEST-) được chuyển sang bảng mới khi migrate. Danh sách đợt thi / nhắc lịch / order chỉ hiện lớp của GV.
+- [x] Nhắc lịch Big Test trước 7 ngày: lệnh `bigtests:remind-upcoming` chạy 07:45 hằng ngày, báo GV/GVNN/TG của lớp (đề chưa duyệt thì báo thêm Học thuật), mỗi đợt thi chỉ nhắc 1 lần (`big_tests.teacher_reminded_at`). Nút nhắc học viên thủ công giữ nguyên.
+- [x] Kết quả Big Test: cờ "Vắng thi" (điểm để trống, không còn điểm 0; không tính vào điểm trung bình, không gửi Zalo), link video bài thi, nút "Gửi PH" từng học viên, cột "Đã gửi PH". Cổng HV hiện kết quả đã duyệt **hoặc** đã gửi.
+**Chưa làm / chuyển phase sau:**
+- [ ] Q4 (chặng hay bài) chưa chốt → giữ mô hình giáo trình → bài; bài chưa gắn vào từng buổi học nên giãn tiến độ = thêm buổi cuối khóa.
+- [ ] Duyệt đề xuất sửa giáo trình chưa tự áp nội dung mới vào bài / chưa tăng phiên bản — Học thuật sửa tay ở màn Soạn syllabus.
+- [ ] Duyệt order đề không tự tạo đợt Big Test (chỉ gắn vào đợt thi có sẵn nếu chọn).
+**Quyết định phát sinh:** Hạn xử lý order = ngày thi − 3 ngày (theo mockup SLA). Media Manager chỉ sở hữu `uploads/media`.
+**Triển khai:** chạy `php artisan migrate` (2 migration `2026_09_28_1200xx`); bật scheduler (`* * * * * php artisan schedule:run`). File media cũ ở `public/uploads/YYYY/MM` (lẫn file ticket) không còn hiện trong Media Manager — chuyển tay những file thuộc media sang `public/uploads/media/` nếu cần.
+
 ---
 
 ## Phụ lục — Vị trí kỹ thuật các lỗi P0 (cho dev)

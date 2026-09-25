@@ -29,8 +29,8 @@ class MediaManagerTest extends TestCase
         ]);
         $this->admin->syncRoles(['admin']);
 
-        // Tạo thư mục test chuyên biệt trong uploads
-        $this->testDir = public_path('uploads/test_media_suite');
+        // Tạo thư mục test chuyên biệt trong thư mục gốc Media Manager (uploads/media)
+        $this->testDir = public_path('uploads/media/test_media_suite');
         if (!File::isDirectory($this->testDir)) {
             File::makeDirectory($this->testDir, 0755, true, true);
         }

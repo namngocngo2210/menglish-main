@@ -13,3 +13,5 @@ Schedule::command('students:send-birthday-notifications')->dailyAt('08:00');
 Schedule::command('crm:scan-stale-leads')->hourly();
 
 Schedule::command('tuition:send-debt-reminders')->dailyAt('08:30');
+
+Schedule::command('bigtests:remind-upcoming')->dailyAt('07:45');

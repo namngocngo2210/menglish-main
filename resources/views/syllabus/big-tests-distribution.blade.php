@@ -1,119 +1,200 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">dynamic_form</span>
-                    Phân phối Kỳ thi Big Test (Giữa kỳ / Cuối kỳ)
+                    Duyệt &amp; phân phối đề Big Test
                 </h1>
-                <p class="text-xs text-gray-500">Phân phối bộ đề thi đồng loạt, cấp mã bảo mật thi và chỉ định phòng thi / giám thị</p>
+                <p class="text-xs text-gray-500">Xử lý order đề của giáo viên (link đề, hạn xử lý) và phân phối đợt thi Big Test cho lớp.</p>
             </div>
-            <div class="flex items-center gap-2">
-                <button type="button" onclick="document.getElementById('newBigTestModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
-                    <span class="material-symbols-outlined text-[18px]">add_circle</span>
-                    <span>Tạo Đợt Big Test mới</span>
-                </button>
-            </div>
+            @can('syllabus.manage')
+                <x-ui.button icon="add_circle" x-data @click="$dispatch('open-modal', 'new-big-test')">Tạo đợt Big Test mới</x-ui.button>
+            @endcan
         </div>
     </x-slot>
 
-    <!-- Create Big Test Modal -->
-    <div id="newBigTestModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div class="flex justify-between items-center pb-2 border-b border-gray-100">
-                <h3 class="font-bold text-sm text-gray-900">Phân Phối Đợt Thi Big Test Mới</h3>
-                <button type="button" onclick="document.getElementById('newBigTestModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
-            </div>
-            <form action="{{ route('syllabus.big-tests.store') }}" method="POST" class="space-y-3">
-                @csrf
-                <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Tên đợt thi <span class="text-rose-500">*</span></label>
-                    <input type="text" name="title" placeholder="Final Big Test #09 (Cuối Khóa)" required class="w-full text-xs rounded-xl border border-gray-200 p-2 font-bold" />
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Lớp thi áp dụng <span class="text-rose-500">*</span></label>
-                        <select name="class_id" required class="w-full text-xs rounded-xl border border-gray-200 p-2 font-semibold text-primary">
-                            @foreach ($classes as $cl)
-                                <option value="{{ $cl->id }}">{{ $cl->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Loại kỳ thi</label>
-                        <select name="test_type" class="w-full text-xs rounded-xl border border-gray-200 p-2">
-                            <option value="midterm">Giữa kỳ (Mid-term)</option>
-                            <option value="final">Cuối khóa (Final)</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Thời gian thi <span class="text-rose-500">*</span></label>
-                        <input type="datetime-local" name="scheduled_at" value="{{ date('Y-m-d\TH:i', strtotime('+3 days')) }}" required class="w-full text-xs rounded-xl border border-gray-200 p-2" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Phòng thi <span class="text-rose-500">*</span></label>
-                        <input type="text" name="room" value="Phòng Lab 201" required class="w-full text-xs rounded-xl border border-gray-200 p-2" />
-                    </div>
-                </div>
-                <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
-                    <button type="button" onclick="document.getElementById('newBigTestModal').classList.add('hidden')" class="px-3 py-1.5 rounded-lg border text-xs text-gray-600">Hủy</button>
-                    <button type="submit" class="px-4 py-1.5 bg-primary-container text-white text-xs font-bold rounded-lg shadow-sm">Lưu bản nháp</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    @php($canReview = auth()->user()->can('syllabus.approve_adjustment'))
 
-    <div class="space-y-4">
-        <!-- Big Tests Table -->
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <table class="w-full text-left border-collapse text-xs">
+    @can('syllabus.manage')
+        <x-ui.modal name="new-big-test" title="Tạo đợt thi Big Test (bản nháp)" max-width="md">
+            <form id="new-big-test-form" action="{{ route('syllabus.big-tests.store') }}" method="POST" class="space-y-3 p-md">
+                @csrf
+                <x-ui.input name="title" label="Tên đợt thi" required placeholder="Final Big Test #09 (Cuối khóa)" />
+                <x-ui.select name="class_id" label="Lớp thi" required :options="$classes->pluck('name', 'id')" />
+                <x-ui.select name="test_type" label="Loại kỳ thi" :options="['midterm' => 'Giữa kỳ (Mid-term)', 'final' => 'Cuối khóa (Final)']" />
+                <x-ui.input type="datetime-local" name="scheduled_at" label="Thời gian thi" required :value="now()->addDays(7)->format('Y-m-d\TH:i')" />
+                <x-ui.input name="room" label="Phòng thi" required value="Phòng Lab 201" />
+            </form>
+            <x-slot:footer>
+                <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'new-big-test')">Hủy</x-ui.button>
+                <x-ui.button type="submit" form="new-big-test-form">Lưu bản nháp</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
+    @endcan
+
+    <div class="space-y-6">
+        {{-- Order đề của giáo viên --}}
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-5 min-w-0">
+                <x-ui.data-table>
+                    <x-slot:header>
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary text-[20px]">pending_actions</span>
+                            <h2 class="text-sm font-bold text-gray-900">Order đề của giáo viên</h2>
+                            <x-ui.badge color="warning">{{ $pendingOrders }} chờ duyệt</x-ui.badge>
+                        </div>
+                        <form method="GET">
+                            <x-ui.select name="order_status" :value="$orderStatus" placeholder="Tất cả" :options="\App\Models\BigTestOrder::STATUS_LABELS" onchange="this.form.submit()" />
+                        </form>
+                    </x-slot:header>
+                    <table>
+                        <thead><tr><th>Lớp / Chặng</th><th>Hạn xử lý</th></tr></thead>
+                        <tbody>
+                            @forelse ($orders as $order)
+                                <tr class="{{ $selectedOrder?->id === $order->id ? 'bg-orange-50/60' : '' }}">
+                                    <td>
+                                        <a href="{{ route('syllabus.big-tests.distribution', array_filter(['order' => $order->id, 'order_status' => $orderStatus, 'orders_page' => request('orders_page')])) }}" class="block">
+                                            <p class="font-bold text-gray-900 text-xs">{{ $order->classModel?->name }} · {{ $order->type_label }}</p>
+                                            <p class="text-[11px] text-gray-500">{{ $order->stage_name }} — GV. {{ $order->teacher?->name ?? '—' }}</p>
+                                            <p class="text-[11px] text-gray-400">Thi: {{ $order->exam_date?->format('d/m/Y') ?? 'chưa chốt' }} · Order: {{ $order->created_at->diffForHumans() }}</p>
+                                        </a>
+                                    </td>
+                                    <td class="whitespace-nowrap text-xs">
+                                        <span class="font-mono {{ $order->isOverdue() ? 'text-rose-600 font-bold' : 'text-gray-700' }}">{{ $order->due_date?->format('d/m/Y') ?? '—' }}</span>
+                                        <div><x-ui.badge :color="$order->isOverdue() ? 'error' : $order->status_color">{{ $order->isOverdue() ? 'Trễ hạn' : $order->status_label }}</x-ui.badge></div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="2"><x-ui.empty-state icon="inbox" title="Không có order đề nào" /></td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                    <x-slot:footer><x-ui.pagination :paginator="$orders" :options="[]" unit="order" /></x-slot:footer>
+                </x-ui.data-table>
+            </div>
+
+            <div class="lg:col-span-7 min-w-0">
+                <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                    @if (! $selectedOrder)
+                        <x-ui.empty-state icon="assignment" title="Chọn một order để xem chi tiết" />
+                    @else
+                        <div class="p-5 border-b border-gray-100 flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <p class="text-[11px] font-mono text-gray-400">{{ $selectedOrder->code }}</p>
+                                <h2 class="text-sm font-bold text-gray-900">{{ $selectedOrder->classModel?->name }} — {{ $selectedOrder->type_label }}</h2>
+                                <p class="text-xs text-gray-500">{{ $selectedOrder->classModel?->course?->name }}</p>
+                            </div>
+                            <x-ui.badge :color="$selectedOrder->status_color">{{ $selectedOrder->status_label }}</x-ui.badge>
+                        </div>
+                        <div class="p-5 space-y-4 text-xs">
+                            <dl class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div><dt class="text-[10px] font-bold text-gray-400 uppercase">Giáo viên</dt><dd class="font-semibold text-gray-800">{{ $selectedOrder->teacher?->name ?? '—' }}</dd></div>
+                                <div><dt class="text-[10px] font-bold text-gray-400 uppercase">Chặng</dt><dd class="font-semibold text-gray-800">{{ $selectedOrder->stage_name }}</dd></div>
+                                <div><dt class="text-[10px] font-bold text-gray-400 uppercase">Ngày thi dự kiến</dt><dd class="font-mono text-gray-800">{{ $selectedOrder->exam_date?->format('d/m/Y') ?? '—' }}</dd></div>
+                                <div><dt class="text-[10px] font-bold text-gray-400 uppercase">Hạn xử lý</dt><dd class="font-mono {{ $selectedOrder->isOverdue() ? 'text-rose-600 font-bold' : 'text-gray-800' }}">{{ $selectedOrder->due_date?->format('d/m/Y') ?? '—' }}</dd></div>
+                            </dl>
+
+                            <div>
+                                <p class="font-bold text-gray-800 mb-1">Yêu cầu từ giáo viên</p>
+                                <div class="bg-orange-50/30 border border-orange-200/60 rounded-xl p-3 text-gray-700 whitespace-pre-line">{{ $selectedOrder->note ?: 'Không có ghi chú.' }}</div>
+                            </div>
+
+                            @if ($selectedOrder->isOverdue())
+                                <x-ui.alert type="warning">Order đã quá hạn xử lý ({{ $selectedOrder->due_date->format('d/m/Y') }}) — đề cần phân phối trước ngày thi {{ \App\Models\BigTestOrder::LEAD_DAYS }} ngày.</x-ui.alert>
+                            @endif
+
+                            @if ($selectedOrder->status === 'approved')
+                                <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-emerald-800 space-y-1">
+                                    <p class="font-bold">Đã duyệt bởi {{ $selectedOrder->reviewer?->name }} lúc {{ $selectedOrder->reviewed_at?->format('H:i d/m/Y') }}</p>
+                                    <a href="{{ $selectedOrder->test_link }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold underline">
+                                        <span class="material-symbols-outlined text-[16px]">link</span>Link đề
+                                    </a>
+                                </div>
+                            @elseif ($selectedOrder->status === 'rejected')
+                                <div class="bg-rose-50 border border-rose-200 rounded-xl p-3 text-rose-800">
+                                    <p class="font-bold">Đã từ chối bởi {{ $selectedOrder->reviewer?->name }} lúc {{ $selectedOrder->reviewed_at?->format('H:i d/m/Y') }}</p>
+                                    <p class="mt-1">Lý do: {{ $selectedOrder->rejection_reason }}</p>
+                                </div>
+                            @elseif ($canReview)
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+                                    <form method="POST" action="{{ route('syllabus.big-tests.orders.approve', $selectedOrder->id) }}" class="space-y-2">
+                                        @csrf
+                                        <x-ui.input type="url" name="test_link" label="Link đề Big Test (folder lớp)" required placeholder="https://drive.google.com/..." />
+                                        @php($classTests = $bigTests->getCollection()->where('class_id', $selectedOrder->class_id))
+                                        @if ($classTests->isNotEmpty())
+                                            <x-ui.select name="big_test_id" label="Gắn vào đợt thi (tùy chọn)" placeholder="-- Không gắn --" :options="$classTests->mapWithKeys(fn ($t) => [$t->id => $t->code.' · '.$t->title])" />
+                                        @endif
+                                        <x-ui.button type="submit" icon="send" class="w-full">Phê duyệt &amp; phân phối</x-ui.button>
+                                    </form>
+                                    <form method="POST" action="{{ route('syllabus.big-tests.orders.reject', $selectedOrder->id) }}" class="space-y-2">
+                                        @csrf
+                                        <x-ui.textarea name="rejection_reason" label="Lý do từ chối" required rows="3" />
+                                        <x-ui.button type="submit" variant="danger" icon="close" class="w-full">Từ chối yêu cầu</x-ui.button>
+                                    </form>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        {{-- Đợt thi Big Test --}}
+        <x-ui.data-table min-width="900px">
+            <x-slot:header>
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary text-[20px]">event_note</span>
+                    <h2 class="text-sm font-bold text-gray-900">Đợt thi Big Test</h2>
+                </div>
+            </x-slot:header>
+            <table>
                 <thead>
-                    <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
-                        <th class="py-3 px-4">Mã kỳ thi</th>
-                        <th class="py-3 px-4">Tên kỳ thi Big Test</th>
-                        <th class="py-3 px-4">Lớp thi</th>
-                        <th class="py-3 px-4">Thời gian &amp; Địa điểm</th>
-                        <th class="py-3 px-4">Giám thị</th>
-                        <th class="py-3 px-4">Mật mã thi</th>
-                        <th class="py-3 px-4 text-right">Thao tác</th>
+                    <tr>
+                        <th>Mã kỳ thi</th>
+                        <th>Tên kỳ thi</th>
+                        <th>Lớp thi</th>
+                        <th>Thời gian &amp; Địa điểm</th>
+                        <th>Giám thị</th>
+                        <th>Mật mã thi</th>
+                        <th class="text-right">Thao tác</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
+                <tbody>
                     @forelse ($bigTests as $bt)
-                        <tr class="hover:bg-orange-50/20 transition">
-                            <td class="py-3.5 px-4 font-mono font-bold text-gray-900">{{ $bt->code }}</td>
-                            <td class="py-3.5 px-4 font-bold text-gray-900">{{ $bt->title }}</td>
-                            <td class="py-3.5 px-4 font-semibold text-primary">{{ $bt->classModel?->name }}</td>
-                            <td class="py-3.5 px-4">
+                        <tr>
+                            <td class="font-mono font-bold text-gray-900">{{ $bt->code }}</td>
+                            <td class="font-bold text-gray-900">{{ $bt->title }}</td>
+                            <td class="font-semibold text-primary">{{ $bt->classModel?->name }}</td>
+                            <td>
                                 <div>{{ $bt->scheduled_at ? $bt->scheduled_at->format('d/m/Y H:i') : '—' }}</div>
                                 <div class="text-[10px] text-gray-400">{{ $bt->room }}</div>
                             </td>
-                            <td class="py-3.5 px-4">{{ $bt->proctor?->name ?? 'Admin' }}</td>
-                            <td class="py-3.5 px-4 font-mono font-bold text-emerald-600">{{ $bt->passcodeVisibleTo(auth()->user()) ? $bt->passcode : '••••••' }}</td>
-                            <td class="py-3.5 px-4 text-right">
+                            <td>{{ $bt->proctor?->name ?? '—' }}</td>
+                            <td class="font-mono font-bold text-emerald-600">{{ $bt->passcodeVisibleTo(auth()->user()) ? $bt->passcode : '••••••' }}</td>
+                            <td class="text-right">
                                 <div class="flex justify-end items-center gap-2">
-                                    @if(!$bt->is_distributed)
-                                        <form method="POST" action="{{ route('syllabus.big-tests.approve', $bt->id) }}">@csrf
-                                            <button class="text-emerald-700 font-semibold hover:underline">Duyệt & phân phối</button>
-                                        </form>
+                                    @if (! $bt->is_distributed)
+                                        @if ($canReview)
+                                            <form method="POST" action="{{ route('syllabus.big-tests.approve', $bt->id) }}">@csrf
+                                                <x-ui.button type="submit" variant="secondary" size="sm" icon="task_alt">Duyệt &amp; phân phối</x-ui.button>
+                                            </form>
+                                        @else
+                                            <x-ui.badge color="warning">Chờ duyệt đề</x-ui.badge>
+                                        @endif
                                     @else
-                                        <span class="text-[10px] text-emerald-700 font-bold">Đã phân phối</span>
+                                        <x-ui.badge color="success">Đã phân phối</x-ui.badge>
                                     @endif
-                                    <a href="{{ route('syllabus.big-tests.results', $bt->id) }}" class="text-primary hover:underline font-semibold">Bảng điểm</a>
+                                    <x-ui.button variant="ghost" size="sm" :href="route('syllabus.big-tests.results', $bt->id)">Bảng điểm</x-ui.button>
                                 </div>
                             </td>
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="7" class="text-center py-8 text-gray-400 text-xs">Chưa có kỳ thi Big Test nào được tạo.</td>
-                        </tr>
+                        <tr><td colspan="7"><x-ui.empty-state icon="event_busy" title="Chưa có kỳ thi Big Test nào" /></td></tr>
                     @endforelse
                 </tbody>
             </table>
-        </div>
+            <x-slot:footer><x-ui.pagination :paginator="$bigTests" unit="đợt thi" /></x-slot:footer>
+        </x-ui.data-table>
     </div>
 </x-app-layout>

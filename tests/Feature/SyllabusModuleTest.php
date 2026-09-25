@@ -28,17 +28,17 @@ class SyllabusModuleTest extends TestCase
         $user->assignRole('admin');
         $course = Course::create(['code' => 'TEST-CRS', 'name' => 'Khóa học Test']);
 
-        $response = $this->actingAs($user)->post('/syllabus/documents', [
+        // Giáo trình được tạo ở màn Soạn syllabus; màn Tài liệu chỉ nhận file thật (xem Phase2SyllabusTest).
+        $response = $this->actingAs($user)->post('/syllabus/curriculums', [
             'code' => 'CUR-TEST',
             'title' => 'Giáo trình Thử nghiệm',
             'course_id' => $course->id,
             'version' => 'v1.0',
         ]);
 
-        $response->assertRedirect(route('syllabus.documents'));
-        $this->assertDatabaseHas('syllabus_curriculums', ['code' => 'CUR-TEST']);
-
         $cur = SyllabusCurriculum::where('code', 'CUR-TEST')->first();
+        $response->assertRedirect(route('syllabus.builder', ['curriculum' => $cur->id]));
+        $this->assertDatabaseHas('syllabus_curriculums', ['code' => 'CUR-TEST']);
 
         $unitResponse = $this->actingAs($user)->post('/syllabus/units', [
             'curriculum_id' => $cur->id,

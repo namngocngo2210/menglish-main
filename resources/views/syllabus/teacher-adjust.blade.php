@@ -57,6 +57,13 @@
                     </div>
 
                     <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Số buổi cần thêm (giãn tiến độ)</label>
+                        <input type="number" name="extra_sessions" min="0" max="{{ \App\Models\SyllabusAdjustmentRequest::MAX_EXTRA_SESSIONS }}" value="{{ old('extra_sessions', 0) }}" class="w-full rounded-xl border border-gray-200 p-2.5 text-xs" />
+                        <p class="text-[11px] text-gray-500 mt-1">Khi được duyệt, hệ thống thêm đúng số buổi này vào cuối lịch học của lớp (theo TKB, bỏ qua ngày nghỉ) và lùi ngày kết thúc lớp.</p>
+                        @error('extra_sessions') <p class="text-[11px] text-rose-600 mt-1">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Lý do điều chỉnh chi tiết <span class="text-rose-500">*</span></label>
                         <textarea name="reason" required rows="4" class="w-full rounded-xl border border-gray-200 p-2.5 text-xs focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none resize-none" placeholder="Học viên phản hồi phần Speaking còn yếu, cần thêm thời gian luyện phản xạ trước bài thi..."></textarea>
                     </div>
@@ -83,7 +90,7 @@
                         <span class="material-symbols-outlined text-primary text-[20px]">fact_check</span>
                         <h2 class="text-sm font-bold text-gray-900">Trạng thái các yêu cầu đã gửi</h2>
                     </div>
-                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-200 text-gray-700">{{ $requests->count() }} đơn</span>
+                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-200 text-gray-700">{{ $requests->total() }} đơn</span>
                 </div>
 
                 <div class="overflow-x-auto flex-1">
@@ -104,8 +111,13 @@
                                         <div class="text-[10px] text-gray-400 font-mono">{{ $req->classModel?->code ?? '' }}</div>
                                     </td>
                                     <td class="py-3.5 px-4 max-w-xs">
-                                        <div class="font-semibold text-primary mb-0.5">{{ $req->request_type }}</div>
+                                        <div class="font-semibold text-primary mb-0.5">{{ $req->request_type }}{{ $req->extra_sessions ? ' · +'.$req->extra_sessions.' buổi' : '' }}</div>
                                         <p class="text-gray-600 line-clamp-1 text-[11px]">{{ $req->reason }}</p>
+                                        @if ($req->status === 'rejected' && $req->rejection_reason)
+                                            <p class="text-rose-600 text-[11px] mt-0.5">Lý do từ chối: {{ $req->rejection_reason }}</p>
+                                        @elseif ($req->status === 'approved' && $req->applied_note)
+                                            <p class="text-emerald-700 text-[11px] mt-0.5">{{ $req->applied_note }}</p>
+                                        @endif
                                     </td>
                                     <td class="py-3.5 px-4 font-mono text-gray-500 whitespace-nowrap">
                                         {{ $req->created_at->format('d/m/Y') }}
@@ -121,7 +133,7 @@
                                             </span>
                                         @else
                                             <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                Chờ Admin duyệt (Step #8)
+                                                Chờ Học thuật duyệt
                                             </span>
                                         @endif
                                     </td>
@@ -134,6 +146,7 @@
                         </tbody>
                     </table>
                 </div>
+                <div class="border-t border-gray-100"><x-ui.pagination :paginator="$requests" unit="đơn" /></div>
             </div>
         </div>
     </div>

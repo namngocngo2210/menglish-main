@@ -61,14 +61,17 @@
             <!-- Stats Summary 1 -->
             @php
                 $totalCount = $results->count();
-                $avgOverall = $totalCount > 0 ? round($results->avg('overall_score'), 1) : 0;
-                $highestScore = $totalCount > 0 ? $results->max('overall_score') : 0;
+                $taken = $results->where('is_absent', false)->whereNotNull('overall_score');
+                $takenCount = $taken->count();
+                $absentCount = $results->where('is_absent', true)->count();
+                $avgOverall = $takenCount > 0 ? round($taken->avg('overall_score'), 1) : 0;
+                $highestScore = $takenCount > 0 ? $taken->max('overall_score') : 0;
             @endphp
             <div class="bg-white rounded-2xl border border-gray-200 shadow-2xs p-4 flex items-center justify-between">
                 <div>
                     <div class="text-[11px] font-bold text-gray-500 uppercase">Điểm Trung Bình Cả Lớp</div>
                     <div class="text-2xl font-black text-indigo-600 font-mono mt-1">{{ $avgOverall }} <span class="text-xs font-normal text-gray-400">/ 10</span></div>
-                    <div class="text-[10px] text-gray-400 mt-0.5">Dựa trên {{ $totalCount }} học viên dự thi</div>
+                    <div class="text-[10px] text-gray-400 mt-0.5">Dựa trên {{ $takenCount }} học viên dự thi ({{ $absentCount }} vắng)</div>
                 </div>
                 <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
                     <span class="material-symbols-outlined text-xl">award_star</span>
@@ -103,50 +106,95 @@
 
             @php($resultsByStudent = $results->keyBy('student_id'))
             @php($canGrade = $test && auth()->user()->can('syllabus.update'))
+            @php($canSend = $test && auth()->user()->can('syllabus.approve_adjustment'))
+            @if ($canSend)
+                {{-- Form gửi từng học viên nằm ngoài form nhập điểm (không lồng form); nút bấm tham chiếu qua thuộc tính form= --}}
+                @foreach ($results as $res)
+                    @if ($res->status === 'approved' && ! $res->parent_notified && ! $res->is_absent)
+                        <form id="send-ph-{{ $res->id }}" method="POST" action="{{ route('syllabus.big-tests.send-single-zalo', $res->id) }}" class="hidden">@csrf</form>
+                    @endif
+                @endforeach
+            @endif
             @if($canGrade)
             <form method="POST" action="{{ route('syllabus.big-tests.results.store', $test->id) }}">
                 @csrf
             @endif
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs">
+                <table class="w-full text-left border-collapse text-xs min-w-[1100px]">
                     <thead>
                         <tr class="bg-gray-50/80 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
                             <th class="py-3 px-4">Học viên &amp; Mã số</th>
+                            <th class="py-3 px-2 text-center">Vắng thi</th>
                             <th class="py-3 px-3 text-center">Listening</th>
                             <th class="py-3 px-3 text-center">Reading</th>
                             <th class="py-3 px-3 text-center">Writing</th>
                             <th class="py-3 px-3 text-center">Speaking</th>
-                            <th class="py-3 px-4 text-center bg-orange-50/60 text-orange-950">Overall Score</th>
-                            <th class="py-3 px-4">Đánh giá tiến độ của Giáo viên</th>
+                            <th class="py-3 px-4 text-center bg-orange-50/60 text-orange-950">Overall</th>
+                            <th class="py-3 px-4">Nhận xét &amp; link video bài thi</th>
+                            <th class="py-3 px-4">Trạng thái</th>
+                            <th class="py-3 px-4">Đã gửi PH</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
                         @forelse ($students as $index => $student)
                             @php($res = $resultsByStudent->get($student->id))
                             @php($locked = ! $canGrade || ($res?->isLocked() ?? false))
-                            <tr class="hover:bg-blue-50/30 transition">
+                            @php($absent = (bool) old("results.$index.is_absent", $res?->is_absent))
+                            <tr class="hover:bg-blue-50/30 transition" x-data="{ absent: @js($absent) }">
                                 <td class="py-3.5 px-4">
                                     <input type="hidden" name="results[{{ $index }}][student_id]" value="{{ $student->id }}" @disabled($locked)>
                                     <div class="font-bold text-gray-900">{{ $student->name }}</div>
-                                    <div class="text-[11px] text-gray-400 font-mono mt-0.5">
-                                        Mã HV: {{ $student->code ?? 'HV-' . $student->id }}
-                                    </div>
+                                    <div class="text-[11px] text-gray-400 font-mono mt-0.5">Mã HV: {{ $student->code ?? 'HV-' . $student->id }}</div>
                                 </td>
-                                <td class="py-3.5 px-3"><input type="number" step=".1" min="0" max="10" name="results[{{ $index }}][listening_score]" value="{{ old("results.$index.listening_score", $res?->listening_score) }}" placeholder="—" @disabled($locked) class="w-16 rounded border-gray-200 text-xs disabled:bg-gray-50"></td>
-                                <td class="py-3.5 px-3"><input type="number" step=".1" min="0" max="10" name="results[{{ $index }}][reading_score]" value="{{ old("results.$index.reading_score", $res?->reading_score) }}" placeholder="—" @disabled($locked) class="w-16 rounded border-gray-200 text-xs disabled:bg-gray-50"></td>
-                                <td class="py-3.5 px-3"><input type="number" step=".1" min="0" max="10" name="results[{{ $index }}][writing_score]" value="{{ old("results.$index.writing_score", $res?->writing_score) }}" placeholder="—" @disabled($locked) class="w-16 rounded border-gray-200 text-xs disabled:bg-gray-50"></td>
-                                <td class="py-3.5 px-3"><input type="number" step=".1" min="0" max="10" name="results[{{ $index }}][speaking_score]" value="{{ old("results.$index.speaking_score", $res?->speaking_score) }}" placeholder="—" @disabled($locked) class="w-16 rounded border-gray-200 text-xs disabled:bg-gray-50"></td>
+                                <td class="py-3.5 px-2 text-center">
+                                    <input type="checkbox" name="results[{{ $index }}][is_absent]" value="1" x-model="absent" @checked($absent) @disabled($locked)
+                                           class="rounded border-gray-300 text-rose-600 focus:ring-rose-500 h-4 w-4" title="Đánh dấu học viên vắng thi">
+                                </td>
+                                @foreach (['listening_score', 'reading_score', 'writing_score', 'speaking_score'] as $skill)
+                                    <td class="py-3.5 px-3">
+                                        <input type="number" step=".1" min="0" max="10" name="results[{{ $index }}][{{ $skill }}]" value="{{ old("results.$index.$skill", $res?->$skill) }}" placeholder="—"
+                                               @disabled($locked) :disabled="absent || @js($locked)" class="w-16 rounded border-gray-200 text-xs disabled:bg-gray-50">
+                                    </td>
+                                @endforeach
                                 <td class="py-3.5 px-4 text-center font-mono font-black text-orange-600 bg-orange-50/40 text-base">
+                                    @if ($res?->is_absent)
+                                        <span class="text-xs font-bold text-rose-600">Vắng thi</span>
+                                    @else
                                         {{ $res?->overall_score ?? '—' }}
+                                    @endif
                                 </td>
-                                <td class="py-3.5 px-4">
-                                    <textarea name="results[{{ $index }}][progress_note]" rows="2" @disabled($locked) class="w-full rounded border-gray-200 text-xs disabled:bg-gray-50">{{ old("results.$index.progress_note", $res?->progress_note) }}</textarea>
-                                    <span class="text-[10px] {{ $res?->isLocked() ? 'text-emerald-700' : 'text-amber-700' }}">{{ $res?->status_label ?? 'Chưa nhập' }}</span>
+                                <td class="py-3.5 px-4 space-y-1 min-w-[220px]">
+                                    <textarea name="results[{{ $index }}][progress_note]" rows="2" @disabled($locked) placeholder="Nhận xét tiến độ" class="w-full rounded border-gray-200 text-xs disabled:bg-gray-50">{{ old("results.$index.progress_note", $res?->progress_note) }}</textarea>
+                                    @if ($locked)
+                                        @if ($res?->video_url)
+                                            <a href="{{ $res->video_url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline">
+                                                <span class="material-symbols-outlined text-[14px]">video_library</span>Link video bài thi
+                                            </a>
+                                        @endif
+                                    @else
+                                        <input type="url" name="results[{{ $index }}][video_url]" value="{{ old("results.$index.video_url", $res?->video_url) }}" placeholder="Link video bài thi (https://...)" class="w-full rounded border-gray-200 text-xs">
+                                    @endif
+                                </td>
+                                <td class="py-3.5 px-4 whitespace-nowrap">
+                                    <x-ui.badge :color="match ($res?->status) { 'approved' => 'success', 'sent' => 'info', 'pending_review' => 'warning', default => 'neutral' }">{{ $res?->status_label ?? 'Chưa nhập' }}</x-ui.badge>
+                                </td>
+                                <td class="py-3.5 px-4 whitespace-nowrap">
+                                    @if ($res?->parent_notified)
+                                        <span class="inline-flex items-center gap-1 text-emerald-700 font-semibold text-[11px]">
+                                            <span class="material-symbols-outlined text-[16px]">mark_email_read</span>{{ $res->notified_at?->format('d/m H:i') ?? 'Đã gửi' }}
+                                        </span>
+                                    @elseif ($canSend && $res?->status === 'approved' && ! $res->is_absent)
+                                        <button type="submit" form="send-ph-{{ $res->id }}" class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold inline-flex items-center gap-1">
+                                            <span class="material-symbols-outlined text-[14px]">send</span>Gửi PH
+                                        </button>
+                                    @else
+                                        <span class="text-[11px] text-gray-400">{{ $res?->is_absent ? 'Vắng thi' : 'Chưa gửi' }}</span>
+                                    @endif
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center py-10 text-gray-400 text-xs">
+                                <td colspan="10" class="text-center py-10 text-gray-400 text-xs">
                                     <div class="flex flex-col items-center justify-center space-y-2">
                                         <span class="material-symbols-outlined text-4xl text-gray-300">sentiment_neutral</span>
                                         <span>Chưa có kết quả thi cho kỳ thi Big Test này.</span>
@@ -160,7 +208,7 @@
             @if($canGrade)
                 @if($students->contains(fn ($s) => ! ($resultsByStudent->get($s->id)?->isLocked() ?? false)))
                     <div class="p-4 border-t flex items-center justify-between gap-3">
-                        <span class="text-[11px] text-gray-500">Bỏ trống cả 4 kỹ năng với học viên vắng thi. Điểm đã duyệt/đã gửi phụ huynh không thể sửa.</span>
+                        <span class="text-[11px] text-gray-500">Học viên vắng: tích "Vắng thi" (không nhập điểm). Dòng để trống sẽ bỏ qua. Điểm đã duyệt/đã gửi phụ huynh không thể sửa.</span>
                         <button class="px-4 py-2 bg-primary-container text-white rounded-xl text-xs font-bold">Lưu điểm chờ duyệt</button>
                     </div>
                 @endif

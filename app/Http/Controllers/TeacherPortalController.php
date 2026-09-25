@@ -402,9 +402,9 @@ class TeacherPortalController extends Controller
 
         $assignments = $class->syllabusAssignments;
 
-        // Lịch sử yêu cầu đề test của GV cho lớp này
-        $requests = AcademicRecord::where('screen_key', '03_Cong_Giao_Vien/09_order_test')
-            ->where('data->class_id', (string) $class->id)
+        // Lịch sử order đề của lớp này (cùng dữ liệu với màn Duyệt & phân phối đề của Học thuật)
+        $requests = \App\Models\BigTestOrder::with('reviewer')
+            ->where('class_id', $class->id)
             ->latest()
             ->take(10)
             ->get();
@@ -421,32 +421,31 @@ class TeacherPortalController extends Controller
         $validated = $request->validate([
             'stage_name' => 'required|string|max:255',
             'test_type' => 'required|in:mini,big',
+            'exam_date' => 'nullable|date|after_or_equal:today',
             'note' => 'nullable|string|max:1000',
         ]);
 
-        AcademicRecord::create([
-            'screen_key' => '03_Cong_Giao_Vien/09_order_test',
-            'module' => 'teacher_portal',
-            'record_code' => 'ORDTEST-'.strtoupper(Str::random(6)),
-            'title' => 'Yêu cầu đề '.($validated['test_type'] === 'big' ? 'Big Test' : 'Mini Test').': '.$validated['stage_name'],
+        $examDate = isset($validated['exam_date']) ? Carbon::parse($validated['exam_date']) : null;
+        $order = \App\Models\BigTestOrder::create([
+            'code' => 'ORDTEST-'.strtoupper(Str::random(6)),
+            'class_id' => $class->id,
+            'teacher_id' => Auth::id(),
+            'stage_name' => $validated['stage_name'],
+            'test_type' => $validated['test_type'],
+            'exam_date' => $examDate,
+            // Hạn xử lý: đề phải phân phối trước ngày thi N ngày; không có ngày thi thì trong 3 ngày làm việc.
+            'due_date' => $examDate
+                ? $examDate->copy()->subDays(\App\Models\BigTestOrder::LEAD_DAYS)->max(today())
+                : today()->addDays(\App\Models\BigTestOrder::LEAD_DAYS),
+            'note' => $validated['note'] ?? null,
             'status' => 'pending',
-            'data' => [
-                'teacher_id' => Auth::id(),
-                'teacher_name' => Auth::user()->name,
-                'class_id' => (string) $class->id,
-                'class_name' => $class->name,
-                'stage_name' => $validated['stage_name'],
-                'test_type' => $validated['test_type'],
-                'note' => $validated['note'] ?? '',
-                'created_at' => now()->format('d/m/Y H:i'),
-            ],
-            'user_id' => Auth::id(),
         ]);
 
         AdminNotification::create([
+            'type' => 'big_test_order',
             'title' => 'GV yêu cầu đề test: '.Auth::user()->name,
-            'message' => 'Giáo viên '.Auth::user()->name.' yêu cầu đề '.($validated['test_type'] === 'big' ? 'Big Test' : 'Mini Test')." cho chặng \"{$validated['stage_name']}\" của lớp {$class->name}".($validated['note'] ? " — Ghi chú: {$validated['note']}" : ''),
-            'type' => 'info',
+            'message' => 'Giáo viên '.Auth::user()->name.' yêu cầu đề '.$order->type_label." cho chặng \"{$validated['stage_name']}\" của lớp {$class->name}".(filled($validated['note'] ?? null) ? " — Ghi chú: {$validated['note']}" : ''),
+            'data' => ['link' => route('syllabus.big-tests.distribution', ['order' => $order->id])],
             'is_read' => false,
         ]);
 

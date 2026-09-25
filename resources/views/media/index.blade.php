@@ -68,16 +68,16 @@
                         class="text-xs font-bold rounded-xl border border-gray-200 py-1.5 px-3 focus:ring-1 focus:ring-primary-container focus:border-primary-container bg-gray-50"
                     >
                         <option value="{{ $currentFolder ?: 'auto_date' }}">
-                            📁 {{ $currentFolder ? 'Thư mục hiện tại (uploads/' . $currentFolder . ')' : 'uploads/' . date('Y') . '/' . date('m') . ' (Theo ngày tháng năm)' }}
+                            📁 {{ $currentFolder ? 'Thư mục hiện tại (uploads/media/' . $currentFolder . ')' : 'uploads/media/' . date('Y') . '/' . date('m') . ' (Theo ngày tháng năm)' }}
                         </option>
-                        <option value="auto_date">📁 uploads/{{ date('Y') }}/{{ date('m') }} (Theo ngày tháng năm)</option>
-                        <option value="tickets">📁 uploads/tickets/ (Ảnh ticket báo lỗi &amp; hỗ trợ)</option>
-                        <option value="avatars">📁 uploads/avatars/ (Ảnh đại diện người dùng)</option>
-                        <option value="courses">📁 uploads/courses/ (Tài liệu khóa học &amp; giáo trình)</option>
-                        <option value="documents">📁 uploads/documents/ (Tài liệu chung &amp; hợp đồng)</option>
-                        <option value="marketing">📁 uploads/marketing/ (Banner &amp; truyền thông)</option>
+                        <option value="auto_date">📁 uploads/media/{{ date('Y') }}/{{ date('m') }} (Theo ngày tháng năm)</option>
+                        <option value="tickets">📁 uploads/media/tickets/ (Ảnh ticket báo lỗi &amp; hỗ trợ)</option>
+                        <option value="avatars">📁 uploads/media/avatars/ (Ảnh đại diện người dùng)</option>
+                        <option value="courses">📁 uploads/media/courses/ (Tài liệu khóa học &amp; giáo trình)</option>
+                        <option value="documents">📁 uploads/media/documents/ (Tài liệu chung &amp; hợp đồng)</option>
+                        <option value="marketing">📁 uploads/media/marketing/ (Banner &amp; truyền thông)</option>
                         @foreach ($subFolders as $sf)
-                            <option value="{{ $sf['path'] }}">📁 uploads/{{ $sf['path'] }}/</option>
+                            <option value="{{ $sf['path'] }}">📁 uploads/media/{{ $sf['path'] }}/</option>
                         @endforeach
                     </select>
                 </div>
@@ -697,7 +697,7 @@
                             autofocus
                         />
                         <p class="text-[10px] text-gray-400 mt-1">
-                            Vị trí tạo: <strong class="font-mono text-gray-700">/uploads/{{ $currentFolder ? $currentFolder . '/' : '' }}</strong>
+                            Vị trí tạo: <strong class="font-mono text-gray-700">/uploads/media/{{ $currentFolder ? $currentFolder . '/' : '' }}</strong>
                         </p>
                     </div>
 
@@ -744,7 +744,7 @@
                             required 
                             class="w-full text-xs font-semibold rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container"
                         >
-                            <option value="">📁 /uploads (Thư mục gốc)</option>
+                            <option value="">📁 /uploads/media (Thư mục gốc)</option>
                             <option value="{{ date('Y') }}/{{ date('m') }}">📁 /uploads/{{ date('Y') }}/{{ date('m') }}</option>
                             <option value="tickets">📁 /uploads/tickets</option>
                             <option value="avatars">📁 /uploads/avatars</option>

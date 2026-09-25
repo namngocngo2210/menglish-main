@@ -49,7 +49,7 @@ class MediaManagerController extends Controller
 
         // Xây dựng thanh Breadcrumbs
         $breadcrumbs = [
-            ['name' => 'Thư mục gốc (uploads)', 'path' => ''],
+            ['name' => 'Thư mục gốc (uploads/media)', 'path' => ''],
         ];
         if ($currentFolder) {
             $parts = explode('/', $currentFolder);
