@@ -647,6 +647,7 @@ class WorkTaskController extends Controller
                     'end_time' => $session['end'],
                     'room' => $class->room,
                     'teacher_id' => $class->teacher_id ?? $class->foreign_teacher_id,
+                    'foreign_teacher_id' => $class->foreign_teacher_id,
                     'assistant_id' => $class->assistant_id,
                     'status' => 'scheduled',
                 ]);

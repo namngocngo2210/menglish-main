@@ -34,9 +34,12 @@ class ClassSession extends Model
         'end_time',
         'room',
         'teacher_id',
+        'foreign_teacher_id',
         'assistant_id',
         'status',
         'notes',
+        'holiday_id',
+        'rescheduled_from_id',
     ];
 
     protected $casts = [
@@ -44,6 +47,29 @@ class ClassSession extends Model
         'start_time' => 'datetime:H:i',
         'end_time' => 'datetime:H:i',
     ];
+
+    /**
+     * Chuẩn hóa giờ về H:i:s để so sánh chuỗi trong truy vấn (start_time < '18:00:00') cho kết quả
+     * giống nhau trên MySQL (cột TIME) và SQLite (lưu nguyên chuỗi).
+     */
+    public function setStartTimeAttribute($value): void
+    {
+        $this->attributes['start_time'] = self::normalizeTime($value);
+    }
+
+    public function setEndTimeAttribute($value): void
+    {
+        $this->attributes['end_time'] = self::normalizeTime($value);
+    }
+
+    public static function normalizeTime($value)
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('H:i:s');
+        }
+
+        return is_string($value) && preg_match('/^\d{2}:\d{2}$/', $value) ? $value.':00' : $value;
+    }
 
     public function classModel()
     {
@@ -63,6 +89,39 @@ class ClassSession extends Model
     public function assistant()
     {
         return $this->belongsTo(User::class, 'assistant_id');
+    }
+
+    public function foreignTeacher()
+    {
+        return $this->belongsTo(User::class, 'foreign_teacher_id');
+    }
+
+    /** Ngày nghỉ lễ đã làm buổi này bị hủy (null nếu không phải do nghỉ lễ). */
+    public function holiday()
+    {
+        return $this->belongsTo(Holiday::class, 'holiday_id');
+    }
+
+    /** Buổi gốc (bị hủy vì nghỉ lễ) mà buổi học bù này thay thế. */
+    public function rescheduledFrom()
+    {
+        return $this->belongsTo(self::class, 'rescheduled_from_id');
+    }
+
+    /** Buổi học bù được xếp cho buổi bị hủy này. */
+    public function makeupSession(): HasOne
+    {
+        return $this->hasOne(self::class, 'rescheduled_from_id');
+    }
+
+    /**
+     * Buổi có nhân sự này (GV chính, GVNN hoặc trợ giảng).
+     */
+    public function scopeForStaff(Builder $query, int $userId): Builder
+    {
+        return $query->where(fn (Builder $q) => $q->where('teacher_id', $userId)
+            ->orWhere('foreign_teacher_id', $userId)
+            ->orWhere('assistant_id', $userId));
     }
 
     public function attendances(): HasMany

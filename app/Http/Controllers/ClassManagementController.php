@@ -227,6 +227,7 @@ class ClassManagementController extends Controller
                     'end_time' => $session['end'],
                     'room' => $session['room'] ?? ($class->room ?: null),
                     'teacher_id' => $class->teacher_id ?? $class->foreign_teacher_id,
+                    'foreign_teacher_id' => $class->foreign_teacher_id,
                     'assistant_id' => $class->assistant_id,
                     'status' => 'scheduled',
                 ]);
@@ -394,6 +395,10 @@ class ClassManagementController extends Controller
         $checks = [];
         if ($new['teacher'] && (int) $new['teacher'] !== (int) ($class->teacher_id ?? $class->foreign_teacher_id)) {
             $checks[$new['teacher_field']] = [$sessions, [$new['teacher']]];
+        }
+        // GVNN được lưu riêng trên từng buổi nên phải kiểm tra trùng cả khi lớp đã có GV chính.
+        if (($new['foreign'] ?? null) && (int) $new['foreign'] !== (int) $class->foreign_teacher_id) {
+            $checks['giao_vien_nn'] = [$sessions, [$new['foreign']]];
         }
         if ($new['assistant'] && (int) $new['assistant'] !== (int) $class->assistant_id) {
             $checks['tro_giang'] = [$sessions, [$new['assistant']]];
@@ -616,6 +621,7 @@ class ClassManagementController extends Controller
             'teacher' => $newTeacherId ?? $newForeignTeacherId,
             'teacher_field' => $newTeacherId ? 'giao_vien_chinh' : 'giao_vien_nn',
             'assistant' => $newAssistantId,
+            'foreign' => $newForeignTeacherId,
             'room' => $newRoom,
             'previous_room' => $previousRoom,
         ]);
@@ -643,7 +649,10 @@ class ClassManagementController extends Controller
 
             $futureQuery = fn () => ClassSession::whereKey($futureSessions->modelKeys());
             if ($class->wasChanged('teacher_id') || $class->wasChanged('foreign_teacher_id')) {
-                $futureQuery()->update(['teacher_id' => $class->teacher_id ?? $class->foreign_teacher_id]);
+                $futureQuery()->update([
+                    'teacher_id' => $class->teacher_id ?? $class->foreign_teacher_id,
+                    'foreign_teacher_id' => $class->foreign_teacher_id,
+                ]);
             }
             if ($class->wasChanged('assistant_id')) {
                 $futureQuery()->update(['assistant_id' => $class->assistant_id]);
@@ -701,27 +710,38 @@ class ClassManagementController extends Controller
 
     public function checkAvailability(Request $request)
     {
-        $branchId = $request->input('branch_id');
-        $date = $request->input('date');
-        $startTime = $request->input('start_time');
-        $endTime = $request->input('end_time');
+        $validated = $request->validate([
+            'branch_id' => ['nullable', 'integer'],
+            'date' => ['required', 'date'],
+            'start_time' => ['required', 'date_format:H:i'],
+            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+            'exclude_class_id' => ['nullable', 'integer'],
+        ]);
+        // Cột time lưu dạng H:i:s — so sánh chuỗi với H:i sẽ coi hai ca nối tiếp (kết thúc 18:00, bắt đầu 18:00) là trùng.
+        $startTime = $validated['start_time'].':00';
+        $endTime = $validated['end_time'].':00';
 
-        // Find overlapping sessions (bỏ qua buổi đã hủy — phòng/GV của buổi hủy có thể tái sử dụng)
-        $overlapping = ClassSession::where('branch_id', $branchId)
+        // Buổi trùng giờ trong ngày (bỏ qua buổi đã hủy — phòng/nhân sự của buổi hủy có thể tái sử dụng).
+        // Phòng chỉ tính trong cùng chi nhánh; nhân sự (GV chính, GVNN, trợ giảng) tính trên mọi chi nhánh.
+        $overlapping = ClassSession::query()
             ->where('status', '!=', 'cancelled')
-            ->whereDate('date', $date)
-            ->where(function ($query) use ($startTime, $endTime) {
-                $query->where('start_time', '<', $endTime)
-                    ->where('end_time', '>', $startTime);
-            })
-            ->get();
+            ->whereDate('date', $validated['date'])
+            ->when($validated['exclude_class_id'] ?? null, fn ($query, $classId) => $query->where('class_id', '!=', $classId))
+            ->where('start_time', '<', $endTime)
+            ->where('end_time', '>', $startTime)
+            ->get(['id', 'class_id', 'branch_id', 'room', 'teacher_id', 'foreign_teacher_id', 'assistant_id']);
 
-        $occupiedRooms = $overlapping->pluck('room')->filter()->unique()->values()->toArray();
-        $occupiedTeachers = $overlapping->pluck('teacher_id')->filter()->unique()->values()->toArray();
+        $occupiedRooms = $overlapping->where('branch_id', (int) ($validated['branch_id'] ?? 0))
+            ->pluck('room')->filter()->unique()->values()->all();
+        $occupiedStaff = $overlapping
+            ->flatMap(fn (ClassSession $session) => [$session->teacher_id, $session->foreign_teacher_id, $session->assistant_id])
+            ->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
 
         return response()->json([
             'occupied_rooms' => $occupiedRooms,
-            'occupied_teachers' => $occupiedTeachers,
+            'occupied_teachers' => $occupiedStaff,
+            'occupied_assistants' => $overlapping->pluck('assistant_id')->filter()->map(fn ($id) => (int) $id)->unique()->values()->all(),
+            'occupied_foreign_teachers' => $overlapping->pluck('foreign_teacher_id')->filter()->map(fn ($id) => (int) $id)->unique()->values()->all(),
         ]);
     }
 

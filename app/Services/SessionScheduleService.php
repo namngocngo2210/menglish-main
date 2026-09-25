@@ -93,7 +93,7 @@ class SessionScheduleService
 
     /**
      * Tìm buổi học (chưa hủy) của lớp khác trùng giờ và trùng phòng cùng chi nhánh
-     * hoặc trùng giáo viên/trợ giảng. Một truy vấn cho cả đợt thay vì mỗi buổi một truy vấn.
+     * hoặc trùng giáo viên/GVNN/trợ giảng. Một truy vấn cho cả đợt thay vì mỗi buổi một truy vấn.
      *
      * @return array{0: array, 1: ClassSession}|null [buổi bị trùng, buổi đang chiếm]
      */
@@ -117,7 +117,9 @@ class SessionScheduleService
                     $query->orWhere(fn ($room) => $room->where('branch_id', $branchId)->whereIn('room', $rooms));
                 }
                 if ($resourceIds) {
-                    $query->orWhereIn('teacher_id', $resourceIds)->orWhereIn('assistant_id', $resourceIds);
+                    $query->orWhereIn('teacher_id', $resourceIds)
+                        ->orWhereIn('foreign_teacher_id', $resourceIds)
+                        ->orWhereIn('assistant_id', $resourceIds);
                 }
             })
             ->get()
@@ -133,6 +135,7 @@ class SessionScheduleService
                 }
                 $sameRoom = $room && (int) $existing->branch_id === (int) $branchId && $existing->room === $room;
                 $sameStaff = in_array((int) $existing->teacher_id, $resourceIds, true)
+                    || in_array((int) $existing->foreign_teacher_id, $resourceIds, true)
                     || in_array((int) $existing->assistant_id, $resourceIds, true);
                 if ($sameRoom || $sameStaff) {
                     return [$session, $existing];
