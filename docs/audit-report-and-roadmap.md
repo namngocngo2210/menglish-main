@@ -513,6 +513,21 @@
 **MR:** #...
 ```
 
+#### Phase 1 — Hồ sơ học viên + bộ sinh mã dùng chung (nhánh `feat/phase1-students`)
+**Đã làm:**
+- [x] A4.1 — Bộ sinh mã dùng chung `App\Services\DocumentCodeGenerator` + bảng `document_sequences` (tăng trong transaction, khóa dòng; tự khởi tạo từ mã lớn nhất đang có, kể cả bản ghi đã xóa mềm). Áp dụng cho mã học viên `HV-00001`, Big Test `BT-YYYY-0001`, ticket `TK-YYYY-0001` (trước là 4 chữ số — sửa theo tài liệu schema; ticket cũ giữ mã cũ).
+- [x] Trang "Hồ sơ học sinh (phân quyền)" render phía server theo quyền thật: học phí chỉ khi có `tuition.view`, bỏ số giả 12.500.000đ, bỏ đổi vai trò phía trình duyệt. Id/mã không tồn tại → 404 (cả trang chi tiết).
+- [x] Q7 — Danh sách/chi tiết/sửa/đổi trạng thái học viên giới hạn theo chi nhánh cho Quản lý cơ sở, Học vụ (Admin thấy tất cả); GV/TA chỉ học viên lớp mình. Thêm lọc theo lớp (gồm học viên liên kết), giữ lọc 6 trạng thái.
+- [x] Chi tiết học viên: lộ trình = buổi học thật của lớp học viên + điểm danh của chính học viên, có trạng thái trống; form sửa chỉ hiện khi có `student.update`; badge vai trò thật; khối học phí chỉ hiện khi có `tuition.view`; "Liên kết lớp khác" (kiểm tra cùng chi nhánh, trùng lớp, sĩ số) cho người có `student.assign_class`.
+- [x] Q5 — Tạo hồ sơ mới khởi tạo "Chờ khai giảng". Thôi học → bỏ `current_class_id`, lượt xếp lớp chuyển `dropped` (không tính sĩ số), giữ điểm danh/học phí.
+**Chưa làm / chuyển phase sau:**
+- [ ] Biên bản phạt (`Penalty::generateCode`) và số hóa đơn chưa dùng bộ sinh mã → nhóm lương/học phí chuyển sang.
+- [ ] Mã học viên khi chốt khách (CRM) vẫn dạng ULID `HV-01J…` — giữ nguyên, nhóm CRM quyết định.
+- [ ] A4.7 (lớp lưu ở 2 nơi): danh sách lớp/điểm danh vẫn đọc `current_class_id`, nên học viên "liên kết lớp khác" chưa hiện trong điểm danh của lớp liên kết → Phase 2.
+**Quyết định phát sinh:** Accountant/Trưởng học vụ được coi là vai trò theo chi nhánh (như Quản lý cơ sở) khi xem học viên.
+**Lỗi còn tồn:** —
+**MR:** —
+
 ---
 
 ## Phụ lục — Vị trí kỹ thuật các lỗi P0 (cho dev)
