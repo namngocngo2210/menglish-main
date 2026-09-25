@@ -28,6 +28,9 @@ class TeacherTimesheet extends Model
         'reviewed_by',
         'reviewed_at',
         'rejection_reason',
+        'adjusted_at',
+        'adjusted_by',
+        'adjustment_reason',
         'notes',
     ];
 
@@ -36,6 +39,7 @@ class TeacherTimesheet extends Model
         'hours' => 'decimal:2',
         'hourly_rate' => 'decimal:2',
         'reviewed_at' => 'datetime',
+        'adjusted_at' => 'datetime',
     ];
 
     public function teacher(): BelongsTo
@@ -56,6 +60,54 @@ class TeacherTimesheet extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function adjuster(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'adjusted_by');
+    }
+
+    /**
+     * Tình trạng giờ vào / ra theo mockup "Chi tiết chấm công GV":
+     * adjusted = Chỉnh tay (Học vụ sửa giờ), missing_in = thiếu giờ vào,
+     * missing_out = thiếu giờ ra (chỉ với ca chấm tay — check-in tính giờ theo lịch buổi học), full = Đầy đủ.
+     */
+    public function getPunchStateAttribute(): string
+    {
+        if ($this->adjusted_at !== null) {
+            return 'adjusted';
+        }
+        if (blank($this->checkin_time)) {
+            return 'missing_in';
+        }
+        if (blank($this->checkout_time) && $this->source !== self::SOURCE_CHECKIN) {
+            return 'missing_out';
+        }
+
+        return 'full';
+    }
+
+    public function getPunchStateLabelAttribute(): string
+    {
+        return match ($this->punch_state) {
+            'adjusted' => 'Chỉnh tay',
+            'missing_in' => 'Thiếu vào',
+            'missing_out' => 'Thiếu ra',
+            default => 'Đầy đủ',
+        };
+    }
+
+    /** Giờ ra hiển thị: ca check-in không có giờ ra → giờ kết thúc theo lịch buổi học. */
+    public function getDisplayCheckoutAttribute(): ?string
+    {
+        if (filled($this->checkout_time)) {
+            return $this->checkout_time;
+        }
+        if ($this->source === self::SOURCE_CHECKIN && $this->scheduled_time && str_contains($this->scheduled_time, '-')) {
+            return trim(explode('-', $this->scheduled_time)[1]);
+        }
+
+        return null;
     }
 
     /** Đơn giá mặc định khi cả ca dạy lẫn nhân sự đều chưa cấu hình. */

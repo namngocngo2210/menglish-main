@@ -315,6 +315,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/timesheets/manual', [PayrollController::class, 'storeTimesheet'])->middleware('can:attendance_staff.manual_record')->name('timesheets.manual.store');
         Route::get('/timesheets/teachers', [PayrollController::class, 'teacherTimesheets'])->name('timesheets.teachers');
         Route::post('/timesheets/teachers/{id}/review', [PayrollController::class, 'reviewTimesheet'])->middleware('can:attendance_staff.view')->name('timesheets.review');
+        Route::post('/timesheets/teachers/bulk-review', [PayrollController::class, 'bulkReviewTimesheets'])->middleware('can:attendance_staff.view')->name('timesheets.bulk-review');
+        Route::put('/timesheets/teachers/{id}/adjust', [PayrollController::class, 'adjustTimesheet'])->whereNumber('id')->middleware('can:attendance_staff.manual_record')->name('timesheets.adjust');
         Route::get('/timesheets/sync-history', [PayrollController::class, 'syncHistory'])->middleware('can:attendance_staff.sync')->name('timesheets.sync-history');
         Route::get('/kpi-leaderboard', [PayrollController::class, 'kpiLeaderboard'])->middleware('can:kpi.view')->name('kpi-leaderboard');
         Route::get('/config/settings', [PayrollController::class, 'configSettings'])->middleware('can:teacher_rate.manage')->name('config.settings');

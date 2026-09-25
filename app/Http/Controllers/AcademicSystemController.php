@@ -698,7 +698,7 @@ class AcademicSystemController extends Controller
             '03_Cong_Giao_Vien/11_report_thang_lich_big_test' => route('teacher.big-test-report'),
             '03_Cong_Giao_Vien/12_xac_nhan_quiz_desktop' => route('teacher.home'),
             '03_Cong_Giao_Vien/13_xac_nhan_quiz_mobile' => route('teacher.home'),
-            '03_Cong_Giao_Vien/16_gui_bao_cao_cham_cong' => route('payroll.timesheets.manual'),
+            '03_Cong_Giao_Vien/16_gui_bao_cao_cham_cong' => route('payroll.timesheets.teachers'),
             '03_Cong_Giao_Vien/17_bao_cao_chung_cua_giao_vien' => route('teacher.general-report'),
 
             // Web Admin (Phase 2)

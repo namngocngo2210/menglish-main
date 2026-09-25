@@ -473,19 +473,73 @@ class PayrollController extends Controller
                 .') — chờ duyệt.');
     }
 
+    /**
+     * Chi tiết chấm công GV + đối soát (mockup epic-7/chi-tiet-cham-cong-theo-gv, 01_Web_Admin/10_doi_soat_chot_bang_cong):
+     * lọc theo kỳ lương (tháng), chi nhánh, lớp, giáo viên, trạng thái; chọn một giáo viên → thẻ thông tin GV,
+     * trạng thái khóa kỳ, số buổi thiếu chấm công (buổi được phân công đã qua mà chưa có ca chấm công hợp lệ).
+     */
     public function teacherTimesheets(Request $request)
     {
         $user = $request->user();
         $canViewAll = $user->can('attendance_staff.view');
         abort_unless($canViewAll || $user->can('payroll.view_own'), 403);
 
-        $timesheets = TeacherTimesheet::with(['teacher', 'classModel', 'reviewer'])
-            ->when(! $canViewAll, fn ($query) => $query->where('user_id', $user->id))
-            ->latest()
-            ->paginate($request->perPage(15))
+        $month = preg_match('/^\d{4}-\d{2}$/', (string) $request->query('month')) ? $request->query('month') : now()->format('Y-m');
+        $monthStart = Carbon::createFromFormat('Y-m-d', $month.'-01')->startOfDay();
+        $monthEnd = $monthStart->copy()->endOfMonth();
+        $status = in_array($request->query('status'), ['pending_review', 'valid', 'invalid'], true) ? $request->query('status') : null;
+        $search = trim((string) $request->query('search', ''));
+        $branchId = $canViewAll ? ($request->integer('branch_id') ?: null) : null;
+        $classId = $request->integer('class_id') ?: null;
+        $teacherId = $canViewAll ? ($request->integer('user_id') ?: null) : $user->id;
+
+        $visibleClassIds = $canViewAll ? ClassModel::query()->visibleTo($user)->pluck('id') : null;
+
+        $query = TeacherTimesheet::with(['teacher.branch', 'classModel', 'reviewer', 'adjuster', 'classSession'])
+            ->whereBetween('teaching_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+            ->when(! $canViewAll, fn ($q) => $q->where('user_id', $user->id))
+            // Quản lý cơ sở / Học vụ chỉ thấy ca của lớp trong phạm vi mình (Admin thấy tất cả).
+            ->when($canViewAll && $user->managedBranchIds() !== null, fn ($q) => $q->whereIn('class_id', $visibleClassIds))
+            ->when($teacherId, fn ($q) => $q->where('user_id', $teacherId))
+            ->when($branchId, fn ($q) => $q->whereHas('classModel', fn ($c) => $c->where('branch_id', $branchId)))
+            ->when($classId, fn ($q) => $q->where('class_id', $classId))
+            ->when($status, fn ($q) => $q->where('status', $status))
+            ->when($search !== '', fn ($q) => $q->whereHas('teacher', fn ($t) => $t->where('name', 'like', "%{$search}%")
+                ->orWhere('employee_code', 'like', "%{$search}%")));
+
+        $summary = (clone $query)->reorder()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+        $timesheets = $query->orderByDesc('teaching_date')->orderByDesc('id')
+            ->paginate($request->perPage(20))
             ->withQueryString();
 
-        return view('payroll.timesheets-teachers', compact('timesheets'));
+        $period = PayrollPeriod::where('year', $monthStart->year)->where('month', $monthStart->month)->first();
+        $periodLocked = $period?->isLocked() || PayrollPeriod::isLockedFor($monthStart);
+
+        // Thẻ giáo viên: số buổi được phân công đã diễn ra trong tháng mà chưa có ca chấm công (không tính ca bị từ chối).
+        $teacher = $teacherId ? User::with('branch')->find($teacherId) : null;
+        $missingSessions = collect();
+        if ($teacher) {
+            $missingSessions = \App\Models\ClassSession::with('classModel')
+                ->forStaff($teacher->id)
+                ->where('status', '!=', 'cancelled')
+                ->whereBetween('date', [$monthStart->toDateString(), min($monthEnd, today())->toDateString()])
+                ->whereDoesntHave('timesheets', fn ($t) => $t->where('user_id', $teacher->id)->where('status', '!=', 'invalid'))
+                ->when($classId, fn ($q) => $q->where('class_id', $classId))
+                ->orderBy('date')->orderBy('start_time')
+                ->get()
+                // Ca chấm tay không gắn buổi (cùng lớp + ngày) cũng coi là đã chấm.
+                ->reject(fn ($s) => TeacherTimesheet::findDuplicate($teacher->id, (int) $s->class_id, $s->date->toDateString(), $s->id) !== null)
+                ->values();
+        }
+
+        $filterClasses = $canViewAll ? ClassModel::query()->visibleTo($user)->orderBy('name')->get(['id', 'name', 'code', 'branch_id']) : collect();
+        $filterBranches = $canViewAll ? \App\Models\Branch::whereIn('id', $filterClasses->pluck('branch_id')->filter()->unique())->orderBy('name')->get(['id', 'name']) : collect();
+        $filterTeachers = $canViewAll ? $this->teachingStaff() : collect();
+
+        return view('payroll.timesheets-teachers', compact(
+            'timesheets', 'summary', 'month', 'monthStart', 'status', 'period', 'periodLocked',
+            'teacher', 'missingSessions', 'filterClasses', 'filterBranches', 'filterTeachers', 'canViewAll'
+        ));
     }
 
     public function reviewTimesheet(Request $request, int $id)
@@ -494,7 +548,7 @@ class PayrollController extends Controller
         $validated = $request->validate([
             'decision' => ['required', 'in:valid,invalid'],
             'rejection_reason' => ['nullable', 'required_if:decision,invalid', 'string', 'max:1000'],
-        ]);
+        ], ['rejection_reason.required_if' => 'Vui lòng nhập lý do từ chối ca dạy.']);
         $timesheet = TeacherTimesheet::findOrFail($id);
         if (PayrollPeriod::isLockedFor($timesheet->teaching_date)) {
             return $this->rejectLockedDate('teaching_date', $timesheet->teaching_date);
@@ -507,6 +561,83 @@ class PayrollController extends Controller
         ]);
 
         return redirect()->back()->with('status', $validated['decision'] === 'valid' ? 'Đã xác nhận ca dạy hợp lệ.' : 'Đã từ chối ca dạy.');
+    }
+
+    /**
+     * "Chốt bảng công (N)" — duyệt hàng loạt các ca đang chờ đối soát đã chọn (mockup 10_doi_soat_chot_bang_cong).
+     * Ca thuộc kỳ lương đã khóa hoặc không còn "Chờ duyệt" được bỏ qua.
+     */
+    public function bulkReviewTimesheets(Request $request)
+    {
+        abort_unless($request->user()->can('attendance_staff.view'), 403);
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['integer'],
+        ], ['ids.required' => 'Chọn ít nhất một ca dạy để chốt.']);
+
+        $approved = 0;
+        $skipped = 0;
+        TeacherTimesheet::whereIn('id', $validated['ids'])->get()->each(function (TeacherTimesheet $ts) use (&$approved, &$skipped) {
+            if ($ts->status !== 'pending_review' || PayrollPeriod::isLockedFor($ts->teaching_date)) {
+                $skipped++;
+
+                return;
+            }
+            $ts->update(['status' => 'valid', 'reviewed_by' => Auth::id(), 'reviewed_at' => now(), 'rejection_reason' => null]);
+            $approved++;
+        });
+
+        return redirect()->back()->with('status', "Đã chốt {$approved} ca dạy vào bảng công".($skipped ? " — bỏ qua {$skipped} ca (không còn chờ duyệt hoặc thuộc kỳ lương đã khóa)." : '.'));
+    }
+
+    /**
+     * "Chỉnh tay bổ sung": sửa giờ vào / ra của một ca đã ghi nhận, bắt buộc lý do; ca quay về "Chờ duyệt"
+     * để đối soát lại. Không sửa được ca thuộc kỳ lương đã duyệt/đã chi trả.
+     */
+    public function adjustTimesheet(Request $request, int $id)
+    {
+        $timesheet = TeacherTimesheet::findOrFail($id);
+        abort_unless(ClassModel::query()->visibleTo($request->user())->whereKey($timesheet->class_id)->exists(), 403);
+        if (PayrollPeriod::isLockedFor($timesheet->teaching_date)) {
+            return $this->rejectLockedDate('time_in', $timesheet->teaching_date);
+        }
+
+        $validated = $request->validate([
+            'time_in' => ['required', 'date_format:H:i'],
+            'time_out' => ['required', 'date_format:H:i', 'after:time_in'],
+            'adjustment_reason' => ['required', 'string', 'min:5', 'max:500'],
+        ], [
+            'time_in.required' => 'Vui lòng nhập giờ vào.',
+            'time_out.required' => 'Vui lòng nhập giờ ra.',
+            'time_out.after' => 'Giờ ra phải sau giờ vào.',
+            'adjustment_reason.required' => 'Chỉnh tay bắt buộc ghi lý do.',
+            'adjustment_reason.min' => 'Lý do điều chỉnh cần ít nhất 5 ký tự.',
+        ]);
+
+        $hours = round(abs(Carbon::createFromFormat('H:i', $validated['time_in'])->diffInMinutes(Carbon::createFromFormat('H:i', $validated['time_out']))) / 60, 2);
+        if ($hours < 0.5) {
+            throw ValidationException::withMessages(['time_out' => 'Ca dạy phải kéo dài ít nhất 30 phút.']);
+        }
+
+        $before = $timesheet->only(['checkin_time', 'checkout_time', 'hours', 'status']);
+        $timesheet->update([
+            'checkin_time' => $validated['time_in'],
+            'checkout_time' => $validated['time_out'],
+            'hours' => $hours,
+            'status' => 'pending_review',
+            'reviewed_by' => null,
+            'reviewed_at' => null,
+            'rejection_reason' => null,
+            'adjusted_at' => now(),
+            'adjusted_by' => $request->user()->id,
+            'adjustment_reason' => $validated['adjustment_reason'],
+        ]);
+
+        activity('teacher_timesheet')->causedBy($request->user())->performedOn($timesheet)
+            ->withProperties(['before' => $before, 'after' => $timesheet->only(array_keys($before)), 'reason' => $validated['adjustment_reason']])
+            ->log('Chỉnh tay giờ chấm công của '.$timesheet->teacher?->name.' ngày '.$timesheet->teaching_date->format('d/m/Y'));
+
+        return redirect()->back()->with('status', 'Đã chỉnh tay giờ vào/ra ('.rtrim(rtrim(number_format($hours, 2, '.', ''), '0'), '.').'h) — ca chuyển về Chờ duyệt để đối soát lại.');
     }
 
     /**
