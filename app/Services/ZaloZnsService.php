@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\CenterInfo;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -42,8 +43,8 @@ class ZaloZnsService
             'speaking_score' => (string)$speaking,
             'overall_score' => (string)$overall,
             'progress_note' => $progressNote ?: 'Đạt kết quả tốt trong kỳ thi định kỳ.',
-            'center_name' => 'MEnglish Education Vietnam',
-            'hotline' => '0975 996 986',
+            'center_name' => CenterInfo::name(),
+            'hotline' => (string) CenterInfo::phone(),
         ];
 
         // Nếu ở chế độ Sandbox / Chưa cấu hình Access Token thật -> Mock Send & Log

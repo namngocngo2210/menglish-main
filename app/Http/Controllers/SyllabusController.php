@@ -10,6 +10,7 @@ use App\Models\BigTestResult;
 use App\Models\ClassModel;
 use App\Models\Course;
 use App\Models\CourseLevel;
+use App\Models\CrmCustomer;
 use App\Models\Student;
 use App\Models\SyllabusAdjustmentRequest;
 use App\Models\SyllabusAssignment;
@@ -516,8 +517,11 @@ class SyllabusController extends Controller
         $class = ClassModel::findOrFail($validated['class_id']);
 
         $stage = ! empty($validated['stage_id']) ? SyllabusStage::findOrFail($validated['stage_id']) : null;
+        // Giáo trình theo Trình độ của lớp: classes.level là mã trình độ (form tạo lớp); lớp tạo từ nơi khác
+        // (CRM / dữ liệu cũ) lưu tên hiển thị → lấy trình độ của khóa học.
         $curriculumId = $validated['curriculum_id'] ?? $stage?->curriculum_id
-            ?? CourseLevel::where('code', $class->level)->value('syllabus_curriculum_id');
+            ?? CourseLevel::where('code', $class->level)->value('syllabus_curriculum_id')
+            ?? $class->course?->level?->syllabus_curriculum_id;
         if (! $curriculumId) {
             throw ValidationException::withMessages(['curriculum_id' => 'Chọn giáo trình (trình độ của lớp chưa gắn giáo trình).']);
         }
@@ -947,6 +951,15 @@ class SyllabusController extends Controller
         ]);
         if ($order->big_test_id) {
             BigTest::whereKey($order->big_test_id)->whereNull('content_url')->update(['content_url' => $order->test_link]);
+            // "Duyệt & phân phối đề" cho đợt thi đã gắn: đợt thi được phân phối luôn (trước đây vẫn ở nháp nên GV
+            // không nhập được kết quả dù order đã duyệt).
+            BigTest::whereKey($order->big_test_id)->where('is_distributed', false)->update([
+                'status' => 'distributed',
+                'is_distributed' => true,
+                'approved_by' => Auth::id(),
+                'approved_at' => now(),
+                'distributed_at' => now(),
+            ]);
         }
         $this->notifyUser($order->teacher_id, 'Order đề đã được duyệt', "Đề {$order->type_label} chặng \"{$order->stage_name}\" lớp {$order->classModel?->name} đã được phân phối.", route('syllabus.big-tests.distribution', ['order' => $order->id, 'order_status' => 'approved']));
 
@@ -1269,8 +1282,12 @@ class SyllabusController extends Controller
     private function deliverZaloResult(BigTestResult $res, ?BigTest $test): string
     {
         $student = $res->student;
-        // Student chưa có cột SĐT phụ huynh riêng → dùng SĐT liên hệ của học viên; không có thì bỏ qua.
-        $phone = trim((string) $student?->phone);
+        // Gửi phụ huynh: SĐT phụ huynh trong hồ sơ khách CRM đã chốt ra học viên này; hồ sơ học viên chưa có cột
+        // SĐT phụ huynh riêng nên không có thì dùng SĐT liên hệ của học viên; không có số nào thì bỏ qua.
+        $parentPhone = $student
+            ? CrmCustomer::where('converted_student_id', $student->id)->whereNotNull('parent_phone')->latest('id')->value('parent_phone')
+            : null;
+        $phone = trim((string) ($parentPhone ?: $student?->phone));
         if ($phone === '') {
             return 'skipped';
         }
