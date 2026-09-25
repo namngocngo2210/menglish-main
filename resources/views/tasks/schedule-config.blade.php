@@ -101,6 +101,7 @@
                                 <div>
                                     <label class="block text-gray-500 mb-1">Ngày trong tuần</label>
                                     <select name="slot2_day" class="w-full rounded-lg border-gray-200 text-xs bg-white">
+                                        <option value="">-- Không học ca 2 --</option>
                                         <option>Thứ 2</option>
                                         <option>Thứ 3</option>
                                         <option>Thứ 4</option>
@@ -123,7 +124,11 @@
                             </div>
                         </div>
 
-                        <div class="pt-3 border-t border-gray-100 flex justify-end gap-2">
+                        <div class="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
+                            <label class="mr-auto inline-flex items-center gap-1.5 text-gray-600">
+                                <input type="checkbox" name="activate" value="1" class="rounded border-gray-300">
+                                Kích hoạt lớp nếu đang "Sắp khai giảng"
+                            </label>
                             <button type="submit" class="bg-[#F5691A] text-white px-4 py-2 rounded-xl font-bold hover:bg-[#d85a15] transition shadow-xs">
                                 Cập nhật lịch
                             </button>
@@ -168,6 +173,7 @@
                                             @endif
                                         </td>
                                         <td class="p-3 text-right">
+                                            @if(in_array($c->status, ['active', 'completed'], true) && auth()->user()->can('class.update'))
                                             <form action="{{ route('tasks.schedule-config.update') }}" method="POST" class="inline">
                                                 @csrf
                                                 <input type="hidden" name="toggle_class_id" value="{{ $c->id }}">
@@ -175,6 +181,7 @@
                                                     {{ $c->status === 'active' ? 'Kết thúc lớp' : 'Mở lại lớp' }}
                                                 </button>
                                             </form>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach
