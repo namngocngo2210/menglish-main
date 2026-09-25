@@ -404,7 +404,8 @@ class CrmController extends Controller
 
         $user = $request->user();
         $canBookTrial = $stages->canMoveForward($user) && in_array($customer->stage, CrmCustomer::TRIAL_BOOKABLE_STAGES, true);
-        $trialSessions = $canBookTrial ? $this->upcomingTrialSessions($customer) : collect();
+        $trialSessions = $canBookTrial ? $this->upcomingTrialSessions($customer, $latestSubmission) : collect();
+        $trialRemaining = max(0, CrmTrialBooking::MAX_ACTIVE_PER_LEAD - $customer->trialBookings->where('status', '!=', 'cancelled')->count());
         $stageControls = [
             'next' => $stages->manualNextStage($customer, $user),
             'backward' => $stages->backwardTargets($customer, $user),
@@ -429,7 +430,7 @@ class CrmController extends Controller
         $reassignUsers = $canReassign ? $this->assignableUsers($customer->branch_id) : collect();
 
         return view('crm.show', compact('customer', 'placementTests', 'examiners', 'latestSubmission', 'courses', 'branches', 'portalTestLink', 'canBookTrial', 'trialSessions', 'stageControls',
-            'histories', 'logType', 'rubric', 'statusCard', 'canReassign', 'reassignUsers'));
+            'histories', 'logType', 'rubric', 'statusCard', 'canReassign', 'reassignUsers', 'trialRemaining'));
     }
 
     /**
@@ -499,24 +500,52 @@ class CrmController extends Controller
             ->get(['id', 'name', 'email']);
     }
 
-    /** Buổi học sắp tới của lớp đang mở tại chi nhánh của lead (ứng viên cho học thử). */
-    protected function upcomingTrialSessions(CrmCustomer $customer)
+    /**
+     * Buổi học sắp tới của lớp đang mở tại chi nhánh của lead (ứng viên cho học thử).
+     * Buổi của lớp khớp trình độ (theo lớp xếp sau test / khóa quan tâm) được đánh dấu `matches_level` và xếp lên đầu.
+     */
+    protected function upcomingTrialSessions(CrmCustomer $customer, ?PlacementTestSubmission $submission = null)
     {
+        $keywords = $this->trialLevelKeywords($customer, $submission);
+
         return ClassSession::query()
-            ->with(['classModel.course', 'teacher'])
+            ->with(['classModel.course.level', 'teacher'])
             ->where('status', 'scheduled')
             ->whereDate('date', '>=', today())
             ->when($customer->branch_id, fn (Builder $query, int $branchId) => $query->where('branch_id', $branchId))
             ->whereHas('classModel', fn (Builder $query) => $query->whereIn('status', ['active', 'upcoming']))
             ->orderBy('date')->orderBy('start_time')
             ->limit(60)
-            ->get();
+            ->get()
+            ->each(function (ClassSession $session) use ($keywords) {
+                $haystack = Str::upper(implode(' ', array_filter([
+                    $session->classModel?->name, $session->classModel?->level,
+                    $session->classModel?->course?->name, $session->classModel?->course?->level?->name,
+                ])));
+                $session->setAttribute('matches_level', $keywords !== [] && collect($keywords)->contains(fn (string $k) => str_contains($haystack, $k)));
+            })
+            ->sortByDesc('matches_level')
+            ->values();
     }
 
     /**
-     * Nhập điểm test đầu vào từ hồ sơ khách (Học vụ / Quản lý cơ sở / Admin — quyền entrance_test.grade),
-     * cùng thang điểm khối lớp với màn chấm bài (PlacementRubricService).
+     * Từ khóa trình độ của khách để gợi ý lớp học thử cùng trình độ: lớp xếp sau test (vd "STARTERS (FAM 1 …)")
+     * hoặc khóa quan tâm.
+     *
+     * @return array<int, string>
      */
+    protected function trialLevelKeywords(CrmCustomer $customer, ?PlacementTestSubmission $submission): array
+    {
+        $source = Str::upper(trim(($submission?->finalClass() ?? '').' '.($customer->course_interest ?? '')));
+        if ($source === '') {
+            return [];
+        }
+
+        return collect(['PRE STARTERS', 'STARTERS', 'MOVERS', 'FLYERS', 'FAM 0', 'FAM 1', 'FAM 2', 'KET', 'PET', 'IELTS'])
+            ->filter(fn (string $keyword) => str_contains($source, $keyword))
+            ->values()->all();
+    }
+
     /**
      * Nhập điểm test đầu vào từ hồ sơ khách (Học vụ / Quản lý cơ sở / Admin — quyền entrance_test.grade),
      * cùng thang điểm khối lớp với màn chấm bài (PlacementRubricService).

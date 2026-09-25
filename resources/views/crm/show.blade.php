@@ -208,7 +208,8 @@
     <div id="scheduleTrialModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl">
             <h3 class="font-bold text-sm mb-1">Đặt lịch học thử</h3>
-            <p class="text-xs text-gray-500 mb-4">Chọn 1–2 buổi học thật của lớp cùng trình độ tại {{ $customer->branch?->name ?? 'chi nhánh của khách' }}. Giáo viên của buổi sẽ thấy khách và gửi phản hồi.</p>
+            <p class="text-xs text-gray-500 mb-2">Chọn 1–2 buổi học thật của lớp cùng trình độ tại {{ $customer->branch?->name ?? 'chi nhánh của khách' }}. Giáo viên của buổi sẽ thấy khách trong trang "Nhận xét học thử" và nhận xét như học sinh chính thức.</p>
+            <p class="text-xs mb-4 {{ $trialRemaining > 0 ? 'text-fuchsia-700' : 'text-rose-700' }} font-semibold">Còn đặt được {{ $trialRemaining }}/{{ \App\Models\CrmTrialBooking::MAX_ACTIVE_PER_LEAD }} buổi học thử.@if ($latestSubmission?->finalClass()) Trình độ theo test: {{ $latestSubmission->finalClass() }}.@endif</p>
             <form action="{{ route('crm.customers.trial-bookings.store', $customer->id) }}" method="POST" class="space-y-3 text-xs">
                 @csrf
                 <div class="max-h-64 overflow-y-auto border border-gray-100 rounded-xl divide-y divide-gray-100">
@@ -217,6 +218,7 @@
                             <input type="checkbox" name="class_session_ids[]" value="{{ $session->id }}" class="mt-0.5 rounded border-gray-300 text-fuchsia-600" />
                             <span>
                                 <span class="font-bold text-gray-900">{{ $session->classModel?->name }}</span>
+                                @if ($session->matches_level)<span class="ml-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold text-[10px]">Khớp trình độ</span>@endif
                                 <span class="text-gray-500">· {{ $session->classModel?->course?->name ?? 'Chưa gán khóa' }}{{ $session->classModel?->level ? ' · '.$session->classModel->level : '' }}</span>
                                 <span class="block text-gray-500">{{ $session->date->format('d/m/Y') }} · {{ $session->start_time?->format('H:i') }}–{{ $session->end_time?->format('H:i') }} · GV: {{ $session->teacher?->name ?? 'Chưa gán' }}</span>
                             </span>
@@ -378,8 +380,8 @@
                                 <span class="font-semibold text-gray-900">{{ $booking->classModel?->name }} · {{ $booking->session?->date?->format('d/m/Y') }} {{ $booking->session?->start_time?->format('H:i') }}</span>
                                 <span class="px-2 py-0.5 rounded-full font-bold {{ $booking->status === 'attended' ? 'bg-emerald-50 text-emerald-700' : ($booking->status === 'scheduled' ? 'bg-sky-50 text-sky-700' : 'bg-rose-50 text-rose-700') }}">{{ $booking->status_label }}</span>
                             </div>
-                            @if ($booking->feedback)
-                                <div class="mt-1 text-gray-700">{{ $booking->rating ? $booking->rating.'/5 · ' : '' }}{{ $booking->feedback }}</div>
+                            @if ($booking->feedback || $booking->remarks)
+                                <div class="mt-1 text-gray-700"><span class="font-semibold">Nhận xét của GV:</span> {{ $booking->rating ? $booking->rating.'/5 · ' : '' }}{{ $booking->remarksSummary() !== '' ? $booking->remarksSummary().' · ' : '' }}{{ $booking->feedback }}</div>
                                 <div class="text-[11px] text-gray-400">{{ $booking->feedbackBy?->name }} · {{ $booking->feedback_at?->format('d/m/Y H:i') }}</div>
                             @endif
                             @if ($booking->status === 'scheduled' && $canBookTrial)

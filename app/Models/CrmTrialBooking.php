@@ -14,6 +14,13 @@ class CrmTrialBooking extends Model
 {
     public const MAX_ACTIVE_PER_LEAD = 2;
 
+    /** Đầu mục nhận xét giống nhận xét buổi học của học sinh chính thức (teacher/remarks). */
+    public const REMARK_FIELDS = [
+        'grammar' => 'Thực hành ngữ pháp',
+        'attitude' => 'Tinh thần học tập',
+        'result' => 'Kết quả',
+    ];
+
     public const STATUSES = [
         'scheduled' => 'Đã hẹn',
         'attended' => 'Đã học thử',
@@ -30,6 +37,7 @@ class CrmTrialBooking extends Model
         'notes',
         'rating',
         'feedback',
+        'remarks',
         'feedback_by',
         'feedback_at',
     ];
@@ -38,6 +46,7 @@ class CrmTrialBooking extends Model
     {
         return [
             'rating' => 'integer',
+            'remarks' => 'array',
             'feedback_at' => 'datetime',
         ];
     }
@@ -65,6 +74,21 @@ class CrmTrialBooking extends Model
     public function feedbackBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'feedback_by');
+    }
+
+    /** Buổi học thử đã diễn ra (hoặc đang diễn ra hôm nay) — mới được điểm danh / nhận xét. */
+    public function sessionHasStarted(): bool
+    {
+        return $this->session?->date !== null && $this->session->date->lte(today());
+    }
+
+    /** Nhận xét dạng một dòng (dùng cho nhật ký tuyển sinh): "Thực hành ngữ pháp: Khá · Tinh thần: ...". */
+    public function remarksSummary(): string
+    {
+        return collect(self::REMARK_FIELDS)
+            ->filter(fn (string $label, string $key) => filled($this->remarks[$key] ?? null))
+            ->map(fn (string $label, string $key) => $label.': '.$this->remarks[$key])
+            ->implode(' · ');
     }
 
     public function getStatusLabelAttribute(): string
