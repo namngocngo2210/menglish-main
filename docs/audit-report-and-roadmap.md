@@ -513,6 +513,26 @@
 **MR:** #...
 ```
 
+#### Phase 4 — Học phí & Chuyển khoản (nhánh `feat/phase4-finance`)
+**Đã làm:**
+- [x] Dải số hóa đơn theo chi nhánh (dải cũ = dải mặc định dùng chung), không chồng lấn, không lùi số dưới số đã cấp, `tuition_receipts.invoice_number` UNIQUE (số trùng cũ đổi thành `-DUP{id}`); màn "Cấu hình dải số hóa đơn" theo mockup.
+- [x] Khất nợ có hạn mới: duyệt xong dời hạn đóng, bỏ trạng thái quá hạn, tạm dừng nhắc nợ tới hạn mới. Thêm loại **Bảo lưu** (từ/đến ngày): học viên sang `deferred` (Bảo lưu), đóng băng số buổi còn lại + công nợ, dời hạn đóng rơi vào thời gian bảo lưu, tạm dừng nhắc nợ.
+- [x] Nhập học phí từ Excel/CSV thật (maatwebsite/excel): xem trước kèm lỗi từng dòng, chỉ nhập dòng hợp lệ, khoản đã đóng thành phiếu **chờ duyệt**; file mẫu .xlsx.
+- [x] Quyền `finance.view` riêng cho báo cáo thu chi (Admin, Kế toán, Quản lý cơ sở); Sale giữ `report.view` cho báo cáo CRM. Quản lý cơ sở chỉ thấy chi nhánh mình.
+- [x] Phiếu thu: màn sửa phiếu nháp/bị trả về (dùng lại form lập phiếu) rồi gửi lại; bắt buộc minh chứng khi gửi duyệt chuyển khoản/VietQR/POS (tiền mặt, nháp được miễn); số buổi thật (khóa học/lịch lớp + điểm danh), thiếu dữ liệu thì ẩn; QR theo tài khoản hợp đồng → chi nhánh → mặc định.
+- [x] Thông báo cá nhân cho Kế toán chi nhánh (và kế toán không gán chi nhánh) khi có phiếu chờ duyệt; báo người lập khi phiếu bị trả về.
+- [x] Danh sách quá hạn chia nhóm ≥ N ngày / 1–(N-1) ngày (N = "Mốc quá hạn bắt buộc liên hệ", mặc định 7), cột số ngày quá hạn, "Đã liên hệ" (ghi chú + thời gian), "Báo cáo Admin".
+- [x] Hoàn phí tính từ hợp đồng thật (đã nộp, tổng buổi/đã học theo điểm danh, phí quản trị `config/tuition.php`), thêm "Đánh dấu khất nợ".
+- [x] Cấu hình nhắc nợ theo mockup: mốc theo số ngày trước/sau hạn, kênh (in-app, email), mẫu tin chỉ nhận biến hệ thống thay được.
+- [x] Chống ghi nhận chuyển khoản 2 lần: mã giao dịch chuyển khoản duy nhất (`transfer_reference`), chặn phiếu tay trùng giao dịch SePay, cảnh báo cùng tiền/cùng học viên ±3 ngày (phải tick xác nhận); SePay bỏ qua giao dịch đã có phiếu tay; webhook chỉ gạch nợ khi tiền vào tài khoản ngân hàng đã cấu hình.
+
+**Chưa làm / chuyển phase sau:**
+- [ ] Hết thời gian bảo lưu chưa tự chuyển học viên về "Đang học" (nhắc nợ tự chạy lại) → cần job/luồng trạng thái học viên (nhóm Học viên).
+- [ ] Phiếu hoàn/chuyển nhượng vẫn lấy số HĐ ở dải mặc định (hàm duyệt hoàn phí do nhánh lương sửa song song, tránh xung đột).
+- [ ] Kênh Zalo ZNS/SMS cho nhắc nợ chưa tích hợp (màn cấu hình ghi rõ "chưa tích hợp").
+
+**Triển khai:** chạy `php artisan migrate` (5 migration `2026_09_28_2000xx`); migration đã gán `finance.view` cho admin/accountant/manager, hoặc chạy lại `db:seed --class=PermissionSeeder` + `RoleSeeder`. Phải cấu hình số tài khoản ngân hàng nhận tiền trước khi bật SePay, nếu không webhook sẽ không gạch nợ.
+
 ---
 
 ## Phụ lục — Vị trí kỹ thuật các lỗi P0 (cho dev)
