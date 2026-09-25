@@ -634,7 +634,8 @@ class TuitionP0FixesTest extends TestCase
     {
         $this->actingAs($this->accountant)
             ->post(route('tuition.import.store'))
-            ->assertSessionHasErrors('import')
+            // Phase 4: nhập Excel đã làm thật — thiếu file/chi nhánh thì báo lỗi validate, không báo thành công.
+            ->assertSessionHasErrors(['excel_file', 'branch_id'])
             ->assertSessionMissing('status');
     }
 }

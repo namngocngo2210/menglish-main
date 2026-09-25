@@ -147,7 +147,9 @@ Route::middleware('auth')->group(function () {
     Route::prefix('tuition')->name('tuition.')->middleware('can:tuition.view')->group(function () {
         Route::get('/students', [TuitionController::class, 'students'])->name('students');
         Route::get('/import', [TuitionController::class, 'import'])->name('import');
-        Route::post('/import', [TuitionController::class, 'importTuition'])->name('import.store');
+        Route::post('/import', [TuitionController::class, 'importTuition'])->middleware('can:tuition.create')->name('import.store');
+        Route::post('/import/confirm', [TuitionController::class, 'confirmImport'])->middleware('can:tuition.create')->name('import.confirm');
+        Route::get('/import/template', [TuitionController::class, 'downloadImportTemplate'])->name('import.template');
         Route::get('/receipts/create', [TuitionController::class, 'createReceipt'])->name('receipts.create');
         Route::post('/receipts', [TuitionController::class, 'storeReceipt'])->middleware('can:tuition.create')->name('receipts.store');
         Route::get('/receipts/{id}/edit', [TuitionController::class, 'editReceipt'])->middleware('can:tuition.create')->whereNumber('id')->name('receipts.edit');

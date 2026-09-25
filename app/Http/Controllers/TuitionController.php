@@ -18,8 +18,10 @@ use App\Models\TuitionContactLog;
 use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
+use App\Exports\TuitionImportTemplateExport;
 use App\Services\NotificationService;
 use App\Services\SafeUploadService;
+use App\Services\TuitionImportService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -62,16 +64,90 @@ class TuitionController extends Controller
         return view('tuition.students', compact('tuitions', 'branches', 'classes'));
     }
 
-    public function import()
+    /**
+     * Nhập học phí từ Excel — 3 bước: Tải file → Xem trước (lỗi từng dòng) → Kết quả.
+     */
+    public function import(Request $request)
     {
-        return view('tuition.import');
+        $branches = Branch::where('is_active', true)->orderBy('name')->get();
+        $preview = null;
+        if ($request->filled('token')) {
+            $preview = $request->session()->get('tuition_import.'.$request->input('token'));
+            if ($preview) {
+                $preview['token'] = $request->input('token');
+                $preview['branch_name'] = Branch::find($preview['branch_id'])?->name;
+            }
+        }
+        $result = $request->session()->get('tuition_import_result');
+
+        return view('tuition.import', compact('branches', 'preview', 'result'));
     }
 
-    public function importTuition(Request $request)
+    public function importTuition(Request $request, TuitionImportService $importer)
     {
-        // Chưa có parser Excel thật: không được báo thành công giả.
+        $validated = $request->validate([
+            'branch_id' => 'required|exists:branches,id',
+            'excel_file' => 'required|file|max:10240|mimes:xlsx,xls,csv,txt',
+        ], [
+            'branch_id.required' => 'Vui lòng chọn chi nhánh.',
+            'excel_file.required' => 'Vui lòng chọn file Excel (.xlsx) hoặc CSV để nhập.',
+            'excel_file.mimes' => 'Chỉ hỗ trợ file .xlsx, .xls hoặc .csv.',
+            'excel_file.max' => 'File tối đa 10MB.',
+        ]);
+
+        try {
+            $parsed = $importer->parse($request->file('excel_file'), (int) $validated['branch_id']);
+        } catch (\Throwable $e) {
+            Log::warning('Không đọc được file nhập học phí: '.$e->getMessage());
+
+            return redirect()->route('tuition.import')->withErrors(['excel_file' => 'Không đọc được file. Vui lòng dùng file mẫu (.xlsx hoặc .csv UTF-8).']);
+        }
+
+        if ($parsed['missing_columns'] !== []) {
+            return redirect()->route('tuition.import')->withErrors([
+                'excel_file' => 'File thiếu cột bắt buộc: '.implode(', ', $parsed['missing_columns']).'. Vui lòng dùng file mẫu.',
+            ]);
+        }
+
+        if ($parsed['rows'] === []) {
+            return redirect()->route('tuition.import')->withErrors(['excel_file' => 'File không có dòng dữ liệu nào.']);
+        }
+
+        $token = (string) \Illuminate\Support\Str::uuid();
+        $request->session()->put('tuition_import.'.$token, [
+            'branch_id' => (int) $validated['branch_id'],
+            'file_name' => $request->file('excel_file')->getClientOriginalName(),
+            'rows' => $parsed['rows'],
+        ]);
+
+        return redirect()->route('tuition.import', ['token' => $token]);
+    }
+
+    public function confirmImport(Request $request, TuitionImportService $importer)
+    {
+        $validated = $request->validate(['token' => 'required|string']);
+        $preview = $request->session()->pull('tuition_import.'.$validated['token']);
+        if (! $preview) {
+            return redirect()->route('tuition.import')->withErrors(['excel_file' => 'Phiên xem trước đã hết hạn, vui lòng tải file lên lại.']);
+        }
+
+        $valid = array_values(array_filter($preview['rows'], fn ($row) => empty($row['errors'])));
+        if ($valid === []) {
+            return redirect()->route('tuition.import')->withErrors(['excel_file' => 'Không có dòng hợp lệ nào để nhập.']);
+        }
+
+        $result = $importer->import($valid, (int) $preview['branch_id'], $request->user());
+        $result['skipped'] = count($preview['rows']) - count($valid);
+        $result['file_name'] = $preview['file_name'];
+
         return redirect()->route('tuition.import')
-            ->withErrors(['import' => 'Chức năng nhập dữ liệu học phí từ Excel đang được phát triển, chưa có dữ liệu nào được nạp.']);
+            ->with('tuition_import_result', $result)
+            ->with('status', "Đã nhập {$result['tuitions']} hồ sơ học phí và {$result['receipts']} phiếu thu chờ duyệt.");
+    }
+
+    public function downloadImportTemplate()
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(new TuitionImportTemplateExport, 'mau-nhap-hoc-phi.xlsx');
     }
 
     public function createReceipt(Request $request)
