@@ -75,6 +75,13 @@
                     </div>
                 </div>
                 <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Ngày thi dự kiến</label>
+                    <input type="date" name="exam_date" value="{{ old('exam_date') }}" min="{{ now()->toDateString() }}"
+                           class="w-full text-xs rounded-xl border border-gray-200 px-3 py-2" />
+                    <p class="text-[11px] text-gray-500 mt-1">Hạn xử lý của Học thuật = ngày thi − {{ \App\Models\BigTestOrder::LEAD_DAYS }} ngày (để trống: trong {{ \App\Models\BigTestOrder::LEAD_DAYS }} ngày).</p>
+                    @error('exam_date') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
+                </div>
+                <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">Ghi chú cho học vụ</label>
                     <textarea name="note" rows="3" placeholder="VD: đề trọng tâm Listening Part 1-2, độ khó vừa phải..."
                               class="w-full text-xs rounded-xl border border-gray-200 px-3 py-2"></textarea>
@@ -99,6 +106,7 @@
                         <th class="py-3 px-4">Thời gian</th>
                         <th class="py-3 px-4">Loại đề</th>
                         <th class="py-3 px-4">Chặng</th>
+                        <th class="py-3 px-4">Ngày thi / Hạn xử lý</th>
                         <th class="py-3 px-4">Ghi chú</th>
                         <th class="py-3 px-4">Trạng thái</th>
                     </tr>
@@ -106,18 +114,25 @@
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($requests as $req)
                         <tr>
-                            <td class="py-3 px-4 font-mono text-gray-500">{{ $req->data['created_at'] ?? $req->created_at->format('d/m/Y H:i') }}</td>
-                            <td class="py-3 px-4 font-bold">{{ strtoupper($req->data['test_type'] ?? '') }} TEST</td>
-                            <td class="py-3 px-4 font-semibold text-gray-900">{{ $req->data['stage_name'] ?? '—' }}</td>
-                            <td class="py-3 px-4 text-gray-500">{{ $req->data['note'] ?? '—' }}</td>
-                            <td class="py-3 px-4">
-                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border {{ ($req->status ?? '') === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200' }}">
-                                    {{ ($req->status ?? 'pending') === 'pending' ? 'Chờ học vụ xử lý' : 'Đã xử lý' }}
-                                </span>
+                            <td class="py-3 px-4 font-mono text-gray-500">{{ $req->created_at->format('d/m/Y H:i') }}</td>
+                            <td class="py-3 px-4 font-bold">{{ $req->type_label }}</td>
+                            <td class="py-3 px-4 font-semibold text-gray-900">{{ $req->stage_name }}</td>
+                            <td class="py-3 px-4 text-gray-600">
+                                <div>Thi: {{ $req->exam_date?->format('d/m/Y') ?? '—' }}</div>
+                                <div class="text-[11px] text-gray-400">Hạn: {{ $req->due_date?->format('d/m/Y') ?? '—' }}</div>
+                            </td>
+                            <td class="py-3 px-4 text-gray-500">{{ $req->note ?: '—' }}</td>
+                            <td class="py-3 px-4 space-y-1">
+                                <x-ui.badge :color="$req->status_color">{{ $req->status_label }}</x-ui.badge>
+                                @if ($req->status === 'approved' && $req->test_link)
+                                    <a href="{{ $req->test_link }}" target="_blank" rel="noopener" class="block text-[11px] text-primary font-semibold hover:underline">Mở link đề</a>
+                                @elseif ($req->status === 'rejected' && $req->rejection_reason)
+                                    <p class="text-[11px] text-rose-600">Lý do: {{ $req->rejection_reason }}</p>
+                                @endif
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="text-center py-8 text-gray-400 text-xs">Chưa gửi yêu cầu đề test nào cho lớp này.</td></tr>
+                        <tr><td colspan="6" class="text-center py-8 text-gray-400 text-xs">Chưa gửi yêu cầu đề test nào cho lớp này.</td></tr>
                     @endforelse
                 </tbody>
             </table>

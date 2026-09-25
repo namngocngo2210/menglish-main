@@ -240,7 +240,7 @@ class StudentPortalController extends Controller
             $learningProgress['homework_submitted'] = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap')
                 ->where('data->student_id', (string) $student->id)->count();
             $learningProgress['latest_big_test'] = BigTestResult::with('bigTest')
-                ->where('student_id', $student->id)->where('status', 'approved')->latest('approved_at')->first();
+                ->where('student_id', $student->id)->whereIn('status', ['approved', 'sent'])->latest('approved_at')->first();
         }
 
         // Lịch sử biên lai đóng học phí thực tế từ DB

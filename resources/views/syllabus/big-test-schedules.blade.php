@@ -23,6 +23,50 @@
     </x-slot>
 
     <div class="space-y-4">
+        {{-- Đợt thi trong 7 ngày tới (hệ thống tự nhắc giáo viên lúc 07:45 hằng ngày) --}}
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="p-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary text-[20px]">notification_important</span>
+                    <h2 class="text-sm font-bold text-gray-900">Sắp thi trong 7 ngày</h2>
+                    <x-ui.badge color="warning">{{ $upcoming->count() }} đợt</x-ui.badge>
+                    <x-ui.badge color="error">{{ $upcoming->filter(fn ($t) => now()->startOfDay()->diffInDays($t->scheduled_at->copy()->startOfDay()) <= 2)->count() }} khẩn cấp (1-2 ngày)</x-ui.badge>
+                </div>
+                <p class="text-[11px] text-gray-500">Giáo viên lớp được tự động nhắc trước 7 ngày; nút "Nhắc lịch" gửi nhắc tới học viên.</p>
+            </div>
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
+                        <th class="py-3 px-4">Mã đợt thi</th>
+                        <th class="py-3 px-4">Lớp</th>
+                        <th class="py-3 px-4">Ngày thi</th>
+                        <th class="py-3 px-4">Trạng thái đề</th>
+                        <th class="py-3 px-4 text-right">Số ngày còn lại</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @forelse ($upcoming as $t)
+                        @php($left = (int) now()->startOfDay()->diffInDays($t->scheduled_at->copy()->startOfDay()))
+                        <tr>
+                            <td class="py-3 px-4 font-mono font-bold">{{ $t->code }}</td>
+                            <td class="py-3 px-4">{{ $t->classModel?->name }}</td>
+                            <td class="py-3 px-4 font-mono">{{ $t->scheduled_at->format('d/m/Y H:i') }}</td>
+                            <td class="py-3 px-4">
+                                @if ($t->is_distributed)
+                                    <x-ui.badge color="success">Đã duyệt đề</x-ui.badge>
+                                @else
+                                    <x-ui.badge color="error">Chưa duyệt đề</x-ui.badge>
+                                @endif
+                            </td>
+                            <td class="py-3 px-4 text-right font-bold {{ $left <= 2 ? 'text-rose-600' : 'text-gray-700' }}">{{ $left }} ngày</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" class="py-6 text-center text-gray-400">Không có đợt thi nào trong 7 ngày tới.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <table class="w-full text-left border-collapse text-xs">
                 <thead>
@@ -43,8 +87,8 @@
                             <td class="py-3.5 px-4 font-bold text-gray-900">{{ $bt->classModel?->name }}</td>
                             <td class="py-3.5 px-4 font-semibold text-primary">{{ $bt->title }}</td>
                             <td class="py-3.5 px-4 font-mono font-medium text-gray-600">{{ $bt->scheduled_at ? $bt->scheduled_at->format('d/m/Y H:i') : '—' }}</td>
-                            <td class="py-3.5 px-4">{{ $bt->room }} · {{ $bt->classModel?->branch?->name ?? 'Cơ sở 1' }}</td>
-                            <td class="py-3.5 px-4 font-medium text-gray-800">{{ $bt->proctor?->name ?? 'Giám thị MEnglish' }}</td>
+                            <td class="py-3.5 px-4">{{ $bt->room }} · {{ $bt->classModel?->branch?->name ?? '—' }}</td>
+                            <td class="py-3.5 px-4 font-medium text-gray-800">{{ $bt->proctor?->name ?? '—' }}</td>
                             <td class="py-3.5 px-4 font-mono font-bold text-emerald-600">{{ $bt->passcodeVisibleTo(auth()->user()) ? $bt->passcode : '••••••' }}</td>
                             <td class="py-3.5 px-4 text-right">
                                 @can('syllabus.approve_adjustment')
@@ -65,11 +109,12 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center py-8 text-gray-400 text-xs">Chưa có lịch thi Big Test nào.</td>
+                            <td colspan="8" class="text-center py-8 text-gray-400 text-xs">Chưa có lịch thi Big Test nào.</td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
+            <div class="border-t border-gray-100"><x-ui.pagination :paginator="$bigTests" unit="đợt thi" /></div>
         </div>
     </div>
 </x-app-layout>
