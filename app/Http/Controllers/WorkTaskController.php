@@ -1147,17 +1147,57 @@ class WorkTaskController extends Controller
         return redirect()->back()->with('success', 'Đã lưu báo cáo nhu cầu nhân sự thành công!');
     }
 
-    public function supportSessions()
+    /**
+     * Danh sách bổ trợ + xếp buổi phụ đạo. Danh sách gồm học viên vắng học, điểm mini test /
+     * Big Test dưới 7 (tự thêm — SupportListService) và học viên ghi trong báo cáo trực lớp;
+     * chỉ lớp người dùng được xem.
+     */
+    public function supportSessions(Request $request)
     {
-        $pendingSupports = ClassReportStudentSupport::with(['student', 'classReport.classModel'])
-            ->whereDoesntHave('supportSession')->latest()->get();
-        $sessions = SupportSession::with(['student', 'classModel', 'teacher'])->latest('session_date')->get();
-        $classes = ClassModel::with('students')->where('status', 'active')->get();
+        $user = $request->user();
+        $visibleClassIds = ClassModel::query()->visibleTo($user)->pluck('id')->all();
+        $source = $request->query('source');
+        $sources = \App\Services\SupportListService::SOURCE_LABELS;
+
+        $pendingSupports = ClassReportStudentSupport::with(['student', 'classModel', 'classReport.classModel'])
+            ->whereDoesntHave('supportSession')
+            ->where(fn ($q) => $q->whereIn('class_id', $visibleClassIds)
+                ->orWhere(fn ($q) => $q->whereNull('class_id')
+                    ->whereHas('classReport', fn ($r) => $r->whereIn('class_id', $visibleClassIds))))
+            ->when($source && isset($sources[$source]), fn ($q) => $q->where('source', $source))
+            ->latest()
+            ->paginate(20, ['*'], 'list_page')
+            ->withQueryString();
+
+        $sessions = SupportSession::with(['student', 'classModel', 'teacher', 'supportItem'])
+            ->whereIn('class_id', $visibleClassIds)
+            ->latest('session_date')
+            ->paginate(20, ['*'], 'session_page')
+            ->withQueryString();
+
+        $classes = ClassModel::whereIn('id', $visibleClassIds)
+            ->whereNotIn('status', ['completed', 'cancelled'])
+            ->orderBy('name')
+            ->get();
+        $classRosters = $classes->mapWithKeys(fn (ClassModel $class) => [$class->id => $class->rosterStudents()]);
+
         // Theo flow BA, buổi bổ trợ do CM/Học vụ hoặc TA đảm nhận (không nhất thiết GV chính),
         // nên picker bao gồm cả trợ giảng và học vụ bên cạnh các vai trò giáo viên.
-        $teachers = User::whereHas('roles', fn ($query) => $query->whereIn('name', ['teacher', 'teacher_fulltime', 'teacher_parttime', 'academic_lead', 'academic_staff', 'assistant']))->get();
+        $teachers = User::where('is_active', true)
+            ->whereHas('roles', fn ($query) => $query->whereIn('name', ['teacher', 'teacher_fulltime', 'teacher_parttime', 'academic_lead', 'academic_staff', 'assistant']))
+            ->orderBy('name')
+            ->get();
 
-        return view('tasks.support-sessions', compact('pendingSupports', 'sessions', 'classes', 'teachers'));
+        $selectedSupport = $request->filled('support')
+            ? ClassReportStudentSupport::with('classReport')->whereDoesntHave('supportSession')->find($request->query('support'))
+            : null;
+        if ($selectedSupport && ! in_array($selectedSupport->resolvedClassId(), $visibleClassIds, true)) {
+            $selectedSupport = null;
+        }
+
+        return view('tasks.support-sessions', compact(
+            'pendingSupports', 'sessions', 'classes', 'classRosters', 'teachers', 'sources', 'source', 'selectedSupport'
+        ));
     }
 
     public function storeSupportSession(Request $request)
@@ -1174,17 +1214,34 @@ class WorkTaskController extends Controller
             'reason' => ['nullable', 'string', 'max:2000'],
         ]);
         $class = ClassModel::findOrFail($validated['class_id']);
-        abort_unless($class->students()->whereKey($validated['student_id'])->exists(), 422, 'Học viên không thuộc lớp đã chọn.');
+        abort_unless(ClassModel::query()->visibleTo($request->user())->whereKey($class->id)->exists(), 403, 'Lớp này nằm ngoài phạm vi bạn được quản lý.');
+        abort_unless($class->hasOnRoster((int) $validated['student_id']), 422, 'Học viên không thuộc lớp đã chọn.');
 
+        if (! empty($validated['class_report_student_support_id'])) {
+            $item = ClassReportStudentSupport::with(['classReport', 'supportSession'])->findOrFail($validated['class_report_student_support_id']);
+            abort_unless((int) $item->student_id === (int) $validated['student_id'] && $item->resolvedClassId() === (int) $class->id,
+                422, 'Dòng bổ trợ không khớp học viên/lớp đã chọn.');
+            abort_if($item->supportSession !== null, 422, 'Học viên này đã được xếp buổi bổ trợ cho mục này.');
+            if (empty($validated['reason'])) {
+                $validated['reason'] = $item->reason;
+            }
+        }
+
+        // Trùng lịch: bỏ qua buổi đã hủy; người dạy trùng nếu là GV / GVNN / trợ giảng của buổi khác.
+        $start = ClassSession::normalizeTime($validated['start_time']);
+        $end = ClassSession::normalizeTime($validated['end_time']);
         $conflict = ClassSession::whereDate('date', $validated['session_date'])
-            ->where('start_time', '<', $validated['end_time'])->where('end_time', '>', $validated['start_time'])
+            ->where('status', '!=', 'cancelled')
+            ->where('start_time', '<', $end)->where('end_time', '>', $start)
             ->where(function ($query) use ($validated, $class) {
-                $query->where('teacher_id', $validated['teacher_id']);
+                $query->forStaff((int) $validated['teacher_id']);
                 if (! empty($validated['room'])) {
                     $query->orWhere(fn ($room) => $room->where('branch_id', $class->branch_id)->where('room', $validated['room']));
                 }
             })->exists();
-        abort_if($conflict, 422, 'Giáo viên hoặc phòng học bị trùng lịch phụ đạo.');
+        if ($conflict) {
+            return redirect()->back()->withInput()->withErrors(['start_time' => 'Người dạy hoặc phòng học bị trùng lịch với buổi khác trong khung giờ này.']);
+        }
 
         DB::transaction(function () use ($validated, $class) {
             $classSession = ClassSession::create([
@@ -1207,7 +1264,7 @@ class WorkTaskController extends Controller
             ]);
         });
 
-        return redirect()->back()->with('success', 'Đã xếp lịch phụ đạo và giữ chỗ giáo viên/phòng học.');
+        return redirect()->route('tasks.support-sessions')->with('success', 'Đã xếp lịch phụ đạo và giữ chỗ giáo viên/phòng học.');
     }
 
     public function completeSupportSession(Request $request, int $id)
