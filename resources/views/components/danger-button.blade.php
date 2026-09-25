@@ -1,3 +1,4 @@
-<button {{ $attributes->merge(['type' => 'submit', 'class' => 'inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 active:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150']) }}>
+{{-- Legacy Breeze button — cùng style với <x-ui.button variant="danger">. Ưu tiên dùng <x-ui.button> cho màn mới. --}}
+<button {{ $attributes->merge(['type' => 'submit', 'class' => 'inline-flex shrink-0 items-center justify-center gap-xs whitespace-nowrap rounded-lg bg-error px-md py-sm font-body-medium text-body-medium text-white shadow-sm transition-colors hover:bg-on-error-container focus:outline-none focus-visible:ring-2 focus-visible:ring-error/40 disabled:opacity-50']) }}>
     {{ $slot }}
 </button>

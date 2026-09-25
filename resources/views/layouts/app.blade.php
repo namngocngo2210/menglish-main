@@ -51,7 +51,7 @@
                         </div>
 
                         @if ($canSearchLeads)
-                            <form method="GET" action="{{ route('crm.customers.index') }}" role="search" class="relative hidden w-[300px] shrink-0 xl:block">
+                            <form method="GET" action="{{ route('crm.customers.index') }}" role="search" class="relative hidden w-[300px] shrink-0 lg:block">
                                 <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
                                 <input type="search" name="search" value="{{ request()->routeIs('crm.customers.index') ? request('search') : '' }}"
                                        placeholder="Tìm kiếm Lead, SĐT..." aria-label="Tìm kiếm Lead, SĐT"
