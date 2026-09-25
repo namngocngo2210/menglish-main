@@ -203,7 +203,9 @@ class TeacherPortalController extends Controller
         ]);
 
         $today = now()->toDateString();
-        $session = ClassSession::where('class_id', $classId)->whereDate('date', $today)->first();
+        $session = ClassSession::where('class_id', $classId)->whereDate('date', $today)
+            ->where('type', '!=', ClassSession::TYPE_SUPPORT)->where('status', '!=', 'cancelled')
+            ->orderBy('start_time')->first();
         $count = 0;
         foreach ($validated['status'] as $studentId => $status) {
             abort_unless($class->students()->whereKey($studentId)->exists(), 422, 'Học viên không thuộc lớp này.');
@@ -226,6 +228,9 @@ class TeacherPortalController extends Controller
             );
             $count++;
         }
+
+        // Đã điểm danh nghĩa là buổi đã diễn ra: chốt buổi để không bị xếp lại/ghi đè về sau.
+        $session?->update(['status' => 'completed']);
 
         return redirect()->route('teacher.home')
             ->with('success', "Đã lưu điểm danh {$count} học sinh lớp {$class->name}!");

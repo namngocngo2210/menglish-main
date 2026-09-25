@@ -21,16 +21,12 @@
     <!-- Top Action Floating Bar -->
     <div class="max-w-4xl mx-auto mb-4 flex items-center justify-between no-print">
         <div class="flex items-center gap-2">
-            <a href="{{ route('placement-tests.index') }}" class="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center gap-1 shadow-2xs">
-                <span class="material-symbols-outlined text-[16px]">arrow_back</span>
-                <span>Quay lại Admin</span>
-            </a>
-            @if ($submission->customer)
-                <a href="{{ route('crm.customers.show', $submission->customer->id) }}" class="px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold transition flex items-center gap-1 shadow-2xs">
-                    <span class="material-symbols-outlined text-[16px]">person</span>
-                    <span>Hồ sơ Lead CRM</span>
+            @auth
+                <a href="{{ route('placement-tests.index') }}" class="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center gap-1 shadow-2xs">
+                    <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+                    <span>Quay lại Admin</span>
                 </a>
-            @endif
+            @endauth
         </div>
 
         <div class="flex items-center gap-2">
@@ -78,63 +74,34 @@
             </div>
         </div>
 
-        <!-- 2. Candidate & Parent Information Box (2 Columns) -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <!-- THÔNG TIN HỌC VIÊN -->
-            <div class="p-4 rounded-2xl bg-orange-50/50 border border-orange-200/80 space-y-2.5">
-                <div class="flex items-center gap-1.5 text-xs font-black text-orange-800 uppercase tracking-wider pb-1.5 border-b border-orange-200">
-                    <span class="material-symbols-outlined text-base text-orange-600">person</span>
-                    <span>THÔNG TIN HỌC VIÊN</span>
-                </div>
-                <div class="space-y-1.5 text-xs">
-                    <div class="flex items-baseline justify-between">
-                        <span class="text-slate-500 font-medium">Họ tên:</span>
-                        <span class="font-extrabold text-slate-900 text-sm">{{ $submission->candidate_name }}</span>
-                    </div>
-                    <div class="flex items-baseline justify-between">
-                        <span class="text-slate-500 font-medium">Ngày sinh:</span>
-                        <span class="font-bold text-slate-800 font-mono">{{ $submission->customer?->dob ?? '2015' }}</span>
-                    </div>
-                    <div class="flex items-baseline justify-between">
-                        <span class="text-slate-500 font-medium">Giới tính:</span>
-                        <div class="flex items-center gap-3 font-semibold text-slate-800">
-                            <span class="inline-flex items-center gap-1"><span class="w-3.5 h-3.5 rounded border border-slate-400 inline-block text-center leading-3 text-[10px] text-orange-600 font-bold bg-white">✓</span> Nam</span>
-                            <span class="inline-flex items-center gap-1"><span class="w-3.5 h-3.5 rounded border border-slate-400 inline-block text-center leading-3 text-[10px] bg-white"></span> Nữ</span>
-                        </div>
-                    </div>
-                    <div class="flex items-baseline justify-between">
-                        <span class="text-slate-500 font-medium">Trường:</span>
-                        <span class="font-semibold text-slate-800">{{ $submission->customer?->school ?? 'Tiểu học / THCS MEnglish' }}</span>
-                    </div>
-                </div>
+        <!-- 2. Thông tin thí sinh: chỉ hiển thị đúng những gì thí sinh đã nhập khi làm bài -->
+        <div class="p-4 rounded-2xl bg-orange-50/50 border border-orange-200/80 space-y-2.5">
+            <div class="flex items-center gap-1.5 text-xs font-black text-orange-800 uppercase tracking-wider pb-1.5 border-b border-orange-200">
+                <span class="material-symbols-outlined text-base text-orange-600">person</span>
+                <span>THÔNG TIN THÍ SINH</span>
             </div>
-
-            <!-- THÔNG TIN PHỤ HUYNH -->
-            <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
-                <div class="flex items-center gap-1.5 text-xs font-black text-slate-800 uppercase tracking-wider pb-1.5 border-b border-slate-200">
-                    <span class="material-symbols-outlined text-base text-slate-600">family_restroom</span>
-                    <span>THÔNG TIN PHỤ HUYNH</span>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div class="flex items-baseline justify-between sm:block">
+                    <span class="text-slate-500 font-medium">Họ tên:</span>
+                    <span class="font-extrabold text-slate-900 text-sm sm:block">{{ $submission->candidate_name }}</span>
                 </div>
-                <div class="space-y-1.5 text-xs">
-                    <div class="flex items-baseline justify-between">
-                        <span class="text-slate-500 font-medium">Họ tên bố / mẹ:</span>
-                        <span class="font-bold text-slate-900">{{ $submission->customer?->parent_name ?? ($submission->candidate_name . ' (Phụ huynh)') }}</span>
-                    </div>
-                    <div class="flex items-baseline justify-between">
-                        <span class="text-slate-500 font-medium">ĐT liên hệ:</span>
-                        <span class="font-extrabold text-orange-600 font-mono text-sm">{{ $submission->candidate_phone }}</span>
-                    </div>
-                    <div class="flex items-baseline justify-between">
-                        <span class="text-slate-500 font-medium">Địa chỉ:</span>
-                        <span class="font-semibold text-slate-800 truncate max-w-[220px]">{{ $submission->customer?->address ?? 'Ba Đình, Hà Nội' }}</span>
-                    </div>
-                    <div class="flex items-baseline justify-between">
-                        <span class="text-slate-500 font-medium">Nghề nghiệp:</span>
-                        <span class="font-semibold text-slate-800">{{ $submission->customer?->parent_job ?? 'Kinh doanh / Công chức' }}</span>
-                    </div>
+                <div class="flex items-baseline justify-between sm:block">
+                    <span class="text-slate-500 font-medium">ĐT liên hệ:</span>
+                    <span class="font-extrabold text-orange-600 font-mono text-sm sm:block">{{ $submission->candidate_phone }}</span>
+                </div>
+                <div class="flex items-baseline justify-between sm:block">
+                    <span class="text-slate-500 font-medium">Email:</span>
+                    <span class="font-semibold text-slate-800 sm:block">{{ $submission->candidate_email ?: '—' }}</span>
                 </div>
             </div>
         </div>
+
+        @if ($submission->isPending())
+            <div class="p-4 rounded-2xl bg-sky-50 border border-sky-200 text-xs text-sky-900 flex items-start gap-2">
+                <span class="material-symbols-outlined text-base text-sky-600">hourglass_top</span>
+                <span>Bài làm đã được ghi nhận và <strong>đang chờ Học vụ chấm</strong> phần Viết / Nói. Điểm tổng, trình độ và khóa học đề xuất sẽ được cập nhật sau khi chấm.</span>
+            </div>
+        @endif
 
         <!-- 3. MỤC TIÊU HỌC TIẾNG ANH (Goals Checklist) -->
         <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2.5">
@@ -195,7 +162,7 @@
                     'IELTS ACADEMIC'
                 ];
                 $overall = (float)$submission->overall_score;
-                $activeLevelName = match(true) {
+                $activeLevelName = $submission->overall_score === null ? null : match(true) {
                     $overall >= 7.0 => 'IELTS ACADEMIC',
                     $overall >= 6.0 => 'IELTS FOUNDATION',
                     $overall >= 5.0 => 'PET',
@@ -234,12 +201,12 @@
                     </thead>
                     <tbody>
                         <tr class="font-mono text-xl sm:text-2xl font-black">
-                            <td class="py-3 px-2 text-indigo-700">{{ $submission->listening_score }}</td>
-                            <td class="py-3 px-2 text-rose-700">{{ $submission->speaking_score }}</td>
-                            <td class="py-3 px-2 text-emerald-700">{{ $submission->reading_score }}</td>
-                            <td class="py-3 px-2 text-purple-700">{{ $submission->writing_score }}</td>
+                            <td class="py-3 px-2 text-indigo-700">{{ $submission->listening_score ?? '—' }}</td>
+                            <td class="py-3 px-2 text-rose-700">{{ $submission->speaking_score ?? '—' }}</td>
+                            <td class="py-3 px-2 text-emerald-700">{{ $submission->reading_score ?? '—' }}</td>
+                            <td class="py-3 px-2 text-purple-700">{{ $submission->writing_score ?? '—' }}</td>
                             <td class="py-3 px-2 bg-gradient-to-br from-orange-500 to-amber-600 text-white rounded-b-xl text-3xl font-black shadow-inner">
-                                {{ $submission->overall_score }}
+                                {{ $submission->overall_score ?? '—' }}
                             </td>
                         </tr>
                     </tbody>
@@ -256,7 +223,7 @@
                         <span class="material-symbols-outlined text-base">verified</span>
                         <span>Level Đạt Được:</span>
                     </div>
-                    <div class="text-lg font-black text-indigo-950 font-mono">{{ $submission->cefr_level }}</div>
+                    <div class="text-lg font-black text-indigo-950 font-mono">{{ $submission->cefr_level ?? '—' }}</div>
                 </div>
 
                 <div class="p-4 rounded-2xl bg-orange-50/80 border border-orange-200 space-y-1">
@@ -264,7 +231,7 @@
                         <span class="material-symbols-outlined text-base">school</span>
                         <span>Kết quả xếp lớp đề xuất:</span>
                     </div>
-                    <div class="text-lg font-black text-orange-950">{{ $submission->recommended_course }}</div>
+                    <div class="text-lg font-black text-orange-950">{{ $submission->recommended_course ?? '—' }}</div>
                 </div>
             </div>
 
@@ -333,7 +300,7 @@
                     </div>
                 @else
                     <div class="text-xs text-slate-800 leading-relaxed italic bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                        "{{ $rawComments }}"
+                        {{ $rawComments !== '' ? '"'.$rawComments.'"' : '—' }}
                     </div>
                 @endif
             </div>
@@ -348,10 +315,12 @@
             <div class="text-center font-semibold">
                 <div class="text-slate-400 text-[10px]">Hà Nội, ngày {{ $submission->created_at->format('d') }} tháng {{ $submission->created_at->format('m') }} năm {{ $submission->created_at->format('Y') }}</div>
                 <div class="font-bold text-slate-900 mt-1">Ban Đào Tạo &amp; Khảo Thí MEnglish</div>
-                <div class="text-[10px] text-emerald-600 font-mono font-bold flex items-center justify-center gap-0.5 mt-0.5">
-                    <span class="material-symbols-outlined text-[13px]">verified_user</span>
-                    <span>Hệ thống đã phê duyệt điện tử</span>
-                </div>
+                @unless ($submission->isPending())
+                    <div class="text-[10px] text-emerald-600 font-mono font-bold flex items-center justify-center gap-0.5 mt-0.5">
+                        <span class="material-symbols-outlined text-[13px]">verified_user</span>
+                        <span>Hệ thống đã phê duyệt điện tử</span>
+                    </div>
+                @endunless
             </div>
         </div>
     </main>

@@ -65,7 +65,7 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 mb-1">Nội dung mẫu thông điệp (Message Template):</label>
                     <textarea name="template_content" rows="3" class="w-full text-xs rounded-xl border border-gray-200 p-3 leading-relaxed text-gray-800 font-mono">{{ $rule->template_content }}</textarea>
-                    <p class="text-[11px] text-gray-400 mt-1">Các biến tự động thay thế: <code>{TEN_HOC_VIEN}</code>, <code>{TEN_LOP}</code>, <code>{HAN_NOP}</code>, <code>{SO_TIEN}</code></p>
+                    <p class="text-[11px] text-gray-400 mt-1">Các biến tự động thay thế: <code>{TEN_HOC_VIEN}</code>, <code>{TEN_LOP}</code>, <code>{HAN_NOP}</code>, <code>{SO_TIEN}</code> (hoặc dạng thường <code>{ten_hoc_vien}</code>, <code>{lop_hoc}</code>, <code>{han_dong}</code>, <code>{so_tien}</code>)</p>
                 </div>
 
                 <div class="flex items-center justify-end pt-2">

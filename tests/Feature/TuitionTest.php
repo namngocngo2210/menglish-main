@@ -79,12 +79,16 @@ class TuitionTest extends TestCase
             'notes' => 'Thanh toán 100% học phí',
         ]);
 
-        $response->assertRedirect(route('tuition.history'));
-        $this->assertDatabaseHas('tuition_receipts', [
-            'student_tuition_id' => $tuition->id,
-            'amount' => 10000000,
-            'status' => 'approved',
-        ]);
+        $response->assertRedirect();
+        $receipt = TuitionReceipt::where('student_tuition_id', $tuition->id)->firstOrFail();
+        $this->assertEquals('pending', $receipt->status);
+        $this->assertEquals(0, (float) $tuition->fresh()->paid_amount);
+
+        // Kế toán khác duyệt -> mới ghi nhận công nợ
+        $this->actingAs($this->accountant())
+            ->post(route('tuition.receipts.approve.action', $receipt->id))
+            ->assertSessionHasNoErrors();
+        $this->assertEquals('approved', $receipt->fresh()->status);
 
         $tuition->refresh();
         $this->assertEquals(10000000, $tuition->paid_amount);
@@ -142,7 +146,7 @@ class TuitionTest extends TestCase
         $this->assertDatabaseHas('tuition_receipts', [
             'student_id' => $student->id,
             'amount' => 50000,
-            'status' => 'rejected',
+            'status' => 'draft',
         ]);
     }
 
@@ -189,6 +193,8 @@ class TuitionTest extends TestCase
 
         $cancellation->refresh();
         $this->assertEquals('approved', $cancellation->status);
+        $this->assertEquals('cancelled', $receipt->fresh()->status);
+        $this->assertEquals('HD-REVERT-01', $receipt->fresh()->invoice_number);
 
         $tuition->refresh();
         $this->assertEquals(0, (float) $tuition->paid_amount);

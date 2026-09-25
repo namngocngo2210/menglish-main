@@ -79,13 +79,7 @@
                                 <td class="py-3.5 px-4">{{ $rc->creator?->name ?? 'Admin' }}</td>
                                 <td class="py-3.5 px-4 text-gray-500 font-mono text-[11px] whitespace-nowrap">{{ $rc->created_at->format('d/m/Y H:i') }}</td>
                                 <td class="py-3.5 px-4 whitespace-nowrap">
-                                    @if ($rc->status === 'approved')
-                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Đã duyệt thu</span>
-                                    @elseif ($rc->status === 'rejected')
-                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Từ chối</span>
-                                    @else
-                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Chờ duyệt</span>
-                                    @endif
+                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border {{ $rc->status_badge }}">{{ $rc->status_label }}</span>
                                 </td>
                                 <td class="py-3.5 px-4 text-right whitespace-nowrap">
                                     <button 

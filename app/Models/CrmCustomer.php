@@ -16,6 +16,9 @@ class CrmCustomer extends Model
 
     protected $table = 'crm_customers';
 
+    /** Chỉ các stage này mới được kết quả test đẩy sang 'tested' (lead chỉ đi tiến). */
+    public const TEST_ADVANCEABLE_STAGES = ['consulting', 'test_scheduled'];
+
     protected $fillable = [
         'code',
         'name',
@@ -179,6 +182,16 @@ class CrmCustomer extends Model
             'lost' => 'bg-rose-50 text-rose-700 border-rose-200',
             default => 'bg-gray-50 text-gray-700 border-gray-200',
         };
+    }
+
+    public static function normalizePhone(?string $phone): string
+    {
+        return preg_replace('/\D+/', '', (string) $phone) ?: '';
+    }
+
+    public function canAdvanceToTested(): bool
+    {
+        return in_array($this->stage, self::TEST_ADVANCEABLE_STAGES, true);
     }
 
     public static function generateCode(): string

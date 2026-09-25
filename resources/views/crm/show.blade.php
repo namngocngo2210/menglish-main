@@ -315,8 +315,13 @@
             </div>
             <form action="{{ route('crm.customers.save-test-score', $customer->id) }}" method="POST" class="space-y-3.5 text-xs">
                 @csrf
-                @if ($sub && $customer->stage !== 'test_scheduled')
-                    <input type="hidden" name="submission_id" value="{{ $sub->id }}">
+                @php
+                    // Chỉ điền sẵn khi sửa đúng lần thi đang chọn; nhập lần mới thì để trống, không bịa điểm mặc định.
+                    $editSub = ($sub && $customer->stage !== 'test_scheduled') ? $sub : null;
+                    $scoreTestId = old('placement_test_id', $editSub?->placement_test_id ?? $customer->assigned_test_id);
+                @endphp
+                @if ($editSub)
+                    <input type="hidden" name="submission_id" value="{{ $editSub->id }}">
                 @endif
                 <div class="p-3 bg-orange-50/60 border border-orange-100 rounded-xl text-[11px] text-orange-950 flex items-start gap-2">
                     <span class="material-symbols-outlined text-[#F5691A] text-base mt-0.5">info</span>
@@ -326,25 +331,37 @@
                     </div>
                 </div>
 
+                @unless ($editSub)
+                    <div>
+                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Đề kiểm tra đã dùng <span class="text-rose-500">*</span></label>
+                        <select name="placement_test_id" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 bg-white font-semibold text-gray-900 shadow-2xs">
+                            <option value="">— Chọn đề —</option>
+                            @foreach ($placementTests as $t)
+                                <option value="{{ $t->id }}" @selected((string) $scoreTestId === (string) $t->id)>[{{ $t->code }}] {{ $t->title }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endunless
+
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Nghe (Listening) <span class="text-rose-500">*</span></label>
-                        <input type="number" step="0.5" min="0" max="100" name="listening_score" value="{{ $sub->listening_score ?? 6.0 }}" required class="w-full text-xs font-mono font-bold text-indigo-700 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
+                        <input type="number" step="0.5" min="0" max="100" name="listening_score" value="{{ old('listening_score', $editSub?->listening_score) }}" required class="w-full text-xs font-mono font-bold text-indigo-700 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
                     </div>
                     <div>
                         <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Đọc (Reading) <span class="text-rose-500">*</span></label>
-                        <input type="number" step="0.5" min="0" max="100" name="reading_score" value="{{ $sub->reading_score ?? 6.5 }}" required class="w-full text-xs font-mono font-bold text-emerald-700 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
+                        <input type="number" step="0.5" min="0" max="100" name="reading_score" value="{{ old('reading_score', $editSub?->reading_score) }}" required class="w-full text-xs font-mono font-bold text-emerald-700 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Viết (Writing)</label>
-                        <input type="number" step="0.5" min="0" max="100" name="writing_score" value="{{ $sub->writing_score ?? 5.5 }}" class="w-full text-xs font-mono font-bold text-amber-700 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
+                        <input type="number" step="0.5" min="0" max="100" name="writing_score" value="{{ old('writing_score', $editSub?->writing_score) }}" class="w-full text-xs font-mono font-bold text-amber-700 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
                     </div>
                     <div>
                         <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Nói (Speaking) <span class="text-rose-500">*</span></label>
-                        <input type="number" step="0.5" min="0" max="100" name="speaking_score" value="{{ $sub->speaking_score ?? 6.0 }}" required class="w-full text-xs font-mono font-bold text-rose-700 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
+                        <input type="number" step="0.5" min="0" max="100" name="speaking_score" value="{{ old('speaking_score', $editSub?->speaking_score) }}" required class="w-full text-xs font-mono font-bold text-rose-700 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
                     </div>
                 </div>
 
@@ -352,22 +369,24 @@
                     <div>
                         <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Trình độ CEFR</label>
                         <select name="cefr_level" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 bg-white font-bold text-gray-900 shadow-2xs">
-                            <option value="A1" @selected(($sub->cefr_level ?? '') === 'A1')>A1 - Mất gốc (Beginner)</option>
-                            <option value="A2" @selected(($sub->cefr_level ?? '') === 'A2')>A2 - Sơ cấp (Elementary)</option>
-                            <option value="B1" @selected(($sub->cefr_level ?? 'B1') === 'B1')>B1 - Trung cấp (Intermediate)</option>
-                            <option value="B2" @selected(($sub->cefr_level ?? '') === 'B2')>B2 - Khá (Upper-Inter)</option>
-                            <option value="C1" @selected(($sub->cefr_level ?? '') === 'C1')>C1 - Cao cấp (Advanced)</option>
+                            @php $cefrValue = old('cefr_level', $editSub?->cefr_level); @endphp
+                            <option value="" @selected(empty($cefrValue))>— Chưa xác định —</option>
+                            <option value="A1" @selected($cefrValue === 'A1')>A1 - Mất gốc (Beginner)</option>
+                            <option value="A2" @selected($cefrValue === 'A2')>A2 - Sơ cấp (Elementary)</option>
+                            <option value="B1" @selected($cefrValue === 'B1')>B1 - Trung cấp (Intermediate)</option>
+                            <option value="B2" @selected($cefrValue === 'B2')>B2 - Khá (Upper-Inter)</option>
+                            <option value="C1" @selected($cefrValue === 'C1')>C1 - Cao cấp (Advanced)</option>
                         </select>
                     </div>
                     <div>
                         <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Khóa học đề xuất</label>
-                        <input type="text" name="recommended_course" value="{{ $sub->recommended_course ?? ($customer->course_interest ?? 'IELTS 6.5 Intensive') }}" class="w-full text-xs font-bold text-gray-900 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
+                        <input type="text" name="recommended_course" value="{{ old('recommended_course', $editSub?->recommended_course) }}" class="w-full text-xs font-bold text-gray-900 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
                     </div>
                 </div>
 
                 <div>
                     <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Nhận xét &amp; Lời phê của Giáo viên</label>
-                    <textarea name="teacher_comments" rows="2" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs leading-relaxed" placeholder="VD: Học viên phát âm tự nhiên, phản xạ nói tốt, cần luyện thêm ngữ pháp...">{{ $sub->teacher_comments ?? 'Học viên có phản xạ nói tự nhiên, vốn từ cơ bản tốt. Cần rèn thêm kỹ năng viết và ngữ pháp nâng cao.' }}</textarea>
+                    <textarea name="teacher_comments" rows="2" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs leading-relaxed" placeholder="VD: Học viên phát âm tự nhiên, phản xạ nói tốt, cần luyện thêm ngữ pháp...">{{ old('teacher_comments', $editSub?->teacher_comments) }}</textarea>
                 </div>
 
                 <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
@@ -479,10 +498,10 @@
             <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden" x-data="crmOnlineTestEngine({
                 hasResult: {{ $hasResult ? 'true' : 'false' }},
                 hasScheduled: {{ $hasScheduled ? 'true' : 'false' }},
-                scoreL: {{ (float)($submission->listening_score ?? 6.0) }},
-                scoreR: {{ (float)($submission->reading_score ?? 6.5) }},
-                scoreS: {{ (float)($submission->speaking_score ?? 6.0) }},
-                testLink: '{{ route('portal.test.take', ['code' => $customer->assignedTest?->code ?? 'TEST-IE-2026', 'lead_id' => $customer->id]) }}'
+                scoreL: {{ (float)($submission->listening_score ?? 0) }},
+                scoreR: {{ (float)($submission->reading_score ?? 0) }},
+                scoreS: {{ (float)($submission->speaking_score ?? 0) }},
+                testLink: {{ Js::from($portalTestLink) }}
             })">
                 <!-- Header with State Badges -->
                 <div class="bg-slate-50/80 px-4 py-3 border-b border-gray-200 flex justify-between items-center flex-wrap gap-2">
@@ -582,13 +601,14 @@
                                 </div>
                                 <div>
                                     <h4 class="font-bold text-gray-900">{{ $customer->assignedTest?->title ?? 'Bài Test Đầu Vào MEnglish' }}</h4>
-                                    <p class="text-[11px] text-gray-500 font-mono">Mã: {{ $customer->assignedTest?->code ?? 'TEST-IE-2026' }} · {{ $customer->assignedTest?->duration_minutes ?? 45 }} phút</p>
+                                    <p class="text-[11px] text-gray-500 font-mono">Mã: {{ $customer->assignedTest?->code ?? '—' }} · {{ $customer->assignedTest?->duration_minutes ?? '—' }} phút</p>
                                 </div>
                             </div>
                         </div>
 
+                        @if ($portalTestLink)
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                            <a href="{{ route('portal.test.take', ['code' => $customer->assignedTest?->code ?? 'TEST-IE-2026', 'lead_id' => $customer->id]) }}" target="_blank" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5">
+                            <a href="{{ $portalTestLink }}" target="_blank" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5">
                                 <span class="material-symbols-outlined text-[15px]">open_in_new</span>
                                 <span>Mở Cổng Test Ngay</span>
                             </a>
@@ -597,6 +617,12 @@
                                 <span>Sao chép Link Test</span>
                             </button>
                         </div>
+                        <p class="text-[10px] text-gray-400 italic">Link riêng của lead, có hiệu lực {{ \App\Services\PlacementPortalLinkService::LINK_TTL_DAYS }} ngày kể từ lúc mở trang này.</p>
+                        @else
+                        <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900">
+                            Lead chưa được gán đề test đang hoạt động nên chưa thể tạo link làm bài.
+                        </div>
+                        @endif
                     </div>
 
                 <!-- STATE 3: ĐÃ CÓ KẾT QUẢ & THANG ĐIỂM TỰ ĐỘNG -->
@@ -606,18 +632,18 @@
                         <div class="p-4 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl flex items-center justify-between gap-4 flex-wrap">
                             <div class="flex items-center gap-3">
                                 <div class="w-12 h-12 rounded-xl bg-[#F5691A] text-white flex flex-col items-center justify-center font-black shadow-sm">
-                                    <span class="text-sm leading-none">{{ $submission->overall_score ?? $customer->test_score ?? '6.0' }}</span>
+                                    <span class="text-sm leading-none">{{ $submission->overall_score ?? $customer->test_score ?? '—' }}</span>
                                     <span class="text-[9px] uppercase tracking-wider font-semibold opacity-90">Band</span>
                                 </div>
                                 <div>
                                     <div class="flex items-center gap-2">
                                         <h4 class="font-black text-gray-900 text-sm">Điểm Đánh Giá Năng Lực</h4>
                                         <span class="px-2 py-0.5 bg-white border border-amber-300 text-amber-900 rounded-md text-[10px] font-black uppercase font-mono shadow-2xs">
-                                            CEFR: {{ $submission->cefr_level ?? 'B1' }}
+                                            CEFR: {{ $submission->cefr_level ?? '—' }}
                                         </span>
                                     </div>
                                     <p class="text-xs text-amber-950 font-semibold mt-0.5">
-                                        Khóa đề xuất: <span class="text-[#F5691A] font-bold">{{ $submission->recommended_course ?? ($customer->course_interest ?? 'IELTS 6.5 Intensive') }}</span>
+                                        Khóa đề xuất: <span class="text-[#F5691A] font-bold">{{ $submission->recommended_course ?? '—' }}</span>
                                     </p>
                                 </div>
                             </div>
@@ -636,25 +662,25 @@
                             <!-- Listening -->
                             <div class="p-2.5 bg-indigo-50/50 rounded-xl border border-indigo-100 text-center space-y-1">
                                 <span class="font-bold text-indigo-900 uppercase text-[10px] block">Nghe (Listening)</span>
-                                <span class="text-lg font-black font-mono text-indigo-700 block">{{ $submission->listening_score ?? 6.0 }}</span>
+                                <span class="text-lg font-black font-mono text-indigo-700 block">{{ $submission->listening_score ?? '—' }}</span>
                             </div>
 
                             <!-- Reading -->
                             <div class="p-2.5 bg-emerald-50/50 rounded-xl border border-emerald-100 text-center space-y-1">
                                 <span class="font-bold text-emerald-900 uppercase text-[10px] block">Đọc (Reading)</span>
-                                <span class="text-lg font-black font-mono text-emerald-700 block">{{ $submission->reading_score ?? 6.5 }}</span>
+                                <span class="text-lg font-black font-mono text-emerald-700 block">{{ $submission->reading_score ?? '—' }}</span>
                             </div>
 
                             <!-- Writing -->
                             <div class="p-2.5 bg-amber-50/50 rounded-xl border border-amber-100 text-center space-y-1">
                                 <span class="font-bold text-amber-900 uppercase text-[10px] block">Viết (Writing)</span>
-                                <span class="text-lg font-black font-mono text-amber-700 block">{{ $submission->writing_score ?? 5.5 }}</span>
+                                <span class="text-lg font-black font-mono text-amber-700 block">{{ $submission->writing_score ?? '—' }}</span>
                             </div>
 
                             <!-- Speaking -->
                             <div class="p-2.5 bg-rose-50/50 rounded-xl border border-rose-100 text-center space-y-1">
                                 <span class="font-bold text-rose-900 uppercase text-[10px] block">Nói (Speaking)</span>
-                                <span class="text-lg font-black font-mono text-rose-700 block">{{ $submission->speaking_score ?? 6.0 }}</span>
+                                <span class="text-lg font-black font-mono text-rose-700 block">{{ $submission->speaking_score ?? '—' }}</span>
                             </div>
                         </div>
 
