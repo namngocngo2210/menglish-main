@@ -1,5 +1,6 @@
 {{-- Mockup: ui-full-tinh-nang-menglish/epic-7/danh-sach-bang-luong-theo-ky (bảng lương của một kỳ) --}}
 <x-app-layout>
+    @include('partials.data-confirm')
     @php
         [$statusColor, $statusText] = match ($period->status) {
             'paid' => ['secondary', 'Đã trả'],

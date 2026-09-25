@@ -4,6 +4,7 @@
     Sale / nhân sự khác dùng mẫu Full-time. Công thức theo A6 (Q3).
 --}}
 <x-app-layout>
+    @include('partials.data-confirm')
     @php
         $money = fn ($v) => number_format((float) $v, 0, ',', '.');
         $pct = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',');

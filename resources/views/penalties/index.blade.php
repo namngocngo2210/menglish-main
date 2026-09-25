@@ -1,5 +1,6 @@
 {{-- Mockup: ui-full-tinh-nang-menglish/epic-8-danh-sach-phat --}}
 <x-app-layout>
+    @include('partials.data-confirm')
     @php
         $stepColors = [
             'recorded' => 'warning', 'confirmed' => 'error', 'fined' => 'primary', 'paid' => 'success',
