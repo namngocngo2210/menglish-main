@@ -49,7 +49,7 @@
                                         @csrf
                                         <select name="class_id" required class="rounded-lg border-gray-200 text-xs">
                                             @foreach ($matches as $class)
-                                                <option value="{{ $class->id }}">{{ $class->name }} · còn {{ $class->max_capacity > 0 ? max(0, $class->max_capacity - $class->active_enrollments_count) : '∞' }} chỗ</option>
+                                                <option value="{{ $class->id }}">{{ $class->name }}{{ $class->status === 'upcoming' ? ' (sắp khai giảng)' : '' }} · còn {{ $class->max_capacity > 0 ? max(0, $class->max_capacity - $class->active_enrollments_count) : '∞' }} chỗ{{ $class->status === 'upcoming' && $class->active_enrollments_count < (int) $class->min_students ? ' · cần thêm '.((int) $class->min_students - $class->active_enrollments_count).' HV để khai giảng' : '' }}</option>
                                             @endforeach
                                         </select>
                                         <x-ui.button type="submit" size="sm" icon="assignment_turned_in">Gán lớp</x-ui.button>

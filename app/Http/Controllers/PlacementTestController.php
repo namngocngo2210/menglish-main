@@ -24,7 +24,7 @@ class PlacementTestController extends Controller
     {
         $tests = PlacementTest::withCount('submissions')->latest()->get();
 
-        $submissionsQuery = PlacementTestSubmission::with(['test', 'grader', 'customer'])->latest();
+        $submissionsQuery = $this->visibleSubmissionsQuery()->with(['test', 'grader', 'customer'])->latest();
 
         $selectedTest = null;
         if ($request->filled('test_id')) {
@@ -173,8 +173,14 @@ class PlacementTestController extends Controller
                 ->with('error', "Đề thi mẫu hệ thống [{$test->code}] đã khóa và không thể xóa!");
         }
 
+        // Bài làm của thí sinh là dữ liệu tuyển sinh (điểm, câu trả lời, lịch sử khách) — không xóa theo đề.
+        $submissionCount = $test->submissions()->count();
+        if ($submissionCount > 0) {
+            return redirect()->route('placement-tests.index')
+                ->with('error', "Đề [{$test->code}] đã có {$submissionCount} bài làm nên không thể xóa. Hãy tắt kích hoạt đề (Sửa đề → bỏ chọn Hoạt động) để ngừng phát hành.");
+        }
+
         $title = $test->title;
-        $test->submissions()->delete();
         $test->delete();
 
         return redirect()->route('placement-tests.index')
@@ -203,9 +209,20 @@ class PlacementTestController extends Controller
             ->with('status', "Đã phát hành đề [{$test->code}] {$test->title}. Link làm bài: {$takeUrl}");
     }
 
+    /**
+     * Bài nộp gắn với khách CRM chỉ xem / chấm được khi khách thuộc phạm vi CRM của người dùng
+     * (Quản lý cơ sở / Học vụ: chi nhánh mình; Admin: tất cả). Bài chưa gắn khách giữ nguyên quyền chấm.
+     */
+    private function visibleSubmissionsQuery()
+    {
+        return PlacementTestSubmission::query()->where(fn ($query) => $query
+            ->whereNull('customer_id')
+            ->orWhereIn('customer_id', CrmCustomer::query()->visibleTo(Auth::user())->select('id')));
+    }
+
     public function showResult($id)
     {
-        $submission = PlacementTestSubmission::with(['test', 'grader', 'customer', 'student'])->findOrFail($id);
+        $submission = $this->visibleSubmissionsQuery()->with(['test', 'grader', 'customer', 'student'])->findOrFail($id);
 
         $test = $submission->test;
         $questions = is_array($test?->questions) ? $test->questions : [];
@@ -221,7 +238,7 @@ class PlacementTestController extends Controller
 
     public function updateResult(Request $request, $id)
     {
-        $submission = PlacementTestSubmission::findOrFail($id);
+        $submission = $this->visibleSubmissionsQuery()->findOrFail($id);
 
         $validated = $request->validate([
             'listening_score' => 'required|numeric|min:0|max:9',

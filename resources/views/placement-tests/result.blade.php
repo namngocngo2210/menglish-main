@@ -58,6 +58,7 @@
                     <span class="material-symbols-outlined text-primary-container text-xl">fact_check</span>
                     <h2 class="font-black text-gray-900 text-sm uppercase tracking-wide">Điểm Số 4 Kỹ Năng &amp; Đánh Giá Năng Lực</h2>
                 </div>
+                <span class="px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-bold" title="Cách tính điểm test (Q2) đang chờ BA chốt">Thang điểm màn này: 0 – 9 (band) / kỹ năng</span>
                 <div class="text-xs text-gray-500 font-mono">
                     Nộp bài lúc: {{ $submission->created_at ? $submission->created_at->format('H:i, d/m/Y') : date('H:i, d/m/Y') }}
                 </div>
@@ -66,19 +67,19 @@
             <!-- Score Summary Cards -->
             <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <div class="p-3.5 bg-indigo-50/60 rounded-xl border border-indigo-100 text-center space-y-1">
-                    <label class="text-[11px] text-indigo-900 font-black uppercase tracking-wider block">Nghe (Listening)</label>
+                    <label class="text-[11px] text-indigo-900 font-black uppercase tracking-wider block">Nghe (Listening) · 0–9</label>
                     <input type="number" step="0.5" min="0" max="9" name="listening_score" value="{{ $submission->listening_score }}" required class="w-full text-center font-mono font-black text-xl rounded-lg border border-indigo-200 bg-white text-indigo-700 p-1 shadow-2xs" />
                 </div>
                 <div class="p-3.5 bg-emerald-50/60 rounded-xl border border-emerald-100 text-center space-y-1">
-                    <label class="text-[11px] text-emerald-900 font-black uppercase tracking-wider block">Đọc &amp; Ngữ pháp</label>
+                    <label class="text-[11px] text-emerald-900 font-black uppercase tracking-wider block">Đọc &amp; Ngữ pháp · 0–9</label>
                     <input type="number" step="0.5" min="0" max="9" name="reading_score" value="{{ $submission->reading_score }}" required class="w-full text-center font-mono font-black text-xl rounded-lg border border-emerald-200 bg-white text-emerald-700 p-1 shadow-2xs" />
                 </div>
                 <div class="p-3.5 bg-amber-50/60 rounded-xl border border-amber-100 text-center space-y-1">
-                    <label class="text-[11px] text-amber-900 font-black uppercase tracking-wider block">Viết (Writing)</label>
+                    <label class="text-[11px] text-amber-900 font-black uppercase tracking-wider block">Viết (Writing) · 0–9</label>
                     <input type="number" step="0.5" min="0" max="9" name="writing_score" value="{{ $submission->writing_score }}" required class="w-full text-center font-mono font-black text-xl rounded-lg border border-amber-200 bg-white text-amber-700 p-1 shadow-2xs" />
                 </div>
                 <div class="p-3.5 bg-rose-50/60 rounded-xl border border-rose-100 text-center space-y-1">
-                    <label class="text-[11px] text-rose-900 font-black uppercase tracking-wider block">Nói (Speaking)</label>
+                    <label class="text-[11px] text-rose-900 font-black uppercase tracking-wider block">Nói (Speaking) · 0–9</label>
                     <input type="number" step="0.5" min="0" max="9" name="speaking_score" value="{{ $submission->speaking_score }}" required class="w-full text-center font-mono font-black text-xl rounded-lg border border-rose-200 bg-white text-rose-700 p-1 shadow-2xs" />
                 </div>
                 <div class="p-3.5 bg-gradient-to-br from-primary-container/10 to-orange-100 rounded-xl border border-orange-300 text-center space-y-1 col-span-2 sm:col-span-1">

@@ -42,7 +42,7 @@
         @endif
         @if ($classes->isEmpty())
             <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 font-semibold">
-                Không còn lớp đang hoạt động và còn chỗ. Bạn vẫn chốt được với "Xếp lớp sau" — học viên vào danh sách Chờ xếp lớp.
+                Không còn lớp đang học / sắp khai giảng nào còn chỗ. Bạn vẫn chốt được với "Xếp lớp sau" — học viên vào danh sách Chờ xếp lớp.
             </div>
         @endif
         <!-- Wizard Step Indicator -->
@@ -383,7 +383,7 @@
                     </div>
 
                     <div x-show="!assignLater">
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Chọn Lớp học đang mở tiếp nhận <span class="text-rose-500">*</span></label>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Chọn lớp đang học hoặc sắp khai giảng (còn chỗ) <span class="text-rose-500">*</span></label>
                         <select data-class-select class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 text-primary-container focus:border-primary-container focus:ring-primary-container" @change="updateClass($event)">
                             @foreach ($classes as $cl)
                                 <option 
@@ -396,10 +396,43 @@
                                     data-course="{{ $cl->course?->name }}"
                                     data-tuition="{{ (float) ($cl->tuition_fee > 0 ? $cl->tuition_fee : ($cl->course?->tuition_fee ?? 0)) }}"
                                 >
-                                    {{ $cl->name }} ({{ $cl->code }}) · Cơ sở: {{ $cl->branch?->name }} · Sĩ số: {{ $cl->active_enrollments_count }}/{{ $cl->max_capacity }} · Lịch học: {{ $cl->schedule_text }}
+                                    {{ $cl->name }} ({{ $cl->code }}){{ $cl->status === 'upcoming' ? ' · Sắp khai giảng' : '' }} · Cơ sở: {{ $cl->branch?->name }} · Sĩ số: {{ $cl->active_enrollments_count }}/{{ $cl->max_capacity }} · Lịch học: {{ $cl->schedule_text }}
                                 </option>
                             @endforeach
                         </select>
+
+                        @if ($classes->isNotEmpty())
+                            <!-- Thẻ gợi ý lớp: còn chỗ + ngưỡng khai giảng -->
+                            <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3" data-class-suggestions>
+                                @foreach ($classes as $cl)
+                                    <button type="button" @click="selectClassCard('{{ $cl->id }}')"
+                                        class="text-left p-3 rounded-xl border transition text-xs space-y-1"
+                                        :class="String(classId) === '{{ $cl->id }}' ? 'border-primary-container bg-orange-50 ring-1 ring-primary-container' : 'border-gray-200 hover:border-primary-container/60 bg-white'">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="font-bold text-gray-900">{{ $cl->name }}</span>
+                                            @if ($cl->status === 'upcoming')
+                                                <span class="px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 font-bold text-[10px]">Sắp khai giảng{{ $cl->start_date ? ' '.$cl->start_date->format('d/m') : '' }}</span>
+                                            @else
+                                                <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[10px]">Đang học</span>
+                                            @endif
+                                        </div>
+                                        <div class="text-gray-500">{{ $cl->course?->name ?? 'Chưa gán khóa' }} · {{ $cl->branch?->name }} · {{ $cl->schedule_text ?: 'Chưa có lịch' }}</div>
+                                        <div class="flex flex-wrap items-center gap-2 pt-1">
+                                            <span class="font-semibold text-gray-800">Sĩ số {{ $cl->active_enrollments_count }}/{{ $cl->max_capacity > 0 ? $cl->max_capacity : '∞' }}</span>
+                                            <span class="text-gray-400">·</span>
+                                            <span class="font-semibold {{ ($cl->remaining_seats ?? 99) <= 2 ? 'text-rose-600' : 'text-emerald-700' }}">Còn {{ $cl->remaining_seats ?? 'không giới hạn' }} chỗ</span>
+                                        </div>
+                                        @if ($cl->status === 'upcoming')
+                                            @if ($cl->needed_to_open > 0)
+                                                <div class="text-amber-700 font-semibold">Cần thêm {{ $cl->needed_to_open }} học viên để khai giảng (ngưỡng {{ (int) $cl->min_students }})</div>
+                                            @else
+                                                <div class="text-emerald-700 font-semibold">Đã đủ ngưỡng khai giảng ({{ (int) $cl->min_students }} học viên)</div>
+                                            @endif
+                                        @endif
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endif
                     </div>
 
                     <div class="p-4 bg-orange-50/60 rounded-xl border border-orange-200 text-xs text-orange-900 space-y-1">
@@ -1296,6 +1329,13 @@
                     this.paidAmount = this.feePaid ? this.amountDue : 0;
                 },
                 
+                selectClassCard(id) {
+                    const select = document.querySelector('select[data-class-select]');
+                    if (!select) return;
+                    select.value = String(id);
+                    this.updateClass({ target: select });
+                },
+
                 updateClass(e) {
                     const opt = e.target.options[e.target.selectedIndex];
                     this.classId = opt.value;

@@ -37,6 +37,23 @@ class PlacementRubricService
         ];
     }
 
+    /** Nhãn khối lớp mà rubric áp dụng cho đề (theo mã đề). */
+    public static function gradeGroupLabel(string $testCode): string
+    {
+        return match (self::detectGradeGroup($testCode)) {
+            'pre_g1' => 'Mầm non / Tiền lớp 1',
+            'g1_g2' => 'Khối lớp 1–2',
+            'g2_g3' => 'Khối lớp 2–3',
+            'g3_g4' => 'Khối lớp 3–4',
+            'g4_g5' => 'Khối lớp 4–5',
+            'g5_g6' => 'Khối lớp 5–6',
+            'g6_g7' => 'Khối lớp 6–7',
+            'g7_g8' => 'Khối lớp 7–8',
+            'g8_g9' => 'Khối lớp 8–9',
+            default => 'Tổng quát (THCS trở lên / người lớn)',
+        };
+    }
+
     private static function detectGradeGroup(string $testCode): string
     {
         $code = strtoupper($testCode);

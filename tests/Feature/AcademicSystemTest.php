@@ -179,6 +179,8 @@ class AcademicSystemTest extends TestCase
             'name' => 'Võ Minh Quân',
             'phone' => '0933111222',
             'stage' => 'tested',
+            // Phase 1: chấm bài theo phạm vi khách CRM — Học thuật chỉ chấm khách chi nhánh mình.
+            'branch_id' => $this->branch->id,
         ]);
 
         $submission = PlacementTestSubmission::create([
@@ -278,6 +280,7 @@ class AcademicSystemTest extends TestCase
             'phone_normalized' => '0977888999',
             'email' => 'thanhhang.le@gmail.com',
             'stage' => 'test_scheduled',
+            'branch_id' => $this->branch->id,
         ]);
 
         // 1. Lead mở link test riêng (có chữ ký, do CRM sinh)

@@ -20,6 +20,26 @@ class CrmCustomerHistory extends Model
         'from_stage',
         'to_stage',
         'reason',
+        'changes',
+    ];
+
+    /** Nhóm lọc nhật ký trên hồ sơ khách: type => nhãn. */
+    public const FILTER_TYPES = [
+        'call' => 'Gọi điện',
+        'message' => 'Nhắn tin',
+        'meet' => 'Gặp trực tiếp',
+        'test' => 'Test đầu vào',
+        'trial' => 'Học thử',
+        'stage_change' => 'Chuyển giai đoạn',
+        'update' => 'Sửa thông tin',
+        'assign' => 'Phân công',
+        'care' => 'Chăm sóc tháng đầu',
+        'note' => 'Ghi chú',
+        'system' => 'Hệ thống',
+    ];
+
+    protected $casts = [
+        'changes' => 'array',
     ];
 
     public function customer(): BelongsTo
@@ -41,6 +61,9 @@ class CrmCustomerHistory extends Model
             'test' => 'quiz',
             'stage_change' => 'sync_alt',
             'trial' => 'school',
+            'update' => 'edit_note',
+            'assign' => 'assignment_ind',
+            'care' => 'volunteer_activism',
             default => 'notes',
         };
     }

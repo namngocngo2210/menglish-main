@@ -75,6 +75,18 @@
                 </button>
                 @endif
 
+                <a href="{{ route('crm.customers.print', $customer->id) }}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition whitespace-nowrap shrink-0 shadow-2xs">
+                    <span class="material-symbols-outlined text-[16px]">print</span>
+                    <span>In hồ sơ</span>
+                </a>
+
+                @if ($canReassign)
+                <button type="button" x-data @click="$dispatch('open-modal', 'reassign-customer')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-xs font-semibold text-indigo-700 transition whitespace-nowrap shrink-0 shadow-2xs">
+                    <span class="material-symbols-outlined text-[16px]">assignment_ind</span>
+                    <span>Phân công lại</span>
+                </button>
+                @endif
+
                 @can('lead.update')
                 <a href="{{ route('crm.customers.edit', $customer->id) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition whitespace-nowrap shrink-0 shadow-2xs">
                     <span class="material-symbols-outlined text-[16px]">edit</span>
@@ -136,6 +148,22 @@
             </div>
         </div>
     </x-slot>
+
+    @if ($canReassign)
+        <x-ui.modal name="reassign-customer" title="Phân công lại Sales phụ trách" max-width="md" :show="$errors->has('reason') || $errors->has('assigned_user_id')">
+            <form id="reassign-form" action="{{ route('crm.customers.reassign', $customer->id) }}" method="POST" class="space-y-3">
+                @csrf
+                <p class="text-body-small text-on-surface-variant">Hiện tại: <strong>{{ $customer->assignedUser?->name ?? 'Chưa phân công' }}</strong>. Thay đổi được ghi vào lịch sử khách.</p>
+                <x-ui.select name="assigned_user_id" label="Sales phụ trách mới" required placeholder="-- Chọn người phụ trách --"
+                    :options="$reassignUsers->reject(fn ($u) => $u->id === $customer->assigned_user_id)->mapWithKeys(fn ($u) => [$u->id => $u->name.' ('.$u->email.')'])" />
+                <x-ui.textarea name="reason" label="Lý do phân công lại" required rows="3" placeholder="VD: Sales cũ nghỉ phép, chuyển khách cho cơ sở khác..." />
+            </form>
+            <x-slot:footer>
+                <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'reassign-customer')">Hủy</x-ui.button>
+                <x-ui.button type="submit" form="reassign-form" icon="assignment_ind">Phân công lại</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
+    @endif
 
     <div id="markLostModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
@@ -298,7 +326,8 @@
                     <span class="material-symbols-outlined text-primary-container text-base mt-0.5">info</span>
                     <div>
                         <strong>Học viên:</strong> {{ $customer->name }} ({{ $customer->phone }})<br>
-                        <span>Nhập điểm 4 kỹ năng để hệ thống tự động tính Overall Band &amp; cập nhật giai đoạn CRM.</span>
+                        <span>Nhập điểm 4 kỹ năng để hệ thống tự động tính Overall &amp; cập nhật giai đoạn CRM.</span><br>
+                        <strong>Thang điểm màn này: 0 – 100 / kỹ năng</strong> <span class="text-orange-700">(khác màn chấm bài online dùng thang 0 – 9; cách tính đang chờ BA chốt — Q2).</span>
                     </div>
                 </div>
 
@@ -316,22 +345,22 @@
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Nghe (Listening) <span class="text-rose-500">*</span></label>
+                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Nghe (Listening) · 0–100 <span class="text-rose-500">*</span></label>
                         <input type="number" step="0.5" min="0" max="100" name="listening_score" value="{{ old('listening_score', $editSub?->listening_score) }}" required class="w-full text-xs font-mono font-bold text-indigo-700 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
                     </div>
                     <div>
-                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Đọc (Reading) <span class="text-rose-500">*</span></label>
+                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Đọc (Reading) · 0–100 <span class="text-rose-500">*</span></label>
                         <input type="number" step="0.5" min="0" max="100" name="reading_score" value="{{ old('reading_score', $editSub?->reading_score) }}" required class="w-full text-xs font-mono font-bold text-emerald-700 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Viết (Writing)</label>
+                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Viết (Writing) · 0–100</label>
                         <input type="number" step="0.5" min="0" max="100" name="writing_score" value="{{ old('writing_score', $editSub?->writing_score) }}" class="w-full text-xs font-mono font-bold text-amber-700 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
                     </div>
                     <div>
-                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Nói (Speaking) <span class="text-rose-500">*</span></label>
+                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Nói (Speaking) · 0–100 <span class="text-rose-500">*</span></label>
                         <input type="number" step="0.5" min="0" max="100" name="speaking_score" value="{{ old('speaking_score', $editSub?->speaking_score) }}" required class="w-full text-xs font-mono font-bold text-rose-700 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
                     </div>
                 </div>
@@ -409,6 +438,48 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Customer Info Card -->
         <div class="space-y-6">
+            <!-- Trạng thái & Hạn xử lý -->
+            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-3 text-xs">
+                <h3 class="font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-primary text-base">pending_actions</span>
+                    Trạng thái &amp; Hạn xử lý
+                </h3>
+                <div class="flex justify-between py-1 border-b border-gray-50">
+                    <span class="text-gray-500">Giai đoạn:</span>
+                    <span class="px-2 py-0.5 rounded-full border font-bold {{ $customer->stage_badge }}">{{ $customer->stage_label }}</span>
+                </div>
+                <div class="flex justify-between py-1 border-b border-gray-50">
+                    <span class="text-gray-500">Ở giai đoạn này:</span>
+                    <span class="font-semibold text-gray-900">{{ $statusCard['days_in_stage'] }} ngày <span class="text-gray-400 font-normal">(từ {{ $statusCard['stage_since']->format('d/m/Y') }})</span></span>
+                </div>
+                <div class="flex justify-between py-1 border-b border-gray-50">
+                    <span class="text-gray-500">Liên hệ gần nhất:</span>
+                    <span class="font-semibold text-gray-900">{{ $statusCard['last_contact']?->format('d/m/Y H:i') ?? 'Chưa có' }}</span>
+                </div>
+                <div class="flex justify-between items-center py-1 border-b border-gray-50">
+                    <span class="text-gray-500">Hạn liên hệ tiếp theo:</span>
+                    <span class="flex items-center gap-1.5">
+                        <span class="font-semibold text-gray-900">{{ $customer->next_follow_up_at?->format('d/m/Y H:i') ?? 'Chưa đặt' }}</span>
+                        @if ($statusCard['follow_up_status'] === 'overdue')
+                            <x-ui.badge color="status-overdue">Quá hạn</x-ui.badge>
+                        @elseif ($statusCard['follow_up_status'] === 'due_soon')
+                            <x-ui.badge color="warning">Sắp hết hạn</x-ui.badge>
+                        @endif
+                    </span>
+                </div>
+                @if ($statusCard['neglected'])
+                    <div class="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 font-semibold flex items-start gap-1.5">
+                        <span class="material-symbols-outlined text-base">person_alert</span>
+                        <span>Khách chưa có hoạt động chăm sóc nào trong {{ $statusCard['neglect_days'] }} ngày gần đây.</span>
+                    </div>
+                @endif
+                @can('lead.update')
+                    <a href="{{ route('crm.customers.edit', $customer->id) }}#next_follow_up_at" class="text-primary font-semibold hover:underline inline-flex items-center gap-0.5">
+                        <span class="material-symbols-outlined text-[14px]">event</span>Đặt hạn liên hệ
+                    </a>
+                @endcan
+            </div>
+
             <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
                 <div class="flex items-center gap-3 pb-4 border-b border-gray-100">
                     <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-container/20 to-orange-100 text-primary flex items-center justify-center font-bold text-lg shadow-sm">
@@ -429,12 +500,14 @@
                         <span class="text-gray-500">Số điện thoại:</span>
                         <span class="font-semibold text-gray-900 font-mono">{{ $customer->phone }}</span>
                     </div>
-                    @if ($customer->parent_name)
-                        <div class="flex justify-between py-1 border-b border-gray-50">
-                            <span class="text-gray-500">Phụ huynh:</span>
-                            <span class="font-medium text-gray-900">{{ $customer->parent_name }}</span>
-                        </div>
-                    @endif
+                    <div class="flex justify-between py-1 border-b border-gray-50">
+                        <span class="text-gray-500">Phụ huynh:</span>
+                        <span class="font-medium text-gray-900">{{ $customer->parent_name ?: '—' }}</span>
+                    </div>
+                    <div class="flex justify-between py-1 border-b border-gray-50">
+                        <span class="text-gray-500">SĐT phụ huynh:</span>
+                        <span class="font-semibold text-gray-900 font-mono">{{ $customer->parent_phone ?: '—' }}</span>
+                    </div>
                     <div class="flex justify-between py-1 border-b border-gray-50">
                         <span class="text-gray-500">Ngày sinh / Giới tính:</span>
                         <span class="font-medium text-gray-800">{{ $customer->dob ? $customer->dob->format('d/m/Y') : '—' }} ({{ $customer->gender ?? 'Chưa rõ' }})</span>
@@ -666,6 +739,32 @@
                             </div>
                         </div>
 
+                        @if ($rubric)
+                            <!-- Thang điểm rubric (PlacementRubricService) -->
+                            <div class="p-3 bg-amber-50/60 border border-amber-200 rounded-xl text-xs space-y-2">
+                                <div class="font-bold text-amber-900 flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[14px]">grading</span>
+                                    Thang điểm &amp; gợi ý xếp lớp
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                    <div class="p-2 bg-white rounded-lg border border-amber-100">
+                                        <div class="text-[10px] uppercase font-bold text-gray-500">Khối lớp</div>
+                                        <div class="font-bold text-gray-900">{{ $rubric['grade_group'] }}</div>
+                                    </div>
+                                    <div class="p-2 bg-white rounded-lg border border-amber-100">
+                                        <div class="text-[10px] uppercase font-bold text-gray-500">Tổng điểm (overall)</div>
+                                        <div class="font-black font-mono text-primary-container">{{ rtrim(rtrim(number_format($rubric['overall'], 1, '.', ''), '0'), '.') }}</div>
+                                    </div>
+                                    <div class="p-2 bg-white rounded-lg border border-amber-100">
+                                        <div class="text-[10px] uppercase font-bold text-gray-500">Gợi ý lớp</div>
+                                        <div class="font-bold text-gray-900">{{ $rubric['recommended_course'] }}</div>
+                                        <div class="text-[10px] text-gray-500">{{ $rubric['cefr_level'] }}</div>
+                                    </div>
+                                </div>
+                                <p class="text-[10px] text-amber-800">Tổng điểm giữ nguyên thang đã nhập (CRM: 0–100; chấm bài online: 0–9). Gợi ý lớp theo rubric thang /10 — cách tính chính thức đang chờ BA chốt (Q2).</p>
+                            </div>
+                        @endif
+
                         <!-- Teacher Comments -->
                         @if ($submission?->teacher_comments)
                             <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-xs">
@@ -786,6 +885,40 @@
 
         <!-- Activity Timeline & Care History -->
         <div class="lg:col-span-2 space-y-6">
+            @if ($customer->converted_student_id)
+                <!-- Chăm sóc tháng đầu (khách đã chốt) -->
+                @php($careState = $customer->care_checklist ?? [])
+                <form action="{{ route('crm.customers.care-checklist', $customer->id) }}" method="POST" class="bg-white rounded-2xl border border-emerald-200 shadow-sm p-4 space-y-3 text-xs">
+                    @csrf
+                    <div class="flex items-center justify-between gap-2 pb-1 border-b border-gray-100">
+                        <h3 class="font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-emerald-600 text-base">volunteer_activism</span>
+                            Chăm sóc tháng đầu
+                        </h3>
+                        <span class="text-gray-500">{{ collect($careState)->filter()->count() }}/{{ count(\App\Models\CrmCustomer::CARE_CHECKLIST_ITEMS) }} việc</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        @foreach (\App\Models\CrmCustomer::CARE_CHECKLIST_ITEMS as $key => $label)
+                            <label class="flex items-start gap-2 p-2 rounded-xl border {{ ! empty($careState[$key]) ? 'border-emerald-200 bg-emerald-50/50' : 'border-gray-100' }}">
+                                <input type="checkbox" name="items[]" value="{{ $key }}" @checked(! empty($careState[$key])) @cannot('lead.update') disabled @endcannot class="mt-0.5 rounded border-gray-300 text-emerald-600">
+                                <span>
+                                    <span class="font-semibold text-gray-900">{{ $label }}</span>
+                                    @if (! empty($careState[$key]['done_at']))
+                                        <span class="block text-[10px] text-gray-500">{{ \Illuminate\Support\Carbon::parse($careState[$key]['done_at'])->format('d/m/Y H:i') }} · {{ $careState[$key]['by'] ?? '' }}</span>
+                                    @endif
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
+                    @can('lead.update')
+                        <div class="flex items-center gap-2">
+                            <input type="text" name="note" maxlength="1000" placeholder="Ghi chú chăm sóc (tuỳ chọn)" class="flex-1 rounded-xl border-gray-200 text-xs">
+                            <x-ui.button type="submit" size="sm" icon="save">Lưu checklist</x-ui.button>
+                        </div>
+                    @endcan
+                </form>
+            @endif
+
             <!-- Quick Log Note Box -->
             <form action="{{ route('crm.customers.notes.store', $customer->id) }}" method="POST" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3" x-data="{ noteType: 'call' }">
                 @csrf
@@ -827,12 +960,23 @@
 
             <!-- Timeline -->
             <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
-                <h3 class="text-xs font-bold text-gray-900 uppercase tracking-wider pb-2 border-b border-gray-100">
-                    Lịch sử tương tác &amp; Tiến trình chăm sóc ({{ $customer->histories->count() }})
-                </h3>
+                <div class="flex flex-col gap-2 pb-2 border-b border-gray-100">
+                    <h3 class="text-xs font-bold text-gray-900 uppercase tracking-wider">
+                        Lịch sử tương tác &amp; Tiến trình chăm sóc ({{ $histories->count() }}{{ $logType ? '/'.$customer->histories->count() : '' }})
+                    </h3>
+                    <nav class="flex flex-wrap gap-1.5 text-[11px]" aria-label="Lọc nhật ký">
+                        <a href="{{ route('crm.customers.show', $customer->id) }}#timeline" class="px-2.5 py-1 rounded-full border {{ ! $logType ? 'bg-primary-container text-white border-primary-container' : 'border-gray-200 text-gray-600 hover:bg-gray-50' }}">Tất cả</a>
+                        @foreach (\App\Models\CrmCustomerHistory::FILTER_TYPES as $typeKey => $typeLabel)
+                            @php($typeCount = $customer->histories->where('type', $typeKey)->count())
+                            @if ($typeCount > 0)
+                                <a href="{{ route('crm.customers.show', ['id' => $customer->id, 'log_type' => $typeKey]) }}#timeline" class="px-2.5 py-1 rounded-full border {{ $logType === $typeKey ? 'bg-primary-container text-white border-primary-container' : 'border-gray-200 text-gray-600 hover:bg-gray-50' }}">{{ $typeLabel }} ({{ $typeCount }})</a>
+                            @endif
+                        @endforeach
+                    </nav>
+                </div>
 
-                <div class="space-y-4">
-                    @forelse ($customer->histories as $history)
+                <div class="space-y-4" id="timeline">
+                    @forelse ($histories as $history)
                         <div class="flex items-start gap-3 text-xs">
                             <div class="w-8 h-8 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center shrink-0 font-bold">
                                 @if ($history->type === 'call')
@@ -843,6 +987,8 @@
                                     <span class="material-symbols-outlined text-base text-indigo-600">quiz</span>
                                 @elseif ($history->type === 'stage_change')
                                     <span class="material-symbols-outlined text-base text-amber-600">sync_alt</span>
+                                @elseif (in_array($history->type, ['update', 'assign', 'care', 'trial', 'meet'], true))
+                                    <span class="material-symbols-outlined text-base text-slate-600">{{ $history->type_icon }}</span>
                                 @else
                                     <span class="material-symbols-outlined text-base text-gray-600">notes</span>
                                 @endif

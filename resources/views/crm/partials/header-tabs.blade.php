@@ -8,6 +8,8 @@
         ['route' => 'crm.reports', 'label' => 'Báo cáo doanh số'],
         ['route' => 'crm.customers.won', 'label' => 'Khách chốt thành công'],
         ['route' => 'crm.lost-deals', 'label' => 'Khách không chốt'],
+        ['route' => 'crm.confirmations', 'label' => 'Xác nhận chính thức'],
+        ['route' => 'crm.customers.deleted', 'label' => 'Khách đã xóa', 'roles' => ['admin', 'manager']],
         ['route' => 'placement-tests.index', 'label' => 'Đề test đầu vào (AI)'],
         ['route' => 'placement-tests.rubric-guide', 'label' => 'Thang điểm & Rubric'],
     ])->filter(fn ($tab) => $crmUser && $crmMenu->canSee($crmUser, $tab));
@@ -26,6 +28,7 @@
             </form>
 
             @can('lead.create')
+                <x-ui.button variant="secondary" icon="upload_file" :href="route('crm.import')">Nhập Excel</x-ui.button>
                 <x-ui.button icon="add" :href="route('crm.customers.create')">Thêm khách mới</x-ui.button>
             @endcan
         </div>

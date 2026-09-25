@@ -4,6 +4,11 @@
     <!-- Success flash banner -->
 
     <div class="space-y-4">
+        @if (session('import_skipped'))
+            <x-ui.alert type="warning" title="Các dòng bị bỏ qua khi nhập Excel" dismissible>
+                <ul class="list-disc pl-5">@foreach (session('import_skipped') as $line)<li>{{ $line }}</li>@endforeach</ul>
+            </x-ui.alert>
+        @endif
         <!-- Search & Filters -->
         <form method="GET" action="{{ route('crm.customers.index') }}" class="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2 flex-1">

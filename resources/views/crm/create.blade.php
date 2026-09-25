@@ -107,6 +107,7 @@
                         placeholder="Nhập số điện thoại" 
                         class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5 bg-white transition placeholder:text-gray-400 font-mono"
                     />
+                    <span class="text-gray-400 text-[11px] mt-1 block">Số Việt Nam 10 số bắt đầu bằng 0 (hoặc +84), ví dụ 0912 345 678.</span>
                     @error('phone') <span class="text-rose-500 text-[11px] mt-1 block">{{ $message }}</span> @enderror
                 </div>
 
@@ -123,6 +124,19 @@
                         class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5 bg-white transition placeholder:text-gray-400"
                     />
                     @error('parent_name') <span class="text-rose-500 text-[11px] mt-1 block">{{ $message }}</span> @enderror
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1.5">SĐT phụ huynh <span class="text-gray-400 font-normal">(tùy chọn)</span></label>
+                        <input type="tel" name="parent_phone" value="{{ old('parent_phone') }}" placeholder="0912 345 678" class="w-full text-xs rounded-xl border border-gray-200 px-3.5 py-2.5 font-mono" />
+                        @error('parent_phone') <span class="text-rose-500 text-[11px] mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1.5">Hạn liên hệ tiếp theo</label>
+                        <input type="datetime-local" name="next_follow_up_at" value="{{ old('next_follow_up_at') }}" class="w-full text-xs rounded-xl border border-gray-200 px-3.5 py-2.5" />
+                        @error('next_follow_up_at') <span class="text-rose-500 text-[11px] mt-1 block">{{ $message }}</span> @enderror
+                    </div>
                 </div>
 
                 <!-- 4. Nguồn khách * -->
