@@ -513,6 +513,29 @@
 **MR:** #...
 ```
 
+#### Phase 3 — Từ chấm công đến lương
+**Đã làm:**
+- [x] Chấm công tay: bắt buộc lý do, nhập giờ vào/ra (tự tính số giờ, tối thiểu 30 phút), tự gắn buổi học thật (ClassSession) nếu có; chặn chấm trùng (chấm tay + check-in, hoặc 2 lần chấm tay cùng người/lớp/ngày hoặc cùng buổi).
+- [x] Check-in giáo viên chỉ tính công khi có buổi học thật hôm nay được phân công cho người đó; bỏ mặc định 2 giờ khi không có buổi.
+- [x] Lịch sử đồng bộ máy chấm công: hiển thị trạng thái trống trung thực (chưa có tích hợp thiết bị), bỏ dòng seed giả.
+- [x] Kỷ luật: ghi nhận vi phạm (không cần số tiền) → nhân sự tự giải trình → chốt theo loại lỗi (lỗi chuyên môn: Học thuật `academic_lead`; lỗi vận hành: Học vụ/Quản lý `academic_staff`/`manager`; Admin luôn được; không ai tự chốt biên bản của mình) → quyết phạt kèm số tiền, hạn nộp 2 ngày → quá hạn chưa nộp thì trừ vào kỳ lương kế tiếp (tính khi bấm Tính lương), đã nộp thì không trừ. Khóa đổi trạng thái khi biên bản đã trừ trong kỳ đã duyệt. Danh sách có tìm kiếm, lọc theo bước/loại lỗi, phân trang.
+- [x] Hoa hồng tính trên tiền thực thu (phiếu thu đã duyệt, gồm giáo trình/đồ dùng/phụ thu), vào tháng phiếu được duyệt (`tuition_receipts.approved_at`, phiếu cũ lấy `updated_at`), cho sale phụ trách khách lúc chốt; dùng chung cho bảng lương, BXH KPI và báo cáo CRM (`SalesCommissionService`).
+- [x] Hoàn phí: người duyệt chọn có thu hồi hoa hồng hay không (mặc định "có" nếu học chưa tới 1 tháng tính từ buổi có mặt đầu tiên/ngày vào lớp), số tiền gợi ý = phần tiền hoàn × % hoa hồng sale được hưởng; khoản thu hồi trừ ở lần tính lương kế tiếp của sale. Chuyển nhượng phí không bao giờ thu hồi, tiền nhận chuyển nhượng không tính hoa hồng.
+- [x] Đơn giá giáo viên theo từng người, có ngày hiệu lực và lịch sử; mốc hoa hồng có phiên bản (sửa = tạo phiên bản mới, ngừng áp dụng vẫn giữ lịch sử), kỳ lương dùng mốc hiệu lực tại ngày cuối kỳ.
+- [x] Màn phiếu lương từng người (từ các bảng lương theo kỳ), Kế toán điều chỉnh phụ cấp / thưởng khác / khấu trừ khác / ghi chú khi kỳ chưa duyệt (giữ khi tính lại). "Lương của tôi" dùng cùng các dòng, chỉ kỳ đã duyệt. Nhân viên không tự chấm KPI của mình.
+**Chưa làm / chuyển phase sau:**
+- [ ] Công thức lương (Q3): giữ công thức hiện tại (lương cứng + giờ dạy + KPI theo ngưỡng giờ + phụ cấp − BHXH); thưởng tái tục để 0 → chờ BA chốt Q3.
+- [ ] Đối chiếu với bảng lương Excel đang dùng → cần file Excel thật từ Kế toán.
+- [ ] Tích hợp máy chấm công (FaceID) thật → chưa có thiết bị/API.
+- [ ] Phiếu thu bị hủy hóa đơn sau khi kỳ lương đã duyệt: chưa tự thu hồi hoa hồng (cần quy tắc từ BA).
+**Quyết định phát sinh (tạm, chờ BA xác nhận):**
+- "Lần đầu / khách mới" = mọi phiếu thu thuộc **khoản học phí đầu tiên** (`student_tuitions` id nhỏ nhất) của học viên được chuyển đổi từ khách CRM; khoản học phí sau là tái tục, không có hoa hồng. Phiếu không gắn khoản học phí chỉ tính nếu lập trước khi có khoản học phí thứ hai.
+- "Tháng thực thu" = tháng phiếu thu được **duyệt**.
+- "Hoàn phí ngay" = học **dưới 1 tháng**; chỉ là gợi ý, người duyệt quyết định và có thể sửa số tiền thu hồi.
+- Loại lỗi → người chốt: chuyên môn/giảng dạy → HT (`academic_lead`); vận hành/nội quy → CM (`academic_staff`, `manager`). Cấp thêm quyền `violation.view/create/confirm_*` cho `academic_lead`, `academic_staff`.
+**Lỗi còn tồn:** các màn lương theo khối (full-time / học thuật / vận hành) vẫn giữ giao diện cũ, chỉ sửa cột và thêm liên kết phiếu lương.
+**MR:** nhánh `feat/phase3-payroll`
+
 ---
 
 ## Phụ lục — Vị trí kỹ thuật các lỗi P0 (cho dev)
