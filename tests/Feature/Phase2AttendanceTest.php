@@ -106,7 +106,7 @@ class Phase2AttendanceTest extends TestCase
 
         // Lưu lại cùng buổi không tạo bản ghi mới.
         $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
-            'class_session_id' => $past->id, 'status' => [$this->student->id => 'excused'],
+            'class_session_id' => $past->id, 'status' => [$this->student->id => 'excused'], 'note' => [$this->student->id => 'Ốm'],
         ]);
         $this->assertSame(3, StudentAttendance::count());
     }
@@ -226,7 +226,7 @@ class Phase2AttendanceTest extends TestCase
     {
         $session = $this->makeSession('2026-10-07');
         $post = fn (string $status) => $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
-            'class_session_id' => $session->id, 'status' => [$this->student->id => $status],
+            'class_session_id' => $session->id, 'status' => [$this->student->id => $status], 'note' => [$this->student->id => 'Lý do vắng'],
         ]);
 
         $post('absent');

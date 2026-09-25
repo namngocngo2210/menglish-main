@@ -343,4 +343,36 @@ class Phase2MockupClassesTest extends TestCase
             ->assertSee('data-testid="teacher-bottom-nav"', false)->assertSee('Bảng công')->assertSee('Cá nhân')
             ->assertDontSee('12.500.000')->assertDontSee('Nguyễn Văn A');
     }
+
+    public function test_teacher_attendance_matches_mockup_and_requires_note_for_absences(): void
+    {
+        $session = $this->makeSession('2026-10-07', '07:30', '08:45');
+        $student = $this->student('Nguyễn Minh Quân');
+
+        $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $session->id]))->assertOk()
+            ->assertSee('Điểm danh — Kids Explorer MK2, 07/10/2026')
+            ->assertSee('Khung giờ: 07:30 – 08:45')->assertSee('Phòng 204 · Cầu Giấy')->assertSee('Sĩ số lớp:')
+            ->assertSee('Đang trong cửa sổ điểm danh')->assertSee('Quy định: Buổi học ±24 giờ')
+            ->assertSee('Đúng giờ')->assertSee('Đi muộn')->assertSee('Nghỉ có phép')->assertSee('Nghỉ không phép')
+            ->assertSee('Quy tắc nghiệp vụ điểm danh dành cho Giáo viên:')
+            ->assertSee('Danh sách học sinh trong lớp (Roster)')
+            ->assertSee('Phiếu điểm danh sẽ được ghi đè (upsert)', false)->assertSee('Lưu điểm danh')
+            ->assertSee('data-testid="teacher-bottom-nav"', false);
+
+        // Nghỉ mà không ghi lý do → bị chặn.
+        $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
+            'class_session_id' => $session->id, 'status' => [$student->id => 'absent'],
+        ])->assertSessionHasErrors(['note', 'note.'.$student->id]);
+        $this->assertSame(0, \App\Models\StudentAttendance::count());
+
+        $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
+            'class_session_id' => $session->id, 'status' => [$student->id => 'absent'], 'note' => [$student->id => 'Phụ huynh báo ốm'],
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('student_attendances', ['class_session_id' => $session->id, 'status' => 'absent', 'note' => 'Phụ huynh báo ốm']);
+
+        // Buổi quá 24h → vẫn điểm danh bù được nhưng báo ngoài cửa sổ.
+        $old = $this->makeSession('2026-10-05', '07:30', '08:45');
+        $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $old->id]))
+            ->assertOk()->assertSee('Ngoài cửa sổ 24h — điểm danh bù');
+    }
 }

@@ -370,6 +370,8 @@ class TeacherPortalController extends Controller
         $blockReason = $session ? $this->attendanceBlockReason($session) : null;
         $onBehalf = ! $this->isAssignedStaff($user, $class, $session);
         $today = ($session?->date ?? now())->toDateString();
+        $window = $session ? app(\App\Services\ClassDashboardService::class)->attendanceWindow($session) : null;
+        $rosterSize = $class->occupiedSeats();
 
         // Các buổi gần đây của lớp để chọn điểm danh bù / buổi học bù.
         $recentSessions = ClassSession::where('class_id', $class->id)
@@ -380,7 +382,7 @@ class TeacherPortalController extends Controller
             ->get();
 
         return view('teacher.attendance', compact(
-            'class', 'session', 'students', 'existing', 'today', 'blockReason', 'onBehalf', 'recentSessions'
+            'class', 'session', 'students', 'existing', 'today', 'blockReason', 'onBehalf', 'recentSessions', 'window', 'rosterSize'
         ));
     }
 
@@ -409,6 +411,17 @@ class TeacherPortalController extends Controller
         }
         if ($reason = $this->attendanceBlockReason($session)) {
             return back()->withErrors(['session' => $reason]);
+        }
+
+        // Mockup điểm danh: "Nghỉ có phép" / "Nghỉ không phép" bắt buộc ghi chú lý do vắng.
+        $missingNotes = collect($validated['status'])
+            ->filter(fn ($status, $studentId) => in_array($status, ['absent', 'excused'], true) && blank($validated['note'][$studentId] ?? null))
+            ->keys();
+        if ($missingNotes->isNotEmpty()) {
+            return back()->withInput()->withErrors(array_merge(
+                ['note' => 'Vui lòng điền rõ lý do cho '.$missingNotes->count().' học sinh được đánh dấu "Nghỉ".'],
+                $missingNotes->mapWithKeys(fn ($id) => ["note.{$id}" => 'Cần ghi rõ lý do khi đánh dấu nghỉ'])->all(),
+            ));
         }
 
         $existing = StudentAttendance::where('class_session_id', $session->id)->get()->keyBy('student_id');
