@@ -25,6 +25,8 @@
         </div>
     </x-slot>
 
+    @include('tuition.partials.errors')
+
     @php
         $tuitionsJson = $tuitions->map(function($t) {
             return [
@@ -43,9 +45,10 @@
                 'paid_amount' => (float)($t->paid_amount ?? 0),
                 'debt_amount' => (float)($t->debt_amount ?? 0),
                 'final_amount' => (float)($t->final_amount ?? 0),
-                'total_sessions' => 48,
-                'attended_sessions' => 12,
-                'remaining_sessions' => 36,
+                // Chưa có nguồn số buổi thực tế theo hợp đồng -> không hiển thị số giả (ẩn khối số buổi).
+                'total_sessions' => null,
+                'attended_sessions' => null,
+                'remaining_sessions' => null,
                 'fee_items' => $t->fee_items ?? [],
                 'receipt_count' => $t->receipts ? $t->receipts->count() : 0,
             ];
@@ -68,7 +71,7 @@
         $initialStudentId = $selectedStudent?->id ?? ($selectedTuition?->student_id ?? ($students->first()?->id ?? ''));
     @endphp
 
-    <div class="max-w-5xl mx-auto pb-28" x-data="createReceiptManager({{ json_encode($tuitionsJson) }}, {{ json_encode($studentsJson) }}, '{{ $initialTuitionId }}', '{{ $initialStudentId }}', '{{ $defaultBank->bank_code }}', '{{ $defaultBank->account_number }}', '{{ $defaultBank->account_holder }}')">
+    <div class="max-w-5xl mx-auto pb-28" x-data="createReceiptManager({{ json_encode($tuitionsJson) }}, {{ json_encode($studentsJson) }}, '{{ $initialTuitionId }}', '{{ $initialStudentId }}', '{{ $defaultBank?->bank_code }}', '{{ $defaultBank?->account_number }}', '{{ $defaultBank?->account_holder }}')">
         <form action="{{ route('tuition.receipts.store') }}" method="POST" enctype="multipart/form-data" id="receiptForm" class="space-y-6">
             @csrf
 
@@ -212,18 +215,18 @@
                 <!-- Khối số buổi & Bảng kê học phí (Chỉ hiển thị khi KHÔNG bỏ qua) -->
                 <div x-show="!skipTuition && currentTuition" x-transition class="space-y-0">
                     <!-- Thống kê 4 ô buổi học -->
-                    <div class="grid grid-cols-2 md:grid-cols-4 border-b border-slate-200 text-center divide-x divide-slate-100 text-xs">
+                    <div x-show="currentTuition?.total_sessions" class="grid grid-cols-2 md:grid-cols-4 border-b border-slate-200 text-center divide-x divide-slate-100 text-xs">
                         <div class="p-4">
                             <span class="text-slate-400 font-semibold uppercase text-[10px] block mb-1">Tổng số buổi</span>
-                            <span class="text-lg font-bold text-slate-900" x-text="currentTuition?.total_sessions || 48"></span>
+                            <span class="text-lg font-bold text-slate-900" x-text="currentTuition?.total_sessions ?? '—'"></span>
                         </div>
                         <div class="p-4">
                             <span class="text-slate-400 font-semibold uppercase text-[10px] block mb-1">Đã học</span>
-                            <span class="text-lg font-bold text-emerald-600" x-text="currentTuition?.attended_sessions || 12"></span>
+                            <span class="text-lg font-bold text-emerald-600" x-text="currentTuition?.attended_sessions ?? '—'"></span>
                         </div>
                         <div class="p-4">
                             <span class="text-slate-400 font-semibold uppercase text-[10px] block mb-1">Số buổi còn tồn</span>
-                            <span class="text-lg font-bold text-primary" x-text="currentTuition?.remaining_sessions || 36"></span>
+                            <span class="text-lg font-bold text-primary" x-text="currentTuition?.remaining_sessions ?? '—'"></span>
                         </div>
                         <div class="p-4">
                             <span class="text-slate-400 font-semibold uppercase text-[10px] block mb-1">Nghỉ hè / Bảo lưu</span>
@@ -405,6 +408,7 @@
                         </div>
 
                         <!-- Card tài khoản ngân hàng mặc định -->
+                        @if ($defaultBank)
                         <div class="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50 space-y-3 text-xs">
                             <div class="flex items-center justify-between border-b border-slate-200/80 pb-2">
                                 <h5 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tài khoản ngân hàng thu tiền mặc định</h5>
@@ -446,6 +450,12 @@
                                 <span>CM không thể đổi tài khoản nhận tiền trên màn hình này.</span>
                             </div>
                         </div>
+                        @else
+                            <div class="border border-amber-200 rounded-xl p-3.5 bg-amber-50 text-xs text-amber-800 flex items-start gap-2">
+                                <span class="material-symbols-outlined text-amber-600 text-base shrink-0">warning</span>
+                                <span><strong>Chưa cấu hình tài khoản ngân hàng</strong> đang hoạt động để nhận học phí. Mã VietQR sẽ không được tạo — vui lòng liên hệ Kế toán/Admin cấu hình tài khoản trước khi hướng dẫn phụ huynh chuyển khoản.</span>
+                            </div>
+                        @endif
 
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Mã tham chiếu / Mã giao dịch ngân hàng (nếu có)</label>
@@ -603,9 +613,9 @@
                 payerName: '',
                 payerPhone: '',
 
-                bankCode: bankCode || 'VCB',
-                bankAcc: bankAcc || '1029384756',
-                bankHolder: bankHolder || 'TRUNG TAM ANH NGU MENGLISH',
+                bankCode: bankCode || '',
+                bankAcc: bankAcc || '',
+                bankHolder: bankHolder || '',
 
                 proofPreviewUrl: null,
                 proofFileName: '',
@@ -620,10 +630,6 @@
                         this.selectedTuitionId = this.tuitions[0].id;
                         this.onTuitionChange();
                     }
-
-                    // Default surcharge preset if empty
-                    this.surchargeAmount = 150000;
-                    this.surchargeReason = 'Phụ thu giáo trình in ấn bổ sung & thẻ học viên';
                 },
 
                 onTuitionChange() {
@@ -718,6 +724,7 @@
                 },
 
                 get vietQrUrl() {
+                    if (!this.bankCode || !this.bankAcc) return '';
                     const memo = this.transferMemo;
                     const amt = this.totalAmount > 0 ? this.totalAmount : 0;
                     return 'https://img.vietqr.io/image/' + encodeURIComponent(this.bankCode) + '-' + encodeURIComponent(this.bankAcc) + '-compact2.png?amount=' + amt + '&addInfo=' + encodeURIComponent(memo) + '&accountName=' + encodeURIComponent(this.bankHolder);

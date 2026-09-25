@@ -71,10 +71,24 @@ class StudentTuition extends Model
         return $this->hasMany(TuitionReceipt::class, 'student_tuition_id');
     }
 
+    /**
+     * Tính lại công nợ từ các phiếu đã duyệt (nguồn sự thật duy nhất):
+     * - paid_amount = Σ phần học phí của phiếu approved (amount − surcharge_amount; phụ thu không cấn nợ,
+     *   phiếu hoàn/chuyển nhượng âm tự trừ vào).
+     * - debt_amount = max(0, final_amount − Σ discount_amount của phiếu approved − paid_amount).
+     * Phiếu pending/draft/rejected/cancelled không được tính.
+     */
     public function recalculateDebt(): void
     {
-        $this->paid_amount = (float) $this->receipts()->where('status', 'approved')->sum('amount');
-        $this->debt_amount = max(0, $this->final_amount - $this->paid_amount);
+        $totals = $this->receipts()
+            ->where('status', TuitionReceipt::STATUS_APPROVED)
+            ->selectRaw('COALESCE(SUM(amount - COALESCE(surcharge_amount, 0)), 0) AS paid_total')
+            ->selectRaw('COALESCE(SUM(COALESCE(discount_amount, 0)), 0) AS discount_total')
+            ->toBase()
+            ->first();
+
+        $this->paid_amount = round((float) $totals->paid_total, 2);
+        $this->debt_amount = max(0, round((float) $this->final_amount - (float) $totals->discount_total - (float) $this->paid_amount, 2));
 
         if ($this->debt_amount <= 0) {
             $this->status = 'paid';

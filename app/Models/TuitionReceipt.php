@@ -13,6 +13,20 @@ class TuitionReceipt extends Model
 {
     use HasFactory;
 
+    public const STATUS_DRAFT = 'draft';
+
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_APPROVED = 'approved';
+
+    public const STATUS_REJECTED = 'rejected';
+
+    /** Phiếu đã duyệt nhưng bị hủy hóa đơn: giữ nguyên số HĐ, không còn tính vào công nợ/doanh thu. */
+    public const STATUS_CANCELLED = 'cancelled';
+
+    /** Trạng thái người lập còn được sửa và gửi duyệt lại. */
+    public const EDITABLE_STATUSES = [self::STATUS_DRAFT, self::STATUS_REJECTED];
+
     protected $table = 'tuition_receipts';
 
     protected $fillable = [
@@ -71,6 +85,37 @@ class TuitionReceipt extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approver_id');
+    }
+
+    /**
+     * Phần tiền của phiếu cấn vào học phí (không gồm phụ thu).
+     * Phiếu hoàn/chuyển nhượng có amount âm và không có phụ thu nên phần này cũng âm.
+     */
+    public function tuitionPortion(): float
+    {
+        return (float) $this->amount - (float) $this->surcharge_amount;
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            self::STATUS_DRAFT => 'Bản nháp',
+            self::STATUS_APPROVED => 'Đã duyệt thu',
+            self::STATUS_REJECTED => 'Bị từ chối',
+            self::STATUS_CANCELLED => 'Đã hủy hóa đơn',
+            default => 'Chờ duyệt',
+        };
+    }
+
+    public function getStatusBadgeAttribute(): string
+    {
+        return match ($this->status) {
+            self::STATUS_DRAFT => 'bg-slate-100 text-slate-700 border-slate-200',
+            self::STATUS_APPROVED => 'bg-emerald-50 text-emerald-700 border-emerald-200',
+            self::STATUS_REJECTED => 'bg-rose-50 text-rose-700 border-rose-200',
+            self::STATUS_CANCELLED => 'bg-gray-100 text-gray-500 border-gray-300 line-through',
+            default => 'bg-amber-50 text-amber-700 border-amber-200',
+        };
     }
 
     public static function generateReceiptNumber(): string
