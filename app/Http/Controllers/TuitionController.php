@@ -1151,6 +1151,11 @@ class TuitionController extends Controller
                 'rejection_reason' => null,
             ]);
 
+            // Hoa hồng của phiếu đã chi trong kỳ lương đã duyệt → thu hồi ở kỳ kế tiếp (kỳ chưa duyệt tự tính lại).
+            $clawback = app(SalesCommissionService::class)
+                ->recordCancellationClawback($receipt, Auth::user(), (string) $cancellation->invoice_number);
+            $cancellation->setAttribute('commission_clawback', $clawback);
+
             // Giữ nguyên invoice_number (không tái sử dụng số HĐ), chỉ vô hiệu phiếu.
             $receipt->update([
                 'status' => TuitionReceipt::STATUS_CANCELLED,
@@ -1165,7 +1170,13 @@ class TuitionController extends Controller
             return redirect()->back()->withErrors(['cancellation' => $result]);
         }
 
-        return redirect()->back()->with('status', "Đã duyệt hủy hóa đơn {$result->invoice_number} và hoàn tác công nợ học viên!");
+        $message = "Đã duyệt hủy hóa đơn {$result->invoice_number} và hoàn tác công nợ học viên!";
+        if ($clawback = $result->getAttribute('commission_clawback')) {
+            $message .= ' Kỳ lương chứa phiếu đã duyệt: thu hồi '.number_format(abs((float) $clawback->amount), 0, ',', '.')
+                .' VNĐ hoa hồng của '.($clawback->user?->name ?? 'sale').' ở lần tính lương kế tiếp.';
+        }
+
+        return redirect()->back()->with('status', $message);
     }
 
     public function rejectInvoiceCancellation(Request $request, $id)

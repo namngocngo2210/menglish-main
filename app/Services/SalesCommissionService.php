@@ -6,6 +6,8 @@ use App\Models\ClassEnrollment;
 use App\Models\CommissionAdjustment;
 use App\Models\CommissionTier;
 use App\Models\CrmCustomer;
+use App\Models\PayrollPeriod;
+use App\Models\PayrollRecord;
 use App\Models\StudentAttendance;
 use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
@@ -32,7 +34,8 @@ use Illuminate\Support\Collection;
  *   ghi nhận assigned_user_id tại thời điểm chốt; lead cũ chưa có thì dùng assigned_user_id).
  * - Không tính phiếu âm (hoàn/chuyển nhượng đi) và phiếu nhận chuyển nhượng (XFER-IN):
  *   tiền chuyển nhượng không phải tiền thực thu mới. Thu hồi khi hoàn phí đi qua
- *   CommissionAdjustment do người duyệt hoàn phí quyết định.
+ *   CommissionAdjustment do người duyệt hoàn phí quyết định; hủy hóa đơn sau khi kỳ lương
+ *   đã duyệt cũng tạo CommissionAdjustment (recordCancellationClawback).
  */
 class SalesCommissionService
 {
@@ -193,6 +196,62 @@ class SalesCommissionService
             'student_id' => $refund->student_id,
             'amount' => -$amount,
             'reason' => "Thu hồi hoa hồng do hoàn phí #{$refund->id} (học viên {$refund->student?->name})",
+            'created_by' => $approver?->id,
+        ]);
+    }
+
+    /**
+     * Hủy hóa đơn SAU KHI kỳ lương chứa phiếu đã duyệt/trả: hoa hồng của phiếu đã chi, kỳ đã khóa
+     * không tính lại được → tạo khoản thu hồi (CommissionAdjustment âm) trừ ở lần tính lương kế tiếp
+     * của sale, cùng cơ chế thu hồi khi hoàn phí.
+     *
+     * Gọi TRƯỚC khi đổi trạng thái phiếu sang cancelled (cần phiếu còn là căn cứ hoa hồng).
+     * Số thu hồi = tiền phiếu × % hoa hồng sale đã hưởng trong kỳ đó (theo commission_base đã chốt
+     * trên bảng lương). Thưởng vượt mốc và việc tụt bậc không bị thu hồi (như hoàn phí).
+     * Kỳ chưa duyệt → không tạo gì: lần tính lại tự loại phiếu đã hủy khỏi căn cứ.
+     */
+    public function recordCancellationClawback(TuitionReceipt $receipt, ?User $approver, string $invoiceNumber): ?CommissionAdjustment
+    {
+        if ($receipt->status !== TuitionReceipt::STATUS_APPROVED || (float) $receipt->amount <= 0 || ! $receipt->approved_at) {
+            return null;
+        }
+
+        $studentId = $receipt->student_id ?? $receipt->tuition?->student_id;
+        $owner = $studentId ? $this->ownerOfStudent((int) $studentId) : null;
+        if (! $owner) {
+            return null;
+        }
+
+        $approvedOn = Carbon::parse($receipt->approved_at)->toDateString();
+        $period = PayrollPeriod::query()
+            ->whereIn('status', PayrollPeriod::LOCKED_STATUSES)
+            ->whereDate('start_date', '<=', $approvedOn)
+            ->whereDate('end_date', '>=', $approvedOn)
+            ->orderBy('id')
+            ->first();
+        if (! $period) {
+            return null;
+        }
+
+        $wasCommissionable = $this->commissionableReceipts($period->start_date, $period->end_date, $owner)
+            ->contains(fn (TuitionReceipt $r) => (int) $r->id === (int) $receipt->id);
+        $record = PayrollRecord::where('payroll_period_id', $period->id)->where('user_id', $owner)->first();
+        if (! $wasCommissionable || ! $record || (float) $record->commission_bonus <= 0) {
+            return null;
+        }
+
+        $percent = $this->commissionFor((float) $record->commission_base, $period->end_date)['percent'];
+        $amount = round((float) $receipt->amount * $percent / 100, 0);
+        if ($amount <= 0) {
+            return null;
+        }
+
+        return CommissionAdjustment::create([
+            'user_id' => $owner,
+            'student_id' => $studentId,
+            'amount' => -$amount,
+            'reason' => "Thu hồi hoa hồng do hủy hóa đơn {$invoiceNumber} (phiếu {$receipt->receipt_number}) sau khi kỳ lương "
+                .($period->title ?: $period->code)." đã duyệt",
             'created_by' => $approver?->id,
         ]);
     }
