@@ -15,7 +15,7 @@ class DatabaseSeeder extends Seeder
      * Branch → Permission → Role (cần permission) → SystemCategory →
      * Holiday (cần branch) → User (cần branch + role).
      *
-     * Ngoại lệ: DemoPhase1Seeder (dữ liệu nghiệp vụ mẫu) chỉ chạy ở local/testing/staging hoặc SEED_DEMO=true.
+     * Ngoại lệ: DemoPhase1Seeder / DemoPhase2Seeder (dữ liệu nghiệp vụ mẫu) chỉ chạy ở local/testing/staging hoặc SEED_DEMO=true.
      */
     public function run(): void
     {
@@ -31,10 +31,12 @@ class DatabaseSeeder extends Seeder
             WorkTaskSeeder::class,
         ]);
 
-        // Dữ liệu demo Phase 1 (khách đủ các bước, lớp + buổi học, học thử, chốt, lớp chờ): chỉ môi trường
-        // không phải production, hoặc bật rõ bằng SEED_DEMO=true.
+        // Dữ liệu demo Phase 1 (khách đủ các bước, lớp + buổi học, học thử, chốt, lớp chờ) và Phase 2 (giáo trình,
+        // chặng, điểm danh, bổ trợ, Big Test, nghỉ lễ, việc TA, chăm sóc): chỉ môi trường không phải production,
+        // hoặc bật rõ bằng SEED_DEMO=true. Phase 2 dựng trên lớp / học viên của Phase 1.
         if (app()->environment(['local', 'testing', 'staging']) || filter_var(env('SEED_DEMO', false), FILTER_VALIDATE_BOOL)) {
             $this->call(DemoPhase1Seeder::class);
+            $this->call(DemoPhase2Seeder::class);
         }
     }
 }
