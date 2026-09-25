@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\BigTest;
 use App\Models\BigTestOrder;
+use App\Models\BigTestResult;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\CourseLevel;
@@ -469,5 +470,60 @@ class Phase2MockupSyllabusTest extends TestCase
             'stage_name' => 'Chặng 1: Nền tảng', 'test_type' => 'big', 'status' => 'approved', 'test_link' => 'https://x.test',
         ]);
         $this->actingAs($this->academic)->get(route('syllabus.big-tests.schedules'))->assertOk()->assertSee('Tất cả đều ổn!');
+    }
+
+    // ---- 01_Web_Admin/07 — Duyệt kết quả Big Test & gửi phụ huynh ----
+
+    public function test_result_review_panel_approves_and_sends_one_student_and_closes_stage(): void
+    {
+        $assignment = $this->openStage();
+        $test = BigTest::create([
+            'code' => 'BT-MK-1', 'title' => 'Big Test chặng 1', 'class_id' => $this->class->id, 'syllabus_stage_id' => $assignment->stage_id,
+            'test_type' => 'midterm', 'scheduled_at' => now()->subDays(4), 'room' => 'Lab', 'is_distributed' => true, 'status' => 'distributed',
+        ]);
+        $present = $this->student('HV-MK-1');
+        $absent = $this->student('HV-MK-2');
+        $scored = BigTestResult::create([
+            'big_test_id' => $test->id, 'student_id' => $present->id, 'status' => 'pending_review', 'graded_by' => $this->teacher->id,
+            'listening_score' => 8.5, 'reading_score' => 7, 'writing_score' => 7.5, 'speaking_score' => 8, 'overall_score' => 7.8,
+            'progress_note' => 'Nắm vững kiến thức cơ bản', 'video_url' => 'https://video.example.com/bt-mk-1.mp4',
+        ]);
+        $away = BigTestResult::create(['big_test_id' => $test->id, 'student_id' => $absent->id, 'status' => 'pending_review', 'is_absent' => true, 'graded_by' => $this->teacher->id]);
+
+        $page = route('syllabus.big-tests.results', ['id' => $test->id, 'result' => $scored->id]);
+        $this->actingAs($this->academic)->get($page)->assertOk()
+            ->assertSee('Duyệt kết quả Big Test &amp; gửi phụ huynh', false)
+            ->assertSee('Quản lý Big Test')
+            ->assertSee('Thông tin chung')
+            ->assertSee('Mã HV: HV-MK-1')
+            ->assertSee('GV: GV Mockup')
+            ->assertSee('Big Test - Chặng 1: Nền tảng')
+            ->assertSee('Điểm chi tiết')
+            ->assertSee('Link video bài thi')
+            ->assertSee('https://video.example.com/bt-mk-1.mp4')
+            ->assertSee('Nhận xét của giáo viên/HT')
+            ->assertSee('Tổng điểm (Big Test)')
+            ->assertSee('7.8')
+            ->assertSee('Còn 3 ngày')        // hạn trả KQ = ngày thi + 7 ngày
+            ->assertSee('Trạng thái dữ liệu')
+            ->assertSee('Người gửi kết quả')
+            ->assertSee('Người duyệt (Hiện tại)')
+            ->assertSee('Duyệt &amp; Gửi phụ huynh', false)
+            ->assertSee('Hợp lệ');
+        $this->actingAs($this->academic)->get(route('syllabus.big-tests.results', $test->id))->assertOk()->assertSee('Xem &amp; duyệt', false);
+
+        // Giáo viên không duyệt / gửi được
+        $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.approve-send', $scored->id))->assertForbidden();
+
+        // Học viên vắng thi: chỉ duyệt; học viên có điểm: duyệt + gửi PH → Big Test hoàn tất, chặng đóng và chặng 2 tự mở
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.results.approve-send', $away->id))->assertSessionHasNoErrors();
+        $this->assertSame('approved', $away->fresh()->status);
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.results.approve-send', $scored->id))->assertSessionHasNoErrors();
+        $this->assertSame('sent', $scored->fresh()->status);
+        $this->assertTrue($scored->fresh()->parent_notified);
+        $this->assertSame(SyllabusAssignment::STATUS_CLOSED, $assignment->fresh()->status);
+        $this->assertSame($this->stages[1]->id, SyllabusAssignment::open()->where('class_id', $this->class->id)->value('stage_id'));
+
+        $this->actingAs($this->academic)->get($page)->assertOk()->assertSee('Đã gửi phụ huynh')->assertDontSee('Duyệt &amp; Gửi phụ huynh', false);
     }
 }

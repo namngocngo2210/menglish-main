@@ -442,6 +442,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/big-tests/{id}/results/approve', [SyllabusController::class, 'approveBigTestResults'])->middleware('can:syllabus.approve_adjustment')->name('big-tests.results.approve');
         Route::post('/big-tests/{id}/send-zalo', [SyllabusController::class, 'sendZaloResults'])->middleware('can:syllabus.approve_adjustment')->name('big-tests.send-zalo');
         Route::post('/big-tests/results/{resultId}/send-single-zalo', [SyllabusController::class, 'sendSingleZaloResult'])->middleware('can:syllabus.approve_adjustment')->name('big-tests.send-single-zalo');
+        Route::post('/big-tests/results/{resultId}/approve-send', [SyllabusController::class, 'approveAndSendResult'])->whereNumber('resultId')->middleware('can:syllabus.approve_adjustment')->name('big-tests.results.approve-send');
     });
 
     // ─────────────────────────────────────────────

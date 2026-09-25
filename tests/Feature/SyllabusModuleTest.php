@@ -121,7 +121,7 @@ class SyllabusModuleTest extends TestCase
         $viewResp = $this->actingAs($user)->get(route('syllabus.big-tests.results', $bigTest->id));
         $viewResp->assertOk();
         $viewResp->assertSee('Lê Bảo Nam');
-        $viewResp->assertSee('Bảng Điểm &amp; Kết Quả Khảo Thí Big Test', false);
+        $viewResp->assertSee('Duyệt kết quả Big Test &amp; gửi phụ huynh', false);
 
         // 2. Send single Zalo notification
         $singleSendResp = $this->actingAs($user)->post(route('syllabus.big-tests.send-single-zalo', $result->id));

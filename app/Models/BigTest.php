@@ -15,6 +15,12 @@ class BigTest extends Model
     /** Vai trò học thuật được thao tác trên mọi lớp (không bị giới hạn theo phân công). */
     public const ACADEMIC_ROLES = ['admin', 'manager', 'academic_staff', 'academic_lead'];
 
+    /**
+     * Hạn trả kết quả cho phụ huynh = ngày thi + N ngày (mockup "Hạn trả kết quả: Còn N ngày").
+     * Tạm đặt 7 ngày — chờ BA chốt con số chính thức.
+     */
+    public const RESULT_DEADLINE_DAYS = 7;
+
     protected $table = 'big_tests';
 
     protected $fillable = [
@@ -92,6 +98,20 @@ class BigTest extends Model
                 ->orWhere('foreign_teacher_id', $user->id)
                 ->orWhere('assistant_id', $user->id)
         ));
+    }
+
+    /** Hạn trả kết quả cho phụ huynh (ngày thi + RESULT_DEADLINE_DAYS). */
+    public function resultsDueAt(): ?\Illuminate\Support\Carbon
+    {
+        return $this->scheduled_at?->copy()->startOfDay()->addDays(self::RESULT_DEADLINE_DAYS);
+    }
+
+    /** Số ngày còn lại tới hạn trả kết quả (âm = quá hạn); NULL khi chưa có ngày thi. */
+    public function resultsDaysLeft(): ?int
+    {
+        $due = $this->resultsDueAt();
+
+        return $due ? (int) today()->diffInDays($due, false) : null;
     }
 
     public function isAccessibleBy(User $user): bool

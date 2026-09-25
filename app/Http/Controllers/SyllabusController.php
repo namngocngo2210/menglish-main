@@ -1293,20 +1293,57 @@ class SyllabusController extends Controller
         $allTests = BigTest::with('classModel')->visibleTo($user)->latest()->get();
 
         if ($testId) {
-            $test = BigTest::with(['classModel', 'stage'])->find($testId);
+            $test = BigTest::with(['classModel.teacher', 'stage'])->find($testId);
             abort_unless($test && $test->isAccessibleBy($user), 404);
         } else {
-            $test = $allTests->first();
+            $test = $allTests->first()?->load(['classModel.teacher', 'stage']);
         }
 
-        $results = $test ? BigTestResult::with('student')->where('big_test_id', $test->id)->get() : collect();
+        $results = $test ? BigTestResult::with(['student', 'grader', 'approver'])->where('big_test_id', $test->id)->get() : collect();
+        // Mockup "Duyệt kết quả Big Test & gửi phụ huynh": khung xét duyệt từng học viên (?result=).
+        $selectedResult = $request->filled('result') ? $results->firstWhere('id', $request->integer('result')) : null;
+        abort_if($request->filled('result') && ! $selectedResult, 404);
         // Danh sách lớp thật (gồm học viên liên kết lớp khác) + học viên đã có kết quả.
         $students = $test?->classModel
             ? $test->classModel->rosterStudents()->concat(Student::whereIn('id', $results->pluck('student_id'))
                 ->whereNotIn('id', $test->classModel->roster()->pluck('id'))->orderBy('name')->get())
             : collect();
 
-        return view('syllabus.big-tests-results', compact('test', 'allTests', 'results', 'students'));
+        return view('syllabus.big-tests-results', compact('test', 'allTests', 'results', 'students', 'selectedResult'));
+    }
+
+    /**
+     * "Duyệt & Gửi phụ huynh" một học viên: duyệt kết quả đang chờ duyệt rồi gửi Zalo ZNS cho phụ huynh
+     * (vắng thi: chỉ duyệt, không gửi). Sau đó kiểm tra đóng chặng (Q4).
+     */
+    public function approveAndSendResult(int $resultId, SyllabusProgressionService $progression)
+    {
+        $res = BigTestResult::with(['student', 'bigTest.classModel'])->findOrFail($resultId);
+        $test = $res->bigTest;
+        abort_unless($test && $test->is_distributed, 422, 'Đề thi chưa được duyệt và phân phối.');
+        $studentName = $res->student?->name ?? 'Học viên';
+
+        if ($res->parent_notified || $res->status === 'sent') {
+            return redirect()->back()->with('error', "Kết quả của em {$studentName} đã được gửi phụ huynh trước đó.");
+        }
+        if (! in_array($res->status, ['pending_review', 'approved'], true)) {
+            return redirect()->back()->with('error', "Kết quả của em {$studentName} chưa được giáo viên nhập / gửi duyệt.");
+        }
+        if ($res->status === 'pending_review') {
+            $res->update(['status' => 'approved', 'approved_by' => Auth::id(), 'approved_at' => now()]);
+        }
+
+        if ($res->is_absent) {
+            return redirect()->back()->with('status', "Đã duyệt kết quả em {$studentName} (vắng thi — không gửi phụ huynh)."
+                .$progression->describe($progression->syncBigTest($test->fresh(), Auth::user())));
+        }
+
+        return match ($this->deliverZaloResult($res, $test)) {
+            'sent' => redirect()->back()->with('status', "Đã duyệt và gửi kết quả em {$studentName} cho phụ huynh qua Zalo ZNS."
+                .$progression->describe($progression->syncBigTest($test->fresh(), Auth::user()))),
+            'skipped' => redirect()->back()->with('warning', "Đã duyệt kết quả em {$studentName}, nhưng chưa gửi được: học viên chưa có số điện thoại liên hệ."),
+            default => redirect()->back()->with('warning', "Đã duyệt kết quả em {$studentName}, nhưng gửi Zalo ZNS thất bại — vui lòng bấm Gửi PH lại."),
+        };
     }
 
     public function storeBigTestResults(Request $request, int $id)
