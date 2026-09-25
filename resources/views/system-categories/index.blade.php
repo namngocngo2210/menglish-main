@@ -59,7 +59,14 @@
                                     @if ($category->is_active)
                                         <form action="{{ route('system-categories.destroy', $category) }}" method="POST" class="inline">
                                             @csrf @method('DELETE')
-                                            <button type="submit" class="text-gray-500 hover:text-red-600"><span class="material-symbols-outlined text-[18px] align-middle">block</span></button>
+                                            <button type="submit" class="text-gray-500 hover:text-red-600" title="Ngừng sử dụng"><span class="material-symbols-outlined text-[18px] align-middle">block</span></button>
+                                        </form>
+                                    @else
+                                        <form action="{{ route('system-categories.reactivate', $category) }}" method="POST" class="inline">
+                                            @csrf
+                                            <button type="submit" class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100" title="Kích hoạt lại">
+                                                <span class="material-symbols-outlined text-[16px] align-middle">restart_alt</span> Kích hoạt lại
+                                            </button>
                                         </form>
                                     @endif
                                 @endcan

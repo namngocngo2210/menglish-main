@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\SystemCategoryRequest;
 use App\Models\SystemCategory;
+use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -32,12 +33,11 @@ class SystemCategoryController extends Controller
 
     public function store(SystemCategoryRequest $request): RedirectResponse
     {
+        Audit::describe('Tạo danh mục hệ thống');
         $category = SystemCategory::create([
             ...$request->validated(),
             'is_active' => $request->boolean('is_active', true),
         ]);
-
-        activity('system_category')->causedBy(auth()->user())->performedOn($category)->log('Tạo danh mục hệ thống');
 
         return redirect()->route('system-categories.index', ['type' => $category->type])->with('status', 'Đã thêm danh mục.');
     }
@@ -52,12 +52,11 @@ class SystemCategoryController extends Controller
 
     public function update(SystemCategoryRequest $request, SystemCategory $systemCategory): RedirectResponse
     {
+        Audit::describe('Cập nhật danh mục hệ thống');
         $systemCategory->update([
             ...$request->validated(),
             'is_active' => $request->boolean('is_active'),
         ]);
-
-        activity('system_category')->causedBy(auth()->user())->performedOn($systemCategory)->log('Cập nhật danh mục hệ thống');
 
         return redirect()->route('system-categories.index', ['type' => $systemCategory->type])->with('status', 'Đã cập nhật danh mục.');
     }
@@ -65,10 +64,25 @@ class SystemCategoryController extends Controller
     public function destroy(SystemCategory $systemCategory): RedirectResponse
     {
         $type = $systemCategory->type;
+        Audit::describe('Ngừng sử dụng danh mục hệ thống');
         $systemCategory->update(['is_active' => false]);
 
-        activity('system_category')->causedBy(auth()->user())->performedOn($systemCategory)->log('Ngừng sử dụng danh mục hệ thống');
-
         return redirect()->route('system-categories.index', ['type' => $type])->with('status', 'Đã ngừng sử dụng danh mục.');
+    }
+
+    /**
+     * "Kích hoạt lại" danh mục đã ngừng sử dụng.
+     */
+    public function reactivate(SystemCategory $systemCategory): RedirectResponse
+    {
+        if ($systemCategory->is_active) {
+            return back()->with('status', 'Danh mục đang được sử dụng.');
+        }
+
+        Audit::describe('Kích hoạt lại danh mục hệ thống');
+        $systemCategory->update(['is_active' => true]);
+
+        return redirect()->route('system-categories.index', ['type' => $systemCategory->type])
+            ->with('status', "Đã kích hoạt lại danh mục \"{$systemCategory->name}\".");
     }
 }

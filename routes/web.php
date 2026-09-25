@@ -465,6 +465,8 @@ Route::middleware('auth')->group(function () {
     Route::delete('branches/{branch}', [BranchController::class, 'destroy'])->middleware('can:branch.delete')->name('branches.destroy');
     Route::post('branches/{id}/toggle', [BranchController::class, 'toggleStatus'])->middleware('can:branch.manage')->name('branches.toggle');
     Route::resource('system-categories', SystemCategoryController::class)->except('show')->middleware('can:system_category.manage');
+    Route::post('system-categories/{system_category}/reactivate', [SystemCategoryController::class, 'reactivate'])
+        ->middleware('can:system_category.manage')->name('system-categories.reactivate');
 
     // ─────────────────────────────────────────────
     // Quản lý Danh mục Hàng hóa, Sách & Vật phẩm
