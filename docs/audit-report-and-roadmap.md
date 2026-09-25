@@ -1,4 +1,4 @@
-# MEnglish — Báo cáo Audit & Kế hoạch thực hiện 4 tuần
+# MEnglish — Báo cáo Audit & Kế hoạch 4 phase
 
 > **Ngày:** 25/09/2026 · **Người lập:** CTO
 > **Chuẩn đối chiếu:** BPMN (2 file `.drawio`), `tai-lieu-su-dung-flow-tinh-nang.html` (gọi tắt: *flow doc*), `test-cases-unitest-flows.html`, `unitest-crm.xlsx`, `Thang điểm + hướng dẫn nhận xét.html`, `erp-database-schema.html`, mockup `code.html`.
@@ -166,7 +166,7 @@
 
 | Ngày | Chủ đề | Quyết định |
 |---|---|---|
-| 25/09/2026 | Thứ tự sửa | Sửa toàn bộ lỗi P0 (bảo mật, lương, công nợ) trong 2 ngày đầu tuần 1 |
+| 25/09/2026 | Thứ tự sửa | Sửa toàn bộ lỗi P0 (bảo mật, lương, công nợ) trước tiên trong Phase 1 |
 | 25/09/2026 | Q2 — Điểm test | Là **test đầu vào**. Cách tính (trung bình 4 kỹ năng hay tổng theo khối lớp) đang chờ BA trả lời tiếp |
 | 25/09/2026 | Q6 — Chốt khách | Khi chốt được **chọn lớp** (kiểm tra còn chỗ) **hoặc đưa vào lớp chờ** nếu chưa có lịch khớp. Học vụ gán lớp sau từ danh sách "Chờ xếp lớp" |
 | 25/09/2026 | Q6 — Hoa hồng | Hoa hồng tính trên **tổng tiền thực thu** (phiếu thu đã duyệt), **gồm cả tiền giáo trình, đồ dùng**. Không tính trên giá trị hợp đồng |
@@ -188,157 +188,181 @@
 
 ---
 
-## Phần B — Kế hoạch 4 tuần (28/09 – 25/10/2026)
+## Phần B — Kế hoạch 4 phase
 
 **Nguyên tắc:**
-- Mỗi giai đoạn làm trọn một luồng nghiệp vụ theo BPMN, từ màn hình đến dữ liệu, phân quyền và test, bám mockup.
-- Cuối mỗi giai đoạn có một luồng chạy được thật để demo.
-- Mỗi giai đoạn tách thành nhiều MR nhỏ.
-- **Ngoại lệ:** các lỗi P0 về bảo mật và tiền đưa lên sửa ngay đầu tuần 1, vì đang gây rủi ro trên hệ thống thật (chờ xác nhận, xem mục B6).
+- Mỗi phase làm trọn một luồng nghiệp vụ theo BPMN: màn hình theo mockup, dữ liệu, phân quyền và test.
+- Kết thúc mỗi phase có một luồng chạy được thật để demo.
+- Mỗi phase tách thành nhiều MR nhỏ.
+- Các lỗi nghiêm trọng (P0) về bảo mật, lương, công nợ được sửa **trước tiên** trong Phase 1, vì đang gây rủi ro trên hệ thống thật (đã chốt).
 
-### B1. Giai đoạn 1 (28/09 – 04/10): Chặn rủi ro khẩn + Từ khách hàng đến học viên vào lớp
+### Phase 1: Chặn rủi ro khẩn + Từ khách hàng đến học viên vào lớp
 *BPMN bước 1 → 4*
 
-**Ngày 1–2: chặn rủi ro khẩn**
-- Chặn chiếm quyền tài khoản Admin.
-- Làm an toàn mọi chỗ upload file.
-- Tắt các màn mockup cũ trên hệ thống thật.
-- Ẩn ghi chú nội bộ ticket với học viên.
-- Thu hẹp quyền xem lớp của học viên và giáo viên.
-- Ẩn khóa bí mật trong nhật ký, rồi đổi lại khóa SePay và mật khẩu email.
-- Sửa 4 lỗi tính sai lương (P0 #12–15) và 6 lỗi sai công nợ (P0 #16–21).
+**1. Sửa lỗi nghiêm trọng (làm trước tiên)**
+- **Bảo mật:**
+  - Chặn nhân viên chiếm quyền tài khoản Admin.
+  - Chặn upload file có thể chạy code.
+  - Tắt các màn mockup cũ đang lộ dữ liệu học viên.
+  - Ẩn ghi chú nội bộ ticket khỏi học viên.
+  - Học viên và giáo viên không xem được lớp của người khác.
+  - Ẩn khóa bí mật trong nhật ký thao tác, sau đó đổi lại khóa SePay và mật khẩu email.
+- **Lương:** hoa hồng bị mất, đơn giá luôn 300k/giờ, phạt bị đánh dấu "đã trừ" sai, kỳ đã chốt vẫn nhận thêm dữ liệu.
+- **Công nợ:** giảm giá/phụ thu tính sai, phiếu thu tự duyệt, hủy hóa đơn không hoàn nợ, hoàn phí làm tăng nợ, doanh thu tính cả phiếu chưa duyệt, nhắc nợ tự động không chạy.
+- **Lịch học:** đổi giáo viên hoặc lưu TKB làm hỏng các buổi đã dạy.
 
-**Ngày 3–7: luồng tuyển sinh**
-- Trang làm test online an toàn: mỗi khách một link riêng có hạn dùng, bỏ đáp án viết cứng, không lộ thông tin, không sửa được khách khác.
-- Chấm test theo thang điểm đã chốt (Q2). Giáo viên chấm phần Viết/Nói. Lưu câu trả lời.
-- Quản lý khách đúng các bước BPMN: tư vấn → test → học thử → chốt, hoặc đưa vào danh sách chờ lớp, hoặc chuyển "không chốt" kèm lý do.
-- Nhắc sale khi khách lâu không được chăm sóc.
-- Kiểm tra SĐT. Khôi phục khách đã xóa. Khóa sửa hợp đồng sau khi chốt. Ghi lịch sử mọi thay đổi.
-- Màn chốt khách:
-  - Chạy được cho mọi trường hợp: khách vừa test, khách đã học thử, khách đang chờ lớp.
-  - Tạo hồ sơ học viên, tài khoản, xếp lớp (kiểm tra sĩ số, hiện "cần thêm N học viên").
-  - Tạo sổ học phí.
-- Nút "Xác nhận chính thức" để học vụ xác nhận học viên vào lớp.
-- Bộ sinh mã chứng từ dùng chung. Mỗi học viên chỉ lưu thuộc lớp nào ở một nơi.
+**2. Test đầu vào**
+- Mỗi khách một link test riêng có hạn dùng, không lộ thông tin, không sửa được khách khác.
+- Chỉ Học vụ và Quản lý cơ sở nhập điểm, gồm cả phần Viết/Nói. Lưu câu trả lời của thí sinh.
+- Chấm theo thang điểm đã chốt (Q2).
+
+**3. Quản lý khách hàng**
+- Quy trình theo BPMN: tư vấn → test → học thử → chốt, hoặc chuyển "không chốt" kèm lý do.
+- Quản lý cơ sở và Học vụ chỉ thấy khách chi nhánh mình. Sale chỉ thấy khách được giao.
+- Nhắc sale khi khách lâu không được chăm sóc. Kiểm tra SĐT. Khôi phục khách đã xóa. Khóa sửa hợp đồng sau khi chốt.
+
+**4. Chốt khách và xếp lớp**
+- Chốt khách: chọn lớp (kiểm tra còn chỗ) hoặc đưa vào lớp chờ.
+- Học vụ gán lớp cho học viên từ danh sách "Chờ xếp lớp".
+- Tạo hồ sơ học viên, tài khoản, sổ học phí. Có nút "Xác nhận chính thức".
 
 **Màn hình (mockup):** Pipeline, Danh sách khách, Thêm/Sửa khách, Chi tiết khách, Khách không chốt, Báo cáo doanh số, Chốt & Xếp lớp, Khách chốt thành công, Xác nhận chính thức, Quản lý đề test, Tạo đề, Test online & thang điểm.
 
-**Hoàn thành khi:** demo được từ lúc nhập khách mới, làm test online, học thử, chốt, đến học viên có tên trong lớp. Hết toàn bộ P0.
+**Kết quả đạt được**
+- Không còn lỗi nghiêm trọng nào. Lương và công nợ tính đúng ở những chỗ đang sai.
+- Chạy trọn luồng: nhập khách → test online → học thử → chốt → học viên vào lớp hoặc vào lớp chờ.
 
-### B2. Giai đoạn 2 (05/10 – 11/10): Vận hành lớp học
+### Phase 2: Vận hành lớp học
 *BPMN bước 5 → 8, 10 → 13, 14, 21*
 
-- Sửa lỗi đổi giáo viên hoặc lưu lại TKB làm hỏng các buổi đã dạy.
-- Lịch học tự bỏ qua ngày nghỉ lễ. Sửa ngày nghỉ thì lịch tự cập nhật.
+**1. Lớp và lịch học**
+- Lịch học tự bỏ qua ngày nghỉ lễ.
 - Cảnh báo trùng lịch giáo viên, GVNN, trợ giảng, phòng học.
-- Trình độ: không cho xóa khi đang có lớp dùng, chỉ cho ngừng hoạt động.
-- Giáo viên xem lịch dạy theo ngày/tuần.
-- Điểm danh theo từng buổi, khóa sau 24 giờ. Học vụ điểm danh thay khi cần.
-- Học viên vắng hoặc điểm dưới 7 được đưa vào danh sách bổ trợ. Xếp buổi bổ trợ.
-- Giáo trình:
-  - Soạn giáo trình theo mô hình đã chốt (Q4).
-  - Giao chặng cho lớp, mỗi lớp 1 chặng đang học.
-  - Tải tài liệu, chọn ai được xem, khóa tải về.
-  - Giáo viên đề xuất sửa giáo trình, học thuật duyệt.
-  - Xin giãn tiến độ, duyệt xong thì lịch tự thay đổi.
-- Big Test:
-  - Giáo viên order đề, học thuật duyệt đề có hạn xử lý.
-  - Nhắc lịch trước 7 ngày.
-  - Giáo viên chỉ nhập điểm lớp mình.
-  - Duyệt kết quả, gửi Zalo phụ huynh 1 lần và báo đúng nếu gửi lỗi.
-- Dashboard lớp theo ngày và ma trận tuần, dùng dữ liệu thật.
-- Hồ sơ học viên: đủ trạng thái (Q5), lộ trình buổi học và lịch sử điểm danh thật. Người không có quyền chỉ xem được.
-- Portal học viên: xem lịch, điểm danh, kết quả thi của mình. Gỡ bỏ dữ liệu giả.
+- Dashboard lớp theo ngày/tuần dùng dữ liệu thật.
+
+**2. Giảng dạy và điểm danh**
+- Giáo viên xem lịch dạy theo ngày/tuần, điểm danh theo từng buổi.
+- Học vụ điểm danh thay khi cần.
+- Học viên vắng hoặc điểm dưới 7 được đưa vào danh sách bổ trợ, rồi xếp buổi bổ trợ.
+
+**3. Giáo trình**
+- Soạn bài, giao chặng cho lớp, tài liệu giáo trình.
+- Giáo viên đề xuất sửa giáo trình, xin giãn tiến độ. Học thuật duyệt.
+
+**4. Big Test**
+- Giáo viên order đề, học thuật duyệt đề, nhắc lịch trước 7 ngày.
+- Giáo viên chỉ nhập điểm lớp mình. Duyệt kết quả, gửi Zalo phụ huynh.
+
+**5. Học viên**
+- Hồ sơ có lộ trình và lịch sử điểm danh thật.
+- Học viên xem được lịch, điểm danh, kết quả thi của mình.
 - Chăm sóc học viên tháng đầu, sinh nhật.
 
 **Màn hình (mockup):** Cấu hình trình độ, TKB, Dashboard lớp học, Ngày nghỉ, Hồ sơ học sinh (3 màn), Soạn syllabus, Tài liệu giáo trình, Đề xuất sửa GT, Giao chặng, Điều chỉnh tiến độ, Duyệt & phân phối đề, Nhắc lịch Big Test, Duyệt KQ & gửi PH.
 
-**Hoàn thành khi:** demo được từ lúc mở lớp, sinh lịch, giao chặng, dạy và điểm danh, Big Test, đến phụ huynh nhận Zalo kết quả.
+**Kết quả đạt được**
+- Chạy trọn luồng: mở lớp → sinh lịch → giao chặng → dạy và điểm danh → Big Test → phụ huynh nhận Zalo kết quả.
 
-### B3. Giai đoạn 3 (12/10 – 18/10): Từ chấm công đến lương
+### Phase 3: Từ chấm công đến lương
 *BPMN bước 9, 9b, 16, 17*
 
-- Chấm công chỉ tính cho buổi dạy có thật và đúng người dạy. Chấm công tay bắt buộc lý do. Không chấm trùng buổi.
-- Lịch sử đồng bộ chấm công hiển thị đúng.
-- Quy trình phạt: ghi nhận vi phạm → giải trình → HT chốt lỗi học thuật / CM chốt lỗi vận hành → nộp trong 2 ngày → quá hạn thì trừ lương.
-- Tính lương theo công thức đã chốt (Q3):
-  - Đơn giá riêng từng giáo viên, dạy thay.
-  - Hoa hồng tuyển sinh và thưởng tái tục.
-  - KPI, phụ cấp, bảo hiểm, thuế.
-- Tính lại lương cho ra kết quả đúng. Kỳ đã duyệt thì khóa toàn bộ dữ liệu nguồn.
-- Chỉ Giám đốc duyệt lương. Kế toán tính và soát xét.
-- "Lương của tôi": chỉ hiện bảng lương đã duyệt, có chọn kỳ, cộng trừ khớp với thực nhận.
-- Bảng xếp hạng KPI & hoa hồng dùng số liệu của đúng kỳ, không lộ lương.
-- Không cho tự chấm KPI của mình.
+**1. Chấm công**
+- Chỉ tính công cho buổi dạy có thật.
+- Chấm công tay bắt buộc lý do, không chấm trùng.
 
-**Màn hình (mockup):** Chấm công thủ công, Chi tiết chấm công GV, Lịch sử đồng bộ, Danh sách vi phạm, Đơn giá GV, Mốc hoa hồng & tái tục, Danh sách bảng lương, 4 màn chi tiết lương, BXH KPI, Lương của tôi.
+**2. Kỷ luật**
+- Ghi nhận vi phạm → giải trình → Học thuật/Quản lý chốt theo loại lỗi → nộp trong 2 ngày → quá hạn thì trừ lương.
 
-**Hoàn thành khi:** chạy song song lương tháng 09/2026 trên hệ thống và trên Excel, số liệu khớp nhau.
+**3. Hoa hồng**
+- Chỉ tính cho khách mới, trên tổng tiền thực thu, gồm cả tiền giáo trình.
+- Khi duyệt hoàn phí, người duyệt chọn có thu hồi hoa hồng hay không. Hệ thống gợi ý "có" nếu học dưới 1 tháng. Chuyển nhượng phí thì không thu hồi.
 
-### B4. Giai đoạn 4 (19/10 – 25/10): Thu học phí, hỗ trợ và nghiệm thu
+**4. Tính và duyệt lương**
+- Tính đủ các khoản. Tính lại lương cho ra kết quả đúng.
+- Kỳ đã duyệt thì khóa toàn bộ dữ liệu.
+- Chỉ Giám đốc duyệt lương, Kế toán tính và soát xét.
+- "Lương của tôi" chỉ hiện bảng lương đã duyệt. Nhân viên không tự chấm KPI của mình.
+
+**Màn hình (mockup):** Chấm công thủ công, Chi tiết chấm công GV, Lịch sử đồng bộ, Danh sách vi phạm, Đơn giá GV, Mốc hoa hồng, Danh sách bảng lương, 4 màn chi tiết lương, BXH KPI, Lương của tôi.
+
+**Kết quả đạt được**
+- Lương một tháng tính trên hệ thống khớp với bảng Excel đang dùng.
+- Chạy trọn luồng: buổi dạy → chấm công → phạt/hoa hồng/KPI → bảng lương → duyệt → nhân viên xem lương.
+
+### Phase 4: Thu học phí, hỗ trợ và nghiệm thu
 *BPMN bước 15, 15b, 18 → 20, 22*
 
-- Học phí:
-  - Lập phiếu thu có thu từng đợt.
-  - Nháp → gửi duyệt → duyệt / trả về sửa.
-  - Dải số hóa đơn theo chi nhánh, không cấp lại số đã dùng.
-  - Hủy hóa đơn phải gắn với đúng phiếu thu.
-  - Hoàn phí, chuyển nhượng, bảo lưu, khất nợ.
-  - Nhắc nợ theo cấu hình. Danh sách quá hạn có "đã liên hệ" / "báo Admin".
-- Chuyển khoản tự đối soát, khớp với phiếu đang chờ, không ghi 2 lần. Tài khoản ngân hàng và mã QR theo chi nhánh.
-- Tài khoản và phân quyền:
-  - Đúng 8 vai trò (Q7).
-  - Phân quyền cá nhân theo chi nhánh hoặc lớp.
-  - Quản lý chỉ thấy chi nhánh mình.
-  - Menu theo quyền.
-  - Nhật ký thao tác có dữ liệu trước và sau khi sửa.
-  - Bắt đổi mật khẩu lần đầu.
-  - Cảnh báo hết hạn hợp đồng.
-- Giao việc 2 chiều, trợ giảng 3 ca, thông báo khi được giao việc. Báo cáo trực lớp có bước duyệt. KPI tự động dùng dữ liệu thật.
-- Ticket: đúng mã TK-, thông báo đúng người, file đính kèm cần đăng nhập mới xem được.
-- Dashboard riêng cho Admin, Học thuật, Quản lý cơ sở (BPMN 22).
-- Nhập khách hàng từ Excel (nếu chưa làm ở giai đoạn 1).
-- **Nghiệm thu:** kiểm tra lại toàn bộ luồng chính, người dùng thử, sửa lỗi phát sinh, dọn file thừa và dữ liệu giả.
+**1. Học phí**
+- Phiếu thu từng đợt: nháp → gửi duyệt → duyệt / trả về sửa.
+- Dải số hóa đơn theo chi nhánh. Hủy hóa đơn gắn đúng phiếu thu.
+- Hoàn phí, chuyển nhượng, bảo lưu, khất nợ.
+- Nhắc nợ, danh sách quá hạn.
+
+**2. Chuyển khoản**
+- Tự đối soát, không ghi nhận 2 lần.
+- Mã QR theo tài khoản của từng chi nhánh.
+
+**3. Tài khoản và phân quyền**
+- Đúng vai trò. Phân quyền cá nhân theo chi nhánh hoặc lớp. Menu theo quyền.
+- Nhật ký có dữ liệu trước và sau khi sửa.
+- Bắt đổi mật khẩu lần đầu. Cảnh báo hết hạn hợp đồng.
+
+**4. Vận hành và hỗ trợ**
+- Giao việc 2 chiều, trợ giảng 3 ca.
+- Báo cáo trực lớp có bước duyệt. KPI tự động dùng số liệu thật.
+- Ticket thông báo đúng người.
+
+**5. Dashboard và nghiệm thu**
+- Dashboard riêng cho Admin, Học thuật, Quản lý cơ sở.
+- Kiểm tra lại toàn bộ luồng, người dùng thử, dọn dữ liệu giả.
 
 **Màn hình (mockup):** DS thu phí, Lập / Duyệt phiếu thu, Lịch sử thu, Duyệt hủy HĐ, Hoàn tiền & khất nợ, Thu phí quá hạn, Dải số HĐ, Tài khoản NH, Nhắc nợ, Báo cáo doanh thu, Khoản chi, Tài khoản & vai trò, Phân quyền cá nhân, Danh mục, Nhật ký vận hành, 7 màn Phân công công việc.
 
-**Hoàn thành khi:** demo được từ lúc lập phiếu thu, duyệt, xuất hóa đơn, đến công nợ về 0. Toàn bộ luồng BPMN 1–22 chạy được.
+**Kết quả đạt được**
+- Chạy trọn luồng: lập phiếu thu → duyệt → xuất hóa đơn → công nợ về 0.
+- Toàn bộ luồng BPMN 1–22 chạy được, sẵn sàng đưa vào sử dụng.
 
-### B5. Rủi ro
+### Câu hỏi còn chờ trả lời
+
+| Câu hỏi | Cần trước |
+|---|---|
+| Có cho sửa lùi bước, hủy chốt, mở lại khách "không chốt" không? (Q1) | Phase 1 |
+| Cách tính điểm test đầu vào? Thang điểm cho học viên lớn? (Q2) | Phase 1 |
+| Khách vào lớp chờ có thu cọc ngay không? | Phase 1 |
+| Mô hình giáo trình (chặng hay bài)? Trạng thái học viên (4 hay 7)? (Q4, Q5) | Phase 2 |
+| Công thức lương (Q3)? Hoa hồng "lần đầu" là cả khóa đầu hay chỉ đợt đóng đầu? "Hoàn phí ngay" là trong bao lâu? | Phase 3 |
+| Báo cáo trực lớp: ảnh bảng có bắt buộc không, ai duyệt? (Q8) | Phase 4 |
+
+### Rủi ro
 
 | Rủi ro | Mức | Cách giảm |
 |---|---|---|
-| Khối lượng lớn (162 đầu lỗi + phần còn thiếu) trong 4 tuần | **Cao** | Làm P0 trước. Việc không kịp chuyển giai đoạn sau và ghi vào nhật ký giai đoạn, không bỏ sót |
-| BA chốt chậm các câu hỏi Q1–Q8 | Cao | Tạm theo BPMN + mockup, chốt lại trong buổi demo cuối tuần |
+| Phase 1 rất nặng: vừa sửa lỗi khẩn vừa làm luồng tuyển sinh | **Cao** | Làm P0 trước. Việc không kịp chuyển phase sau và ghi vào nhật ký, không bỏ sót |
+| BA chốt chậm các câu hỏi còn lại | Cao | Tạm theo BPMN + mockup, chốt lại ở buổi demo cuối phase |
 | Sửa lương và công nợ ảnh hưởng số liệu đang dùng | Cao | Sao lưu dữ liệu trước khi sửa, có script đối chiếu trước/sau, chạy song song với Excel |
-| Chưa có môi trường chạy test | Trung bình | Dựng môi trường test bằng Docker ngay ngày 1 |
 | Phải đổi khóa SePay và mật khẩu email sau khi sửa lỗi lộ nhật ký | Trung bình | Phối hợp kế toán, đổi vào ngoài giờ |
-
-### B6. Cần quyết định ngay
-1. **Đồng ý đưa P0 lương và công nợ lên đầu tuần 1** (đề xuất của CTO) hay giữ đúng giai đoạn của luồng?
-2. **Lịch chốt các câu hỏi Q1–Q8.** Đề xuất họp BA ngày 28–29/09.
 
 ---
 
 ## Phần C — Theo dõi tiến độ
 
-> Cập nhật cuối mỗi giai đoạn. Trạng thái: ⬜ Chưa làm · 🟦 Đang làm · ✅ Xong · ⚠️ Trễ/Rủi ro
+> Cập nhật cuối mỗi phase. Trạng thái: ⬜ Chưa làm · 🟦 Đang làm · ✅ Xong · ⚠️ Trễ/Rủi ro
 
-| Giai đoạn | Thời gian | Trạng thái | % hoàn thành | Ngày demo | Ghi chú |
-|---|---|---|---|---|---|
-| 1. Chặn rủi ro khẩn + Tuyển sinh → vào lớp | 28/09 – 04/10 | ⬜ | 0% | 04/10 | Chờ chốt Q1, Q2, Q6, Q7 |
-| 2. Vận hành lớp học | 05/10 – 11/10 | ⬜ | 0% | 11/10 | Chờ chốt Q4, Q5 |
-| 3. Chấm công → Lương | 12/10 – 18/10 | ⬜ | 0% | 18/10 | Chờ chốt Q3; cần bảng lương Excel tháng 09 |
-| 4. Thu học phí, hỗ trợ, nghiệm thu | 19/10 – 25/10 | ⬜ | 0% | 25/10 | Chờ chốt Q8 |
+| Phase | Nội dung | Trạng thái | % hoàn thành | Ghi chú |
+|---|---|---|---|---|
+| 1 | Chặn rủi ro khẩn + Tuyển sinh → vào lớp | ⬜ | 0% | Chờ chốt Q1, Q2, cọc lớp chờ |
+| 2 | Vận hành lớp học | ⬜ | 0% | Chờ chốt Q4, Q5 |
+| 3 | Chấm công → Lương | ⬜ | 0% | Chờ chốt Q3, hoa hồng; cần bảng lương Excel để đối chiếu |
+| 4 | Thu học phí, hỗ trợ, nghiệm thu | ⬜ | 0% | Chờ chốt Q8 |
 
-### Nhật ký giai đoạn (điền sau mỗi giai đoạn)
+### Nhật ký phase (điền sau mỗi phase)
 
 ```markdown
-#### Giai đoạn X — <tên> (dd/mm – dd/mm)
+#### Phase X — <tên>
 **Đã làm:**
 - [x] ...
-**Chưa làm / chuyển giai đoạn sau:**
-- [ ] ... → lý do, chuyển sang giai đoạn Y
+**Chưa làm / chuyển phase sau:**
+- [ ] ... → lý do, chuyển sang Phase Y
 **Quyết định phát sinh:** ...
 **Lỗi còn tồn:** ...
 **MR:** #...
