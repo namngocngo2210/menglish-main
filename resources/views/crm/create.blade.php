@@ -1,229 +1,63 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('crm.customers.index') }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight">Thêm khách mới</h1>
-                    <p class="text-xs text-gray-500">Nhập nhanh thông tin cơ bản của khách hàng tiềm năng</p>
-                </div>
-            </div>
-            <a href="{{ route('crm.customers.index') }}" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition" title="Đóng">
-                <span class="material-symbols-outlined text-2xl">close</span>
-            </a>
-        </div>
-    </x-slot>
-
-    <div class="max-w-xl mx-auto py-4">
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <!-- Header bar of the card -->
-            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary text-xl">person_add</span>
-                    <h2 class="font-bold text-sm text-gray-900">Thêm khách mới</h2>
-                </div>
-                <a href="{{ route('crm.customers.index') }}" class="text-gray-400 hover:text-gray-600 transition">
-                    <span class="material-symbols-outlined text-xl">close</span>
+<x-app-layout title="Thêm khách mới">
+    {{-- Mockup crm-ui-mockup/them-khach-moi: hộp 560px — Họ và tên*, SĐT* (2 cột), Tên phụ huynh (tùy chọn), Nguồn khách*, Chi nhánh*, Hủy / Lưu thông tin.
+         Các trường còn lại (email, ngày sinh, khóa quan tâm, hạn liên hệ, người phụ trách…) gom vào "Thông tin bổ sung". --}}
+    <div class="mx-auto w-full max-w-[560px] py-md">
+        <div class="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-level-3">
+            <div class="flex items-center justify-between px-xl pb-md pt-xl">
+                <h1 class="font-h2 text-h2 text-primary">Thêm khách mới</h1>
+                <a href="{{ url()->previous() !== url()->current() ? url()->previous() : route('crm.customers.index') }}" aria-label="Đóng"
+                   class="rounded-full p-xs text-on-surface-variant transition-colors hover:bg-surface-variant active:scale-95">
+                    <span class="material-symbols-outlined block">close</span>
                 </a>
             </div>
 
-            <form action="{{ route('crm.customers.store') }}" method="POST" class="p-6 space-y-4">
+            <form action="{{ route('crm.customers.store') }}" method="POST" class="space-y-md px-xl pb-xl" id="add-lead-form">
                 @csrf
 
-                <!-- Validation Errors banner -->
-                @if ($errors->any())
-                    <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 space-y-1">
-                        <div class="font-bold flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-base">error</span>
-                            <span>Vui lòng kiểm tra lại thông tin:</span>
+                <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
+                    <x-ui.input name="name" label="Họ và tên" required placeholder="Nhập họ và tên khách" />
+                    <x-ui.input name="phone" type="tel" label="Số điện thoại" required placeholder="Nhập số điện thoại" hint="10 số, bắt đầu bằng 0 (hoặc +84)" />
+                </div>
+
+                <x-ui.input name="parent_name" label="Tên phụ huynh (tùy chọn)" placeholder="Nhập tên phụ huynh nếu có" />
+
+                <x-ui.select name="source" label="Nguồn khách" required placeholder="Chọn nguồn khách"
+                             :options="$leadSources->mapWithKeys(fn ($s) => [$s => $s])" />
+
+                <x-ui.select name="branch_id" label="Chi nhánh" required placeholder="Chọn cơ sở học tập"
+                             :value="old('branch_id', $branches->count() === 1 ? $branches->first()->id : auth()->user()->branch_id)"
+                             :options="$branches->pluck('name', 'id')" />
+
+                <details class="group rounded-lg border border-surface-container-highest" @if ($errors->hasAny(['email', 'parent_phone', 'next_follow_up_at', 'assigned_user_id', 'dob', 'deal_value'])) open @endif>
+                    <summary class="flex cursor-pointer select-none items-center justify-between px-md py-sm font-body-medium text-body-medium text-on-surface-variant">
+                        Thông tin bổ sung (tùy chọn)
+                        <span class="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+                    </summary>
+                    <div class="grid grid-cols-1 gap-md border-t border-surface-container-highest p-md sm:grid-cols-2">
+                        <x-ui.input name="parent_phone" type="tel" label="SĐT phụ huynh" placeholder="0912 345 678" />
+                        <x-ui.input name="next_follow_up_at" type="datetime-local" label="Hạn liên hệ tiếp theo" />
+                        <x-ui.input name="email" type="email" label="Email" placeholder="hocvien@example.com" />
+                        <x-ui.date name="dob" label="Ngày sinh" :value="old('dob')" />
+                        <x-ui.select name="gender" label="Giới tính" placeholder="-- Chọn --" :options="['Nam' => 'Nam', 'Nữ' => 'Nữ', 'Khác' => 'Khác']" />
+                        <x-ui.input name="course_interest" label="Khóa học quan tâm" placeholder="Ví dụ: Starters" />
+                        <div class="sm:col-span-2"><x-ui.input name="address" label="Địa chỉ" /></div>
+                        @can('lead.assign')
+                            <x-ui.select name="assigned_user_id" label="Người phụ trách" placeholder="-- Chọn Sales phụ trách --"
+                                         :value="old('assigned_user_id', auth()->id())" :options="$salesUsers->pluck('name', 'id')" />
+                        @endcan
+                        <x-ui.input name="deal_value" type="number" min="0" label="Giá trị dự kiến (VNĐ)" :value="old('deal_value', 0)" />
+                        <div class="sm:col-span-2">
+                            <x-ui.textarea name="notes" label="Ghi chú ban đầu" rows="3" />
                         </div>
-                        <ul class="list-disc list-inside pl-1 space-y-0.5">
-                            @foreach ($errors->all() as $err)
-                                <li>{{ $err }}</li>
-                            @endforeach
-                        </ul>
                     </div>
-                @endif
+                </details>
 
-                <!-- 1. Họ và tên * -->
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1.5">
-                        Họ và tên <span class="text-rose-500">*</span>
-                    </label>
-                    <input 
-                        type="text" 
-                        name="name" 
-                        value="{{ old('name') }}" 
-                        required 
-                        placeholder="Nhập họ và tên khách" 
-                        class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5 bg-white transition placeholder:text-gray-400"
-                    />
-                    @error('name') <span class="text-rose-500 text-[11px] mt-1 block">{{ $message }}</span> @enderror
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1.5">Email</label>
-                        <input type="email" name="email" value="{{ old('email') }}" placeholder="hocvien@example.com" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5" />
-                        @error('email') <span class="text-rose-500 text-[11px] mt-1 block">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1.5">Ngày sinh</label>
-                        <input type="date" name="dob" value="{{ old('dob') }}" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5" />
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1.5">Giới tính</label>
-                        <select name="gender" class="w-full text-xs rounded-xl border border-gray-200 px-3.5 py-2.5">
-                            <option value="">-- Chọn --</option>
-                            @foreach (['Nam', 'Nữ', 'Khác'] as $gender)<option value="{{ $gender }}" @selected(old('gender') === $gender)>{{ $gender }}</option>@endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1.5">Khóa học quan tâm</label>
-                        <input type="text" name="course_interest" value="{{ old('course_interest') }}" placeholder="Ví dụ: IELTS 6.5" class="w-full text-xs rounded-xl border border-gray-200 px-3.5 py-2.5" />
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1.5">Địa chỉ</label>
-                    <input type="text" name="address" value="{{ old('address') }}" class="w-full text-xs rounded-xl border border-gray-200 px-3.5 py-2.5" />
-                </div>
-
-                <!-- 2. Số điện thoại * -->
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1.5">
-                        Số điện thoại <span class="text-rose-500">*</span>
-                    </label>
-                    <input 
-                        type="tel" 
-                        name="phone" 
-                        value="{{ old('phone') }}" 
-                        required 
-                        placeholder="Nhập số điện thoại" 
-                        class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5 bg-white transition placeholder:text-gray-400 font-mono"
-                    />
-                    <span class="text-gray-400 text-[11px] mt-1 block">Số Việt Nam 10 số bắt đầu bằng 0 (hoặc +84), ví dụ 0912 345 678.</span>
-                    @error('phone') <span class="text-rose-500 text-[11px] mt-1 block">{{ $message }}</span> @enderror
-                </div>
-
-                <!-- 3. Tên phụ huynh (tùy chọn) -->
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1.5">
-                        Tên phụ huynh <span class="text-gray-400 font-normal">(tùy chọn)</span>
-                    </label>
-                    <input 
-                        type="text" 
-                        name="parent_name" 
-                        value="{{ old('parent_name') }}" 
-                        placeholder="Nhập tên phụ huynh nếu có" 
-                        class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5 bg-white transition placeholder:text-gray-400"
-                    />
-                    @error('parent_name') <span class="text-rose-500 text-[11px] mt-1 block">{{ $message }}</span> @enderror
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1.5">SĐT phụ huynh <span class="text-gray-400 font-normal">(tùy chọn)</span></label>
-                        <input type="tel" name="parent_phone" value="{{ old('parent_phone') }}" placeholder="0912 345 678" class="w-full text-xs rounded-xl border border-gray-200 px-3.5 py-2.5 font-mono" />
-                        @error('parent_phone') <span class="text-rose-500 text-[11px] mt-1 block">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1.5">Hạn liên hệ tiếp theo</label>
-                        <input type="datetime-local" name="next_follow_up_at" value="{{ old('next_follow_up_at') }}" class="w-full text-xs rounded-xl border border-gray-200 px-3.5 py-2.5" />
-                        @error('next_follow_up_at') <span class="text-rose-500 text-[11px] mt-1 block">{{ $message }}</span> @enderror
-                    </div>
-                </div>
-
-                <!-- 4. Nguồn khách * -->
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1.5">
-                        Nguồn khách <span class="text-rose-500">*</span>
-                    </label>
-                    <div class="relative">
-                        <select 
-                            name="source" 
-                            required 
-                            class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5 bg-white transition appearance-none pr-10 cursor-pointer text-gray-700"
-                        >
-                            <option value="">Chọn nguồn khách</option>
-                            @foreach ($leadSources as $src)
-                                <option value="{{ $src }}" {{ old('source') === $src ? 'selected' : '' }}>{{ $src }}</option>
-                            @endforeach
-                        </select>
-                        <span class="material-symbols-outlined absolute right-3 top-2.5 text-gray-400 pointer-events-none text-xl">keyboard_arrow_down</span>
-                    </div>
-                    @error('source') <span class="text-rose-500 text-[11px] mt-1 block">{{ $message }}</span> @enderror
-                </div>
-
-                <!-- 5. Chi nhánh * -->
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1.5">
-                        Chi nhánh <span class="text-rose-500">*</span>
-                    </label>
-                    <div class="relative">
-                        <select 
-                            name="branch_id" 
-                            required 
-                            class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5 bg-white transition appearance-none pr-10 cursor-pointer text-gray-700 font-semibold"
-                        >
-                            <option value="">-- Chọn cơ sở chi nhánh --</option>
-                            @foreach ($branches as $br)
-                                <option value="{{ $br->id }}" {{ old('branch_id') == $br->id ? 'selected' : '' }}>
-                                    {{ $br->name }} ({{ $br->code }})
-                                </option>
-                            @endforeach
-                        </select>
-                        <span class="material-symbols-outlined absolute right-3 top-2.5 text-gray-400 pointer-events-none text-xl">keyboard_arrow_down</span>
-                    </div>
-                    @error('branch_id') <span class="text-rose-500 text-[11px] mt-1 block">{{ $message }}</span> @enderror
-                </div>
-
-                @can('lead.assign')
-                <!-- 6. Gán người phụ trách -->
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1.5">
-                        Gán người phụ trách
-                    </label>
-                    <div class="relative">
-                        <select 
-                            name="assigned_user_id" 
-                            class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3.5 py-2.5 bg-white transition appearance-none pr-10 cursor-pointer text-gray-700"
-                        >
-                            <option value="">-- Chọn tư vấn viên / Sales phụ trách --</option>
-                            @foreach ($salesUsers as $u)
-                                <option value="{{ $u->id }}" {{ old('assigned_user_id', Auth::id()) == $u->id ? 'selected' : '' }}>
-                                    {{ $u->name }} ({{ $u->email }})
-                                </option>
-                            @endforeach
-                        </select>
-                        <span class="material-symbols-outlined absolute right-3 top-2.5 text-gray-400 pointer-events-none text-xl">keyboard_arrow_down</span>
-                    </div>
-                    @error('assigned_user_id') <span class="text-rose-500 text-[11px] mt-1 block">{{ $message }}</span> @enderror
-                </div>
-                @endcan
-
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1.5">Giá trị dự kiến (VNĐ)</label>
-                    <input type="number" min="0" name="deal_value" value="{{ old('deal_value', 0) }}" class="w-full text-xs rounded-xl border border-gray-200 px-3.5 py-2.5 font-mono" />
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1.5">Ghi chú ban đầu</label>
-                    <textarea name="notes" rows="3" class="w-full text-xs rounded-xl border border-gray-200 px-3.5 py-2.5">{{ old('notes') }}</textarea>
-                </div>
-
-                <div class="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
-                    <a href="{{ route('crm.customers.index') }}" class="px-4 py-2.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">
-                        Hủy
-                    </a>
-                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-md transition flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[18px]">person_add</span>
-                        <span>Thêm khách mới</span>
+                <div class="flex items-center justify-end gap-md pt-lg">
+                    <a href="{{ route('crm.customers.index') }}"
+                       class="rounded-lg border border-outline-variant px-xl py-sm font-body-medium text-body-medium text-on-surface-variant transition-all hover:bg-surface-variant hover:text-on-surface active:scale-95">Hủy</a>
+                    <button type="submit"
+                            class="flex items-center gap-xs rounded-lg bg-primary-container px-xl py-sm font-body-medium text-body-medium text-white shadow-sm transition-all hover:shadow-md hover:brightness-110 active:scale-95">
+                        Lưu thông tin
                     </button>
                 </div>
             </form>

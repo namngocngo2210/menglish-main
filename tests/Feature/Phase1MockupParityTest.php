@@ -98,6 +98,23 @@ class Phase1MockupParityTest extends TestCase
             ->assertDontSee('Nguyễn Minh Anh');
     }
 
+    // ── 3. Thêm / Sửa khách ──────────────────────────────────────────────
+
+    public function test_create_and_edit_customer_forms_match_mockup(): void
+    {
+        $this->actingAs($this->sales)->get(route('crm.customers.create'))->assertOk()
+            ->assertSee('Thêm khách mới')->assertSee('Họ và tên')->assertSee('Số điện thoại')
+            ->assertSee('Tên phụ huynh (tùy chọn)')->assertSee('Nguồn khách')->assertSee('Chọn nguồn khách')
+            ->assertSee('Chi nhánh')->assertSee('Chọn cơ sở học tập')->assertSee('Chị Liên')
+            ->assertSee('Lưu thông tin')->assertSee('Hủy');
+
+        $lead = $this->lead('consulting', ['name' => 'Khách Sửa', 'parent_name' => 'Trần Thị Lan']);
+        $this->actingAs($this->manager)->get(route('crm.customers.edit', $lead))->assertOk()
+            ->assertSee('Sửa thông tin khách')->assertSee('Trần Thị Lan')
+            ->assertSee('Không thể thay đổi nếu học viên đã có lớp')->assertSee('Lưu thay đổi')
+            ->assertDontSee('Closing Wizard');
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────
 
     private function lead(string $stage, array $attributes = []): CrmCustomer

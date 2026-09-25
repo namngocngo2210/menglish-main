@@ -68,6 +68,9 @@ class CrmCustomer extends Model
         'month_end_review' => 'Đánh giá cuối tháng đầu, ghi nhận mức độ hài lòng',
     ];
 
+    /** Nguồn khách mặc định theo mockup Thêm khách mới (khi chưa cấu hình danh mục "lead_source"). */
+    public const DEFAULT_SOURCES = ['Landing page', 'Marketing', 'Giới thiệu', 'Vãng lai', 'Tiktok', 'Facebook', 'Google Ads', 'Chị Liên'];
+
     /** "Sắp hết hạn" liên hệ khi hạn còn dưới số giờ này. */
     public const FOLLOW_UP_DUE_SOON_HOURS = 24;
 

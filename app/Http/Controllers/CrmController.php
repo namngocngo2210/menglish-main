@@ -327,7 +327,7 @@ class CrmController extends Controller
         }
         $leadSources = SystemCategory::where('type', 'lead_source')->orderBy('sort_order')->pluck('name');
         if ($leadSources->isEmpty()) {
-            $leadSources = collect(['Facebook Ads', 'Tiktok Organic', 'Google Ads', 'Bạn bè giới thiệu', 'Sự kiện Offline', 'Website / Hotline', 'Khác']);
+            $leadSources = collect(CrmCustomer::DEFAULT_SOURCES);
         }
 
         return view('crm.create', compact('branches', 'salesUsers', 'leadSources'));
@@ -818,7 +818,7 @@ class CrmController extends Controller
         $salesUsers = User::role('sales_consultant')->where('is_active', true)->get();
         $leadSources = SystemCategory::where('type', 'lead_source')->orderBy('sort_order')->pluck('name');
         if ($leadSources->isEmpty()) {
-            $leadSources = collect(['Facebook Ads', 'Tiktok Organic', 'Google Ads', 'Bạn bè giới thiệu', 'Sự kiện Offline', 'Website / Hotline', 'Khác']);
+            $leadSources = collect(CrmCustomer::DEFAULT_SOURCES);
         }
 
         return view('crm.edit', compact('customer', 'branches', 'salesUsers', 'leadSources'));

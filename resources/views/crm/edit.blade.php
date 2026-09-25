@@ -1,159 +1,98 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center gap-3">
-            <a href="{{ route('crm.customers.show', $customer->id) }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
-                <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-            </a>
-            <div>
-                <h1 class="text-xl font-bold text-gray-900 tracking-tight">Sửa thông tin Khách hàng ({{ $customer->name }})</h1>
-                <p class="text-xs text-gray-500 font-mono">Mã hồ sơ: {{ $customer->code }}</p>
-            </div>
-        </div>
-    </x-slot>
-
-    <div class="max-w-4xl mx-auto">
-        <form action="{{ route('crm.customers.update', $customer->id) }}" method="POST" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
-            @csrf
-            @method('PUT')
-
-            @if ($errors->any())
-                <div class="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 space-y-1">
-                    <div class="font-bold flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-base">error</span>
-                        Vui lòng kiểm tra lại các lỗi sau:
-                    </div>
-                    <ul class="list-disc list-inside pl-2 space-y-0.5">
-                        @foreach ($errors->all() as $err)
-                            <li>{{ $err }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
-
-            @php($locked = $customer->isContractLocked())
-            @if ($locked)
-                <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
-                    <span class="material-symbols-outlined text-base">lock</span>
-                    <span>Khách đã <strong>{{ $customer->stage_label }}</strong>: {{ implode(', ', \App\Models\CrmCustomer::CONTRACT_LOCKED_FIELDS) }} đã khóa, không sửa được tại đây.</span>
-                </div>
-            @endif
-
-            <div>
-                <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary text-[18px]">person</span>
-                    Thông tin cơ bản
-                </h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Họ và tên <span class="text-rose-500">*</span></label>
-                        <input type="text" name="name" value="{{ old('name', $customer->name) }}" required class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 font-bold" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Số điện thoại <span class="text-rose-500">*</span></label>
-                        <input type="tel" name="phone" value="{{ old('phone', $customer->phone) }}" required class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 font-mono" />
-                        <p class="mt-1 text-[11px] text-gray-500">Số Việt Nam 10 số bắt đầu bằng 0 (hoặc +84).</p>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Tên phụ huynh (nếu có)</label>
-                        <input type="text" name="parent_name" value="{{ old('parent_name', $customer->parent_name) }}" placeholder="Nhập tên phụ huynh" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">SĐT phụ huynh</label>
-                        <input type="tel" name="parent_phone" value="{{ old('parent_phone', $customer->parent_phone) }}" placeholder="VD: 0912 345 678" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 font-mono" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Email</label>
-                        <input type="email" name="email" value="{{ old('email', $customer->email) }}" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2" />
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-700 mb-1">Ngày sinh</label>
-                            <input type="date" name="dob" value="{{ old('dob', $customer->dob ? $customer->dob->format('Y-m-d') : '') }}" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2" />
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-700 mb-1">Giới tính</label>
-                            <select name="gender" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2">
-                                <option value="Nam" {{ old('gender', $customer->gender) === 'Nam' ? 'selected' : '' }}>Nam</option>
-                                <option value="Nữ" {{ old('gender', $customer->gender) === 'Nữ' ? 'selected' : '' }}>Nữ</option>
-                                <option value="Khác" {{ old('gender', $customer->gender) === 'Khác' ? 'selected' : '' }}>Khác</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Giai đoạn Pipeline</label>
-                        <div class="w-full text-xs rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 font-bold text-primary">{{ $customer->stage_label }}</div>
-                        <p class="mt-1 text-[11px] text-gray-500">Đổi giai đoạn tại Pipeline; trạng thái Won chỉ được tạo qua Closing Wizard.</p>
-                    </div>
-                    @can('lead.assign')
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Sales phụ trách</label>
-                        <select name="assigned_user_id" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2">
-                            @foreach ($salesUsers as $u)
-                                <option value="{{ $u->id }}" {{ old('assigned_user_id', $customer->assigned_user_id) == $u->id ? 'selected' : '' }}>{{ $u->name }} ({{ $u->email }})</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    @endcan
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Cơ sở đăng ký</label>
-                        <select name="branch_id" @disabled($locked) class="{{ $locked ? 'bg-gray-50 text-gray-500' : '' }} w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2">
-                            <option value="">-- Chọn cơ sở --</option>
-                            @foreach ($branches as $br)
-                                <option value="{{ $br->id }}" {{ old('branch_id', $customer->branch_id) == $br->id ? 'selected' : '' }}>{{ $br->name }} ({{ $br->code }})</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Nguồn tiếp cận <span class="text-rose-500">*</span></label>
-                        <select name="source" required class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2">
-                            <option value="" {{ old('source', $customer->source) ? 'hidden' : 'selected' }} disabled>-- Chọn nguồn --</option>
-                            @foreach ($leadSources as $src)
-                                <option value="{{ $src }}" {{ old('source', $customer->source) === $src ? 'selected' : '' }}>{{ $src }}</option>
-                            @endforeach
-                            @if ($customer->source && ! $leadSources->contains($customer->source))
-                                <option value="{{ $customer->source }}" selected>{{ $customer->source }} (hiện tại)</option>
-                            @endif
-                        </select>
-                        @error('source') <p class="mt-1 text-[11px] text-rose-500">{{ $message }}</p> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Khóa học quan tâm</label>
-                        <input type="text" name="course_interest" @readonly($locked) value="{{ old('course_interest', $customer->course_interest) }}" placeholder="Chọn hoặc nhập khóa học" list="course-interest-options" class="{{ $locked ? 'bg-gray-50 text-gray-500' : '' }} w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 font-semibold" />
-                        <datalist id="course-interest-options">
-                            @foreach (\App\Models\Course::where('is_active', true)->orderBy('name')->pluck('name') as $courseName)
-                                <option value="{{ $courseName }}"></option>
-                            @endforeach
-                        </datalist>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Giá trị hợp đồng (VNĐ) @if ($locked)<span class="material-symbols-outlined text-[13px] align-middle text-amber-600" title="Đã khóa">lock</span>@endif</label>
-                        <input type="number" name="deal_value" @readonly($locked) value="{{ old('deal_value', $customer->deal_value) }}" class="{{ $locked ? 'bg-gray-50 text-gray-500' : '' }} w-full text-xs font-mono font-bold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2" />
-                    </div>
-                    <div>
-                        <label for="next_follow_up_at" class="block text-xs font-semibold text-gray-700 mb-1">Hạn liên hệ tiếp theo</label>
-                        <input type="datetime-local" id="next_follow_up_at" name="next_follow_up_at" value="{{ old('next_follow_up_at', $customer->next_follow_up_at?->format('Y-m-d\TH:i')) }}" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2" />
-                        <p class="mt-1 text-[11px] text-gray-500">Pipeline báo "Sắp hết hạn" trước 24 giờ và "Quá hạn" khi quá hạn.</p>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Địa chỉ</label>
-                        <input type="text" name="address" value="{{ old('address', $customer->address) }}" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2" />
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Ghi chú nhu cầu</label>
-                        <textarea name="notes" rows="3" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2">{{ old('notes', $customer->notes) }}</textarea>
+<x-app-layout title="Sửa thông tin khách">
+    {{-- Mockup crm-ui-mockup/sua-thong-tin-khach: Họ tên*, SĐT* | Tên phụ huynh | Nguồn*, Chi nhánh* ("Không thể thay đổi nếu học viên đã có lớp"), Hủy / Lưu thay đổi.
+         Trường hợp đồng khóa sau chốt (A3): Giá trị hợp đồng, Cơ sở, Khóa đăng ký. --}}
+    @php($locked = $customer->isContractLocked())
+    <div class="mx-auto w-full max-w-[720px] py-md">
+        <div class="overflow-hidden rounded-lg border border-surface-container-highest bg-surface-container-lowest shadow-level-3">
+            <div class="flex items-center justify-between border-b border-surface-container-highest bg-surface-container-low px-lg py-md">
+                <div class="flex min-w-0 items-center gap-sm">
+                    <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">edit_square</span>
+                    <div class="min-w-0">
+                        <h1 class="font-h2 text-h2 text-on-surface">Sửa thông tin khách</h1>
+                        <p class="truncate font-code text-caption text-on-surface-variant">{{ $customer->name }} · {{ $customer->code }}</p>
                     </div>
                 </div>
-            </div>
-
-            <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                <a href="{{ route('crm.customers.show', $customer->id) }}" class="px-4 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">
-                    Hủy bỏ
+                <a href="{{ route('crm.customers.show', $customer->id) }}" aria-label="Đóng" class="group rounded-full p-xs transition-colors hover:bg-surface-container-highest">
+                    <span class="material-symbols-outlined text-on-surface-variant group-hover:text-on-surface">close</span>
                 </a>
-                <button type="submit" class="px-6 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-md transition flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-base">check</span>
-                    <span>Lưu thay đổi</span>
-                </button>
             </div>
-        </form>
+
+            <form action="{{ route('crm.customers.update', $customer->id) }}" method="POST" class="space-y-md p-lg">
+                @csrf
+                @method('PUT')
+
+                @if ($locked)
+                    <x-ui.alert type="warning">Khách đã <strong>{{ $customer->stage_label }}</strong>: {{ implode(', ', \App\Models\CrmCustomer::CONTRACT_LOCKED_FIELDS) }} đã khóa, không sửa được tại đây.</x-ui.alert>
+                @endif
+
+                <div class="grid grid-cols-1 gap-md md:grid-cols-2">
+                    <x-ui.input name="name" label="Họ tên" required placeholder="Nhập họ và tên" :value="$customer->name" />
+                    <x-ui.input name="phone" type="tel" label="Số điện thoại" required placeholder="0xxx xxx xxx" :value="$customer->phone" hint="10 số, bắt đầu bằng 0 (hoặc +84)" />
+                </div>
+
+                <x-ui.input name="parent_name" label="Tên phụ huynh" placeholder="Nhập tên phụ huynh (nếu có)" :value="$customer->parent_name" />
+
+                <div class="grid grid-cols-1 gap-md md:grid-cols-2">
+                    <x-ui.select name="source" label="Nguồn" required placeholder="Chọn nguồn" :value="$customer->source"
+                                 :options="$leadSources->mapWithKeys(fn ($s) => [$s => $s])->when($customer->source && ! $leadSources->contains($customer->source), fn ($o) => $o->put($customer->source, $customer->source.' (hiện tại)'))" />
+                    <div class="flex flex-col gap-xs">
+                        <x-ui.select name="branch_id" label="Chi nhánh" required placeholder="Chọn chi nhánh" :value="$customer->branch_id"
+                                     :options="$branches->pluck('name', 'id')" :disabled="$locked" />
+                        <p class="font-caption text-caption italic text-on-surface-variant">* Không thể thay đổi nếu học viên đã có lớp</p>
+                    </div>
+                </div>
+
+                <details class="group rounded-lg border border-surface-container-highest" open>
+                    <summary class="flex cursor-pointer select-none items-center justify-between px-md py-sm font-body-medium text-body-medium text-on-surface-variant">
+                        Thông tin bổ sung
+                        <span class="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+                    </summary>
+                    <div class="grid grid-cols-1 gap-md border-t border-surface-container-highest p-md md:grid-cols-2">
+                        <x-ui.input name="parent_phone" type="tel" label="SĐT phụ huynh" placeholder="VD: 0912 345 678" :value="$customer->parent_phone" />
+                        <x-ui.input name="next_follow_up_at" type="datetime-local" label="Hạn liên hệ tiếp theo" id="next_follow_up_at"
+                                    :value="$customer->next_follow_up_at?->format('Y-m-d\TH:i')" hint='Pipeline báo "Sắp hết hạn" trước 24 giờ và "Quá hạn" khi quá hạn.' />
+                        <x-ui.input name="email" type="email" label="Email" :value="$customer->email" />
+                        <x-ui.date name="dob" label="Ngày sinh" :value="old('dob', $customer->dob?->format('Y-m-d'))" />
+                        <x-ui.select name="gender" label="Giới tính" placeholder="-- Chọn --" :value="$customer->gender" :options="['Nam' => 'Nam', 'Nữ' => 'Nữ', 'Khác' => 'Khác']" />
+                        <x-ui.field label="Giai đoạn">
+                            <div class="rounded-lg border border-outline-variant bg-surface-container-low px-md py-sm font-body-medium text-body-medium text-primary">{{ $customer->stage_label }}</div>
+                            <p class="font-caption text-caption text-on-surface-variant">Đổi giai đoạn tại Pipeline; "Đã chốt" chỉ tạo qua Chốt &amp; Xếp lớp.</p>
+                        </x-ui.field>
+                        @can('lead.assign')
+                            <x-ui.select name="assigned_user_id" label="Người phụ trách" :value="$customer->assigned_user_id" :options="$salesUsers->pluck('name', 'id')" />
+                        @endcan
+                        <x-ui.field label="Khóa học quan tâm" name="course_interest" for="f_course_interest">
+                            <input type="text" id="f_course_interest" name="course_interest" @readonly($locked) value="{{ old('course_interest', $customer->course_interest) }}" placeholder="Chọn hoặc nhập khóa học" list="course-interest-options"
+                                   class="w-full rounded-lg border border-outline-variant px-md py-sm font-body-base text-body-base focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 {{ $locked ? 'bg-surface-container-low text-on-surface-variant' : 'bg-surface-container-lowest' }}" />
+                            <datalist id="course-interest-options">
+                                @foreach (\App\Models\Course::where('is_active', true)->orderBy('name')->pluck('name') as $courseName)
+                                    <option value="{{ $courseName }}"></option>
+                                @endforeach
+                            </datalist>
+                        </x-ui.field>
+                        <x-ui.field label="Giá trị hợp đồng (VNĐ)" name="deal_value" for="f_deal_value">
+                            <div class="relative">
+                                <input type="number" id="f_deal_value" name="deal_value" @readonly($locked) value="{{ old('deal_value', $customer->deal_value) }}"
+                                       class="w-full rounded-lg border border-outline-variant px-md py-sm font-code text-code focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 {{ $locked ? 'bg-surface-container-low text-on-surface-variant' : 'bg-surface-container-lowest' }}" />
+                                @if ($locked)<span class="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[18px] text-amber-600" title="Đã khóa">lock</span>@endif
+                            </div>
+                        </x-ui.field>
+                        <div class="md:col-span-2"><x-ui.input name="address" label="Địa chỉ" :value="$customer->address" /></div>
+                        <div class="md:col-span-2"><x-ui.textarea name="notes" label="Ghi chú nhu cầu" rows="3" :value="$customer->notes" /></div>
+                    </div>
+                </details>
+
+                <div class="flex items-center justify-end gap-md pt-lg">
+                    <a href="{{ route('crm.customers.show', $customer->id) }}"
+                       class="rounded-lg border border-outline-variant px-lg py-sm font-body-medium text-body-medium text-on-surface transition-all hover:bg-surface-container-highest active:scale-95">Hủy</a>
+                    <button type="submit"
+                            class="flex items-center gap-sm rounded-lg bg-primary-container px-xl py-sm font-body-medium text-body-medium text-white shadow-md transition-all hover:opacity-90 hover:shadow-lg active:scale-95">
+                        <span class="material-symbols-outlined text-[20px]">save</span>
+                        Lưu thay đổi
+                    </button>
+                </div>
+            </form>
+            <div class="h-1 w-full bg-gradient-to-r from-primary-container to-secondary"></div>
+        </div>
     </div>
 </x-app-layout>
