@@ -113,7 +113,7 @@ final class SidebarMenu
                     ['label' => 'Dashboard báo cáo đào tạo', 'route' => 'academic.dashboards.reports', 'can' => ['class.view']],
                     ['label' => 'Dashboard nhật ký sự vụ', 'route' => 'academic.dashboards.incidents', 'can' => ['class.view']],
                     ['label' => 'Dashboard lớp học theo ngày', 'route' => 'tasks.classes-dashboard'],
-                    ['label' => 'Cấu hình lịch & TKB lớp', 'route' => 'tasks.schedule-config'],
+                    ['label' => 'Cấu hình Lịch & TKB lớp', 'route' => 'tasks.schedule-config'],
                     ['label' => 'Chốt học phí & Xếp lớp', 'route' => 'crm.closing-wizard'],
                 ],
             ],
@@ -205,7 +205,7 @@ final class SidebarMenu
                 'items' => [
                     ['label' => 'Danh sách ticket', 'route' => 'tickets.index', 'active' => ['tickets.index', 'tickets.show']],
                     ['label' => 'Tạo ticket mới', 'route' => 'tickets.create'],
-                    ['label' => 'Cấu hình email nhận ticket', 'route' => 'system-config.ticket-emails', 'active' => ['system-config.ticket-emails*']],
+                    ['label' => 'Cấu hình Email nhận Ticket', 'route' => 'system-config.ticket-emails', 'active' => ['system-config.ticket-emails*']],
                 ],
             ],
             [
