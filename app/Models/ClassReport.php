@@ -54,4 +54,15 @@ class ClassReport extends Model
     {
         return $this->hasMany(ClassReportStudentSupport::class, 'class_report_id');
     }
+
+    public const STATUS_LABELS = [
+        'pending_approval' => 'Chờ duyệt',
+        'approved' => 'Đã duyệt',
+        'rejected' => 'Trả về',
+    ];
+
+    public function getStatusLabelAttribute(): string
+    {
+        return self::STATUS_LABELS[$this->status] ?? ($this->status ?: 'Chưa cập nhật');
+    }
 }

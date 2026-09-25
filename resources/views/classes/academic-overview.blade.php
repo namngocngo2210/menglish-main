@@ -8,7 +8,7 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">dashboard</span>
-                        Tổng quan Danh sách lớp Học thuật (Flow 1 — Bước #4)
+                        Tổng quan Danh sách lớp Học thuật
                     </h1>
                     <p class="text-xs text-gray-500">Sơ đồ tổng quan toàn bộ số lượng lớp học phân bổ theo chương trình, trình độ và khối đào tạo.</p>
                 </div>
@@ -16,7 +16,7 @@
             <div class="flex items-center gap-2">
                 <a href="{{ route('classes.academic-list') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-dark transition">
                     <span class="material-symbols-outlined text-[18px]">table_view</span>
-                    <span>Danh sách lớp chi tiết (Bước #5)</span>
+                    <span>Danh sách lớp chi tiết</span>
                 </a>
             </div>
         </div>

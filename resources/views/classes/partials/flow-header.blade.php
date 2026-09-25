@@ -22,7 +22,7 @@
             'icon' => 'group_add',
             'url' => route('classes.create'),
             'type' => 'internal',
-            'hint' => 'Form 3 khối chuẩn BA',
+            'hint' => 'Thông tin lớp, lịch & nhân sự',
         ],
         [
             'num' => 3,
@@ -78,7 +78,7 @@
             </span>
             <div>
                 <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold uppercase tracking-wider text-primary">Flow 1</span>
+                    <span class="text-xs font-bold uppercase tracking-wider text-primary">Quy trình 1</span>
                     <span class="text-xs text-gray-400">•</span>
                     <h2 class="text-sm font-bold text-gray-900 tracking-tight">Tuyển sinh, Khai giảng &amp; Quản lý Lớp học</h2>
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-primary border border-orange-200">6 bước chuẩn BA</span>

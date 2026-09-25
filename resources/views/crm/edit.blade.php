@@ -153,7 +153,7 @@
                 </a>
                 <button type="submit" class="px-6 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-md transition flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-base">check</span>
-                    <span>Cập nhật vào Database</span>
+                    <span>Lưu thay đổi</span>
                 </button>
             </div>
         </form>

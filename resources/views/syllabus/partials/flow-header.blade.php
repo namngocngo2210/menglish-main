@@ -93,7 +93,7 @@
             </span>
             <div>
                 <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold uppercase tracking-wider text-primary">Flow 2</span>
+                    <span class="text-xs font-bold uppercase tracking-wider text-primary">Quy trình 2</span>
                     <span class="text-xs text-gray-400">•</span>
                     <h2 class="text-sm font-bold text-gray-900 tracking-tight">Quản lý Giáo trình &amp; Phân bổ Syllabus</h2>
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">8 bước chuẩn</span>

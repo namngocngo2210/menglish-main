@@ -14,7 +14,7 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <x-ui.button variant="secondary" icon="assignment_ind" :href="route('syllabus.assignments')">Giao chặng (Bước #3)</x-ui.button>
+                <x-ui.button variant="secondary" icon="assignment_ind" :href="route('syllabus.assignments')">Giao chặng</x-ui.button>
                 @can('syllabus.manage')
                     <x-ui.button icon="library_add" x-data @click="$dispatch('open-modal', 'new-curriculum')">Tạo giáo trình mới</x-ui.button>
                 @endcan
@@ -212,7 +212,7 @@
 
         <div class="flex items-center justify-end gap-2">
             <x-ui.button variant="secondary" :href="route('syllabus.documents')">Quay lại</x-ui.button>
-            <x-ui.button icon="arrow_forward" :href="route('syllabus.assignments')">Tiếp tục: Giao chặng (Bước #3)</x-ui.button>
+            <x-ui.button icon="arrow_forward" :href="route('syllabus.assignments')">Tiếp tục: Giao chặng</x-ui.button>
         </div>
     </div>
 </x-app-layout>

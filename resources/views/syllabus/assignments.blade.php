@@ -13,7 +13,7 @@
             <div class="flex items-center gap-2">
                 <a href="{{ route('teacher-portal.shortcut', '08_xem_tai_lieu_giao_trinh') }}" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
                     <span class="material-symbols-outlined text-[18px]">menu_book</span>
-                    <span>Cổng GV xem tài liệu (Bước #4)</span>
+                    <span>Cổng GV xem tài liệu</span>
                 </a>
             </div>
         </div>
@@ -154,7 +154,7 @@
                                     <td class="py-3.5 px-4 font-semibold text-gray-900">
                                         <div class="flex items-center gap-2">
                                             <span class="material-symbols-outlined text-primary text-[18px]">school</span>
-                                            <span>{{ $as->curriculum?->title ?? 'IELTS Intensive' }}<small class="block text-gray-400">{{ $as->classModel?->name ?? 'Chưa gắn lớp' }}</small></span>
+                                            <span>{{ $as->curriculum?->title ?? 'Chưa gắn giáo trình' }}<small class="block text-gray-400">{{ $as->classModel?->name ?? 'Chưa gắn lớp' }}</small></span>
                                         </div>
                                     </td>
                                     <td class="py-3.5 px-4">
@@ -196,7 +196,7 @@
                                         @elseif ($as->status === 'completed')
                                             <x-ui.badge color="neutral">Đã hoàn thành</x-ui.badge>
                                         @else
-                                            <x-ui.badge color="warning">{{ $as->status }}</x-ui.badge>
+                                            <x-ui.badge color="warning">{{ \App\Support\StatusLabel::for($as->status) }}</x-ui.badge>
                                         @endif
                                     </td>
                                 </tr>

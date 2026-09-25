@@ -24,7 +24,7 @@
                 <x-ui.select name="class_id" label="Lớp thi" required :options="$classes->pluck('name', 'id')" />
                 <x-ui.select name="test_type" label="Loại kỳ thi" :options="['midterm' => 'Giữa kỳ (Mid-term)', 'final' => 'Cuối khóa (Final)']" />
                 <x-ui.input type="datetime-local" name="scheduled_at" label="Thời gian thi" required :value="now()->addDays(7)->format('Y-m-d\TH:i')" />
-                <x-ui.input name="room" label="Phòng thi" required value="Phòng Lab 201" />
+                <x-ui.input name="room" label="Phòng thi" required placeholder="VD: Phòng Lab 201" />
             </form>
             <x-slot:footer>
                 <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'new-big-test')">Hủy</x-ui.button>
