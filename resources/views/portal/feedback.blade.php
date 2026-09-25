@@ -130,7 +130,7 @@
             </div>
             <div class="text-right">
                 <span class="text-[10px] text-gray-400 font-medium block">Học sinh</span>
-                <span class="text-xs font-bold text-gray-800">{{ $student?->name ?? 'Trần Minh Khang' }}</span>
+                <span class="text-xs font-bold text-gray-800">{{ $student?->name ?? '—' }}</span>
             </div>
         </div>
 

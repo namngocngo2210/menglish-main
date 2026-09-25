@@ -16,7 +16,7 @@
         <div>
             <h1 class="font-black text-xl tracking-tight text-primary">{{ $title }}</h1>
             @if($student)
-                <p class="text-[10px] text-gray-500 font-medium line-clamp-1">{{ $student->name }} • {{ $student->currentClass?->name ?? 'IELTS Starter' }}</p>
+                <p class="text-[10px] text-gray-500 font-medium line-clamp-1">{{ $student->name }} • {{ $student->currentClass?->name ?? 'Chưa xếp lớp' }}</p>
             @endif
         </div>
     </div>

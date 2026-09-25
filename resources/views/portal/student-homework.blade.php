@@ -51,8 +51,8 @@
                 </div>
                 <div>
                     <span class="text-xs font-bold text-gray-500 uppercase tracking-wider block">Tài khoản học viên:</span>
-                    <strong class="text-sm text-gray-900">{{ $student?->name ?? 'Nguyễn Minh Anh' }}</strong>
-                    <span class="text-xs text-gray-500 font-mono">({{ $student?->code ?? 'HV-00109' }})</span>
+                    <strong class="text-sm text-gray-900">{{ $student?->name ?? '—' }}</strong>
+                    <span class="text-xs text-gray-500 font-mono">({{ $student?->code ?? '—' }})</span>
                 </div>
             </div>
 
@@ -62,7 +62,7 @@
                         onchange="window.location.href = '{{ route('portal.student.homework') }}/' + this.value">
                     @foreach($students as $st)
                         <option value="{{ $st->id }}" {{ ($student && $student->id === $st->id) ? 'selected' : '' }}>
-                            {{ $st->name }} ({{ $st->currentClass?->name ?? 'Lớp IELTS' }})
+                            {{ $st->name }} ({{ $st->currentClass?->name ?? 'Chưa xếp lớp' }})
                         </option>
                     @endforeach
                 </select>
@@ -77,7 +77,7 @@
                     MENGLISH LMS
                 </div>
                 <h1 class="text-2xl font-bold tracking-tight text-white drop-shadow-sm">Học tập của tôi</h1>
-                <p class="text-xs text-white/80 mt-0.5">Lớp: {{ $student?->currentClass?->name ?? 'Starters 1A - Tuần 4' }}</p>
+                <p class="text-xs text-white/80 mt-0.5">Lớp: {{ $student?->currentClass?->name ?? 'Chưa xếp lớp' }}</p>
             </div>
 
             <!-- Subtab Switcher: Nộp bài tập / Luyện phát âm -->
@@ -102,60 +102,39 @@
                         <h2 class="text-base font-bold text-gray-900">Nhận xét buổi học</h2>
                     </div>
 
-                    <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs flex flex-col gap-3">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <p class="text-[11px] text-gray-400 font-medium mb-0.5">Ngày 15/10/2023</p>
-                                <h3 class="text-xs font-bold text-gray-900">Unit 4: Present Continuous &amp; Vocabulary</h3>
+                    @forelse($remarks as $item)
+                        @php $r = $item['remark']; @endphp
+                        <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs flex flex-col gap-3">
+                            <div class="flex justify-between items-start">
+                                <p class="text-[11px] text-gray-400 font-medium">Ngày {{ $item['date']?->format('d/m/Y') }}</p>
+                                <span class="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-emerald-200">Đã nhận xét</span>
                             </div>
-                            <span class="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-emerald-200">
-                                Đã nhận xét
-                            </span>
+                            <div class="grid grid-cols-2 gap-2">
+                                @foreach(['monsters' => ['Monsters', 'hotel_class', 'text-amber-500'], 'grammar' => ['Ngữ pháp', 'psychology', 'text-blue-500'], 'attitude' => ['Tinh thần', 'mood', 'text-emerald-500'], 'result' => ['Kết quả', 'checklist', 'text-purple-500']] as $key => [$label, $icon, $tone])
+                                    @if(filled($r[$key] ?? null))
+                                        <div class="bg-gray-50 rounded-xl p-2.5 flex items-center gap-2 border border-gray-100">
+                                            <span class="material-symbols-outlined {{ $tone }} text-lg">{{ $icon }}</span>
+                                            <div>
+                                                <p class="text-[10px] text-gray-400 font-medium">{{ $label }}</p>
+                                                <p class="text-xs font-bold text-gray-900">{{ $r[$key] }}</p>
+                                            </div>
+                                        </div>
+                                    @endif
+                                @endforeach
+                            </div>
+                            @if(filled($r['comment'] ?? null))
+                                <div class="border-t border-gray-100 pt-3">
+                                    <p class="text-[11px] text-gray-500 mb-1 flex items-center gap-1 font-bold">
+                                        <span class="material-symbols-outlined text-[15px] text-primary">edit_note</span>
+                                        Nhận xét chi tiết từ giáo viên
+                                    </p>
+                                    <p class="text-xs text-gray-700 leading-relaxed bg-orange-50/40 p-2.5 rounded-xl border border-orange-100">{{ $r['comment'] }}</p>
+                                </div>
+                            @endif
                         </div>
-
-                        <!-- 4 Stat Badges -->
-                        <div class="grid grid-cols-2 gap-2">
-                            <div class="bg-gray-50 rounded-xl p-2.5 flex items-center gap-2 border border-gray-100">
-                                <span class="material-symbols-outlined text-amber-500 text-lg">hotel_class</span>
-                                <div>
-                                    <p class="text-[10px] text-gray-400 font-medium">Monsters</p>
-                                    <p class="text-xs font-bold text-gray-900">850 pt</p>
-                                </div>
-                            </div>
-                            <div class="bg-gray-50 rounded-xl p-2.5 flex items-center gap-2 border border-gray-100">
-                                <span class="material-symbols-outlined text-blue-500 text-lg">psychology</span>
-                                <div>
-                                    <p class="text-[10px] text-gray-400 font-medium">Ngữ pháp</p>
-                                    <p class="text-xs font-bold text-gray-900">Tốt</p>
-                                </div>
-                            </div>
-                            <div class="bg-gray-50 rounded-xl p-2.5 flex items-center gap-2 border border-gray-100">
-                                <span class="material-symbols-outlined text-emerald-500 text-lg">mood</span>
-                                <div>
-                                    <p class="text-[10px] text-gray-400 font-medium">Tinh thần</p>
-                                    <p class="text-xs font-bold text-gray-900">Tích cực</p>
-                                </div>
-                            </div>
-                            <div class="bg-gray-50 rounded-xl p-2.5 flex items-center gap-2 border border-gray-100">
-                                <span class="material-symbols-outlined text-purple-500 text-lg">checklist</span>
-                                <div>
-                                    <p class="text-[10px] text-gray-400 font-medium">Kết quả</p>
-                                    <p class="text-xs font-bold text-gray-900">Đạt (8/10)</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Teacher Comment -->
-                        <div class="border-t border-gray-100 pt-3">
-                            <p class="text-[11px] text-gray-500 mb-1 flex items-center gap-1 font-bold">
-                                <span class="material-symbols-outlined text-[15px] text-primary">edit_note</span>
-                                Nhận xét chi tiết từ giáo viên
-                            </p>
-                            <p class="text-xs text-gray-700 leading-relaxed bg-orange-50/40 p-2.5 rounded-xl border border-orange-100">
-                                "Hôm nay con học rất tốt, hăng hái phát biểu xây dựng bài. Phần Present Continuous con đã nắm vững cấu trúc nhưng đôi khi quên thêm 'ing' vào động từ. Về từ vựng, con nhớ bài cũ khá tốt. Cố gắng phát huy nhé!"
-                            </p>
-                        </div>
-                    </div>
+                    @empty
+                        <div class="bg-gray-50 rounded-2xl p-4 border border-dashed border-gray-200 text-center text-xs text-gray-500">Chưa có nhận xét buổi học nào.</div>
+                    @endforelse
                 </section>
 
                 <!-- 2. BẢNG ĐIỂM -->
@@ -165,22 +144,32 @@
                         <h2 class="text-base font-bold text-gray-900">Bảng điểm</h2>
                     </div>
                     <div class="flex flex-col gap-2">
-                        <div class="bg-white rounded-xl p-3.5 border border-gray-200 shadow-2xs flex items-center justify-between">
-                            <div>
-                                <h4 class="text-xs font-bold text-gray-900">Mini Test 1</h4>
-                                <p class="text-[10px] text-gray-400 font-mono">Ngày thi: 01/10/2023</p>
+                        @forelse($miniTests as $mt)
+                            <div class="bg-white rounded-xl p-3.5 border border-gray-200 shadow-2xs flex items-center justify-between">
+                                <div>
+                                    <h4 class="text-xs font-bold text-gray-900">{{ $mt->name }}</h4>
+                                    <p class="text-[10px] text-gray-400 font-mono">Ngày thi: {{ $mt->test_date?->format('d/m/Y') }}</p>
+                                </div>
+                                <div class="text-lg font-black text-primary font-mono">{{ rtrim(rtrim(number_format((float) $mt->score, 2, '.', ''), '0'), '.') }}<span class="text-xs text-gray-400">/{{ rtrim(rtrim(number_format((float) $mt->max_score, 2, '.', ''), '0'), '.') }}</span></div>
                             </div>
-                            <div class="text-lg font-black text-primary font-mono">8.5</div>
-                        </div>
-                        <div class="bg-white rounded-xl p-3.5 border border-gray-200 shadow-2xs flex items-center justify-between">
-                            <div>
-                                <h4 class="text-xs font-bold text-gray-900">Big Test Mid-term</h4>
-                                <p class="text-[10px] text-gray-400 font-mono">Ngày thi: 12/10/2023</p>
+                        @empty
+                        @endforelse
+                        @foreach($bigTestResults as $bt)
+                            <div class="bg-white rounded-xl p-3.5 border border-gray-200 shadow-2xs flex items-center justify-between">
+                                <div>
+                                    <h4 class="text-xs font-bold text-gray-900">{{ $bt->bigTest?->title ?? 'Big Test' }}</h4>
+                                    <p class="text-[10px] text-gray-400 font-mono">Ngày thi: {{ $bt->bigTest?->scheduled_at?->format('d/m/Y') ?? '—' }}</p>
+                                </div>
+                                @if($bt->is_absent)
+                                    <div class="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full text-[10px] font-bold border border-gray-200">Vắng thi</div>
+                                @else
+                                    <div class="text-lg font-black text-primary font-mono">{{ $bt->overall_score }}</div>
+                                @endif
                             </div>
-                            <div class="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full text-[10px] font-bold border border-gray-200">
-                                Đang chờ kết quả
-                            </div>
-                        </div>
+                        @endforeach
+                        @if($miniTests->isEmpty() && $bigTestResults->isEmpty())
+                            <div class="bg-gray-50 rounded-xl p-3.5 border border-dashed border-gray-200 text-center text-xs text-gray-500">Chưa có điểm kiểm tra nào.</div>
+                        @endif
                     </div>
                 </section>
 
@@ -191,16 +180,19 @@
                         <h2 class="text-base font-bold text-gray-900">Bài tập về nhà</h2>
                     </div>
 
-                    <!-- Ghi chú nhắc nhở từ GV Banner -->
-                    <div class="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 flex gap-2.5">
-                        <span class="material-symbols-outlined text-rose-500 text-[20px] shrink-0">campaign</span>
-                        <div>
-                            <h4 class="text-xs font-bold text-rose-700">Ghi chú nhắc nhở từ Giáo viên</h4>
-                            <p class="text-[11px] text-rose-900/80 mt-0.5 leading-normal">
-                                Các con nhớ ôn lại từ vựng Unit 4 và hoàn thành bài tập quay video trước thứ 6 nhé!
-                            </p>
+                    <!-- Bài tập giáo viên giao gần nhất -->
+                    @if($latestHomework)
+                        <div class="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 flex gap-2.5">
+                            <span class="material-symbols-outlined text-rose-500 text-[20px] shrink-0">campaign</span>
+                            <div>
+                                <h4 class="text-xs font-bold text-rose-700">{{ $latestHomework->title }}</h4>
+                                @if($latestHomework->description)
+                                    <p class="text-[11px] text-rose-900/80 mt-0.5 leading-normal">{{ $latestHomework->description }}</p>
+                                @endif
+                                <p class="text-[10px] text-rose-700/80 mt-1">{{ $latestHomework->classModel?->name }} · Hạn nộp: {{ $latestHomework->due_date?->format('d/m/Y') ?? 'Không giới hạn' }}</p>
+                            </div>
                         </div>
-                    </div>
+                    @endif
 
                     @php
                         $homeworkCategories = [
@@ -285,7 +277,7 @@
                                         <div class="flex items-center justify-between text-[10px] text-gray-500">
                                             <span>Nộp lúc: <strong class="font-mono text-gray-700">{{ $sub->data['submitted_at'] ?? $sub->created_at->format('d/m/Y H:i') }}</strong></span>
                                             @if($sub->status === 'reviewed')
-                                                <span class="text-emerald-600 font-bold bg-emerald-100 px-1.5 py-0.5 rounded">Đã chấm: {{ $sub->data['score'] ?? '10/10' }}</span>
+                                                <span class="text-emerald-600 font-bold bg-emerald-100 px-1.5 py-0.5 rounded">{{ filled($sub->data['score'] ?? null) ? 'Đã chấm: '.$sub->data['score'] : 'Giáo viên đã xem' }}</span>
                                             @else
                                                 <span class="text-amber-600 font-medium">Chờ giáo viên chấm</span>
                                             @endif

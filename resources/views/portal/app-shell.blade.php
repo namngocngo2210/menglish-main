@@ -53,8 +53,8 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <span class="text-[11px] font-bold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">Cổng Học Sinh & Phụ Huynh</span>
-                        <h2 class="text-lg font-bold mt-1">Xin chào, {{ $student?->name ?? 'Nguyễn Văn A' }}</h2>
-                        <p class="text-xs text-white/90 mt-0.5">Lớp: {{ $student?->currentClass?->name ?? 'IELTS Starter - M01' }}</p>
+                        <h2 class="text-lg font-bold mt-1">Xin chào, {{ $student?->name ?? 'Học viên' }}</h2>
+                        <p class="text-xs text-white/90 mt-0.5">Lớp: {{ $student?->currentClass?->name ?? 'Chưa xếp lớp' }}</p>
                     </div>
                     <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white">
                         <span class="material-symbols-outlined text-2xl">school</span>
@@ -199,17 +199,17 @@
                         Thông tin tài khoản
                     </h4>
                     <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-full border border-emerald-200">
-                        {{ $student?->status ?? 'Đang học' }}
+                        {{ $student?->status_label ?? '—' }}
                     </span>
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-xs">
                     <div>
                         <span class="text-[10px] text-gray-400 uppercase font-bold block">Mã học viên</span>
-                        <span class="font-mono font-bold text-gray-800">{{ $student?->code ?? 'HV-00109' }}</span>
+                        <span class="font-mono font-bold text-gray-800">{{ $student?->code ?? '—' }}</span>
                     </div>
                     <div>
                         <span class="text-[10px] text-gray-400 uppercase font-bold block">Số điện thoại</span>
-                        <span class="font-mono text-gray-800">{{ $student?->phone ?? '0987654321' }}</span>
+                        <span class="font-mono text-gray-800">{{ $student?->phone ?? '—' }}</span>
                     </div>
                 </div>
             </div>
