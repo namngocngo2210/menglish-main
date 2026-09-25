@@ -45,6 +45,7 @@ class User extends Authenticatable
         'contract_type',
         'contract_start_date',
         'contract_end_date',
+        'contract_file_path',
         'password',
         'must_change_password',
         'is_active',

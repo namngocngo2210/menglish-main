@@ -78,6 +78,13 @@
             </div>
         </div>
 
+        @if ($expiringContracts > 0)
+            <div class="flex items-center gap-2 p-3 rounded-2xl border border-amber-200 bg-amber-50 text-amber-800 text-xs font-semibold">
+                <span class="material-symbols-outlined text-[18px]">warning</span>
+                <span>{{ $expiringContracts }} nhân sự có hợp đồng đã hết hạn hoặc hết hạn trong {{ \App\Models\User::CONTRACT_WARNING_DAYS }} ngày tới — xem nhãn "HĐ" trong danh sách.</span>
+            </div>
+        @endif
+
         <!-- Filter Bar -->
         <div class="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
             <form method="GET" action="{{ route('users.index') }}" class="flex flex-col md:flex-row items-center gap-3">
@@ -158,7 +165,7 @@
                                     </div>
                                 </td>
                                 <td class="py-3.5 px-4 font-medium text-gray-800">
-                                    {{ $user->branch?->name ?? 'Cơ sở Cầu Giấy' }}
+                                    {{ $user->branch?->name ?? 'Chưa gán chi nhánh' }}
                                 </td>
                                 <td class="py-3.5 px-4">
                                     @if ($user->isLocked())
@@ -168,6 +175,16 @@
                                     @else
                                         <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
                                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Đang hoạt động
+                                        </span>
+                                    @endif
+                                    @php $contractStatus = $user->contractExpiryStatus(); @endphp
+                                    @if ($contractStatus === 'expired')
+                                        <span class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold" title="Hợp đồng kết thúc {{ $user->contract_end_date->format('d/m/Y') }}">
+                                            <span class="material-symbols-outlined text-[12px]">event_busy</span> HĐ đã hết hạn
+                                        </span>
+                                    @elseif ($contractStatus === 'expiring')
+                                        <span class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold" title="Hợp đồng kết thúc {{ $user->contract_end_date->format('d/m/Y') }}">
+                                            <span class="material-symbols-outlined text-[12px]">schedule</span> HĐ sắp hết hạn {{ $user->contract_end_date->format('d/m/Y') }}
                                         </span>
                                     @endif
                                 </td>
@@ -272,7 +289,7 @@
                                  x-text="activeUser ? activeUser.name.charAt(0) : 'N'"></div>
                             <div>
                                 <h3 class="font-bold text-gray-900 text-base" x-text="activeUser ? activeUser.name : ''"></h3>
-                                <p class="text-xs text-gray-500 font-medium" x-text="activeUser && activeUser.branch ? activeUser.branch.name : 'Cơ sở Cầu Giấy'"></p>
+                                <p class="text-xs text-gray-500 font-medium" x-text="activeUser && activeUser.branch ? activeUser.branch.name : 'Chưa gán chi nhánh'"></p>
                                 <p class="text-[11px] text-gray-400 font-mono mt-0.5" x-text="activeUser ? activeUser.email : ''"></p>
                             </div>
                         </div>

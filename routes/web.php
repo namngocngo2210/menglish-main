@@ -417,6 +417,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/{user}/reset-password', 'resetPassword')->middleware('can:user.reset_password')->name('reset-password');
         Route::get('/{user}/roles', 'editRoles')->middleware('can:user.assign_role')->name('roles.edit');
         Route::put('/{user}/roles', 'updateRoles')->middleware('can:user.assign_role')->name('roles.update');
+        // File hợp đồng lưu riêng tư; quyền kiểm tra trong controller (chính chủ hoặc người quản lý tài khoản).
+        Route::get('/{user}/contract', 'downloadContract')->name('contract.download');
     });
 
     Route::get('/users/{user}/permissions', [UserPermissionOverrideController::class, 'edit'])

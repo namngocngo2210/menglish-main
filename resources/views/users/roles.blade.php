@@ -32,7 +32,7 @@
                         {{ Str::substr($user->name, 0, 1) }}
                     </div>
                     <h2 class="text-lg font-bold text-gray-900">{{ $user->name }}</h2>
-                    <p class="text-xs text-gray-500">{{ $user->branch?->name ?? 'Cơ sở Cầu Giấy' }}</p>
+                    <p class="text-xs text-gray-500">{{ $user->branch?->name ?? 'Chưa gán chi nhánh' }}</p>
                     <p class="text-[11px] text-gray-400 font-mono mt-0.5">{{ $user->email }}</p>
                 </div>
 
@@ -43,7 +43,7 @@
                     </div>
                     <div class="flex justify-between py-1 border-b border-gray-50">
                         <span class="text-gray-400 font-bold uppercase text-[10px]">Số điện thoại:</span>
-                        <span class="font-mono font-bold text-gray-800">{{ $user->phone ?? '0912 345 678' }}</span>
+                        <span class="font-mono font-bold text-gray-800">{{ $user->phone ?? 'Chưa cập nhật' }}</span>
                     </div>
                     <div class="flex justify-between py-1 border-b border-gray-50">
                         <span class="text-gray-400 font-bold uppercase text-[10px]">Số vai trò hiện tại:</span>
