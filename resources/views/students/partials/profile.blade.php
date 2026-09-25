@@ -222,7 +222,7 @@
                                             <span class="block text-on-surface-variant">{{ $lesson ? 'Chưa gắn nội dung giáo trình' : '' }}</span>
                                         @endif
                                         <span class="block font-caption text-caption text-on-surface-variant">
-                                            {{ $session->classModel?->name ?? '—' }}@if ($session->room) · Phòng {{ $session->room }}@endif
+                                            {{ $session->classModel?->name ?? '—' }}@if ($session->room) · {{ str_starts_with(mb_strtolower($session->room), 'phòng') ? $session->room : 'Phòng '.$session->room }}@endif
                                             @if ($session->type === \App\Models\ClassSession::TYPE_MAKEUP) · <span class="font-semibold text-amber-700">Học bù</span>@elseif ($session->type === \App\Models\ClassSession::TYPE_SUPPORT) · <span class="font-semibold text-secondary">Phụ đạo</span>@endif
                                         </span>
                                     </td>

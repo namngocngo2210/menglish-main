@@ -318,4 +318,29 @@ class Phase2MockupClassesTest extends TestCase
             ->assertSee('data-testid="student-edit-form"', false)
             ->assertDontSee('Quyền xem duy nhất');
     }
+
+    // ── 7. Cổng giáo viên ─────────────────────────────────────────────────
+
+    public function test_teacher_home_matches_app_shell_mockup_with_widgets_banner_and_bottom_nav(): void
+    {
+        $session = $this->makeSession('2026-10-07', '10:00', '11:30');
+        $student = $this->student('Học sinh Cần Chú Ý');
+        \App\Models\MiniTestScore::create(['class_id' => $this->classModel->id, 'student_id' => $student->id, 'user_id' => $this->teacher->id,
+            'name' => 'Unit 3', 'score' => 4.5, 'max_score' => 10, 'test_date' => '2026-10-06']);
+        \App\Models\TeacherHourlyRate::create(['user_id' => $this->teacher->id, 'hourly_rate' => 200000, 'effective_from' => '2026-01-01']);
+        \App\Models\TeacherTimesheet::create(['user_id' => $this->teacher->id, 'class_id' => $this->classModel->id, 'teaching_date' => '2026-10-05',
+            'hours' => 1.5, 'status' => 'approved', 'source' => \App\Models\TeacherTimesheet::SOURCE_CHECKIN]);
+
+        $this->actingAs($this->teacher)->get(route('teacher.home'))->assertOk()
+            ->assertSee('Tổng quan hôm nay')
+            ->assertSee('Lịch dạy hôm nay — Thứ Tư, 07/10')->assertSee('Bạn có 1 ca dạy trong ngày hôm nay')
+            ->assertSee('Ca dạy lúc 10:00 sắp bắt đầu!')->assertSee('Điểm danh ngay')
+            ->assertSee('10:00 - 11:30 • Phòng 204, Cầu Giấy')
+            ->assertSee('Học sinh cần chú ý')->assertSee('Học sinh Cần Chú Ý')->assertSee('4.5/10')
+            ->assertSee('Lương tạm tính tháng 10')->assertSee('300.000đ')
+            ->assertSee('Báo cáo chấm công')->assertSee('Vi phạm &amp; Khoản trừ', false)
+            ->assertSee(route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $session->id]), false)
+            ->assertSee('data-testid="teacher-bottom-nav"', false)->assertSee('Bảng công')->assertSee('Cá nhân')
+            ->assertDontSee('12.500.000')->assertDontSee('Nguyễn Văn A');
+    }
 }

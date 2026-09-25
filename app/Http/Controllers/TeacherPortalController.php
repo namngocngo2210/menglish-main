@@ -184,9 +184,65 @@ class TeacherPortalController extends Controller
             ];
         });
 
+        // Ca sắp / đang diễn ra chưa điểm danh → banner "Ca dạy lúc HH:MM sắp bắt đầu!" (mockup App shell).
+        $nextShift = $shifts->first(function (array $shift) {
+            $end = Carbon::parse($shift['session']->date->format('Y-m-d').' '.($shift['session']->end_time?->format('H:i') ?? '23:59'));
+
+            return ! $shift['attendance_done'] && now()->lte($end);
+        });
+
+        $widgets = $this->homeWidgets($teacher);
+
         return view('teacher.home', compact(
-            'teacher', 'shifts', 'stats', 'today', 'weekDays', 'weekStart', 'pendingSessions', 'attendanceDone'
+            'teacher', 'shifts', 'stats', 'today', 'weekDays', 'weekStart', 'pendingSessions', 'attendanceDone', 'nextShift', 'widgets'
         ));
+    }
+
+    /**
+     * Các thẻ tổng quan của trang chủ GV (mockup App shell Cổng Giáo viên), đều từ dữ liệu thật:
+     * học sinh cần chú ý (mini test dưới 7/10, 30 ngày), lương tạm tính theo giờ dạy trong tháng,
+     * chấm công tháng này, vi phạm trong tháng.
+     */
+    private function homeWidgets(User $teacher): array
+    {
+        $monthStart = now()->startOfMonth();
+        $classIds = ClassModel::query()->where(fn ($q) => $q->where('teacher_id', $teacher->id)
+            ->orWhere('foreign_teacher_id', $teacher->id)->orWhere('assistant_id', $teacher->id))->pluck('id');
+
+        $attention = MiniTestScore::with(['student:id,name', 'classModel:id,name'])
+            ->whereIn('class_id', $classIds)
+            ->whereDate('test_date', '>=', now()->subDays(30)->toDateString())
+            ->where('max_score', '>', 0)
+            ->whereRaw('score * 10 < max_score * 7')
+            ->latest('test_date')
+            ->limit(5)
+            ->get();
+
+        $timesheets = TeacherTimesheet::where('user_id', $teacher->id)
+            ->whereBetween('teaching_date', [$monthStart->toDateString(), now()->toDateString()])
+            ->where('status', '!=', 'rejected')
+            ->get(['id', 'teaching_date', 'hours', 'status']);
+        $estimate = null;
+        foreach ($timesheets as $ts) {
+            $rate = \App\Models\TeacherHourlyRate::rateFor($teacher->id, $ts->teaching_date);
+            if ($rate !== null) {
+                $estimate = ($estimate ?? 0) + $rate * (float) $ts->hours;
+            }
+        }
+
+        $violations = \App\Models\Penalty::where('user_id', $teacher->id)
+            ->whereDate('violation_date', '>=', $monthStart->toDateString())
+            ->latest('violation_date')
+            ->get(['id', 'code', 'violation_type', 'violation_date', 'status', 'notes']);
+
+        return [
+            'attention' => $attention,
+            'estimate' => $estimate,
+            'hours' => (float) $timesheets->sum('hours'),
+            'timesheets_total' => $timesheets->count(),
+            'timesheets_pending' => $timesheets->where('status', 'pending_review')->count(),
+            'violations' => $violations,
+        ];
     }
 
     /**
