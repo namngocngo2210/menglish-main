@@ -215,9 +215,10 @@ class Phase2AcceptanceTest extends TestCase
         // Học viên của lớp (vào lớp ở Phase 1): 1 em chốt từ CRM có SĐT phụ huynh, 1 em có tài khoản cổng HV.
         $studentUser = $this->userWithRole('student');
         $s1 = $this->student('N2-HV1', 'An', '0911000001', $class, $studentUser);
-        $s2 = $this->student('N2-HV2', 'Bình', '0911000002', $class);
-        $s3 = $this->student('N2-HV3', 'Chi', '0911000003', $class);
-        $s4 = $this->student('N2-HV4', 'Dũng', '0911000004', $class);
+        // SĐT phụ huynh: s2–s4 có trên hồ sơ học viên; s1 lấy từ khách CRM đã chốt (hồ sơ HV để trống).
+        $s2 = $this->student('N2-HV2', 'Bình', '0901000002', $class, parentPhone: '0911000002');
+        $s3 = $this->student('N2-HV3', 'Chi', '0901000003', $class, parentPhone: '0911000003');
+        $s4 = $this->student('N2-HV4', 'Dũng', '0901000004', $class, parentPhone: '0911000004');
         CrmCustomer::create([
             'code' => 'KH-N2-1', 'name' => $s1->name, 'phone' => '0911000001', 'parent_name' => 'PH An', 'parent_phone' => '0987000111',
             'branch_id' => $this->branch->id, 'stage' => 'won', 'converted_student_id' => $s1->id,
@@ -265,7 +266,7 @@ class Phase2AcceptanceTest extends TestCase
 
         $this->actingAs($this->teacher)->post(route('teacher.remarks.store', $class->id), [
             'remarks' => [$s1->id => ['grammar' => 'Tốt', 'attitude' => 'Hăng hái', 'result' => 'Đạt', 'comment' => 'Phát âm rõ.']],
-        ])->assertRedirect(route('teacher.home'));
+        ])->assertSessionHasNoErrors()->assertRedirect(route('teacher.remarks', ['classId' => $class->id, 'session' => $today->id]));
 
         $this->actingAs($this->teacher)->post(route('teacher.scores.store', $class->id), [
             'name' => 'Mini Test Unit 1', 'test_date' => today()->toDateString(), 'max_score' => 20,
@@ -303,6 +304,8 @@ class Phase2AcceptanceTest extends TestCase
         $this->assertSame('pending', $order->status);
         $this->assertSame($examAt->copy()->subDays(BigTestOrder::LEAD_DAYS)->toDateString(), $order->due_date->toDateString());
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://drive.test/de'])->assertForbidden();
+        // BPMN: Học thuật duyệt order đề — Học vụ không có quyền duyệt (big_test.approve).
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://drive.test/de'])->assertForbidden();
 
         $this->actingAs($this->lead)->post(route('syllabus.big-tests.store'), [
             'title' => 'Big Test chặng 1', 'class_id' => $class->id, 'test_type' => 'stage_end', 'scheduled_at' => $examAt->format('Y-m-d H:i'), 'room' => 'P202',
@@ -350,6 +353,7 @@ class Phase2AcceptanceTest extends TestCase
             ->assertViewHas('bigTestResults', fn ($results) => $results->isEmpty());
 
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.approve', $bigTest->id))->assertForbidden();
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.results.approve', $bigTest->id))->assertForbidden();
         $this->actingAs($this->lead)->post(route('syllabus.big-tests.results.approve', $bigTest->id))->assertSessionHasNoErrors();
         $this->assertSame(4, BigTestResult::where('big_test_id', $bigTest->id)->where('status', 'approved')->count());
         $this->assertTrue(SyllabusAssignment::open()->where('class_id', $class->id)->where('stage_id', $stage1->id)->exists(), 'Chưa gửi PH thì chặng chưa đóng.');
@@ -420,10 +424,10 @@ class Phase2AcceptanceTest extends TestCase
         $this->assertFalse(TeacherTimesheet::where('class_id', $farClass->id)->exists());
     }
 
-    private function student(string $code, string $name, string $phone, ClassModel $class, ?User $user = null): Student
+    private function student(string $code, string $name, string $phone, ClassModel $class, ?User $user = null, ?string $parentPhone = null): Student
     {
         return Student::create([
-            'code' => $code, 'name' => 'HV '.$name, 'phone' => $phone, 'branch_id' => $this->branch->id,
+            'code' => $code, 'name' => 'HV '.$name, 'phone' => $phone, 'parent_phone' => $parentPhone, 'branch_id' => $this->branch->id,
             'current_class_id' => $class->id, 'status' => 'studying', 'user_id' => $user?->id,
         ]);
     }

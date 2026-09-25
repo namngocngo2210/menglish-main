@@ -361,6 +361,10 @@ class DemoPhase2Seeder extends Seeder
 
         $open = SyllabusAssignment::open()->where('class_id', $class->id)->first();
         if ($open) {
+            // GV chính đặt ngày dự kiến Big Test chặng 2 (lệnh nhắc 7 ngày nhắc theo ngày này khi chưa có đợt thi).
+            $this->asUser($this->staff['teacher'], SyllabusController::class, 'updateExpectedBigTestDate', [
+                'expected_big_test_date' => today()->addDays(6)->toDateString(),
+            ], ['id' => $open->id]);
             $this->asUser($this->staff['teacher'], TeacherPortalController::class, 'submitOrderTest', [
                 'stage_name' => $open->stage_name, 'test_type' => 'big', 'exam_date' => today()->addDays(6)->toDateString(),
                 'note' => 'Đề cuối chặng 2, cần thêm phần Speaking.',
@@ -377,19 +381,28 @@ class DemoPhase2Seeder extends Seeder
         $this->asUser($this->lead, SyllabusController::class, 'approveBigTestResults', [], ['id' => $test->id]);
     }
 
-    /** BD FAM 1: Big Test vừa thi, GV đã nhập kết quả (có HV vắng thi) — chờ Học thuật duyệt. */
+    /** BD FAM 1: Big Test vừa thi, GV đã gửi duyệt kết quả (có HV vắng thi) — chờ Học thuật duyệt; 1 HV GV còn lưu nháp. */
     private function bigTestPendingReview(ClassModel $class): void
     {
         $examSession = $this->pastSessions($class)->last();
         $test = $this->scheduleBigTest($class, $examSession->date->copy()->setTime(17, 30), 'approved');
         $this->enterResults($test, $class, absentIndex: 0);
+        $last = $class->rosterStudents()->values()->last();
+        if ($last) {
+            $this->asUser($this->staff['teacher'], SyllabusController::class, 'storeBigTestResults', ['action' => 'draft', 'results' => [
+                ['student_id' => $last->id, 'listening_score' => 7, 'reading_score' => 7.5, 'progress_note' => 'Đang chấm lại phần Viết.'],
+            ]], ['id' => $test->id]);
+        }
     }
 
-    /** BD FAM 0: order đã duyệt kèm link đề, đợt thi trong 5 ngày tới (nhắc lịch 7 ngày). Thêm 1 order bị từ chối. */
+    /**
+     * BD FAM 0: Học thuật duyệt order kèm link đề + phần Speaking, hệ thống tự tạo đợt thi trong 5 ngày tới (nhắc lịch
+     * 7 ngày). Thêm 1 order bị từ chối.
+     */
     private function bigTestUpcoming(ClassModel $class): void
     {
         $examAt = today()->addDays(5)->setTime(8, 0);
-        $this->scheduleBigTest($class, $examAt, 'approved');
+        $this->scheduleBigTest($class, $examAt, 'approved', autoCreate: true);
 
         $this->asUser($this->staff['teacher'], TeacherPortalController::class, 'submitOrderTest', [
             'stage_name' => 'Mini test Unit 2', 'test_type' => 'mini', 'exam_date' => today()->addDays(2)->toDateString(), 'note' => 'Đề 15 phút.',
@@ -404,7 +417,7 @@ class DemoPhase2Seeder extends Seeder
      * GV order đề → Học thuật tạo đợt thi (tự gắn chặng đang mở) → duyệt order kèm link + gắn đợt thi (đợt thi được
      * phân phối). Đợt thi đã qua: order lưu thẳng (màn order chỉ nhận ngày thi từ hôm nay), ngày tạo lùi về trước.
      */
-    private function scheduleBigTest(ClassModel $class, Carbon $examAt, string $orderStatus): BigTest
+    private function scheduleBigTest(ClassModel $class, Carbon $examAt, string $orderStatus, bool $autoCreate = false): BigTest
     {
         $open = SyllabusAssignment::open()->where('class_id', $class->id)->firstOrFail();
         $teacher = $this->staff['teacher'];
@@ -425,6 +438,17 @@ class DemoPhase2Seeder extends Seeder
             $order->forceFill(['created_at' => $examAt->copy()->subDays(10), 'updated_at' => $examAt->copy()->subDays(10)])->saveQuietly();
         }
 
+        if ($autoCreate) {
+            // Duyệt order không gắn đợt thi có sẵn → hệ thống tự tạo đợt Big Test (chặng đang mở, đã phân phối).
+            $this->asUser($this->lead, SyllabusController::class, 'approveBigTestOrder', [
+                'test_link' => 'https://drive.google.com/demo-de/'.strtolower($order->code),
+                'speaking_link' => 'https://drive.google.com/demo-de/'.strtolower($order->code).'/speaking',
+                'scheduled_at' => $examAt->format('Y-m-d H:i'), 'room' => $class->room ?: 'P101', 'title' => $title,
+            ], ['id' => $order->id]);
+
+            return BigTest::findOrFail($order->fresh()->big_test_id);
+        }
+
         $this->asUser($this->lead, SyllabusController::class, 'storeBigTest', [
             'title' => $title, 'class_id' => $class->id, 'test_type' => 'stage_end',
             'scheduled_at' => $examAt->format('Y-m-d H:i'), 'room' => $class->room ?: 'P101',
@@ -433,7 +457,9 @@ class DemoPhase2Seeder extends Seeder
 
         if ($orderStatus === 'approved') {
             $this->asUser($this->lead, SyllabusController::class, 'approveBigTestOrder', [
-                'test_link' => 'https://drive.google.com/demo-de/'.strtolower($test->code), 'big_test_id' => $test->id,
+                'test_link' => 'https://drive.google.com/demo-de/'.strtolower($test->code),
+                'speaking_link' => 'https://drive.google.com/demo-de/'.strtolower($test->code).'/speaking',
+                'big_test_id' => $test->id,
             ], ['id' => $order->id]);
         }
 

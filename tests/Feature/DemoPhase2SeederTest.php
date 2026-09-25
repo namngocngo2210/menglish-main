@@ -73,10 +73,17 @@ class DemoPhase2SeederTest extends TestCase
         $this->assertTrue(BigTestOrder::where('class_id', $cg1->id)->where('status', 'pending')->exists());
         $this->assertNotNull($cg1->foreign_teacher_id);
         // Trạng thái kết quả Big Test: chờ duyệt / đã duyệt / đã gửi.
-        foreach (['pending_review', 'approved', 'sent'] as $status) {
+        foreach (['draft', 'pending_review', 'approved', 'sent'] as $status) {
             $this->assertTrue(BigTestResult::where('status', $status)->exists(), "Thiếu kết quả {$status}.");
         }
         $this->assertTrue(BigTestOrder::where('status', 'rejected')->whereNotNull('rejection_reason')->exists());
+        // Duyệt order tự tạo đợt thi (BD FAM 0) kèm link phần Speaking; ngày dự kiến Big Test chặng 2 (CG FAM 1) được nhắc.
+        $autoTest = BigTest::where('class_id', $classes['DEMO-BD-FAM0']->id)->firstOrFail();
+        $this->assertTrue($autoTest->is_distributed);
+        $this->assertNotNull($autoTest->speaking_url);
+        $this->assertSame($autoTest->id, (int) BigTestOrder::where('class_id', $classes['DEMO-BD-FAM0']->id)->where('status', 'approved')->value('big_test_id'));
+        $this->assertNotNull(SyllabusAssignment::open()->where('class_id', $cg1->id)->value('big_test_reminded_for'));
+        $this->assertSame(0, Student::where('code', 'like', 'HV-DEMO-%')->where('status', 'studying')->whereNull('parent_phone')->count(), 'HV demo có SĐT phụ huynh.');
         $this->assertTrue(AdminNotification::where('type', 'big_test_upcoming')->exists(), 'Nhắc lịch Big Test 7 ngày.');
         foreach ([SupportListService::SOURCE_ATTENDANCE, SupportListService::SOURCE_MINI_TEST, SupportListService::SOURCE_BIG_TEST] as $source) {
             $this->assertTrue(ClassReportStudentSupport::where('source', $source)->exists(), "Danh sách bổ trợ thiếu nguồn {$source}.");
