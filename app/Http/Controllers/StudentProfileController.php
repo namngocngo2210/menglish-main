@@ -452,11 +452,8 @@ class StudentProfileController extends Controller
             return;
         }
 
-        $taken = ClassEnrollment::where('class_id', $class->id)
-            ->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)
-            ->count();
-
-        if ($taken >= $locked->max_capacity) {
+        // Cùng cách đếm sĩ số với màn lớp và CRM (lớp chính + lớp liên kết, bỏ bảo lưu/thôi học).
+        if (! $locked->hasSeatsFor()) {
             throw ValidationException::withMessages([$field => "Lớp {$class->name} đã đủ sĩ số ({$locked->max_capacity} học viên)."]);
         }
     }
