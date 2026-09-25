@@ -24,6 +24,9 @@ class PayrollBusinessTest extends TestCase
 
     private User $teacherUser;
 
+    /** Chỉ Admin được tạo/duyệt/chi trả kỳ lương (flow §15). */
+    private User $payrollAdmin;
+
     private Branch $branch;
 
     private ClassModel $classModel;
@@ -49,6 +52,9 @@ class PayrollBusinessTest extends TestCase
             'is_active' => true,
         ]);
         $this->hrManager->assignRole('manager');
+
+        $this->payrollAdmin = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
+        $this->payrollAdmin->assignRole('admin');
 
         $this->teacherUser = User::factory()->create([
             'branch_id' => $this->branch->id,
@@ -205,7 +211,7 @@ class PayrollBusinessTest extends TestCase
             'year' => 2026,
         ];
 
-        $response = $this->actingAs($this->hrManager)->post(route('payroll.periods.store'), $payload);
+        $response = $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.store'), $payload);
 
         $period = PayrollPeriod::where('month', 8)->where('year', 2026)->first();
         $this->assertNotNull($period);
@@ -219,7 +225,7 @@ class PayrollBusinessTest extends TestCase
         $this->assertEquals('reviewing', $period->status);
 
         // Approve period
-        $responseApprove = $this->actingAs($this->hrManager)->post(route('payroll.periods.approve', $period->id));
+        $responseApprove = $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.approve', $period->id));
         $responseApprove->assertRedirect();
 
         $period->refresh();
@@ -523,33 +529,33 @@ class PayrollBusinessTest extends TestCase
             'status' => 'valid',
         ]);
 
-        $this->actingAs($this->hrManager)->post(route('payroll.periods.store'), ['month' => 3, 'year' => 2027]);
+        $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.store'), ['month' => 3, 'year' => 2027]);
         $period = PayrollPeriod::where('month', 3)->where('year', 2027)->firstOrFail();
         $this->assertSame('reviewing', $period->status);
 
         // Chưa duyệt không được đánh dấu đã chi trả
-        $this->actingAs($this->hrManager)->post(route('payroll.periods.mark-paid', $period->id))
+        $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.mark-paid', $period->id))
             ->assertStatus(422);
         $this->assertSame('reviewing', $period->fresh()->status);
 
-        $this->actingAs($this->hrManager)->post(route('payroll.periods.approve', $period->id))->assertRedirect();
-        $this->actingAs($this->hrManager)->post(route('payroll.periods.mark-paid', $period->id))->assertRedirect();
+        $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.approve', $period->id))->assertRedirect();
+        $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.mark-paid', $period->id))->assertRedirect();
 
         $period->refresh();
         $this->assertSame('paid', $period->status);
         $this->assertSame('paid', $period->records()->first()->status);
 
         // Kỳ đã chi trả bị khóa hoàn toàn
-        $this->actingAs($this->hrManager)->post(route('payroll.periods.calculate', $period->id))
+        $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.calculate', $period->id))
             ->assertStatus(422);
-        $this->actingAs($this->hrManager)->post(route('payroll.periods.approve', $period->id))
+        $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.approve', $period->id))
             ->assertStatus(422);
     }
 
     public function test_duplicate_payroll_period_is_rejected(): void
     {
-        $this->actingAs($this->hrManager)->post(route('payroll.periods.store'), ['month' => 5, 'year' => 2027])->assertRedirect();
-        $this->actingAs($this->hrManager)->post(route('payroll.periods.store'), ['month' => 5, 'year' => 2027])
+        $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.store'), ['month' => 5, 'year' => 2027])->assertRedirect();
+        $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.store'), ['month' => 5, 'year' => 2027])
             ->assertSessionHasErrors('month');
 
         $this->assertSame(1, PayrollPeriod::where('month', 5)->where('year', 2027)->count());
