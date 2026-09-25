@@ -36,6 +36,10 @@
         }
     }">
 
+        @if (session('status'))
+            <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">{{ session('status') }}</div>
+        @endif
+
         <!-- Security Banner -->
         <div class="p-4 bg-indigo-50/70 border-l-4 border-indigo-600 rounded-r-2xl flex items-start gap-3 text-xs shadow-2xs">
             <span class="material-symbols-outlined text-indigo-600 text-xl shrink-0 mt-0.5">security</span>
@@ -72,7 +76,7 @@
                             <span class="material-symbols-outlined text-gray-500 text-[18px]">apartment</span>
                             <div>
                                 <p class="text-[10px] text-gray-400 font-bold uppercase">Cơ sở trực thuộc</p>
-                                <p class="font-semibold text-gray-900">{{ $user->branch?->name ?? 'Cơ sở Cầu Giấy' }}</p>
+                                <p class="font-semibold text-gray-900">{{ $user->branch?->name ?? 'Chưa gán chi nhánh' }}</p>
                             </div>
                         </div>
 
@@ -88,7 +92,7 @@
                             <span class="material-symbols-outlined text-gray-500 text-[18px]">call</span>
                             <div>
                                 <p class="text-[10px] text-gray-400 font-bold uppercase">Số điện thoại</p>
-                                <p class="font-semibold text-gray-900 font-mono">{{ $user->phone ?? '0912 345 678' }}</p>
+                                <p class="font-semibold text-gray-900 font-mono">{{ $user->phone ?? 'Chưa cập nhật' }}</p>
                             </div>
                         </div>
 
@@ -139,22 +143,30 @@
                     @csrf
                     @method('PUT')
 
+                    @if ($errors->any())
+                        <div class="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs space-y-0.5">
+                            @foreach ($errors->all() as $error)
+                                <p>{{ $error }}</p>
+                            @endforeach
+                        </div>
+                    @endif
+
                     <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
                         <div class="p-4 border-b border-gray-200 bg-gray-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div>
                                 <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2">
                                     <span class="material-symbols-outlined text-indigo-600 text-[18px]">grid_view</span>
-                                    <span>Ma trận phân quyền chi tiết theo module</span>
+                                    <span>Ma trận phân quyền chi tiết</span>
                                 </h3>
-                                <p class="text-[11px] text-gray-500 mt-0.5">Tổng cộng {{ count($permissionsByModule) }} nhóm chức năng với {{ $permissionsByModule->flatten()->count() }} quyền hạn</p>
+                                <p class="text-[11px] text-gray-500 mt-0.5">Mỗi ô: <strong>—</strong> kế thừa vai trò · <strong class="text-emerald-700">✓</strong> cấp thêm · <strong class="text-rose-700">✕</strong> thu hồi. Bỏ trống phạm vi = Toàn hệ thống.</p>
                             </div>
                             <div class="flex items-center gap-2 text-xs">
                                 <span class="text-gray-400 font-bold uppercase text-[10px]">Chọn nhanh:</span>
                                 <button type="button" @click="setAll('allow')" class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold hover:bg-emerald-100 transition">
-                                    Cho phép tất cả
+                                    Chọn tất cả
                                 </button>
                                 <button type="button" @click="setAll('inherit')" class="px-2.5 py-1 rounded-lg bg-gray-100 text-gray-700 border border-gray-200 font-bold hover:bg-gray-200 transition">
-                                    Kế thừa mặc định
+                                    Bỏ chọn
                                 </button>
                             </div>
                         </div>
@@ -163,56 +175,73 @@
                             <table class="w-full text-left border-collapse text-xs">
                                 <thead>
                                     <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
-                                        <th class="py-3 px-4 w-2/5">Danh mục quyền hạn</th>
-                                        <th class="py-3 px-4 text-center">Vai trò gốc</th>
-                                        <th class="py-3 px-4 text-right">Thiết lập riêng cho nhân sự</th>
+                                        <th class="py-3 px-4">Danh mục module</th>
+                                        @foreach (\App\Models\UserPermissionOverride::MATRIX_ACTIONS as $actionLabel)
+                                            <th class="py-3 px-2 text-center">{{ $actionLabel }}</th>
+                                        @endforeach
+                                        <th class="py-3 px-4">Phạm vi áp dụng</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
                                     @foreach ($permissionsByModule as $module => $permissions)
-                                        <tr class="bg-slate-50/90 border-y border-slate-200/80">
-                                            <td colspan="3" class="py-2.5 px-4 font-bold text-gray-900 text-xs flex items-center justify-between">
-                                                <div class="flex items-center gap-2">
-                                                    <span class="w-2 h-2 rounded-full bg-primary-container"></span>
-                                                    <span>{{ \App\Helpers\AclHelper::moduleLabel($module) }}</span>
-                                                </div>
-                                                <span class="font-mono text-[10px] text-gray-400 font-normal bg-white px-2 py-0.5 rounded border border-gray-200">{{ $permissions->count() }} quyền ({{ $module }})</span>
+                                        @php
+                                            $moduleActions = $permissions->map(fn ($p) => explode('.', $p->name, 2)[1] ?? $p->name);
+                                            $extraActions = $moduleActions->reject(fn ($a) => array_key_exists($a, \App\Models\UserPermissionOverride::MATRIX_ACTIONS))->values();
+                                            $scope = $scopes->get($module, ['type' => 'all', 'ids' => []]);
+                                            $scopeType = old("scope.{$module}.type", $scope['type']);
+                                            $scopeIds = collect(old("scope.{$module}.ids", $scope['ids']))->map(fn ($id) => (int) $id)->all();
+                                            $supportsScope = \App\Models\UserPermissionOverride::supportsScope($module);
+                                        @endphp
+                                        <tr class="hover:bg-orange-50/15 transition align-top" x-data="{ scopeType: '{{ $scopeType }}' }">
+                                            <td class="py-3 px-4">
+                                                <div class="font-bold text-gray-900 text-xs">{{ \App\Helpers\AclHelper::moduleLabel($module) }}</div>
+                                                <div class="font-mono text-[10px] text-gray-400">{{ $module }}</div>
+                                                @if ($extraActions->isNotEmpty())
+                                                    <details class="mt-1.5">
+                                                        <summary class="cursor-pointer text-[11px] font-semibold text-indigo-600">Quyền khác ({{ $extraActions->count() }})</summary>
+                                                        <div class="mt-1.5 space-y-1">
+                                                            @foreach ($extraActions as $action)
+                                                                @include('users.partials.permission-cell', ['module' => $module, 'action' => $action, 'label' => \App\Helpers\AclHelper::actionLabel("{$module}.{$action}"), 'inline' => true])
+                                                            @endforeach
+                                                        </div>
+                                                    </details>
+                                                @endif
                                             </td>
-                                        </tr>
-                                        @foreach ($permissions as $permission)
-                                            @php
-                                                $action = explode('.', $permission->name, 2)[1] ?? $permission->name;
-                                                $hasRolePermission = in_array($permission->name, $rolePermissions, true);
-                                                $override = $overrides->get($permission->name);
-                                                $current = $override?->allow === true ? 'allow' : ($override?->allow === false ? 'deny' : 'inherit');
-                                            @endphp
-                                            <tr class="hover:bg-orange-50/15 transition">
-                                                <td class="py-3 px-4 pl-8">
-                                                    <div class="font-bold text-gray-900 text-xs">{{ \App\Helpers\AclHelper::actionLabel($permission->name) }}</div>
-                                                    <div class="font-mono text-[10px] text-gray-400">{{ $permission->name }}</div>
-                                                </td>
-                                                <td class="py-3 px-4 text-center whitespace-nowrap">
-                                                    @if ($hasRolePermission)
-                                                        <span class="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
-                                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Có quyền
-                                                        </span>
+                                            @foreach (array_keys(\App\Models\UserPermissionOverride::MATRIX_ACTIONS) as $action)
+                                                <td class="py-3 px-2 text-center">
+                                                    @if ($moduleActions->contains($action))
+                                                        @include('users.partials.permission-cell', ['module' => $module, 'action' => $action, 'label' => null, 'inline' => false])
                                                     @else
-                                                        <span class="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-400 font-medium">
-                                                            Không
-                                                        </span>
+                                                        <span class="text-gray-300" title="Module không có quyền này">·</span>
                                                     @endif
                                                 </td>
-                                                <td class="py-3 px-4 text-right whitespace-nowrap">
-                                                    <select name="overrides[{{ $module }}][{{ $action }}]"
-                                                            class="permission-select rounded-xl border-gray-200 text-xs py-1.5 px-3 font-semibold shadow-2xs {{ $current === 'allow' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : ($current === 'deny' ? 'bg-rose-50 text-rose-800 border-rose-300' : 'bg-white text-gray-700') }}"
-                                                            onchange="this.className = 'permission-select rounded-xl text-xs py-1.5 px-3 font-semibold shadow-2xs ' + (this.value === 'allow' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : (this.value === 'deny' ? 'bg-rose-50 text-rose-800 border-rose-300' : 'bg-white text-gray-700 border-gray-200'))">
-                                                        <option value="inherit" @selected($current === 'inherit')>Kế thừa theo vai trò (Mặc định)</option>
-                                                        <option value="allow" @selected($current === 'allow')>🟢 Cho phép (Cấp thêm quyền)</option>
-                                                        <option value="deny" @selected($current === 'deny')>🔴 Từ chối (Thu hồi quyền)</option>
+                                            @endforeach
+                                            <td class="py-3 px-4 min-w-[220px]">
+                                                @if ($supportsScope)
+                                                    <select name="scope[{{ $module }}][type]" x-model="scopeType" class="w-full rounded-xl border-gray-200 text-xs py-1.5 px-2 shadow-2xs">
+                                                        <option value="all">Toàn hệ thống (Mặc định)</option>
+                                                        <option value="branch">Theo chi nhánh</option>
+                                                        <option value="class">Theo lớp</option>
                                                     </select>
-                                                </td>
-                                            </tr>
-                                        @endforeach
+                                                    <select name="scope[{{ $module }}][ids][]" multiple x-show="scopeType === 'branch'" :disabled="scopeType !== 'branch'" class="mt-1.5 w-full rounded-xl border-gray-200 text-xs py-1 px-2 h-20">
+                                                        @foreach ($branches as $branch)
+                                                            <option value="{{ $branch->id }}" @selected($scopeType === 'branch' && in_array($branch->id, $scopeIds, true))>{{ $branch->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <select name="scope[{{ $module }}][ids][]" multiple x-show="scopeType === 'class'" :disabled="scopeType !== 'class'" class="mt-1.5 w-full rounded-xl border-gray-200 text-xs py-1 px-2 h-20">
+                                                        @foreach ($classes as $class)
+                                                            <option value="{{ $class->id }}" @selected($scopeType === 'class' && in_array($class->id, $scopeIds, true))>{{ $class->name }}{{ $class->code ? " ({$class->code})" : '' }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <p class="mt-1 text-[10px] text-gray-400">Giữ Ctrl/⌘ để chọn nhiều.</p>
+                                                @else
+                                                    <span class="inline-flex items-center gap-1 text-[11px] text-gray-500" title="Phân hệ này chưa hỗ trợ giới hạn theo chi nhánh/lớp">
+                                                        <span class="material-symbols-outlined text-[14px]">language</span>
+                                                        Toàn hệ thống
+                                                    </span>
+                                                @endif
+                                            </td>
+                                        </tr>
                                     @endforeach
                                 </tbody>
                             </table>
@@ -222,7 +251,7 @@
                         <div class="p-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div class="text-xs text-gray-500 flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-[16px] text-gray-400">info</span>
-                                <span>Nhấp "Lưu thay đổi" để áp dụng cấu hình phân quyền ngay lập tức.</span>
+                                <span>Phạm vi chi nhánh/lớp hiện áp dụng cho phân hệ Lớp học (Xem / Sửa / Xóa).</span>
                             </div>
                             <div class="flex items-center gap-3">
                                 <a href="{{ route('users.index') }}" class="px-4 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold transition">
@@ -248,7 +277,7 @@
                     </div>
                     <div>
                         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cơ sở công tác</p>
-                        <p class="text-xl font-bold text-indigo-700 mt-0.5 truncate">{{ $user->branch?->name ?? 'Cơ sở Cầu Giấy' }}</p>
+                        <p class="text-xl font-bold text-indigo-700 mt-0.5 truncate">{{ $user->branch?->name ?? 'Chưa gán chi nhánh' }}</p>
                     </div>
                 </div>
             </section>

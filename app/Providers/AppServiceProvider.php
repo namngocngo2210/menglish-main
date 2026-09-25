@@ -148,8 +148,28 @@ class AppServiceProvider extends ServiceProvider
             );
 
             // Có override phạm vi "all" => quyết định luôn (allow hoặc deny).
+            if ($override !== null) {
+                return (bool) $override->allow;
+            }
+
+            // Override "cho phép" theo chi nhánh/lớp: chỉ mở cửa route cho các
+            // module đã lọc dữ liệu theo phạm vi (UserPermissionOverride::SCOPE_ENFORCED);
+            // dữ liệu ngoài phạm vi bị chặn trong module (vd. ClassModel::scopeVisibleTo).
+            if (UserPermissionOverride::supportsScope($module, $action)) {
+                $hasScopedAllow = $user->getRelation('permissionOverrides')->contains(
+                    fn (UserPermissionOverride $o) => $o->module === $module
+                        && $o->action === $action
+                        && $o->scope_type !== UserPermissionOverride::SCOPE_ALL
+                        && $o->allow
+                );
+
+                if ($hasScopedAllow) {
+                    return true;
+                }
+            }
+
             // Không có => trả null để fallback về quyền theo role (Spatie).
-            return $override !== null ? (bool) $override->allow : null;
+            return null;
         });
     }
 }
