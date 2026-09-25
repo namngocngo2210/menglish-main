@@ -2,12 +2,6 @@
     @include('crm.partials.header-tabs')
 
     <!-- Success flash banner -->
-    @if (session('status'))
-        <div class="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs font-semibold text-emerald-800 flex items-center gap-2 shadow-sm">
-            <span class="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
-            <span>{{ session('status') }}</span>
-        </div>
-    @endif
 
     <div class="space-y-4">
         <!-- Search & Filters -->

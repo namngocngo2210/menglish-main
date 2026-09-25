@@ -4,7 +4,7 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-amber-600">payments</span>
-                    Danh sách Học viên &amp; Thu học phí (Database)
+                    Danh sách Học viên &amp; Thu học phí
                 </h1>
                 <p class="text-xs text-gray-500">Quản lý theo dõi công nợ, hạn nộp học phí và lập phiếu thu trực tiếp</p>
             </div>

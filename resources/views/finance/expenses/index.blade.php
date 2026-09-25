@@ -26,17 +26,6 @@
 
     <div class="space-y-6">
 
-        @if (session('status'))
-            <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-sm text-emerald-800 flex items-center justify-between shadow-xs">
-                <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-emerald-600">check_circle</span>
-                    <span>{{ session('status') }}</span>
-                </div>
-                <button type="button" onclick="this.parentElement.remove()" class="text-emerald-500 hover:text-emerald-700">
-                    <span class="material-symbols-outlined text-lg">close</span>
-                </button>
-            </div>
-        @endif
 
         <!-- 1. Thống kê KPI tóm tắt 4 thẻ -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

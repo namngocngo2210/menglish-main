@@ -33,12 +33,6 @@
         }
     }">
 
-        @if (session('status'))
-            <div class="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl flex items-center gap-3 text-xs font-semibold shadow-2xs">
-                <span class="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
-                <span>{{ session('status') }}</span>
-            </div>
-        @endif
 
         @if ($errors->any())
             <div class="p-4 rounded-2xl bg-rose-50 text-rose-800 border border-rose-200 text-xs font-semibold">

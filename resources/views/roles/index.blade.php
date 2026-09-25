@@ -20,12 +20,6 @@
     </x-slot>
 
     <div class="max-w-5xl mx-auto space-y-4">
-        @if (session('status'))
-            <div class="p-4 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center gap-2">
-                <span class="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
-                <span>{{ session('status') }}</span>
-            </div>
-        @endif
 
         @if ($errors->any())
             <div class="p-4 rounded-2xl bg-rose-50 text-rose-800 border border-rose-200 text-xs font-semibold flex items-center gap-2">

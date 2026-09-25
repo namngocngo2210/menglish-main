@@ -8,7 +8,7 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">currency_exchange</span>
-                        Khất Nợ / Hoàn Phí / Xé Lẻ &amp; Chuyển Nhượng Học Phí (Database)
+                        Khất Nợ / Hoàn Phí / Xé Lẻ &amp; Chuyển Nhượng Học Phí
                     </h1>
                     <p class="text-xs text-gray-500">Xử lý xé lẻ số buổi học thừa, chuyển nhượng số dư sang học viên khác và lưu nhật ký đối soát tài chính</p>
                 </div>
@@ -151,7 +151,7 @@
             <div class="p-4 border-b border-gray-100 font-bold text-xs text-gray-900 uppercase tracking-wider flex items-center justify-between">
                 <span class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary text-base">history_edu</span>
-                    Nhật Ký Thao Tác &amp; Hồ Sơ Xử Lý Học Phí (Audit Log)
+                    Nhật Ký Thao Tác &amp; Hồ Sơ Xử Lý Học Phí
                 </span>
                 <span class="text-[11px] font-normal text-gray-400 font-mono">{{ count($refundRequests) }} bản ghi</span>
             </div>

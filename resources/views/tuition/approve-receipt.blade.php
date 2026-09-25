@@ -19,12 +19,6 @@
     </x-slot>
 
     <div class="max-w-[1520px] mx-auto space-y-5" x-data="{ showApproveModal: false, showRejectModal: false, zoomImage: false }">
-        @if (session('status'))
-            <div class="p-4 bg-emerald-50 border-l-4 border-emerald-500 rounded-r-xl text-xs text-emerald-800 flex items-center gap-2 shadow-xs">
-                <span class="material-symbols-outlined text-emerald-600 text-lg">check_circle</span>
-                <span>{{ session('status') }}</span>
-            </div>
-        @endif
 
         @if (isset($errors) && $errors->any())
             <div class="p-4 bg-rose-50 border-l-4 border-rose-500 rounded-r-xl text-xs text-rose-800 space-y-1 shadow-xs">

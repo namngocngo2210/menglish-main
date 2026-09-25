@@ -7,7 +7,7 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">tune</span>
-                    Cấu Hình Dải Số Hóa Đơn &amp; Mẫu Hóa Đơn Điện Tử (Database)
+                    Cấu Hình Dải Số Hóa Đơn &amp; Mẫu Hóa Đơn Điện Tử
                 </h1>
                 <p class="text-xs text-gray-500">Thiết lập ký hiệu mẫu số, ký hiệu hóa đơn, số hiện tại và nhà cung cấp HĐĐT</p>
             </div>

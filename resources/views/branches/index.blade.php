@@ -36,12 +36,6 @@
     }">
 
         <!-- Flash messages -->
-        @if (session('status'))
-            <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs font-semibold text-emerald-800 flex items-center gap-2 shadow-2xs">
-                <span class="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
-                <span>{{ session('status') }}</span>
-            </div>
-        @endif
 
         @if (session('error') || $errors->any())
             <div class="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-semibold text-rose-800 flex items-center gap-2 shadow-2xs">

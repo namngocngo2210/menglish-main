@@ -4,7 +4,7 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">school</span>
-                    Danh sách Hồ sơ Học viên (Database)
+                    Danh sách Hồ sơ Học viên
                 </h1>
                 <p class="text-xs text-gray-500">Quản lý toàn bộ thông tin học tập, chuyên cần, bài tập về nhà và tiến độ điểm số</p>
             </div>

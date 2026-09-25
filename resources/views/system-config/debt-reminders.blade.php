@@ -4,7 +4,7 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-amber-600">notifications_active</span>
-                    Mẫu Tin Nhắn Nhắc Nợ Học Phí Tự Động (Database)
+                    Mẫu Tin Nhắn Nhắc Nợ Học Phí Tự Động
                 </h1>
                 <p class="text-xs text-gray-500">Cấu hình mẫu tin nhắn gửi qua Zalo ZNS / SMS Brandname theo các mốc T-3, T0, T+3</p>
             </div>

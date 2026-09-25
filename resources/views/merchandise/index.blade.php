@@ -21,12 +21,6 @@
     </x-slot>
 
     <div class="max-w-7xl mx-auto space-y-6">
-        @if (session('status'))
-            <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 text-xs text-emerald-800 shadow-xs">
-                <span class="material-symbols-outlined text-emerald-600 text-lg">check_circle</span>
-                <span class="font-medium">{{ session('status') }}</span>
-            </div>
-        @endif
 
         <!-- Metrics Overview Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">

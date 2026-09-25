@@ -4,7 +4,7 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">more_time</span>
-                    Nhật ký Chấm công Giáo viên (Database)
+                    Nhật ký Chấm công Giáo viên
                 </h1>
                 <p class="text-xs text-gray-500">Tra cứu ca dạy thực tế, đối soát giờ dạy FaceID và tính thù lao</p>
             </div>

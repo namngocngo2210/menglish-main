@@ -4,7 +4,7 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">receipt_long</span>
-                    Lịch sử Giao dịch &amp; Biên lai Học phí (Database)
+                    Lịch sử Giao dịch &amp; Biên lai Học phí
                 </h1>
                 <p class="text-xs text-gray-500">Tra cứu toàn bộ phiếu thu đã xuất, in phiếu thu A4/A5 và tình trạng tiền về tài khoản</p>
             </div>

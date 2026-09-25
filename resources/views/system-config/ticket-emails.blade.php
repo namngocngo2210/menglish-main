@@ -152,12 +152,6 @@
         </div>
 
         <!-- Session Status & Alerts -->
-        @if (session('status'))
-            <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-3 shadow-xs">
-                <span class="material-symbols-outlined text-emerald-600 shrink-0">check_circle</span>
-                <div class="font-semibold">{{ session('status') }}</div>
-            </div>
-        @endif
 
         
 

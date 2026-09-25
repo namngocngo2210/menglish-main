@@ -17,9 +17,6 @@
     </x-slot>
 
     <div class="max-w-3xl mx-auto space-y-5">
-        @if (session('status'))
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">{{ session('status') }}</div>
-        @endif
 
         <div class="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-4 flex items-start gap-3 shadow-2xs">
             <span class="material-symbols-outlined text-[20px] text-secondary shrink-0 mt-0.5">info</span>

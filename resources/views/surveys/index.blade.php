@@ -12,9 +12,6 @@
     </x-slot>
 
     <div class="space-y-4">
-        @if (session('status'))
-            <div class="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-xs font-semibold text-emerald-900">{{ session('status') }}</div>
-        @endif
 
         <!-- Tạo khảo sát mới -->
         <form action="{{ route('surveys.store') }}" method="POST" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">

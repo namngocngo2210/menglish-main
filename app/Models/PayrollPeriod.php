@@ -54,10 +54,10 @@ class PayrollPeriod extends Model
     public function getStatusLabelAttribute(): string
     {
         return match ($this->status) {
-            'draft' => 'Đang tính toán (Draft)',
-            'reviewing' => 'Chờ Kế toán duyệt',
-            'approved' => 'Đã duyệt (Approved)',
-            'paid' => 'Đã chi trả',
+            'draft' => 'Đang tính',
+            'reviewing' => 'Đang soát',
+            'approved' => 'Đã duyệt',
+            'paid' => 'Đã trả',
             default => $this->status,
         };
     }

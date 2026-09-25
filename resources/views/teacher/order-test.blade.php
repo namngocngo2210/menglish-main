@@ -15,9 +15,6 @@
     </x-slot>
 
     <div class="space-y-4">
-        @if (session('success'))
-            <div class="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-xs font-semibold text-emerald-900">{{ session('success') }}</div>
-        @endif
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <!-- Chặng đang dạy -->
