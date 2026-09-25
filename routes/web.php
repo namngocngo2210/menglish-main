@@ -603,6 +603,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/attendance/{classId}', 'attendanceStore')->name('attendance.store');
         Route::get('/homework/{classId}', 'homework')->name('homework');
         Route::post('/homework/{classId}', 'homeworkStore')->name('homework.store');
+        Route::put('/homework/{classId}/{homeworkId}', 'homeworkUpdate')->name('homework.update');
         Route::delete('/homework/{classId}/{homeworkId}', 'homeworkDestroy')->name('homework.destroy');
         Route::get('/scores/{classId}', 'scores')->name('scores');
         Route::post('/scores/{classId}', 'scoresStore')->name('scores.store');

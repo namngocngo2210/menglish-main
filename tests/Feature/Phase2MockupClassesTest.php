@@ -413,4 +413,47 @@ class Phase2MockupClassesTest extends TestCase
         $this->actingAs($this->teacher)->get(route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $morning->id]))
             ->assertSee('Bản nháp')->assertSee('value="+5"', false)->assertSee('Tiến bộ');
     }
+
+    public function test_teacher_homework_form_matches_mockup_with_session_categories_and_locked_submitted_category(): void
+    {
+        $session = $this->makeSession('2026-10-07', '07:00', '08:00');
+        $student = $this->student('Học sinh Nộp Bài');
+
+        $this->actingAs($this->teacher)->get(route('teacher.homework', ['classId' => $this->classModel->id, 'session' => $session->id]))->assertOk()
+            ->assertSee('Giao bài tập về nhà')->assertSee('Thông tin chung')->assertSee('Buổi học')->assertSee('Hạn nộp')
+            ->assertSee('Ghi chú nhắc nhở cả lớp (Không bắt buộc)')->assertSee('Tài liệu tham khảo (Không bắt buộc)')
+            ->assertSee('Link YouTube nghe mẫu')->assertSee('File nghe đính kèm')->assertSee('Link Quizizz luyện thêm')
+            ->assertSee('Hạng mục bài tập')->assertSee('Chọn ít nhất 1 hạng mục')
+            ->assertSee('Quay video')->assertSee('Viết từ vựng')->assertSee('Workbook')->assertSee('Sách bổ trợ')->assertSee('Quiz')->assertSee('Sách bộ giáo dục')
+            ->assertSee('Lưu bài tập');
+
+        // Không chọn hạng mục → lỗi; hạng mục thiếu yêu cầu → lỗi.
+        $base = ['class_session_id' => $session->id, 'due_at' => '2026-10-10T20:00'];
+        $this->actingAs($this->teacher)->post(route('teacher.homework.store', $this->classModel->id), $base + ['categories' => []])
+            ->assertSessionHasErrors('categories');
+        $this->actingAs($this->teacher)->post(route('teacher.homework.store', $this->classModel->id), $base + ['categories' => ['video'], 'items' => ['video' => '']])
+            ->assertSessionHasErrors('items.video');
+
+        $this->actingAs($this->teacher)->post(route('teacher.homework.store', $this->classModel->id), $base + [
+            'categories' => ['video', 'workbook'], 'items' => ['video' => 'Quay video giới thiệu bản thân', 'workbook' => 'Trang 12-13'],
+            'class_note' => 'Nộp trước 12h chủ nhật', 'youtube_url' => 'https://youtube.com/watch?v=abc',
+        ])->assertSessionHasNoErrors();
+        $homework = \App\Models\Homework::sole();
+        $this->assertSame($session->id, $homework->class_session_id);
+        $this->assertSame('2026-10-10 20:00', $homework->due_at->format('Y-m-d H:i'));
+        $this->assertSame(['video' => 'Quay video giới thiệu bản thân', 'workbook' => 'Trang 12-13'], $homework->items);
+
+        // Học sinh nộp bài "video" → hạng mục bị khóa khi sửa, không bỏ được, không xóa được bài tập.
+        $this->travel(1)->hours();
+        \App\Models\AcademicRecord::create(['screen_key' => 'x', 'module' => 'student_portal', 'record_code' => 'SUB-MK2', 'title' => 'Bài nộp', 'status' => 'submitted',
+            'data' => ['student_id' => (string) $student->id, 'homework_type' => 'video']]);
+        $this->actingAs($this->teacher)->get(route('teacher.homework', ['classId' => $this->classModel->id, 'edit' => $homework->id]))
+            ->assertOk()->assertSee('Sửa bài tập về nhà')->assertSee('Đã có học sinh nộp');
+        $this->actingAs($this->teacher)->put(route('teacher.homework.update', [$this->classModel->id, $homework->id]), $base + [
+            'categories' => ['workbook'], 'items' => ['workbook' => 'Trang 14'],
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(['workbook', 'video'], array_keys($homework->fresh()->items));
+        $this->actingAs($this->teacher)->delete(route('teacher.homework.destroy', [$this->classModel->id, $homework->id]))->assertSessionHasErrors('homework');
+        $this->assertModelExists($homework);
+    }
 }
