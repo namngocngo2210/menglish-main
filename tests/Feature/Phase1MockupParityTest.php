@@ -164,6 +164,22 @@ class Phase1MockupParityTest extends TestCase
             ->assertSee('Khách Học Phí')->assertDontSee('Khách Không Nghe Máy');
     }
 
+    // ── 6. Báo cáo doanh số ──────────────────────────────────────────────
+
+    public function test_sales_report_shows_funnel_lost_reasons_and_data_note(): void
+    {
+        $this->lead('new');
+        $this->lead('lost', ['name' => 'Khách Ở Xa', 'lost_reason' => 'Vị trí xa nhà, không có người đưa đón', 'lost_at' => now()->subDays(2)]);
+
+        $this->actingAs($this->manager)->get(route('crm.reports'))->assertOk()
+            ->assertSee('Khoảng thời gian')->assertSee('Chi nhánh')->assertSee('Lọc dữ liệu')
+            ->assertSee('Giai đoạn chuyển đổi')->assertSee('Hẹn test')->assertSee('Chờ xếp lớp')
+            ->assertSee('Lý do khách không chốt')->assertSee('hồ sơ thất bại trong kỳ')
+            ->assertSee('Nội dung lý do (Log chi tiết)')->assertSee('Vị trí xa nhà, không có người đưa đón')->assertSee('Khách Ở Xa')
+            ->assertSee('Ghi chú về nguồn dữ liệu')
+            ->assertDontSee('[Plugin: crm_sales_report_tab]');
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────
 
     private function lead(string $stage, array $attributes = []): CrmCustomer

@@ -2118,7 +2118,11 @@ class CrmController extends Controller
                 break;
         }
 
-        $branches = Branch::where('is_active', true)->get();
+        // Admin chọn mọi chi nhánh; vai trò khác chỉ chi nhánh của mình (dữ liệu vẫn giới hạn bởi scopeVisibleTo).
+        $reportUser = $request->user();
+        $branches = Branch::where('is_active', true)
+            ->when(! $reportUser->hasRole('admin'), fn (Builder $q) => $q->whereIn('id', CrmCustomer::branchIdsOf($reportUser)))
+            ->orderBy('name')->get();
 
         // Query Base CRM Customers (scoped by user role)
         $query = $this->scopeCustomerQuery();
@@ -2174,6 +2178,9 @@ class CrmController extends Controller
         $lostDiff = $lostDeals - $prevLostDeals;
         $lostDeltaPercent = $prevLostDeals > 0 ? round(($lostDiff / $prevLostDeals) * 100, 1) : ($lostDeals > 0 ? 100 : 0);
 
+        // Mockup bao-cao-doanh-so — "Lý do khách không chốt" (log chi tiết theo khách trong kỳ).
+        $lostReasons = $lostCurrent->load('assignedUser')->sortByDesc(fn (CrmCustomer $c) => $c->lost_at ?? $c->created_at)->take(10)->values();
+
         $metricTotalLeads = $totalLeads;
         $metricWonDeals = $wonDeals;
         $metricConversionRate = $conversionRate;
@@ -2190,8 +2197,12 @@ class CrmController extends Controller
             'waiting_class' => 'Đã chốt, chờ Học vụ xếp lớp',
             'won' => 'Đã chốt và xếp lớp',
         ];
+        $stageIcons = [
+            'new' => 'person_add', 'consulting' => 'forum', 'test_scheduled' => 'calendar_today', 'testing' => 'edit_note',
+            'tested' => 'task_alt', 'result_sent' => 'mail', 'waiting_class' => 'pending_actions', 'won' => 'verified',
+        ];
         $cohortByStage = $allCurrent->countBy('stage');
-        $funnelStages = collect(CrmCustomer::PIPELINE_STAGES)->map(function (string $label, string $stage) use ($cohortByStage, $totalLeads, $stageDescriptions) {
+        $funnelStages = collect(CrmCustomer::PIPELINE_STAGES)->map(function (string $label, string $stage) use ($cohortByStage, $totalLeads, $stageDescriptions, $stageIcons) {
             $count = (int) $cohortByStage->get($stage, 0);
             $style = CrmCustomer::stageStyle($stage);
 
@@ -2199,6 +2210,7 @@ class CrmController extends Controller
                 'name' => $label, 'count' => $count,
                 'percent' => $totalLeads > 0 ? round(($count / $totalLeads) * 100, 1) : 0,
                 'bar_color' => $style['bar'], 'text_color' => $style['text'], 'desc' => $stageDescriptions[$stage],
+                'icon' => $stageIcons[$stage],
             ];
         })->values()->all();
 
@@ -2302,6 +2314,7 @@ class CrmController extends Controller
             'lostDeltaPercent',
             'lostDiff',
             'funnelStages',
+            'lostReasons',
             'repsData',
             'commissionTiers'
         ));
