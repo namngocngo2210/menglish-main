@@ -13,6 +13,9 @@
     @if ($filterBranches->isNotEmpty())
         <x-ui.select name="branch_id" inline-label="Chi nhánh:" :options="$filterBranches->pluck('name', 'id')" placeholder="Tất cả chi nhánh" aria-label="Chi nhánh" />
     @endif
+    @isset($filterClasses)
+        <x-ui.select name="class_id" inline-label="Lớp học:" :options="$filterClasses->pluck('name', 'id')" placeholder="Tất cả lớp" aria-label="Lớp học" />
+    @endisset
     <x-ui.date name="from" :value="request('from')" :inline-label="$dateLabel.' từ:'" />
     <x-ui.date name="to" :value="request('to')" inline-label="đến:" />
     @if ($exportable)

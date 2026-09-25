@@ -1319,7 +1319,15 @@ class CrmController extends Controller
     public function wonCustomers(Request $request)
     {
         $query = $this->scopeCustomerQuery()->where('stage', 'won');
+        // Lọc lớp chỉ trong các lớp của khách đã chốt mình được xem (mockup: Chi nhánh / Lớp học / Tìm kiếm).
+        $filterClasses = ClassModel::query()
+            ->whereIn('id', Student::query()->whereIn('id', (clone $query)->whereNotNull('converted_student_id')->select('converted_student_id'))
+                ->whereNotNull('current_class_id')->select('current_class_id'))
+            ->orderBy('name')->get(['id', 'name', 'code']);
         $this->applyListFilters($query, $request, 'converted_at');
+        if ($request->filled('class_id')) {
+            $query->whereHas('convertedStudent', fn (Builder $student) => $student->where('current_class_id', $request->integer('class_id')));
+        }
 
         if (in_array($request->input('export'), ['xlsx', 'csv'], true)) {
             return $this->exportWon((clone $query)->with(['branch', 'assignedUser', 'convertedStudent.tuition', 'convertedStudent.currentClass'])->latest('converted_at')->get(), $request->input('export'));
@@ -1336,7 +1344,7 @@ class CrmController extends Controller
             ->latest('converted_at')->latest()
             ->paginate($request->perPage(20))->withQueryString();
 
-        return view('crm.won', compact('wonCustomers', 'totalCount', 'totalContractAmount', 'totalCollectedAmount', 'totalDebtAmount')
+        return view('crm.won', compact('wonCustomers', 'totalCount', 'totalContractAmount', 'totalCollectedAmount', 'totalDebtAmount', 'filterClasses')
             + $this->waitingClassData() + $this->listFilterOptions());
     }
 

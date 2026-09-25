@@ -1,53 +1,59 @@
-{{-- Học viên đã chốt nhưng chưa có lớp (lead ở Chờ xếp lớp). Cần: $waitingLeads, $matchingClassesByLead --}}
-<div id="waiting-class" class="bg-white rounded-2xl border border-rose-200 shadow-sm overflow-hidden">
-    <div class="px-5 py-4 border-b border-rose-100 bg-rose-50/60 flex items-center justify-between gap-3 flex-wrap">
-        <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-rose-600">error</span>
+{{-- Học viên đã chốt nhưng chưa có lớp (khách ở Chờ xếp lớp) — mockup khach-hang-chot-thanh-cong, khu vực 1.
+     Cần: $waitingLeads, $matchingClassesByLead --}}
+<section id="waiting-class" class="overflow-hidden rounded-xl border border-error/20 bg-surface-container-lowest shadow-sm">
+    <div class="flex flex-wrap items-center justify-between gap-md border-b border-error/10 bg-error-container/30 px-lg py-md">
+        <div class="flex items-center gap-sm">
+            <span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1;">error</span>
             <div>
-                <h2 class="text-sm font-black text-gray-900">Chờ xếp lớp (Cần xử lý gấp)</h2>
-                <p class="text-xs text-gray-500">Hiện có {{ str_pad((string) $waitingLeads->count(), 2, '0', STR_PAD_LEFT) }} học viên đang đợi phân bổ vào lớp. Gợi ý lớp đúng khóa, đúng chi nhánh, còn chỗ.</p>
+                <h2 class="font-h3 text-h3 text-on-surface">Chờ xếp lớp (Cần xử lý gấp)</h2>
+                <p class="font-body-small text-body-small text-on-surface-variant">Hiện có <span class="font-bold text-error">{{ str_pad((string) $waitingLeads->count(), 2, '0', STR_PAD_LEFT) }}</span> học viên đang đợi phân bổ vào lớp mới. Gợi ý lớp đúng khóa, đúng chi nhánh, còn chỗ.</p>
             </div>
         </div>
-        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-rose-100 text-rose-700 text-[11px] font-bold">
+        <span class="inline-flex items-center gap-xs rounded-full bg-error/10 px-md py-xs font-caption text-caption font-bold text-error">
             <span class="material-symbols-outlined text-[14px]">schedule</span>Ưu tiên xử lý
         </span>
     </div>
-    <div class="overflow-x-auto">
-        <table class="w-full text-left text-xs min-w-[900px]">
-            <thead class="bg-gray-50 text-[11px] uppercase text-gray-500">
-                <tr>
-                    <th class="py-3 px-4">Họ tên</th>
-                    <th class="py-3 px-4">Số điện thoại</th>
-                    <th class="py-3 px-4">Chi nhánh &amp; Khóa</th>
-                    <th class="py-3 px-4">Thời điểm chốt</th>
-                    <th class="py-3 px-4 text-right">Hành động</th>
+    <div class="custom-scrollbar overflow-x-auto">
+        <table class="w-full min-w-[900px] text-left">
+            <thead class="bg-surface-container-low">
+                <tr class="font-label text-label uppercase text-on-surface-variant">
+                    <th class="px-md py-sm">Họ tên</th>
+                    <th class="px-md py-sm">Số điện thoại</th>
+                    <th class="px-md py-sm">Chi nhánh</th>
+                    <th class="px-md py-sm">Thời điểm chốt</th>
+                    <th class="px-md py-sm text-right">Hành động</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100">
+            <tbody class="divide-y divide-surface-container font-body-base text-body-base">
                 @forelse ($waitingLeads as $lead)
-                    @php($matches = $matchingClassesByLead->get($lead->id, collect()))
-                    <tr class="align-top">
-                        <td class="py-3 px-4">
-                            <a href="{{ route('crm.customers.show', $lead->id) }}" class="font-bold text-gray-900 hover:text-primary">{{ $lead->name }}</a>
-                            <div class="text-[11px] text-gray-400 font-mono">{{ $lead->convertedStudent?->code }}</div>
+                    @php
+                        $matches = $matchingClassesByLead->get($lead->id, collect());
+                        $waitDays = $lead->converted_at ? (int) $lead->converted_at->diffInDays(now()) : null;
+                    @endphp
+                    <tr class="align-top hover:bg-surface-container-low">
+                        <td class="px-md py-sm">
+                            <div class="flex items-center gap-sm">
+                                <x-ui.avatar :name="$lead->name" size="sm" />
+                                <div>
+                                    <a href="{{ route('crm.customers.show', $lead->id) }}" class="font-body-medium text-body-medium text-on-surface hover:text-primary">{{ $lead->name }}</a>
+                                    <div class="font-code text-caption text-on-surface-variant">{{ $lead->convertedStudent?->code }} · {{ $lead->waitingCourse?->name ?? 'Chưa chọn khóa' }}</div>
+                                </div>
+                            </div>
                         </td>
-                        <td class="py-3 px-4 font-mono">{{ $lead->phone }}</td>
-                        <td class="py-3 px-4">
-                            <div class="font-semibold text-gray-900">{{ $lead->branch?->name ?? '—' }}</div>
-                            <div class="text-gray-500">{{ $lead->waitingCourse?->name ?? 'Chưa chọn khóa' }}</div>
-                        </td>
-                        <td class="py-3 px-4">
-                            <div class="font-semibold">{{ $lead->converted_at?->format('H:i d/m/Y') ?? '—' }}</div>
-                            @if ($lead->converted_at)
-                                <div class="{{ $lead->converted_at->diffInDays(now()) >= 7 ? 'text-rose-600 font-bold' : 'text-gray-500' }}">Chờ {{ (int) $lead->converted_at->diffInDays(now()) }} ngày</div>
+                        <td class="px-md py-sm font-code text-code text-on-surface-variant">{{ $lead->phone }}</td>
+                        <td class="px-md py-sm"><span class="rounded bg-surface-container-high px-sm py-0.5 font-body-small text-body-small text-on-surface-variant">{{ $lead->waitingBranch?->name ?? $lead->branch?->name ?? '—' }}</span></td>
+                        <td class="px-md py-sm">
+                            <div class="font-code text-code text-on-surface">{{ $lead->converted_at?->format('H:i d/m/Y') ?? '—' }}</div>
+                            @if ($waitDays !== null)
+                                <div class="font-caption text-caption {{ $waitDays >= 7 ? 'font-bold text-error' : 'text-on-surface-variant' }}">Chờ {{ $waitDays }} ngày</div>
                             @endif
                         </td>
-                        <td class="py-3 px-4 text-right">
+                        <td class="px-md py-sm text-right">
                             @can('student.assign_class')
                                 @if ($matches->isNotEmpty())
-                                    <form action="{{ route('crm.customers.assign-class', $lead->id) }}" method="POST" class="inline-flex items-center gap-2 justify-end">
+                                    <form action="{{ route('crm.customers.assign-class', $lead->id) }}" method="POST" class="inline-flex items-center justify-end gap-sm">
                                         @csrf
-                                        <select name="class_id" required class="rounded-lg border-gray-200 text-xs">
+                                        <select name="class_id" required aria-label="Lớp gán cho {{ $lead->name }}" class="max-w-[320px] rounded-lg border-outline-variant font-body-small text-body-small">
                                             @foreach ($matches as $class)
                                                 <option value="{{ $class->id }}">{{ $class->name }}{{ $class->status === 'upcoming' ? ' (sắp khai giảng)' : '' }} · còn {{ $class->max_capacity > 0 ? max(0, $class->max_capacity - $class->active_enrollments_count) : '∞' }} chỗ{{ $class->status === 'upcoming' && $class->active_enrollments_count < (int) $class->min_students ? ' · cần thêm '.((int) $class->min_students - $class->active_enrollments_count).' HV để khai giảng' : '' }}</option>
                                             @endforeach
@@ -55,17 +61,17 @@
                                         <x-ui.button type="submit" size="sm" icon="assignment_turned_in">Gán lớp</x-ui.button>
                                     </form>
                                 @else
-                                    <span class="text-amber-600 font-semibold">Chưa có lớp phù hợp</span>
+                                    <span class="font-body-small text-body-small font-semibold text-amber-700">Chưa có lớp phù hợp</span>
                                 @endif
                             @else
-                                <span class="text-gray-400">Học vụ sẽ gán lớp</span>
+                                <span class="font-body-small text-body-small text-on-surface-variant">Học vụ sẽ gán lớp</span>
                             @endcan
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" class="p-6 text-center text-gray-400">Không có học viên nào đang chờ xếp lớp.</td></tr>
+                    <tr><td colspan="5"><x-ui.empty-state icon="task_alt" title="Không có học viên nào đang chờ xếp lớp" /></td></tr>
                 @endforelse
             </tbody>
         </table>
     </div>
-</div>
+</section>

@@ -207,6 +207,33 @@ class Phase1MockupParityTest extends TestCase
             ->assertDontSee('Cọc')->assertDontSee('12500000');
     }
 
+    // ── 8. Khách chốt thành công (Chờ xếp lớp + Gán lớp) ─────────────────
+
+    public function test_won_screen_has_waiting_section_class_filter_and_report_download(): void
+    {
+        $course = Course::create(['name' => 'Movers', 'code' => 'MOV', 'tuition_fee' => 5000000, 'is_active' => true]);
+        $classA = ClassModel::create(['code' => 'MOV-A', 'name' => 'Movers A', 'course_id' => $course->id, 'branch_id' => $this->branch->id, 'status' => 'active', 'max_capacity' => 10]);
+        $classB = ClassModel::create(['code' => 'MOV-B', 'name' => 'Movers B', 'course_id' => $course->id, 'branch_id' => $this->branch->id, 'status' => 'active', 'max_capacity' => 10]);
+        $studentA = Student::create(['code' => 'HV-A1', 'name' => 'HV A', 'phone' => '0900000001', 'branch_id' => $this->branch->id, 'current_class_id' => $classA->id, 'status' => 'studying']);
+        $studentB = Student::create(['code' => 'HV-B1', 'name' => 'HV B', 'phone' => '0900000002', 'branch_id' => $this->branch->id, 'current_class_id' => $classB->id, 'status' => 'studying']);
+        $this->lead('won', ['name' => 'Phạm Minh Quân', 'converted_student_id' => $studentA->id, 'converted_at' => now()]);
+        $this->lead('won', ['name' => 'Ngô Bảo Ngọc', 'converted_student_id' => $studentB->id, 'converted_at' => now()]);
+        $waitingStudent = Student::create(['code' => 'HV-W1', 'name' => 'HV W', 'phone' => '0900000003', 'branch_id' => $this->branch->id, 'status' => Student::INITIAL_STATUS]);
+        $this->lead('waiting_class', ['name' => 'Nguyễn Văn An', 'converted_student_id' => $waitingStudent->id, 'waiting_course_id' => $course->id, 'converted_at' => now()->subDays(8)]);
+
+        $this->actingAs($this->academic)->get(route('crm.customers.won'))->assertOk()
+            ->assertSee('Chờ xếp lớp (Cần xử lý gấp)')->assertSee('Ưu tiên xử lý')->assertSee('Nguyễn Văn An')->assertSee('Gán lớp')
+            ->assertSee('Chờ 8 ngày')
+            ->assertSee('Lớp học:')->assertSee('Nhập tên hoặc số điện thoại...')
+            ->assertSee('Khách đã có lớp')->assertSee('Tải báo cáo chi tiết')->assertSee('Thời điểm chốt')
+            ->assertSee('Movers A')->assertDontSee('Hủy chốt');
+
+        $this->actingAs($this->academic)->get(route('crm.customers.won', ['class_id' => $classB->id]))
+            ->assertSee('Ngô Bảo Ngọc')->assertDontSee('Phạm Minh Quân');
+
+        $this->actingAs($this->academic)->get(route('crm.waiting-list'))->assertOk()->assertSee('Nguyễn Văn An')->assertSee('Gán lớp');
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────
 
     private function lead(string $stage, array $attributes = []): CrmCustomer
