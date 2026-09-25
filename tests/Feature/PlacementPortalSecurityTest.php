@@ -380,10 +380,13 @@ class PlacementPortalSecurityTest extends TestCase
 
     public function test_grading_result_never_moves_lead_backwards_and_logs_history(): void
     {
+        // Phase 1: Học vụ chỉ chấm bài của khách thuộc chi nhánh mình (phạm vi CRM).
+        $branch = \App\Models\Branch::create(['name' => 'Cơ sở chấm', 'code' => 'CHAM', 'is_active' => true]);
         $academic = $this->userWithRole('academic_staff');
+        $academic->update(['branch_id' => $branch->id]);
         $test = $this->makeTest();
-        $won = $this->makeLead('won');
-        $scheduled = $this->makeLead('test_scheduled', ['phone' => '0911 222 333', 'email' => 'b@example.com']);
+        $won = $this->makeLead('won', ['branch_id' => $branch->id]);
+        $scheduled = $this->makeLead('test_scheduled', ['phone' => '0911 222 333', 'email' => 'b@example.com', 'branch_id' => $branch->id]);
         $payload = [
             'listening_score' => 6, 'reading_score' => 7, 'writing_score' => 6, 'speaking_score' => 7,
             'cefr_level' => 'B1',
