@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\BigTest;
+use App\Models\Holiday;
 use App\Models\Penalty;
 use App\Models\Student;
 use App\Models\SupportTicket;
@@ -139,6 +140,20 @@ class DocumentCodeGenerator
             fn (int $n) => "BB-{$year}-".str_pad((string) $n, 3, '0', STR_PAD_LEFT),
             fn () => $this->maxNumericSuffix(Penalty::where('code', 'like', "BB-{$year}-%")->pluck('code'), '/^BB-'.$year.'-(\d+)$/'),
             fn (string $code) => Penalty::where('code', $code)->exists(),
+        );
+    }
+
+    /** Mã ngày nghỉ HOL-YYYY-001 (theo năm của ngày bắt đầu) — mockup "Cấu hình ngày nghỉ". */
+    public function holidayCode(?int $year = null): string
+    {
+        $year = (string) ($year ?? now()->year);
+
+        return $this->generate(
+            'holiday',
+            $year,
+            fn (int $n) => "HOL-{$year}-".str_pad((string) $n, 3, '0', STR_PAD_LEFT),
+            fn () => $this->maxNumericSuffix(Holiday::withTrashed()->where('code', 'like', "HOL-{$year}-%")->pluck('code'), '/^HOL-'.$year.'-(\d+)$/'),
+            fn (string $code) => Holiday::withTrashed()->where('code', $code)->exists(),
         );
     }
 

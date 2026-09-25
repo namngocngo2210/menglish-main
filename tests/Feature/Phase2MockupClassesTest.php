@@ -194,4 +194,41 @@ class Phase2MockupClassesTest extends TestCase
         $this->actingAs($noBranch)->get(route('tasks.classes-dashboard'))
             ->assertOk()->assertSee('Tài khoản chưa gán chi nhánh, liên hệ Quản trị viên.');
     }
+
+    // ── 4. Ngày nghỉ ───────────────────────────────────────────────────────
+
+    public function test_holidays_screen_is_a_single_page_with_side_form_search_and_auto_code(): void
+    {
+        $quan7 = Branch::create(['name' => 'Chi nhánh Quận 7', 'code' => 'Q7-MK2', 'is_active' => true]);
+
+        $this->actingAs($this->admin)->get(route('holidays.index'))->assertOk()
+            ->assertSee('Lưu ý nghiệp vụ')
+            ->assertSee('Danh sách ngày nghỉ')->assertSee('Tìm kiếm ngày nghỉ...')
+            ->assertSee('Thông tin ngày nghỉ')->assertSee('Ví dụ: Tết Trung Thu')
+            ->assertSee('Phạm vi áp dụng')->assertSee('Toàn hệ thống (Mặc định)')
+            ->assertSee('* Để trống nếu muốn áp dụng cho tất cả chi nhánh.')
+            ->assertSee('Hủy bỏ')->assertSee('Lưu thông tin');
+
+        // Không nhập mã, không chọn chi nhánh → mã tự sinh + toàn hệ thống.
+        $this->actingAs($this->admin)->post(route('holidays.store'), [
+            'name' => 'Tết Nguyên Đán 2027', 'start_date' => '2027-02-05', 'end_date' => '2027-02-11',
+        ])->assertRedirect(route('holidays.index'))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('holidays.store'), [
+            'name' => 'Giỗ Tổ Hùng Vương', 'start_date' => '2027-04-16', 'end_date' => '2027-04-16', 'branch_ids' => [$quan7->id],
+        ])->assertSessionHasNoErrors();
+
+        $tet = \App\Models\Holiday::where('name', 'Tết Nguyên Đán 2027')->firstOrFail();
+        $this->assertSame('HOL-2027-001', $tet->code);
+        $this->assertTrue($tet->is_system_wide);
+        $gioTo = \App\Models\Holiday::where('name', 'Giỗ Tổ Hùng Vương')->firstOrFail();
+        $this->assertSame('HOL-2027-002', $gioTo->code);
+        $this->assertFalse($gioTo->is_system_wide);
+
+        $this->actingAs($this->admin)->get(route('holidays.index', ['search' => 'Giỗ']))->assertOk()
+            ->assertSee('Giỗ Tổ Hùng Vương')->assertSee('Chi nhánh Quận 7')->assertDontSee('Tết Nguyên Đán 2027');
+
+        // Sửa ngay trên trang danh sách (form bên phải điền sẵn).
+        $this->actingAs($this->admin)->get(route('holidays.edit', $tet))->assertOk()
+            ->assertSee('Sửa ngày nghỉ')->assertSee('value="Tết Nguyên Đán 2027"', false)->assertSee('Danh sách ngày nghỉ');
+    }
 }
