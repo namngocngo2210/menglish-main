@@ -11,14 +11,14 @@
         'speaking' => $submission?->speaking_score,
     ];
     $skillStyles = [
-        'listening' => 'bg-indigo-50/50 border-indigo-100 text-indigo-700',
-        'reading_writing' => 'bg-emerald-50/50 border-emerald-100 text-emerald-700',
-        'speaking' => 'bg-rose-50/50 border-rose-100 text-rose-700',
+        'listening' => 'bg-secondary/5 border-secondary/20 text-secondary',
+        'reading_writing' => 'bg-tertiary/5 border-tertiary/20 text-tertiary',
+        'speaking' => 'bg-primary/5 border-primary/20 text-primary',
     ];
 @endphp
 
 <div class="space-y-3 text-xs" data-testid="rubric-result">
-    <div class="p-4 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl flex items-center justify-between gap-4 flex-wrap">
+    <div class="flex flex-wrap items-center justify-between gap-md rounded-xl border border-primary/20 bg-primary-fixed/30 p-md">
         <div class="flex items-center gap-3">
             <div class="w-14 h-12 px-1 rounded-xl bg-primary-container text-white flex flex-col items-center justify-center font-black shadow-sm">
                 @if ($rubric && ! $rubric['legacy'])
@@ -30,13 +30,13 @@
             </div>
             <div>
                 <div class="flex items-center gap-2 flex-wrap">
-                    <h4 class="font-black text-gray-900 text-sm">Kết quả test đầu vào</h4>
+                    <h4 class="font-body-semibold text-body-semibold text-on-surface">Kết quả test đầu vào</h4>
                     @if ($rubric && ! $rubric['legacy'])
                         <span class="px-2 py-0.5 bg-white border border-amber-300 text-amber-900 rounded-md text-[10px] font-bold shadow-2xs">{{ $rubric['grade_group_label'] }}</span>
                     @endif
                 </div>
-                <p class="text-amber-950 font-semibold mt-0.5">
-                    Lớp xếp: <span class="text-primary-container font-bold">{{ $rubric['chosen_class'] ?? $submission?->recommended_course ?? '—' }}</span>
+                <p class="mt-0.5 font-semibold text-on-surface">
+                    Đề xuất xếp lớp: <span class="text-primary-container font-bold">{{ $rubric['chosen_class'] ?? $submission?->recommended_course ?? '—' }}</span>
                 </p>
                 @if ($rubric && $rubric['overridden'])
                     <p class="text-[11px] text-gray-600">Lớp đề xuất theo thang điểm: <strong>{{ $rubric['suggested_class'] }}</strong> (Học vụ đã chọn lại)</p>

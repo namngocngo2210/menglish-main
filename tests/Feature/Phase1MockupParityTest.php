@@ -330,6 +330,61 @@ class Phase1MockupParityTest extends TestCase
         $this->actingAs($this->sales)->post(route('placement-tests.media.store'), ['kind' => 'image', 'file' => \Illuminate\Http\UploadedFile::fake()->image('a.png')], ['Accept' => 'application/json'])->assertForbidden();
     }
 
+    // ── 12. Test online & thang điểm ─────────────────────────────────────
+
+    public function test_online_test_block_and_rubric_grading_match_mockup_with_draft_and_confirm(): void
+    {
+        PlacementTest::create(['code' => 'TEST-G1-G2-01', 'title' => 'Đề Starter khối 1-2', 'duration_minutes' => 45, 'is_active' => true]);
+        $test = PlacementTest::create(['code' => 'TEST-G2-G3-01', 'title' => 'Đề khối 2 lên 3', 'duration_minutes' => 45, 'is_active' => true]);
+        $fresh = $this->lead('consulting', ['name' => 'Khách Chưa Gửi Đề']);
+
+        // Trạng thái 1: chọn cấp độ → danh sách đề tương ứng; form chấm có thang điểm tự động.
+        $this->actingAs($this->academic)->get(route('crm.customers.show', $fresh))->assertOk()
+            ->assertSee('Chưa gửi đề')->assertSee('Chọn cấp độ')->assertSee('Danh sách đề tương ứng')->assertSee('Gửi link test online')
+            ->assertSee('Khối 2 lên 3')
+            ->assertSee('Tự động tạo nhận xét &amp; Xếp lớp', false)->assertSee('Nhận xét gợi ý (Tự động theo Thang điểm)')
+            ->assertSee('Tổng điểm hệ thống')->assertSee('Đề xuất xếp lớp tự động')->assertSee('(Nhập tay)')
+            ->assertSee('Lưu bản nháp')->assertSee('Xác nhận kết quả')
+            ->assertDontSee('name="cefr_level"', false);
+
+        // Trạng thái 2: đã gửi link → cấp độ của đề + Gửi lại link.
+        $sent = $this->lead('test_scheduled', ['name' => 'Khách Đã Gửi Link', 'assigned_test_id' => $test->id, 'appointment_at' => now()->addDay()]);
+        $this->actingAs($this->academic)->get(route('crm.customers.show', $sent))->assertOk()
+            ->assertSee('Đã gửi link')->assertSee('Cấp độ:')->assertSee('Khối 2 lên 3')->assertSee('Gửi lại link');
+
+        // Bài làm online chờ chấm: Lưu bản nháp giữ Chờ chấm, khách chưa sang "Đã test"; Xác nhận kết quả thì chốt.
+        $lead = $this->lead('testing', ['name' => 'Khách Làm Bài', 'assigned_test_id' => $test->id]);
+        $submission = PlacementTestSubmission::create([
+            'placement_test_id' => $test->id, 'customer_id' => $lead->id, 'candidate_name' => $lead->name, 'candidate_phone' => $lead->phone, 'status' => 'pending',
+        ]);
+        $grade = ['grade_group' => 'khoi_2_3', 'listening_score' => 11, 'reading_writing_score' => 12, 'speaking_score' => 8];
+
+        $this->actingAs($this->academic)->get(route('placement-tests.results.show', $submission->id))->assertOk()
+            ->assertSee('Lưu bản nháp')->assertSee('Xác nhận kết quả')->assertSee('Tổng điểm hệ thống');
+        $this->actingAs($this->academic)->post(route('placement-tests.results.update', $submission->id), $grade + ['action' => 'draft'])->assertRedirect();
+        $this->assertSame('pending', $submission->fresh()->status);
+        $this->assertEquals(31, (float) $submission->fresh()->total_score);
+        $this->assertSame('testing', $lead->fresh()->stage);
+
+        $this->actingAs($this->academic)->post(route('placement-tests.results.update', $submission->id), $grade + ['action' => 'confirm'])->assertRedirect();
+        $this->assertSame('graded', $submission->fresh()->status);
+        $this->assertSame('tested', $lead->fresh()->stage);
+
+        // Nhập điểm trực tiếp trên hồ sơ khách: Lưu bản nháp không chuyển "Đã test".
+        $direct = $this->lead('test_scheduled', ['name' => 'Khách Nhập Tay', 'assigned_test_id' => $test->id]);
+        $this->actingAs($this->academic)->post(route('crm.customers.save-test-score', $direct), $grade + ['placement_test_id' => $test->id, 'action' => 'draft'])->assertRedirect();
+        $this->assertSame('test_scheduled', $direct->fresh()->stage);
+        $this->assertSame('pending', PlacementTestSubmission::where('customer_id', $direct->id)->value('status'));
+        $this->actingAs($this->academic)->post(route('crm.customers.save-test-score', $direct), $grade + ['placement_test_id' => $test->id, 'action' => 'confirm'])->assertRedirect();
+        $this->assertSame('tested', $direct->fresh()->stage);
+        $this->assertSame(1, PlacementTestSubmission::where('customer_id', $direct->id)->count());
+
+        // Trang thang điểm: theo khối lớp, không "4 kỹ năng".
+        $this->actingAs($this->academic)->get(route('placement-tests.rubric-guide'))->assertOk()
+            ->assertSee('Thang Điểm &amp; Hướng Dẫn Nhận Xét Tự Động', false)->assertSee('KHỐI 2 LÊN 3')
+            ->assertDontSee('band điểm 4 kỹ năng');
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────
 
     private function lead(string $stage, array $attributes = []): CrmCustomer

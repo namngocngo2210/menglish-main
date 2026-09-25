@@ -268,7 +268,10 @@
 
                 <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
                     <button type="button" onclick="document.getElementById('editTestScoreModal').classList.add('hidden')" class="px-3 py-1.5 rounded-lg border text-xs text-gray-600 hover:bg-gray-50">Hủy</button>
-                    <button type="submit" class="px-4 py-2 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer">Lưu điểm test</button>
+                    @if (! $editSub || $editSub->isPending())
+                        <button type="submit" name="action" value="draft" class="rounded-lg border border-outline-variant px-md py-sm font-body-medium text-body-medium text-on-surface hover:bg-surface-container-low">Lưu bản nháp</button>
+                    @endif
+                    <button type="submit" name="action" value="confirm" class="inline-flex items-center gap-xs rounded-lg bg-primary-container px-md py-sm font-body-medium text-body-medium text-white shadow-sm hover:bg-primary"><span class="material-symbols-outlined text-[18px]">check</span>Xác nhận kết quả</button>
                 </div>
             </form>
         </div>
@@ -450,11 +453,30 @@
                                 <form action="{{ route('crm.customers.schedule-test', $customer->id) }}" method="POST" class="space-y-md">
                                     @csrf
                                     <input type="hidden" name="appointment_type" value="online" />
-                                    <div class="grid grid-cols-1 gap-md sm:grid-cols-3">
+                                    @php
+                                        $testGroups = $placementTests->mapWithKeys(fn ($t) => [$t->id => \App\Services\PlacementRubricService::detectGradeGroup($t->code)]);
+                                        $levelOptions = collect(\App\Services\PlacementRubricService::gradeGroups())->only($testGroups->unique()->values()->all());
+                                    @endphp
+                                    {{-- Mockup: "Chọn cấp độ" → "Danh sách đề tương ứng" --}}
+                                    <div class="grid grid-cols-1 gap-md sm:grid-cols-2" x-data="{ level: '', groups: @js($testGroups), testId: @js((string) old('assigned_test_id', $placementTests->first()?->id)) }">
+                                        <x-ui.field label="Chọn cấp độ" for="test_level">
+                                            <select id="test_level" x-model="level" @change="const first = Object.keys(groups).find((id) => !level || groups[id] === level); if (first) testId = first"
+                                                    class="w-full rounded-lg border-outline-variant bg-surface-container-lowest font-body-base text-body-base">
+                                                <option value="">Tất cả cấp độ</option>
+                                                @foreach ($levelOptions as $groupKey => $groupLabel)
+                                                    <option value="{{ $groupKey }}">{{ $groupLabel }}</option>
+                                                @endforeach
+                                            </select>
+                                        </x-ui.field>
+                                        <x-ui.field label="Danh sách đề tương ứng" for="assigned_test_id">
+                                            <select id="assigned_test_id" name="assigned_test_id" x-model="testId" class="w-full rounded-lg border-outline-variant bg-surface-container-lowest font-body-base text-body-base">
+                                                @foreach ($placementTests as $t)
+                                                    <option value="{{ $t->id }}" x-show="!level || groups[{{ $t->id }}] === level">[{{ $t->code }}] {{ $t->title }}{{ $t->duration_minutes ? ' ('.$t->duration_minutes.'\')' : '' }}</option>
+                                                @endforeach
+                                            </select>
+                                        </x-ui.field>
                                         <x-ui.date name="appointment_date" label="Ngày hẹn làm test" required min="{{ now()->toDateString() }}" :value="old('appointment_date', now()->addDay()->toDateString())" />
                                         <x-ui.input type="time" name="appointment_time" label="Giờ hẹn" required :value="old('appointment_time', '09:00')" />
-                                        <x-ui.select name="assigned_test_id" label="Đề test"
-                                                     :options="$placementTests->mapWithKeys(fn ($t) => [$t->id => '['.$t->code.'] '.$t->title.($t->duration_minutes ? ' ('.$t->duration_minutes.'\')' : '')])" />
                                     </div>
                                     <div class="flex flex-wrap items-center justify-end gap-sm">
                                         @can('entrance_test.grade')
@@ -479,8 +501,10 @@
                                     <x-ui.button variant="secondary" size="sm" icon="edit" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')">Nhập điểm ngay</x-ui.button>
                                 @endcan
                             </div>
+                            <p class="font-body-small text-body-small text-on-surface-variant">Cấp độ: <strong class="text-on-surface">{{ \App\Services\PlacementRubricService::groupLabel(\App\Services\PlacementRubricService::detectGradeGroup($customer->assignedTest?->code)) }}</strong></p>
                             @if ($portalTestLink)
                                 <div class="flex flex-wrap gap-sm" x-data="{ testLink: @js($portalTestLink) }">
+                                    <x-ui.button variant="secondary" size="sm" icon="refresh" @click="navigator.clipboard.writeText(testLink); $dispatch('toast', { message: 'Đã tạo và sao chép link mới (hiệu lực {{ \App\Services\PlacementPortalLinkService::LINK_TTL_DAYS }} ngày) — gửi lại cho khách qua Zalo/SMS.', type: 'success' })">Gửi lại link</x-ui.button>
                                     <x-ui.button variant="secondary" size="sm" icon="open_in_new" :href="$portalTestLink" target="_blank">Mở cổng test</x-ui.button>
                                     <x-ui.button variant="secondary" size="sm" icon="content_copy" @click="navigator.clipboard.writeText(testLink); $dispatch('toast', { message: 'Đã sao chép đường dẫn bài test.', type: 'success' })">Sao chép link test</x-ui.button>
                                     <p class="w-full font-caption text-caption italic text-on-surface-variant">Link riêng của khách, hiệu lực {{ \App\Services\PlacementPortalLinkService::LINK_TTL_DAYS }} ngày kể từ lúc mở trang này.</p>
@@ -533,6 +557,9 @@
                         <div class="flex flex-wrap items-center justify-between gap-sm">
                             <h4 class="flex items-center gap-sm font-h3 text-h3 text-on-surface">
                                 <span class="material-symbols-outlined text-tertiary">assignment_turned_in</span>Kết quả &amp; Đánh giá
+                                @if ($rubric && ! $rubric['legacy'] && $rubric['has_rubric'])
+                                    <span class="inline-flex items-center gap-xs rounded-full bg-secondary/10 px-sm py-0.5 font-caption text-caption font-bold text-secondary"><span class="material-symbols-outlined text-[14px]">auto_awesome</span>Thang điểm tự động</span>
+                                @endif
                             </h4>
                             @if ($submission)
                                 <x-ui.button variant="secondary" size="sm" icon="picture_as_pdf" :href="\Illuminate\Support\Facades\URL::signedRoute('portal.test.scorecard', ['id' => $submission->id])" target="_blank">Tải kết quả (PDF)</x-ui.button>

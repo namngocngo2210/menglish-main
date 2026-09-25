@@ -316,6 +316,16 @@ class PlacementTestController extends Controller
 
         $submission->applyRubricGrade($validated);
         $submission->grader_id = Auth::id();
+
+        // Mockup: "Lưu bản nháp" giữ bài ở trạng thái Chờ chấm (chưa đồng bộ sang khách, chưa chuyển "Đã test");
+        // "Xác nhận kết quả" chốt điểm. Bài đã chấm không lùi về nháp.
+        if ($request->input('action') === 'draft' && $submission->isPending()) {
+            $submission->save();
+
+            return redirect()->route('placement-tests.results.show', $submission->id)
+                ->with('status', 'Đã lưu bản nháp điểm — bài vẫn ở trạng thái Chờ chấm cho tới khi Xác nhận kết quả.');
+        }
+
         $submission->status = PlacementTestSubmission::STATUS_GRADED;
         $submission->save();
 

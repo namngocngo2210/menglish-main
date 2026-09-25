@@ -642,6 +642,21 @@ class CrmController extends Controller
         ]);
         $submission->applyRubricGrade($validated);
         $submission->grader_id = Auth::id() ?? $customer->assigned_user_id;
+
+        // "Lưu bản nháp" (mockup): lưu điểm đang chấm, bài vẫn Chờ chấm, khách chưa sang "Đã test".
+        if ($request->input('action') === 'draft' && (! $submission->exists || $submission->isPending())) {
+            $submission->status = PlacementTestSubmission::STATUS_PENDING;
+            $submission->save();
+            CrmCustomerHistory::create([
+                'customer_id' => $customer->id,
+                'user_id' => Auth::id(),
+                'type' => 'test',
+                'content' => 'Lưu nháp điểm test đầu vào ('.PlacementRubricService::groupLabel($submission->grade_group).'), chưa xác nhận kết quả.',
+            ]);
+
+            return redirect()->back()->with('status', 'Đã lưu bản nháp điểm test — bấm "Xác nhận kết quả" để chốt.');
+        }
+
         $submission->status = PlacementTestSubmission::STATUS_GRADED;
         $submission->save();
 
