@@ -33,6 +33,11 @@ export default {
 
     theme: {
         extend: {
+            // Breakpoint của App Shell (DESIGN.md): ≥1200px sidebar đầy đủ, 768–1199px thu gọn icon.
+            screens: {
+                desktop: '1200px',
+            },
+
             colors: {
                 background: '#f9f9ff',
                 sidebar: '#111a2b',

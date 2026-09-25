@@ -4,7 +4,7 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">layers</span>
-                    Khung Trình Độ &amp; Cấp Độ Đào Tạo (Database)
+                    Khung Trình Độ &amp; Cấp Độ Đào Tạo
                 </h1>
                 <p class="text-xs text-gray-500">Chuẩn hóa các cấp độ đào tạo theo thang đo CEFR quốc tế và IELTS Target</p>
             </div>
@@ -18,7 +18,7 @@
     </x-slot>
 
     <!-- Navigation Sub-Tabs -->
-    <div class="border-b border-gray-200 bg-white -mt-4 -mx-4 sm:-mt-6 sm:-mx-6 px-6 pt-3 mb-5">
+    <div class="border-b border-gray-200 bg-white -mt-md -mx-md lg:-mt-lg lg:-mx-lg px-6 pt-3 mb-5">
         <div class="flex items-center gap-6 overflow-x-auto text-xs font-semibold scrollbar-none">
             <a href="{{ route('courses.index') }}" class="pb-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 transition whitespace-nowrap flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[17px]">sell</span>
