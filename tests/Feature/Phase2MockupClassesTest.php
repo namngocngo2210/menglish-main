@@ -375,4 +375,42 @@ class Phase2MockupClassesTest extends TestCase
         $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $old->id]))
             ->assertOk()->assertSee('Ngoài cửa sổ 24h — điểm danh bù');
     }
+
+    public function test_teacher_remarks_are_saved_per_session_with_draft_and_monsters_columns(): void
+    {
+        $morning = $this->makeSession('2026-10-07', '07:00', '08:00');
+        $afternoon = $this->makeSession('2026-10-07', '14:00', '15:00', ['type' => ClassSession::TYPE_MAKEUP]);
+        $present = $this->student('Trần Thị B');
+        $absent = $this->student('Lê Văn C');
+        foreach ([[$present, 'present', null], [$absent, 'absent', 'Ốm']] as [$st, $status, $note]) {
+            \App\Models\StudentAttendance::create(['class_id' => $this->classModel->id, 'class_session_id' => $morning->id, 'student_id' => $st->id,
+                'user_id' => $this->teacher->id, 'session_date' => '2026-10-07', 'status' => $status, 'note' => $note]);
+        }
+
+        $this->actingAs($this->teacher)->get(route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $morning->id]))->assertOk()
+            ->assertSee('Nhận xét buổi học cho từng học sinh')->assertSee('Lớp Kids Explorer MK2')->assertSee('Buổi 1: 07/10/2026')
+            ->assertSee('Monsters (Nhóm)')->assertSee('Monsters (Thưởng)')->assertSee('Thực hành ngữ pháp')->assertSee('Tinh thần học tập')
+            ->assertSee('Kết quả')->assertSee('Nhận xét chi tiết')->assertSee('Có mặt')->assertSee('Vắng mặt')
+            ->assertSee('Học sinh vắng mặt...')->assertSee('Lưu nháp')->assertSee('Lưu nhận xét');
+
+        // Lưu nháp buổi sáng, lưu chính thức buổi chiều — hai bản ghi riêng theo buổi.
+        $this->actingAs($this->teacher)->post(route('teacher.remarks.store', $this->classModel->id), [
+            'class_session_id' => $morning->id, 'action' => 'draft',
+            'remarks' => [$present->id => ['monsters_group' => '+5', 'monsters_bonus' => '+2', 'grammar' => 'Khá', 'comment' => 'Tiến bộ']],
+        ])->assertRedirect(route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $morning->id]));
+        $this->actingAs($this->teacher)->post(route('teacher.remarks.store', $this->classModel->id), [
+            'class_session_id' => $afternoon->id, 'action' => 'final',
+            'remarks' => [$present->id => ['result' => 'Đạt mục tiêu bài học']],
+        ])->assertSessionHasNoErrors();
+
+        $records = \App\Models\AcademicRecord::where('module', 'teacher_remarks')->orderBy('id')->get();
+        $this->assertCount(2, $records);
+        $this->assertSame($this->classModel->id.'-2026-10-07-s'.$morning->id, $records[0]->record_code);
+        $this->assertSame('draft', $records[0]->status);
+        $this->assertSame('+2', $records[0]->data[$present->id]['monsters_bonus']);
+        $this->assertSame('completed', $records[1]->status);
+
+        $this->actingAs($this->teacher)->get(route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $morning->id]))
+            ->assertSee('Bản nháp')->assertSee('value="+5"', false)->assertSee('Tiến bộ');
+    }
 }
