@@ -175,14 +175,19 @@
 | 25/09/2026 | Q7 — Nhập điểm test | Chỉ **Học vụ** và **Admin cơ sở** nhập điểm test đầu vào, gồm cả phần Viết/Nói của bài test online. Sale và giáo viên không nhập |
 | 25/09/2026 | Q7 — Xem khách | Admin cơ sở / Học vụ **chỉ thấy khách của chi nhánh mình**. Admin tổng thấy tất cả. Sale chỉ thấy khách được giao |
 | 25/09/2026 | Q7 — Vai trò | "Admin cơ sở" chính là vai trò **Quản lý cơ sở** (`manager`) |
+| 25/09/2026 | Q1 — Pipeline CRM | **8 bước**: Mới → Đang tư vấn → Hẹn test → Test → Đã test → Gửi kết quả → Chờ xếp lớp → Đã chốt, cộng **Thất bại**. Bỏ các bước học thử / chờ thanh toán |
+| 25/09/2026 | Q1 — Ai chuyển bước | **CM** (Học vụ, Quản lý cơ sở; Admin) chuyển **tiến từng bước một**. Sale không đổi bước (vẫn sửa thông tin, ghi nhật ký). "Test" tự động khi khách mở link test; "Đã test" tự động khi Học vụ chấm xong. Nhánh không test: Đang tư vấn → Chốt thẳng |
+| 25/09/2026 | Q1 — Lùi bước | **Chỉ Admin** được lùi bước, **bắt buộc lý do**, lưu lịch sử khách. **Không hủy chốt**: khách Chờ xếp lớp / Đã chốt không lùi, không sang Thất bại. Khách **Thất bại không mở lại** (giữ để đối soát) |
+| 25/09/2026 | Q1 — Học thử | Học thử **không phải bước pipeline**: là hoạt động CM đặt trong lúc tư vấn (1–2 buổi của lớp thật cùng trình độ), gắn với **khách** (không phải học viên). Giáo viên buổi đó ghi phản hồi vào hồ sơ khách |
+| 25/09/2026 | Q6 — Chốt không bắt buộc đóng phí | Có ô "Đã đóng học phí đăng ký". Chưa đóng → hệ thống **tự tạo task "Nhắc thu học phí"** cho người phụ trách khách |
+| 25/09/2026 | Q6 — Chốt khi chưa có lớp | Chốt luôn tạo hồ sơ học viên + tài khoản + học phí. Có lớp → **Đã chốt**. "Xếp lớp sau" → **Chờ xếp lớp** → Học vụ **gán lớp** → **Đã chốt** |
+| 25/09/2026 | Q6 — Học phí khi chưa có lớp | Tính theo **khóa học** đã chọn (giá niêm yết − ưu đãi), không phụ thuộc lớp |
+| 25/09/2026 | Q5 — Trạng thái học viên | **6 trạng thái**: Chờ khai giảng, Đang học, Bảo lưu, Nghỉ hè, Hoàn thành khóa học, Thôi học (không có Học thử, Blacklist; Chuyển lớp không phải trạng thái). Khởi tạo khi chốt = **Chờ khai giảng** |
 
 **Còn chờ trả lời:**
-- **Q1:** có cho sửa lùi bước, hủy chốt, mở lại khách không chốt không?
 - **Q2:** cách tính điểm test đầu vào; thang cho học viên lớn (THCS, IELTS, người đi làm).
 - **Q3:** công thức lương.
 - **Q4:** mô hình giáo trình.
-- **Q5:** trạng thái học viên.
-- **Q6:** khách vào lớp chờ có thu cọc ngay không.
 - **Hoa hồng:** "lần đầu" là mọi đợt đóng của khóa đầu tiên, hay chỉ đợt đóng đầu tiên? Hoa hồng tính vào tháng thực thu? "Hoàn phí ngay" là trong bao nhiêu ngày?
 - **Q8:** báo cáo trực lớp.
 
