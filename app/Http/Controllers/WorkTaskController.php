@@ -919,45 +919,27 @@ class WorkTaskController extends Controller
     /**
      * 9. Bảng KPI tự động
      */
-    public function kpiDashboard(Request $request)
+    public function kpiDashboard(Request $request, KpiBoardService $kpi)
     {
-        $teachers = User::where('is_active', true)
-            ->where(function ($q) {
-                $q->whereHas('roles', function ($rq) {
-                    $rq->whereIn('name', ['teacher', 'assistant', 'academic_staff']);
-                })->orWhere('email', 'like', 'teacher%')
-                    ->orWhere('email', 'like', 'ta%');
-            })
-            ->get();
+        $validated = $request->validate([
+            'month' => ['nullable', 'date_format:Y-m'],
+            'user_id' => ['nullable', 'integer'],
+        ]);
+        $month = $validated['month'] ?? now()->format('Y-m');
+        $from = CarbonImmutable::createFromFormat('!Y-m', $month)->startOfMonth();
+        $to = $from->endOfMonth();
 
-        if ($teachers->isEmpty()) {
-            $teachers = User::where('is_active', true)->take(6)->get();
-        }
+        $staffOptions = $kpi->staffQuery()->get(['id', 'name']);
+        $staff = $kpi->staffQuery()
+            ->when($validated['user_id'] ?? null, fn ($q, $userId) => $q->whereKey($userId))
+            ->paginate($request->perPage(20))
+            ->withQueryString();
 
-        $kpiData = $teachers->map(function ($u, $idx) {
-            $assignedClasses = ClassModel::where('teacher_id', $u->id)->orWhere('assistant_id', $u->id)->get();
-            $totalStudents = Student::whereIn('current_class_id', $assignedClasses->pluck('id'))->count();
-            $activeStudents = Student::whereIn('current_class_id', $assignedClasses->pluck('id'))->where('status', 'studying')->count();
-            $retentionRate = $totalStudents > 0 ? round(($activeStudents / $totalStudents) * 100, 1).'%' : '100.0%';
+        $kpiData = $staff->getCollection()->map(fn (User $user) => [
+            'user' => $user,
+            'code' => 'NS-'.str_pad((string) $user->id, 3, '0', STR_PAD_LEFT),
+        ] + $kpi->metricsFor($user, $from, $to));
 
-            $totalTasks = WorkTask::where('assignee_id', $u->id)->count();
-            $completedTasks = WorkTask::where('assignee_id', $u->id)->where('status', 'completed')->count();
-            $taskRate = $totalTasks > 0 ? round(($completedTasks / $totalTasks) * 100, 1).'%' : '100.0%';
-
-            $colors = ['bg-orange-600', 'bg-blue-600', 'bg-emerald-600', 'bg-purple-600', 'bg-indigo-600'];
-            $color = $colors[$idx % count($colors)].' text-white';
-
-            return [
-                'code' => 'GV-'.str_pad($u->id, 3, '0', STR_PAD_LEFT),
-                'name' => $u->name,
-                'initial' => Str::substr($u->name, 0, 2),
-                'bg_color' => $color,
-                'retention_rate' => $retentionRate,
-                'attendance_rate' => '96.8%',
-                'homework_rate' => $taskRate,
-            ];
-        });
-
-        return view('tasks.kpi-dashboard', compact('teachers', 'kpiData'));
+        return view('tasks.kpi-dashboard', compact('staff', 'staffOptions', 'kpiData', 'month', 'from', 'to'));
     }
 }

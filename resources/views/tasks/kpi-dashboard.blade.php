@@ -1,97 +1,72 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">Bảng KPI tự động</h1>
-                <p class="text-sm text-gray-500 mt-0.5">Theo dõi các chỉ số hiệu suất chính của nhân sự tự động hóa</p>
-            </div>
-            <div class="flex items-center gap-3">
-                <button onclick="window.print()" class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium text-sm hover:bg-gray-50 transition shadow-sm flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[18px]">download</span>
-                    Xuất KPI
-                </button>
-            </div>
-        </div>
-    </x-slot>
+{{-- Bảng KPI tự động — chỉ số tính từ dữ liệu thật trong tháng được chọn (KpiBoardService). --}}
+@php
+    $fmt = fn (?float $value) => $value === null ? null : number_format($value, 1, ',', '.').'%';
+@endphp
+<x-app-layout title="Bảng KPI tự động">
+    <x-ui.page-header title="Bảng KPI tự động" description="Theo dõi các chỉ số hiệu suất chính của nhân sự giảng dạy, tính tự động từ điểm danh, bài tập và công việc.">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="download" onclick="window.print()">Xuất KPI</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="space-y-6" x-data="{ staffFilter: 'all' }">
+    <x-ui.filter-bar :search="null" :action="route('tasks.kpi-dashboard')">
+        <x-ui.select name="user_id" inline-label="Nhân sự:" :options="$staffOptions->pluck('name', 'id')" placeholder="Tất cả nhân sự" />
+        <x-ui.input type="month" name="month" inline-label="Kỳ báo cáo:" :value="$month" />
+        <span class="font-body-small text-body-small text-on-surface-variant">{{ $from->format('d/m/Y') }} - {{ $to->format('d/m/Y') }}</span>
+    </x-ui.filter-bar>
 
-        <!-- Filters Section -->
-        <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div class="flex flex-wrap items-center gap-4 w-full sm:w-auto">
-                <div class="w-full sm:w-64">
-                    <label class="block text-[11px] font-bold uppercase text-gray-500 mb-1" for="staff-filter">Chọn nhân sự</label>
-                    <select id="staff-filter" x-model="staffFilter" class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container">
-                        <option value="all">Tất cả nhân sự</option>
-                        @foreach($kpiData as $kp)
-                            <option value="{{ $kp['code'] }}">{{ $kp['name'] }} ({{ $kp['code'] }})</option>
+    <x-ui.data-table min-width="860px">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nhân sự</th>
+                    <th class="text-center">Lớp phụ trách</th>
+                    <th class="text-right">Tỷ lệ giữ chân học viên</th>
+                    <th class="text-right">Tỷ lệ chuyên cần</th>
+                    <th class="text-right">Tỷ lệ hoàn thành bài tập</th>
+                    <th class="text-right">Hoàn thành công việc</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($kpiData as $row)
+                    <tr data-user-id="{{ $row['user']->id }}">
+                        <td>
+                            <div class="flex items-center gap-sm">
+                                <x-ui.avatar :name="$row['user']->name" />
+                                <div>
+                                    <div class="font-semibold text-on-surface">{{ $row['user']->name }}</div>
+                                    <div class="font-code text-caption text-on-surface-variant">{{ $row['code'] }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center font-code">{{ $row['classes'] }}</td>
+                        @foreach ([['retention', 80], ['attendance', 85], ['homework', 70], ['tasks', 80]] as [$key, $threshold])
+                            <td class="text-right">
+                                @if ($row[$key] === null)
+                                    <span class="font-body-small text-body-small italic text-on-surface-variant" title="Không có dữ liệu trong kỳ">Chưa có dữ liệu</span>
+                                @else
+                                    <span class="font-code font-semibold {{ $row[$key] < $threshold ? 'text-error' : 'text-on-surface' }}">{{ $fmt($row[$key]) }}</span>
+                                    <span class="block font-caption text-caption text-on-surface-variant">{{ $row[$key.'_detail'] }}</span>
+                                @endif
+                            </td>
                         @endforeach
-                    </select>
-                </div>
-                <div class="w-full sm:w-64">
-                    <label class="block text-[11px] font-bold uppercase text-gray-500 mb-1" for="date-filter">Kỳ báo cáo</label>
-                    <div class="relative">
-                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">calendar_today</span>
-                        <input type="text" id="date-filter" readonly value="01/10/2026 - 31/10/2026"
-                               class="w-full pl-9 rounded-xl border-gray-200 text-sm bg-gray-50/50 cursor-pointer">
-                    </div>
-                </div>
-            </div>
-
-            <div class="text-xs text-gray-500">
-                Cập nhật tự động: <span class="font-mono font-semibold text-gray-800">{{ now()->format('H:i d/m/Y') }}</span>
-            </div>
-        </div>
-
-        <!-- KPI Data Table -->
-        <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-sm">
-                    <thead class="bg-gray-50 text-gray-600 uppercase text-[11px] font-semibold tracking-wider border-b border-gray-200">
-                        <tr>
-                            <th class="py-4 px-6 whitespace-nowrap">Nhân sự</th>
-                            <th class="py-4 px-6 text-right whitespace-nowrap">Tỷ lệ giữ chân học viên</th>
-                            <th class="py-4 px-6 text-right whitespace-nowrap">Tỷ lệ chuyên cần</th>
-                            <th class="py-4 px-6 text-right whitespace-nowrap">Tỷ lệ hoàn thành bài tập</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        @foreach($kpiData as $row)
-                            <tr class="hover:bg-gray-50/80 transition-colors" x-show="staffFilter === 'all' || staffFilter === '{{ $row['code'] }}'">
-                                <td class="py-4 px-6 whitespace-nowrap">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 rounded-full {{ $row['bg_color'] }} flex items-center justify-center font-bold text-sm shadow-xs">
-                                            {{ $row['initial'] }}
-                                        </div>
-                                        <div>
-                                            <div class="font-bold text-gray-900 text-sm">{{ $row['name'] }}</div>
-                                            <div class="text-xs text-gray-400 font-mono">{{ $row['code'] }}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="py-4 px-6 text-right whitespace-nowrap font-mono font-semibold text-sm text-gray-900">
-                                    {{ $row['retention_rate'] }}
-                                </td>
-                                <td class="py-4 px-6 text-right whitespace-nowrap font-mono font-semibold text-sm {{ floatval($row['attendance_rate']) < 85 ? 'text-rose-600 font-bold' : 'text-gray-900' }}">
-                                    {{ $row['attendance_rate'] }}
-                                </td>
-                                <td class="py-4 px-6 text-right whitespace-nowrap text-xs text-gray-400 italic">
-                                    {{ $row['homework_rate'] }}
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Footer -->
-            <div class="p-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between text-xs text-gray-500">
-                <span>Hiển thị {{ count($kpiData) }} nhân sự</span>
-                <div class="flex items-center gap-2">
-                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span> Dữ liệu được đồng bộ từ sổ điểm danh và kết quả bài thi
-                </div>
-            </div>
-        </div>
-
-    </div>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="6">
+                            <x-ui.empty-state icon="insights" title="Chưa có nhân sự để tính KPI"
+                                description="Bảng KPI theo dõi giáo viên, trợ giảng và học vụ đang hoạt động." />
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+        <x-slot:footer>
+            <x-ui.pagination :paginator="$staff" unit="nhân sự" />
+            <p class="px-md pb-md font-caption text-caption text-on-surface-variant">
+                Chuyên cần = lượt có mặt/đi muộn ÷ lượt điểm danh trong kỳ (lớp phụ trách). Bài tập = bài học viên nộp ÷ (bài giao có hạn trong kỳ × sĩ số).
+                Công việc = việc có hạn trong kỳ đã hoàn thành. Giữ chân = học viên chưa thôi học ÷ học viên đã vào lớp.
+            </p>
+        </x-slot:footer>
+    </x-ui.data-table>
 </x-app-layout>
