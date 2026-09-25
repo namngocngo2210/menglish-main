@@ -774,20 +774,42 @@ class PayrollController extends Controller
     }
 
     /**
-     * BXH KPI & hoa hồng tuyển sinh theo tháng: cùng căn cứ với bảng lương
-     * (tiền thực thu của khách mới, phiếu duyệt trong tháng — SalesCommissionService).
+     * BXH KPI & hoa hồng (mockup epic-7/bang-kpi-cong-khai) — dữ liệu công khai, không có lương cơ bản / khấu trừ / thực nhận:
+     * 1. KPI giữ học sinh của GV: lấy từ phiếu lương của kỳ (Số HS giữ × đơn giá bậc = KPI) — cùng số với bảng lương.
+     * 2. Hoa hồng tuyển sinh của Sale: tiền thực thu khách mới trong tháng × % bậc theo số HS chốt (SalesCommissionService).
+     * Lọc kỳ lương (tháng) + chi nhánh, phân trang.
      */
     public function kpiLeaderboard(Request $request)
     {
-        $month = min(12, max(1, $request->integer('month') ?: now()->month));
-        $year = min(2100, max(2020, $request->integer('year') ?: now()->year));
+        if (preg_match('/^(\d{4})-(\d{2})$/', (string) $request->query('period'), $m)) {
+            [$year, $month] = [(int) $m[1], (int) $m[2]];
+        } else {
+            $month = $request->integer('month') ?: now()->month;
+            $year = $request->integer('year') ?: now()->year;
+        }
+        $month = min(12, max(1, $month));
+        $year = min(2100, max(2020, $year));
+        $branchId = $request->integer('branch_id') ?: null;
         $start = Carbon::create($year, $month, 1)->startOfMonth();
         $end = $start->copy()->endOfMonth();
 
-        $salesUsers = User::role('sales_consultant')->get();
+        // 1. KPI giữ học sinh từ phiếu lương của kỳ.
+        $period = PayrollPeriod::where('year', $year)->where('month', $month)->first();
+        $retention = $period
+            ? PayrollRecord::with('user.branch')->where('payroll_period_id', $period->id)
+                ->where('kpi_source', PayrollRecord::KPI_RETENTION)
+                ->when($branchId, fn ($q) => $q->whereHas('user', fn ($u) => $u->where('branch_id', $branchId)))
+                ->get()
+                ->sortByDesc(fn (PayrollRecord $r) => [(float) $r->kpi_bonus, (int) $r->retention_students])
+                ->values()
+            : collect();
+
+        // 2. Hoa hồng tuyển sinh (sale).
+        $salesUsers = User::role('sales_consultant')->with('branch')->get();
         if ($salesUsers->isEmpty()) {
-            $salesUsers = User::whereHas('crmCustomers')->get();
+            $salesUsers = User::whereHas('crmCustomers')->with('branch')->get();
         }
+        $salesUsers = $salesUsers->when($branchId, fn ($users) => $users->where('branch_id', $branchId));
 
         $service = app(SalesCommissionService::class);
         $receiptsBySales = $service->commissionableReceipts($start, $end)->groupBy('commission_owner_id');
@@ -798,24 +820,37 @@ class PayrollController extends Controller
             $revenue = (float) $receipts->sum('amount');
             // Hoa hồng phát sinh (trước gate kép) — trả thực tế theo phiếu lương.
             $commission = $service->commissionFor($revenue, (int) ($closedBySales->get($user->id) ?? 0), $end);
-            $studentsRetained = $user->branch_id
-                ? Student::where('branch_id', $user->branch_id)->where('status', 'studying')->count()
-                : 0;
 
             return [
                 'user' => $user,
                 'revenue' => $revenue,
                 'deals' => $receipts->pluck('student_id')->unique()->count(),
-                'retained_students' => $studentsRetained,
                 'tier_name' => $commission['tier']?->tier_name ?? 'Chưa cấu hình bậc',
                 'closed' => $commission['closed'],
                 'percent' => $commission['percent'],
                 'commission' => $commission['amount'],
                 'branch_name' => $user->branch?->name ?? 'Hệ thống MEnglish',
             ];
-        })->sortByDesc('revenue')->values();
+        })->sortByDesc(fn ($row) => [$row['commission'], $row['revenue']])->values();
 
-        return view('payroll.kpi-leaderboard', compact('usersWithSales', 'month', 'year'));
+        $perPage = $request->perPage(20);
+        $paginate = fn ($items, string $pageName) => new \Illuminate\Pagination\LengthAwarePaginator(
+            $items->forPage($request->integer($pageName, 1) ?: 1, $perPage)->values(), $items->count(), $perPage,
+            $request->integer($pageName, 1) ?: 1, ['path' => $request->url(), 'query' => $request->query(), 'pageName' => $pageName]
+        );
+        $retentionPage = $paginate($retention, 'kpi_page');
+        $salesPage = $paginate($usersWithSales, 'sales_page');
+
+        $periodOptions = PayrollPeriod::orderByDesc('year')->orderByDesc('month')->get(['month', 'year', 'status'])
+            ->mapWithKeys(fn ($p) => [sprintf('%04d-%02d', $p->year, $p->month) => 'Tháng '.sprintf('%02d/%04d', $p->month, $p->year)])
+            ->prepend('Tháng '.now()->format('m/Y'), now()->format('Y-m'))
+            ->put(sprintf('%04d-%02d', $year, $month), 'Tháng '.sprintf('%02d/%04d', $month, $year))
+            ->sortKeysDesc();
+        $branches = \App\Models\Branch::orderBy('name')->get(['id', 'name']);
+
+        return view('payroll.kpi-leaderboard', compact(
+            'usersWithSales', 'salesPage', 'retentionPage', 'period', 'month', 'year', 'branchId', 'periodOptions', 'branches'
+        ));
     }
 
     public function configSettings()

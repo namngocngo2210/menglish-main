@@ -87,36 +87,70 @@ class KpiController extends Controller
     public function monthly(Request $request)
     {
         $this->guard();
-        $month = (int) $request->input('month', now()->month);
-        $year = (int) $request->input('year', now()->year);
+        [$month, $year] = $this->monthYear($request);
 
-        $evaluations = KpiEvaluation::with('user')
+        $evaluations = KpiEvaluation::with(['user', 'evaluator'])
             ->where('month', $month)->where('year', $year)
             ->get()
             ->keyBy('user_id');
 
-        $staff = User::whereHas('roles', fn ($q) => $q->whereIn('name', self::STAFF_ROLES))
-            ->orderBy('name')->get();
+        $search = trim((string) $request->query('search', ''));
+        $role = in_array($request->query('role'), self::STAFF_ROLES, true) ? $request->query('role') : null;
+        $staff = User::whereHas('roles', fn ($q) => $q->whereIn('name', $role ? [$role] : self::STAFF_ROLES))
+            ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('name', 'like', "%{$search}%")->orWhere('employee_code', 'like', "%{$search}%")))
+            ->orderBy('name')->paginate($request->perPage(20))->withQueryString();
+        $fund = KpiCriterion::fund();
 
-        return view('kpi.monthly', compact('evaluations', 'staff', 'month', 'year'));
+        return view('kpi.monthly', compact('evaluations', 'staff', 'month', 'year', 'fund', 'role'));
     }
 
+    /** Tháng/năm từ ?period=YYYY-MM (ô chọn kỳ theo mockup) hoặc ?month=&year=. */
+    private function monthYear(Request $request): array
+    {
+        if (preg_match('/^(\d{4})-(\d{2})$/', (string) $request->input('period'), $m)) {
+            return [min(12, max(1, (int) $m[2])), (int) $m[1]];
+        }
+
+        return [min(12, max(1, (int) $request->input('month', now()->month))), (int) $request->input('year', now()->year)];
+    }
+
+    /**
+     * Phiếu KPI tháng của một nhân sự (mockup 04_kpi_thang + 03_tong_hop_kpi_danh_gia_thang): bảng 6 nhóm / 15 mục
+     * (Quỹ, Ngưỡng 100 / 50, Thực tế, % Đạt, Tiền KPI, Lỗi nghiêm trọng), tổng hợp theo nhóm, xếp loại tháng,
+     * cảnh báo hiệu suất, nhận xét của quản lý, "Chốt KPI tháng".
+     */
     public function evaluate(Request $request, int $userId)
     {
         $this->guard();
         $staff = User::findOrFail($userId);
-        $month = (int) $request->input('month', now()->month);
-        $year = (int) $request->input('year', now()->year);
+        [$month, $year] = $this->monthYear($request);
 
         $criteria = KpiCriterion::active()->ordered()->get();
         $fund = KpiCriterion::fund();
         $isAcademicStaff = $staff->hasRole('academic_staff');
-        $evaluation = KpiEvaluation::with('items')
+        $evaluation = KpiEvaluation::with(['items', 'evaluator'])
             ->where('user_id', $userId)->where('month', $month)->where('year', $year)->first();
         $scores = $evaluation ? $evaluation->items->keyBy('kpi_criterion_id') : collect();
         $isSelf = $userId === (int) $request->user()->id;
 
-        return view('kpi.evaluate', compact('staff', 'criteria', 'evaluation', 'scores', 'month', 'year', 'isSelf', 'fund', 'isAcademicStaff'));
+        // Tổng hợp theo nhóm: quỹ nhóm, tiền đạt (theo trọng số chuẩn hóa như bảng lương), % đạt.
+        $weightTotal = (float) $criteria->sum('weight');
+        $groupSummary = $criteria->groupBy(fn ($c) => $c->group_name ?: 'Chưa phân nhóm')->map(function ($items) use ($scores, $fund, $weightTotal) {
+            $groupFund = $weightTotal > 0 ? $items->sum(fn ($c) => $fund * (float) $c->weight / $weightTotal) : 0;
+            $earned = $weightTotal > 0 ? $items->sum(fn ($c) => $fund * (float) $c->weight / $weightTotal * (float) ($scores->get($c->id)?->score ?? 0) / 100) : 0;
+
+            return ['count' => $items->count(), 'fund' => round($groupFund), 'earned' => round($earned), 'percent' => $groupFund > 0 ? round($earned / $groupFund * 100, 1) : 0];
+        });
+        $warnings = [
+            'low' => $criteria->filter(fn ($c) => ($s = $scores->get($c->id)) && (float) $s->score > 0 && (float) $s->score <= 50)->count(),
+            'zero' => $criteria->filter(fn ($c) => ($s = $scores->get($c->id)) && (float) $s->score <= 0)->count(),
+        ];
+        $staffOptions = User::whereHas('roles', fn ($q) => $q->whereIn('name', self::STAFF_ROLES))->orderBy('name')->get(['id', 'name']);
+
+        return view('kpi.evaluate', compact(
+            'staff', 'criteria', 'evaluation', 'scores', 'month', 'year', 'isSelf', 'fund', 'isAcademicStaff',
+            'groupSummary', 'warnings', 'staffOptions', 'weightTotal'
+        ));
     }
 
     public function evaluateStore(Request $request, int $userId)
@@ -132,7 +166,20 @@ class KpiController extends Controller
             'score' => 'required|array',
             'score.*' => 'nullable|numeric|min:0|max:100',
             'note' => 'nullable|array',
+            'actual' => 'nullable|array',
+            'actual.*' => 'nullable|string|max:255',
+            'critical' => 'nullable|array',
+            'strengths' => 'nullable|string|max:2000',
+            'improvements' => 'nullable|string|max:2000',
+            'next_actions' => 'nullable|string|max:2000',
+            // "Lưu nháp" không dùng cho bảng lương; mặc định (và "Chốt KPI tháng") = đã chốt.
+            'action' => 'nullable|in:draft,confirm',
         ]);
+        $critical = collect($validated['critical'] ?? [])->filter()->keys()->map(fn ($id) => (int) $id)->all();
+        // "Lỗi nghiêm trọng" đưa % đạt của mục về 0.
+        foreach ($critical as $criterionId) {
+            $validated['score'][$criterionId] = 0;
+        }
 
         $criteria = KpiCriterion::active()->get()->keyBy('id');
 
@@ -154,7 +201,10 @@ class KpiController extends Controller
                 'evaluator_id' => Auth::id(),
                 'total_score' => $total,
                 'comment' => $validated['comment'] ?? null,
-                'status' => 'confirmed',
+                'strengths' => $validated['strengths'] ?? null,
+                'improvements' => $validated['improvements'] ?? null,
+                'next_actions' => $validated['next_actions'] ?? null,
+                'status' => ($validated['action'] ?? 'confirm') === 'draft' ? 'draft' : 'confirmed',
             ]
         );
 
@@ -164,12 +214,18 @@ class KpiController extends Controller
             }
             KpiEvaluationItem::updateOrCreate(
                 ['kpi_evaluation_id' => $evaluation->id, 'kpi_criterion_id' => $criterionId],
-                ['score' => $score, 'note' => $validated['note'][$criterionId] ?? null]
+                [
+                    'score' => $score, 'note' => $validated['note'][$criterionId] ?? null,
+                    'actual' => $validated['actual'][$criterionId] ?? null,
+                    'critical_error' => in_array((int) $criterionId, $critical, true),
+                ]
             );
         }
 
+        $label = $evaluation->status === 'draft' ? 'Đã lưu nháp đánh giá KPI' : 'Đã chốt KPI tháng';
+
         return redirect()->route('kpi.monthly', ['month' => $validated['month'], 'year' => $validated['year']])
-            ->with('success', "Đã lưu đánh giá KPI (Tổng điểm: {$total}%).");
+            ->with('success', "{$label} (Tổng điểm: {$total}%).");
     }
 
     // ───────────────────── RÀ SOÁT ĐIỂM DANH (Admin học vụ) ─────────────────────
