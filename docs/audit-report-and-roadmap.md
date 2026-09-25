@@ -505,7 +505,7 @@
 
 | Phase | Nội dung | Trạng thái | % hoàn thành (ước lượng) | Ghi chú |
 |---|---|---|---|---|
-| 1 | Chặn rủi ro khẩn + Tuyển sinh → vào lớp | 🟦 | ~75% | Xong: toàn bộ 23 P0, CRM pipeline 8 bước, chốt & xếp lớp, xác nhận chính thức, hồ sơ học viên, bộ sinh mã. Đang làm: chấm test theo khối lớp (Q2), quy tắc lùi bước/Thất bại/học thử, quét dữ liệu giả & nút giả (B2). Còn: đối chiếu 12 màn mockup Phase 1, test nghiệm thu trọn luồng, build assets |
+| 1 | Chặn rủi ro khẩn + Tuyển sinh → vào lớp | 🟦 | ~75% | Xong: toàn bộ 23 P0, CRM pipeline 8 bước, chốt & xếp lớp, xác nhận chính thức, hồ sơ học viên, bộ sinh mã. Đang làm: chấm test theo khối lớp (Q2), quy tắc lùi bước/Thất bại/học thử, quét dữ liệu giả & nút giả (B2). Xong thêm: test nghiệm thu trọn luồng + dữ liệu demo (`feat/phase1-seed-acceptance`). Còn: đối chiếu 12 màn mockup Phase 1, build assets |
 | 2 | Vận hành lớp học | 🟦 | ~60% | Xong: lịch/TKB/dashboard lớp, GVNN, nghỉ lễ, trình độ, giáo trình, Big Test, portal trợ giảng, KPI board. Đang làm: điểm danh theo buổi, bổ trợ, portal học viên, mô hình Giáo trình → Chặng → Unit → Buổi (Q4). Chờ tới lượt: đối chiếu mockup màn Phase 2 |
 | 3 | Chấm công → Lương | 🟦 | ~45% | Xong: chấm công tay, quy trình phạt, đơn giá theo GV, phiếu lương từng người, hoa hồng theo tiền thực thu. Chờ tới lượt: công thức lương PT/FT (Q3 mới chốt), KPI Học vụ, gate kép hoa hồng, thưởng tái tục. Cần bảng lương Excel để đối chiếu |
 | 4 | Thu học phí, hỗ trợ, nghiệm thu | 🟦 | ~55% | Xong: học phí (dải số theo chi nhánh, bảo lưu/khất nợ, quá hạn, chống trùng chuyển khoản), nhật ký, phân quyền cá nhân, giao việc, ticket, dashboard vai trò, dọn view chết. Chờ tới lượt: hoàn phí 1 tuần, trực lớp (Q8), đối chiếu mockup, nghiệm thu |
@@ -761,6 +761,32 @@
 - [ ] Chưa có màn đổi chặng cho một đợt Big Test đã tạo (đợt thi cũ trước migrate không gắn chặng nên không tự đóng chặng; Học thuật đóng tay nếu cần).
 **Quyết định phát sinh:** Big Test "đã duyệt và gửi" = không còn kết quả nháp/chờ duyệt, mọi kết quả có điểm đã gửi PH; học viên chưa có dòng kết quả không chặn đóng chặng. Chặng tự mở dùng GV của chặng trước.
 **Triển khai:** chạy `php artisan migrate` (`2026_09_29_100000_create_syllabus_stage_hierarchy`). Migration chuyển dữ liệu: mỗi giáo trình → Chặng 1 (tên = `stage_name` cũ); mỗi bài cũ → Unit cùng id + 1 Buổi cùng số (trùng số → số trống kế tiếp), nội dung chép sang; chặng đã giao gắn Chặng 1, lớp có nhiều chặng đang áp dụng chỉ giữ bản mới nhất (bản cũ đóng kèm lý do); Big Test cũ **không** tự gắn chặng (tránh gửi kết quả một đợt thi cũ làm đóng chặng duy nhất và đánh dấu lớp xong giáo trình) — chỉ đợt thi tạo sau khi migrate mới tự gắn chặng đang mở. **Sau migrate:** Học thuật tách giáo trình cũ thành nhiều chặng/unit ở màn Soạn syllabus (dữ liệu cũ đều nằm trong Chặng 1) trước khi tạo Big Test cuối chặng mới. Sao lưu DB trước khi chạy.
+
+#### Nghiệm thu Phase 1 — Trọn luồng khách → học viên vào lớp (nhánh `feat/phase1-seed-acceptance`)
+**Kịch bản đã kiểm thử** (`tests/Feature/Phase1AcceptanceTest.php`, qua HTTP bằng đúng vai trò, theo A6):
+- [x] Sale thêm khách: SĐT sai định dạng / SĐT PH sai / trùng SĐT (khác cách viết, `+84`) bị chặn; Sale không đổi bước nhưng ghi được nhật ký.
+- [x] CM (Học vụ) tiến **từng bước**, không nhảy cóc; hẹn test (gán đề + người chấm) → "Hẹn test"; khách mở **link test riêng có chữ ký** → "Test" (link bị sửa `lead` không điền sẵn thông tin); nộp bài gắn đúng khách nhờ token (kể cả nhập SĐT khác), trắc nghiệm tự chấm theo thang khối, bài ở "chờ chấm".
+- [x] Sale không chấm được (403); Học vụ chấm theo **thang khối lớp** (Nói bắt buộc nhập tay, chặn điểm vượt tối đa), tổng → lớp đề xuất, **chọn lại lớp** → "Đã test"; CM → "Gửi kết quả".
+- [x] Học thử: Sale không đặt được; CM đặt **tối đa 2 buổi** lớp thật (buổi thứ 3 bị chặn), stage không đổi; GV của buổi thấy khách ở "Nhận xét học thử", GV khác 403; nhận xét lưu theo khách + nhật ký, hiện trên hồ sơ khách; chưa có hồ sơ học viên.
+- [x] Chốt (a) vào lớp còn chỗ, đã đóng phí → học viên **Chờ khai giảng**, tài khoản (bắt buộc đổi mật khẩu), học phí, ghi danh, phiếu thu chờ duyệt, không có task nhắc thu, "Đã chốt"; Xác nhận chính thức thiếu checklist bị chặn, đủ → "Đang học" (lớp đã khai giảng). Khách đã chốt: không sang Thất bại, không lùi (kể cả Admin), khóa giá trị hợp đồng.
+- [x] Chốt (b) nhánh không test, **"xếp lớp sau"** (bắt buộc chọn khóa), chưa đóng phí → "Chờ xếp lớp", học phí theo khóa, task **"Nhắc thu học phí"** cho Sale phụ trách; không kéo tay sang "Đã chốt"; Sale không gán lớp (403); Học vụ gán lớp từ "Chờ xếp lớp" → "Đã chốt" + ghi danh + học phí gắn lớp; Xác nhận chính thức (lớp sắp khai giảng giữ "Chờ khai giảng"). Lớp hết chỗ → chốt bị chặn.
+- [x] Luật bước: CM không lùi (403, cả JSON); CM không kéo sang Đã chốt; **Admin lùi bắt buộc lý do**, lịch sử lưu từ/đến/lý do/người; Thất bại bắt buộc lý do; khách Thất bại không mở lại (kể cả Admin, nút "Tiếp theo"), không đặt học thử, không chốt, không xóa, vẫn trong "Khách không chốt".
+- [x] Phạm vi chi nhánh: Quản lý chi nhánh khác không xem / chuyển bước / chốt được (404), pipeline và danh sách không lộ khách; Sale khác không thấy khách không được giao; lớp chi nhánh khác không nhận khách.
+- [x] Buổi học sinh bằng `SessionScheduleService` bỏ ngày nghỉ của chi nhánh.
+
+**Lỗi phát hiện và đã sửa:**
+- [x] `ClassModel::loadRosterCounts()` lỗi 500 khi các lớp chỉ có lượt xếp lớp mà không học viên nào có `current_class_id` (merge mảng vào Eloquent Collection rỗng) — ảnh hưởng mọi màn nạp sĩ số theo danh sách lớp (sau khi sửa lỗi dưới thì gồm cả Chốt & Xếp lớp).
+- [x] Chốt & Xếp lớp, gợi ý lớp ở "Chờ xếp lớp" và "Gán lớp" đếm sĩ số chỉ theo `class_enrollments` → học viên xếp lớp từ hồ sơ (chỉ có `current_class_id`) không được tính (**nhận quá sĩ số**), học viên Bảo lưu vẫn bị tính. Nay dùng cùng sĩ số với màn Lớp học (`ClassModel::roster` / `hasSeatsFor()`), `CrmController` (4 chỗ).
+- [x] `WorkTaskSeeder` không idempotent (chạy lại `db:seed` nhân bản việc mẫu / báo cáo trực lớp).
+
+**Dữ liệu demo:** `Database\Seeders\DemoPhase1Seeder` (gọi từ `DatabaseSeeder` khi `local`/`testing`/`staging` hoặc `SEED_DEMO=true`), chi nhánh CG và BD, dùng tài khoản UserSeeder, đi qua controller / service thật (thêm khách, chuyển bước, hẹn test, chấm theo khối, đặt học thử, GV nhận xét, Chốt & Xếp lớp, Kế toán duyệt phiếu, gán lớp, xác nhận chính thức). Mỗi chi nhánh: 14 khách phủ đủ 8 bước pipeline, trong đó 2 Thất bại (có lý do), hạn liên hệ quá hạn / sắp hết hạn, khách bị bỏ quên; bài test 5 khối (4 khối có thang + nhóm thủ công) đã chấm + 1 bài chờ chấm; 3 buổi học thử (2 đã hẹn, 1 đã học có nhận xét); 3 lớp (FAM 1 đang học còn chỗ, FAM 2 sắp khai giảng thiếu 3 HV, FAM 0 đầy) với 112 buổi, bỏ ngày nghỉ `HOL-DEMO-<CN>`; 3 khách Đã chốt (đã đóng phí + đã xác nhận / chưa đóng phí + task nhắc thu / gán lớp từ lớp chờ) + 1 Chờ xếp lớp. Idempotent (chạy lại không đổi số dòng), ~3,5 giây. Test: `tests/Feature/DemoPhase1SeederTest.php`. Hướng dẫn + tài khoản demo: `README.md`.
+
+**Còn tồn / cần BA xác nhận:**
+- [ ] Học vụ (`academic_staff`) không có quyền `lead.convert` nên không tự **Chốt & Xếp lớp** (Sale / Quản lý cơ sở / Admin chốt; Học vụ gán lớp). A6 gọi "CM" gồm cả Học vụ → cần BA xác nhận Học vụ có được chốt không.
+- [ ] Hồ sơ học viên (`StudentProfileController::assertClassHasSeat`, "Liên kết lớp khác") vẫn đếm sĩ số theo `class_enrollments` (cùng lỗi đã sửa ở CRM) → nhóm Hồ sơ học viên.
+- [ ] Ghép trình độ lớp học thử vẫn chỉ là gợi ý; màn cũ `classes/trial-booking` vẫn còn (xem mục BA 25/09).
+- [ ] Nghiệm thu chạy ở mức HTTP/test; chưa đối chiếu ảnh chụp 12 màn mockup Phase 1 (nhánh giao diện đang làm song song).
+**Triển khai:** không có migration. Môi trường demo/staging: `php artisan migrate:fresh --seed` hoặc `php artisan db:seed --class=DemoPhase1Seeder`; production **không** đặt `SEED_DEMO=true`.
 
 ---
 

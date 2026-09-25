@@ -272,12 +272,11 @@ class CrmController extends Controller
             ->orderBy('converted_at')
             ->get();
 
-        $classes = $waitingLeads->isEmpty() ? collect() : ClassModel::query()
+        $classes = $waitingLeads->isEmpty() ? collect() : $this->withRosterSeats(ClassModel::query()
             ->with(['course', 'branch'])
-            ->withCount(['enrollments as active_enrollments_count' => fn (Builder $query) => $query->whereIn('status', ['pending', 'completed'])])
             ->whereIn('status', ['active', 'upcoming'])
             ->whereIn('branch_id', $waitingLeads->map(fn (CrmCustomer $lead) => $lead->convertedStudent?->branch_id ?? $lead->branch_id)->filter()->unique())
-            ->get();
+            ->get());
 
         $matchingClassesByLead = $waitingLeads->mapWithKeys(function (CrmCustomer $lead) use ($classes) {
             $branchId = $lead->convertedStudent?->branch_id ?? $lead->branch_id;
@@ -1336,13 +1335,12 @@ class CrmController extends Controller
         $branches = Branch::all();
         $courses = Course::where('is_active', true)->get();
         // Lớp đang học + lớp sắp khai giảng (chưa bắt đầu), còn chỗ.
-        $classes = $this->enrollableClassesQuery()
+        $classes = $this->withRosterSeats($this->enrollableClassesQuery()
             ->when($selectedCustomer?->branch_id, fn (Builder $query, int $branchId) => $query->where('branch_id', $branchId))
             ->with(['course', 'branch'])
-            ->withCount(['enrollments as active_enrollments_count' => fn (Builder $query) => $query->whereIn('status', ['pending', 'completed'])])
             ->orderByRaw("CASE WHEN status = 'upcoming' THEN 0 ELSE 1 END")
             ->orderBy('start_date')
-            ->get()
+            ->get())
             ->filter(fn (ClassModel $class) => $class->max_capacity <= 0 || $class->active_enrollments_count < $class->max_capacity)
             ->each(function (ClassModel $class) {
                 $class->setAttribute('remaining_seats', $class->max_capacity > 0 ? max(0, $class->max_capacity - $class->active_enrollments_count) : null);
@@ -1489,7 +1487,7 @@ class CrmController extends Controller
                 if ($customer->branch_id && $class->branch_id && $customer->branch_id !== $class->branch_id) {
                     throw ValidationException::withMessages(['class_id' => 'Lớp được chọn phải thuộc cùng chi nhánh với Lead.']);
                 }
-                if ($class->max_capacity > 0 && $class->enrollments()->whereIn('status', ['pending', 'completed'])->count() >= $class->max_capacity) {
+                if (! $class->hasSeatsFor()) {
                     throw ValidationException::withMessages(['class_id' => 'Lớp đã đủ sĩ số, vui lòng chọn lớp khác.']);
                 }
                 $course = $class->course;
@@ -1714,6 +1712,18 @@ class CrmController extends Controller
             ->with('temporary_password', $temporaryPassword);
     }
 
+    /**
+     * Sĩ số giữ chỗ theo danh sách lớp thật (ClassModel::roster: lớp hiện tại + lượt xếp lớp còn hiệu lực,
+     * bỏ học viên Thôi học / Hoàn thành / Bảo lưu) — cùng nguồn với màn Lớp học và kiểm tra hasSeatsFor().
+     * Gán vào active_enrollments_count để các view đang dùng thuộc tính này hiện đúng.
+     */
+    protected function withRosterSeats(Collection $classes): Collection
+    {
+        ClassModel::loadRosterCounts($classes);
+
+        return $classes->each(fn (ClassModel $class) => $class->setAttribute('active_enrollments_count', $class->roster_count));
+    }
+
     /** Lớp nhận ghi danh khi chốt: đang học, hoặc sắp khai giảng (chưa tới ngày bắt đầu). */
     protected function enrollableClassesQuery(): Builder
     {
@@ -1792,7 +1802,7 @@ class CrmController extends Controller
             if ($customer->waiting_course_id && $class->course_id !== $customer->waiting_course_id) {
                 throw ValidationException::withMessages(['class_id' => 'Lớp phải thuộc khóa học đã chốt ('.($customer->waitingCourse?->name ?? 'khóa đã chọn').').']);
             }
-            if ($class->max_capacity > 0 && $class->enrollments()->whereIn('status', ['pending', 'completed'])->count() >= $class->max_capacity) {
+            if (! $class->hasSeatsFor()) {
                 throw ValidationException::withMessages(['class_id' => 'Lớp đã đủ sĩ số, vui lòng chọn lớp khác.']);
             }
 

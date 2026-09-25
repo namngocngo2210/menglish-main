@@ -164,6 +164,8 @@ class ClassModel extends Model
             ->whereIn('status', self::SEAT_HOLDING_STUDENT_STATUSES)
             ->whereIn('current_class_id', $ids)
             ->get(['id', 'current_class_id'])
+            // toBase(): kết quả rỗng vẫn là Eloquent\Collection, merge() mảng vào sẽ gọi getKey() trên mảng → lỗi.
+            ->toBase()
             ->map(fn ($s) => [(int) $s->current_class_id, (int) $s->id]);
         $pairs = $pairs->merge(
             ClassEnrollment::query()
