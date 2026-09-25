@@ -944,6 +944,14 @@ class TuitionController extends Controller
         return $branchId ? (int) $branchId : null;
     }
 
+    /** Chi nhánh cấp số HĐ cho phiếu sinh tự động (hoàn phí / chuyển nhượng) của một khoản học phí. */
+    private function tuitionBranchId(StudentTuition $tuition): ?int
+    {
+        $branchId = $tuition->branch_id ?? $tuition->student?->branch_id;
+
+        return $branchId ? (int) $branchId : null;
+    }
+
     public function rejectReceiptAction(Request $request, $id)
     {
         $validated = $request->validate([
@@ -1382,7 +1390,8 @@ class TuitionController extends Controller
             // Bên nguồn: phiếu âm + giảm giá trị hợp đồng tương ứng để công nợ không tăng giả.
             TuitionReceipt::create([
                 'receipt_number' => TuitionReceipt::generateReceiptNumber(),
-                'invoice_number' => InvoiceConfiguration::consumeNextInvoiceNumber(),
+                // Số HĐ lấy theo dải của chi nhánh học viên (hết/không có dải → dải mặc định), như phiếu thu thường.
+                'invoice_number' => InvoiceConfiguration::consumeNextInvoiceNumber($this->tuitionBranchId($sourceTuition)),
                 'student_tuition_id' => $sourceTuition->id,
                 'student_id' => $sourceTuition->student_id,
                 'amount' => -$amount,
@@ -1413,7 +1422,7 @@ class TuitionController extends Controller
             // Bên nhận: phiếu dương cấn trừ công nợ (đã chặn vượt nợ ở trên nên không thất thoát).
             TuitionReceipt::create([
                 'receipt_number' => TuitionReceipt::generateReceiptNumber(),
-                'invoice_number' => InvoiceConfiguration::consumeNextInvoiceNumber(),
+                'invoice_number' => InvoiceConfiguration::consumeNextInvoiceNumber($this->tuitionBranchId($targetTuition)),
                 'student_tuition_id' => $targetTuition->id,
                 'student_id' => $targetTuition->student_id,
                 'amount' => $amount,
