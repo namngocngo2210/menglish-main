@@ -162,7 +162,19 @@
                 <!-- 6. Sĩ số -->
                 <div>
                     <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Sĩ số</span>
-                    <span class="text-xs font-bold text-primary">{{ $students->count() }} / {{ $class?->max_capacity ?? 15 }} học viên</span>
+                    @if ($class)
+                        @php $seat = $class->seatSummary(); @endphp
+                        <span class="text-xs font-bold text-primary" data-seats="{{ $class->id }}">{{ $seat['occupied'] }} / {{ $seat['capacity'] ?: '∞' }} học viên</span>
+                        <span class="block text-[11px] mt-0.5 {{ $seat['left'] === 0 ? 'text-red-600 font-bold' : 'text-gray-500' }}">
+                            {{ $seat['left'] === null ? 'Không giới hạn sĩ số' : ($seat['left'] === 0 ? 'Đã đủ sĩ số' : 'Còn '.$seat['left'].' chỗ') }}
+                            · Ngưỡng khai giảng {{ $seat['min'] }}
+                        </span>
+                        @if ($seat['needed'] > 0)
+                            <span class="block text-[11px] font-semibold text-amber-700">Cần thêm {{ $seat['needed'] }} học viên để khai giảng</span>
+                        @endif
+                    @else
+                        <span class="text-xs text-gray-400">—</span>
+                    @endif
                 </div>
 
                 <!-- 7. Giáo viên chính -->

@@ -127,9 +127,22 @@
                                 </td>
                                 <td class="py-3 px-4 text-gray-700 font-medium">{{ $c->branch?->name ?? '—' }}</td>
                                 <td class="py-3 px-4 text-gray-700">{{ $c->teacher?->name ?? '—' }}</td>
-                                <td class="py-3 px-4 text-center">
-                                    <span class="font-bold text-gray-900">{{ $c->students->count() }}</span>
-                                    <span class="text-gray-400">/{{ $c->max_capacity }}</span>
+                                <td class="py-3 px-4 text-center" data-seats="{{ $c->id }}">
+                                    @php $seat = $c->seatSummary(); @endphp
+                                    <span class="font-bold text-gray-900">{{ $seat['occupied'] }}</span>
+                                    <span class="text-gray-400">/{{ $seat['capacity'] ?: '∞' }}</span>
+                                    <div class="text-[10px] mt-0.5">
+                                        @if ($seat['left'] === null)
+                                            <span class="text-gray-400">Không giới hạn</span>
+                                        @elseif ($seat['left'] === 0)
+                                            <span class="font-bold text-red-600">Đã đủ</span>
+                                        @else
+                                            <span class="font-semibold text-emerald-700">Còn {{ $seat['left'] }} chỗ</span>
+                                        @endif
+                                    </div>
+                                    @if ($seat['needed'] > 0)
+                                        <div class="text-[10px] font-semibold text-amber-700" title="Ngưỡng khai giảng {{ $seat['min'] }} học viên">Thiếu {{ $seat['needed'] }}/{{ $seat['min'] }} để KG</div>
+                                    @endif
                                 </td>
                                 <td class="py-3 px-4">
                                     @php

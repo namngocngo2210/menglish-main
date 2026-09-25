@@ -31,6 +31,7 @@ class ClassModel extends Model
         'start_date',
         'end_date',
         'max_capacity',
+        'min_students',
         'tuition_fee',
         'notes',
         'status',
@@ -40,6 +41,7 @@ class ClassModel extends Model
         'start_date' => 'date',
         'end_date' => 'date',
         'max_capacity' => 'integer',
+        'min_students' => 'integer',
     ];
 
     /**
@@ -92,6 +94,9 @@ class ClassModel extends Model
     /** Trạng thái học viên còn giữ chỗ trong lớp (tính vào sĩ số). */
     public const SEAT_HOLDING_STUDENT_STATUSES = ['waiting_start', 'studying', 'summer_break'];
 
+    /** Ngưỡng khai giảng mặc định (cột classes.min_students, default 6). */
+    public const DEFAULT_MIN_STUDENTS = 6;
+
     /** Trạng thái bàn giao xếp lớp còn hiệu lực (khớp CRM: pending/completed). */
     public const ACTIVE_ENROLLMENT_STATUSES = ['pending', 'completed'];
 
@@ -123,6 +128,31 @@ class ClassModel extends Model
         }
 
         return max(0, (int) $this->max_capacity - $this->occupiedSeats());
+    }
+
+    /**
+     * Tóm tắt sĩ số cho danh sách / hồ sơ lớp (1 lần đếm): đang giữ chỗ, sĩ số tối đa, chỗ trống
+     * (như seatsLeft(), null = không giới hạn), ngưỡng khai giảng và số học viên còn thiếu để khai giảng
+     * (chỉ tính khi lớp chưa khai giảng).
+     *
+     * @return array{occupied:int, capacity:int, left:?int, min:int, needed:int, not_started:bool}
+     */
+    public function seatSummary(): array
+    {
+        $occupied = $this->occupiedSeats();
+        $capacity = (int) $this->max_capacity;
+        $min = (int) ($this->min_students ?? self::DEFAULT_MIN_STUDENTS);
+        $notStarted = in_array($this->status, ['pending_schedule', 'upcoming'], true)
+            || ($this->start_date && $this->start_date->isFuture());
+
+        return [
+            'occupied' => $occupied,
+            'capacity' => $capacity,
+            'left' => $capacity > 0 ? max(0, $capacity - $occupied) : null,
+            'min' => $min,
+            'needed' => $notStarted ? max(0, $min - $occupied) : 0,
+            'not_started' => $notStarted,
+        ];
     }
 
     public function isFull(): bool
