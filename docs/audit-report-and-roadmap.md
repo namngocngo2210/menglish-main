@@ -513,6 +513,29 @@
 **MR:** #...
 ```
 
+#### Phase 1 — CRM & Test đầu vào (nhánh `feat/phase1-crm`)
+**Đã làm:**
+- [x] SĐT: kiểm tra định dạng Việt Nam (di động 10 số 03/05/07/08/09, cố định 02x 11 số; `+84`/`84` chuẩn hoá về `0`) khi thêm / sửa khách, SĐT phụ huynh, nhập Excel.
+- [x] Khách đã xóa: xóa (soft delete) nhả `phone_normalized` + email (lưu `deleted_email`) nên tạo lại được khách cùng SĐT; màn "Khách đã xóa" + Khôi phục (Admin / Quản lý cơ sở, theo chi nhánh), chặn khôi phục khi SĐT đã thuộc khách khác.
+- [x] Khóa Giá trị hợp đồng / Cơ sở / Khóa đăng ký khi khách Chờ xếp lớp / Đã chốt (chặn server + readonly trên form).
+- [x] Sửa thông tin khách ghi lịch sử trước → sau (`crm_customer_histories.changes`).
+- [x] Cảnh báo khách bị bỏ quên: khách Mới > 24h (giữ nguyên) + mọi giai đoạn đang chăm sóc không có hoạt động N ngày (mặc định 3, `system_settings.crm_neglect_days`); báo Admin / Quản lý và thông báo cá nhân cho Sales phụ trách.
+- [x] Xóa đề test không xóa bài làm (chặn xóa khi đã có bài, gợi ý tắt kích hoạt). Xem / chấm bài làm + danh sách bài gần đây theo phạm vi khách CRM (Quản lý / Học vụ chỉ chi nhánh mình).
+- [x] Chốt & Xếp lớp chọn được lớp sắp khai giảng (chưa tới ngày bắt đầu), kiểm tra sĩ số; thẻ gợi ý lớp "Còn N chỗ", "Cần thêm N học viên để khai giảng" (cột mới `classes.min_students`, mặc định 6).
+- [x] Màn "Khách chốt — Xác nhận chính thức": checklist đã gửi tài khoản / vào nhóm Zalo / nhận giáo trình, lưu tiến độ, xác nhận (lớp đã khai giảng → học viên "Đang học").
+- [x] Pipeline: lọc (tìm kiếm, chi nhánh cho Admin, Sales, nguồn, khoảng ngày), badge Quá hạn / Sắp hết hạn theo `next_follow_up_at` (sửa trong form khách), modal "Sửa giai đoạn" theo A6.
+- [x] Chi tiết khách: SĐT phụ huynh, Phân công lại (Admin / Quản lý, bắt buộc lý do, ghi lịch sử), In hồ sơ, thẻ "Trạng thái & Hạn xử lý", checklist chăm sóc tháng đầu, lọc nhật ký theo loại, khối thang điểm test (khối lớp, tổng điểm, gợi ý lớp).
+- [x] Khách chốt: phân trang, lọc, cột lớp, xuất Excel / CSV. Khách không chốt: tìm kiếm, lọc ngày, phân trang, xuất file.
+- [x] Báo cáo doanh số: bảng theo người phụ trách giới hạn phạm vi (Sales chỉ mình, Quản lý chi nhánh mình) + xuất file. Không đổi công thức hoa hồng.
+- [x] Nhập khách hàng loạt từ Excel / CSV: xem trước, lỗi từng dòng (thiếu tên, SĐT sai / trùng trong file / trùng CRM, email), chọn chi nhánh + Sales, nhập các dòng hợp lệ. Màn nhập học phí giữ nguyên.
+**Chưa làm / chuyển phase sau:**
+- [ ] Q2 (thang 0–100 ở CRM vs 0–9 ở màn chấm bài online) → chờ BA; hiện chỉ ghi rõ thang trên từng màn.
+- [ ] Ô "Ngưỡng khai giảng" trong form tạo / sửa lớp → thuộc nhóm lớp học (cột đã có, mặc định 6).
+**Quyết định phát sinh:** Trường hợp đồng bị khóa sau chốt = Giá trị hợp đồng, Cơ sở, Khóa đăng ký. Xác nhận chính thức chỉ áp dụng ghi danh tạo từ CRM (có `customer_id`).
+**Lỗi còn tồn:** —
+**Test:** thêm `tests/Feature/Phase1CrmTest.php`, `Phase1EnrollmentTest.php`. Cập nhật `AcademicSystemTest`, `PlacementPortalSecurityTest`: khách trong test được gán chi nhánh của người chấm (hành vi cũ cho chấm khách ngoài phạm vi là sai theo A6).
+**Triển khai:** chạy `php artisan migrate` (migration `2026_09_28_100000_add_phase1_crm_fields`).
+
 ---
 
 ## Phụ lục — Vị trí kỹ thuật các lỗi P0 (cho dev)
