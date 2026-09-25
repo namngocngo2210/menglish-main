@@ -1,119 +1,182 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">layers</span>
-                    Khung Trình Độ &amp; Cấp Độ Đào Tạo
-                </h1>
-                <p class="text-xs text-gray-500">Chuẩn hóa các cấp độ đào tạo theo thang đo CEFR quốc tế và IELTS Target</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <button type="button" onclick="document.getElementById('newLevelModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
-                    <span class="material-symbols-outlined text-[18px]">add_circle</span>
-                    <span>Thêm cấp độ mới</span>
-                </button>
-            </div>
-        </div>
-    </x-slot>
+{{-- Cấu hình Trình độ & Syllabus (mockup cau-hinh-trinh-do): thống kê, tìm kiếm, sửa/xóa, bật/tắt trạng thái, nhóm trình độ, gắn giáo trình. --}}
+@php
+    $blank = ['id' => null, 'code' => '', 'name' => '', 'level_group' => '', 'target' => '', 'duration' => '', 'lessons_count' => 24, 'syllabus_curriculum_id' => '', 'is_active' => true];
+    $inputClass = 'w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20';
+@endphp
+<x-app-layout title="Cấu hình Trình độ & Syllabus">
+    <div x-data="{
+            open: {{ $errors->hasAny(['code', 'name', 'target', 'lessons_count', 'level_group', 'syllabus_curriculum_id']) ? 'true' : 'false' }},
+            level: @js(old('_level', $blank)),
+            baseUrl: @js(url('/course-levels')),
+            create() { this.level = @js($blank); this.open = true; },
+            edit(level) { this.level = { ...level, syllabus_curriculum_id: level.syllabus_curriculum_id ?? '', level_group: level.level_group ?? '', duration: level.duration ?? '' }; this.open = true; },
+         }">
+        <x-ui.page-header title="Cấu hình Trình độ & Syllabus" description="Quản lý danh sách trình độ đào tạo và thiết lập giáo trình tương ứng.">
+            <x-slot:actions>
+                @can('level.create')
+                    <x-ui.button icon="add_circle" x-on:click="create()">Thêm trình độ mới</x-ui.button>
+                @endcan
+            </x-slot:actions>
+        </x-ui.page-header>
 
-    <!-- Navigation Sub-Tabs -->
-    <div class="border-b border-gray-200 bg-white -mt-md -mx-md lg:-mt-lg lg:-mx-lg px-6 pt-3 mb-5">
-        <div class="flex items-center gap-6 overflow-x-auto text-xs font-semibold scrollbar-none">
-            <a href="{{ route('courses.index') }}" class="pb-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 transition whitespace-nowrap flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-[17px]">sell</span>
-                <span>Bảng giá &amp; Danh mục Khóa học</span>
-            </a>
-            <a href="{{ route('course-levels.index') }}" class="pb-3 border-b-2 border-primary-container text-primary font-bold transition whitespace-nowrap flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-[17px]">layers</span>
-                <span>Khung Trình Độ CEFR / IELTS</span>
-            </a>
-            <a href="{{ route('syllabus.documents') }}" class="pb-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 transition whitespace-nowrap flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-[17px]">menu_book</span>
-                <span>Giáo trình &amp; Syllabus</span>
-            </a>
-        </div>
-    </div>
+        <x-ui.tabs class="mb-lg">
+            <x-ui.tab icon="sell" :href="route('courses.index')">Bảng giá &amp; Khóa học</x-ui.tab>
+            <x-ui.tab icon="layers" :href="route('course-levels.index')" active>Trình độ</x-ui.tab>
+            <x-ui.tab icon="menu_book" :href="route('syllabus.documents')">Giáo trình &amp; Syllabus</x-ui.tab>
+        </x-ui.tabs>
 
-    <!-- Create Level Modal -->
-    <div id="newLevelModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div class="flex justify-between items-center pb-2 border-b border-gray-100">
-                <h3 class="font-bold text-sm text-gray-900">Thêm Khung Trình Độ Mới</h3>
-                <button type="button" onclick="document.getElementById('newLevelModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
-            </div>
-            <form action="{{ route('course-levels.store') }}" method="POST" class="space-y-3">
-                @csrf
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Mã cấp độ (Code)</label>
-                        <input type="text" name="code" placeholder="C2" required class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2 font-mono" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Số buổi học</label>
-                        <input type="number" name="lessons_count" value="24" required class="w-full text-xs rounded-xl border border-gray-200 p-2" />
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Tên trình độ</label>
-                    <input type="text" name="name" placeholder="Proficiency (Chuyên gia)" required class="w-full text-xs rounded-xl border border-gray-200 p-2" />
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Mục tiêu đầu ra (Target)</label>
-                    <input type="text" name="target" placeholder="CEFR C2 / IELTS 8.5+" required class="w-full text-xs rounded-xl border border-gray-200 p-2" />
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Thời lượng ước tính</label>
-                    <input type="text" name="duration" placeholder="14 tuần / 28 buổi" class="w-full text-xs rounded-xl border border-gray-200 p-2" />
-                </div>
-                <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
-                    <button type="button" onclick="document.getElementById('newLevelModal').classList.add('hidden')" class="px-3 py-1.5 rounded-lg border text-xs text-gray-600">Hủy</button>
-                    <button type="submit" class="px-4 py-1.5 bg-primary-container text-white text-xs font-bold rounded-lg shadow-sm">Lưu vào CSDL</button>
-                </div>
-            </form>
-        </div>
-    </div>
+        @if (session('status'))
+            <x-ui.alert type="success" class="mb-lg" dismissible>{{ session('status') }}</x-ui.alert>
+        @endif
 
-    <div class="space-y-4">
-        <!-- Level Table -->
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs min-w-[780px]">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
-                            <th class="py-3 px-4 min-w-[100px] whitespace-nowrap">Mã cấp độ</th>
-                            <th class="py-3 px-4 min-w-[200px] whitespace-nowrap">Tên trình độ</th>
-                            <th class="py-3 px-4 min-w-[180px] whitespace-nowrap">Chuẩn đầu ra (Target)</th>
-                            <th class="py-3 px-4 min-w-[140px] whitespace-nowrap">Thời lượng / Số buổi</th>
-                            <th class="py-3 px-4 text-center min-w-[140px] whitespace-nowrap">Số khóa học trực thuộc</th>
-                            <th class="py-3 px-4 text-center min-w-[120px] whitespace-nowrap">Trạng thái</th>
+        <div class="mb-lg grid grid-cols-1 gap-md sm:grid-cols-3">
+            <x-ui.stat-card label="Tổng số trình độ" :value="$stats['total']" icon="layers" tone="primary" :hint="$stats['active'].' đang hoạt động'" />
+            <x-ui.stat-card label="Syllabus hoạt động" :value="$stats['syllabus']" icon="menu_book" tone="success" hint="Giáo trình gắn với trình độ đang hoạt động" />
+            <x-ui.stat-card label="Nhóm đào tạo" :value="str_pad((string) $stats['groups'], 2, '0', STR_PAD_LEFT)" icon="groups" tone="secondary" />
+        </div>
+
+        <x-ui.filter-bar placeholder="Tìm kiếm mã, tên, nhóm trình độ..." :action="route('course-levels.index')">
+            <x-ui.select name="group" :options="$groups->combine($groups)" placeholder="Tất cả nhóm" inline-label="Nhóm:" />
+            <x-ui.select name="status" :options="['active' => 'Hoạt động', 'inactive' => 'Ngừng hoạt động']" placeholder="Mọi trạng thái" inline-label="Trạng thái:" />
+        </x-ui.filter-bar>
+
+        <x-ui.data-table min-width="960px">
+            <x-slot:header><h3 class="font-h3 text-h3 text-on-surface">Danh sách trình độ đào tạo</h3></x-slot:header>
+            <table>
+                <thead>
+                    <tr>
+                        <th>STT</th>
+                        <th>Mã trình độ</th>
+                        <th>Tên trình độ</th>
+                        <th>Nhóm trình độ</th>
+                        <th>Syllabus gắn kèm</th>
+                        <th class="text-center">Khóa / Lớp</th>
+                        <th>Trạng thái</th>
+                        <th class="text-right">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($levels as $lv)
+                        @php $inUse = $lv->courses_count > 0 || $lv->classes_count > 0; @endphp
+                        <tr data-level-id="{{ $lv->id }}">
+                            <td class="font-code text-on-surface-variant">{{ $levels->firstItem() + $loop->index }}</td>
+                            <td class="font-code font-semibold">{{ $lv->code }}</td>
+                            <td>
+                                <div class="font-semibold">{{ $lv->name }}</div>
+                                <div class="font-caption text-caption text-on-surface-variant">{{ $lv->target }} · {{ $lv->duration ?: $lv->lessons_count.' buổi' }}</div>
+                            </td>
+                            <td>
+                                @if ($lv->level_group)
+                                    <span class="rounded bg-secondary-fixed px-sm py-[2px] font-caption text-caption font-semibold text-on-secondary-fixed">{{ $lv->level_group }}</span>
+                                @else
+                                    <span class="font-caption text-caption italic text-on-surface-variant">—</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if ($lv->syllabus)
+                                    <span class="rounded-full bg-blue-600/10 px-sm py-[2px] font-code text-caption font-semibold text-blue-700" title="{{ $lv->syllabus->title }}">{{ $lv->syllabus->code }}{{ $lv->syllabus->version ? '.'.$lv->syllabus->version : '' }}</span>
+                                @else
+                                    <span class="font-caption text-caption italic text-on-surface-variant">Chưa gắn Syllabus</span>
+                                @endif
+                            </td>
+                            <td class="text-center font-code">{{ $lv->courses_count }} / {{ $lv->classes_count }}</td>
+                            <td>
+                                @can('level.update')
+                                    <form method="POST" action="{{ route('course-levels.update', $lv->id) }}">
+                                        @csrf @method('PUT')
+                                        <input type="hidden" name="toggle_status" value="1">
+                                        <button type="submit" title="Bấm để {{ $lv->is_active ? 'ngừng' : 'kích hoạt lại' }}">
+                                            <x-ui.badge :color="$lv->is_active ? 'success' : 'neutral'">{{ $lv->is_active ? 'Hoạt động' : 'Ngừng hoạt động' }}</x-ui.badge>
+                                        </button>
+                                    </form>
+                                @else
+                                    <x-ui.badge :color="$lv->is_active ? 'success' : 'neutral'">{{ $lv->is_active ? 'Hoạt động' : 'Ngừng hoạt động' }}</x-ui.badge>
+                                @endcan
+                            </td>
+                            <td class="whitespace-nowrap text-right">
+                                @can('level.update')
+                                    <x-ui.button variant="ghost" icon="edit" aria-label="Sửa {{ $lv->name }}"
+                                        x-on:click="edit({{ \Illuminate\Support\Js::from($lv->only(['id', 'code', 'name', 'level_group', 'target', 'duration', 'lessons_count', 'syllabus_curriculum_id', 'is_active'])) }})" />
+                                @endcan
+                                @can('level.delete')
+                                    @if ($inUse)
+                                        <span title="Đang gắn với khóa học/lớp học — không thể xóa" class="inline-flex p-sm text-on-surface-variant/40">
+                                            <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                                        </span>
+                                    @else
+                                        <form method="POST" action="{{ route('course-levels.destroy', $lv->id) }}" class="inline" onsubmit="return confirm('Xóa trình độ {{ $lv->code }}?');">
+                                            @csrf @method('DELETE')
+                                            <x-ui.button type="submit" variant="danger-text" icon="delete" aria-label="Xóa {{ $lv->name }}" />
+                                        </form>
+                                    @endif
+                                @endcan
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
-                        @forelse ($levels as $lv)
-                            <tr class="hover:bg-orange-50/20 transition">
-                                <td class="py-3.5 px-4 font-mono font-bold text-gray-900 whitespace-nowrap">
-                                    <span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/70 font-mono font-bold text-xs">
-                                        {{ $lv->code }}
-                                    </span>
-                                </td>
-                                <td class="py-3.5 px-4 font-bold text-gray-900 whitespace-nowrap">{{ $lv->name }}</td>
-                                <td class="py-3.5 px-4 font-semibold text-primary whitespace-nowrap">{{ $lv->target }}</td>
-                                <td class="py-3.5 px-4 text-gray-600 whitespace-nowrap">{{ $lv->duration ?? "{$lv->lessons_count} buổi" }}</td>
-                                <td class="py-3.5 px-4 text-center font-mono font-bold whitespace-nowrap">{{ $lv->courses_count }} khóa</td>
-                                <td class="py-3.5 px-4 text-center whitespace-nowrap">
-                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Đang áp dụng</span>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="text-center py-8 text-gray-400 text-xs">Chưa có khung trình độ nào.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                    @empty
+                        <tr>
+                            <td colspan="8">
+                                <x-ui.empty-state icon="layers" title="Không có trình độ phù hợp" description="Thử đổi từ khóa hoặc xóa bộ lọc." />
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+            <x-slot:footer><x-ui.pagination :paginator="$levels" unit="trình độ" /></x-slot:footer>
+        </x-ui.data-table>
+
+        {{-- Modal thêm / sửa trình độ --}}
+        <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-md" x-on:keydown.escape.window="open = false">
+            <div x-on:click.outside="open = false" class="w-full max-w-lg space-y-md rounded-2xl bg-surface-container-lowest p-lg shadow-xl">
+                <div class="flex items-center justify-between border-b border-surface-container pb-sm">
+                    <h3 class="font-h3 text-h3 text-on-surface" x-text="level.id ? 'Sửa trình độ ' + level.code : 'Thêm trình độ mới'"></h3>
+                    <button type="button" x-on:click="open = false" class="text-on-surface-variant" aria-label="Đóng"><span class="material-symbols-outlined">close</span></button>
+                </div>
+                <form method="POST" :action="level.id ? baseUrl + '/' + level.id : @js(route('course-levels.store'))" class="space-y-sm">
+                    @csrf
+                    <template x-if="level.id"><input type="hidden" name="_method" value="PUT"></template>
+                    <div class="grid grid-cols-2 gap-sm">
+                        <x-ui.field label="Mã trình độ" name="code" for="lv_code" required>
+                            <input id="lv_code" name="code" x-model="level.code" :disabled="!!level.id" required maxlength="20" placeholder="KID-BEG-01" class="{{ $inputClass }} font-code">
+                        </x-ui.field>
+                        <x-ui.field label="Nhóm trình độ" name="level_group" for="lv_group" hint="VD: KIDS, TEENS, IELTS">
+                            <input id="lv_group" name="level_group" x-model="level.level_group" list="lv_groups" maxlength="50" class="{{ $inputClass }} uppercase">
+                            <datalist id="lv_groups">@foreach ($groups as $g)<option value="{{ $g }}">@endforeach</datalist>
+                        </x-ui.field>
+                    </div>
+                    <x-ui.field label="Tên trình độ" name="name" for="lv_name" required>
+                        <input id="lv_name" name="name" x-model="level.name" required class="{{ $inputClass }}">
+                    </x-ui.field>
+                    <x-ui.field label="Chuẩn đầu ra (Target)" name="target" for="lv_target" required>
+                        <input id="lv_target" name="target" x-model="level.target" required placeholder="CEFR B1 / IELTS 5.0" class="{{ $inputClass }}">
+                    </x-ui.field>
+                    <div class="grid grid-cols-2 gap-sm">
+                        <x-ui.field label="Số buổi học" name="lessons_count" for="lv_lessons" required>
+                            <input id="lv_lessons" type="number" min="1" name="lessons_count" x-model="level.lessons_count" required class="{{ $inputClass }}">
+                        </x-ui.field>
+                        <x-ui.field label="Thời lượng" name="duration" for="lv_duration">
+                            <input id="lv_duration" name="duration" x-model="level.duration" placeholder="12 tuần / 24 buổi" class="{{ $inputClass }}">
+                        </x-ui.field>
+                    </div>
+                    <x-ui.field label="Syllabus gắn kèm" name="syllabus_curriculum_id" for="lv_syllabus">
+                        <select id="lv_syllabus" name="syllabus_curriculum_id" x-model="level.syllabus_curriculum_id" class="{{ $inputClass }}">
+                            <option value="">-- Chưa gắn Syllabus --</option>
+                            @foreach ($curriculums as $cur)
+                                <option value="{{ $cur->id }}">{{ $cur->code }}{{ $cur->version ? ' ('.$cur->version.')' : '' }} — {{ $cur->title }}</option>
+                            @endforeach
+                        </select>
+                    </x-ui.field>
+                    <template x-if="level.id">
+                        <label class="inline-flex items-center gap-xs font-body-small text-body-small">
+                            <input type="hidden" name="is_active" value="0">
+                            <input type="checkbox" name="is_active" value="1" x-model="level.is_active" class="rounded border-outline-variant">
+                            Đang hoạt động
+                        </label>
+                    </template>
+                    <div class="flex justify-end gap-sm border-t border-surface-container pt-md">
+                        <x-ui.button variant="secondary" x-on:click="open = false">Hủy</x-ui.button>
+                        <x-ui.button type="submit" icon="save">Lưu</x-ui.button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
