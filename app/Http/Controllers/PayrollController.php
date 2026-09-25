@@ -26,13 +26,25 @@ use Illuminate\Validation\ValidationException;
 
 class PayrollController extends Controller
 {
-    public function periods()
+    public function periods(Request $request)
     {
         $currentUser = auth()->user();
         abort_if($currentUser && ($currentUser->hasRole('student') || $currentUser->hasRole('teacher') || $currentUser->hasRole('academic_lead')), 403);
-        $periods = PayrollPeriod::withCount('records')->latest()->get();
 
-        return view('payroll.periods', compact('periods'));
+        $search = trim((string) $request->query('search', ''));
+        $status = $request->query('status');
+
+        $periods = PayrollPeriod::withCount('records')
+            ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('code', 'like', "%{$search}%")
+                ->orWhere('title', 'like', "%{$search}%")
+                ->orWhereHas('records.user', fn ($u) => $u->where('name', 'like', "%{$search}%"))))
+            ->when(in_array($status, ['draft', 'reviewing', 'approved', 'paid'], true), fn ($q) => $q->where('status', $status))
+            ->latest()
+            ->paginate(12)
+            ->withQueryString();
+        $allPeriods = PayrollPeriod::latest()->get(['id', 'code', 'title']);
+
+        return view('payroll.periods', compact('periods', 'allPeriods', 'search', 'status'));
     }
 
     public function storePeriod(Request $request)

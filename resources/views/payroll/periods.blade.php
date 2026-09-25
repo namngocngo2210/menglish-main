@@ -60,7 +60,7 @@
         </div>
     </div>
 
-    <div class="space-y-6" x-data="{ searchQuery: '', filterStatus: 'all' }">
+    <div class="space-y-6">
         
         <!-- Filter & Header Summary Card -->
         <div class="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -69,7 +69,8 @@
                     <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Chọn Kỳ Lương</label>
                     <div class="relative">
                         <select onchange="if(this.value) window.location.href=this.value;" class="text-xs font-bold rounded-xl border border-gray-300 bg-slate-50 py-2 pl-3 pr-8 focus:ring-primary-container focus:border-primary-container cursor-pointer">
-                            @foreach ($periods as $p)
+                            <option value="">-- Mở kỳ lương --</option>
+                            @foreach ($allPeriods as $p)
                                 <option value="{{ route('payroll.periods.show', $p->id) }}">
                                     {{ $p->title }} ({{ $p->code }})
                                 </option>
@@ -79,12 +80,18 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-3">
+            <form method="GET" action="{{ route('payroll.periods.index') }}" class="flex items-center gap-3 flex-wrap">
+                <select name="status" onchange="this.form.submit()" class="text-xs rounded-xl border border-gray-300 bg-slate-50 py-2 pl-3 pr-8">
+                    <option value="">Mọi trạng thái</option>
+                    @foreach (['draft' => 'Đang tính', 'reviewing' => 'Đang soát', 'approved' => 'Đã duyệt', 'paid' => 'Đã trả'] as $statusValue => $statusText)
+                        <option value="{{ $statusValue }}" @selected($status === $statusValue)>{{ $statusText }}</option>
+                    @endforeach
+                </select>
                 <div class="relative w-full sm:w-64">
                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
-                    <input type="text" x-model="searchQuery" placeholder="Tìm kiếm kỳ lương / nhân sự..." class="w-full text-xs rounded-xl border border-gray-300 pl-9 pr-3 py-2 bg-slate-50 focus:bg-white focus:ring-primary-container focus:border-primary-container transition" />
+                    <input type="search" name="search" value="{{ $search }}" placeholder="Tìm kiếm kỳ lương / nhân sự..." class="w-full text-xs rounded-xl border border-gray-300 pl-9 pr-3 py-2 bg-slate-50 focus:bg-white focus:ring-primary-container focus:border-primary-container transition" />
                 </div>
-            </div>
+            </form>
         </div>
 
         <!-- Smart Warning Banner (if any) -->
@@ -108,7 +115,7 @@
                     <span class="material-symbols-outlined text-orange-600 text-base">format_list_bulleted</span>
                     <span>Danh Sách Kỳ Tính Lương Tổng Hợp</span>
                 </h3>
-                <span class="text-xs font-bold text-gray-500 font-mono">{{ $periods->count() }} kỳ lương</span>
+                <span class="text-xs font-bold text-gray-500 font-mono">{{ $periods->total() }} kỳ lương</span>
             </div>
 
             <div class="overflow-x-auto">
@@ -154,6 +161,9 @@
                     </tbody>
                 </table>
             </div>
+            @if ($periods->hasPages())
+                <div class="border-t border-gray-100 px-4 py-3">{{ $periods->links() }}</div>
+            @endif
         </div>
 
     </div>

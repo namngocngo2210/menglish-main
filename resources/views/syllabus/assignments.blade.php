@@ -127,12 +127,12 @@
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-200 text-gray-700">{{ $assignments->total() }} lượt giao</span>
                     </div>
 
-                    <div class="flex items-center gap-2">
+                    <form method="GET" action="{{ route('syllabus.assignments') }}" class="flex items-center gap-2">
                         <div class="relative">
-                            <input type="text" id="assignSearch" onkeyup="filterAssignTable()" class="pl-9 pr-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none w-56" placeholder="Tìm tên giáo viên, lớp..." />
+                            <input type="search" name="search" value="{{ request('search') }}" class="pl-9 pr-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none w-56" placeholder="Tìm tên giáo viên, lớp, chặng..." />
                             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
                         </div>
-                    </div>
+                    </form>
                 </div>
 
                 <!-- Assignments Table -->
@@ -214,21 +214,4 @@
         </div>
     </div>
 
-    <script>
-        function filterAssignTable() {
-            const input = document.getElementById('assignSearch');
-            const filter = input.value.toLowerCase();
-            const table = document.getElementById('assignTable');
-            const tr = table.getElementsByTagName('tr');
-
-            for (let i = 1; i < tr.length; i++) {
-                const text = tr[i].textContent || tr[i].innerText;
-                if (text.toLowerCase().indexOf(filter) > -1) {
-                    tr[i].style.display = '';
-                } else {
-                    tr[i].style.display = 'none';
-                }
-            }
-        }
-    </script>
 </x-app-layout>

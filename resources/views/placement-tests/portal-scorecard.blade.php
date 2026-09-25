@@ -31,7 +31,7 @@
         <div class="flex items-center gap-2">
             <button type="button" onclick="window.print()" class="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer">
                 <span class="material-symbols-outlined text-[16px]">print</span>
-                <span>In Bản Đánh Giá / Xuất PDF</span>
+                <span>In bản đánh giá</span>
             </button>
         </div>
     </div>

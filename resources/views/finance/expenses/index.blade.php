@@ -314,14 +314,9 @@
             <!-- Footer: Tổng kết -->
             <div class="p-4 bg-slate-50/70 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
                 <div class="flex items-center gap-2">
-                    <span>Hiển thị <strong>1-{{ $totalItemsCount }}</strong> trong tổng số <strong>{{ $totalItemsCount }}</strong> bản ghi</span>
+                    <span>Hiển thị toàn bộ <strong>{{ $totalItemsCount }}</strong> bản ghi của tháng</span>
                     <span class="text-slate-300">|</span>
                     <span class="text-slate-600">Tổng cộng thực chi: <strong class="text-slate-900 text-sm">{{ number_format($grandTotalExpense, 0, ',', '.') }} VNĐ</strong></span>
-                </div>
-                <div class="flex items-center gap-1">
-                    <button type="button" disabled class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-not-allowed">Trang trước</button>
-                    <button type="button" class="px-3 py-1.5 rounded-lg border border-primary-container bg-primary-container text-white font-bold">1</button>
-                    <button type="button" disabled class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-not-allowed">Trang sau</button>
                 </div>
             </div>
         </div>
