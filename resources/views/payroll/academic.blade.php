@@ -61,52 +61,7 @@
                         <span class="text-xs font-bold text-gray-500 font-mono">{{ $records->count() }} nhân sự</span>
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse text-xs">
-                            <thead>
-                                <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
-                                    <th class="py-3 px-4">Nhân sự</th>
-                                    <th class="py-3 px-4 text-right">Lương cứng</th>
-                                    <th class="py-3 px-4 text-right">Thù lao dạy</th>
-                                    <th class="py-3 px-4 text-right">Phụ cấp</th>
-                                    <th class="py-3 px-4 text-right">Thưởng KPI</th>
-                                    <th class="py-3 px-4 text-right">Hoa hồng</th>
-                                    <th class="py-3 px-4 text-right">Giảm trừ</th>
-                                    <th class="py-3 px-4 text-right font-black">Thực lĩnh</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
-                                @forelse ($records as $r)
-                                    <tr class="hover:bg-orange-50/20 transition">
-                                        <td class="py-3.5 px-4 font-bold text-gray-900">
-                                            <div class="flex items-center gap-2">
-                                                <div class="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs">
-                                                    {{ Str::substr($r->user?->name ?? 'H', 0, 1) }}
-                                                </div>
-                                                <div>
-                                                    <a href="{{ route('payroll.records.show', $r->id) }}" class="text-xs font-bold text-gray-900 hover:text-orange-600 hover:underline" title="Xem phiếu lương">{{ $r->user?->name }}</a>
-                                                    <p class="text-[10px] text-gray-400 font-mono">{{ $r->user?->email }}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="py-3.5 px-4 text-right font-mono font-semibold">{{ number_format($r->base_salary) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono text-indigo-600 font-semibold">{{ number_format($r->teaching_salary) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">{{ number_format($r->allowance) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono text-amber-600 font-semibold">{{ number_format($r->kpi_bonus) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">{{ number_format($r->commission_bonus) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono text-rose-600">-{{ number_format($r->total_deductions) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono font-black text-orange-600 text-sm">
-                                            {{ number_format($r->net_salary) }}đ
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="8" class="text-center py-8 text-gray-400 text-xs">Chưa có bản ghi lương nhân sự khối học thuật trong kỳ này.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
+                    @include('payroll.partials.fulltime-table', ['records' => $records, 'emptyText' => 'Chưa có bản ghi lương nhân sự khối học thuật trong kỳ này.', 'avatarClass' => 'bg-purple-100 text-purple-700', 'showCommission' => false, 'showRenewal' => true])
                 </div>
 
                 <!-- Academic Role Guidelines Reference -->
@@ -117,16 +72,16 @@
                     </h4>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                            <span class="font-bold text-gray-800">1. Lương Cứng Nghiên Cứu</span>
-                            <p class="text-gray-500 text-[11px]">Đảm bảo công tác chuẩn bị học liệu, biên soạn Lesson Plan và Syllabus từng khối lớp.</p>
+                            <span class="font-bold text-gray-800">1. Lương cơ bản &amp; khấu trừ</span>
+                            <p class="text-gray-500 text-[11px]">BHXH, Công đoàn tự động trên lương cơ bản; thuế TNCN Admin nhập tay; trừ vi phạm quá hạn nộp.</p>
                         </div>
                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                            <span class="font-bold text-gray-800">2. Thù Lao Khảo Thí &amp; Test</span>
-                            <p class="text-gray-500 text-[11px]">Phụ cấp chấm bài thi Speaking &amp; Writing cho các kỳ Big Test, Placement Test đầu vào.</p>
+                            <span class="font-bold text-gray-800">2. KPI (nhập tự do)</span>
+                            <p class="text-gray-500 text-[11px]">Học thuật: Admin / Kế toán nhập số tiền KPI trên phiếu lương.</p>
                         </div>
                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                            <span class="font-bold text-gray-800">3. KPI Chất Lượng Đầu Ra</span>
-                            <p class="text-gray-500 text-[11px]">Thưởng theo tỷ lệ đạt chuẩn Cambridge / IELTS của toàn bộ học viên trung tâm.</p>
+                            <span class="font-bold text-gray-800">3. Phụ cấp &amp; thưởng tái tục</span>
+                            <p class="text-gray-500 text-[11px]">Phụ cấp / thưởng là các dòng tự do có tên. Thưởng tái tục nếu phụ trách lớp.</p>
                         </div>
                     </div>
                 </div>

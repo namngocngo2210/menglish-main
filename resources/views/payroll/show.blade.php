@@ -100,21 +100,21 @@
             </div>
 
             <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-1">
-                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tổng giờ giảng dạy</span>
-                <div class="text-xl font-black text-indigo-900 font-mono">{{ $period->records->sum('actual_hours') }} giờ</div>
-                <p class="text-[11px] text-indigo-600 font-medium">Đã đối soát với Chấm công</p>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tổng buổi dạy (Part-time)</span>
+                <div class="text-xl font-black text-indigo-900 font-mono">{{ $period->records->where('employee_type', 'parttime')->sum('teaching_sessions') }} buổi</div>
+                <p class="text-[11px] text-indigo-600 font-medium">{{ $period->records->sum('actual_hours') }} giờ chấm công hợp lệ</p>
             </div>
 
             <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-1">
                 <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tổng thưởng KPI / Giữ học sinh</span>
                 <div class="text-xl font-black text-emerald-600 font-mono">{{ number_format($period->records->sum('kpi_bonus')) }}đ</div>
-                <p class="text-[11px] text-emerald-700 font-medium">Theo bảng KPI công khai</p>
+                <p class="text-[11px] text-emerald-700 font-medium">Giữ HS (PT) · KPI tự do · KPI Học vụ</p>
             </div>
 
             <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-1">
                 <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tổng khấu trừ &amp; Phạt</span>
                 <div class="text-xl font-black text-rose-600 font-mono">-{{ number_format($period->records->sum('total_deductions')) }}đ</div>
-                <p class="text-[11px] text-rose-600 font-medium">Bao gồm phạt, bảo hiểm, thuế &amp; giảm trừ GVNN</p>
+                <p class="text-[11px] text-rose-600 font-medium">BHXH, Công đoàn, thuế TNCN, phạt, thu hồi hoa hồng, khấu trừ tự do</p>
             </div>
         </div>
 
@@ -132,13 +132,16 @@
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
                             <th class="py-3 px-4">Giáo viên / Nhân sự</th>
-                            <th class="py-3 px-4 text-right">Lương cơ bản</th>
-                            <th class="py-3 px-4 text-center">Số giờ dạy</th>
-                            <th class="py-3 px-4 text-right">Thù lao dạy</th>
-                            <th class="py-3 px-4 text-right">Thưởng KPI</th>
-                            <th class="py-3 px-4 text-right">Phụ cấp</th>
+                            <th class="py-3 px-4 text-center">Loại</th>
+                            <th class="py-3 px-4 text-right">Lương CB / Buổi dạy</th>
+                            <th class="py-3 px-4 text-right">KPI</th>
+                            <th class="py-3 px-4 text-right">Buổi GVNN</th>
                             <th class="py-3 px-4 text-right">Hoa hồng</th>
-                            <th class="py-3 px-4 text-right">Giảm trừ</th>
+                            <th class="py-3 px-4 text-right">Tái tục</th>
+                            <th class="py-3 px-4 text-right">Phụ cấp tự do</th>
+                            <th class="py-3 px-4 text-right">BHXH + CĐ</th>
+                            <th class="py-3 px-4 text-right">Thuế TNCN</th>
+                            <th class="py-3 px-4 text-right">Phạt & trừ khác</th>
                             <th class="py-3 px-4 text-right font-black">Thực lĩnh</th>
                             <th class="py-3 px-4 text-center">Trạng thái</th>
                             <th class="py-3 px-4 text-right">Thao tác</th>
@@ -146,7 +149,7 @@
                     </thead>
                     <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
                         @forelse ($period->records as $r)
-                            <tr class="hover:bg-orange-50/20 transition" x-data="{ openDeductionModal: false }">
+                            <tr class="hover:bg-orange-50/20 transition" x-data="{ openForeignModal: false }">
                                 <td class="py-3.5 px-4 font-bold text-gray-900">
                                     <div class="flex items-center gap-2">
                                         <div class="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-xs">
@@ -158,21 +161,39 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td class="py-3.5 px-4 text-right font-mono font-semibold">{{ number_format($r->base_salary) }}đ</td>
-                                <td class="py-3.5 px-4 text-center font-mono font-bold">{{ $r->actual_hours }}h</td>
-                                <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">{{ number_format($r->teaching_salary) }}đ</td>
-                                <td class="py-3.5 px-4 text-right font-mono text-amber-600 font-semibold">{{ number_format($r->kpi_bonus) }}đ</td>
-                                <td class="py-3.5 px-4 text-right font-mono">{{ number_format($r->allowance) }}đ</td>
+                                <td class="py-3.5 px-4 text-center">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $r->isPartTime() ? 'bg-sky-50 text-sky-700 border border-sky-200' : 'bg-slate-50 text-slate-700 border border-slate-200' }}">{{ $r->employee_type_label }}</span>
+                                    <p class="text-[10px] text-gray-400 mt-0.5">{{ $r->salary_role_label }}</p>
+                                </td>
+                                <td class="py-3.5 px-4 text-right font-mono font-semibold">
+                                    @if ($r->isPartTime())
+                                        <span class="text-emerald-600">{{ number_format($r->teaching_salary) }}đ</span>
+                                        <p class="text-[10px] text-gray-400">{{ (int) $r->teaching_sessions }} buổi</p>
+                                    @else
+                                        {{ number_format((float) $r->base_salary + (float) $r->teaching_salary) }}đ
+                                    @endif
+                                </td>
+                                <td class="py-3.5 px-4 text-right font-mono text-amber-600 font-semibold">
+                                    {{ number_format($r->kpi_bonus) }}đ
+                                    @if ($r->kpi_source === 'retention')
+                                        <p class="text-[10px] text-gray-400">{{ (int) $r->retention_students }} HS × {{ $r->retention_tier !== null ? number_format($r->retention_tier) : 'chưa chọn bậc' }}</p>
+                                    @elseif ($r->kpi_source === 'academic_kpi')
+                                        <p class="text-[10px] text-gray-400">{{ $r->kpi_score !== null ? rtrim(rtrim(number_format((float) $r->kpi_score, 2), '0'), '.').'% quỹ' : 'chưa chấm' }}</p>
+                                    @endif
+                                </td>
+                                <td class="py-3.5 px-4 text-right font-mono">{{ $r->isPartTime() ? number_format($r->foreign_session_pay).'đ' : '—' }}</td>
                                 <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">
                                     {{ number_format($r->commission_bonus) }}đ
-                                </td>
-                                <td class="py-3.5 px-4 text-right font-mono text-rose-600">
-                                    <div>-{{ number_format($r->total_deductions) }}đ</div>
-                                    @if($r->foreign_teacher_deduction > 0 || $r->foreign_teacher_sessions_count > 0)
-                                        <div class="text-[10px] text-amber-700 bg-amber-50 rounded px-1.5 py-0.5 mt-0.5 inline-block font-semibold">
-                                            GVNN: -{{ number_format($r->foreign_teacher_deduction) }}đ ({{ $r->foreign_teacher_sessions_count }}b)
-                                        </div>
+                                    @if ((float) $r->commission_deferred > 0)
+                                        <p class="text-[10px] text-amber-700 font-semibold">Hoãn {{ number_format($r->commission_deferred) }}đ</p>
                                     @endif
+                                </td>
+                                <td class="py-3.5 px-4 text-right font-mono">{{ number_format($r->renew_bonus) }}đ</td>
+                                <td class="py-3.5 px-4 text-right font-mono">{{ number_format((float) $r->allowance + (float) $r->other_bonus) }}đ</td>
+                                <td class="py-3.5 px-4 text-right font-mono text-rose-600">-{{ number_format((float) $r->insurance_deduction + (float) $r->union_deduction) }}đ</td>
+                                <td class="py-3.5 px-4 text-right font-mono text-rose-600">-{{ number_format($r->tax_deduction) }}đ</td>
+                                <td class="py-3.5 px-4 text-right font-mono text-rose-600">
+                                    -{{ number_format((float) $r->penalty_deduction + (float) $r->commission_clawback + (float) $r->other_deduction + (float) $r->foreign_teacher_deduction) }}đ
                                 </td>
                                 <td class="py-3.5 px-4 text-right font-mono font-black text-orange-600 text-sm">
                                     {{ number_format($r->net_salary) }}đ
@@ -188,25 +209,21 @@
                                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $rowBadge }}">{{ $rowLabel }}</span>
                                 </td>
                                 <td class="py-3.5 px-4 text-right">
-                                    @if (! $period->isLocked())
+                                    @if (! $period->isLocked() && $r->isPartTime())
                                     @can('payroll.edit')
-                                    <button type="button" @click="openDeductionModal = true" class="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-gray-300 hover:bg-gray-50 text-gray-700 transition">
-                                        Trừ GVNN
+                                    <button type="button" @click="openForeignModal = true" class="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-gray-300 hover:bg-gray-50 text-gray-700 transition">
+                                        Buổi GVNN
                                     </button>
 
-                                    <!-- Modal chỉnh sửa giảm trừ GVNN cùng dạy -->
-                                    <div x-show="openDeductionModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto bg-black/40 flex items-center justify-center p-4 text-left">
-                                        <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl" @click.away="openDeductionModal = false" x-data="{
-                                            sessions: {{ $r->foreign_teacher_sessions_count ?: 0 }},
-                                            rate: {{ $r->foreign_teacher_deduction_rate ?: 50000 }},
-                                            get total() { return this.sessions * this.rate; }
-                                        }">
+                                    <!-- Modal nhập lương buổi có GVNN (chờ BA chốt cách tính) -->
+                                    <div x-show="openForeignModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto bg-black/40 flex items-center justify-center p-4 text-left">
+                                        <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl" @click.away="openForeignModal = false">
                                             <div class="flex items-center justify-between border-b pb-3">
                                                 <div>
-                                                    <h3 class="font-bold text-sm text-gray-900">Giảm trừ Giáo viên Nước ngoài cùng dạy</h3>
+                                                    <h3 class="font-bold text-sm text-gray-900">Lương buổi có GVNN</h3>
                                                     <p class="text-xs text-gray-500 font-medium">{{ $r->user?->name }}</p>
                                                 </div>
-                                                <button type="button" @click="openDeductionModal = false" class="text-gray-400 hover:text-gray-600">
+                                                <button type="button" @click="openForeignModal = false" class="text-gray-400 hover:text-gray-600">
                                                     <span class="material-symbols-outlined">close</span>
                                                 </button>
                                             </div>
@@ -214,43 +231,35 @@
                                             <form action="{{ route('payroll.records.update', $r->id) }}" method="POST" class="space-y-3 text-xs">
                                                 @csrf
                                                 <div class="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-amber-800 text-[11px]">
-                                                    <strong>Quy định:</strong> Nếu trong cùng lớp, ngày/ca học có cả GVVN và GVNN cùng dạy, giảm trừ 50.000đ/buổi cho GVVN.
+                                                    <strong>Chờ BA chốt:</strong> cách tính lương buổi có GVNN chưa được xác nhận. Kế toán nhập tổng tiền cộng cho GV.
+                                                    Kỳ này có {{ (int) $r->foreign_teacher_sessions_count }} buổi GVNN cùng lớp.
                                                 </div>
 
                                                 <div>
-                                                    <label class="block font-bold text-gray-700 mb-1">Số buổi có GVNN cùng dạy trong ca</label>
-                                                    <input type="number" name="foreign_teacher_sessions_count" x-model.number="sessions" min="0" required class="w-full text-xs rounded-xl border-gray-200 p-2 font-mono font-bold">
+                                                    <label class="block font-bold text-gray-700 mb-1">Số tiền (VNĐ)</label>
+                                                    <input type="number" name="foreign_session_pay" value="{{ (int) $r->foreign_session_pay }}" min="0" step="1000" required class="w-full text-xs rounded-xl border-gray-200 p-2 font-mono font-bold">
                                                 </div>
 
                                                 <div>
-                                                    <label class="block font-bold text-gray-700 mb-1">Đơn giá giảm trừ mỗi buổi (VNĐ)</label>
-                                                    <input type="number" name="foreign_teacher_deduction_rate" x-model.number="rate" min="0" step="5000" required class="w-full text-xs rounded-xl border-gray-200 p-2 font-mono font-bold">
-                                                </div>
-
-                                                <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-                                                    <span class="font-bold text-gray-700">Tổng số tiền giảm trừ:</span>
-                                                    <span class="text-sm font-mono font-black text-rose-600" x-text="new Intl.NumberFormat('vi-VN').format(total) + ' đ'"></span>
-                                                </div>
-
-                                                <div>
-                                                    <label class="block font-bold text-gray-700 mb-1">Ghi chú điều chỉnh</label>
-                                                    <textarea name="notes" rows="2" placeholder="Ghi chú thêm..." class="w-full text-xs rounded-xl border-gray-200 p-2">{{ $r->notes }}</textarea>
+                                                    <label class="block font-bold text-gray-700 mb-1">Ghi chú</label>
+                                                    <textarea name="notes" rows="2" placeholder="Ghi chú thêm..." class="w-full text-xs rounded-xl border-gray-200 p-2">{{ $r->adjustment_notes }}</textarea>
                                                 </div>
 
                                                 <div class="flex items-center justify-end gap-2 pt-2 border-t">
-                                                    <button type="button" @click="openDeductionModal = false" class="px-3 py-1.5 border rounded-lg text-gray-600 hover:bg-gray-50">Hủy</button>
-                                                    <button type="submit" class="px-4 py-1.5 bg-primary-container text-white font-bold rounded-lg shadow-sm hover:bg-primary-hover">Lưu giảm trừ</button>
+                                                    <button type="button" @click="openForeignModal = false" class="px-3 py-1.5 border rounded-lg text-gray-600 hover:bg-gray-50">Hủy</button>
+                                                    <button type="submit" class="px-4 py-1.5 bg-primary-container text-white font-bold rounded-lg shadow-sm hover:bg-primary-hover">Lưu</button>
                                                 </div>
                                             </form>
                                         </div>
                                     </div>
                                     @endcan
                                     @endif
+                                    <a href="{{ route('payroll.records.show', $r->id) }}" class="ml-1 px-2.5 py-1 text-[11px] font-bold rounded-lg border border-gray-300 hover:bg-gray-50 text-gray-700 transition inline-block">Phiếu</a>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="11" class="text-center py-8 text-gray-400 text-xs">Chưa có chi tiết lương nhân sự cho kỳ này.</td>
+                                <td colspan="14" class="text-center py-8 text-gray-400 text-xs">Chưa có chi tiết lương nhân sự cho kỳ này.</td>
                             </tr>
                         @endforelse
                     </tbody>

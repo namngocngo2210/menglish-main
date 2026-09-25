@@ -148,7 +148,7 @@
                                         </div>
                                         <div>
                                             <p class="font-bold text-gray-900">{{ $item['user']->name }}</p>
-                                            <p class="text-[10px] text-gray-400 font-mono">{{ $item['tier_name'] }}</p>
+                                            <p class="text-[10px] text-gray-400 font-mono">{{ $item['tier_name'] }} · {{ $item['closed'] }} HS chốt · {{ rtrim(rtrim(number_format($item['percent'], 2), '0'), '.') }}%</p>
                                         </div>
                                     </div>
                                 </td>

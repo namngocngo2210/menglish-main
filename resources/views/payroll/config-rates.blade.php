@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-ui.page-header title="Cấu hình đơn giá giáo viên"
-                      description="Đơn giá giờ dạy riêng từng giáo viên theo ngày hiệu lực. Đổi giá = thêm phiên bản mới, ca dạy cũ vẫn tính theo giá cũ.">
+                      description="Đơn giá riêng từng giáo viên theo ngày hiệu lực — GV Part-time tính theo BUỔI (Q3). Đổi giá = thêm phiên bản mới, buổi dạy cũ vẫn tính theo giá cũ.">
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="percent" :href="route('payroll.config.commission-tiers')">Cấu hình hoa hồng</x-ui.button>
         </x-slot:actions>
@@ -24,7 +24,9 @@
                 <x-ui.select name="user_id" label="Giáo viên" required placeholder="-- Chọn giáo viên --"
                              :value="old('user_id', $selectedTeacher?->id)"
                              :options="$teachers->mapWithKeys(fn ($t) => [$t->id => $t->name.' ('.$t->email.')'])" />
-                <x-ui.input type="number" name="hourly_rate" label="Đơn giá (VNĐ/giờ)" required min="1000" step="1000" placeholder="VD: 300000" />
+                <x-ui.select name="rate_unit" label="Tính theo" required :value="old('rate_unit', 'session')"
+                             :options="['session' => 'Theo buổi dạy (đ/buổi) — Part-time Q3', 'hour' => 'Theo giờ (đ/giờ) — cách cũ']" />
+                <x-ui.input type="number" name="hourly_rate" label="Đơn giá (VNĐ)" required min="1000" step="1000" placeholder="VD: 350000" />
                 <x-ui.date name="effective_from" label="Hiệu lực từ ngày" required :value="old('effective_from', now()->toDateString())"
                            hint="Áp dụng cho các ca dạy từ ngày này cho tới khi có đơn giá mới hơn." />
                 <x-ui.textarea name="note" label="Ghi chú" rows="2" placeholder="VD: Tăng bậc sau đánh giá quý 3" />
@@ -32,8 +34,9 @@
                 <x-ui.button type="submit" icon="save" class="w-full">Lưu phiên bản đơn giá</x-ui.button>
 
                 <p class="font-caption text-caption text-on-surface-variant">
-                    Thứ tự áp dụng khi tính lương: đơn giá ghi riêng trên ca dạy → đơn giá GV hiệu lực tại ngày dạy
-                    → đơn giá trong hồ sơ nhân sự → mặc định {{ number_format(\App\Models\TeacherTimesheet::DEFAULT_HOURLY_RATE, 0, ',', '.') }}đ/h.
+                    GV Part-time: mỗi buổi chấm công hợp lệ × đơn giá buổi hiệu lực tại ngày dạy. Chưa có đơn giá buổi thì tính
+                    số giờ × đơn giá giờ (ghi riêng trên ca dạy → đơn giá giờ của GV → hồ sơ nhân sự → mặc định
+                    {{ number_format(\App\Models\TeacherTimesheet::DEFAULT_HOURLY_RATE, 0, ',', '.') }}đ/h). GV Full-time hưởng lương cơ bản, không tính theo buổi.
                 </p>
             </form>
         </div>
@@ -48,7 +51,7 @@
                     <thead>
                         <tr>
                             <th>Giáo viên</th>
-                            <th class="text-right">Đơn giá / giờ</th>
+                            <th class="text-right">Đơn giá</th>
                             <th>Hiệu lực từ</th>
                             <th class="text-right">Lịch sử</th>
                         </tr>
@@ -63,9 +66,9 @@
                                 </td>
                                 <td>
                                     @if ($current)
-                                        <x-ui.money :value="$current->hourly_rate" suffix="đ" />
+                                        <x-ui.money :value="$current->hourly_rate" :suffix="$current->unit_label" />
                                     @elseif ((float) $teacher->hourly_rate > 0)
-                                        <x-ui.money :value="$teacher->hourly_rate" suffix="đ" />
+                                        <x-ui.money :value="$teacher->hourly_rate" suffix="đ/giờ" />
                                         <span class="block text-right font-caption text-caption text-on-surface-variant">theo hồ sơ nhân sự</span>
                                     @else
                                         <span class="block text-right font-caption text-caption text-on-surface-variant">Mặc định</span>
@@ -97,7 +100,7 @@
                     <thead>
                         <tr>
                             <th>Giáo viên</th>
-                            <th class="text-right">Đơn giá / giờ</th>
+                            <th class="text-right">Đơn giá</th>
                             <th>Hiệu lực từ</th>
                             <th>Ghi chú</th>
                             <th>Người tạo</th>
@@ -107,7 +110,7 @@
                         @forelse ($history as $row)
                             <tr>
                                 <td class="font-semibold">{{ $row->user?->name ?? '—' }}</td>
-                                <td><x-ui.money :value="$row->hourly_rate" suffix="đ" /></td>
+                                <td><x-ui.money :value="$row->hourly_rate" :suffix="$row->unit_label" /></td>
                                 <td class="font-code text-code">{{ $row->effective_from->format('d/m/Y') }}</td>
                                 <td>{{ $row->note ?? '—' }}</td>
                                 <td>
