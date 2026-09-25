@@ -440,6 +440,52 @@
 
         </div>
 
+        <!-- Chăm sóc tháng đầu: mốc ngày 3/7/14/30 (việc tự tạo cho Học vụ + checklist CRM) -->
+        <section class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden" data-section="first-month-care">
+            <div class="p-4 sm:p-5 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/70">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary text-xl">volunteer_activism</span>
+                    <h3 class="font-bold text-xs uppercase tracking-wider text-gray-900">Chăm sóc tháng đầu</h3>
+                </div>
+                <div class="text-[11px] text-gray-500">
+                    @if ($care['start'])
+                        Bắt đầu học: <strong class="text-gray-800">{{ $care['start']->format('d/m/Y') }}</strong>
+                    @else
+                        Chưa có buổi học/xếp lớp để tính mốc chăm sóc
+                    @endif
+                    @if ($care['customer'])
+                        @can('lead.view')
+                            · <a href="{{ route('crm.customers.show', $care['customer']->id) }}" class="font-semibold text-primary hover:underline">Checklist bên CRM</a>
+                        @endcan
+                    @endif
+                </div>
+            </div>
+            <ul class="divide-y divide-gray-100">
+                @foreach ($care['items'] as $item)
+                    <li class="px-4 sm:px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                        <div class="flex items-start gap-2">
+                            <span class="material-symbols-outlined text-[18px] {{ $item['done'] ? 'text-emerald-600' : 'text-gray-300' }}">{{ $item['done'] ? 'check_circle' : 'radio_button_unchecked' }}</span>
+                            <div>
+                                <div class="font-semibold text-gray-900">Ngày {{ $item['day'] }} — {{ $item['label'] }}</div>
+                                <div class="text-[11px] text-gray-500">
+                                    Hạn: {{ $item['due']?->format('d/m/Y') ?? '—' }}
+                                    @if ($item['crm_done']) · Đã đánh dấu bên CRM {{ \Illuminate\Support\Carbon::parse($item['crm_done']['done_at'] ?? now())->format('d/m/Y') }} @endif
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-[11px]">
+                            @if ($item['task'])
+                                <span class="font-semibold text-gray-700">{{ $item['task']->assignee?->name }}</span>
+                                · <span class="{{ $item['task']->status === 'completed' ? 'text-emerald-700' : 'text-amber-700' }} font-bold">{{ $item['task']->status_label }}</span>
+                            @else
+                                <span class="text-gray-400">Chưa tạo việc</span>
+                            @endif
+                        </div>
+                    </li>
+                @endforeach
+            </ul>
+        </section>
+
         <!-- ────────────────────────────────────────────── -->
         <!-- SECTION 5: LỊCH SỬ ĐIỂM DANH CỦA HỌC VIÊN -->
         <!-- ────────────────────────────────────────────── -->

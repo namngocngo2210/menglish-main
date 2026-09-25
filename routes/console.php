@@ -9,6 +9,8 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('students:send-birthday-notifications')->dailyAt('08:00');
+// Chăm sóc học viên tháng đầu: việc cho Học vụ ở ngày 3/7/14/30 (idempotent).
+Schedule::command('students:schedule-first-month-care')->dailyAt('07:40');
 
 Schedule::command('crm:scan-stale-leads')->hourly();
 

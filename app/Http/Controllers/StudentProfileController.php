@@ -281,7 +281,9 @@ class StudentProfileController extends Controller
                 ->get();
         }
 
-        return view('students.show', compact('student', 'classes', 'sessions', 'attendances', 'attendanceBySession', 'attendanceStats', 'linkableClasses'));
+        $care = app(\App\Services\FirstMonthCareService::class)->checklist($student);
+
+        return view('students.show', compact('student', 'classes', 'sessions', 'attendances', 'attendanceBySession', 'attendanceStats', 'linkableClasses', 'care'));
     }
 
     public function updateStudent(Request $request, $id)

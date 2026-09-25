@@ -17,6 +17,8 @@ class WorkTask extends Model
         'assignee_id',
         'branch_id',
         'class_id',
+        'student_id',
+        'care_milestone',
         'lesson_session',
         'time_slot_category',
         'task_type',
@@ -38,6 +40,21 @@ class WorkTask extends Model
         'confirmed_at' => 'datetime',
         'completed_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        // Việc chăm sóc tháng đầu hoàn thành → đánh dấu checklist chăm sóc bên CRM.
+        static::updated(function (WorkTask $task) {
+            if ($task->care_milestone && $task->wasChanged('status') && $task->status === 'completed') {
+                app(\App\Services\FirstMonthCareService::class)->syncCompletedTask($task);
+            }
+        });
+    }
+
+    public function student()
+    {
+        return $this->belongsTo(Student::class, 'student_id');
+    }
 
     public function creator()
     {
