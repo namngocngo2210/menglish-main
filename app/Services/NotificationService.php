@@ -764,15 +764,16 @@ class NotificationService
         $candidateName = $submission->candidate_name ?? 'Học viên';
         $candidatePhone = $submission->candidate_phone ?? '---';
         $testTitle = $submission->test?->title ?? 'Bài kiểm tra đầu vào';
-        $score = $submission->overall_score ?? 0;
-        $level = $submission->cefr_level ?? 'Chưa xác định';
+        $scoreLabel = $submission->overall_score !== null
+            ? "{$submission->overall_score} Band (".($submission->cefr_level ?? 'Chưa xác định').')'
+            : 'Chờ Học vụ chấm';
         $course = $submission->recommended_course ?? 'Đang tư vấn';
 
         $subject = "[Học vụ] Học viên nộp bài: {$candidateName} - {$testTitle}";
         $content = "Học viên vừa hoàn thành và nộp bài trực tuyến trên hệ thống Portal:\n\n"
             ."• Học viên: {$candidateName} (SĐT: {$candidatePhone})\n"
             ."• Bài thi / Đề kiểm tra: {$testTitle}\n"
-            ."• Điểm đánh giá: {$score} Band ({$level})\n"
+            ."• Điểm đánh giá: {$scoreLabel}\n"
             ."• Khóa học đề xuất: {$course}\n"
             .'• Thời gian nộp: '.now()->format('H:i d/m/Y');
 
@@ -784,12 +785,12 @@ class NotificationService
                 'code' => 'TEST-'.$submission->id,
                 'title' => "[Học vụ] Nộp bài thi: {$candidateName}",
                 'status' => 'completed',
-                'status_label' => "{$score} Band ({$level})",
+                'status_label' => $scoreLabel,
                 'priority' => 'medium',
                 'priority_label' => 'Học vụ',
                 'category_label' => 'Học vụ & Đào tạo',
                 'sender_name' => 'Cổng Portal Khảo thí',
-                'action_url' => route('placement-tests.show', $submission->placement_test_id ?? 1),
+                'action_url' => route('placement-tests.results.show', $submission->id),
                 'action_text' => 'Xem Báo cáo Điểm số',
             ]
         );

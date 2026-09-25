@@ -126,19 +126,19 @@
                                 <td class="py-3 px-4 text-center font-mono font-bold text-rose-600">{{ $sub->speaking_score }}</td>
                                 <td class="py-3 px-4 text-center">
                                     <span class="px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 font-mono font-black text-xs">
-                                        {{ $sub->overall_score }} ({{ $sub->cefr_level }})
+                                        @if ($sub->isPending()) Chờ chấm @else {{ $sub->overall_score ?? '—' }} ({{ $sub->cefr_level ?? '—' }}) @endif
                                     </span>
                                 </td>
                                 <td class="py-3 px-4 font-semibold text-orange-600">{{ $sub->recommended_course }}</td>
                                 <td class="py-3 px-4 text-right whitespace-nowrap">
                                     <div class="flex items-center justify-end gap-1.5">
-                                        <a href="{{ route('portal.test.scorecard', $sub->id) }}" target="_blank" class="px-2 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-[11px] transition inline-flex items-center gap-1">
+                                        <a href="{{ \Illuminate\Support\Facades\URL::signedRoute('portal.test.scorecard', ['id' => $sub->id]) }}" target="_blank" class="px-2 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-[11px] transition inline-flex items-center gap-1">
                                             <span class="material-symbols-outlined text-[13px]">description</span>
                                             <span>Phiếu điểm</span>
                                         </a>
                                         <a href="{{ route('placement-tests.results.show', $sub->id) }}" class="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-[11px] transition inline-flex items-center gap-1">
                                             <span class="material-symbols-outlined text-[13px]">edit_note</span>
-                                            <span>Chấm lại</span>
+                                            <span>{{ $sub->isPending() ? 'Chấm bài' : 'Chấm lại' }}</span>
                                         </a>
                                     </div>
                                 </td>

@@ -250,8 +250,8 @@
             'icon' => 'ballot',
             'route_check' => 'placement-tests.*',
             'items' => [
-                ['label' => 'Quản lý Đề Test đầu vào (AI)', 'url' => route('placement-tests.index'), 'active' => request()->routeIs('placement-tests.*'), 'permission' => 'entrance_test.view'],
-                ['label' => 'Thang điểm & Hướng dẫn chấm (Rubric)', 'url' => route('placement-tests.rubric-guide'), 'active' => request()->routeIs('placement-tests.rubric-guide'), 'permission' => 'entrance_test.view'],
+                ['label' => 'Quản lý Đề Test đầu vào (AI)', 'url' => route('placement-tests.index'), 'active' => request()->routeIs('placement-tests.*'), 'permission' => 'placement_test.view'],
+                ['label' => 'Thang điểm & Hướng dẫn chấm (Rubric)', 'url' => route('placement-tests.rubric-guide'), 'active' => request()->routeIs('placement-tests.rubric-guide'), 'permission' => 'placement_test.view'],
                 ['label' => 'Quản lý Đợt Khảo sát', 'url' => route('surveys.index'), 'active' => request()->routeIs('surveys.*'), 'permission' => 'survey.manage'],
                 ['label' => 'Bảng giá & Khóa học', 'url' => route('courses.index'), 'active' => request()->routeIs('courses.*'), 'permission' => 'level.view'],
                 ['label' => 'Cấu hình Khung trình độ (CEFR)', 'url' => route('course-levels.index'), 'active' => request()->routeIs('course-levels.*'), 'permission' => 'level.view'],
