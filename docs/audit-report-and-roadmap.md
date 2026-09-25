@@ -1,4 +1,4 @@
-# MEnglish — Báo cáo Audit & Kế hoạch 4 phase
+# MEnglish — Báo cáo Audit (nghiệp vụ + giao diện) & Kế hoạch 4 phase
 
 > **Ngày:** 25/09/2026 · **Người lập:** CTO
 > **Chuẩn đối chiếu:** BPMN (2 file `.drawio`), `tai-lieu-su-dung-flow-tinh-nang.html` (gọi tắt: *flow doc*), `test-cases-unitest-flows.html`, `unitest-crm.xlsx`, `Thang điểm + hướng dẫn nhận xét.html`, `erp-database-schema.html`, mockup `code.html`.
@@ -188,6 +188,141 @@
 
 ---
 
+## Phần D — Audit giao diện (so với 66 màn mockup)
+
+> **Phương pháp:** đọc view (Blade) và controller, đối chiếu với `code.html` của từng mockup. **Chưa chạy app, chưa so ảnh chụp màn hình.**
+> **Mức độ:** P1 = người dùng thấy thiếu hoặc sai (thiếu màn, trường, cột, bộ lọc, nút; nút giả; dữ liệu giả). P2 = thẩm mỹ (nhãn chữ, icon, bố cục, màu).
+
+### D1. Tổng quan
+
+| Nhóm | Số màn | Khớp | Làm một phần | Thiếu / khác hẳn | P1 | P2 |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|
+| CRM, test đầu vào, hồ sơ học viên, nhập Excel | 18 | 0 | 16 | 2 | 75 | 29 |
+| Lịch, lớp, phân công công việc, trình độ, ngày nghỉ | 11 | 0 | 11 | 0 | 58 | 25 |
+| Giáo trình & Big Test | 8 | 0 | 8 | 0 | 38 | 19 |
+| Chấm công, Phạt, Lương | 13 | 0 | 13 | 0 | 53 | 21 |
+| Học phí, hóa đơn, thu chi | 12 | 2 | 8 | 2 | 44 | 31 |
+| Cấu hình hệ thống (tài khoản, phân quyền, danh mục, nhật ký) | 4 | 0 | 4 | 0 | 16 | 14 |
+| **Tổng** | **66** | **2** | **60** | **4** | **284** | **139** |
+
+**Đánh giá chung:**
+- Hầu hết màn đã có route và có nối dữ liệu thật.
+- Khoảng cách với mockup nằm ở 4 chỗ:
+  - Thiếu bộ lọc, xuất file, phân trang.
+  - Thiếu các thao tác nghiệp vụ mà mockup có.
+  - Nhiều chỗ còn hiện dữ liệu giả.
+  - Khung giao diện chung (font, màu, cỡ chữ) chưa theo bộ token của mockup.
+- **4 màn thiếu hoặc làm khác hẳn:**
+  - Nhập khách hàng loạt từ Excel: chức năng giả.
+  - Khách chốt — Xác nhận chính thức: chưa có.
+  - Cấu hình dải số hóa đơn: khác mô hình.
+  - Cấu hình nhắc nợ: khác chức năng.
+- **2 màn khớp:** Báo cáo doanh thu tạm tính, Khoản chi vận hành.
+
+### D2. Các vấn đề chung trên toàn giao diện
+
+1. **Khung giao diện lệch bộ token mockup:**
+   - Font chữ là Inter thay vì Be Vietnam Pro, và tải từ Google Fonts thay vì lưu sẵn trên server.
+   - Màu `primary` của app là màu cam dành cho nút, trong khi mockup dùng `primary` là nâu đỏ. Vì vậy markup copy từ mockup sẽ hiển thị sai màu.
+   - Thiếu toàn bộ bộ cỡ chữ (`text-h1`, `text-label`…), bộ khoảng cách (`px-md`, `gap-sm`…), màu cột Kanban, màu trạng thái công việc.
+   - Sidebar rộng 280px thay vì 240px.
+   - Topbar thiếu ô tìm kiếm chung và nút "Tạo mới".
+   - Font icon Material Symbols không bật được kiểu icon tô đầy.
+2. **Dữ liệu giả hiện như dữ liệu thật:**
+   - Người: "Cơ sở Cầu Giấy" (14 view), "Nguyễn Văn A/An", "John Doe".
+   - Liên hệ và tài khoản: SĐT "0912 345 678", tài khoản VCB 1029384756, SĐT trung tâm viết cứng.
+   - Số liệu: điểm test 6.0/6.5/5.5, 48/12/36 buổi, 12.500.000đ, "24 bản ghi", tỷ lệ chuyên cần 96.8%, "Phòng id+100".
+   - Nội dung soạn sẵn trong form: câu hỏi test mẫu, nội dung báo cáo trực lớp mẫu, 3 dòng giao việc mẫu.
+3. **Bộ lọc và phân trang giả:**
+   - Nhiều ô lọc không nằm trong form nên controller bỏ qua.
+   - Tìm kiếm chỉ chạy trên trình duyệt, trong khi danh sách tải toàn bộ bản ghi.
+   - Nút phân trang tĩnh.
+4. **Nút giả:**
+   - 7 nút dùng `alert()` thay cho chức năng thật.
+   - Khoảng 42 nút không có xử lý.
+   - Mọi nút "Xuất PDF / Tải phiếu lương / Xuất Excel" chỉ gọi `window.print()`.
+5. **Không hiện lỗi nhập liệu:** nhiều form không hiển thị lỗi validate, nên người dùng không biết vì sao lưu không được.
+6. **Tiêu đề còn chữ kỹ thuật** như "(Database)", "(#2)", "Draft/Approved". Có chỗ trạng thái hiện mã tiếng Anh thô: `pending_review`, `valid`.
+7. **Menu lệch với quyền:**
+   - Có mục hiện ra nhưng bấm vào bị báo không có quyền: KPI, lớp học với sale, đề test với Quản lý.
+   - Ngược lại, nhiều trang không kiểm tra quyền nên ai biết đường dẫn cũng mở được.
+   - Có mục menu bị trùng: chấm công lặp 5 lần.
+8. **Chưa có giao diện điện thoại** cho portal trợ giảng / giáo viên. Mockup có thanh điều hướng dưới đáy, nhưng code đang dùng layout máy tính.
+9. **View chết:** `payroll/periods-index`, `payroll/periods-show`, `tuition/receipts-approve`, `tuition/receipts-create`, `syllabus/big-test-distribution`, `syllabus/big-test-results` không được dùng ở đâu.
+
+### D3. Lỗi bảo mật phát hiện thêm khi audit giao diện
+
+| Vấn đề | Mức |
+|---|---|
+| Trang danh sách nhân sự nhúng **toàn bộ hồ sơ** mỗi người vào HTML: số CCCD, lương cơ bản, đơn giá. Ai có quyền xem danh sách đều đọc được | P0 |
+| Trang "Hồ sơ học sinh (phân quyền)" chỉ là bản demo đổi vai trò phía trình duyệt, **dữ liệu học phí vẫn được gửi xuống** cho mọi người xem | P1 |
+| Pipeline: tên khách được chèn vào đoạn JavaScript, nên tên có dấu nháy có thể chạy mã độc (XSS) | P1 |
+| Thông báo toast chèn nội dung vào JavaScript không an toàn | P2 |
+
+### D4. Khoảng cách lớn nhất theo từng nhóm
+
+**CRM & học viên**
+- **Pipeline:** không có bộ lọc; thiếu hạn liên hệ (Quá hạn / Sắp hết hạn), tên phụ huynh, "Sửa giai đoạn".
+- **Chi tiết khách:** thiếu SĐT phụ huynh, "Phân công lại", "In hồ sơ", thẻ "Trạng thái & Hạn xử lý", checklist chăm sóc tháng đầu, bộ lọc nhật ký. Khối thang điểm test (khối lớp, tổng điểm, gợi ý lớp) đã có code nhưng không hiển thị.
+- **Khách chốt thành công:** thiếu mục "Chờ xếp lớp" kèm nút "Gán lớp", thiếu bộ lọc, cột lớp, xuất file.
+- **Chốt & xếp lớp:** thiếu "Xếp lớp sau", thẻ gợi ý lớp (ngưỡng khai giảng, "cần thêm N học viên"), ô "Đã đóng học phí".
+- **Khách không chốt:** thiếu tìm kiếm, lọc ngày, xuất file, phân trang.
+- **Hồ sơ học viên:**
+  - Thiếu 3 trạng thái, lọc theo lớp, "Liên kết lớp khác".
+  - Lộ trình buổi học và điểm danh lấy sai nguồn.
+  - Người không có quyền vẫn thấy form sửa.
+- **Nhập Excel:** chức năng giả và sai đối tượng (đang là nhập học phí, mockup là nhập khách hàng).
+
+**Lịch & vận hành**
+- **Dashboard lớp:** ma trận tuần là HTML tĩnh. Bộ lọc không chạy. Phòng, GVNN, giờ học là dữ liệu giả. Không có trạng thái điểm danh. Nút chấm công không theo buổi.
+- **Cấu hình trình độ:** không có sửa/xóa, trạng thái ghi cứng. Thiếu nhóm trình độ, gắn Syllabus, thẻ thống kê, tìm kiếm.
+- **TKB:** không sửa được lịch lớp đã có. Banner số lớp là dữ liệu giả. Báo cáo phòng/nhân sự không lọc được.
+- **Portal trợ giảng:** không đúng "hôm nay", không có giao diện điện thoại. Admin xem thì bị gán vào một tài khoản TA viết cứng.
+- **Bảng KPI tự động:** chuyên cần ghi cứng, kỳ báo cáo ghi cứng.
+
+**Giáo trình & Big Test**
+- **Tài liệu:** không có ô chọn file; chặng, đối tượng xem, dung lượng đều là dữ liệu giả; nút xóa không hoạt động.
+- **Đề xuất sửa giáo trình, giáo viên xem tài liệu, giáo viên đề xuất:** hoàn toàn tĩnh.
+- **Soạn giáo trình theo chặng:** thông tin chặng không lưu được; không sửa/xóa được bài; dòng "tự động lưu" là sai sự thật.
+- **Duyệt đề Big Test:** không thấy order của giáo viên; thiếu ô link đề, hạn xử lý, nút từ chối.
+- **Nhắc lịch Big Test:** mục đích khác mockup.
+- **Kết quả Big Test:** trạng thái hiện mã tiếng Anh; chưa có gửi từng học viên, cột "Đã gửi PH", link video.
+
+**Lương & chấm công**
+- **Chưa có màn phiếu lương từng người**, trong khi cả 4 mockup chi tiết lương là của một người và sửa được từng khoản.
+- **3 màn chi tiết lương hiện sai cột:** "Hoa hồng tuyển sinh" lấy số KPI, "Thưởng tái tục" lấy số phụ cấp, "R&D Giáo trình" lấy lương dạy.
+- **Tổng cộng không khớp** vì thiếu cột hoa hồng.
+- **Đơn giá giáo viên và mốc hoa hồng** làm khác mô hình mockup: không theo từng giáo viên, không có ngày hiệu lực, không có lịch sử.
+- **Chấm công tay:** thiếu giờ vào/ra, không bắt buộc lý do, không chặn kỳ đã khóa.
+- **Lịch sử đồng bộ:** luôn trống do đọc sai tên cột, và trạng thái ghi cứng "thành công".
+- **Lương của tôi:** không chọn được kỳ, số liệu không khớp, dấu "đã xác thực" ghi cứng.
+- **Danh sách phạt:** không có tìm kiếm, lọc theo bước, phân trang; bắt nhập số tiền ngay khi tạo biên bản.
+
+**Học phí**
+- **Luồng phiếu thu:** "Lưu nháp" bị lưu thành "Từ chối". Không sửa hoặc gửi lại được. Không bắt buộc minh chứng.
+- **Lập phiếu thu:** phụ thu mặc định 150k, số buổi học ghi cứng.
+- **Duyệt phiếu thu:** khi không có minh chứng thì vẽ một ủy nhiệm chi giả, và luôn hiện "Khớp số tiền".
+- **Danh sách thu phí / quá hạn:** chưa chia nhóm ≥7 ngày / 1–6 ngày; thiếu "Đã liên hệ", "Báo cáo Admin", số ngày quá hạn.
+- **Hoàn phí:** số liệu ghi cứng, thiếu "Đánh dấu khất nợ".
+- **Dải số hóa đơn, nhắc nợ:** làm khác mockup. Mẫu tin nhắc nợ hướng dẫn sai biến, nên tin gửi đi còn nguyên `{TEN_HOC_VIEN}`.
+
+**Cấu hình hệ thống**
+- **Tài khoản:** dữ liệu giả; thiếu kiêm nhiệm, upload hợp đồng.
+- **Phân quyền cá nhân:** thiếu phạm vi chi nhánh/lớp; bố cục khác mockup (danh sách thay vì ma trận Xem/Thêm/Sửa/Xóa).
+- **Danh mục:** thiếu "Kích hoạt lại".
+- **Nhật ký:** chưa có so sánh trước/sau, hoàn tác, lọc ngày, xuất Excel. Mỗi thao tác bị ghi 2 lần.
+
+### D5. Xếp vào các phase
+- **Phase 1:**
+  - Nền giao diện chung (mục D2.1–D2.7), vì mọi màn làm sau đều phụ thuộc.
+  - Các lỗi bảo mật ở mục D3.
+  - Giao diện nhóm CRM & học viên.
+- **Phase 2:** giao diện nhóm Lịch & vận hành và Giáo trình & Big Test. Portal trợ giảng dạng điện thoại.
+- **Phase 3:** giao diện nhóm Lương & chấm công, gồm màn phiếu lương từng người.
+- **Phase 4:** giao diện nhóm Học phí và Cấu hình hệ thống. Gỡ view chết.
+
+---
+
 ## Phần B — Kế hoạch 4 phase
 
 **Nguyên tắc:**
@@ -211,17 +346,22 @@
 - **Công nợ:** giảm giá/phụ thu tính sai, phiếu thu tự duyệt, hủy hóa đơn không hoàn nợ, hoàn phí làm tăng nợ, doanh thu tính cả phiếu chưa duyệt, nhắc nợ tự động không chạy.
 - **Lịch học:** đổi giáo viên hoặc lưu TKB làm hỏng các buổi đã dạy.
 
-**2. Test đầu vào**
+**2. Nền giao diện chung** (xem Phần D)
+- Áp dụng đúng bộ token của mockup: font Be Vietnam Pro lưu sẵn trên server, màu, cỡ chữ, khoảng cách, sidebar 240px, topbar có tìm kiếm.
+- Bộ component dùng chung: nút, badge, bảng có phân trang, bộ lọc, form có hiện lỗi, trạng thái trống.
+- Gỡ dữ liệu giả, sửa menu theo đúng quyền, bỏ chữ kỹ thuật trong tiêu đề.
+
+**3. Test đầu vào**
 - Mỗi khách một link test riêng có hạn dùng, không lộ thông tin, không sửa được khách khác.
 - Chỉ Học vụ và Quản lý cơ sở nhập điểm, gồm cả phần Viết/Nói. Lưu câu trả lời của thí sinh.
 - Chấm theo thang điểm đã chốt (Q2).
 
-**3. Quản lý khách hàng**
+**4. Quản lý khách hàng**
 - Quy trình theo BPMN: tư vấn → test → học thử → chốt, hoặc chuyển "không chốt" kèm lý do.
 - Quản lý cơ sở và Học vụ chỉ thấy khách chi nhánh mình. Sale chỉ thấy khách được giao.
 - Nhắc sale khi khách lâu không được chăm sóc. Kiểm tra SĐT. Khôi phục khách đã xóa. Khóa sửa hợp đồng sau khi chốt.
 
-**4. Chốt khách và xếp lớp**
+**5. Chốt khách và xếp lớp**
 - Chốt khách: chọn lớp (kiểm tra còn chỗ) hoặc đưa vào lớp chờ.
 - Học vụ gán lớp cho học viên từ danh sách "Chờ xếp lớp".
 - Tạo hồ sơ học viên, tài khoản, sổ học phí. Có nút "Xác nhận chính thức".
