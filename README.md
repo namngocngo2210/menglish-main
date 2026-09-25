@@ -7,6 +7,36 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## MEnglish — Dữ liệu demo (Phase 1)
+
+Seed đầy đủ (dữ liệu hệ thống + dữ liệu demo luồng khách → test → học thử → chốt → vào lớp / lớp chờ):
+
+```bash
+php artisan migrate:fresh --seed                         # xóa sạch DB rồi seed lại
+php artisan db:seed                                      # seed thêm vào DB hiện có (chạy lại không nhân bản)
+php artisan db:seed --class=DemoPhase1Seeder             # chỉ dữ liệu demo Phase 1
+SEED_DEMO=true php artisan db:seed                       # bật demo ở môi trường khác local/testing/staging
+DB_CONNECTION=sqlite DB_DATABASE=/tmp/demo.sqlite php artisan migrate:fresh --seed   # thử nhanh trên SQLite (tạo file trống trước)
+```
+
+- `DemoPhase1Seeder` chỉ chạy khi `APP_ENV` là `local`, `testing`, `staging` hoặc có `SEED_DEMO=true`. **Không bật trên production.**
+- Dữ liệu cho 2 chi nhánh **Cầu Giấy (CG)** và **Ba Đình (BD)**: mỗi chi nhánh 14 khách đủ 8 bước pipeline + Thất bại (có lý do), hạn liên hệ quá hạn / sắp hết hạn, bài test theo khối lớp (đã chấm + chờ chấm), học thử (đã hẹn + đã học có nhận xét GV), 3 lớp mẫu (`DEMO-<CN>-FAM1` đang học còn chỗ, `DEMO-<CN>-FAM2` sắp khai giảng chưa đủ ngưỡng, `DEMO-<CN>-FAM0` đã đầy) với buổi học sinh sẵn, bỏ ngày nghỉ `HOL-DEMO-<CN>`; khách đã chốt có hồ sơ học viên, tài khoản, học phí (đã duyệt / chưa đóng → task "Nhắc thu học phí"), khách Chờ xếp lớp và học viên chờ Xác nhận chính thức. Khách demo có SĐT bắt đầu `039`, tên có tiền tố `# `.
+
+Tài khoản demo (mật khẩu chung = `SEED_DEFAULT_PASSWORD` trong `.env`, mặc định `Password123!` — `config('access.seed_password')`):
+
+| Vai trò | Email | Chi nhánh |
+|---|---|---|
+| Admin | `admin@menglish.edu.vn` | CG |
+| Quản lý cơ sở (CM) | `manager@menglish.edu.vn` / `manager.bd@menglish.edu.vn` | CG / BD |
+| Học vụ (CM, chấm test, gán lớp) | `nva@menglish.edu.vn` / `giaovu2@menglish.edu.vn` | CG / BD |
+| Học thuật | `academiclead@menglish.edu.vn` | CG |
+| Sale | `tranmaia@menglish.edu.vn` / `hoangthinh@menglish.edu.vn` / `levanvu@menglish.edu.vn` | CG / BD / DD |
+| Kế toán | `ketoan2@menglish.edu.vn` / `ttb@menglish.edu.vn` | CG / BD |
+| Giáo viên (nhận xét học thử) | `nguyenvanan@menglish.edu.vn` (CG, lớp FAM1/FAM0) · `gv.cohuu1@menglish.edu.vn` (CG, FAM2) · `gv.cohuu2@menglish.edu.vn` (BD) | |
+| Trợ giảng | `ta.tuan@menglish.edu.vn` / `ta.yen@menglish.edu.vn` | CG / BD |
+
+Học viên tạo khi chốt khách nhận mật khẩu ngẫu nhiên (bắt buộc đổi khi đăng nhập). Kiểm thử nghiệm thu Phase 1: `php artisan test --filter=Phase1AcceptanceTest`.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
