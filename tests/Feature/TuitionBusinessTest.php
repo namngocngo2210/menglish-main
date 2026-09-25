@@ -26,6 +26,8 @@ class TuitionBusinessTest extends TestCase
 
     private User $accountantUser;
 
+    private User $approverUser;
+
     private Branch $branch;
 
     private Student $student;
@@ -55,6 +57,14 @@ class TuitionBusinessTest extends TestCase
             'is_active' => true,
         ]);
         $this->accountantUser->assignRole('accountant');
+
+        // Người duyệt phải khác người lập phiếu (trừ admin)
+        $this->approverUser = User::factory()->create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Kế toán duyệt',
+            'is_active' => true,
+        ]);
+        $this->approverUser->assignRole('accountant');
 
         $course = Course::create([
             'code' => 'IELTS-BASIC',
@@ -112,16 +122,19 @@ class TuitionBusinessTest extends TestCase
 
         $response = $this->actingAs($this->accountantUser)->post(route('tuition.receipts.store'), $payload);
 
-        $response->assertRedirect(route('tuition.history'));
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
 
+        // Lập phiếu không bao giờ tự duyệt: chờ Kế toán/Admin duyệt, chưa cấp số hóa đơn
         $this->assertDatabaseHas('tuition_receipts', [
             'student_tuition_id' => $this->tuition->id,
             'amount' => 4500000,
             'payment_method' => 'vietqr',
             'transaction_code' => 'VQR987654321',
             'creator_id' => $this->accountantUser->id,
-            'approver_id' => $this->accountantUser->id,
-            'status' => 'approved',
+            'approver_id' => null,
+            'invoice_number' => null,
+            'status' => 'pending',
         ]);
 
         $receipt = TuitionReceipt::where('transaction_code', 'VQR987654321')->first();
@@ -156,6 +169,7 @@ class TuitionBusinessTest extends TestCase
             'payment_method' => 'transfer',
             'transaction_code' => 'PAY-01',
         ]);
+        $this->approveByCode('PAY-01');
 
         $this->tuition->refresh();
         $this->assertEquals(4000000, $this->tuition->paid_amount);
@@ -169,11 +183,22 @@ class TuitionBusinessTest extends TestCase
             'payment_method' => 'cash',
             'transaction_code' => 'PAY-02',
         ]);
+        $this->approveByCode('PAY-02');
 
         $this->tuition->refresh();
         $this->assertEquals(9000000, $this->tuition->paid_amount);
         $this->assertEquals(0, $this->tuition->debt_amount);
         $this->assertEquals('paid', $this->tuition->status);
+    }
+
+    private function approveByCode(string $transactionCode): void
+    {
+        $receipt = TuitionReceipt::where('transaction_code', $transactionCode)->firstOrFail();
+        $this->assertEquals('pending', $receipt->status);
+
+        $this->actingAs($this->approverUser)
+            ->post(route('tuition.receipts.approve.action', $receipt->id))
+            ->assertSessionHasNoErrors();
     }
 
     public function test_can_approve_and_reject_pending_receipts(): void
@@ -186,7 +211,7 @@ class TuitionBusinessTest extends TestCase
             'payment_method' => 'transfer',
             'transaction_code' => 'TR-PENDING',
             'payment_date' => now(),
-            'creator_id' => $this->accountantUser->id,
+            'creator_id' => $this->approverUser->id,
             'status' => 'pending',
         ]);
 
@@ -233,6 +258,19 @@ class TuitionBusinessTest extends TestCase
 
     public function test_invoice_cancellation_workflow(): void
     {
+        $receipt = TuitionReceipt::create([
+            'receipt_number' => 'PT-HDGTGT-001234',
+            'invoice_number' => 'HDGTGT-001234',
+            'student_tuition_id' => $this->tuition->id,
+            'student_id' => $this->student->id,
+            'amount' => 9000000,
+            'payment_method' => 'transfer',
+            'payment_date' => now(),
+            'status' => 'approved',
+        ]);
+        $this->tuition->recalculateDebt();
+        $this->assertEquals(0, (float) $this->tuition->debt_amount);
+
         // 1. Store cancellation request
         $responseStore = $this->actingAs($this->accountantUser)
             ->post(route('tuition.invoices.cancellations.store'), [
@@ -262,6 +300,9 @@ class TuitionBusinessTest extends TestCase
         $cancellation->refresh();
         $this->assertEquals('approved', $cancellation->status);
         $this->assertEquals($this->accountantUser->id, $cancellation->approver_id);
+        $this->assertEquals($receipt->id, $cancellation->tuition_receipt_id);
+        $this->assertEquals('cancelled', $receipt->fresh()->status);
+        $this->assertEquals(9000000, (float) $this->tuition->fresh()->debt_amount);
 
         // 3. Reject another cancellation
         $cancel2 = InvoiceCancellation::create([
@@ -568,10 +609,12 @@ class TuitionBusinessTest extends TestCase
             'notes' => 'Thu học phí đợt 2 hoàn tất (Bao gồm tiền sách vở)',
         ]);
 
-        $responseRound2->assertRedirect(route('tuition.history'));
+        $responseRound2->assertRedirect();
+        $responseRound2->assertSessionHasNoErrors();
         $secondReceipt = TuitionReceipt::where('student_tuition_id', $newTuition->id)
             ->where('id', '!=', $firstReceipt->id)->latest()->firstOrFail();
-        $this->actingAs($this->accountantUser)
+        $this->assertEquals('pending', $secondReceipt->status);
+        $this->actingAs($this->approverUser)
             ->post(route('tuition.receipts.approve.action', $secondReceipt->id))
             ->assertRedirect();
         $newTuition->refresh();

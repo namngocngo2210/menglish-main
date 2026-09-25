@@ -14,6 +14,13 @@
         </div>
     </x-slot>
 
+    @include('tuition.partials.errors')
+
+    <div class="max-w-4xl mx-auto mb-4 p-4 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-sm flex items-center gap-2">
+        <span class="material-symbols-outlined text-amber-600">construction</span>
+        Chức năng nhập học phí từ Excel đang được phát triển — hiện chưa nạp được dữ liệu. Vui lòng nhập thủ công.
+    </div>
+
     <div class="max-w-4xl mx-auto space-y-6" x-data="{
         fileName: '',
         fileUploaded: false,
