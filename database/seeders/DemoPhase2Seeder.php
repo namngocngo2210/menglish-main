@@ -281,6 +281,8 @@ class DemoPhase2Seeder extends Seeder
                 };
                 if ($statuses[$student->id] === 'excused') {
                     $notes[$student->id] = 'PH xin nghỉ (ốm)';
+                } elseif ($statuses[$student->id] === 'absent') {
+                    $notes[$student->id] = 'Nghỉ không báo trước';
                 }
             }
             // Học vụ điểm danh thay GV ở 1 buổi (recorded_by = Học vụ).
@@ -308,7 +310,12 @@ class DemoPhase2Seeder extends Seeder
                     'status' => 'completed', 'user_id' => $teacher->id, 'data' => $remark($k)]
             );
         }
-        $this->asUser($teacher, TeacherPortalController::class, 'remarksStore', ['remarks' => $remark(5)], ['classId' => $class->id]);
+        // Nhận xét lưu theo từng buổi: gửi qua màn GV cho buổi gần nhất đã điểm danh.
+        if ($lastSession = $toMark->last()) {
+            $this->asUser($teacher, TeacherPortalController::class, 'remarksStore', [
+                'class_session_id' => $lastSession->id, 'remarks' => $remark(5),
+            ], ['classId' => $class->id]);
+        }
 
         // Mini test (thang 10): học viên dưới 7 tự vào danh sách bổ trợ.
         foreach ($toMark->filter(fn ($s, $i) => $i % 3 === 2)->values() as $k => $session) {

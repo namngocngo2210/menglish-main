@@ -265,7 +265,7 @@ class Phase2AcceptanceTest extends TestCase
 
         $this->actingAs($this->teacher)->post(route('teacher.remarks.store', $class->id), [
             'remarks' => [$s1->id => ['grammar' => 'Tốt', 'attitude' => 'Hăng hái', 'result' => 'Đạt', 'comment' => 'Phát âm rõ.']],
-        ])->assertRedirect(route('teacher.home'));
+        ])->assertSessionHasNoErrors()->assertRedirect(route('teacher.remarks', ['classId' => $class->id, 'session' => $today->id]));
 
         $this->actingAs($this->teacher)->post(route('teacher.scores.store', $class->id), [
             'name' => 'Mini Test Unit 1', 'test_date' => today()->toDateString(), 'max_score' => 20,
