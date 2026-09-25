@@ -256,4 +256,49 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('edit_lesson='.$lesson->id, false);
         $this->assertNotSame('Viết tối thiểu 250 từ', $lesson->fresh()->content);
     }
+
+    // ---- 01_Web_Admin/03 — Giao chặng học cho giáo viên ----
+
+    public function test_stage_assignment_screen_matches_mockup_and_edits_open_stage(): void
+    {
+        $this->actingAs($this->academic)->get(route('syllabus.assignments'))->assertOk()
+            ->assertSee('Giao chặng học cho giáo viên')
+            ->assertSee('Thiết lập chặng mới')
+            ->assertSee('Chọn lớp học')
+            ->assertSee('Chọn giáo viên')
+            ->assertSee('Chọn chặng học')
+            ->assertSee('Ngày bắt đầu')
+            ->assertSee('Lưu ý nghiệp vụ (R19):')
+            ->assertSee('Xác nhận giao chặng')
+            ->assertSee('Lịch sử phân quyền chặng học')
+            ->assertSee('Cần hỗ trợ?');
+
+        // Ngày bắt đầu → mốc tính tiến độ của chặng
+        $start = now()->subDays(3)->toDateString();
+        $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), ['class_id' => $this->class->id, 'start_date' => $start])
+            ->assertSessionHasNoErrors();
+        $assignment = SyllabusAssignment::open()->where('class_id', $this->class->id)->firstOrFail();
+        $this->assertSame($start, $assignment->opened_at->toDateString());
+
+        $this->actingAs($this->academic)->get(route('syllabus.assignments'))->assertOk()
+            ->assertSee('Cơ sở Mockup - Phòng 402')
+            ->assertSee('ID: GV-MK-01')
+            ->assertSee('Tự động đóng theo sự kiện')
+            ->assertSee('Đang hiệu lực')
+            ->assertSee('title="Chỉnh sửa"', false);
+
+        // Chỉnh sửa: đổi GV phụ trách, GV mới được báo
+        $newTeacher = User::factory()->create(['is_active' => true]);
+        $newTeacher->assignRole('teacher');
+        $this->actingAs($this->teacher)->put(route('syllabus.assignments.update', $assignment->id), ['user_id' => $newTeacher->id])->assertForbidden();
+        $this->actingAs($this->academic)->put(route('syllabus.assignments.update', $assignment->id), [
+            'user_id' => $newTeacher->id, 'start_date' => $start, 'deadline' => now()->addMonth()->toDateString(),
+        ])->assertSessionHasNoErrors();
+        $this->assertSame($newTeacher->id, $assignment->fresh()->user_id);
+        $this->assertTrue(\App\Models\AdminNotification::where('user_id', $newTeacher->id)->exists());
+
+        // Lọc trạng thái phía server
+        $this->actingAs($this->academic)->get(route('syllabus.assignments', ['status' => 'completed']))->assertOk()
+            ->assertSee('0 lượt');
+    }
 }

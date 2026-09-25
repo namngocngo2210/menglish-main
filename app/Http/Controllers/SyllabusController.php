@@ -26,6 +26,7 @@ use App\Services\SafeUploadService;
 use App\Services\ScheduleExtensionService;
 use App\Services\SyllabusProgressionService;
 use App\Services\ZaloZnsService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -495,8 +496,10 @@ class SyllabusController extends Controller
     public function assignments(Request $request)
     {
         $search = trim((string) $request->query('search', ''));
-        $assignments = SyllabusAssignment::with(['teacher', 'curriculum', 'classModel', 'stage', 'closer', 'opener', 'closingBigTest'])
+        $status = $request->query('status');
+        $assignments = SyllabusAssignment::with(['teacher', 'curriculum', 'classModel.branch', 'stage', 'closer', 'opener', 'closingBigTest'])
             ->when($request->filled('class_id'), fn ($q) => $q->where('class_id', $request->integer('class_id')))
+            ->when(in_array($status, array_keys(SyllabusAssignment::STATUS_LABELS), true), fn ($q) => $q->where('status', $status))
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('stage_name', 'like', "%{$search}%")
                 ->orWhereHas('teacher', fn ($t) => $t->where('name', 'like', "%{$search}%"))
                 ->orWhereHas('classModel', fn ($c) => $c->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))
@@ -511,7 +514,7 @@ class SyllabusController extends Controller
         $levelCurriculum = CourseLevel::whereNotNull('syllabus_curriculum_id')->pluck('syllabus_curriculum_id', 'code');
         $openByClass = SyllabusAssignment::open()->whereNotNull('class_id')->with('stage')->get()->keyBy('class_id');
 
-        return view('syllabus.assignments', compact('assignments', 'teachers', 'curriculums', 'classes', 'levelCurriculum', 'openByClass'));
+        return view('syllabus.assignments', compact('assignments', 'teachers', 'curriculums', 'classes', 'levelCurriculum', 'openByClass', 'status'));
     }
 
     /**
@@ -528,6 +531,7 @@ class SyllabusController extends Controller
             'assigned_chapters' => ['nullable', 'string', 'max:255'],
             'stage_name' => ['nullable', 'string', 'max:255'],
             'deadline' => ['nullable', 'date'],
+            'start_date' => ['nullable', 'date', 'before_or_equal:'.today()->addDays(60)->toDateString()],
             'replace_current' => ['nullable', 'boolean'],
             'reason' => ['nullable', 'string', 'max:2000'],
         ]);
@@ -550,6 +554,8 @@ class SyllabusController extends Controller
         $attributes = array_filter([
             'assigned_chapters' => $validated['assigned_chapters'] ?? null,
             'deadline' => $validated['deadline'] ?? null,
+            // "Ngày bắt đầu" (mockup): tiến độ buổi của chặng tính từ ngày này; mặc định hôm nay.
+            'opened_at' => ! empty($validated['start_date']) ? Carbon::parse($validated['start_date'])->startOfDay() : null,
         ]);
         $reason = trim((string) ($validated['reason'] ?? '')) ?: null;
 
@@ -574,6 +580,36 @@ class SyllabusController extends Controller
 
         return redirect()->route('syllabus.assignments')
             ->with('status', "Đã mở {$assignment->stage_name} cho lớp {$class->name}.");
+    }
+
+    /**
+     * Chỉnh sửa chặng đang hiệu lực (mockup "Chỉnh sửa"): đổi GV phụ trách / ngày bắt đầu / dự kiến hoàn thành.
+     * Không đổi chặng ở đây — đổi chặng đi qua "Chuyển chặng" (Học thuật, bắt buộc lý do).
+     */
+    public function updateAssignment(Request $request, int $id)
+    {
+        $assignment = SyllabusAssignment::with('classModel')->findOrFail($id);
+        if (! $assignment->isOpen()) {
+            throw ValidationException::withMessages(['status' => 'Chặng đã đóng, không chỉnh sửa được.']);
+        }
+        $validated = $request->validate([
+            'user_id' => ['required', 'exists:users,id'],
+            'start_date' => ['nullable', 'date', 'before_or_equal:'.today()->addDays(60)->toDateString()],
+            'deadline' => ['nullable', 'date'],
+        ]);
+
+        $previousTeacher = $assignment->user_id;
+        $assignment->update([
+            'user_id' => $validated['user_id'],
+            'deadline' => $validated['deadline'] ?? null,
+            'opened_at' => ! empty($validated['start_date']) ? Carbon::parse($validated['start_date'])->startOfDay() : $assignment->opened_at,
+        ]);
+        if ((int) $previousTeacher !== (int) $assignment->user_id) {
+            $this->notifyUser($assignment->user_id, "Bạn được giao {$assignment->stage_name}", 'Lớp '.$assignment->classModel?->name.': nội dung chặng đã mở trong màn Xem giáo trình.', route('syllabus.teacher-view', ['class' => $assignment->class_id]));
+        }
+
+        return redirect()->route('syllabus.assignments')
+            ->with('status', "Đã cập nhật {$assignment->stage_name} của lớp {$assignment->classModel?->name}.");
     }
 
     /** Học thuật đóng tay chặng đang mở (bắt buộc lý do); mặc định tự mở chặng kế tiếp. */

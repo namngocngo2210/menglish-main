@@ -412,6 +412,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/lessons/{id}', [SyllabusController::class, 'destroyLesson'])->whereNumber('id')->middleware('can:syllabus.manage')->name('lessons.destroy');
         Route::get('/assignments', [SyllabusController::class, 'assignments'])->name('assignments');
         Route::post('/assignments', [SyllabusController::class, 'storeAssignment'])->middleware('can:syllabus.manage')->name('assignments.store');
+        Route::put('/assignments/{id}', [SyllabusController::class, 'updateAssignment'])->whereNumber('id')->middleware('can:syllabus.manage')->name('assignments.update');
         // Đóng tay chặng đang mở (Học thuật, bắt buộc lý do). Đóng tự động khi Big Test của chặng được duyệt và gửi PH.
         Route::post('/assignments/{id}/close', [SyllabusController::class, 'closeAssignment'])->whereNumber('id')->middleware('can:syllabus.approve_adjustment')->name('assignments.close');
         Route::get('/versions', [SyllabusController::class, 'versions'])->name('versions');

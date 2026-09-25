@@ -297,7 +297,7 @@ class UiSweepTest extends TestCase
     {
         $this->actingAs($this->admin)->get(route('syllabus.assignments', ['search' => 'không-tồn-tại']))
             ->assertOk()
-            ->assertSee('Chặng của các lớp')->assertSee('0 lượt')
+            ->assertSee('Lịch sử phân quyền chặng học')->assertSee('0 lượt')
             ->assertDontSee('filterAssignTable', false);
     }
 
