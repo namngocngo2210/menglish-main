@@ -568,4 +568,42 @@ class Phase3MockupParityTest extends TestCase
         [$grade] = \App\Models\KpiEvaluation::gradeFor(100);
         $this->assertSame('A', $grade);
     }
+
+    /** Màn "Lương của tôi" (epic-7/luong-cua-toi-teacher-portal): chỉ kỳ đã duyệt, so sánh tháng trước, trừ, buổi dạy, tải phiếu. */
+    public function test_my_salary_screen_matches_mockup(): void
+    {
+        $july = $this->period(7, 'paid');
+        $august = $this->period(8, 'approved');
+        $september = $this->period(9, 'draft');
+        \App\Models\TeacherHourlyRate::create(['user_id' => $this->teacher->id, 'hourly_rate' => 300000, 'rate_unit' => 'session', 'effective_from' => '2026-01-01']);
+        $this->timesheet(['status' => 'valid', 'teaching_date' => '2026-08-16', 'type' => 'sub', 'scheduled_time' => '18:00-19:30']);
+        $base = ['user_id' => $this->teacher->id, 'department' => 'teacher', 'employee_type' => 'parttime', 'salary_role' => 'teacher_parttime', 'kpi_source' => 'retention'];
+        \App\Models\PayrollRecord::create($base + ['payroll_period_id' => $july->id, 'teaching_sessions' => 10, 'teaching_salary' => 2000000, 'net_salary' => 2000000]);
+        $aug = \App\Models\PayrollRecord::create($base + [
+            'payroll_period_id' => $august->id, 'teaching_sessions' => 12, 'teaching_salary' => 2400000, 'penalty_deduction' => 200000, 'net_salary' => 2200000,
+            'retention_base_students' => 10, 'retention_students' => 9,
+        ]);
+        \App\Models\PayrollRecord::create($base + ['payroll_period_id' => $september->id, 'teaching_salary' => 9876000, 'net_salary' => 9876000]);
+        \App\Models\Penalty::create([
+            'code' => 'BB-MS1', 'user_id' => $this->teacher->id, 'violation_type' => 'Đi muộn (Quá 15p)', 'violation_date' => '2026-08-12',
+            'class_id' => $this->classModel->id, 'amount' => 200000, 'status' => 'deducted', 'payroll_record_id' => $aug->id, 'error_category' => 'operations',
+        ]);
+
+        $this->actingAs($this->teacher)->get(route('portal.my-salary'))
+            ->assertOk()
+            ->assertSee('Lương của tôi')
+            ->assertSee('Kỳ lương hiện tại: Đã duyệt')
+            ->assertSee('Tháng 08/2026')->assertSee('Tháng 07/2026')->assertDontSee('Tháng 09/2026')
+            ->assertSee('Tải phiếu lương')
+            ->assertSee('Tổng thu nhập')->assertSee('2,400,000')->assertSee('+20% so với tháng trước')
+            ->assertSee('Tổng khoản trừ')->assertSee('Bao gồm phạt và các khoản khác')
+            ->assertSee('Thực nhận')->assertSee('2,200,000')
+            ->assertSeeInOrder(['Hạng mục', 'Số lượng', 'Thành tiền'])->assertSee('12 buổi')->assertSee('9/10 HS')
+            ->assertSee('Các khoản trừ')->assertSee('Đi muộn (Quá 15p)')->assertSee('Lớp MP3-01')
+            ->assertSee('Chi tiết buổi dạy')->assertSee('18:00 - 19:30')->assertSee('Cover')->assertSee('300,000')
+            ->assertSee('PHIẾU LƯƠNG THÁNG 08/2026')
+            ->assertDontSee('9,876,000');
+
+        $this->actingAs($this->teacher)->get(route('portal.my-salary', ['period_id' => $september->id]))->assertNotFound();
+    }
 }

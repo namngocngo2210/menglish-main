@@ -284,7 +284,7 @@ class PayrollBusinessTest extends TestCase
         $responseMySalary = $this->actingAs($this->teacherUser)->get(route('portal.my-salary'));
         $responseMySalary->assertOk();
         $responseMySalary->assertSee($this->teacherUser->name);
-        $responseMySalary->assertSee('Lương Của Tôi');
+        $responseMySalary->assertSee('Lương của tôi');
     }
 
     // =========================================================================

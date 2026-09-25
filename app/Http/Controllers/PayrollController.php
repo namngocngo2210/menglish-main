@@ -1183,7 +1183,23 @@ class PayrollController extends Controller
             : $records->first();
         abort_if($request->filled('period_id') && $record === null, 404);
 
-        return view('payroll.my-salary', compact('user', 'record', 'records'));
+        // Căn cứ hiển thị theo mockup "Lương của tôi": buổi dạy hợp lệ của kỳ, biên bản phạt đã trừ, so sánh tháng trước.
+        $timesheets = collect();
+        $penalties = collect();
+        $previous = null;
+        if ($record) {
+            $period = $record->period;
+            $timesheets = TeacherTimesheet::with('classModel')
+                ->where('user_id', $user->id)
+                ->whereBetween('teaching_date', [$period->start_date, $period->end_date])
+                ->where('status', 'valid')
+                ->orderBy('teaching_date')->get();
+            $penalties = Penalty::with('classModel')->where('payroll_record_id', $record->id)->orderBy('violation_date')->get();
+            $previous = $records->first(fn (PayrollRecord $r) => $r->period->start_date->lt($period->start_date));
+        }
+        $variant = $record ? self::payslipVariant($record) : null;
+
+        return view('payroll.my-salary', compact('user', 'record', 'records', 'timesheets', 'penalties', 'previous', 'variant'));
     }
 
     private function rejectLockedDate(string $field, $date): RedirectResponse
