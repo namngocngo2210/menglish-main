@@ -27,6 +27,7 @@
                         <th class="py-3 px-4">Lớp học</th>
                         <th class="py-3 px-4">Ngày dạy</th>
                         <th class="py-3 px-4">Loại ca dạy</th>
+                        <th class="py-3 px-4">Giờ vào / ra</th>
                         <th class="py-3 px-4 text-center">Số giờ</th>
                         <th class="py-3 px-4 text-right">Đơn giá / giờ</th>
                         <th class="py-3 px-4 text-right">Thành tiền</th>
@@ -39,7 +40,14 @@
                             <td class="py-3.5 px-4 font-bold text-gray-900">{{ $ts->teacher?->name }}</td>
                             <td class="py-3.5 px-4 font-semibold text-primary">{{ $ts->classModel?->name ?? '—' }}</td>
                             <td class="py-3.5 px-4 font-mono text-gray-500">{{ $ts->teaching_date->format('d/m/Y') }}</td>
-                            <td class="py-3.5 px-4">{{ $ts->type_label }}</td>
+                            <td class="py-3.5 px-4">
+                                {{ $ts->type_label }}
+                                <span class="block text-[10px] text-gray-400">{{ $ts->source_label }}{{ $ts->class_session_id ? ' · theo buổi học' : '' }}</span>
+                                @if ($ts->source === 'manual' && $ts->notes)
+                                    <span class="block text-[10px] text-gray-500 italic" title="Lý do chấm tay">{{ \Illuminate\Support\Str::limit($ts->notes, 60) }}</span>
+                                @endif
+                            </td>
+                            <td class="py-3.5 px-4 font-mono text-gray-500">{{ $ts->checkin_time ?? '—' }}{{ $ts->checkout_time ? ' – '.$ts->checkout_time : '' }}</td>
                             <td class="py-3.5 px-4 text-center font-mono font-bold">{{ $ts->hours }}h</td>
                             <td class="py-3.5 px-4 text-right font-mono">
                                 {{ number_format($ts->effectiveHourlyRate()) }}đ
@@ -51,7 +59,7 @@
                                 {{ number_format($ts->hours * $ts->effectiveHourlyRate()) }}đ
                             </td>
                             <td class="py-3.5 px-4">
-                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold {{ $ts->status === 'valid' ? 'bg-emerald-50 text-emerald-700' : ($ts->status === 'invalid' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700') }}">{{ $ts->status }}</span>
+                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold {{ $ts->status === 'valid' ? 'bg-emerald-50 text-emerald-700' : ($ts->status === 'invalid' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700') }}">{{ $ts->status_label }}</span>
                                 @can('attendance_staff.view')
                                     @if($ts->status === 'pending_review')
                                         <div class="flex gap-1 mt-2">
@@ -64,7 +72,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center py-8 text-gray-400 text-xs">Chưa có dữ liệu chấm công.</td>
+                            <td colspan="9" class="text-center py-8 text-gray-400 text-xs">Chưa có dữ liệu chấm công.</td>
                         </tr>
                     @endforelse
                 </tbody>

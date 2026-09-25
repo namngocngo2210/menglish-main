@@ -201,7 +201,8 @@ class PayrollP0FixesTest extends TestCase
     {
         $this->actingAs($this->admin)->post(route('payroll.timesheets.manual.store'), [
             'user_id' => $this->teacher->id, 'class_id' => $this->classModel->id,
-            'teaching_date' => '2026-08-20', 'hours' => 2, 'type' => 'regular',
+            'teaching_date' => '2026-08-20', 'time_in' => '18:00', 'time_out' => '20:00', 'type' => 'regular',
+            'notes' => 'GV quên check-in',
         ])->assertSessionHasNoErrors();
 
         $this->assertNull(TeacherTimesheet::where('user_id', $this->teacher->id)->value('hourly_rate'));
@@ -213,6 +214,11 @@ class PayrollP0FixesTest extends TestCase
 
     public function test_checkin_leaves_hourly_rate_null(): void
     {
+        // Phase 3: check-in chỉ tính công khi có buổi học thật hôm nay.
+        \App\Models\ClassSession::create([
+            'class_id' => $this->classModel->id, 'branch_id' => $this->branch->id, 'date' => now()->toDateString(),
+            'start_time' => '18:00', 'end_time' => '20:00', 'teacher_id' => $this->teacher->id, 'status' => 'scheduled',
+        ]);
         $this->actingAs($this->teacher)->post(route('teacher.checkin'), ['class_ids' => [$this->classModel->id]])
             ->assertRedirect();
 
@@ -306,7 +312,8 @@ class PayrollP0FixesTest extends TestCase
 
         $this->actingAs($this->admin)->post(route('payroll.timesheets.manual.store'), [
             'user_id' => $this->teacher->id, 'class_id' => $this->classModel->id,
-            'teaching_date' => '2026-08-20', 'hours' => 2, 'type' => 'regular',
+            'teaching_date' => '2026-08-20', 'time_in' => '18:00', 'time_out' => '20:00', 'type' => 'regular',
+            'notes' => 'GV quên check-in',
         ])->assertSessionHasErrors('teaching_date');
         $this->assertDatabaseCount('teacher_timesheets', 0);
 

@@ -284,7 +284,8 @@ class PayrollBusinessTest extends TestCase
             'user_id' => $this->teacherUser->id,
             'class_id' => $this->classModel->id,
             'teaching_date' => '2026-08-15',
-            'hours' => 2.5,
+            'time_in' => '18:00',
+            'time_out' => '20:30',
             'hourly_rate' => 450000,
             'type' => 'regular',
             'notes' => 'Ca dạy IELTS Writing Task 2 chuyên sâu',
@@ -315,12 +316,14 @@ class PayrollBusinessTest extends TestCase
             'user_id' => $this->teacherUser->id,
             'class_id' => $this->classModel->id,
             'teaching_date' => '2026-08-15',
-            'hours' => 0.1, // < 0.5 min
+            'time_in' => '18:00',
+            'time_out' => '17:00', // giờ ra trước giờ vào
             'hourly_rate' => 500, // < 1000 min
             'type' => '',
         ]);
 
-        $response->assertSessionHasErrors(['hours', 'hourly_rate', 'type']);
+        // Phase 3: số giờ tính từ giờ vào/ra, lý do chấm tay bắt buộc
+        $response->assertSessionHasErrors(['time_out', 'hourly_rate', 'type', 'notes']);
     }
 
     // =========================================================================
@@ -576,9 +579,11 @@ class PayrollBusinessTest extends TestCase
             'user_id' => $this->teacherUser->id,
             'class_id' => $this->classModel->id,
             'teaching_date' => now()->toDateString(),
-            'hours' => 2,
+            'time_in' => '08:00',
+            'time_out' => '10:00',
             'hourly_rate' => 300000,
             'type' => 'regular',
+            'notes' => 'Chấm công tay do GV quên check-in',
         ])->assertRedirect()->assertSessionHasNoErrors();
     }
 

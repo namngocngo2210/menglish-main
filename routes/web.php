@@ -292,6 +292,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/config/settings', [PayrollController::class, 'storeSettings'])->middleware('can:teacher_rate.manage')->name('config.settings.store');
         Route::get('/config/teacher-rates', [PayrollController::class, 'teacherRates'])->middleware('can:teacher_rate.manage')->name('config.teacher-rates');
         Route::post('/config/teacher-rates', [PayrollController::class, 'storeTeacherRate'])->middleware('can:teacher_rate.manage')->name('config.teacher-rates.store');
+        Route::post('/config/teacher-rates/personal', [PayrollController::class, 'storePersonalTeacherRate'])->middleware('can:teacher_rate.manage')->name('config.teacher-rates.personal.store');
         Route::get('/config/commission-tiers', [PayrollController::class, 'commissionTiers'])->middleware('can:commission_config.manage')->name('config.commission-tiers');
         Route::post('/config/commission-tiers', [PayrollController::class, 'storeCommissionTier'])->middleware('can:commission_config.manage')->name('config.commission-tiers.store');
         Route::put('/config/commission-tiers/{commissionTier}', [PayrollController::class, 'updateCommissionTier'])->middleware('can:commission_config.manage')->name('config.commission-tiers.update');

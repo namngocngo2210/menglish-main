@@ -126,35 +126,45 @@ class TeacherPortalController extends Controller
             return back()->withErrors(['class_ids' => $message])->with('error', $message);
         }
 
+        // Chỉ tính công cho buổi học có thật trên lịch: không có ClassSession hôm nay
+        // cho lớp (phân công đúng người) thì không tạo chấm công mặc định 2 giờ nữa.
         $count = 0;
+        $skipped = [];
         foreach ($validated['class_ids'] as $classId) {
             $class = ClassModel::findOrFail($classId);
             $this->authorizeClass($class);
-            $session = ClassSession::where('class_id', $classId)
+            $sessions = ClassSession::where('class_id', $classId)
                 ->whereDate('date', $now->toDateString())
-                ->where(function ($query) use ($teacher) {
-                    $query->where('teacher_id', $teacher->id)->orWhere('assistant_id', $teacher->id);
-                })->first();
-            $identity = $session
-                ? ['user_id' => $teacher->id, 'class_session_id' => $session->id]
-                : [
-                    'user_id' => $teacher->id,
-                    'class_id' => $classId,
-                    'teaching_date' => $now->toDateString(),
-                ];
-            $hours = $session
-                ? max(0.5, Carbon::parse($session->start_time)->diffInMinutes(Carbon::parse($session->end_time)) / 60)
-                : 2;
+                ->orderBy('start_time')
+                ->get();
+            $session = $sessions->first(fn (ClassSession $s) => in_array($teacher->id, [(int) $s->teacher_id, (int) $s->assistant_id], true))
+                ?? $sessions->first(fn (ClassSession $s) => $s->teacher_id === null
+                    && in_array($teacher->id, [(int) $class->teacher_id, (int) $class->assistant_id, (int) $class->foreign_teacher_id], true));
+
+            if (! $session) {
+                $skipped[] = "{$class->name}: không có buổi học hôm nay được phân công cho bạn";
+
+                continue;
+            }
+
+            $duplicate = TeacherTimesheet::findDuplicate($teacher->id, (int) $classId, $now->toDateString(), $session->id);
+            if ($duplicate && $duplicate->source === TeacherTimesheet::SOURCE_MANUAL) {
+                $skipped[] = "{$class->name}: buổi này đã được Học vụ chấm công tay";
+
+                continue;
+            }
+
+            $hours = max(0.5, abs(Carbon::parse($session->start_time)->diffInMinutes(Carbon::parse($session->end_time))) / 60);
             TeacherTimesheet::updateOrCreate(
-                $identity,
+                ['user_id' => $teacher->id, 'class_session_id' => $session->id],
                 [
                     'class_id' => $classId,
-                    'class_session_id' => $session?->id,
                     'teaching_date' => $now->toDateString(),
-                    'scheduled_time' => $session ? $session->start_time->format('H:i').'-'.$session->end_time->format('H:i') : $class->schedule_text,
+                    'scheduled_time' => $session->start_time->format('H:i').'-'.$session->end_time->format('H:i'),
                     'checkin_time' => $now->format('H:i'),
                     'hours' => $hours,
                     'type' => 'regular',
+                    'source' => TeacherTimesheet::SOURCE_CHECKIN,
                     'status' => 'pending_review',
                     'reviewed_by' => null,
                     'reviewed_at' => null,
@@ -162,6 +172,17 @@ class TeacherPortalController extends Controller
                 ]
             );
             $count++;
+        }
+
+        if ($count === 0) {
+            $message = 'Không check-in được ca nào — '.implode('; ', $skipped).'.';
+
+            return back()->withErrors(['class_ids' => $message])->with('error', $message);
+        }
+
+        if ($skipped !== []) {
+            return back()->with('success', "Đã check-in {$count} ca dạy hôm nay.")
+                ->with('error', 'Bỏ qua: '.implode('; ', $skipped).'.');
         }
 
         return back()->with('success', "Đã check-in thành công {$count} ca dạy hôm nay!");

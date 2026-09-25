@@ -9,6 +9,7 @@ use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
 use App\Models\Penalty;
 use App\Models\Student;
+use App\Models\TeacherHourlyRate;
 use App\Models\TeacherRate;
 use App\Models\TeacherTimesheet;
 use App\Models\TimesheetSyncLog;
@@ -17,6 +18,7 @@ use App\Models\User;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -179,43 +181,93 @@ class PayrollController extends Controller
         // Chỉ liệt kê lớp đang/opening và nhân sự giảng dạy — User::all() trước đây
         // đưa cả học viên vào dropdown chấm công.
         $classes = ClassModel::whereIn('status', ['active', 'upcoming', 'pending_schedule'])->orderBy('name')->get();
-        $teachers = User::where('is_active', true)
-            ->whereHas('roles', fn ($query) => $query->whereIn('name', ['teacher', 'teacher_fulltime', 'teacher_parttime', 'academic_lead', 'manager']))
-            ->orderBy('name')->get();
+        $teachers = $this->teachingStaff();
 
         return view('payroll.timesheets-manual', compact('classes', 'teachers'));
     }
 
+    /**
+     * Chấm công tay: bắt buộc lý do + giờ vào/ra (số giờ tính từ giờ vào/ra),
+     * tự gắn buổi học thật nếu có, và chặn chấm trùng với check-in/chấm tay khác.
+     */
     public function storeTimesheet(Request $request)
     {
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
             'class_id' => 'required|exists:classes,id',
             'teaching_date' => 'required|date',
-            'hours' => 'required|numeric|min:0.5',
-            // Bỏ trống = dùng đơn giá của nhân sự (users.hourly_rate) rồi tới mức mặc định
+            'time_in' => ['required', 'date_format:H:i'],
+            'time_out' => ['required', 'date_format:H:i', 'after:time_in'],
+            // Bỏ trống = dùng đơn giá riêng của GV (theo ngày hiệu lực) → users.hourly_rate → mặc định
             'hourly_rate' => 'nullable|numeric|min:1000',
             'type' => ['required', 'in:regular,sub,1on1,grading,workshop'],
-            'notes' => 'nullable|string|max:500',
+            'notes' => 'required|string|min:5|max:500',
+        ], [
+            'time_in.required' => 'Vui lòng nhập giờ vào.',
+            'time_out.required' => 'Vui lòng nhập giờ ra.',
+            'time_out.after' => 'Giờ ra phải sau giờ vào.',
+            'notes.required' => 'Chấm công tay bắt buộc ghi lý do.',
+            'notes.min' => 'Lý do chấm công tay cần ít nhất 5 ký tự.',
         ]);
 
         if (PayrollPeriod::isLockedFor($validated['teaching_date'])) {
             return $this->rejectLockedDate('teaching_date', $validated['teaching_date']);
         }
 
-        TeacherTimesheet::create([
+        $hours = round(
+            abs(Carbon::createFromFormat('H:i', $validated['time_in'])
+                ->diffInMinutes(Carbon::createFromFormat('H:i', $validated['time_out']))) / 60,
+            2
+        );
+        if ($hours < 0.5) {
+            throw ValidationException::withMessages(['time_out' => 'Ca dạy phải kéo dài ít nhất 30 phút.']);
+        }
+
+        $date = Carbon::parse($validated['teaching_date'])->toDateString();
+        $session = TeacherTimesheet::matchSession(
+            (int) $validated['user_id'], (int) $validated['class_id'], $date, $validated['time_in'], $validated['time_out']
+        );
+
+        $duplicate = TeacherTimesheet::findDuplicate((int) $validated['user_id'], (int) $validated['class_id'], $date, $session?->id);
+        if ($duplicate) {
+            $how = $duplicate->source === TeacherTimesheet::SOURCE_MANUAL ? 'chấm tay' : 'check-in';
+            $message = "Nhân sự đã được chấm công ({$how}) cho lớp này ngày ".Carbon::parse($date)->format('d/m/Y')
+                .' — không thể tính công 2 lần. Nếu bản ghi cũ sai, hãy từ chối bản ghi đó trước.';
+
+            return redirect()->back()->withInput()->withErrors(['teaching_date' => $message])->with('error', $message);
+        }
+
+        $attributes = [
             'user_id' => $validated['user_id'],
             'class_id' => $validated['class_id'],
-            'teaching_date' => $validated['teaching_date'],
-            'hours' => $validated['hours'],
+            'class_session_id' => $session?->id,
+            'teaching_date' => $date,
+            'scheduled_time' => $session?->start_time && $session?->end_time
+                ? $session->start_time->format('H:i').'-'.$session->end_time->format('H:i')
+                : null,
+            'checkin_time' => $validated['time_in'],
+            'checkout_time' => $validated['time_out'],
+            'hours' => $hours,
             'hourly_rate' => $validated['hourly_rate'] ?? null,
             'type' => $validated['type'],
+            'source' => TeacherTimesheet::SOURCE_MANUAL,
             'status' => 'pending_review',
-            'notes' => $validated['notes'] ?? null,
-        ]);
+            'reviewed_by' => null,
+            'reviewed_at' => null,
+            'rejection_reason' => null,
+            'notes' => $validated['notes'],
+        ];
+
+        // Buổi học đã có bản ghi bị từ chối (unique user + buổi): ghi đè bản ghi đó thay vì tạo mới.
+        $rejected = $session
+            ? TeacherTimesheet::where('user_id', $validated['user_id'])->where('class_session_id', $session->id)->first()
+            : null;
+        $rejected ? $rejected->update($attributes) : TeacherTimesheet::create($attributes);
 
         return redirect()->route('payroll.timesheets.teachers')
-            ->with('status', 'Đã ghi nhận bản ghi chấm công ca dạy thủ công vào hệ thống!');
+            ->with('status', 'Đã ghi nhận chấm công tay ('.rtrim(rtrim(number_format($hours, 2, '.', ''), '0'), '.').'h'
+                .($session ? ', gắn buổi học ngày '.Carbon::parse($date)->format('d/m/Y') : ', không có buổi học trên lịch')
+                .') — chờ duyệt.');
     }
 
     public function teacherTimesheets(Request $request)
@@ -254,6 +306,10 @@ class PayrollController extends Controller
         return redirect()->back()->with('status', $validated['decision'] === 'valid' ? 'Đã xác nhận ca dạy hợp lệ.' : 'Đã từ chối ca dạy.');
     }
 
+    /**
+     * Lịch sử đồng bộ máy chấm công. Hiện chưa có tích hợp thiết bị nào ghi
+     * TimesheetSyncLog → trang hiển thị trạng thái trống trung thực thay vì giả lập.
+     */
     public function syncHistory()
     {
         $syncLogs = TimesheetSyncLog::with('branch')->latest()->get();
@@ -334,11 +390,69 @@ class PayrollController extends Controller
         return redirect()->back()->with('status', 'Đã lưu tham số tính lương — áp dụng cho các lần tính/tính lại kỳ lương sau.');
     }
 
-    public function teacherRates()
+    public function teacherRates(Request $request)
     {
         $rates = TeacherRate::all();
+        $teachers = $this->teachingStaff();
+        $teacherId = $request->integer('teacher_id') ?: null;
 
-        return view('payroll.config-rates', compact('rates'));
+        $history = TeacherHourlyRate::with(['user', 'creator'])
+            ->when($teacherId, fn ($query) => $query->where('user_id', $teacherId))
+            ->orderByDesc('effective_from')
+            ->orderByDesc('id')
+            ->paginate($request->perPage(15))
+            ->withQueryString();
+
+        // Đơn giá đang hiệu lực hôm nay của từng GV (dòng effective_from gần nhất ≤ hôm nay).
+        $currentRates = TeacherHourlyRate::whereDate('effective_from', '<=', now()->toDateString())
+            ->orderBy('effective_from')
+            ->get()
+            ->keyBy('user_id');
+
+        $selectedTeacher = $teacherId ? $teachers->firstWhere('id', $teacherId) : null;
+
+        return view('payroll.config-rates', compact('rates', 'teachers', 'history', 'currentRates', 'selectedTeacher'));
+    }
+
+    /**
+     * Thêm đơn giá riêng cho một GV từ một ngày hiệu lực. Không sửa dòng cũ:
+     * mỗi lần đổi giá là một phiên bản mới để giữ lịch sử và tính đúng ca dạy cũ.
+     */
+    public function storePersonalTeacherRate(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => ['required', 'exists:users,id'],
+            'hourly_rate' => ['required', 'numeric', 'min:1000'],
+            'effective_from' => [
+                'required', 'date',
+                function ($attribute, $value, $fail) use ($request) {
+                    $exists = TeacherHourlyRate::where('user_id', $request->input('user_id'))
+                        ->whereDate('effective_from', Carbon::parse($value)->toDateString())->exists();
+                    if ($exists) {
+                        $fail('Giáo viên đã có đơn giá hiệu lực từ ngày này — chọn ngày hiệu lực khác để tạo phiên bản mới.');
+                    }
+                },
+            ],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $rate = TeacherHourlyRate::create($validated + ['created_by' => $request->user()->id]);
+
+        activity('teacher_rate')->causedBy($request->user())->performedOn($rate)
+            ->withProperties(['new' => $validated])
+            ->log('Thêm đơn giá giờ dạy riêng cho GV #'.$validated['user_id']);
+
+        return redirect()->route('payroll.config.teacher-rates', ['teacher_id' => $validated['user_id']])
+            ->with('status', 'Đã thêm đơn giá '.number_format((float) $validated['hourly_rate'], 0, ',', '.').'đ/h hiệu lực từ '
+                .Carbon::parse($validated['effective_from'])->format('d/m/Y').'.');
+    }
+
+    /** Nhân sự giảng dạy đang hoạt động (dùng cho chấm công tay và đơn giá GV). */
+    private function teachingStaff()
+    {
+        return User::where('is_active', true)
+            ->whereHas('roles', fn ($query) => $query->whereIn('name', ['teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant', 'academic_lead', 'manager']))
+            ->orderBy('name')->get();
     }
 
     public function storeTeacherRate(Request $request)
