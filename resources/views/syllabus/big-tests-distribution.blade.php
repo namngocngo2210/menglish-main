@@ -107,7 +107,17 @@
                         @if ($selectedOrder->status === 'approved')
                             <div class="rounded-lg border border-tertiary/20 bg-tertiary/5 p-md font-body-small text-body-small text-on-surface space-y-1">
                                 <p class="font-semibold">Đã duyệt bởi {{ $selectedOrder->reviewer?->name }} lúc {{ $selectedOrder->reviewed_at?->format('H:i d/m/Y') }}</p>
-                                <a href="{{ $selectedOrder->test_link }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold text-primary underline"><span class="material-symbols-outlined text-[16px]">link</span>Link đề</a>
+                                @if ($canReview)
+                                    <a href="{{ $selectedOrder->test_link }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold text-primary underline"><span class="material-symbols-outlined text-[16px]">link</span>Link đề</a>
+                                @endif
+                                @if ($selectedOrder->speaking_link)
+                                    <a href="{{ $selectedOrder->speaking_link }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold text-primary underline"><span class="material-symbols-outlined text-[16px]">record_voice_over</span>Phần Speaking</a>
+                                @elseif (! $canReview)
+                                    <p class="text-on-surface-variant">Học thuật chưa gửi link phần Speaking.</p>
+                                @endif
+                                @if ($selectedOrder->bigTest)
+                                    <p>Đợt thi: <strong>{{ $selectedOrder->bigTest->code }}</strong> · {{ $selectedOrder->bigTest->scheduled_at?->format('H:i d/m/Y') }} · {{ $selectedOrder->bigTest->room }}</p>
+                                @endif
                             </div>
                         @elseif ($selectedOrder->status === 'rejected')
                             <div class="rounded-lg border border-error/20 bg-error/5 p-md font-body-small text-body-small text-on-surface">
@@ -126,9 +136,36 @@
                                                    class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-xl pr-md font-body-base text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
                                         </div>
                                     </x-ui.field>
-                                    @php($classTests = $bigTests->getCollection()->where('class_id', $selectedOrder->class_id))
-                                    @if ($classTests->isNotEmpty())
-                                        <x-ui.select name="big_test_id" label="Gắn vào đợt thi (tùy chọn)" placeholder="-- Không gắn --" :options="$classTests->mapWithKeys(fn ($t) => [$t->id => $t->code.' · '.$t->title])" />
+                                    <x-ui.field label="Link phần Speaking (GV xem sau khi phân phối)" name="speaking_link">
+                                        <div class="relative">
+                                            <span class="material-symbols-outlined pointer-events-none absolute left-sm top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">record_voice_over</span>
+                                            <input type="url" name="speaking_link" value="{{ old('speaking_link') }}" placeholder="Link riêng phần Speaking (tùy chọn)..."
+                                                   class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-xl pr-md font-body-base text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
+                                        </div>
+                                    </x-ui.field>
+                                    @if ($selectedOrder->test_type === 'big')
+                                        @php($classTests = \App\Models\BigTest::where('class_id', $selectedOrder->class_id)->whereNull('results_completed_at')->latest('scheduled_at')->get())
+                                        <div x-data="{ mode: @js(old('big_test_id') ? 'link' : 'create') }" class="space-y-md rounded-lg border border-outline-variant p-md" data-testid="order-big-test-mode">
+                                            <p class="font-body-medium text-body-medium font-semibold text-on-surface">Đợt Big Test</p>
+                                            <div class="flex flex-wrap gap-md font-body-small text-body-small">
+                                                <label class="flex items-center gap-xs"><input type="radio" value="create" x-model="mode"> Tạo đợt thi mới</label>
+                                                @if ($classTests->isNotEmpty())
+                                                    <label class="flex items-center gap-xs"><input type="radio" value="link" x-model="mode"> Gắn đợt thi có sẵn</label>
+                                                @endif
+                                            </div>
+                                            <div x-show="mode === 'create'" class="grid grid-cols-1 gap-md sm:grid-cols-2">
+                                                <x-ui.input type="datetime-local" name="scheduled_at" label="Ngày giờ thi" x-bind:disabled="mode !== 'create'"
+                                                            :value="old('scheduled_at', $selectedOrder->exam_date?->copy()->setTime(8, 0)->format('Y-m-d\TH:i'))" />
+                                                <x-ui.input name="room" label="Phòng thi" :value="old('room', $oc?->room)" placeholder="VD: Phòng Lab 201" x-bind:disabled="mode !== 'create'" />
+                                                <p class="sm:col-span-2 font-caption text-caption text-on-surface-variant">Hệ thống tạo đợt Big Test gắn <strong>chặng đang mở</strong> của lớp và phân phối luôn để giáo viên nhập kết quả.</p>
+                                            </div>
+                                            @if ($classTests->isNotEmpty())
+                                                <div x-show="mode === 'link'" x-cloak>
+                                                    <x-ui.select name="big_test_id" label="Gắn vào đợt thi" placeholder="-- Chọn đợt thi --" x-bind:disabled="mode !== 'link'" :value="old('big_test_id')"
+                                                                 :options="$classTests->mapWithKeys(fn ($t) => [$t->id => $t->code.' · '.$t->title.($t->scheduled_at ? ' · '.$t->scheduled_at->format('d/m/Y H:i') : '')])" />
+                                                </div>
+                                            @endif
+                                        </div>
                                     @endif
                                 </form>
 
@@ -195,7 +232,17 @@
                     @forelse ($bigTests as $bt)
                         <tr>
                             <td class="font-mono font-bold text-on-surface">{{ $bt->code }}</td>
-                            <td class="font-semibold text-on-surface">{{ $bt->title }}</td>
+                            <td class="font-semibold text-on-surface">
+                                {{ $bt->title }}
+                                <div class="flex flex-wrap gap-sm font-caption text-caption">
+                                    @if ($bt->content_url && $bt->contentLinkVisibleTo(auth()->user()))
+                                        <a href="{{ $bt->content_url }}" target="_blank" rel="noopener" class="text-primary hover:underline">Link đề</a>
+                                    @endif
+                                    @if ($bt->speakingLinkVisibleTo(auth()->user()))
+                                        <a href="{{ $bt->speaking_url }}" target="_blank" rel="noopener" class="text-primary hover:underline">Phần Speaking</a>
+                                    @endif
+                                </div>
+                            </td>
                             <td>
                                 <span class="font-semibold text-primary">{{ $bt->classModel?->name }}</span>
                                 <span class="block font-caption text-caption {{ $bt->stage ? 'text-on-surface-variant' : 'text-amber-700' }}">{{ $bt->stage?->label ?? 'Chưa gắn chặng' }}</span>

@@ -303,8 +303,8 @@
                                     @endif
                                 </td>
                                 <td class="py-3.5 px-4 whitespace-nowrap">
-                                    <x-ui.badge :color="match ($res?->status) { 'approved' => 'success', 'sent' => 'info', 'pending_review' => 'warning', default => 'neutral' }">{{ $res?->status_label ?? 'Chưa nhập' }}</x-ui.badge>
-                                    @if ($res)
+                                    <x-ui.badge :color="match ($res?->status) { 'approved' => 'success', 'sent' => 'info', 'pending_review' => 'warning', default => 'neutral' }">{{ $res?->status === 'draft' ? 'Nháp (GV chưa gửi duyệt)' : ($res?->status_label ?? 'Chưa nhập') }}</x-ui.badge>
+                                    @if ($res && $res->status !== 'draft')
                                         <a href="{{ route('syllabus.big-tests.results', ['id' => $test->id, 'result' => $res->id]) }}" class="mt-1 flex items-center gap-0.5 text-[11px] font-semibold text-primary hover:underline">
                                             <span class="material-symbols-outlined text-[14px]">rate_review</span>Xem &amp; duyệt
                                         </a>
@@ -343,8 +343,11 @@
             @if($canGrade)
                 @if($students->contains(fn ($s) => ! ($resultsByStudent->get($s->id)?->isLocked() ?? false)))
                     <div class="p-4 border-t flex items-center justify-between gap-3">
-                        <span class="text-[11px] text-gray-500">Học viên vắng: tích "Vắng thi" (không nhập điểm). Dòng để trống sẽ bỏ qua. Điểm đã duyệt/đã gửi phụ huynh không thể sửa.</span>
-                        <button class="px-4 py-2 bg-primary-container text-white rounded-xl text-xs font-bold">Lưu điểm chờ duyệt</button>
+                        <span class="text-[11px] text-gray-500">Học viên vắng: tích "Vắng thi" (không nhập điểm). Dòng để trống sẽ bỏ qua. "Lưu nháp" chưa gửi Học thuật (sửa tiếp được); "Gửi duyệt" cần đủ 4 kỹ năng. Điểm đã duyệt/đã gửi phụ huynh không thể sửa.</span>
+                        <div class="flex items-center gap-2">
+                            <x-ui.button type="submit" name="action" value="draft" variant="secondary" icon="draft">Lưu nháp</x-ui.button>
+                            <x-ui.button type="submit" name="action" value="submit" icon="send">Gửi duyệt</x-ui.button>
+                        </div>
                     </div>
                 @endif
             </form>

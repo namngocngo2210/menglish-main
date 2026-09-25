@@ -110,8 +110,18 @@
                             <td class="text-on-surface-variant">{{ $req->note ?: '—' }}</td>
                             <td class="space-y-1">
                                 <x-ui.badge :color="$req->status_color">{{ $req->status === 'pending' ? 'Đã order - Chờ HT duyệt' : $req->status_label }}</x-ui.badge>
-                                @if ($req->status === 'approved' && $req->test_link)
-                                    <a href="{{ $req->test_link }}" target="_blank" rel="noopener" class="block font-caption text-caption text-primary font-semibold hover:underline">Mở link đề</a>
+                                @if ($req->status === 'approved')
+                                    {{-- GV chỉ xem phần Speaking của đề sau khi phân phối; link đề đầy đủ chỉ Học thuật xem. --}}
+                                    @can('big_test.approve')
+                                        @if ($req->test_link)
+                                            <a href="{{ $req->test_link }}" target="_blank" rel="noopener" class="block font-caption text-caption text-primary font-semibold hover:underline">Mở link đề</a>
+                                        @endif
+                                    @endcan
+                                    @if ($req->speaking_link)
+                                        <a href="{{ $req->speaking_link }}" target="_blank" rel="noopener" class="block font-caption text-caption text-primary font-semibold hover:underline">Mở phần Speaking</a>
+                                    @else
+                                        <p class="font-caption text-caption text-on-surface-variant">Chưa có link phần Speaking</p>
+                                    @endif
                                 @elseif ($req->status === 'rejected' && $req->rejection_reason)
                                     <p class="font-caption text-caption text-error">Lý do: {{ $req->rejection_reason }}</p>
                                 @endif

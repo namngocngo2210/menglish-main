@@ -416,6 +416,14 @@ class AcademicSystemTest extends TestCase
 
     public function test_syllabus_adjustment_request_approval_and_rejection(): void
     {
+        // 0. Lớp chưa mở chặng → server từ chối yêu cầu điều chỉnh tiến độ.
+        $this->actingAs($this->teacher)->post(route('syllabus.adjustment-requests.store'), [
+            'class_id' => $this->classModel->id, 'reason' => 'Chưa mở chặng',
+        ])->assertSessionHasErrors('class_id');
+        $this->assertSame(0, SyllabusAdjustmentRequest::count());
+        $curriculum = SyllabusCurriculum::create(['code' => 'CUR-ADJ', 'title' => 'GT giãn tiến độ', 'version' => 'v1', 'stage_name' => 'Writing']);
+        app(\App\Services\SyllabusProgressionService::class)->open($this->classModel, $curriculum->stages()->firstOrFail(), $this->teacher->id, $this->academicHead);
+
         // 1. Submit adjustment request
         $responseReq = $this->actingAs($this->teacher)->post(route('syllabus.adjustment-requests.store'), [
             'class_id' => $this->classModel->id,

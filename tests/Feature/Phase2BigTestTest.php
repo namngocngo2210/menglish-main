@@ -111,12 +111,22 @@ class Phase2BigTestTest extends TestCase
         $this->actingAs($this->teacherA)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://x.test'])->assertForbidden();
         $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.approve', $order->id))->assertSessionHasErrors('test_link');
 
+        // Order Big Test không gắn đợt thi có sẵn → phải nhập ngày giờ thi + phòng để hệ thống tạo đợt thi.
         $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.approve', $order->id), [
             'test_link' => 'https://drive.example.com/de-big-test',
-        ])->assertRedirect();
+        ])->assertSessionHasErrors(['scheduled_at', 'room']);
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.approve', $order->id), [
+            'test_link' => 'https://drive.example.com/de-big-test', 'speaking_link' => 'https://drive.example.com/speaking',
+            'scheduled_at' => now()->addDays(4)->format('Y-m-d').' 08:00', 'room' => 'P301',
+        ])->assertRedirect()->assertSessionHasNoErrors();
         $this->assertDatabaseHas('big_test_orders', [
             'id' => $order->id, 'status' => 'approved', 'test_link' => 'https://drive.example.com/de-big-test', 'reviewed_by' => $this->academic->id,
         ]);
+        $created = BigTest::findOrFail($order->fresh()->big_test_id);
+        $this->assertTrue($created->is_distributed);
+        $this->assertSame('P301', $created->room);
+        $this->assertSame('https://drive.example.com/de-big-test', $created->content_url);
+        $this->assertSame('https://drive.example.com/speaking', $created->speaking_url);
 
         $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.reject', $other->id))->assertSessionHasErrors('rejection_reason');
         $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.reject', $other->id), ['rejection_reason' => 'Đã có đề chung'])->assertRedirect();
@@ -124,8 +134,15 @@ class Phase2BigTestTest extends TestCase
 
         // Giáo viên được thông báo và thấy link đề / lý do ở Cổng GV
         $this->assertTrue(AdminNotification::where('user_id', $this->teacherA->id)->exists());
+        // GV chỉ xem phần Speaking của đề sau phân phối; link đề đầy đủ chỉ Học thuật xem.
         $this->actingAs($this->teacherA)->get(route('teacher.order-test', $this->classA->id))
-            ->assertOk()->assertSee('https://drive.example.com/de-big-test')->assertSee('Đã có đề chung');
+            ->assertOk()->assertSee('https://drive.example.com/speaking')->assertDontSee('https://drive.example.com/de-big-test')->assertSee('Đã có đề chung');
+        $this->actingAs($this->teacherA)->get(route('syllabus.big-tests.distribution'))
+            ->assertOk()->assertSee('https://drive.example.com/speaking')->assertDontSee('https://drive.example.com/de-big-test');
+        $this->actingAs($this->teacherB)->get(route('syllabus.big-tests.distribution'))
+            ->assertOk()->assertDontSee('https://drive.example.com/speaking');
+        $this->actingAs($this->academic)->get(route('syllabus.big-tests.distribution', ['order' => $order->id, 'order_status' => 'approved']))
+            ->assertOk()->assertSee('https://drive.example.com/de-big-test')->assertSee('https://drive.example.com/speaking');
     }
 
     public function test_distribution_and_schedules_are_scoped_to_teacher_classes(): void

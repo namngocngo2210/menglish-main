@@ -650,6 +650,7 @@ class MasterEntitySeeder extends Seeder
                     'speaking_score' => 6.0,
                     'overall_score' => 6.0,
                     'progress_note' => 'Tăng +1.0 Band so với đầu vào',
+                    'status' => 'pending_review',
                     'parent_notified' => false,
                     'notified_at' => null,
                 ]
@@ -667,6 +668,7 @@ class MasterEntitySeeder extends Seeder
                     'speaking_score' => 6.5,
                     'overall_score' => 6.5,
                     'progress_note' => 'Đạt mục tiêu đầu ra IELTS 6.5',
+                    'status' => 'pending_review',
                     'parent_notified' => false,
                     'notified_at' => null,
                 ]
@@ -684,6 +686,7 @@ class MasterEntitySeeder extends Seeder
                     'speaking_score' => 5.5,
                     'overall_score' => 5.4,
                     'progress_note' => 'Cần bổ trợ thêm kỹ năng Viết Task 2',
+                    'status' => 'pending_review',
                     'parent_notified' => false,
                     'notified_at' => null,
                 ]
