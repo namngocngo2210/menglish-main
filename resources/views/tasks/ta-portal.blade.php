@@ -1,264 +1,182 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-orange-100 text-primary-container flex items-center justify-center font-bold text-sm">
-                    {{ Str::substr($taUser->name ?? 'TA', 0, 2) }}
-                </div>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900">Nhiệm vụ hôm nay</h1>
-                    <p class="text-xs text-gray-500">Trợ giảng: <span class="font-semibold text-gray-800">{{ $taUser->name }}</span> ({{ now()->format('d/m/Y') }})</p>
-                </div>
+{{-- Portal trợ giảng — "Nhiệm vụ hằng ngày" dạng điện thoại (mockup nhi_m_v_h_m_nay_ta), có thanh điều hướng dưới. --}}
+@php
+    $groups = [
+        ['key' => 'before', 'title' => 'Trước giờ học', 'icon' => 'schedule', 'tasks' => $beforeTasks],
+        ['key' => 'during', 'title' => 'Trong giờ học', 'icon' => 'play_circle', 'tasks' => $duringTasks],
+        ['key' => 'after', 'title' => 'Sau giờ học', 'icon' => 'task_alt', 'tasks' => $afterTasks],
+    ];
+    $firstOpen = collect($groups)->first(fn ($g) => $g['tasks']->isNotEmpty())['key'] ?? 'before';
+@endphp
+<x-app-layout title="Nhiệm vụ hôm nay">
+    <div class="mx-auto max-w-md pb-24 md:max-w-2xl md:pb-0"
+         x-data="{
+            modalOpen: false,
+            selectedTask: null,
+            openCompleteModal(task) { this.selectedTask = task; this.modalOpen = true; }
+         }">
+
+        {{-- Tiêu đề + người được xem --}}
+        <header class="mb-md flex items-center justify-between gap-sm">
+            <div class="min-w-0">
+                <h1 class="font-h2 text-h2 text-primary">{{ $isToday ? 'Nhiệm vụ hôm nay' : 'Nhiệm vụ ngày '.$date->format('d/m/Y') }}</h1>
+                <p class="truncate font-body-small text-body-small text-on-surface-variant">
+                    @if ($taUser)
+                        Trợ giảng: <span class="font-semibold text-on-surface">{{ $taUser->name }}</span> · {{ $date->format('d/m/Y') }}
+                    @else
+                        Chưa có trợ giảng nào trong hệ thống.
+                    @endif
+                </p>
             </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('tasks.class-reports.create') }}" class="bg-primary-container text-white px-4 py-2 rounded-xl text-xs font-semibold hover:bg-primary transition shadow-sm flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[16px]">assignment</span>
-                    Nộp báo cáo trực lớp
-                </a>
-            </div>
-        </div>
-    </x-slot>
+            @if ($taUser)
+                <x-ui.avatar :name="$taUser->name" />
+            @endif
+        </header>
 
-    <div class="max-w-3xl mx-auto space-y-5" x-data="{
-        modalOpen: false,
-        selectedTask: null,
-        note: '',
-        openCompleteModal(task) {
-            this.selectedTask = task;
-            this.note = '';
-            this.modalOpen = true;
-        }
-    }">
+        @if (session('success'))
+            <x-ui.alert type="success" class="mb-md" dismissible>{{ session('success') }}</x-ui.alert>
+        @endif
 
-        
+        {{-- Bộ lọc: ngày (+ chọn trợ giảng cho admin / quản lý) --}}
+        <form method="GET" action="{{ route('portal.ta-tasks') }}" class="mb-md flex flex-wrap items-end gap-sm rounded-xl border border-outline-variant bg-surface-container-lowest p-sm">
+            @if ($canPickTa)
+                <label class="min-w-[160px] flex-1">
+                    <span class="mb-xs block font-caption text-caption text-on-surface-variant">Trợ giảng</span>
+                    <select name="ta_id" onchange="this.form.submit()" aria-label="Chọn trợ giảng"
+                            class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-xs pl-sm pr-lg font-body-small text-body-small">
+                        @forelse ($assistants as $assistant)
+                            <option value="{{ $assistant->id }}" @selected($taUser && $taUser->id === $assistant->id)>{{ $assistant->name }}</option>
+                        @empty
+                            <option value="">Chưa có trợ giảng</option>
+                        @endforelse
+                    </select>
+                </label>
+            @endif
+            <label class="min-w-[140px] flex-1">
+                <span class="mb-xs block font-caption text-caption text-on-surface-variant">Ngày</span>
+                <input type="date" name="date" value="{{ $date->toDateString() }}" onchange="this.form.submit()" aria-label="Chọn ngày"
+                       class="w-full rounded-lg border border-outline-variant px-sm py-xs font-body-small text-body-small">
+            </label>
+            @unless ($isToday)
+                <x-ui.button size="sm" variant="ghost" icon="today" :href="route('portal.ta-tasks', array_filter(['ta_id' => $canPickTa ? $taUser?->id : null]))">Hôm nay</x-ui.button>
+            @endunless
+            <noscript><x-ui.button type="submit" size="sm" variant="secondary">Xem</x-ui.button></noscript>
+        </form>
 
-        <!-- Accordion 1: Trước giờ học -->
-        <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs" x-data="{ open: true }">
-            <button @click="open = !open" class="w-full px-6 py-4 flex items-center justify-between bg-white hover:bg-gray-50/80 transition">
-                <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-primary-container">schedule</span>
-                    <h2 class="text-base font-bold text-gray-900">Trước giờ học</h2>
-                    <span class="text-xs text-gray-500 font-normal">({{ $beforeTasks->count() }} nhiệm vụ)</span>
-                </div>
-                <span class="material-symbols-outlined text-gray-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''">expand_more</span>
-            </button>
-            <div x-show="open" x-collapse class="px-5 pb-5 space-y-3">
-                @forelse($beforeTasks as $task)
-                    <div class="bg-gray-50/60 border border-gray-200 rounded-xl p-4 flex flex-col gap-3 hover:border-gray-300 transition">
-                        <div class="flex justify-between items-start gap-2">
-                            <div class="space-y-1">
-                                <h3 class="font-semibold text-gray-900 text-sm {{ $task->status === 'completed' ? 'line-through text-gray-500' : '' }}">{{ $task->title }}</h3>
-                                @if($task->classModel)
-                                    <div class="inline-flex items-center gap-1 text-[11px] text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
-                                        <span class="material-symbols-outlined text-[13px]">school</span>
-                                        Trực lớp: {{ $task->classModel->name }} {{ $task->lesson_session ? '· ' . $task->lesson_session : '' }}
-                                    </div>
-                                @endif
-                            </div>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border {{ $task->status_badge_class }}">
-                                {{ $task->status_label }}
-                            </span>
-                        </div>
+        @if ($overdueCount > 0)
+            <x-ui.alert type="warning" class="mb-md">Còn <strong>{{ $overdueCount }}</strong> nhiệm vụ của các ngày trước chưa hoàn thành.</x-ui.alert>
+        @endif
 
-                        <div class="flex flex-col sm:flex-row sm:items-center justify-between pt-2 border-t border-gray-100 gap-3">
-                            <div class="text-gray-500 text-xs flex items-center gap-1 font-mono">
-                                <span class="material-symbols-outlined text-[14px]">schedule</span>
-                                Hạn: {{ $task->due_time ?? '14:00' }} Hôm nay
-                            </div>
-
-                            @if($task->status === 'new' || $task->status === 'in_progress')
-                                <button @click="openCompleteModal({{ json_encode($task) }})" class="bg-primary-container text-white hover:bg-primary font-semibold text-xs px-4 py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs">
-                                    <span class="material-symbols-outlined text-[16px]">check_circle</span>
-                                    Hoàn thành
-                                </button>
-                            @elseif($task->status === 'overdue')
-                                <button @click="openCompleteModal({{ json_encode($task) }})" class="bg-rose-600 text-white hover:bg-rose-700 font-semibold text-xs px-4 py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs">
-                                    <span class="material-symbols-outlined text-[16px]">warning</span>
-                                    Hoàn thành gấp
-                                </button>
-                            @elseif($task->status === 'pending_confirmation')
-                                <span class="text-orange-700 bg-orange-50 border border-orange-200 px-3 py-1 rounded-lg text-xs font-medium flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-[14px]">hourglass_top</span> Đang chờ duyệt
-                                </span>
-                            @elseif($task->status === 'completed')
-                                <span class="text-emerald-700 text-xs font-semibold flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-[16px]">done_all</span> Đã hoàn thành
-                                </span>
-                            @endif
-                        </div>
+        {{-- Nhiệm vụ theo ca --}}
+        <section id="nhiem-vu" class="space-y-md" aria-label="Nhiệm vụ">
+            @foreach ($groups as $group)
+                <div class="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest" x-data="{ open: @js($group['key'] === $firstOpen || $group['tasks']->isNotEmpty()) }">
+                    <button type="button" x-on:click="open = !open" :aria-expanded="open"
+                            class="flex w-full items-center justify-between gap-sm px-md py-md text-left">
+                        <span class="flex items-center gap-sm">
+                            <span class="material-symbols-outlined text-primary-container" aria-hidden="true">{{ $group['icon'] }}</span>
+                            <span class="font-h3 text-h3 text-on-surface">{{ $group['title'] }}</span>
+                            <span class="rounded-full bg-surface-container-high px-sm font-code text-caption text-on-surface-variant">{{ $group['tasks']->count() }}</span>
+                        </span>
+                        <span class="material-symbols-outlined text-on-surface-variant transition-transform" :class="open ? 'rotate-180' : ''" aria-hidden="true">expand_more</span>
+                    </button>
+                    <div x-show="open" x-collapse class="space-y-sm px-md pb-md">
+                        @forelse ($group['tasks'] as $task)
+                            @include('tasks.partials.ta-task-card', ['task' => $task, 'canComplete' => $canComplete, 'isToday' => $isToday])
+                        @empty
+                            <p class="py-sm font-body-small text-body-small italic text-on-surface-variant">Không có nhiệm vụ {{ mb_strtolower($group['title']) }}.</p>
+                        @endforelse
                     </div>
-                @empty
-                    <p class="text-xs text-gray-400 italic py-2">Không có nhiệm vụ nào trước giờ học.</p>
-                @endforelse
-            </div>
-        </div>
-
-        <!-- Accordion 2: Trong giờ học -->
-        <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs" x-data="{ open: true }">
-            <button @click="open = !open" class="w-full px-6 py-4 flex items-center justify-between bg-white hover:bg-gray-50/80 transition">
-                <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-primary-container">play_circle</span>
-                    <h2 class="text-base font-bold text-gray-900">Trong giờ học</h2>
-                    <span class="text-xs text-gray-500 font-normal">({{ $duringTasks->count() }} nhiệm vụ)</span>
                 </div>
-                <span class="material-symbols-outlined text-gray-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''">expand_more</span>
-            </button>
-            <div x-show="open" x-collapse class="px-5 pb-5 space-y-3">
-                @forelse($duringTasks as $task)
-                    <div class="bg-gray-50/60 border border-gray-200 rounded-xl p-4 flex flex-col gap-3 hover:border-gray-300 transition">
-                        <div class="flex justify-between items-start gap-2">
-                            <div class="space-y-1">
-                                <h3 class="font-semibold text-gray-900 text-sm {{ $task->status === 'completed' ? 'line-through text-gray-500' : '' }}">{{ $task->title }}</h3>
-                                @if($task->classModel)
-                                    <div class="inline-flex items-center gap-1 text-[11px] text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
-                                        <span class="material-symbols-outlined text-[13px]">school</span>
-                                        Trực lớp: {{ $task->classModel->name }} {{ $task->lesson_session ? '· ' . $task->lesson_session : '' }}
-                                    </div>
-                                @endif
-                            </div>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border {{ $task->status_badge_class }}">
-                                {{ $task->status_label }}
-                            </span>
-                        </div>
+            @endforeach
 
-                        <div class="flex flex-col sm:flex-row sm:items-center justify-between pt-2 border-t border-gray-100 gap-3">
-                            <div class="text-gray-500 text-xs flex items-center gap-1 font-mono">
-                                <span class="material-symbols-outlined text-[14px]">schedule</span>
-                                Hạn: {{ $task->due_time ?? '18:00' }} Hôm nay
-                            </div>
+            @if ($taUser && $tasks->isEmpty())
+                <x-ui.empty-state icon="task_alt" title="Không có nhiệm vụ trong ngày"
+                    description="{{ $taUser->name }} chưa được giao nhiệm vụ nào cho ngày {{ $date->format('d/m/Y') }}." />
+            @endif
+        </section>
 
-                            <div class="flex items-center gap-2">
-                                @if($task->classModel)
-                                    <a href="{{ route('tasks.class-reports.create', ['task_id' => $task->id, 'class_id' => $task->class_id]) }}" class="border border-gray-300 text-gray-800 hover:bg-gray-100 font-semibold text-xs px-3 py-2 rounded-xl transition flex items-center gap-1.5">
-                                        <span class="material-symbols-outlined text-[16px]">assignment</span>
-                                        Nộp báo cáo trực lớp
-                                    </a>
-                                @endif
-
-                                @if($task->status === 'new' || $task->status === 'in_progress')
-                                    <button @click="openCompleteModal({{ json_encode($task) }})" class="bg-primary-container text-white hover:bg-primary font-semibold text-xs px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
-                                        <span class="material-symbols-outlined text-[16px]">check_circle</span>
-                                        Hoàn thành
-                                    </button>
-                                @endif
-                            </div>
-                        </div>
+        {{-- Lớp trực trong ngày (từ buổi học thật) --}}
+        <section id="lop-hoc" class="mt-lg space-y-sm" aria-label="Lớp trực">
+            <h2 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
+                <span class="material-symbols-outlined text-primary-container" aria-hidden="true">school</span>
+                Lớp trực {{ $isToday ? 'hôm nay' : 'ngày '.$date->format('d/m') }}
+            </h2>
+            @forelse ($sessions as $session)
+                <div class="flex items-center justify-between gap-sm rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
+                    <div class="min-w-0">
+                        <p class="truncate font-body-medium text-body-medium font-semibold text-on-surface">{{ $session->classModel?->name }}</p>
+                        <p class="font-caption text-caption text-on-surface-variant">
+                            <span class="font-code">{{ $session->start_time?->format('H:i') }} - {{ $session->end_time?->format('H:i') }}</span>
+                            · {{ $session->room ?: 'Chưa có phòng' }}{{ $session->branch ? ' · '.$session->branch->name : '' }}
+                        </p>
                     </div>
-                @empty
-                    <p class="text-xs text-gray-400 italic py-2">Không có nhiệm vụ nào trong giờ học.</p>
-                @endforelse
-            </div>
-        </div>
-
-        <!-- Accordion 3: Sau giờ học -->
-        <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs" x-data="{ open: true }">
-            <button @click="open = !open" class="w-full px-6 py-4 flex items-center justify-between bg-white hover:bg-gray-50/80 transition">
-                <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-primary-container">task_alt</span>
-                    <h2 class="text-base font-bold text-gray-900">Sau giờ học</h2>
-                    <span class="text-xs text-gray-500 font-normal">({{ $afterTasks->count() }} nhiệm vụ)</span>
+                    @if ($session->type === \App\Models\ClassSession::TYPE_MAKEUP)
+                        <x-ui.badge color="warning">Học bù</x-ui.badge>
+                    @endif
                 </div>
-                <span class="material-symbols-outlined text-gray-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''">expand_more</span>
-            </button>
-            <div x-show="open" x-collapse class="px-5 pb-5 space-y-3">
-                @forelse($afterTasks as $task)
-                    <div class="bg-gray-50/60 border border-gray-200 rounded-xl p-4 flex flex-col gap-3 hover:border-gray-300 transition {{ $task->status === 'completed' ? 'opacity-70' : '' }}">
-                        <div class="flex justify-between items-start gap-2">
-                            <div class="space-y-1">
-                                <h3 class="font-semibold text-gray-900 text-sm {{ $task->status === 'completed' ? 'line-through text-gray-500' : '' }}">{{ $task->title }}</h3>
-                                @if($task->classModel)
-                                    <div class="inline-flex items-center gap-1 text-[11px] text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
-                                        <span class="material-symbols-outlined text-[13px]">school</span>
-                                        Trực lớp: {{ $task->classModel->name }}
-                                    </div>
-                                @endif
-                            </div>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border {{ $task->status_badge_class }}">
-                                {{ $task->status_label }}
-                            </span>
-                        </div>
+            @empty
+                <p class="font-body-small text-body-small italic text-on-surface-variant">Không có buổi học nào trong ngày.</p>
+            @endforelse
+        </section>
 
-                        <div class="flex flex-col sm:flex-row sm:items-center justify-between pt-2 border-t border-gray-100 gap-3">
-                            <div class="text-gray-500 text-xs flex items-center gap-1 font-mono">
-                                <span class="material-symbols-outlined text-[14px]">schedule</span>
-                                Hạn: {{ $task->due_time ?? '21:30' }} Hôm nay
-                            </div>
+        {{-- Thanh điều hướng dưới (điện thoại) --}}
+        <nav class="fixed inset-x-0 bottom-0 z-40 border-t border-outline-variant bg-surface-container-lowest md:hidden" aria-label="Điều hướng portal trợ giảng">
+            <ul class="mx-auto grid max-w-md grid-cols-4 gap-xs px-sm py-xs">
+                <li>
+                    <a href="#nhiem-vu" class="flex flex-col items-center gap-[2px] rounded-xl bg-primary-container px-xs py-xs text-white" aria-current="page">
+                        <span class="material-symbols-outlined text-[22px]" aria-hidden="true">assignment</span>
+                        <span class="text-[11px] font-semibold">Nhiệm vụ</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#lop-hoc" class="flex flex-col items-center gap-[2px] rounded-xl px-xs py-xs text-on-surface-variant">
+                        <span class="material-symbols-outlined text-[22px]" aria-hidden="true">school</span>
+                        <span class="text-[11px] font-semibold">Lớp học</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('tasks.class-reports.create') }}" class="flex flex-col items-center gap-[2px] rounded-xl px-xs py-xs text-on-surface-variant">
+                        <span class="material-symbols-outlined text-[22px]" aria-hidden="true">bar_chart</span>
+                        <span class="text-[11px] font-semibold">Báo cáo</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('profile.edit') }}" class="flex flex-col items-center gap-[2px] rounded-xl px-xs py-xs text-on-surface-variant">
+                        <span class="material-symbols-outlined text-[22px]" aria-hidden="true">person</span>
+                        <span class="text-[11px] font-semibold">Cá nhân</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
 
-                            @if($task->status === 'new' || $task->status === 'in_progress')
-                                <button @click="openCompleteModal({{ json_encode($task) }})" class="bg-primary-container text-white hover:bg-primary font-semibold text-xs px-4 py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs">
-                                    <span class="material-symbols-outlined text-[16px]">check_circle</span>
-                                    Hoàn thành
-                                </button>
-                            @elseif($task->status === 'completed')
-                                <span class="text-emerald-700 text-xs font-semibold flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-[16px]">done_all</span> Đã hoàn thành lúc {{ $task->completed_at ? $task->completed_at->format('H:i') : '' }}
-                                </span>
-                            @endif
-                        </div>
-                    </div>
-                @empty
-                    <p class="text-xs text-gray-400 italic py-2">Không có nhiệm vụ nào sau giờ học.</p>
-                @endforelse
-            </div>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- MODAL: CẬP NHẬT TIẾN ĐỘ / HOÀN THÀNH -->
-        <!-- ========================================== -->
-        <div x-show="modalOpen" x-cloak class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div @click.outside="modalOpen = false" class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h2 class="text-base font-bold text-gray-900">Cập nhật tiến độ hoàn thành</h2>
-                    <button @click="modalOpen = false" class="text-gray-400 hover:text-gray-700 p-1 rounded-full">
+        {{-- Modal hoàn thành nhiệm vụ --}}
+        <div x-show="modalOpen" x-cloak class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-md">
+            <div x-on:click.outside="modalOpen = false" class="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-surface-container-lowest shadow-xl sm:rounded-2xl">
+                <div class="flex items-center justify-between border-b border-surface-container px-md py-sm">
+                    <h2 class="font-h3 text-h3 text-on-surface">Cập nhật tiến độ</h2>
+                    <button type="button" x-on:click="modalOpen = false" class="rounded-full p-xs text-on-surface-variant" aria-label="Đóng">
                         <span class="material-symbols-outlined text-[20px]">close</span>
                     </button>
                 </div>
-
-                <form :action="'/tasks/' + (selectedTask ? selectedTask.id : '') + '/complete'" method="POST" enctype="multipart/form-data" class="p-6 space-y-4 text-sm overflow-y-auto">
+                <form :action="'{{ url('/tasks') }}/' + (selectedTask ? selectedTask.id : '') + '/complete'" method="POST" enctype="multipart/form-data" class="space-y-md overflow-y-auto p-md">
                     @csrf
-
-                    <div class="bg-gray-50 p-3 rounded-xl border border-gray-200">
-                        <h4 class="font-bold text-gray-900 text-xs mb-0.5" x-text="selectedTask ? selectedTask.title : ''"></h4>
-                        <p class="text-[11px] text-gray-500" x-text="'Hạn chót: ' + (selectedTask ? selectedTask.due_time : '') + ', Hôm nay'"></p>
+                    <div class="rounded-lg bg-surface-container-low p-sm">
+                        <p class="font-body-medium text-body-medium font-semibold" x-text="selectedTask ? selectedTask.title : ''"></p>
+                        <p class="font-caption text-caption text-on-surface-variant" x-text="'Hạn: ' + (selectedTask && selectedTask.due_time ? selectedTask.due_time.substring(0, 5) : '—')"></p>
                     </div>
-
-                    <!-- Upload Proof Image -->
-                    <div>
-                        <label class="block text-xs font-bold uppercase text-gray-700 mb-1.5">Bằng chứng hình ảnh (Tùy chọn)</label>
-                        <div class="border-2 border-dashed border-gray-300 rounded-xl p-5 flex flex-col items-center justify-center bg-gray-50/50 hover:bg-gray-50 transition cursor-pointer relative">
-                            <span class="material-symbols-outlined text-3xl text-gray-400 mb-1">cloud_upload</span>
-                            <p class="text-xs font-semibold text-gray-800">Nhấn để chọn ảnh hoặc kéo thả</p>
-                            <p class="text-[10px] text-gray-400 mt-0.5">PNG, JPG tối đa 5MB</p>
-                            <input type="file" name="proof_image" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
-                        </div>
-                    </div>
-
-                    <!-- Note / Notification banner -->
-                    <div class="bg-blue-50 text-blue-900 border border-blue-200 p-3 rounded-xl flex items-start gap-2.5 text-xs">
-                        <span class="material-symbols-outlined text-[18px] text-blue-600 shrink-0 mt-0.5">info</span>
-                        <div>
-                            <strong>Quy tắc hệ thống:</strong> Có ảnh đính kèm, nhiệm vụ sẽ được <strong class="text-emerald-700">hoàn thành ngay</strong>. Nếu không có ảnh, nhiệm vụ chuyển sang <strong class="text-orange-700">chờ người giao việc xác nhận</strong>.
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold uppercase text-gray-700 mb-1.5" for="note">Ghi chú (Tùy chọn)</label>
-                        <textarea name="note" id="note" x-model="note" rows="3" placeholder="Nhập ghi chú kết quả hoặc vấn đề phát sinh..."
-                                  class="w-full rounded-xl border-gray-200 text-xs focus:ring-primary-container focus:border-primary-container"></textarea>
-                    </div>
-
-                    <div class="pt-2 flex justify-end gap-3 border-t border-gray-100">
-                        <button type="button" @click="modalOpen = false" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 font-medium text-xs">
-                            Hủy bỏ
-                        </button>
-                        <button type="submit" class="px-5 py-2 bg-primary-container text-white rounded-xl hover:bg-primary font-semibold text-xs shadow-sm flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-[16px]">send</span>
-                            Xác nhận nộp
-                        </button>
+                    <x-ui.field label="Ảnh minh chứng (tùy chọn)" name="proof_image" for="ta_proof">
+                        <input id="ta_proof" type="file" name="proof_image" accept="image/*" class="w-full font-body-small text-body-small">
+                    </x-ui.field>
+                    <x-ui.alert type="info">Có ảnh: nhiệm vụ <strong>hoàn thành ngay</strong>. Không có ảnh: chuyển sang <strong>chờ người giao việc xác nhận</strong>.</x-ui.alert>
+                    <x-ui.field label="Ghi chú (tùy chọn)" name="note" for="ta_note">
+                        <textarea id="ta_note" name="note" rows="3" class="w-full rounded-lg border border-outline-variant p-sm font-body-small text-body-small" placeholder="Kết quả hoặc vấn đề phát sinh..."></textarea>
+                    </x-ui.field>
+                    <div class="flex justify-end gap-sm border-t border-surface-container pt-sm">
+                        <x-ui.button variant="secondary" x-on:click="modalOpen = false">Hủy</x-ui.button>
+                        <x-ui.button type="submit" icon="send">Xác nhận</x-ui.button>
                     </div>
                 </form>
             </div>
         </div>
-
     </div>
 </x-app-layout>

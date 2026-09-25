@@ -282,33 +282,61 @@ class WorkTaskController extends Controller
      */
     public function taPortal(Request $request)
     {
-        $taUser = Auth::user();
+        $validated = $request->validate([
+            'date' => ['nullable', 'date'],
+            'ta_id' => ['nullable', 'integer', 'exists:users,id'],
+        ]);
+        $viewer = $request->user();
+        $date = CarbonImmutable::parse($validated['date'] ?? now())->startOfDay();
 
-        // Nếu là admin test, lấy user TA mẫu đầu tiên hoặc user hiện tại
-        if (! $taUser || $taUser->hasRole('admin')) {
-            $taUser = User::where('email', 'ta.tuan@menglish.edu.vn')->first() ?? Auth::user() ?? User::first();
+        // Admin / quản lý / học vụ xem được nhiệm vụ của trợ giảng bất kỳ qua bộ chọn TA;
+        // trợ giảng (và vai trò khác) chỉ xem nhiệm vụ của chính mình.
+        $canPickTa = $viewer->can('work_task.assign') || $viewer->can('work_task.approve');
+        $assistants = $canPickTa
+            ? User::role('assistant')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'email'])
+            : collect();
+
+        if ($canPickTa) {
+            $taUser = isset($validated['ta_id'])
+                ? User::find($validated['ta_id'])
+                : ($viewer->hasRole('assistant') ? $viewer : $assistants->first());
+        } else {
+            $taUser = $viewer;
         }
 
-        $today = now()->toDateString();
-
-        $tasks = WorkTask::with(['classModel', 'branch'])
-            ->where('assignee_id', $taUser->id)
-            ->whereDate('due_date', '<=', $today)
-            ->orderBy('id', 'desc')
-            ->get();
-
-        // Nếu chưa có task nào của TA này hôm nay, fallback lấy toàn bộ task của TA
-        if ($tasks->isEmpty()) {
-            $tasks = WorkTask::with(['classModel', 'branch'])
+        $tasks = collect();
+        $sessions = collect();
+        $overdueCount = 0;
+        if ($taUser) {
+            $tasks = WorkTask::with(['classModel:id,name,code', 'branch:id,name'])
                 ->where('assignee_id', $taUser->id)
+                ->whereDate('due_date', $date->toDateString())
+                ->orderBy('due_time')
+                ->orderBy('id')
+                ->get();
+            $overdueCount = WorkTask::where('assignee_id', $taUser->id)
+                ->whereDate('due_date', '<', $date->toDateString())
+                ->whereNotIn('status', ['completed', 'pending_confirmation'])
+                ->count();
+            $sessions = ClassSession::with(['classModel:id,name,code', 'branch:id,name'])
+                ->forStaff($taUser->id)
+                ->whereDate('date', $date->toDateString())
+                ->where('status', '!=', 'cancelled')
+                ->orderBy('start_time')
                 ->get();
         }
 
         $beforeTasks = $tasks->where('time_slot_category', 'before');
         $duringTasks = $tasks->where('time_slot_category', 'during');
-        $afterTasks = $tasks->where('time_slot_category', 'after');
+        // Nhiệm vụ không gắn ca được xếp vào "Sau giờ học" để không bị ẩn.
+        $afterTasks = $tasks->reject(fn (WorkTask $task) => in_array($task->time_slot_category, ['before', 'during'], true));
+        $canComplete = $taUser && ((int) $taUser->id === (int) $viewer->id || $viewer->can('work_task.approve'));
+        $isToday = $date->isToday();
 
-        return view('tasks.ta-portal', compact('taUser', 'beforeTasks', 'duringTasks', 'afterTasks', 'tasks'));
+        return view('tasks.ta-portal', compact(
+            'taUser', 'tasks', 'beforeTasks', 'duringTasks', 'afterTasks', 'sessions',
+            'date', 'isToday', 'canPickTa', 'assistants', 'overdueCount', 'canComplete'
+        ));
     }
 
     /**
