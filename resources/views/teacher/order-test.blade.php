@@ -148,4 +148,6 @@
         }
     </script>
     @endpush
+    <div class="h-20 md:hidden" aria-hidden="true"></div>
+    @include('teacher.partials.bottom-nav')
 </x-app-layout>
