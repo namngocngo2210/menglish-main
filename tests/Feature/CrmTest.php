@@ -262,7 +262,7 @@ class CrmTest extends TestCase
         // 2. View customer page
         $viewResponse = $this->actingAs($user)->get(route('crm.customers.show', $customer->id));
         $viewResponse->assertOk();
-        $viewResponse->assertSee('Đã Làm Bài Test (19.5/30 · IELTS 6.5 Intensive)');
+        $viewResponse->assertSee('Đã làm bài test (19.5/30 · IELTS 6.5 Intensive)');
         $viewResponse->assertSee('Scorecard');
     }
 }

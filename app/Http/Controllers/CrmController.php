@@ -505,9 +505,27 @@ class CrmController extends Controller
             'days_in_stage' => (int) $stageSince->diffInDays(now()),
             'last_contact' => $lastContact,
             'follow_up_status' => $customer->followUpStatus(),
+            'follow_up_remaining' => $this->remainingLabel($customer->next_follow_up_at),
             'neglected' => in_array($customer->stage, CrmCustomer::ACTIVE_STAGES, true) && $lastActivity->lt(now()->subDays($neglectDays)),
             'neglect_days' => $neglectDays,
         ];
+    }
+
+    /** Đồng hồ "Hạn liên hệ tiếp theo" (mockup 02:14:55): "còn 2 giờ 14 phút" / "quá hạn 1 ngày 3 giờ". */
+    protected function remainingLabel(?Carbon $at): ?string
+    {
+        if (! $at) {
+            return null;
+        }
+        $diff = now()->diff($at);
+        $parts = array_filter([
+            $diff->days ? $diff->days.' ngày' : null,
+            $diff->h ? $diff->h.' giờ' : null,
+            ! $diff->days && $diff->i ? $diff->i.' phút' : null,
+        ]);
+        $text = $parts ? implode(' ', $parts) : 'dưới 1 phút';
+
+        return $diff->invert ? 'Quá hạn '.$text : 'Còn '.$text;
     }
 
     /** Sale / quản lý đang hoạt động có thể nhận phụ trách khách (ưu tiên cùng chi nhánh). */
@@ -1268,15 +1286,27 @@ class CrmController extends Controller
         $customer = $this->findScopedCustomer($id);
 
         $validated = $request->validate([
-            'content' => 'required|string|max:1000',
-            'type' => 'required|string|in:call,message,meet,test,note',
+            'content' => 'required_unless:type,result|nullable|string|max:1000',
+            'type' => 'required|string|in:call,message,meet,test,note,result',
+            // Mockup Chi tiết khách — "Gửi kết quả & Phản hồi": ngày gửi KQ cho phụ huynh + phản hồi của phụ huynh.
+            'sent_at' => 'required_if:type,result|nullable|date|before_or_equal:now',
+        ], [
+            'content.required_unless' => 'Vui lòng nhập nội dung ghi chú.',
+            'sent_at.required_if' => 'Vui lòng chọn ngày gửi kết quả cho phụ huynh.',
+            'sent_at.before_or_equal' => 'Ngày gửi kết quả không được ở tương lai.',
         ]);
+
+        $content = $validated['content'] ?? '';
+        if ($validated['type'] === 'result') {
+            $content = 'Đã gửi kết quả test cho phụ huynh lúc '.Carbon::parse($validated['sent_at'])->format('H:i d/m/Y').'.'
+                .(filled($content) ? "\nPhản hồi của phụ huynh: ".$content : '');
+        }
 
         CrmCustomerHistory::create([
             'customer_id' => $customer->id,
             'user_id' => Auth::id(),
             'type' => $validated['type'],
-            'content' => $validated['content'],
+            'content' => $content,
         ]);
 
         return redirect()->route('crm.customers.show', $customer->id)

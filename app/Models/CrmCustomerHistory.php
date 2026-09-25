@@ -29,6 +29,7 @@ class CrmCustomerHistory extends Model
         'message' => 'Nhắn tin',
         'meet' => 'Gặp trực tiếp',
         'test' => 'Test đầu vào',
+        'result' => 'Gửi kết quả',
         'trial' => 'Học thử',
         'stage_change' => 'Chuyển giai đoạn',
         'update' => 'Sửa thông tin',
@@ -59,11 +60,14 @@ class CrmCustomerHistory extends Model
             'message' => 'chat',
             'meet' => 'groups',
             'test' => 'quiz',
+            'result' => 'forward_to_inbox',
             'stage_change' => 'sync_alt',
             'trial' => 'school',
             'update' => 'edit_note',
             'assign' => 'assignment_ind',
             'care' => 'volunteer_activism',
+            'lost' => 'person_off',
+            'system' => 'settings',
             default => 'notes',
         };
     }

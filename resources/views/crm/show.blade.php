@@ -1,153 +1,70 @@
-<x-app-layout>
-    <x-slot name="header">
-        @php
-            $sub = $latestSubmission ?? $customer->latestSubmission ?? $customer->submissions->first();
-            $hasTested = $sub || !empty($customer->test_score) || in_array($customer->stage, ['tested', 'won']);
-        @endphp
+<x-app-layout :title="'Chi tiết khách — '.$customer->name">
+    @php
+        $sub = $latestSubmission ?? $customer->latestSubmission ?? $customer->submissions->first();
+        $hasTested = $sub || ! empty($customer->test_score) || in_array($customer->stage, ['tested', 'won'], true);
+        $words = preg_split('/\s+/u', trim($customer->name)) ?: ['?'];
+        $initials = mb_strtoupper(mb_substr($words[0], 0, 1).(count($words) > 1 ? mb_substr(end($words), 0, 1) : ''));
+    @endphp
 
-        <div class="flex items-center justify-between flex-wrap gap-3">
-            <!-- Left Info -->
-            <div class="flex items-center gap-3">
-                <a href="{{ route('crm.customers.index') }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <h1 class="text-lg sm:text-xl font-black text-gray-900 tracking-tight">{{ $customer->name }}</h1>
-                        <span class="text-xs px-2.5 py-0.5 rounded-full border font-bold {{ $customer->stage_badge }}">{{ $customer->stage_label }}</span>
-                    </div>
-                    <p class="text-xs text-gray-500 font-mono mt-0.5">
-                        <strong class="text-gray-700 font-semibold">{{ $customer->code }}</strong> · {{ $customer->phone }} · {{ $customer->branch?->name ?? 'Chưa gán cơ sở' }}
-                    </p>
-                </div>
-            </div>
-
-            <!-- Right Actions -->
-            <div class="flex items-center gap-2 shrink-0 flex-wrap">
-                @if ($hasTested)
-                    <!-- Nút ĐÃ LÀM BÀI TEST -->
-                    <a href="{{ $sub ? \Illuminate\Support\Facades\URL::signedRoute('portal.test.scorecard', ['id' => $sub->id]) : route('placement-tests.index') }}" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition whitespace-nowrap shrink-0">
-                        <span class="material-symbols-outlined text-[16px] text-emerald-200">task_alt</span>
-                        <span>Đã Làm Bài Test ({{ $sub?->scoreSummary() ?? $customer->test_score }})</span>
-                    </a>
-
-                    @can('entrance_test.grade')
-                    @if (! in_array($customer->stage, ['won', 'lost'], true))
-                    <button type="button" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-primary-container border border-orange-200 text-xs font-bold shadow-2xs transition whitespace-nowrap shrink-0 cursor-pointer">
-                        <span class="material-symbols-outlined text-[16px]">edit_note</span>
-                        <span>{{ $customer->stage === 'test_scheduled' ? 'Nhập điểm lần test lại' : 'Sửa Điểm Test' }}</span>
-                    </button>
-                    @endif
-                    @endcan
-
-                    @can('entrance_test.send')
-                    @if (in_array($customer->stage, ['consulting', 'test_scheduled', 'tested'], true))
-                    <button type="button" onclick="document.getElementById('scheduleTestModal').classList.remove('hidden')" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition whitespace-nowrap shrink-0 cursor-pointer" title="Hẹn lịch thi lại nếu cần">
-                        <span class="material-symbols-outlined text-[15px]">event_repeat</span>
-                        <span>Hẹn test lại</span>
-                    </button>
-                    @endif
-                    @endcan
-                @else
-                    <!-- Nút HẸN LỊCH TEST khi chưa làm bài -->
-                    @can('entrance_test.send')
-                    @if ($customer->stage === 'consulting')
-                    <button type="button" onclick="document.getElementById('scheduleTestModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition whitespace-nowrap shrink-0 cursor-pointer">
-                        <span class="material-symbols-outlined text-[16px]">calendar_add_on</span>
-                        <span>Hẹn Lịch Test</span>
-                    </button>
-                    @endif
-                    @endcan
-
-                    @can('entrance_test.grade')
-                    @if (in_array($customer->stage, ['consulting', 'test_scheduled'], true))
-                    <button type="button" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-primary-container border border-orange-200 text-xs font-bold shadow-2xs transition whitespace-nowrap shrink-0 cursor-pointer">
-                        <span class="material-symbols-outlined text-[16px]">post_add</span>
-                        <span>Nhập Điểm Test</span>
-                    </button>
-                    @endif
-                    @endcan
-                @endif
-
-                @if ($canBookTrial)
-                <button type="button" onclick="document.getElementById('scheduleTrialModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-fuchsia-50 text-fuchsia-700 border border-fuchsia-200 text-xs font-bold">
-                    <span class="material-symbols-outlined text-[16px]">school</span><span>Đặt học thử</span>
+    {{-- Mockup crm-ui-mockup/chi-tiet-khach-hang: tiêu đề + Thất bại / In hồ sơ / Phân công lại --}}
+    <x-ui.page-header title="Chi tiết Khách hàng" description="Quản lý thông tin học viên và lịch sử tương tác hệ thống">
+        <x-slot:breadcrumbs>
+            <a href="{{ route('crm.customers.index') }}" class="hover:text-primary">Khách hàng</a>
+            <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+            <span class="font-code">{{ $customer->code }}</span>
+        </x-slot:breadcrumbs>
+        <x-slot:actions>
+            @if ($stageControls['canLose'])
+                <button type="button" onclick="document.getElementById('markLostModal').classList.remove('hidden')"
+                        class="inline-flex items-center gap-xs rounded-lg border border-error px-md py-sm font-body-medium text-body-medium text-error transition-colors hover:bg-error-container/40">
+                    <span class="material-symbols-outlined text-[18px]">person_off</span><span>Thất bại</span>
                 </button>
-                @endif
+            @endif
+            <x-ui.button variant="secondary" icon="print" :href="route('crm.customers.print', $customer->id)" target="_blank">In hồ sơ</x-ui.button>
+            @if ($canReassign)
+                <x-ui.button icon="person_add" x-data @click="$dispatch('open-modal', 'reassign-customer')">Phân công lại</x-ui.button>
+            @endif
+        </x-slot:actions>
+    </x-ui.page-header>
 
-                <a href="{{ route('crm.customers.print', $customer->id) }}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition whitespace-nowrap shrink-0 shadow-2xs">
-                    <span class="material-symbols-outlined text-[16px]">print</span>
-                    <span>In hồ sơ</span>
-                </a>
-
-                @if ($canReassign)
-                <button type="button" x-data @click="$dispatch('open-modal', 'reassign-customer')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-xs font-semibold text-indigo-700 transition whitespace-nowrap shrink-0 shadow-2xs">
-                    <span class="material-symbols-outlined text-[16px]">assignment_ind</span>
-                    <span>Phân công lại</span>
-                </button>
-                @endif
-
-                @can('lead.update')
-                <a href="{{ route('crm.customers.edit', $customer->id) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition whitespace-nowrap shrink-0 shadow-2xs">
-                    <span class="material-symbols-outlined text-[16px]">edit</span>
-                    <span>Sửa thông tin</span>
-                </a>
-                @endcan
-
-                @can('lead.convert')
-                @if (in_array($customer->stage, \App\Models\CrmCustomer::CLOSABLE_STAGES, true) && ! $customer->converted_student_id)
-                <a href="{{ route('crm.closing-wizard', ['customer_id' => $customer->id]) }}" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm transition whitespace-nowrap shrink-0">
-                    <span class="material-symbols-outlined text-[16px] text-amber-400">route</span>
-                    <span>Chốt &amp; Xếp lớp</span>
-                </a>
-                @endif
-                @endcan
-
-                @if ($customer->stage === 'waiting_class')
-                @can('student.assign_class')
-                <a href="{{ route('crm.customers.won') }}#waiting-class" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-yellow-50 text-yellow-800 border border-yellow-200 text-xs font-bold">
-                    <span class="material-symbols-outlined text-[16px]">assignment_turned_in</span><span>Gán lớp</span>
-                </a>
-                @endcan
-                @endif
-
-                @if ($stageControls['next'])
-                <form action="{{ route('crm.customers.stage', $customer->id) }}" method="POST" class="inline shrink-0">
-                    @csrf
-                    <input type="hidden" name="stage" value="{{ $stageControls['next'] }}" />
-                    <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold cursor-pointer" title="Chuyển tiến 1 bước">
-                        <span>{{ \App\Models\CrmCustomer::stageLabel($stageControls['next']) }}</span>
-                        <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
-                    </button>
-                </form>
-                @endif
-
-                @if ($stageControls['backward'])
-                <button type="button" onclick="document.getElementById('stageBackwardModal').classList.remove('hidden')" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white text-rose-700 border border-rose-200 text-xs font-bold">
-                    <span class="material-symbols-outlined text-[16px]">undo</span><span>Lùi giai đoạn</span>
-                </button>
-                @endif
-
-                @if ($stageControls['canLose'])
-                    <button type="button" onclick="document.getElementById('markLostModal').classList.remove('hidden')" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold">
-                        <span class="material-symbols-outlined text-[16px]">cancel</span><span>Thất bại</span>
-                    </button>
-                @endif
-
-                @can('lead.delete')
-                @if (! in_array($customer->stage, ['won', 'lost'], true) && !$customer->converted_student_id)
-                <form action="{{ route('crm.customers.destroy', $customer->id) }}" method="POST" class="inline shrink-0" data-confirm="Bạn có chắc chắn muốn xóa lead {{ $customer->name }} ({{ $customer->code }})? Thao tác này không thể hoàn tác.">
+    {{-- Thao tác theo giai đoạn (A6): tiến 1 bước, lùi (Admin), chốt, gán lớp, học thử, sửa, xóa --}}
+    <div class="mb-lg flex flex-wrap items-center gap-sm">
+        @if ($stageControls['next'])
+            <form action="{{ route('crm.customers.stage', $customer->id) }}" method="POST" class="inline">
+                @csrf
+                <input type="hidden" name="stage" value="{{ $stageControls['next'] }}" />
+                <x-ui.button type="submit" variant="secondary" size="sm" icon="arrow_forward" title="Chuyển tiến 1 bước">Sang bước: {{ \App\Models\CrmCustomer::stageLabel($stageControls['next']) }}</x-ui.button>
+            </form>
+        @endif
+        @if ($stageControls['backward'])
+            <x-ui.button variant="danger-text" size="sm" icon="undo" onclick="document.getElementById('stageBackwardModal').classList.remove('hidden')">Lùi giai đoạn</x-ui.button>
+        @endif
+        @can('lead.convert')
+            @if (in_array($customer->stage, \App\Models\CrmCustomer::CLOSABLE_STAGES, true) && ! $customer->converted_student_id)
+                <x-ui.button size="sm" icon="how_to_reg" :href="route('crm.closing-wizard', ['customer_id' => $customer->id])">Chốt &amp; Xếp lớp</x-ui.button>
+            @endif
+        @endcan
+        @if ($customer->stage === 'waiting_class')
+            @can('student.assign_class')
+                <x-ui.button size="sm" icon="assignment_turned_in" :href="route('crm.waiting-list')">Gán lớp</x-ui.button>
+            @endcan
+        @endif
+        @if ($canBookTrial)
+            <x-ui.button variant="secondary" size="sm" icon="school" onclick="document.getElementById('scheduleTrialModal').classList.remove('hidden')">Đặt học thử</x-ui.button>
+        @endif
+        @can('lead.update')
+            <x-ui.button variant="secondary" size="sm" icon="edit" :href="route('crm.customers.edit', $customer->id)">Sửa thông tin</x-ui.button>
+        @endcan
+        @can('lead.delete')
+            @if (! in_array($customer->stage, ['won', 'lost'], true) && ! $customer->converted_student_id)
+                <form action="{{ route('crm.customers.destroy', $customer->id) }}" method="POST" class="inline" data-confirm="Bạn có chắc chắn muốn xóa khách {{ $customer->name }} ({{ $customer->code }})?">
                     @csrf
                     @method('DELETE')
-                    <button type="submit" class="inline-flex items-center gap-1 p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-semibold shadow-2xs transition cursor-pointer" title="Xóa Lead">
-                        <span class="material-symbols-outlined text-[16px]">delete</span>
-                    </button>
+                    <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete" title="Xóa khách" aria-label="Xóa khách" />
                 </form>
-                @endif
-                @endcan
-            </div>
-        </div>
-    </x-slot>
+            @endif
+        @endcan
+    </div>
 
     @if ($canReassign)
         <x-ui.modal name="reassign-customer" title="Phân công lại Sales phụ trách" max-width="md" :show="$errors->has('reason') || $errors->has('assigned_user_id')">
@@ -166,16 +83,16 @@
     @endif
 
     <div id="markLostModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <h3 class="font-bold text-sm mb-4">Ghi nhận lý do thất bại</h3>
-            <p class="text-xs text-gray-500 mb-3">Lead thất bại được lưu để đối soát và không mở lại.</p>
+        <div class="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 shadow-2xl">
+            <h3 class="font-h3 text-h3 mb-md">Ghi nhận lý do thất bại</h3>
+            <p class="text-xs text-gray-500 mb-3">Khách thất bại được lưu để đối soát và không mở lại.</p>
             <form action="{{ route('crm.customers.stage', $customer->id) }}" method="POST" class="space-y-3 text-xs">
                 @csrf
                 <input type="hidden" name="stage" value="lost" />
-                <textarea name="lost_reason" rows="4" required placeholder="Ví dụ: chưa phù hợp học phí, lịch học, không liên hệ được..." class="w-full rounded-xl border-gray-200 text-xs"></textarea>
+                <textarea name="lost_reason" rows="4" required placeholder="Ví dụ: chưa phù hợp học phí, lịch học, không liên hệ được..." class="w-full rounded-lg border-outline-variant font-body-small text-body-small"></textarea>
                 <div class="flex justify-end gap-2">
-                    <button type="button" onclick="document.getElementById('markLostModal').classList.add('hidden')" class="px-3 py-2 border rounded-xl">Hủy</button>
-                    <button type="submit" class="px-4 py-2 bg-rose-600 text-white font-bold rounded-xl">Xác nhận</button>
+                    <button type="button" onclick="document.getElementById('markLostModal').classList.add('hidden')" class="rounded-lg border border-outline-variant px-md py-sm">Hủy</button>
+                    <button type="submit" class="rounded-lg bg-error px-md py-sm font-body-medium text-white">Xác nhận</button>
                 </div>
             </form>
         </div>
@@ -183,20 +100,20 @@
 
     @if ($stageControls['backward'])
     <div id="stageBackwardModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <h3 class="font-bold text-sm mb-2">Lùi giai đoạn Lead</h3>
+        <div class="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 shadow-2xl">
+            <h3 class="font-h3 text-h3 mb-sm">Lùi giai đoạn khách</h3>
             <p class="text-xs text-gray-500 mb-3">Chỉ Admin được lùi giai đoạn; lý do được lưu vào lịch sử.</p>
             <form action="{{ route('crm.customers.stage', $customer->id) }}" method="POST" class="space-y-3 text-xs">
                 @csrf
-                <select name="stage" required class="w-full rounded-xl border-gray-200 text-xs">
+                <select name="stage" required class="w-full rounded-lg border-outline-variant font-body-small text-body-small">
                     @foreach (array_reverse($stageControls['backward']) as $target)
                         <option value="{{ $target }}">{{ \App\Models\CrmCustomer::stageLabel($target) }}</option>
                     @endforeach
                 </select>
-                <textarea name="reason" rows="3" required placeholder="Lý do lùi giai đoạn (bắt buộc)" class="w-full rounded-xl border-gray-200 text-xs"></textarea>
+                <textarea name="reason" rows="3" required placeholder="Lý do lùi giai đoạn (bắt buộc)" class="w-full rounded-lg border-outline-variant font-body-small text-body-small"></textarea>
                 <div class="flex justify-end gap-2">
-                    <button type="button" onclick="document.getElementById('stageBackwardModal').classList.add('hidden')" class="px-3 py-2 border rounded-xl">Hủy</button>
-                    <button type="submit" class="px-4 py-2 bg-rose-600 text-white font-bold rounded-xl">Lùi giai đoạn</button>
+                    <button type="button" onclick="document.getElementById('stageBackwardModal').classList.add('hidden')" class="rounded-lg border border-outline-variant px-md py-sm">Hủy</button>
+                    <button type="submit" class="rounded-lg bg-error px-md py-sm font-body-medium text-white">Lùi giai đoạn</button>
                 </div>
             </form>
         </div>
@@ -206,8 +123,8 @@
     @if ($canBookTrial)
     <!-- Học thử: hoạt động trong giai đoạn tư vấn (không đổi stage) -->
     <div id="scheduleTrialModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl">
-            <h3 class="font-bold text-sm mb-1">Đặt lịch học thử</h3>
+        <div class="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 shadow-2xl">
+            <h3 class="font-h3 text-h3 mb-xs">Đặt lịch học thử</h3>
             <p class="text-xs text-gray-500 mb-2">Chọn 1–2 buổi học thật của lớp cùng trình độ tại {{ $customer->branch?->name ?? 'chi nhánh của khách' }}. Giáo viên của buổi sẽ thấy khách trong trang "Nhận xét học thử" và nhận xét như học sinh chính thức.</p>
             <p class="text-xs mb-4 {{ $trialRemaining > 0 ? 'text-fuchsia-700' : 'text-rose-700' }} font-semibold">Còn đặt được {{ $trialRemaining }}/{{ \App\Models\CrmTrialBooking::MAX_ACTIVE_PER_LEAD }} buổi học thử.@if ($latestSubmission?->finalClass()) Trình độ theo test: {{ $latestSubmission->finalClass() }}.@endif</p>
             <form action="{{ route('crm.customers.trial-bookings.store', $customer->id) }}" method="POST" class="space-y-3 text-xs">
@@ -227,10 +144,10 @@
                         <div class="p-4 text-center text-gray-400">Chưa có buổi học sắp tới phù hợp.</div>
                     @endforelse
                 </div>
-                <textarea name="notes" rows="2" placeholder="Ghi chú cho giáo viên (trình độ, mục tiêu...)" class="w-full rounded-xl border-gray-200 text-xs"></textarea>
+                <textarea name="notes" rows="2" placeholder="Ghi chú cho giáo viên (trình độ, mục tiêu...)" class="w-full rounded-lg border-outline-variant font-body-small text-body-small"></textarea>
                 <div class="flex justify-end gap-2">
-                    <button type="button" onclick="document.getElementById('scheduleTrialModal').classList.add('hidden')" class="px-3 py-2 border rounded-xl">Hủy</button>
-                    <button type="submit" class="px-4 py-2 bg-fuchsia-600 text-white font-bold rounded-xl">Lưu lịch học thử</button>
+                    <button type="button" onclick="document.getElementById('scheduleTrialModal').classList.add('hidden')" class="rounded-lg border border-outline-variant px-md py-sm">Hủy</button>
+                    <button type="submit" class="rounded-lg bg-primary-container px-md py-sm font-body-medium text-white">Lưu lịch học thử</button>
                 </div>
             </form>
         </div>
@@ -239,11 +156,11 @@
 
     <!-- Schedule Test Modal -->
     <div id="scheduleTestModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+        <div class="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
             <div class="flex justify-between items-center pb-2 border-b border-gray-100">
                 <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2">
                     <span class="material-symbols-outlined text-indigo-600">event</span>
-                    Đặt Lịch Hẹn Test Đầu Vào Cho Lead
+                    Hẹn lịch test đầu vào
                 </h3>
                 <button type="button" onclick="document.getElementById('scheduleTestModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
                     <span class="material-symbols-outlined">close</span>
@@ -271,7 +188,7 @@
                 </div>
 
                 <div>
-                    <label class="block font-semibold text-gray-700 mb-1">Bộ đề kiểm tra gán cho Lead</label>
+                    <label class="block font-semibold text-gray-700 mb-1">Đề test gán cho khách</label>
                     <select name="assigned_test_id" class="w-full text-xs rounded-xl border border-gray-200 p-2">
                         @foreach ($placementTests ?? [] as $test)
                             <option value="{{ $test->id }}">{{ $test->title }} ({{ $test->code }})</option>
@@ -304,11 +221,11 @@
 
     <!-- Enter / Edit Test Score Modal -->
     <div id="editTestScoreModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border border-gray-200 max-h-[90vh] overflow-y-auto">
+        <div class="bg-surface-container-lowest rounded-xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border border-gray-200 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center pb-2 border-b border-gray-100">
                 <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary-container">military_tech</span>
-                    <span>Ghi Nhận &amp; Nhập Điểm Test Đầu Vào</span>
+                    <span>Nhập điểm test đầu vào</span>
                 </h3>
                 <button type="button" onclick="document.getElementById('editTestScoreModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
                     <span class="material-symbols-outlined">close</span>
@@ -351,464 +268,444 @@
 
                 <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
                     <button type="button" onclick="document.getElementById('editTestScoreModal').classList.add('hidden')" class="px-3 py-1.5 rounded-lg border text-xs text-gray-600 hover:bg-gray-50">Hủy</button>
-                    <button type="submit" class="px-4 py-2 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer">Lưu Điểm Test</button>
+                    <button type="submit" class="px-4 py-2 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer">Lưu điểm test</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Success flash banner -->
 
     @if ($customer->stage === \App\Models\CrmCustomer::STAGE_LOST)
-        <div class="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 flex items-start gap-2" data-testid="lost-banner">
-            <span class="material-symbols-outlined text-[18px]">block</span>
-            <div>
-                <div class="font-bold">Khách Thất bại{{ $customer->lost_at ? ' từ '.$customer->lost_at->format('d/m/Y') : '' }} — không mở lại, giữ để đối soát.</div>
-                @if ($customer->lost_reason)<div>Lý do: {{ $customer->lost_reason }}</div>@endif
-            </div>
-        </div>
+        <x-ui.alert type="error" class="mb-lg" data-testid="lost-banner">
+            <div class="font-semibold">Khách Thất bại{{ $customer->lost_at ? ' từ '.$customer->lost_at->format('d/m/Y') : '' }} — không mở lại, giữ để đối soát.</div>
+            @if ($customer->lost_reason)<div>Lý do: {{ $customer->lost_reason }}</div>@endif
+        </x-ui.alert>
     @endif
 
-    @if ($customer->trialBookings->isNotEmpty() || $customer->stage === 'waiting_class')
-        <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-            @if ($customer->trialBookings->isNotEmpty())
-                <div class="rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-3 space-y-2">
-                    <div class="font-bold text-fuchsia-800 flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">school</span>Học thử</div>
-                    @foreach ($customer->trialBookings as $booking)
-                        <div class="rounded-lg bg-white/70 border border-fuchsia-100 p-2">
-                            <div class="flex items-center justify-between gap-2">
-                                <span class="font-semibold text-gray-900">{{ $booking->classModel?->name }} · {{ $booking->session?->date?->format('d/m/Y') }} {{ $booking->session?->start_time?->format('H:i') }}</span>
-                                <span class="px-2 py-0.5 rounded-full font-bold {{ $booking->status === 'attended' ? 'bg-emerald-50 text-emerald-700' : ($booking->status === 'scheduled' ? 'bg-sky-50 text-sky-700' : 'bg-rose-50 text-rose-700') }}">{{ $booking->status_label }}</span>
-                            </div>
-                            @if ($booking->feedback || $booking->remarks)
-                                <div class="mt-1 text-gray-700"><span class="font-semibold">Nhận xét của GV:</span> {{ $booking->rating ? $booking->rating.'/5 · ' : '' }}{{ $booking->remarksSummary() !== '' ? $booking->remarksSummary().' · ' : '' }}{{ $booking->feedback }}</div>
-                                <div class="text-[11px] text-gray-400">{{ $booking->feedbackBy?->name }} · {{ $booking->feedback_at?->format('d/m/Y H:i') }}</div>
+    @if ($customer->stage === 'waiting_class')
+        <x-ui.alert type="warning" class="mb-lg" title="Đã chốt, chờ xếp lớp{{ $customer->waiting_since ? ' từ '.$customer->waiting_since->format('d/m/Y') : '' }}">
+            Khóa: {{ $customer->waitingCourse?->name ?? 'Chưa chọn khóa' }} · {{ $customer->waitingBranch?->name ?? $customer->branch?->name }}
+            · Học phí đăng ký: {{ $customer->fee_paid_at_closing ? 'Đã đóng' : 'Chưa đóng (đã tạo task nhắc thu)' }}
+        </x-ui.alert>
+    @endif
+
+    @php
+        $submission = $sub;
+        $hasResult = ! empty($submission) || ! empty($customer->test_score);
+        $hasScheduled = ! empty($customer->appointment_at) || ! empty($customer->assigned_test_id);
+        $resultLogs = $customer->histories->where('type', 'result');
+        $card = 'rounded-xl border border-surface-container-highest bg-surface-container-lowest shadow-sm';
+    @endphp
+
+    <div class="grid grid-cols-1 gap-lg lg:grid-cols-12">
+        {{-- ── Cột trái: thông tin, trạng thái & hạn xử lý, chăm sóc tháng đầu ── --}}
+        <div class="space-y-lg lg:col-span-4">
+            <div class="{{ $card }} p-lg">
+                <div class="mb-lg flex items-center gap-md">
+                    <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary-fixed font-h2 text-h2 text-on-primary-fixed">{{ $initials }}</div>
+                    <div class="min-w-0">
+                        <h2 class="font-h2 text-h2 text-on-surface">{{ $customer->name }}</h2>
+                        <div class="mt-xs flex flex-wrap items-center gap-xs">
+                            <span class="inline-flex items-center rounded-full border px-sm py-0.5 font-caption text-caption font-bold {{ $customer->stage_badge }}">{{ $customer->stage_label }}</span>
+                            @if ($hasTested)
+                                <span class="inline-flex items-center gap-xs rounded-full bg-tertiary/10 px-sm py-0.5 font-caption text-caption font-bold text-tertiary">
+                                    <span class="material-symbols-outlined text-[14px]">task_alt</span>Đã làm bài test ({{ $sub?->scoreSummary() ?? $customer->test_score }})
+                                </span>
                             @endif
-                            @if ($booking->status === 'scheduled' && $canBookTrial)
-                                <form action="{{ route('crm.customers.trial-bookings.cancel', [$customer->id, $booking->id]) }}" method="POST" class="mt-1 flex gap-1">
-                                    @csrf
-                                    <input name="reason" required placeholder="Lý do hủy" class="flex-1 rounded-lg border-fuchsia-200 text-[11px] py-1" />
-                                    <button class="px-2 py-1 rounded-lg bg-fuchsia-700 text-white font-bold text-[11px]">Hủy buổi</button>
-                                </form>
-                            @endif
+                        </div>
+                    </div>
+                </div>
+                <dl class="space-y-md font-body-base text-body-base">
+                    @foreach ([
+                        ['Số điện thoại', $customer->phone, true],
+                        ['Tên phụ huynh', $customer->parent_name ?: '—', false],
+                        ['SĐT phụ huynh', $customer->parent_phone ?: '—', true],
+                        ['Nguồn', $customer->source ?? 'Trực tiếp', false],
+                        ['Người phụ trách', $customer->assignedUser?->name ?? 'Chưa phân công', false],
+                        ['Chi nhánh', $customer->branch?->name ?? 'Chưa gán cơ sở', false],
+                    ] as [$label, $value, $mono])
+                        <div class="flex items-start justify-between gap-md border-b border-surface-container pb-sm last:border-0 last:pb-0">
+                            <dt class="text-on-surface-variant">{{ $label }}</dt>
+                            <dd class="text-right font-medium text-on-surface {{ $mono ? 'font-code' : '' }}">{{ $value }}</dd>
                         </div>
                     @endforeach
-                </div>
-            @endif
-            @if ($customer->stage === 'waiting_class')
-                <div class="rounded-xl border border-yellow-200 bg-yellow-50 p-3">
-                    <div class="font-bold text-yellow-800">Đã chốt, chờ xếp lớp{{ $customer->waiting_since ? ' từ '.$customer->waiting_since->format('d/m/Y') : '' }}</div>
-                    <div class="text-yellow-700">Khóa: {{ $customer->waitingCourse?->name ?? 'Chưa chọn khóa' }} · {{ $customer->waitingBranch?->name ?? $customer->branch?->name }}</div>
-                    <div class="text-yellow-700">Học phí đăng ký: {{ $customer->fee_paid_at_closing ? 'Đã đóng' : 'Chưa đóng (đã tạo task nhắc thu)' }}</div>
-                </div>
-            @endif
-        </div>
-    @endif
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Customer Info Card -->
-        <div class="space-y-6">
-            <!-- Trạng thái & Hạn xử lý -->
-            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-3 text-xs">
-                <h3 class="font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-primary text-base">pending_actions</span>
-                    Trạng thái &amp; Hạn xử lý
-                </h3>
-                <div class="flex justify-between py-1 border-b border-gray-50">
-                    <span class="text-gray-500">Giai đoạn:</span>
-                    <span class="px-2 py-0.5 rounded-full border font-bold {{ $customer->stage_badge }}">{{ $customer->stage_label }}</span>
-                </div>
-                <div class="flex justify-between py-1 border-b border-gray-50">
-                    <span class="text-gray-500">Ở giai đoạn này:</span>
-                    <span class="font-semibold text-gray-900">{{ $statusCard['days_in_stage'] }} ngày <span class="text-gray-400 font-normal">(từ {{ $statusCard['stage_since']->format('d/m/Y') }})</span></span>
-                </div>
-                <div class="flex justify-between py-1 border-b border-gray-50">
-                    <span class="text-gray-500">Liên hệ gần nhất:</span>
-                    <span class="font-semibold text-gray-900">{{ $statusCard['last_contact']?->format('d/m/Y H:i') ?? 'Chưa có' }}</span>
-                </div>
-                <div class="flex justify-between items-center py-1 border-b border-gray-50">
-                    <span class="text-gray-500">Hạn liên hệ tiếp theo:</span>
-                    <span class="flex items-center gap-1.5">
-                        <span class="font-semibold text-gray-900">{{ $customer->next_follow_up_at?->format('d/m/Y H:i') ?? 'Chưa đặt' }}</span>
-                        @if ($statusCard['follow_up_status'] === 'overdue')
-                            <x-ui.badge color="status-overdue">Quá hạn</x-ui.badge>
-                        @elseif ($statusCard['follow_up_status'] === 'due_soon')
-                            <x-ui.badge color="warning">Sắp hết hạn</x-ui.badge>
-                        @endif
-                    </span>
-                </div>
-                @if ($statusCard['neglected'])
-                    <div class="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 font-semibold flex items-start gap-1.5">
-                        <span class="material-symbols-outlined text-base">person_alert</span>
-                        <span>Khách chưa có hoạt động chăm sóc nào trong {{ $statusCard['neglect_days'] }} ngày gần đây.</span>
-                    </div>
-                @endif
-                @can('lead.update')
-                    <a href="{{ route('crm.customers.edit', $customer->id) }}#next_follow_up_at" class="text-primary font-semibold hover:underline inline-flex items-center gap-0.5">
-                        <span class="material-symbols-outlined text-[14px]">event</span>Đặt hạn liên hệ
-                    </a>
-                @endcan
+                </dl>
             </div>
 
-            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
-                <div class="flex items-center gap-3 pb-4 border-b border-gray-100">
-                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-container/20 to-orange-100 text-primary flex items-center justify-center font-bold text-lg shadow-sm">
-                        {{ Str::substr($customer->name, 0, 1) }}
+            {{-- Trạng thái & Hạn xử lý --}}
+            <div class="{{ $card }} p-lg">
+                <h3 class="mb-md font-h3 text-h3 text-on-surface">Trạng thái &amp; Hạn xử lý</h3>
+                <div class="space-y-md">
+                    <div class="rounded-lg border-l-4 border-primary-container bg-surface-container-low p-md">
+                        <p class="font-label text-label uppercase text-on-surface-variant">Giai đoạn hiện tại</p>
+                        <p class="font-h3 text-h3 text-primary">{{ $customer->stage_label }}</p>
+                        <p class="font-caption text-caption text-on-surface-variant">{{ $statusCard['days_in_stage'] }} ngày ở giai đoạn này (từ {{ $statusCard['stage_since']->format('d/m/Y') }})</p>
                     </div>
-                    <div>
-                        <h2 class="font-bold text-gray-900 text-sm">{{ $customer->name }}</h2>
-                        <span class="text-xs text-gray-400 font-mono">{{ $customer->email ?? 'Chưa có email' }}</span>
-                    </div>
-                </div>
-
-                <div class="space-y-2.5 text-xs">
-                    <div class="flex justify-between py-1 border-b border-gray-50">
-                        <span class="text-gray-500">Mã khách hàng:</span>
-                        <span class="font-bold text-gray-900 font-mono">{{ $customer->code }}</span>
-                    </div>
-                    <div class="flex justify-between py-1 border-b border-gray-50">
-                        <span class="text-gray-500">Số điện thoại:</span>
-                        <span class="font-semibold text-gray-900 font-mono">{{ $customer->phone }}</span>
-                    </div>
-                    <div class="flex justify-between py-1 border-b border-gray-50">
-                        <span class="text-gray-500">Phụ huynh:</span>
-                        <span class="font-medium text-gray-900">{{ $customer->parent_name ?: '—' }}</span>
-                    </div>
-                    <div class="flex justify-between py-1 border-b border-gray-50">
-                        <span class="text-gray-500">SĐT phụ huynh:</span>
-                        <span class="font-semibold text-gray-900 font-mono">{{ $customer->parent_phone ?: '—' }}</span>
-                    </div>
-                    <div class="flex justify-between py-1 border-b border-gray-50">
-                        <span class="text-gray-500">Ngày sinh / Giới tính:</span>
-                        <span class="font-medium text-gray-800">{{ $customer->dob ? $customer->dob->format('d/m/Y') : '—' }} ({{ $customer->gender ?? 'Chưa rõ' }})</span>
-                    </div>
-                    <div class="flex justify-between py-1 border-b border-gray-50">
-                        <span class="text-gray-500">Khóa quan tâm:</span>
-                        <span class="font-bold text-primary">{{ $customer->course_interest ?? 'Chưa chọn' }}</span>
-                    </div>
-                    <div class="flex justify-between py-1 border-b border-gray-50">
-                        <span class="text-gray-500">Giá trị Deal:</span>
-                        <span class="font-mono font-bold text-gray-900">{{ number_format($customer->deal_value) }}đ</span>
-                    </div>
-                    <div class="flex justify-between py-1 border-b border-gray-50">
-                        <span class="text-gray-500">Nguồn Lead:</span>
-                        <span class="font-medium text-gray-800">{{ $customer->source ?? 'Trực tiếp' }}</span>
-                    </div>
-                    <div class="flex justify-between py-1 border-b border-gray-50">
-                        <span class="text-gray-500">Sales phụ trách:</span>
-                        <span class="font-semibold text-indigo-700">{{ $customer->assignedUser?->name ?? 'Chưa phân công' }}</span>
-                    </div>
-                    <div class="pt-2">
-                        <span class="text-gray-500 block mb-1">Địa chỉ:</span>
-                        <span class="font-medium text-gray-800">{{ $customer->address ?? 'Chưa cập nhật' }}</span>
-                    </div>
-                    @if ($customer->notes)
-                        <div class="pt-2 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
-                            <span class="text-[11px] font-bold text-gray-600 block mb-1">Ghi chú nhu cầu:</span>
-                            <p class="text-gray-700 leading-relaxed">{{ $customer->notes }}</p>
+                    <div class="grid grid-cols-2 gap-md">
+                        <div class="rounded-lg bg-surface-container-low p-md">
+                            <p class="font-label text-label uppercase text-on-surface-variant">Liên hệ gần nhất</p>
+                            <p class="font-body-medium text-body-medium text-on-surface">{{ $statusCard['last_contact']?->format('d/m/Y H:i') ?? 'Chưa có' }}</p>
                         </div>
-                    @endif
-                </div>
-            </div>
-
-            <!-- ────────────────────────────────────────────── -->
-            <!-- KHỐI TEST ONLINE & THANG ĐIỂM TỰ ĐỘNG (MOCKUP MATCH) -->
-            <!-- ────────────────────────────────────────────── -->
-            @php
-                $submission = $latestSubmission ?? $customer->latestSubmission ?? $customer->submissions->first();
-                $hasResult = !empty($submission) || !empty($customer->test_score);
-                $hasScheduled = !empty($customer->appointment_at) || !empty($customer->assigned_test_id);
-            @endphp
-
-            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden" x-data="crmOnlineTestEngine({
-                hasResult: {{ $hasResult ? 'true' : 'false' }},
-                hasScheduled: {{ $hasScheduled ? 'true' : 'false' }},
-                testLink: {{ Js::from($portalTestLink) }}
-            })">
-                <!-- Header with State Badges -->
-                <div class="bg-slate-50/80 px-4 py-3 border-b border-gray-200 flex justify-between items-center flex-wrap gap-2">
-                    <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary text-lg">quiz</span>
-                        <h3 class="font-bold text-gray-900 text-xs uppercase tracking-wider">Đề Test Online &amp; Kết Quả Điểm Số</h3>
-                    </div>
-                    <div>
-                        @if ($hasResult)
-                            <div class="flex items-center gap-1.5">
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
-                                    Đã có kết quả
-                                </span>
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-200 flex items-center gap-0.5">
-                                    <span class="material-symbols-outlined text-[12px]">military_tech</span>
-                                    <span>{{ $submission?->scoreSummary() ?? $customer->test_score }}</span>
-                                </span>
-                            </div>
-                        @elseif ($hasScheduled)
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase">
-                                Đã gửi link
-                            </span>
-                        @else
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 uppercase">
-                                Chưa gửi đề
-                            </span>
-                        @endif
-                    </div>
-                </div>
-
-                <!-- STATE 1: CHƯA GỬI ĐỀ -->
-                @if (!$hasResult && !$hasScheduled)
-                    <div class="p-5 space-y-4">
-                        <form action="{{ route('crm.customers.schedule-test', $customer->id) }}" method="POST" class="space-y-3">
-                            @csrf
-                            <input type="hidden" name="appointment_type" value="online" />
-
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                                <div>
-                                    <label class="font-bold text-gray-700 uppercase tracking-wider text-[10px] block mb-1">Ngày hẹn làm test</label>
-                                    <input type="date" name="appointment_date" required min="{{ now()->toDateString() }}" value="{{ old('appointment_date', now()->addDay()->toDateString()) }}" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 bg-white font-semibold text-gray-900">
+                        <div class="rounded-lg p-md {{ $statusCard['follow_up_status'] === 'overdue' ? 'bg-error-container/40' : ($statusCard['follow_up_status'] === 'due_soon' ? 'bg-amber-50' : 'bg-surface-container-low') }}">
+                            <p class="font-label text-label uppercase text-on-surface-variant">Hạn liên hệ tiếp theo</p>
+                            @if ($customer->next_follow_up_at)
+                                <div class="flex items-center gap-xs {{ $statusCard['follow_up_status'] === 'overdue' ? 'text-error' : ($statusCard['follow_up_status'] === 'due_soon' ? 'text-amber-700' : 'text-on-surface') }}">
+                                    <span class="material-symbols-outlined text-[18px]">timer</span>
+                                    <span class="font-body-semibold text-body-semibold">{{ $statusCard['follow_up_remaining'] }}</span>
                                 </div>
-                                <div>
-                                    <label class="font-bold text-gray-700 uppercase tracking-wider text-[10px] block mb-1">Giờ hẹn</label>
-                                    <input type="time" name="appointment_time" required value="{{ old('appointment_time', '09:00') }}" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 bg-white font-semibold text-gray-900">
-                                </div>
-                                <div>
-                                    <label class="font-bold text-gray-700 uppercase tracking-wider text-[10px] block mb-1">Danh sách đề tương ứng</label>
-                                    <select name="assigned_test_id" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold text-gray-900 bg-white">
-                                        @foreach ($placementTests as $t)
-                                            <option value="{{ $t->id }}">[{{ $t->code }}] {{ $t->title }} ({{ $t->duration_minutes }}')</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="flex items-center justify-between gap-2 pt-2 flex-wrap">
-                                @can('entrance_test.grade')
-                                <button type="button" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-1 cursor-pointer">
-                                    <span class="material-symbols-outlined text-[15px]">edit_note</span>
-                                    <span>Nhập điểm trực tiếp</span>
-                                </button>
-                                @endcan
-                                <button type="submit" class="w-full sm:w-auto px-4 py-2.5 bg-primary-container hover:bg-primary text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
-                                    <span class="material-symbols-outlined text-[16px]">send</span>
-                                    <span>Gửi link test online</span>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
-                <!-- STATE 2: ĐÃ GỬI LINK (Chờ học viên làm bài) -->
-                @elseif (!$hasResult && $hasScheduled)
-                    <div class="p-5 space-y-4">
-                        <div class="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl flex items-start justify-between gap-3 text-xs">
-                            <div class="flex items-start gap-3">
-                                <span class="material-symbols-outlined text-blue-600 text-lg shrink-0 mt-0.5">schedule_send</span>
-                                <div class="space-y-0.5">
-                                    <p class="font-bold text-blue-950">Đã gửi link - Chờ học viên làm bài</p>
-                                    <p class="text-[11px] text-blue-700 italic">
-                                        Link kích hoạt lúc {{ $customer->appointment_at ? $customer->appointment_at->format('H:i, d/m/Y') : date('H:i, d/m/Y') }}
-                                    </p>
-                                </div>
-                            </div>
-                            @can('entrance_test.grade')
-                            <button type="button" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')" class="px-3 py-1.5 bg-white border border-blue-200 hover:bg-blue-50 text-blue-700 font-bold rounded-lg text-[11px] shrink-0 transition flex items-center gap-1">
-                                <span class="material-symbols-outlined text-[14px]">edit</span>
-                                <span>Nhập điểm ngay</span>
-                            </button>
-                            @endcan
-                        </div>
-
-                        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-2 text-xs">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
-                                    <span class="material-symbols-outlined text-base">description</span>
-                                </div>
-                                <div>
-                                    <h4 class="font-bold text-gray-900">{{ $customer->assignedTest?->title ?? 'Bài Test Đầu Vào MEnglish' }}</h4>
-                                    <p class="text-[11px] text-gray-500 font-mono">Mã: {{ $customer->assignedTest?->code ?? '—' }} · {{ $customer->assignedTest?->duration_minutes ?? '—' }} phút</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        @if ($portalTestLink)
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                            <a href="{{ $portalTestLink }}" target="_blank" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5">
-                                <span class="material-symbols-outlined text-[15px]">open_in_new</span>
-                                <span>Mở Cổng Test Ngay</span>
-                            </a>
-                            <button type="button" @click="navigator.clipboard.writeText(testLink); $dispatch('toast', { message: 'Đã sao chép đường dẫn bài test.', type: 'success' });" class="w-full py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold text-xs rounded-xl shadow-2xs transition flex items-center justify-center gap-1.5 cursor-pointer">
-                                <span class="material-symbols-outlined text-[15px]">content_copy</span>
-                                <span>Sao chép Link Test</span>
-                            </button>
-                        </div>
-                        <p class="text-[10px] text-gray-400 italic">Link riêng của lead, có hiệu lực {{ \App\Services\PlacementPortalLinkService::LINK_TTL_DAYS }} ngày kể từ lúc mở trang này.</p>
-                        @else
-                        <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900">
-                            Lead chưa được gán đề test đang hoạt động nên chưa thể tạo link làm bài.
-                        </div>
-                        @endif
-                    </div>
-
-                <!-- STATE 3: ĐÃ CÓ KẾT QUẢ & THANG ĐIỂM TỰ ĐỘNG -->
-                @else
-                    <div class="p-5 space-y-4">
-                        @include('placement-tests.partials.rubric-result', ['submission' => $submission, 'rubric' => $rubric, 'fallbackScore' => $customer->test_score])
-
-                        <!-- Action Buttons -->
-                        <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-gray-100">
-                            <div class="flex items-center gap-2">
-                                @if ($submission)
-                                    <a href="{{ \Illuminate\Support\Facades\URL::signedRoute('portal.test.scorecard', ['id' => $submission->id]) }}" target="_blank" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-2xs">
-                                        <span class="material-symbols-outlined text-[14px] text-amber-400">description</span>
-                                        <span>Bảng Điểm Scorecard</span>
-                                    </a>
-                                    <a href="{{ route('placement-tests.results.show', $submission->id) }}" class="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-semibold transition flex items-center gap-1">
-                                        <span class="material-symbols-outlined text-[14px] text-indigo-600">assignment_turned_in</span>
-                                        <span>Chi tiết bài làm</span>
-                                    </a>
+                                <p class="font-code text-caption text-on-surface-variant">{{ $customer->next_follow_up_at->format('H:i d/m/Y') }}</p>
+                                @if ($statusCard['follow_up_status'] === 'overdue')
+                                    <x-ui.badge color="status-overdue">Quá hạn</x-ui.badge>
+                                @elseif ($statusCard['follow_up_status'] === 'due_soon')
+                                    <x-ui.badge color="warning">Sắp hết hạn</x-ui.badge>
                                 @endif
-                                @can('entrance_test.grade')
-                                <button type="button" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')" class="px-3 py-1.5 bg-orange-50 border border-orange-200 hover:bg-orange-100 text-primary-container rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer">
-                                    <span class="material-symbols-outlined text-[14px]">edit_note</span>
-                                    <span>Sửa điểm</span>
-                                </button>
-                                @endcan
-                            </div>
-                            <a href="{{ route('placement-tests.rubric-guide') }}" class="text-[11px] font-semibold text-orange-600 hover:underline flex items-center gap-0.5">
-                                <span>Thang Điểm Rubric</span>
-                                <span class="material-symbols-outlined text-[13px]">arrow_forward</span>
-                            </a>
+                            @else
+                                <p class="font-body-medium text-body-medium text-on-surface-variant">Chưa đặt</p>
+                            @endif
                         </div>
                     </div>
-                @endif
+                    @if ($statusCard['neglected'])
+                        <x-ui.alert type="error">Khách chưa có hoạt động chăm sóc nào trong {{ $statusCard['neglect_days'] }} ngày gần đây.</x-ui.alert>
+                    @endif
+                    @can('lead.update')
+                        <a href="{{ route('crm.customers.edit', $customer->id) }}#next_follow_up_at" class="inline-flex items-center gap-xs font-body-small text-body-small font-semibold text-primary hover:underline">
+                            <span class="material-symbols-outlined text-[16px]">event</span>Đặt hạn liên hệ
+                        </a>
+                    @endcan
+                </div>
             </div>
 
-            <script>
-                function crmOnlineTestEngine(cfg) {
-                    return { hasResult: cfg.hasResult, hasScheduled: cfg.hasScheduled, testLink: cfg.testLink };
-                }
-            </script>
-        </div>
-
-        <!-- Activity Timeline & Care History -->
-        <div class="lg:col-span-2 space-y-6">
+            {{-- Chăm sóc tháng đầu: chỉ khi đã chuyển đổi (có hồ sơ học viên) --}}
             @if ($customer->converted_student_id)
-                <!-- Chăm sóc tháng đầu (khách đã chốt) -->
-                @php($careState = $customer->care_checklist ?? [])
-                <form action="{{ route('crm.customers.care-checklist', $customer->id) }}" method="POST" class="bg-white rounded-2xl border border-emerald-200 shadow-sm p-4 space-y-3 text-xs">
+                @php $careState = $customer->care_checklist ?? []; @endphp
+                <form action="{{ route('crm.customers.care-checklist', $customer->id) }}" method="POST" class="{{ $card }} space-y-md p-lg">
                     @csrf
-                    <div class="flex items-center justify-between gap-2 pb-1 border-b border-gray-100">
-                        <h3 class="font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-emerald-600 text-base">volunteer_activism</span>
-                            Chăm sóc tháng đầu
-                        </h3>
-                        <span class="text-gray-500">{{ collect($careState)->filter()->count() }}/{{ count(\App\Models\CrmCustomer::CARE_CHECKLIST_ITEMS) }} việc</span>
+                    <div class="flex items-center justify-between gap-sm">
+                        <h3 class="font-h3 text-h3 text-on-surface">Chăm sóc tháng đầu</h3>
+                        <span class="font-caption text-caption text-on-surface-variant">{{ collect($careState)->filter()->count() }}/{{ count(\App\Models\CrmCustomer::CARE_CHECKLIST_ITEMS) }} việc</span>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div class="space-y-sm">
                         @foreach (\App\Models\CrmCustomer::CARE_CHECKLIST_ITEMS as $key => $label)
-                            <label class="flex items-start gap-2 p-2 rounded-xl border {{ ! empty($careState[$key]) ? 'border-emerald-200 bg-emerald-50/50' : 'border-gray-100' }}">
-                                <input type="checkbox" name="items[]" value="{{ $key }}" @checked(! empty($careState[$key])) @cannot('lead.update') disabled @endcannot class="mt-0.5 rounded border-gray-300 text-emerald-600">
-                                <span>
-                                    <span class="font-semibold text-gray-900">{{ $label }}</span>
+                            @php $done = ! empty($careState[$key]); @endphp
+                            <label class="flex cursor-pointer items-start gap-sm rounded-lg p-sm {{ $done ? 'bg-tertiary/5' : 'hover:bg-surface-container-low' }}">
+                                <input type="checkbox" name="items[]" value="{{ $key }}" @checked($done) @cannot('lead.update') disabled @endcannot class="peer sr-only">
+                                <span class="material-symbols-outlined {{ $done ? 'text-tertiary' : 'text-outline' }}" @if ($done) style="font-variation-settings: 'FILL' 1;" @endif>{{ $done ? 'check_circle' : 'radio_button_unchecked' }}</span>
+                                <span class="min-w-0">
+                                    <span class="block font-body-medium text-body-medium {{ $done ? 'text-on-surface' : 'text-on-surface-variant' }}">{{ $label }}</span>
                                     @if (! empty($careState[$key]['done_at']))
-                                        <span class="block text-[10px] text-gray-500">{{ \Illuminate\Support\Carbon::parse($careState[$key]['done_at'])->format('d/m/Y H:i') }} · {{ $careState[$key]['by'] ?? '' }}</span>
+                                        <span class="block font-caption text-caption text-on-surface-variant">Hoàn thành: {{ \Illuminate\Support\Carbon::parse($careState[$key]['done_at'])->format('d/m/Y') }}{{ ! empty($careState[$key]['by']) ? ' · '.$careState[$key]['by'] : '' }}</span>
                                     @endif
                                 </span>
                             </label>
                         @endforeach
                     </div>
                     @can('lead.update')
-                        <div class="flex items-center gap-2">
-                            <input type="text" name="note" maxlength="1000" placeholder="Ghi chú chăm sóc (tuỳ chọn)" class="flex-1 rounded-xl border-gray-200 text-xs">
+                        <script>
+                            // Bấm vào dòng đổi biểu tượng tick ngay (checkbox ẩn vẫn gửi đi khi Lưu).
+                            document.currentScript.closest('form').addEventListener('change', e => {
+                                const box = e.target; if (box.name !== 'items[]') return;
+                                const icon = box.nextElementSibling;
+                                icon.textContent = box.checked ? 'check_circle' : 'radio_button_unchecked';
+                                icon.classList.toggle('text-tertiary', box.checked); icon.classList.toggle('text-outline', !box.checked);
+                                icon.style.fontVariationSettings = box.checked ? "'FILL' 1" : '';
+                            });
+                        </script>
+                        <div class="flex items-center gap-sm">
+                            <input type="text" name="note" maxlength="1000" placeholder="Ghi chú chăm sóc (tuỳ chọn)" class="flex-1 rounded-lg border-outline-variant font-body-small text-body-small">
                             <x-ui.button type="submit" size="sm" icon="save">Lưu checklist</x-ui.button>
                         </div>
                     @endcan
                 </form>
             @endif
+        </div>
 
-            <!-- Quick Log Note Box -->
-            <form action="{{ route('crm.customers.notes.store', $customer->id) }}" method="POST" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3" x-data="{ noteType: 'call' }">
-                @csrf
-                <input type="hidden" name="type" :value="noteType" />
-
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1 border-b border-gray-100">
-                    <h3 class="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5 shrink-0">
-                        <span class="material-symbols-outlined text-primary text-base">edit_note</span>
-                        <span>Ghi nhật ký chăm sóc</span>
-                    </h3>
-                    <div class="flex flex-wrap items-center gap-1.5 text-xs">
-                        <button type="button" @click="noteType = 'call'" :class="noteType === 'call' ? 'bg-primary-container text-white shadow-sm ring-1 ring-primary-container' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 shrink-0">
-                            <span>📞</span> <span>Gọi điện</span>
-                        </button>
-                        <button type="button" @click="noteType = 'message'" :class="noteType === 'message' ? 'bg-primary-container text-white shadow-sm ring-1 ring-primary-container' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 shrink-0">
-                            <span>💬</span> <span>Nhắn tin</span>
-                        </button>
-                        <button type="button" @click="noteType = 'meet'" :class="noteType === 'meet' ? 'bg-primary-container text-white shadow-sm ring-1 ring-primary-container' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 shrink-0">
-                            <span>🤝</span> <span>Gặp trực tiếp</span>
-                        </button>
-                        <button type="button" @click="noteType = 'test'" :class="noteType === 'test' ? 'bg-primary-container text-white shadow-sm ring-1 ring-primary-container' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 shrink-0">
-                            <span>📝</span> <span>Test thử</span>
-                        </button>
-                        <button type="button" @click="noteType = 'note'" :class="noteType === 'note' ? 'bg-primary-container text-white shadow-sm ring-1 ring-primary-container' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 shrink-0">
-                            <span>📌</span> <span>Ghi chú</span>
-                        </button>
-                    </div>
+        {{-- ── Cột phải: thao tác (tab) + lịch sử hoạt động ── --}}
+        <div class="space-y-lg lg:col-span-8">
+            <div class="{{ $card }} overflow-hidden" x-data="{ tab: 'ops' }">
+                <div class="flex border-b border-surface-container-highest" role="tablist">
+                    <button type="button" role="tab" @click="tab = 'ops'" :class="tab === 'ops' ? 'border-primary-container text-primary font-semibold' : 'border-transparent text-on-surface-variant hover:text-primary'"
+                            class="-mb-px border-b-2 px-lg py-md font-body-medium text-body-medium transition-colors">Đặt lịch &amp; Kết quả</button>
+                    <button type="button" role="tab" @click="tab = 'info'" :class="tab === 'info' ? 'border-primary-container text-primary font-semibold' : 'border-transparent text-on-surface-variant hover:text-primary'"
+                            class="-mb-px border-b-2 px-lg py-md font-body-medium text-body-medium transition-colors">Thông tin mở rộng</button>
                 </div>
 
-                <textarea name="content" rows="3" required placeholder="Nhập nội dung trao đổi, phản hồi của khách hàng..." class="w-full text-xs rounded-xl border border-gray-200 p-3"></textarea>
-
-                <div class="flex justify-end">
-                    <button type="submit" class="px-4 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[16px]">send</span>
-                        <span>Lưu nhật ký</span>
-                    </button>
-                </div>
-            </form>
-
-            <!-- Timeline -->
-            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
-                <div class="flex flex-col gap-2 pb-2 border-b border-gray-100">
-                    <h3 class="text-xs font-bold text-gray-900 uppercase tracking-wider">
-                        Lịch sử tương tác &amp; Tiến trình chăm sóc ({{ $histories->count() }}{{ $logType ? '/'.$customer->histories->count() : '' }})
-                    </h3>
-                    <nav class="flex flex-wrap gap-1.5 text-[11px]" aria-label="Lọc nhật ký">
-                        <a href="{{ route('crm.customers.show', $customer->id) }}#timeline" class="px-2.5 py-1 rounded-full border {{ ! $logType ? 'bg-primary-container text-white border-primary-container' : 'border-gray-200 text-gray-600 hover:bg-gray-50' }}">Tất cả</a>
-                        @foreach (\App\Models\CrmCustomerHistory::FILTER_TYPES as $typeKey => $typeLabel)
-                            @php($typeCount = $customer->histories->where('type', $typeKey)->count())
-                            @if ($typeCount > 0)
-                                <a href="{{ route('crm.customers.show', ['id' => $customer->id, 'log_type' => $typeKey]) }}#timeline" class="px-2.5 py-1 rounded-full border {{ $logType === $typeKey ? 'bg-primary-container text-white border-primary-container' : 'border-gray-200 text-gray-600 hover:bg-gray-50' }}">{{ $typeLabel }} ({{ $typeCount }})</a>
+                <div x-show="tab === 'ops'" class="space-y-xl p-lg">
+                    {{-- Lịch hẹn Test + link test online --}}
+                    <section class="space-y-md">
+                        <div class="flex flex-wrap items-center justify-between gap-sm">
+                            <h4 class="flex items-center gap-sm font-h3 text-h3 text-on-surface">
+                                <span class="material-symbols-outlined text-secondary">event_available</span>Lịch hẹn Test
+                            </h4>
+                            @if ($hasResult)
+                                <x-ui.badge color="success">Đã có kết quả</x-ui.badge>
+                            @elseif ($hasScheduled)
+                                <x-ui.badge color="info">Đã gửi link</x-ui.badge>
+                            @else
+                                <x-ui.badge color="error">Chưa gửi đề</x-ui.badge>
                             @endif
-                        @endforeach
-                    </nav>
-                </div>
+                        </div>
 
-                <div class="space-y-4" id="timeline">
-                    @forelse ($histories as $history)
-                        <div class="flex items-start gap-3 text-xs">
-                            <div class="w-8 h-8 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center shrink-0 font-bold">
-                                @if ($history->type === 'call')
-                                    <span class="material-symbols-outlined text-base text-blue-600">call</span>
-                                @elseif ($history->type === 'message')
-                                    <span class="material-symbols-outlined text-base text-emerald-600">chat</span>
-                                @elseif ($history->type === 'test')
-                                    <span class="material-symbols-outlined text-base text-indigo-600">quiz</span>
-                                @elseif ($history->type === 'stage_change')
-                                    <span class="material-symbols-outlined text-base text-amber-600">sync_alt</span>
-                                @elseif (in_array($history->type, ['update', 'assign', 'care', 'trial', 'meet'], true))
-                                    <span class="material-symbols-outlined text-base text-slate-600">{{ $history->type_icon }}</span>
+                        @if (! $hasResult && ! $hasScheduled)
+                            @can('entrance_test.send')
+                                <form action="{{ route('crm.customers.schedule-test', $customer->id) }}" method="POST" class="space-y-md">
+                                    @csrf
+                                    <input type="hidden" name="appointment_type" value="online" />
+                                    <div class="grid grid-cols-1 gap-md sm:grid-cols-3">
+                                        <x-ui.date name="appointment_date" label="Ngày hẹn làm test" required min="{{ now()->toDateString() }}" :value="old('appointment_date', now()->addDay()->toDateString())" />
+                                        <x-ui.input type="time" name="appointment_time" label="Giờ hẹn" required :value="old('appointment_time', '09:00')" />
+                                        <x-ui.select name="assigned_test_id" label="Đề test"
+                                                     :options="$placementTests->mapWithKeys(fn ($t) => [$t->id => '['.$t->code.'] '.$t->title.($t->duration_minutes ? ' ('.$t->duration_minutes.'\')' : '')])" />
+                                    </div>
+                                    <div class="flex flex-wrap items-center justify-end gap-sm">
+                                        @can('entrance_test.grade')
+                                            <x-ui.button variant="secondary" icon="edit_note" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')">Nhập điểm trực tiếp</x-ui.button>
+                                        @endcan
+                                        <x-ui.button type="submit" icon="send">Gửi link test online</x-ui.button>
+                                    </div>
+                                </form>
+                            @else
+                                <p class="font-body-small text-body-small text-on-surface-variant">Chưa hẹn test. Học vụ / Quản lý cơ sở gửi link test cho khách.</p>
+                            @endcan
+                        @elseif (! $hasResult && $hasScheduled)
+                            <div class="flex items-start justify-between gap-md rounded-lg border border-blue-200 bg-blue-50/70 p-md">
+                                <div class="flex items-start gap-sm">
+                                    <span class="material-symbols-outlined mt-0.5 text-blue-600">schedule_send</span>
+                                    <div>
+                                        <p class="font-body-semibold text-body-semibold text-blue-950">Đã gửi link — chờ khách làm bài</p>
+                                        <p class="font-caption text-caption italic text-blue-700">Hẹn lúc {{ $customer->appointment_at?->format('H:i, d/m/Y') ?? '—' }} · {{ $customer->assignedTest?->title ?? 'Chưa gán đề' }}{{ $customer->assignedTest?->duration_minutes ? ' · '.$customer->assignedTest->duration_minutes.' phút' : '' }}</p>
+                                    </div>
+                                </div>
+                                @can('entrance_test.grade')
+                                    <x-ui.button variant="secondary" size="sm" icon="edit" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')">Nhập điểm ngay</x-ui.button>
+                                @endcan
+                            </div>
+                            @if ($portalTestLink)
+                                <div class="flex flex-wrap gap-sm" x-data="{ testLink: @js($portalTestLink) }">
+                                    <x-ui.button variant="secondary" size="sm" icon="open_in_new" :href="$portalTestLink" target="_blank">Mở cổng test</x-ui.button>
+                                    <x-ui.button variant="secondary" size="sm" icon="content_copy" @click="navigator.clipboard.writeText(testLink); $dispatch('toast', { message: 'Đã sao chép đường dẫn bài test.', type: 'success' })">Sao chép link test</x-ui.button>
+                                    <p class="w-full font-caption text-caption italic text-on-surface-variant">Link riêng của khách, hiệu lực {{ \App\Services\PlacementPortalLinkService::LINK_TTL_DAYS }} ngày kể từ lúc mở trang này.</p>
+                                </div>
+                            @else
+                                <x-ui.alert type="warning">Khách chưa được gán đề test đang hoạt động nên chưa thể tạo link làm bài.</x-ui.alert>
+                            @endif
+                        @else
+                            <p class="font-body-small text-body-small text-on-surface-variant">
+                                Lịch hẹn: {{ $customer->appointment_at?->format('H:i, d/m/Y') ?? 'Làm bài không qua lịch hẹn' }}{{ $sub?->test ? ' · Đề: '.$sub->test->title : '' }}
+                            </p>
+                            @can('entrance_test.send')
+                                @if (in_array($customer->stage, ['consulting', 'test_scheduled', 'tested'], true))
+                                    <x-ui.button variant="ghost" size="sm" icon="event_repeat" onclick="document.getElementById('scheduleTestModal').classList.remove('hidden')">Hẹn test lại</x-ui.button>
+                                @endif
+                            @endcan
+                        @endif
+                    </section>
+
+                    {{-- Gửi kết quả & Phản hồi phụ huynh --}}
+                    <section class="space-y-md border-t border-surface-container-highest pt-lg">
+                        <h4 class="font-h3 text-h3 text-on-surface">Gửi kết quả &amp; Phản hồi</h4>
+                        @foreach ($resultLogs->take(3) as $log)
+                            <div class="rounded-lg bg-surface-container-low p-md font-body-small text-body-small">
+                                <p class="whitespace-pre-line text-on-surface">{{ $log->content }}</p>
+                                <p class="font-caption text-caption text-on-surface-variant">{{ $log->user?->name ?? 'Hệ thống' }} · {{ $log->created_at->format('H:i d/m/Y') }}</p>
+                            </div>
+                        @endforeach
+                        @can('lead.update')
+                            @if ($hasResult && $customer->stage !== \App\Models\CrmCustomer::STAGE_LOST)
+                                <form action="{{ route('crm.customers.notes.store', $customer->id) }}" method="POST" class="grid grid-cols-1 gap-md sm:grid-cols-3">
+                                    @csrf
+                                    <input type="hidden" name="type" value="result">
+                                    <x-ui.input type="datetime-local" name="sent_at" label="Ngày gửi KQ phụ huynh" required :value="old('sent_at', now()->format('Y-m-d\TH:i'))" max="{{ now()->format('Y-m-d\TH:i') }}" />
+                                    <div class="sm:col-span-2">
+                                        <x-ui.textarea name="content" label="Phản hồi của phụ huynh" rows="2" placeholder="Nhập ý kiến phản hồi của phụ huynh..." />
+                                    </div>
+                                    <div class="flex justify-end sm:col-span-3">
+                                        <x-ui.button type="submit" size="sm" icon="forward_to_inbox">Lưu gửi kết quả</x-ui.button>
+                                    </div>
+                                </form>
+                            @elseif ($resultLogs->isEmpty())
+                                <p class="font-body-small text-body-small text-on-surface-variant">Chưa có kết quả test để gửi phụ huynh.</p>
+                            @endif
+                        @endcan
+                    </section>
+
+                    {{-- Kết quả & Đánh giá (thang điểm khối lớp — A6 Q2) --}}
+                    <section class="space-y-md border-t border-surface-container-highest pt-lg">
+                        <div class="flex flex-wrap items-center justify-between gap-sm">
+                            <h4 class="flex items-center gap-sm font-h3 text-h3 text-on-surface">
+                                <span class="material-symbols-outlined text-tertiary">assignment_turned_in</span>Kết quả &amp; Đánh giá
+                            </h4>
+                            @if ($submission)
+                                <x-ui.button variant="secondary" size="sm" icon="picture_as_pdf" :href="\Illuminate\Support\Facades\URL::signedRoute('portal.test.scorecard', ['id' => $submission->id])" target="_blank">Tải kết quả (PDF)</x-ui.button>
+                            @endif
+                        </div>
+                        @if ($hasResult)
+                            @include('placement-tests.partials.rubric-result', ['submission' => $submission, 'rubric' => $rubric, 'fallbackScore' => $customer->test_score])
+                            <div class="flex flex-wrap items-center justify-between gap-sm">
+                                <div class="flex flex-wrap items-center gap-sm">
+                                    @if ($submission)
+                                        <x-ui.button variant="secondary" size="sm" icon="description" :href="\Illuminate\Support\Facades\URL::signedRoute('portal.test.scorecard', ['id' => $submission->id])" target="_blank">Bảng điểm Scorecard</x-ui.button>
+                                        @can('placement_test.grade')
+                                            <x-ui.button variant="secondary" size="sm" icon="assignment_turned_in" :href="route('placement-tests.results.show', $submission->id)">Chi tiết bài làm</x-ui.button>
+                                        @endcan
+                                    @endif
+                                    @can('entrance_test.grade')
+                                        @if (! in_array($customer->stage, ['won', 'lost'], true))
+                                            <x-ui.button variant="secondary" size="sm" icon="edit_note" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')">{{ $customer->stage === 'test_scheduled' ? 'Nhập điểm lần test lại' : 'Sửa điểm' }}</x-ui.button>
+                                        @endif
+                                    @endcan
+                                </div>
+                                <a href="{{ route('placement-tests.rubric-guide') }}" class="inline-flex items-center gap-xs font-body-small text-body-small font-semibold text-primary hover:underline">
+                                    Thang điểm &amp; hướng dẫn nhận xét<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                                </a>
+                            </div>
+                        @else
+                            <p class="font-body-small text-body-small text-on-surface-variant">Chưa có kết quả test đầu vào.</p>
+                        @endif
+                    </section>
+
+                    {{-- Nhận xét học thử (A6 Q1: lưu theo khách) --}}
+                    <section class="space-y-md border-t border-surface-container-highest pt-lg">
+                        <h4 class="flex items-center gap-sm font-h3 text-h3 text-on-surface">
+                            <span class="material-symbols-outlined text-secondary">comment</span>Nhận xét học thử
+                        </h4>
+                        @forelse ($customer->trialBookings as $booking)
+                            <div class="rounded-lg border border-surface-container-highest bg-surface-container-low p-md font-body-small text-body-small">
+                                <div class="flex flex-wrap items-center justify-between gap-sm">
+                                    <span class="font-semibold text-on-surface">Học thử · {{ $booking->classModel?->name }} · {{ $booking->session?->date?->format('d/m/Y') }} {{ $booking->session?->start_time?->format('H:i') }}</span>
+                                    <x-ui.badge :color="$booking->status === 'attended' ? 'success' : ($booking->status === 'scheduled' ? 'info' : 'error')">{{ $booking->status_label }}</x-ui.badge>
+                                </div>
+                                <p class="mt-xs font-label text-label uppercase text-on-surface-variant">Ghi chú buổi học</p>
+                                @if ($booking->feedback || $booking->remarks)
+                                    <p class="text-on-surface">{{ $booking->rating ? $booking->rating.'/5 · ' : '' }}{{ $booking->remarksSummary() !== '' ? $booking->remarksSummary().' · ' : '' }}{{ $booking->feedback }}</p>
+                                    <p class="font-caption text-caption text-on-surface-variant">{{ $booking->feedbackBy?->name }} · {{ $booking->feedback_at?->format('d/m/Y H:i') }}</p>
                                 @else
-                                    <span class="material-symbols-outlined text-base text-gray-600">notes</span>
+                                    <p class="italic text-on-surface-variant">Chưa có nhận xét từ buổi học thử.</p>
+                                @endif
+                                @if ($booking->status === 'scheduled' && $canBookTrial)
+                                    <form action="{{ route('crm.customers.trial-bookings.cancel', [$customer->id, $booking->id]) }}" method="POST" class="mt-sm flex gap-xs">
+                                        @csrf
+                                        <input name="reason" required placeholder="Lý do hủy" class="flex-1 rounded-lg border-outline-variant py-1 font-body-small text-body-small" />
+                                        <x-ui.button type="submit" variant="danger-text" size="sm">Hủy buổi</x-ui.button>
+                                    </form>
                                 @endif
                             </div>
-                            <div class="flex-1 p-3.5 bg-gray-50 rounded-2xl border border-gray-100 space-y-1">
-                                <div class="flex items-center justify-between">
-                                    <span class="font-bold text-gray-900">{{ $history->user?->name ?? 'Hệ thống' }}</span>
-                                    <span class="text-[10px] text-gray-400 font-mono">{{ $history->created_at->format('d/m/Y H:i') }}</span>
+                        @empty
+                            <div class="rounded-lg bg-surface-container-low p-md font-body-small text-body-small">
+                                <p class="font-label text-label uppercase text-on-surface-variant">Ghi chú buổi học</p>
+                                <p class="italic text-on-surface-variant">Chưa có nhận xét từ buổi học thử.</p>
+                            </div>
+                        @endforelse
+                    </section>
+                </div>
+
+                <div x-show="tab === 'info'" x-cloak class="p-lg">
+                    <dl class="grid grid-cols-1 gap-md font-body-base text-body-base sm:grid-cols-2">
+                        @foreach ([
+                            'Mã khách hàng' => $customer->code,
+                            'Email' => $customer->email ?? '—',
+                            'Ngày sinh / Giới tính' => ($customer->dob?->format('d/m/Y') ?? '—').' ('.($customer->gender ?? 'Chưa rõ').')',
+                            'Khóa quan tâm' => $customer->course_interest ?? 'Chưa chọn',
+                            'Giá trị hợp đồng' => number_format((float) $customer->deal_value, 0, ',', '.').' ₫',
+                            'Địa chỉ' => $customer->address ?? 'Chưa cập nhật',
+                            'Ngày tạo hồ sơ' => $customer->created_at->format('d/m/Y H:i'),
+                            'Ngày chốt' => $customer->converted_at?->format('d/m/Y H:i') ?? '—',
+                        ] as $label => $value)
+                            <div class="rounded-lg bg-surface-container-low p-md">
+                                <dt class="font-label text-label uppercase text-on-surface-variant">{{ $label }}</dt>
+                                <dd class="mt-xs font-medium text-on-surface">{{ $value }}</dd>
+                            </div>
+                        @endforeach
+                        @if ($customer->notes)
+                            <div class="rounded-lg bg-surface-container-low p-md sm:col-span-2">
+                                <dt class="font-label text-label uppercase text-on-surface-variant">Ghi chú nhu cầu</dt>
+                                <dd class="mt-xs whitespace-pre-line text-on-surface">{{ $customer->notes }}</dd>
+                            </div>
+                        @endif
+                    </dl>
+                </div>
+            </div>
+
+            {{-- Lịch sử hoạt động --}}
+            <div class="{{ $card }}" id="timeline">
+                <div class="flex flex-wrap items-center justify-between gap-md border-b border-surface-container-highest p-lg">
+                    <h3 class="font-h3 text-h3 text-on-surface">Lịch sử hoạt động <span class="font-body-small text-body-small text-on-surface-variant">({{ $histories->count() }}{{ $logType ? '/'.$customer->histories->count() : '' }})</span></h3>
+                    <form method="GET" action="{{ route('crm.customers.show', $customer->id) }}#timeline">
+                        <select name="log_type" onchange="this.form.submit()" aria-label="Lọc lịch sử"
+                                class="rounded-lg border-outline-variant bg-surface-container-lowest py-xs pl-sm pr-xl font-body-small text-body-small">
+                            <option value="">Tất cả hoạt động</option>
+                            @foreach (\App\Models\CrmCustomerHistory::FILTER_TYPES as $typeKey => $typeLabel)
+                                @php $typeCount = $customer->histories->where('type', $typeKey)->count(); @endphp
+                                @if ($typeCount > 0 || $logType === $typeKey)
+                                    <option value="{{ $typeKey }}" @selected($logType === $typeKey)>{{ $typeLabel }} ({{ $typeCount }})</option>
+                                @endif
+                            @endforeach
+                        </select>
+                    </form>
+                </div>
+
+                @can('lead.update')
+                    <form action="{{ route('crm.customers.notes.store', $customer->id) }}" method="POST" class="border-b border-surface-container-highest bg-surface-container-low/40 p-lg" x-data="{ noteType: 'call' }">
+                        @csrf
+                        <input type="hidden" name="type" :value="noteType" />
+                        <div class="flex flex-col gap-md sm:flex-row sm:items-end">
+                            <div class="flex-1 space-y-sm">
+                                <textarea name="content" rows="2" required placeholder="Ghi chú nội dung liên hệ mới..." class="w-full rounded-lg border-outline-variant bg-surface-container-lowest font-body-base text-body-base focus:border-primary-container focus:ring-primary-container/20"></textarea>
+                                <div class="flex flex-wrap items-center gap-sm">
+                                    <span class="font-body-small text-body-small text-on-surface-variant">Hình thức:</span>
+                                    @foreach (['call' => 'Gọi điện', 'message' => 'Zalo/SMS', 'meet' => 'Trực tiếp', 'test' => 'Test đầu vào', 'note' => 'Ghi chú'] as $noteKey => $noteLabel)
+                                        <button type="button" @click="noteType = @js($noteKey)"
+                                                :class="noteType === @js($noteKey) ? 'bg-secondary text-white border-secondary' : 'bg-surface-container-lowest text-on-surface-variant border-outline-variant hover:bg-surface-container-high'"
+                                                class="rounded-full border px-md py-xs font-body-small text-body-small transition-colors">{{ $noteLabel }}</button>
+                                    @endforeach
                                 </div>
-                                <p class="text-gray-700 leading-relaxed whitespace-pre-line">{{ $history->content }}</p>
+                            </div>
+                            <x-ui.button type="submit" icon="send">Lưu ghi chú</x-ui.button>
+                        </div>
+                    </form>
+                @endcan
+
+                <div class="space-y-lg p-lg">
+                    @forelse ($histories as $history)
+                        @php
+                            $isLost = $history->type === 'stage_change' && $history->to_stage === \App\Models\CrmCustomer::STAGE_LOST;
+                            $iconTone = match (true) {
+                                $isLost => 'bg-error-container text-error',
+                                in_array($history->type, ['call', 'message', 'meet'], true) => 'bg-secondary-fixed text-secondary',
+                                in_array($history->type, ['test', 'result', 'trial'], true) => 'bg-tertiary-fixed/50 text-tertiary',
+                                $history->type === 'assign' => 'bg-primary-fixed text-primary',
+                                default => 'bg-surface-container-high text-on-surface-variant',
+                            };
+                        @endphp
+                        <div class="flex items-start gap-md">
+                            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full {{ $iconTone }}">
+                                <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">{{ $isLost ? 'person_off' : $history->type_icon }}</span>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center justify-between gap-sm">
+                                    <span class="font-body-semibold text-body-semibold text-on-surface">{{ $history->user?->name ?? 'Hệ thống' }}</span>
+                                    <span class="font-code text-caption text-on-surface-variant">{{ $history->created_at->format('H:i - d/m/Y') }}</span>
+                                </div>
+                                @if ($isLost)
+                                    <div class="mt-xs rounded-lg border-l-4 border-error bg-error-container/30 p-sm">
+                                        <span class="font-label text-label uppercase text-error">Lý do thất bại</span>
+                                        <p class="font-body-base text-body-base text-on-surface">{{ $history->reason ?: $history->content }}</p>
+                                    </div>
+                                @else
+                                    <p class="mt-xs whitespace-pre-line font-body-base text-body-base text-on-surface-variant">{{ $history->content }}</p>
+                                @endif
+                                @if (isset(\App\Models\CrmCustomerHistory::FILTER_TYPES[$history->type]))
+                                    <span class="mt-xs inline-block rounded bg-surface-container-high px-sm py-0.5 font-caption text-caption text-on-surface-variant">{{ \App\Models\CrmCustomerHistory::FILTER_TYPES[$history->type] }}</span>
+                                @endif
                             </div>
                         </div>
                     @empty
-                        <div class="text-center py-6 text-gray-400 text-xs">Chưa có lịch sử chăm sóc nào.</div>
+                        <x-ui.empty-state icon="history" title="Chưa có lịch sử hoạt động" />
                     @endforelse
+                    <div class="flex items-center gap-sm pt-sm">
+                        <span class="h-px flex-1 bg-surface-container-highest"></span>
+                        <span class="font-caption text-caption text-on-surface-variant">Bắt đầu tạo hồ sơ - {{ $customer->created_at->format('d/m/Y') }}</span>
+                        <span class="h-px flex-1 bg-surface-container-highest"></span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -816,7 +713,7 @@
 
     @push('scripts')
     <script>
-        // Confirm xoá lead qua data-confirm (thay cho inline onsubmit — tránh XSS qua tên lead)
+        // Confirm xoá khách qua data-confirm (thay cho inline onsubmit — tránh XSS qua tên khách)
         document.addEventListener('submit', function (event) {
             const form = event.target instanceof Element ? event.target.closest('form[data-confirm]') : null;
             if (form && !window.confirm(form.getAttribute('data-confirm'))) {

@@ -115,6 +115,37 @@ class Phase1MockupParityTest extends TestCase
             ->assertDontSee('Closing Wizard');
     }
 
+    // ── 4. Chi tiết khách ────────────────────────────────────────────────
+
+    public function test_customer_detail_matches_mockup_sections(): void
+    {
+        $lead = $this->lead('tested', ['name' => 'Nguyễn Lam Anh', 'parent_name' => 'Trần Thị Minh', 'parent_phone' => '0909 888 999',
+            'test_score' => '30/45 · Luyện MOVERS', 'next_follow_up_at' => now()->addHours(2)->addMinutes(20)]);
+
+        $this->actingAs($this->manager)->get(route('crm.customers.show', $lead))->assertOk()
+            ->assertSee('Chi tiết Khách hàng')->assertSee('Thất bại')->assertSee('In hồ sơ')->assertSee('Phân công lại')
+            ->assertSee('Số điện thoại')->assertSee('Tên phụ huynh')->assertSee('SĐT phụ huynh')->assertSee('0909 888 999')
+            ->assertSee('Người phụ trách')->assertSee('Chi nhánh')->assertSee('Cơ sở Đội Cấn')
+            ->assertSee('Trạng thái &amp; Hạn xử lý', false)->assertSee('Giai đoạn hiện tại')->assertSee('Còn 2 giờ')
+            ->assertSee('Đặt lịch &amp; Kết quả', false)->assertSee('Thông tin mở rộng')
+            ->assertSee('Lịch hẹn Test')->assertSee('Gửi kết quả &amp; Phản hồi', false)->assertSee('Kết quả &amp; Đánh giá', false)
+            ->assertSee('Nhận xét học thử')->assertSee('Chưa có nhận xét từ buổi học thử.')
+            ->assertSee('Lịch sử hoạt động')->assertSee('Tất cả hoạt động')->assertSee('Hình thức:')->assertSee('Zalo/SMS')
+            ->assertSee('Lưu ghi chú')->assertSee('Bắt đầu tạo hồ sơ')
+            // A6: CEFR bị bỏ, không Hủy chốt
+            ->assertDontSee('Beginner (A1)')->assertDontSee('Hủy chốt');
+
+        // "Gửi kết quả & Phản hồi" ghi vào lịch sử khách.
+        $this->actingAs($this->manager)->post(route('crm.customers.notes.store', $lead), [
+            'type' => 'result', 'sent_at' => now()->subHour()->format('Y-m-d H:i'), 'content' => 'Phụ huynh đồng ý lịch học tối',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('crm_customer_histories', ['customer_id' => $lead->id, 'type' => 'result']);
+        $this->actingAs($this->manager)->get(route('crm.customers.show', $lead))->assertSee('Phụ huynh đồng ý lịch học tối');
+
+        $this->actingAs($this->manager)->post(route('crm.customers.notes.store', $lead), ['type' => 'result'])
+            ->assertSessionHasErrors('sent_at');
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────
 
     private function lead(string $stage, array $attributes = []): CrmCustomer
