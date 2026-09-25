@@ -27,3 +27,6 @@ yarn-error.log
 /tests/cookies
 /tests/*.log
 /tests/test_results.json
+
+# File người dùng upload qua trình quản lý media (không commit)
+/public/uploads/media/
