@@ -1,52 +1,39 @@
-<div class="border-b border-gray-200 bg-white -mt-4 -mx-4 sm:-mt-6 sm:-mx-6 px-6 pt-4 mb-6">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-3">
-        <div>
-            <h1 class="text-2xl font-black text-gray-900 tracking-tight">Quản lý tuyển sinh</h1>
-        </div>
+@php
+    $crmMenu = app(\App\Support\Navigation\SidebarMenu::class);
+    $crmUser = auth()->user();
+    $crmTabs = collect([
+        ['route' => 'crm.pipeline', 'label' => 'Theo giai đoạn'],
+        ['route' => 'crm.customers.index', 'label' => 'Danh sách'],
+        ['route' => 'crm.waiting-list', 'label' => 'Danh sách chờ lớp'],
+        ['route' => 'crm.reports', 'label' => 'Báo cáo doanh số'],
+        ['route' => 'crm.customers.won', 'label' => 'Khách chốt thành công'],
+        ['route' => 'crm.lost-deals', 'label' => 'Khách không chốt'],
+        ['route' => 'placement-tests.index', 'label' => 'Đề test đầu vào (AI)'],
+        ['route' => 'placement-tests.rubric-guide', 'label' => 'Thang điểm & Rubric'],
+    ])->filter(fn ($tab) => $crmUser && $crmMenu->canSee($crmUser, $tab));
+@endphp
 
-        <div class="flex items-center gap-3">
-            <div class="relative w-64 sm:w-80">
-                <span class="material-symbols-outlined absolute left-3 top-2 text-gray-400 text-base">search</span>
-                <input 
-                    type="text" 
-                    placeholder="Tìm kiếm khách hàng..." 
-                    class="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container bg-gray-50/70"
-                    onkeydown="if(event.key === 'Enter') { window.location.href = '{{ route('crm.customers.index') }}?search=' + encodeURIComponent(this.value); }"
-                />
-            </div>
+<div class="-mx-md -mt-md mb-lg border-b border-surface-container-highest bg-surface px-md pt-md lg:-mx-lg lg:-mt-lg lg:px-lg">
+    <div class="flex flex-col gap-md pb-sm md:flex-row md:items-center md:justify-between">
+        <h1 class="font-h1 text-h1 text-on-surface">Quản lý tuyển sinh</h1>
 
-            <a href="{{ route('crm.customers.create') }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-container hover:bg-primary text-white text-xs font-bold shadow-sm transition shrink-0">
-                <span class="material-symbols-outlined text-[18px]">add</span>
-                <span>Thêm khách mới</span>
-            </a>
+        <div class="flex items-center gap-sm">
+            <form method="GET" action="{{ route('crm.customers.index') }}" role="search" class="relative w-64 sm:w-80">
+                <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
+                <input type="search" name="search" value="{{ request()->routeIs('crm.customers.index') ? request('search') : '' }}"
+                       placeholder="Tìm kiếm khách hàng..." aria-label="Tìm kiếm khách hàng"
+                       class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-10 pr-md font-body-small text-body-small text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
+            </form>
+
+            @can('lead.create')
+                <x-ui.button icon="add" :href="route('crm.customers.create')">Thêm khách mới</x-ui.button>
+            @endcan
         </div>
     </div>
 
-    <!-- Navigation Tabs -->
-    <div class="flex items-center gap-6 overflow-x-auto text-xs font-semibold scrollbar-none pt-1">
-        <a href="{{ route('crm.pipeline') }}" class="pb-3 border-b-2 transition whitespace-nowrap {{ request()->routeIs('crm.pipeline') ? 'border-primary-container text-primary-container font-bold' : 'border-transparent text-gray-600 hover:text-gray-900' }}">
-            Theo giai đoạn
-        </a>
-        <a href="{{ route('crm.customers.index') }}" class="pb-3 border-b-2 transition whitespace-nowrap {{ request()->routeIs('crm.customers.index') ? 'border-primary-container text-primary-container font-bold' : 'border-transparent text-gray-600 hover:text-gray-900' }}">
-            Danh sách
-        </a>
-        <a href="{{ route('crm.waiting-list') }}" class="pb-3 border-b-2 transition whitespace-nowrap {{ request()->routeIs('crm.waiting-list') ? 'border-primary-container text-primary-container font-bold' : 'border-transparent text-gray-600 hover:text-gray-900' }}">
-            Danh sách chờ lớp
-        </a>
-        <a href="{{ route('crm.reports') }}" class="pb-3 border-b-2 transition whitespace-nowrap {{ request()->routeIs('crm.reports') ? 'border-primary-container text-primary-container font-bold' : 'border-transparent text-gray-600 hover:text-gray-900' }}">
-            Báo cáo doanh số
-        </a>
-        <a href="{{ route('crm.customers.won') }}" class="pb-3 border-b-2 transition whitespace-nowrap {{ request()->routeIs('crm.customers.won') ? 'border-primary-container text-primary-container font-bold' : 'border-transparent text-gray-600 hover:text-gray-900' }}">
-            Khách chốt thành công
-        </a>
-        <a href="{{ route('crm.lost-deals') }}" class="pb-3 border-b-2 transition whitespace-nowrap {{ request()->routeIs('crm.lost-deals') ? 'border-primary-container text-primary-container font-bold' : 'border-transparent text-gray-600 hover:text-gray-900' }}">
-            Khách không chốt
-        </a>
-        <a href="{{ route('placement-tests.index') }}" class="pb-3 border-b-2 transition whitespace-nowrap {{ request()->routeIs('placement-tests.index') ? 'border-primary-container text-primary-container font-bold' : 'border-transparent text-gray-600 hover:text-gray-900' }}">
-            Đề Test đầu vào (AI)
-        </a>
-        <a href="{{ route('placement-tests.rubric-guide') }}" class="pb-3 border-b-2 transition whitespace-nowrap {{ request()->routeIs('placement-tests.rubric-guide') ? 'border-primary-container text-primary-container font-bold' : 'border-transparent text-gray-600 hover:text-gray-900' }}">
-            Cổng Test (Học viên)
-        </a>
-    </div>
+    <x-ui.tabs class="border-b-0">
+        @foreach ($crmTabs as $tab)
+            <x-ui.tab :href="route($tab['route'])" :active="request()->routeIs($tab['route'])">{{ $tab['label'] }}</x-ui.tab>
+        @endforeach
+    </x-ui.tabs>
 </div>
