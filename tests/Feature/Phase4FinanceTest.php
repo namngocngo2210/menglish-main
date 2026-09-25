@@ -459,6 +459,222 @@ class Phase4FinanceTest extends TestCase
         $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $cash->id))->assertSessionHasNoErrors();
     }
 
+    // ---------------------------------------------------------------------
+    // 2. Khất nợ & bảo lưu có tác dụng thật
+    // ---------------------------------------------------------------------
+
+    public function test_approved_extension_moves_due_date_and_pauses_reminders(): void
+    {
+        $this->tuition->update(['due_date' => now()->subDays(2)->toDateString()]);
+        $this->tuition->recalculateDebt();
+        $this->assertSame('overdue', $this->tuition->fresh()->status);
+
+        $newDue = now()->addDays(10)->toDateString();
+        $this->actingAs($this->accountant)->post(route('tuition.refunds.store'), [
+            'student_id' => $this->student->id, 'type' => 'extension',
+            'extended_due_date' => $newDue, 'reason' => 'Phụ huynh xin lùi 10 ngày',
+        ])->assertSessionHasNoErrors();
+
+        $request = \App\Models\TuitionRefundRequest::firstOrFail();
+        $this->assertSame($newDue, $request->extended_due_date->toDateString());
+
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $request->id))->assertSessionHasNoErrors();
+
+        $tuition = $this->tuition->fresh();
+        $this->assertSame($newDue, $tuition->due_date->toDateString());
+        $this->assertSame($newDue, $tuition->reminder_paused_until->toDateString());
+        $this->assertSame('unpaid', $tuition->status);
+        $this->assertTrue($tuition->remindersPausedOn());
+        $this->assertSame('approved', $request->fresh()->status);
+
+        // Mốc T-3 của hạn mới rơi vào thời gian tạm dừng -> lệnh nhắc nợ bỏ qua.
+        $this->travelTo(now()->addDays(7));
+        $this->artisan('tuition:send-debt-reminders')->assertSuccessful();
+        $this->assertSame(0, \App\Models\AcademicRecord::where('record_code', 'like', 'DEBTREMIND-%')->count());
+
+        // Tới đúng hạn mới -> mốc T0 được gửi.
+        $this->travelTo(now()->addDays(3));
+        $this->artisan('tuition:send-debt-reminders')->assertSuccessful();
+        $this->assertSame(1, \App\Models\AcademicRecord::where('record_code', 'like', 'DEBTREMIND-T0-'.$this->tuition->id.'-%')->count());
+    }
+
+    public function test_extension_requires_new_due_date_after_current(): void
+    {
+        $this->actingAs($this->accountant)->post(route('tuition.refunds.store'), [
+            'student_id' => $this->student->id, 'type' => 'extension', 'reason' => 'Thiếu hạn mới',
+        ])->assertSessionHasErrors('extended_due_date');
+
+        $this->actingAs($this->accountant)->post(route('tuition.refunds.store'), [
+            'student_id' => $this->student->id, 'type' => 'extension', 'reason' => 'Hạn mới sớm hơn hạn cũ',
+            'extended_due_date' => now()->addDays(5)->toDateString(),
+        ])->assertSessionHasErrors('extended_due_date');
+    }
+
+    public function test_approved_deferral_sets_student_reserved_and_freezes_sessions_and_debt(): void
+    {
+        $course = \App\Models\Course::create(['code' => 'P4-D', 'name' => 'Khóa bảo lưu', 'total_lessons' => 20, 'is_active' => true]);
+        $class = \App\Models\ClassModel::create([
+            'code' => 'P4-DEF', 'name' => 'Lớp bảo lưu', 'course_id' => $course->id, 'branch_id' => $this->branch->id, 'status' => 'active',
+        ]);
+        $this->tuition->update(['class_id' => $class->id, 'due_date' => now()->addDays(3)->toDateString()]);
+        foreach (range(1, 5) as $i) {
+            \App\Models\StudentAttendance::create([
+                'class_id' => $class->id, 'student_id' => $this->student->id,
+                'session_date' => now()->subDays(30 - $i)->toDateString(), 'status' => 'present',
+            ]);
+        }
+
+        $from = now()->toDateString();
+        $to = now()->addMonth()->toDateString();
+        $this->actingAs($this->accountant)->post(route('tuition.refunds.store'), [
+            'student_id' => $this->student->id, 'type' => 'deferral', 'defer_from' => $from, 'defer_to' => $to,
+            'reason' => 'Đi du lịch hè',
+        ])->assertSessionHasNoErrors();
+
+        $request = \App\Models\TuitionRefundRequest::where('type', 'deferral')->firstOrFail();
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $request->id))->assertSessionHasNoErrors();
+
+        $this->assertSame('deferred', $this->student->fresh()->status);
+        $this->assertSame('Bảo lưu', $this->student->fresh()->status_label);
+
+        $tuition = $this->tuition->fresh();
+        $this->assertSame($from, $tuition->deferred_from->toDateString());
+        $this->assertSame($to, $tuition->deferred_until->toDateString());
+        $this->assertSame(15, $tuition->frozen_remaining_sessions);
+        $this->assertEquals(6000000, (float) $tuition->frozen_debt_amount);
+        $this->assertTrue($tuition->isDeferredOn());
+        $this->assertTrue($tuition->remindersPausedOn(now()->addDays(20)));
+        // Hạn đóng rơi vào thời gian bảo lưu -> dời sang ngày học lại.
+        $this->assertSame(now()->addMonth()->addDay()->toDateString(), $tuition->due_date->toDateString());
+
+        $this->artisan('tuition:send-debt-reminders')->assertSuccessful();
+        $this->assertSame(0, \App\Models\AcademicRecord::where('record_code', 'like', 'DEBTREMIND-%')->count());
+
+        $this->actingAs($this->accountant)->get(route('tuition.overdue'))->assertOk()->assertSee('Bảo lưu tới');
+    }
+
+    // ---------------------------------------------------------------------
+    // 9. Cấu hình nhắc nợ
+    // ---------------------------------------------------------------------
+
+    public function test_debt_reminder_config_saves_schedule_channels_and_validates_variables(): void
+    {
+        $this->actingAs($this->accountant)->get(route('system-config.debt-reminders'))
+            ->assertOk()->assertSee('Cấu hình Nhắc nợ')->assertSee('{ten_hoc_vien}');
+
+        $this->actingAs($this->accountant)->post(route('system-config.debt-reminders.store'), [
+            'title' => 'Nhắc trước 7 ngày', 'timing' => 'before', 'days' => 7, 'channels' => ['portal'],
+            'template_content' => 'Chào {TEN_HOC_VIEN}, học phí {so_tien} đến hạn {han_dong}. Mã {KHONG_TON_TAI}',
+        ])->assertSessionHasErrors('template_content');
+
+        $this->actingAs($this->accountant)->post(route('system-config.debt-reminders.store'), [
+            'title' => 'Nhắc trước 7 ngày', 'timing' => 'before', 'days' => 7, 'channels' => ['portal'],
+            'template_content' => 'Chào {TEN_HOC_VIEN}, học phí lớp {ten_lop} ({so_tien}) đến hạn {han_dong}.',
+        ])->assertSessionHasNoErrors();
+
+        $rule = \App\Models\DebtReminderRule::where('milestone_key', 'T-7')->firstOrFail();
+        $this->assertSame(-7, $rule->offset_days);
+        $this->assertSame(['portal'], $rule->channels);
+
+        $this->actingAs($this->accountant)->post(route('system-config.debt-reminders.settings'), ['must_contact_days' => 0])
+            ->assertSessionHasErrors('must_contact_days');
+        $this->actingAs($this->accountant)->post(route('system-config.debt-reminders.settings'), ['must_contact_days' => 10])
+            ->assertSessionHasNoErrors();
+        $this->assertEquals(10, \App\Models\SystemSetting::get('debt_reminder.must_contact_days'));
+
+        // Lệnh nhắc nợ chạy theo mốc đã cấu hình, chỉ kênh in-app, không còn biến chưa thay.
+        $this->tuition->update(['due_date' => now()->addDays(7)->toDateString()]);
+        $this->artisan('tuition:send-debt-reminders')->assertSuccessful();
+        $record = \App\Models\AcademicRecord::where('record_code', 'like', 'DEBTREMIND-T-7-%')->firstOrFail();
+        $this->assertSame('04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao', $record->screen_key);
+        $this->assertStringNotContainsString('{', $record->data['content']);
+        $this->assertStringContainsString('Phạm Bốn', $record->data['content']);
+    }
+
+    // ---------------------------------------------------------------------
+    // 7. Danh sách quá hạn
+    // ---------------------------------------------------------------------
+
+    public function test_overdue_list_groups_by_days_and_logs_contact_and_admin_report(): void
+    {
+        $serious = $this->tuition;
+        $serious->update(['due_date' => now()->subDays(12)->toDateString()]);
+        $freshStudent = Student::create(['code' => 'HV-P4-NEW', 'name' => 'Trần Mới Quá', 'phone' => '0900000055', 'branch_id' => $this->branch->id, 'status' => 'studying']);
+        $this->makeTuition($freshStudent, 2000000, null, ['due_date' => now()->subDays(3)->toDateString()]);
+        $soonStudent = Student::create(['code' => 'HV-P4-SOON', 'name' => 'Lê Sắp Tới', 'phone' => '0900000056', 'branch_id' => $this->branch->id, 'status' => 'studying']);
+        $this->makeTuition($soonStudent, 2000000, null, ['due_date' => now()->addDays(5)->toDateString()]);
+
+        $response = $this->actingAs($this->accountant)->get(route('tuition.overdue'));
+        $response->assertOk()
+            ->assertSee('Quá hạn nghiêm trọng (≥ 7 ngày)')
+            ->assertSee('Mới quá hạn (1–6 ngày)')
+            ->assertSee('Quá hạn 12 ngày')
+            ->assertSee('Quá hạn 3 ngày')
+            ->assertSee('Lê Sắp Tới');
+        $this->assertSame([$serious->id], $response->viewData('seriousOverdue')->pluck('id')->all());
+        $this->assertSame(['HV-P4-NEW'], $response->viewData('newOverdue')->pluck('student.code')->all());
+        $this->assertSame(['HV-P4-SOON'], $response->viewData('upcoming')->pluck('student.code')->all());
+
+        $this->actingAs($this->accountant)->post(route('tuition.overdue.contacted', $serious->id), [
+            'note' => 'Phụ huynh hẹn chuyển khoản thứ 6',
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('tuition_contact_logs', [
+            'student_tuition_id' => $serious->id, 'user_id' => $this->accountant->id, 'action' => 'contacted', 'note' => 'Phụ huynh hẹn chuyển khoản thứ 6',
+        ]);
+
+        $this->actingAs($this->accountant)->post(route('tuition.overdue.report-admin', $serious->id), ['note' => 'Không liên lạc được'])
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->admin->id, 'type' => 'overdue_report']);
+        $this->assertDatabaseHas('tuition_contact_logs', ['student_tuition_id' => $serious->id, 'action' => 'reported_admin']);
+
+        $this->actingAs($this->accountant)->get(route('tuition.overdue'))
+            ->assertSee('Đã liên hệ — chờ thu')
+            ->assertSee('Đã báo cáo Admin — '.now()->format('d/m/Y'));
+
+        // Không có quyền -> 403.
+        $sales = $this->makeUser('sales_consultant');
+        $this->actingAs($sales)->post(route('tuition.overdue.contacted', $serious->id))->assertForbidden();
+        $teacher = $this->makeUser('teacher');
+        $this->actingAs($teacher)->post(route('tuition.overdue.report-admin', $serious->id))->assertForbidden();
+    }
+
+    // ---------------------------------------------------------------------
+    // 8. Màn hoàn phí dùng số liệu thật
+    // ---------------------------------------------------------------------
+
+    public function test_refund_screen_uses_real_tuition_and_attendance_data(): void
+    {
+        $course = \App\Models\Course::create(['code' => 'P4-R', 'name' => 'Khóa hoàn', 'total_lessons' => 20, 'is_active' => true]);
+        $class = \App\Models\ClassModel::create([
+            'code' => 'P4-REF', 'name' => 'Lớp hoàn', 'course_id' => $course->id, 'branch_id' => $this->branch->id, 'status' => 'active',
+        ]);
+        $this->tuition->update(['class_id' => $class->id]);
+        $this->pendingReceipt($this->tuition, 3000000, ['status' => 'approved', 'invoice_number' => 'C26MEN-0000301']);
+        $this->tuition->recalculateDebt();
+        foreach (range(1, 4) as $i) {
+            \App\Models\StudentAttendance::create([
+                'class_id' => $class->id, 'student_id' => $this->student->id,
+                'session_date' => now()->subDays(10 - $i)->toDateString(), 'status' => 'present',
+            ]);
+        }
+
+        $response = $this->actingAs($this->accountant)->get(route('tuition.refunds'));
+        $response->assertOk()
+            ->assertSee('Đánh dấu khất nợ')
+            ->assertSee('Xác nhận khất nợ')
+            ->assertDontSee('12500000');
+
+        $basis = $response->viewData('studentFinance')[$this->student->id];
+        // Hợp đồng 6.000.000 / 20 buổi = 300.000đ/buổi; đã nộp 3.000.000, đã học 4 buổi = 1.200.000
+        $this->assertEquals(3000000, $basis['paid']);
+        $this->assertSame(20, $basis['total_sessions']);
+        $this->assertSame(4, $basis['attended_sessions']);
+        $this->assertEquals(300000, $basis['unit_price']);
+        $this->assertEquals(1800000, $basis['remaining_value']);
+        $this->assertEquals(180000, $basis['admin_fee']);
+        $this->assertEquals(1620000, $basis['suggested_refund']);
+    }
+
     public function test_deactivated_branch_range_is_skipped(): void
     {
         $range = InvoiceConfiguration::create([

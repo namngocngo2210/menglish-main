@@ -13,6 +13,8 @@ use App\Models\InvoiceConfiguration;
 use App\Models\SepayTransaction;
 use App\Models\Student;
 use App\Models\StudentTuition;
+use App\Models\SystemSetting;
+use App\Models\TuitionContactLog;
 use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
@@ -1106,44 +1108,112 @@ class TuitionController extends Controller
 
     public function refunds()
     {
-        $refundRequests = TuitionRefundRequest::with(['student.currentClass', 'targetStudent.currentClass', 'requester', 'approver'])->latest()->get();
-        $students = Student::with(['currentClass', 'tuition'])->get();
+        $refundRequests = TuitionRefundRequest::with(['student.currentClass', 'student.tuition', 'targetStudent.currentClass', 'requester', 'approver'])->latest()->get();
+        $students = Student::with(['currentClass.course', 'tuition.classModel.course', 'branch'])->orderBy('name')->get();
 
-        return view('tuition.refunds', compact('refundRequests', 'students'));
+        // Số liệu thật cho bảng tính hoàn phí / chuyển nhượng / bảo lưu (không còn số ghi cứng).
+        $studentFinance = $students->mapWithKeys(fn (Student $student) => [$student->id => $this->refundBasis($student)]);
+        $adminFeePercent = (float) config('tuition.refund_admin_fee_percent', 10);
+
+        return view('tuition.refunds', compact('refundRequests', 'students', 'studentFinance', 'adminFeePercent'));
+    }
+
+    /**
+     * Căn cứ tính hoàn phí từ hợp đồng thật: đã nộp, giá trị hợp đồng, tổng buổi / đã học (điểm danh),
+     * đơn giá / buổi, phí quản trị theo chính sách và số tiền hoàn đề xuất.
+     *
+     * @return array<string, mixed>
+     */
+    private function refundBasis(Student $student): array
+    {
+        $tuition = $student->tuition;
+        $stats = $tuition?->sessionStats();
+        $paid = (float) ($tuition?->paid_amount ?? 0);
+        $contract = (float) ($tuition?->final_amount ?? 0);
+        $total = $stats['total'] ?? null;
+        $attended = $stats['attended'] ?? 0;
+        $unitPrice = $total ? round($contract / $total, 2) : 0.0;
+        $used = min($paid, round($unitPrice * $attended, 2));
+        $remainingValue = max(0.0, round($paid - $used, 2));
+        $feePercent = (float) config('tuition.refund_admin_fee_percent', 10);
+        $adminFee = round($remainingValue * $feePercent / 100, 0);
+
+        return [
+            'has_tuition' => (bool) $tuition,
+            'paid' => $paid,
+            'contract' => $contract,
+            'debt' => (float) ($tuition?->debt_amount ?? 0),
+            'due_date' => $tuition?->due_date?->format('Y-m-d'),
+            'total_sessions' => $total,
+            'attended_sessions' => $attended,
+            'remaining_sessions' => $stats['remaining'] ?? null,
+            'unit_price' => $unitPrice,
+            'remaining_value' => $remainingValue,
+            'admin_fee' => $adminFee,
+            'suggested_refund' => max(0.0, $remainingValue - $adminFee),
+            'status_label' => $student->status_label,
+        ];
     }
 
     public function storeRefundRequest(Request $request)
     {
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
-            'type' => 'required|string|in:refund,extension,transfer',
+            'type' => 'required|string|in:refund,extension,transfer,deferral',
             'total_paid' => 'nullable|numeric|min:0',
             'attended_lessons' => 'nullable|integer|min:0',
             'admin_fee' => 'nullable|numeric|min:0',
-            'refund_amount' => 'required|numeric|min:0',
+            'refund_amount' => 'nullable|required_if:type,refund,transfer|numeric|min:0',
             'target_student_id' => 'nullable|required_if:type,transfer|exists:students,id|different:student_id',
+            'extended_due_date' => 'nullable|required_if:type,extension|date|after:today',
+            'defer_from' => 'nullable|required_if:type,deferral|date',
+            'defer_to' => 'nullable|required_if:type,deferral|date|after:defer_from',
             'reason' => 'required|string|max:1000',
+        ], [
+            'extended_due_date.required_if' => 'Khất nợ cần chọn hạn đóng mới.',
+            'extended_due_date.after' => 'Hạn đóng mới phải sau hôm nay.',
+            'defer_from.required_if' => 'Bảo lưu cần chọn ngày bắt đầu.',
+            'defer_to.required_if' => 'Bảo lưu cần chọn ngày kết thúc.',
+            'defer_to.after' => 'Ngày kết thúc bảo lưu phải sau ngày bắt đầu.',
         ]);
 
-        $student = Student::find($validated['student_id']);
-        $totalPaid = $validated['total_paid'] ?? ($student?->tuition?->paid_amount ?? $validated['refund_amount']);
+        $student = Student::with('tuition')->find($validated['student_id']);
+        $type = $validated['type'];
+
+        if (in_array($type, [TuitionRefundRequest::TYPE_EXTENSION, TuitionRefundRequest::TYPE_DEFERRAL], true) && ! $student?->tuition) {
+            return redirect()->back()->withErrors(['student_id' => 'Học viên chưa có hồ sơ học phí để khất nợ / bảo lưu.'])->withInput();
+        }
+
+        if ($type === TuitionRefundRequest::TYPE_EXTENSION && $student->tuition->due_date
+            && \Illuminate\Support\Carbon::parse($validated['extended_due_date'])->lte($student->tuition->due_date)) {
+            return redirect()->back()->withErrors(['extended_due_date' => 'Hạn mới phải sau hạn đóng hiện tại ('.$student->tuition->due_date->format('d/m/Y').').'])->withInput();
+        }
+
+        $basis = $student ? $this->refundBasis($student) : [];
+        $totalPaid = $validated['total_paid'] ?? ($student?->tuition?->paid_amount ?? ($validated['refund_amount'] ?? 0));
 
         TuitionRefundRequest::create([
             'student_id' => $validated['student_id'],
-            'type' => $validated['type'],
+            'type' => $type,
             'total_paid' => $totalPaid,
-            'attended_lessons' => $validated['attended_lessons'] ?? 0,
+            'attended_lessons' => $validated['attended_lessons'] ?? ($basis['attended_sessions'] ?? 0),
             'admin_fee' => $validated['admin_fee'] ?? 0,
-            'refund_amount' => $validated['refund_amount'],
-            'target_student_id' => $validated['type'] === 'transfer' ? ($validated['target_student_id'] ?? null) : null,
+            'refund_amount' => in_array($type, [TuitionRefundRequest::TYPE_REFUND, TuitionRefundRequest::TYPE_TRANSFER], true)
+                ? $validated['refund_amount']
+                : 0,
+            'extended_due_date' => $type === TuitionRefundRequest::TYPE_EXTENSION ? $validated['extended_due_date'] : null,
+            'defer_from' => $type === TuitionRefundRequest::TYPE_DEFERRAL ? $validated['defer_from'] : null,
+            'defer_to' => $type === TuitionRefundRequest::TYPE_DEFERRAL ? $validated['defer_to'] : null,
+            'target_student_id' => $type === 'transfer' ? ($validated['target_student_id'] ?? null) : null,
             'reason' => $validated['reason'],
             'requester_id' => Auth::id(),
             'status' => 'pending',
         ]);
 
-        $typeLabel = match ($validated['type']) {
+        $typeLabel = match ($type) {
             'transfer' => 'chuyển nhượng số dư học phí sang học viên khác',
-            'extension' => 'xin gia hạn / khất nợ',
+            'extension' => 'khất nợ (dời hạn đóng)',
+            'deferral' => 'bảo lưu học phí',
             default => 'hoàn trả học phí',
         };
 
@@ -1160,10 +1230,8 @@ class TuitionController extends Controller
                 return ['error' => 'Yêu cầu này đã được xử lý trước đó.'];
             }
 
-            if ($refund->type === 'extension') {
-                $refund->update(['status' => 'approved', 'approver_id' => Auth::id()]);
-
-                return ['status' => "Đã duyệt hồ sơ gia hạn nợ cho học viên {$refund->student?->name}!"];
+            if (in_array($refund->type, [TuitionRefundRequest::TYPE_EXTENSION, TuitionRefundRequest::TYPE_DEFERRAL], true)) {
+                return $this->applyExtensionOrDeferral($refund);
             }
 
             $amount = round((float) $refund->refund_amount, 2);
@@ -1267,6 +1335,80 @@ class TuitionController extends Controller
         return redirect()->back()->with('status', $result['status']);
     }
 
+    /**
+     * Duyệt khất nợ / bảo lưu (trong transaction của approveRefundRequest):
+     * - Khất nợ: dời hạn đóng sang hạn mới, tạm dừng nhắc nợ tới hạn mới (lệnh nhắc nợ tự bỏ qua), bỏ trạng thái quá hạn.
+     * - Bảo lưu: học viên sang "Bảo lưu" với thời gian từ/đến, đóng băng số buổi còn lại và công nợ,
+     *   tạm dừng nhắc nợ tới hết ngày bảo lưu (không tính quá hạn trong thời gian này).
+     *
+     * @return array{status?: string, error?: string}
+     */
+    private function applyExtensionOrDeferral(TuitionRefundRequest $refund): array
+    {
+        $tuition = StudentTuition::query()->where('student_id', $refund->student_id)->lockForUpdate()->first();
+        if (! $tuition) {
+            return ['error' => 'Học viên chưa có hồ sơ học phí để khất nợ / bảo lưu.'];
+        }
+
+        $approver = Auth::user()?->name ?? 'hệ thống';
+        $stamp = '['.now()->format('d/m/Y H:i').'] ';
+
+        if ($refund->type === TuitionRefundRequest::TYPE_EXTENSION) {
+            if (! $refund->extended_due_date) {
+                return ['error' => 'Hồ sơ khất nợ chưa có hạn đóng mới. Vui lòng từ chối và lập lại hồ sơ kèm hạn mới.'];
+            }
+
+            $oldDue = $tuition->due_date?->format('d/m/Y') ?? 'chưa có';
+            $tuition->due_date = $refund->extended_due_date;
+            $tuition->reminder_paused_until = $refund->extended_due_date;
+            $tuition->notes = trim(($tuition->notes ? $tuition->notes."\n" : '').$stamp
+                ."Khất nợ #{$refund->id}: hạn đóng {$oldDue} → {$refund->extended_due_date->format('d/m/Y')}, tạm dừng nhắc nợ tới hạn mới. Duyệt bởi {$approver}.");
+            $tuition->recalculateDebt();
+
+            $refund->update(['status' => 'approved', 'approver_id' => Auth::id()]);
+
+            return ['status' => "Đã duyệt khất nợ cho học viên {$refund->student?->name}: hạn đóng mới {$refund->extended_due_date->format('d/m/Y')}, tạm dừng nhắc nợ tới ngày này."];
+        }
+
+        if (! $refund->defer_from || ! $refund->defer_to) {
+            return ['error' => 'Hồ sơ bảo lưu chưa có thời gian từ ngày / đến ngày.'];
+        }
+
+        $tuition->recalculateDebt();
+        $stats = $tuition->sessionStats();
+        $resumeOn = $refund->defer_to->copy()->addDay();
+
+        $tuition->deferred_from = $refund->defer_from;
+        $tuition->deferred_until = $refund->defer_to;
+        $tuition->frozen_remaining_sessions = $stats['remaining'] ?? null;
+        $tuition->frozen_debt_amount = $tuition->debt_amount;
+        $tuition->reminder_paused_until = ($tuition->reminder_paused_until && $tuition->reminder_paused_until->gt($resumeOn))
+            ? $tuition->reminder_paused_until
+            : $resumeOn;
+        // Hạn đóng còn nằm trong thời gian bảo lưu -> dời sang ngày học lại để không bị tính quá hạn.
+        if ((float) $tuition->debt_amount > 0 && (! $tuition->due_date || $tuition->due_date->lt($resumeOn))) {
+            $tuition->due_date = $resumeOn;
+        }
+        $tuition->notes = trim(($tuition->notes ? $tuition->notes."\n" : '').$stamp
+            ."Bảo lưu #{$refund->id}: {$refund->defer_from->format('d/m/Y')} – {$refund->defer_to->format('d/m/Y')}, đóng băng "
+            .($stats ? $stats['remaining'].' buổi còn lại' : 'số buổi còn lại').' và công nợ '
+            .number_format((float) $tuition->debt_amount, 0, ',', '.')." VNĐ. Duyệt bởi {$approver}.");
+        $tuition->recalculateDebt();
+
+        $student = $refund->student;
+        if ($student) {
+            $student->update([
+                'status' => 'deferred',
+                'notes' => trim(($student->notes ? $student->notes."\n" : '').$stamp
+                    ."Bảo lưu {$refund->defer_from->format('d/m/Y')} – {$refund->defer_to->format('d/m/Y')} (hồ sơ #{$refund->id}). Lý do: {$refund->reason}"),
+            ]);
+        }
+
+        $refund->update(['status' => 'approved', 'approver_id' => Auth::id()]);
+
+        return ['status' => "Đã duyệt bảo lưu cho học viên {$student?->name} từ {$refund->defer_from->format('d/m/Y')} đến {$refund->defer_to->format('d/m/Y')}; đã đóng băng số buổi còn lại và công nợ."];
+    }
+
     public function rejectRefundRequest($id)
     {
         $refund = DB::transaction(function () use ($id) {
@@ -1289,10 +1431,26 @@ class TuitionController extends Controller
         return redirect()->back()->with('status', "Đã từ chối hồ sơ xử lý học phí của học viên {$refund->student?->name}!");
     }
 
+    /**
+     * Danh sách thu phí quá hạn (mockup "Thu phí quá hạn"):
+     * - Quá hạn nghiêm trọng (≥ N ngày, N = "Mốc quá hạn bắt buộc liên hệ") và Mới quá hạn (1 → N-1 ngày), có số ngày quá hạn.
+     * - Sắp đến hạn (từ hôm nay tới 14 ngày tới).
+     * - Khoản đang khất nợ / bảo lưu (tạm dừng nhắc nợ) tách riêng, không tính quá hạn.
+     * - Mỗi dòng có trạng thái đôn đốc gần nhất: "Đã liên hệ — chờ thu", "Đã báo cáo Admin".
+     */
     public function overdue(Request $request)
     {
-        $query = StudentTuition::with(['student', 'classModel', 'branch'])
-            ->where('debt_amount', '>', 0);
+        $seriousDays = max(1, (int) SystemSetting::get('debt_reminder.must_contact_days', config('tuition.overdue_serious_days', 7)));
+        $upcomingDays = (int) config('tuition.upcoming_days', 14);
+        $today = now()->startOfDay();
+
+        $query = StudentTuition::with(['student', 'classModel.course', 'branch', 'contactLogs.user'])
+            ->where('debt_amount', '>', 0)
+            ->whereNotNull('due_date')
+            ->where(function ($q) use ($today, $upcomingDays) {
+                $q->whereDate('due_date', '<=', $today->copy()->addDays($upcomingDays)->toDateString())
+                    ->orWhereDate('reminder_paused_until', '>', $today->toDateString());
+            });
 
         if ($search = $request->input('search')) {
             $query->whereHas('student', function ($q) use ($search) {
@@ -1310,79 +1468,137 @@ class TuitionController extends Controller
             $query->where('class_id', $classId);
         }
 
+        $rows = $query->orderBy('due_date')->get()->map(function (StudentTuition $tuition) {
+            $tuition->setAttribute('days_overdue', $tuition->daysOverdue());
+            $tuition->setAttribute('session_stats', $tuition->sessionStats());
+            $tuition->setAttribute('last_contact', $tuition->contactLogs->firstWhere('action', TuitionContactLog::ACTION_CONTACTED));
+            $tuition->setAttribute('last_report', $tuition->contactLogs->firstWhere('action', TuitionContactLog::ACTION_REPORTED));
+
+            return $tuition;
+        });
+
+        $paused = $rows->filter(fn (StudentTuition $t) => $t->remindersPausedOn())->values();
+        $active = $rows->reject(fn (StudentTuition $t) => $t->remindersPausedOn());
+
+        $seriousOverdue = $active->filter(fn (StudentTuition $t) => $t->days_overdue >= $seriousDays)->sortByDesc('days_overdue')->values();
+        $newOverdue = $active->filter(fn (StudentTuition $t) => $t->days_overdue >= 1 && $t->days_overdue < $seriousDays)->sortByDesc('days_overdue')->values();
+        $upcoming = $active->filter(fn (StudentTuition $t) => $t->days_overdue <= 0)->sortByDesc('days_overdue')->values();
+
         $type = $request->input('type', 'all');
         if ($type === 'overdue') {
-            $query->where(function ($q) {
-                $q->where('status', 'overdue')
-                    ->orWhere('due_date', '<', now());
-            });
+            $upcoming = collect();
         } elseif ($type === 'upcoming') {
-            $query->where('due_date', '>=', now())
-                ->where('due_date', '<=', now()->addDays(7));
-        } else {
-            $query->where(function ($q) {
-                $q->where('status', 'overdue')
-                    ->orWhere('due_date', '<', now())
-                    ->orWhereBetween('due_date', [now(), now()->addDays(7)]);
-            });
+            $seriousOverdue = collect();
+            $newOverdue = collect();
         }
 
-        $overdueTuitions = $query->latest()->get();
+        $overdueTuitions = $seriousOverdue->concat($newOverdue);
 
-        // Thống kê theo Chi nhánh
-        $statsByBranch = StudentTuition::where('debt_amount', '>', 0)
-            ->with('branch')
-            ->get()
-            ->groupBy('branch_id')
-            ->map(function ($items, $bId) {
-                $branch = Branch::find($bId);
-
-                return [
-                    'branch_name' => $branch?->name ?? 'Cơ sở chính',
-                    'total_debt' => $items->sum('debt_amount'),
-                    'count' => $items->count(),
-                    'overdue_count' => $items->filter(fn ($t) => $t->status === 'overdue' || ($t->due_date && $t->due_date < now()))->count(),
-                    'upcoming_count' => $items->filter(fn ($t) => $t->due_date && $t->due_date >= now() && $t->due_date <= now()->addDays(7))->count(),
-                ];
-            })->values();
-
-        // Thống kê theo Lớp học
-        $statsByClass = StudentTuition::where('debt_amount', '>', 0)
-            ->with('classModel')
-            ->get()
-            ->groupBy('class_id')
-            ->map(function ($items, $cId) {
-                $classModel = ClassModel::find($cId);
-
-                return [
-                    'class_name' => $classModel?->name ?? 'Chưa xếp lớp',
-                    'class_code' => $classModel?->code ?? 'N/A',
-                    'total_debt' => $items->sum('debt_amount'),
-                    'count' => $items->count(),
-                    'overdue_count' => $items->filter(fn ($t) => $t->status === 'overdue' || ($t->due_date && $t->due_date < now()))->count(),
-                    'upcoming_count' => $items->filter(fn ($t) => $t->due_date && $t->due_date >= now() && $t->due_date <= now()->addDays(7))->count(),
-                ];
-            })->values();
-
-        // Thống kê theo Học viên (Top dư nợ)
-        $statsByStudent = StudentTuition::where('debt_amount', '>', 0)
-            ->with(['student', 'classModel'])
-            ->orderByDesc('debt_amount')
-            ->take(10)
-            ->get();
+        // Thống kê công nợ quá hạn theo chi nhánh / lớp (toàn bộ khoản đang nợ, không theo bộ lọc tìm kiếm).
+        $allDebts = StudentTuition::with(['branch', 'classModel'])->where('debt_amount', '>', 0)->get();
+        $isOverdue = fn (StudentTuition $t) => $t->due_date && $t->due_date->lt($today) && ! $t->remindersPausedOn();
+        $statsByBranch = $allDebts->groupBy('branch_id')->map(fn ($items) => [
+            'branch_name' => $items->first()->branch?->name ?? 'Chưa gán chi nhánh',
+            'total_debt' => $items->sum('debt_amount'),
+            'count' => $items->count(),
+            'overdue_count' => $items->filter($isOverdue)->count(),
+        ])->values();
+        $statsByClass = $allDebts->groupBy('class_id')->map(fn ($items) => [
+            'class_name' => $items->first()->classModel?->name ?? 'Chưa xếp lớp',
+            'class_code' => $items->first()->classModel?->code ?? '—',
+            'total_debt' => $items->sum('debt_amount'),
+            'count' => $items->count(),
+            'overdue_count' => $items->filter($isOverdue)->count(),
+        ])->values();
 
         $branches = Branch::where('is_active', true)->get();
         $classes = ClassModel::orderBy('name')->get();
 
         return view('tuition.overdue', compact(
+            'seriousOverdue',
+            'newOverdue',
+            'upcoming',
+            'paused',
             'overdueTuitions',
             'statsByBranch',
             'statsByClass',
-            'statsByStudent',
             'branches',
             'classes',
-            'type'
+            'type',
+            'seriousDays',
+            'upcomingDays'
         ));
+    }
+
+    /** "Đã liên hệ": ghi nhật ký gọi điện / nhắn tin phụ huynh kèm ghi chú và thời gian. */
+    public function markContacted(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'note' => 'nullable|string|max:1000',
+            'contacted_at' => 'nullable|date|before_or_equal:now',
+        ], [
+            'contacted_at.before_or_equal' => 'Thời gian liên hệ không được ở tương lai.',
+        ]);
+
+        $tuition = StudentTuition::with('student')->findOrFail($id);
+
+        TuitionContactLog::create([
+            'student_tuition_id' => $tuition->id,
+            'user_id' => $request->user()->id,
+            'action' => TuitionContactLog::ACTION_CONTACTED,
+            'note' => $validated['note'] ?? null,
+            'contacted_at' => $validated['contacted_at'] ?? now(),
+        ]);
+
+        return redirect()->back()->with('status', "Đã ghi nhận liên hệ với phụ huynh học viên {$tuition->student?->name} — chờ thu.");
+    }
+
+    /** "Báo cáo Admin": gửi thông báo cá nhân tới toàn bộ Admin và ghi nhật ký. */
+    public function reportOverdueToAdmin(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'note' => 'nullable|string|max:1000',
+        ]);
+
+        $tuition = StudentTuition::with(['student', 'classModel', 'branch'])->findOrFail($id);
+        $days = $tuition->daysOverdue();
+        $reporter = $request->user();
+
+        $admins = User::query()
+            ->where('is_active', true)
+            ->whereHas('roles', fn ($q) => $q->where('name', 'admin'))
+            ->pluck('id');
+
+        $message = "{$reporter->name} báo cáo học viên {$tuition->student?->name} ({$tuition->student?->code}) lớp "
+            .($tuition->classModel?->name ?? 'chưa xếp lớp').' quá hạn '.max(0, (int) $days).' ngày, còn nợ '
+            .number_format((float) $tuition->debt_amount, 0, ',', '.').' VNĐ'
+            .(! empty($validated['note']) ? '. Ghi chú: '.$validated['note'] : '.');
+
+        foreach ($admins as $adminId) {
+            AdminNotification::create([
+                'user_id' => $adminId,
+                'type' => 'overdue_report',
+                'title' => 'Báo cáo học phí quá hạn cần xử lý',
+                'message' => $message,
+                'data' => [
+                    'student_tuition_id' => $tuition->id,
+                    'student_id' => $tuition->student_id,
+                    'days_overdue' => $days,
+                    'link' => route('tuition.overdue', ['search' => $tuition->student?->code]),
+                ],
+                'is_read' => false,
+            ]);
+        }
+
+        TuitionContactLog::create([
+            'student_tuition_id' => $tuition->id,
+            'user_id' => $reporter->id,
+            'action' => TuitionContactLog::ACTION_REPORTED,
+            'note' => $validated['note'] ?? null,
+            'contacted_at' => now(),
+        ]);
+
+        return redirect()->back()->with('status', "Đã báo cáo Admin ({$admins->count()} người nhận) về khoản quá hạn của học viên {$tuition->student?->name}.");
     }
 
     public function sendUpcomingReminder($id)

@@ -28,6 +28,11 @@ class StudentTuition extends Model
         'paid_amount',
         'debt_amount',
         'due_date',
+        'reminder_paused_until',
+        'deferred_from',
+        'deferred_until',
+        'frozen_remaining_sessions',
+        'frozen_debt_amount',
         'status',
         'debt_status',
         'notes',
@@ -44,7 +49,40 @@ class StudentTuition extends Model
         'paid_amount' => 'decimal:2',
         'debt_amount' => 'decimal:2',
         'due_date' => 'date',
+        'reminder_paused_until' => 'date',
+        'deferred_from' => 'date',
+        'deferred_until' => 'date',
+        'frozen_remaining_sessions' => 'integer',
+        'frozen_debt_amount' => 'decimal:2',
     ];
+
+    /** Nhắc nợ đang tạm dừng (khất nợ / bảo lưu) tại ngày $on (mặc định hôm nay). */
+    public function remindersPausedOn($on = null): bool
+    {
+        $day = ($on ? \Illuminate\Support\Carbon::parse($on) : now())->startOfDay();
+
+        return $this->reminder_paused_until !== null && $this->reminder_paused_until->copy()->startOfDay()->gt($day);
+    }
+
+    /** Đang trong thời gian bảo lưu (công nợ & số buổi được đóng băng). */
+    public function isDeferredOn($on = null): bool
+    {
+        $day = ($on ? \Illuminate\Support\Carbon::parse($on) : now())->startOfDay();
+
+        return $this->deferred_from !== null && $this->deferred_until !== null
+            && $this->deferred_from->copy()->startOfDay()->lte($day)
+            && $this->deferred_until->copy()->startOfDay()->gte($day);
+    }
+
+    /** Lọc các khoản học phí không bị tạm dừng nhắc nợ tại ngày $day (Y-m-d). */
+    public function scopeRemindable($query, ?string $day = null)
+    {
+        $day ??= now()->toDateString();
+
+        return $query->where(function ($q) use ($day) {
+            $q->whereNull('reminder_paused_until')->orWhereDate('reminder_paused_until', '<=', $day);
+        });
+    }
 
     public function student(): BelongsTo
     {
@@ -71,6 +109,21 @@ class StudentTuition extends Model
         return $this->hasMany(TuitionReceipt::class, 'student_tuition_id');
     }
 
+    public function contactLogs(): HasMany
+    {
+        return $this->hasMany(TuitionContactLog::class, 'student_tuition_id')->latest('contacted_at');
+    }
+
+    /** Số ngày quá hạn so với hôm nay (âm = còn bao nhiêu ngày tới hạn); null nếu chưa có hạn. */
+    public function daysOverdue(): ?int
+    {
+        if (! $this->due_date) {
+            return null;
+        }
+
+        return (int) $this->due_date->copy()->startOfDay()->diffInDays(now()->startOfDay(), false);
+    }
+
     /**
      * Tính lại công nợ từ các phiếu đã duyệt (nguồn sự thật duy nhất):
      * - paid_amount = Σ phần học phí của phiếu approved (amount − surcharge_amount; phụ thu không cấn nợ,
@@ -95,7 +148,8 @@ class StudentTuition extends Model
         } elseif ($this->paid_amount > 0) {
             $this->status = 'partial';
         } else {
-            $this->status = ($this->due_date && $this->due_date < now()) ? 'overdue' : 'unpaid';
+            // Đang khất nợ / bảo lưu (tạm dừng nhắc nợ) thì chưa tính là quá hạn.
+            $this->status = ($this->due_date && $this->due_date < now() && ! $this->remindersPausedOn()) ? 'overdue' : 'unpaid';
         }
 
         $this->save();

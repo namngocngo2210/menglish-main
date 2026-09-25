@@ -10,6 +10,23 @@ class TuitionRefundRequest extends Model
 {
     use HasFactory;
 
+    public const TYPE_REFUND = 'refund';
+
+    public const TYPE_TRANSFER = 'transfer';
+
+    /** Khất nợ: duyệt xong dời hạn đóng và tạm dừng nhắc nợ tới hạn mới. */
+    public const TYPE_EXTENSION = 'extension';
+
+    /** Bảo lưu: duyệt xong học viên sang "Bảo lưu", đóng băng số buổi còn lại & công nợ trong thời gian bảo lưu. */
+    public const TYPE_DEFERRAL = 'deferral';
+
+    public const TYPES = [
+        self::TYPE_REFUND => 'Hoàn phí',
+        self::TYPE_TRANSFER => 'Chuyển nhượng',
+        self::TYPE_EXTENSION => 'Khất nợ',
+        self::TYPE_DEFERRAL => 'Bảo lưu',
+    ];
+
     protected $table = 'tuition_refund_requests';
 
     protected $fillable = [
@@ -19,6 +36,9 @@ class TuitionRefundRequest extends Model
         'attended_lessons',
         'admin_fee',
         'refund_amount',
+        'extended_due_date',
+        'defer_from',
+        'defer_to',
         'target_student_id',
         'reason',
         'requester_id',
@@ -31,7 +51,15 @@ class TuitionRefundRequest extends Model
         'admin_fee' => 'decimal:2',
         'refund_amount' => 'decimal:2',
         'attended_lessons' => 'integer',
+        'extended_due_date' => 'date',
+        'defer_from' => 'date',
+        'defer_to' => 'date',
     ];
+
+    public function getTypeLabelAttribute(): string
+    {
+        return self::TYPES[$this->type] ?? (string) $this->type;
+    }
 
     public function student(): BelongsTo
     {

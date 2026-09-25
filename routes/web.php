@@ -167,6 +167,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/overdue', [TuitionController::class, 'overdue'])->name('overdue');
         Route::post('/overdue/{id}/remind', [TuitionController::class, 'sendOverdueReminder'])->middleware('can:tuition.mark_contacted')->name('overdue.remind');
         Route::post('/overdue/{id}/upcoming-remind', [TuitionController::class, 'sendUpcomingReminder'])->middleware('can:tuition.mark_contacted')->name('overdue.upcoming-remind');
+        Route::post('/overdue/{id}/contacted', [TuitionController::class, 'markContacted'])->middleware('can:tuition.mark_contacted')->name('overdue.contacted');
+        Route::post('/overdue/{id}/report-admin', [TuitionController::class, 'reportOverdueToAdmin'])->middleware('can:tuition.report_overdue')->name('overdue.report-admin');
         Route::get('/config', [TuitionController::class, 'config'])->name('config');
         Route::post('/config', [TuitionController::class, 'updateConfig'])->middleware('can:invoice_range.manage')->name('config.update');
         Route::post('/config/ranges', [TuitionController::class, 'storeInvoiceRange'])->middleware('can:invoice_range.manage')->name('config.ranges.store');
@@ -398,6 +400,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/sepay', [SystemConfigController::class, 'updateSepayConfig'])->middleware('can:bank_account.manage')->name('sepay.update');
         Route::get('/debt-reminders', [SystemConfigController::class, 'debtReminders'])->middleware('can:fee_reminder_config.manage')->name('debt-reminders');
         Route::post('/debt-reminders', [SystemConfigController::class, 'storeDebtReminder'])->middleware('can:fee_reminder_config.manage')->name('debt-reminders.store');
+        Route::post('/debt-reminders/settings', [SystemConfigController::class, 'updateDebtReminderSettings'])->middleware('can:fee_reminder_config.manage')->name('debt-reminders.settings');
         Route::get('/ticket-emails', [SystemConfigController::class, 'ticketEmails'])->middleware('can:support_ticket.update')->name('ticket-emails');
         Route::post('/ticket-emails', [SystemConfigController::class, 'updateTicketEmails'])->middleware('can:support_ticket.update')->name('ticket-emails.update');
         Route::post('/ticket-emails/test', [SystemConfigController::class, 'sendTestTicketEmail'])->middleware('can:support_ticket.update')->name('ticket-emails.test');
