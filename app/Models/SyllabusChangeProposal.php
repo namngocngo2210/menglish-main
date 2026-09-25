@@ -24,6 +24,7 @@ class SyllabusChangeProposal extends Model
     protected $fillable = [
         'curriculum_id',
         'unit_id',
+        'lesson_id',
         'user_id',
         'proposal_type',
         'old_content',
@@ -49,6 +50,21 @@ class SyllabusChangeProposal extends Model
     public function unit(): BelongsTo
     {
         return $this->belongsTo(SyllabusUnit::class, 'unit_id');
+    }
+
+    public function lesson(): BelongsTo
+    {
+        return $this->belongsTo(SyllabusLesson::class, 'lesson_id');
+    }
+
+    /** "Buổi 3: … (Unit 2)", "Unit 2: …" hoặc "Chung toàn giáo trình". */
+    public function getTargetLabelAttribute(): string
+    {
+        if ($this->lesson) {
+            return 'Buổi '.$this->lesson->session_no.': '.$this->lesson->title.($this->unit ? ' (Unit '.$this->unit->unit_number.')' : '');
+        }
+
+        return $this->unit ? 'Unit '.$this->unit->unit_number.': '.$this->unit->title : 'Chung toàn giáo trình';
     }
 
     public function proposer(): BelongsTo

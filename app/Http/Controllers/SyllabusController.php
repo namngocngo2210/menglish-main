@@ -601,7 +601,7 @@ class SyllabusController extends Controller
     {
         $user = $request->user();
         $status = $request->query('status');
-        $proposals = SyllabusChangeProposal::with(['curriculum', 'unit', 'proposer'])
+        $proposals = SyllabusChangeProposal::with(['curriculum', 'unit', 'lesson', 'proposer'])
             ->visibleTo($user)
             ->when(in_array($status, array_keys(SyllabusChangeProposal::STATUS_LABELS), true), fn ($q) => $q->where('status', $status))
             ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
@@ -611,10 +611,10 @@ class SyllabusController extends Controller
 
         $selected = null;
         if ($request->filled('proposal')) {
-            $selected = SyllabusChangeProposal::with(['curriculum', 'unit', 'proposer', 'reviewer'])->findOrFail($request->integer('proposal'));
+            $selected = SyllabusChangeProposal::with(['curriculum', 'unit', 'lesson', 'proposer.roles', 'reviewer'])->findOrFail($request->integer('proposal'));
             abort_unless($selected->isVisibleTo($user), 404);
         } else {
-            $selected = $proposals->first()?->load('reviewer');
+            $selected = $proposals->first()?->load(['reviewer', 'proposer.roles']);
         }
 
         $pendingCount = SyllabusChangeProposal::visibleTo($user)->where('status', 'pending')->count();
@@ -624,14 +624,16 @@ class SyllabusController extends Controller
 
     public function teacherPropose(Request $request)
     {
-        $curriculums = SyllabusCurriculum::with('units')->orderBy('title')->get();
-        $proposals = SyllabusChangeProposal::with(['curriculum', 'unit'])
+        $curriculums = SyllabusCurriculum::with(['lessons.unit'])->orderBy('title')->get();
+        $status = $request->query('status');
+        $proposals = SyllabusChangeProposal::with(['curriculum', 'unit', 'lesson'])
             ->where('user_id', $request->user()->id)
+            ->when(in_array($status, array_keys(SyllabusChangeProposal::STATUS_LABELS), true), fn ($q) => $q->where('status', $status))
             ->latest()
             ->paginate($request->perPage(10))
             ->withQueryString();
 
-        return view('syllabus.teacher-propose', compact('curriculums', 'proposals'));
+        return view('syllabus.teacher-propose', compact('curriculums', 'proposals', 'status'));
     }
 
     public function storeProposal(Request $request)
@@ -639,15 +641,21 @@ class SyllabusController extends Controller
         $validated = $request->validate([
             'curriculum_id' => ['required', 'exists:syllabus_curriculums,id'],
             'unit_id' => ['nullable', Rule::exists('syllabus_units', 'id')->where('curriculum_id', $request->input('curriculum_id'))],
+            'lesson_id' => ['nullable', Rule::exists('syllabus_lessons', 'id')->where('curriculum_id', $request->input('curriculum_id'))],
             'proposal_type' => ['nullable', 'string', 'max:255'],
             'old_content' => ['nullable', 'string', 'max:5000'],
             'new_content' => ['required', 'string', 'max:5000'],
             'reason' => ['nullable', 'string', 'max:2000'],
             'attachment' => ['nullable', 'file', 'max:20480'],
         ], [
-            'unit_id.exists' => 'Bài học không thuộc giáo trình đã chọn.',
-            'new_content.required' => 'Vui lòng nhập nội dung đề xuất sửa.',
+            'unit_id.exists' => 'Unit không thuộc giáo trình đã chọn.',
+            'lesson_id.exists' => 'Buổi học không thuộc giáo trình đã chọn.',
+            'new_content.required' => 'Vui lòng nhập mô tả thay đổi đề xuất.',
         ]);
+        // Chọn buổi học → gắn luôn Unit của buổi đó.
+        if (! empty($validated['lesson_id'])) {
+            $validated['unit_id'] = SyllabusLesson::whereKey($validated['lesson_id'])->value('unit_id');
+        }
 
         $attachmentPath = null;
         $attachmentName = null;
@@ -673,7 +681,7 @@ class SyllabusController extends Controller
         AdminNotification::create([
             'type' => 'syllabus_proposal',
             'title' => 'Đề xuất sửa giáo trình mới',
-            'message' => Auth::user()->name.' đề xuất sửa giáo trình '.$proposal->curriculum?->title.($proposal->unit ? ' — '.$proposal->unit->title : '').'.',
+            'message' => Auth::user()->name.' đề xuất sửa giáo trình '.$proposal->curriculum?->title.' — '.$proposal->target_label.'.',
             'data' => ['link' => route('syllabus.versions', ['proposal' => $proposal->id])],
             'is_read' => false,
         ]);

@@ -7,6 +7,7 @@ use App\Models\ClassModel;
 use App\Models\CourseLevel;
 use App\Models\Student;
 use App\Models\SyllabusAssignment;
+use App\Models\SyllabusChangeProposal;
 use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusDocument;
 use App\Models\SyllabusLesson;
@@ -194,5 +195,65 @@ class Phase2MockupSyllabusTest extends TestCase
 
         // Trợ giảng không được chia sẻ → không đánh dấu được
         $this->actingAs($this->assistant)->post(route('syllabus.documents.viewed', $doc->id))->assertNotFound();
+    }
+
+    // ---- 03_Cong_Giao_Vien/09 — Đề xuất sửa giáo trình; 01_Web_Admin/05 — Chi tiết đề xuất ----
+
+    public function test_proposal_targets_lesson_and_detail_matches_mockup(): void
+    {
+        $lesson = $this->lessons[2];
+
+        $this->actingAs($this->teacher)->get(route('syllabus.teacher-propose'))->assertOk()
+            ->assertSee('Chọn giáo trình')
+            ->assertSee('Chọn buổi học (Tùy chọn)')
+            ->assertSee('Mô tả thay đổi đề xuất')
+            ->assertSee('Gửi đề xuất')
+            ->assertSee('Lịch sử đề xuất')
+            ->assertSee('Lọc: tất cả trạng thái');
+
+        // Buổi phải thuộc giáo trình
+        $other = SyllabusCurriculum::create(['code' => 'CUR-OT2', 'title' => 'Khác', 'version' => 'v1']);
+        $this->actingAs($this->teacher)->post(route('syllabus.proposals.store'), [
+            'curriculum_id' => $other->id, 'lesson_id' => $lesson->id, 'new_content' => 'x',
+        ])->assertSessionHasErrors('lesson_id');
+
+        $this->actingAs($this->teacher)->post(route('syllabus.proposals.store'), [
+            'curriculum_id' => $this->curriculum->id, 'lesson_id' => $lesson->id,
+            'old_content' => 'Viết 150 từ', 'new_content' => 'Viết tối thiểu 250 từ', 'reason' => 'Chuẩn đề thi thật',
+        ])->assertSessionHasNoErrors();
+        $proposal = SyllabusChangeProposal::firstOrFail();
+        $this->assertSame($lesson->id, $proposal->lesson_id);
+        $this->assertSame($lesson->unit_id, $proposal->unit_id);
+
+        $this->actingAs($this->teacher)->get(route('syllabus.teacher-propose'))->assertOk()
+            ->assertSee('Giáo trình / Buổi')->assertSee('Buổi 3')->assertSee('Viết tối thiểu 250 từ');
+        $this->actingAs($this->teacher)->get(route('syllabus.teacher-propose', ['status' => 'rejected']))->assertOk()
+            ->assertDontSee('Viết tối thiểu 250 từ');
+
+        $detail = route('syllabus.versions', ['proposal' => $proposal->id]);
+        $this->actingAs($this->academic)->get($detail)->assertOk()
+            ->assertSee('Chi tiết đề xuất')
+            ->assertSee('Thông tin chung')
+            ->assertSee('Buổi học/Unit cần sửa')
+            ->assertSee('Buổi 3: Buổi mẫu 3 (Unit 2)')
+            ->assertSee('Người đề xuất')
+            ->assertSee('Giáo viên Giảng dạy (Teacher)')
+            ->assertSee('Nội dung thay đổi chi tiết')
+            ->assertSee('Chưa phân công')
+            ->assertSee('Phản hồi từ người duyệt')
+            ->assertSee('Lịch sử xử lý')
+            ->assertSee('Đang chờ xử lý')
+            ->assertSee(route('syllabus.proposals.reject', $proposal->id), false);
+
+        // Một ô phản hồi dùng chung: từ chối bắt buộc có phản hồi
+        $this->actingAs($this->academic)->post(route('syllabus.proposals.reject', $proposal->id), ['review_note' => ''])->assertSessionHasErrors('review_note');
+        $this->actingAs($this->academic)->post(route('syllabus.proposals.approve', $proposal->id), ['review_note' => 'Đồng ý'])->assertSessionHasNoErrors();
+
+        // Chưa tự áp nội dung (chưa có quyết định BA): nhắc Học thuật mở buổi để cập nhật tay
+        $this->actingAs($this->academic)->get($detail)->assertOk()
+            ->assertSee('Học Thuật Mockup')
+            ->assertSee('Mở buổi để cập nhật')
+            ->assertSee('edit_lesson='.$lesson->id, false);
+        $this->assertNotSame('Viết tối thiểu 250 từ', $lesson->fresh()->content);
     }
 }
