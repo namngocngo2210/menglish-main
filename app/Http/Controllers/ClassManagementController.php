@@ -133,6 +133,11 @@ class ClassManagementController extends Controller
      * Lưu lớp học mới. Nếu form đã render thời khóa biểu (schedule_sessions_json),
      * hệ thống tạo luôn các buổi học thực tế, ghi ngày khai giảng và kích hoạt lớp.
      */
+    private const CAPACITY_MESSAGES = [
+        'min_students.lte' => 'Ngưỡng khai giảng không được lớn hơn sĩ số tối đa.',
+        'min_students.min' => 'Ngưỡng khai giảng phải từ 1 học viên.',
+    ];
+
     public function store(Request $request)
     {
         abort_if(! auth()->user()->can('class.create'), 403, 'Bạn không có quyền tạo lớp học.');
@@ -144,6 +149,8 @@ class ClassManagementController extends Controller
             'chuong_trinh' => 'required|string|max:100',
             'cap_do' => 'required|string|max:100',
             'si_so_toi_da' => 'required|integer|min:1|max:100',
+            // Ngưỡng khai giảng (số học viên tối thiểu để mở lớp) không được vượt sĩ số tối đa.
+            'min_students' => 'nullable|integer|min:1|max:100|lte:si_so_toi_da',
             'phong_hoc' => 'nullable|string|max:50',
             'giao_vien_chinh' => 'nullable|integer|exists:users,id',
             'tro_giang' => 'nullable|integer|exists:users,id',
@@ -151,7 +158,7 @@ class ClassManagementController extends Controller
             'hoc_phi' => 'nullable|numeric|min:0',
             'ghi_chu' => 'nullable|string',
             'schedule_sessions_json' => 'nullable|string|max:200000',
-        ]);
+        ], self::CAPACITY_MESSAGES);
 
         $scheduleSessions = $this->parseScheduleSessions($request->input('schedule_sessions_json'));
 
@@ -210,6 +217,7 @@ class ClassManagementController extends Controller
                 'program' => $validated['chuong_trinh'],
                 'level' => $validated['cap_do'],
                 'max_capacity' => $validated['si_so_toi_da'],
+                'min_students' => $validated['min_students'] ?? min(ClassModel::DEFAULT_MIN_STUDENTS, (int) $validated['si_so_toi_da']),
                 'room' => $defaultRoom,
                 'teacher_id' => $teacherId,
                 'assistant_id' => $assistantId,
@@ -571,6 +579,8 @@ class ClassManagementController extends Controller
             'chuong_trinh' => 'required|string|max:100',
             'cap_do' => 'required|string|max:100',
             'si_so_toi_da' => 'required|integer|min:1|max:100',
+            // Ngưỡng khai giảng (số học viên tối thiểu để mở lớp) không được vượt sĩ số tối đa.
+            'min_students' => 'nullable|integer|min:1|max:100|lte:si_so_toi_da',
             'phong_hoc' => 'nullable|string|max:50',
             'giao_vien_chinh' => 'nullable|integer|exists:users,id',
             'tro_giang' => 'nullable|integer|exists:users,id',
@@ -581,7 +591,7 @@ class ClassManagementController extends Controller
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
             'schedule_text' => 'nullable|string|max:500',
-        ]);
+        ], self::CAPACITY_MESSAGES);
 
         $branchId = is_numeric($validated['chi_nhanh'])
             ? (int) $validated['chi_nhanh']
@@ -622,7 +632,8 @@ class ClassManagementController extends Controller
 
         // Chỉ buổi chưa diễn ra, chưa điểm danh/check-in mới được đồng bộ nhân sự/phòng;
         // buổi quá khứ là dữ liệu lịch sử (bảng công, điểm danh khớp theo buổi).
-        $futureSessions = ClassSession::where('class_id', $class->id)->replaceable()->get();
+        // Gồm cả buổi học bù (type makeup) xếp khi thêm ngày nghỉ.
+        $futureSessions = ClassSession::where('class_id', $class->id)->staffSyncable()->get();
         $this->assertStaffChangeHasNoConflicts($class, $futureSessions, $branchId, [
             'teacher' => $newTeacherId ?? $newForeignTeacherId,
             'teacher_field' => $newTeacherId ? 'giao_vien_chinh' : 'giao_vien_nn',
@@ -641,6 +652,7 @@ class ClassManagementController extends Controller
                 'program' => $validated['chuong_trinh'],
                 'level' => $validated['cap_do'],
                 'max_capacity' => $validated['si_so_toi_da'],
+                'min_students' => $validated['min_students'] ?? min((int) ($class->min_students ?: ClassModel::DEFAULT_MIN_STUDENTS), (int) $validated['si_so_toi_da']),
                 'room' => $newRoom,
                 'teacher_id' => $newTeacherId,
                 'assistant_id' => $newAssistantId,

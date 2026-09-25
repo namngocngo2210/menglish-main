@@ -10,6 +10,7 @@ use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\User;
 use App\Services\DocumentCodeGenerator;
+use App\Services\StudentDeferralService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -312,7 +313,7 @@ class StudentProfileController extends Controller
      * Đổi trạng thái học tập (6 trạng thái BA chốt) qua action riêng, tách khỏi sửa hồ sơ.
      * Chuyển sang Thôi học sẽ bỏ học viên khỏi lớp đang học (xem Student::booted).
      */
-    public function updateStudentStatus(Request $request, $id)
+    public function updateStudentStatus(Request $request, $id, StudentDeferralService $deferrals)
     {
         $student = $this->findVisibleStudent($request->user(), $id);
         $validated = $request->validate([
@@ -320,7 +321,13 @@ class StudentProfileController extends Controller
         ]);
 
         $oldLabel = $student->status_label;
+        $wasDeferred = $student->status === 'deferred';
         $student->update(['status' => $validated['status']]);
+
+        // Rời "Bảo lưu" bằng tay: bỏ đóng băng học phí để nhắc nợ / số buổi chạy lại như thường.
+        if ($wasDeferred && $student->status !== 'deferred' && $student->tuition) {
+            $deferrals->releaseTuition($student->tuition, null, $request->user()?->name ?? 'hệ thống');
+        }
 
         $message = "Đã chuyển trạng thái học viên {$student->name} từ \"{$oldLabel}\" sang \"{$student->status_label}\".";
         if ($student->wasChanged('status') && $student->status === Student::STATUS_DROPPED) {
@@ -328,6 +335,21 @@ class StudentProfileController extends Controller
         }
 
         return redirect()->route('students.show', $student->id)->with('status', $message);
+    }
+
+    /** "Kết thúc bảo lưu" thủ công (kết thúc sớm hoặc học viên bảo lưu không có hạn). */
+    public function endDeferral(Request $request, $id, StudentDeferralService $deferrals)
+    {
+        $student = $this->findVisibleStudent($request->user(), $id);
+        $newStatus = $deferrals->end($student, $request->user());
+
+        if ($newStatus === null) {
+            return redirect()->route('students.show', $student->id)
+                ->withErrors(['status' => 'Học viên không ở trạng thái Bảo lưu.']);
+        }
+
+        return redirect()->route('students.show', $student->id)
+            ->with('status', "Đã kết thúc bảo lưu cho học viên {$student->name}: chuyển sang \"".Student::STATUSES[$newStatus].'".');
     }
 
     public function destroyStudent(Request $request, $id)

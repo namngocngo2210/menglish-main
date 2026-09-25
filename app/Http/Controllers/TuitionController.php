@@ -23,6 +23,7 @@ use App\Services\NotificationService;
 use App\Services\SafeUploadService;
 use App\Services\SalesCommissionService;
 use App\Services\TuitionImportService;
+use App\Support\TuitionBranchScope;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -38,9 +39,18 @@ class TuitionController extends Controller
     /** Minh chứng phiếu thu / hủy hóa đơn: ảnh hoặc PDF (theo nội dung file). */
     private const PROOF_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
 
+    /** Chi nhánh người xem được thao tác ở các màn Học phí (null = toàn hệ thống). Xem TuitionBranchScope. */
+    private function branchScope(): ?array
+    {
+        return TuitionBranchScope::branchIds(Auth::user());
+    }
+
+    private const OUT_OF_SCOPE = 'Khoản học phí này thuộc chi nhánh ngoài phạm vi bạn được quản lý.';
+
     public function students(Request $request)
     {
-        $query = StudentTuition::with(['student', 'classModel', 'branch'])->latest();
+        $scope = $this->branchScope();
+        $query = TuitionBranchScope::tuitions(StudentTuition::with(['student', 'classModel', 'branch'])->latest(), $scope);
 
         if ($search = $request->input('search')) {
             $query->whereHas('student', function ($q) use ($search) {
@@ -63,8 +73,8 @@ class TuitionController extends Controller
         }
 
         $tuitions = $query->paginate($request->perPage(15))->withQueryString();
-        $branches = Branch::all();
-        $classes = ClassModel::orderBy('name')->get();
+        $branches = TuitionBranchScope::branches($scope)->get();
+        $classes = ClassModel::when($scope !== null, fn ($q) => $q->whereIn('branch_id', $scope))->orderBy('name')->get();
 
         return view('tuition.students', compact('tuitions', 'branches', 'classes'));
     }
@@ -179,8 +189,10 @@ class TuitionController extends Controller
 
     private function receiptForm(Request $request, ?TuitionReceipt $editingReceipt)
     {
-        $students = Student::with(['currentClass', 'tuition', 'branch'])->where('status', '!=', 'dropped')->get();
-        $tuitions = StudentTuition::with(['student.branch', 'student.currentClass.course', 'classModel.course', 'receipts', 'bankAccount'])
+        $scope = $this->branchScope();
+        $students = TuitionBranchScope::students(Student::with(['currentClass', 'tuition', 'branch']), $scope)->where('status', '!=', 'dropped')->get();
+        $tuitions = TuitionBranchScope::tuitions(StudentTuition::query(), $scope)
+            ->with(['student.branch', 'student.currentClass.course', 'classModel.course', 'receipts', 'bankAccount'])
             ->where(function ($q) use ($editingReceipt) {
                 $q->where('status', '!=', 'paid');
                 if ($editingReceipt?->student_tuition_id) {
@@ -196,10 +208,10 @@ class TuitionController extends Controller
             $selectedStudent = $editingReceipt->tuition?->student ?? $editingReceipt->student;
         } elseif ($request->filled('tuition_id')) {
             $selectedTuition = $tuitions->firstWhere('id', (int) $request->input('tuition_id'))
-                ?? StudentTuition::with(['student.branch', 'classModel', 'receipts'])->find($request->input('tuition_id'));
+                ?? TuitionBranchScope::tuitions(StudentTuition::query(), $scope)->with(['student.branch', 'classModel', 'receipts'])->find($request->input('tuition_id'));
             $selectedStudent = $selectedTuition?->student;
         } elseif ($request->filled('student_id')) {
-            $selectedStudent = Student::with(['currentClass', 'tuition', 'branch'])->find($request->input('student_id'));
+            $selectedStudent = TuitionBranchScope::students(Student::with(['currentClass', 'tuition', 'branch']), $scope)->find($request->input('student_id'));
             $selectedTuition = $selectedStudent?->tuition;
         }
 
@@ -304,6 +316,10 @@ class TuitionController extends Controller
             ])->withInput();
         }
         $studentId = $validated['student_id'] ?? $tuition?->student_id;
+        $scope = $this->branchScope();
+        abort_unless($tuition
+            ? TuitionBranchScope::allowsTuition($tuition, $scope)
+            : TuitionBranchScope::allowsStudent(Student::with('currentClass')->find($studentId), $scope), 403, self::OUT_OF_SCOPE);
 
         $receiptNumber = TuitionReceipt::generateReceiptNumber();
         // Phiếu thu KHÔNG bao giờ tự duyệt khi lập: chỉ endpoint approve (tuition.approve) mới duyệt & cấp số HĐ.
@@ -621,16 +637,18 @@ class TuitionController extends Controller
 
     public function approveReceipt(Request $request)
     {
-        $branches = Branch::all();
+        $scope = $this->branchScope();
+        $scoped = fn () => TuitionBranchScope::receipts(TuitionReceipt::query(), $scope);
+        $branches = TuitionBranchScope::branches($scope)->get();
 
         // Metrics
-        $pendingCount = TuitionReceipt::where('status', 'pending')->count();
-        $pendingTotal = TuitionReceipt::where('status', 'pending')->sum('amount');
-        $approvedTodayCount = TuitionReceipt::where('status', 'approved')->whereDate('updated_at', today())->count();
-        $rejectedTodayCount = TuitionReceipt::where('status', 'rejected')->whereDate('updated_at', today())->count();
+        $pendingCount = $scoped()->where('status', 'pending')->count();
+        $pendingTotal = $scoped()->where('status', 'pending')->sum('amount');
+        $approvedTodayCount = $scoped()->where('status', 'approved')->whereDate('updated_at', today())->count();
+        $rejectedTodayCount = $scoped()->where('status', 'rejected')->whereDate('updated_at', today())->count();
 
         // Query
-        $query = TuitionReceipt::with([
+        $query = $scoped()->with([
             'tuition.student.branch',
             'tuition.classModel',
             'student.branch',
@@ -682,6 +700,9 @@ class TuitionController extends Controller
                 'creator',
                 'approver',
             ])->find($request->input('selected_id'));
+            if (! TuitionBranchScope::allowsReceipt($selectedReceipt, $scope)) {
+                $selectedReceipt = null;
+            }
         }
 
         if (! $selectedReceipt && $pendingReceipts->isNotEmpty()) {
@@ -689,7 +710,7 @@ class TuitionController extends Controller
         }
 
         if (! $selectedReceipt) {
-            $selectedReceipt = TuitionReceipt::with([
+            $selectedReceipt = $scoped()->with([
                 'tuition.student.branch',
                 'tuition.classModel',
                 'student.branch',
@@ -723,6 +744,7 @@ class TuitionController extends Controller
     public function approveReceiptAction(Request $request, $id)
     {
         $user = $request->user();
+        abort_unless(TuitionBranchScope::allowsReceipt(TuitionReceipt::with(['tuition.student.currentClass', 'student.currentClass'])->findOrFail($id), $this->branchScope()), 403, self::OUT_OF_SCOPE);
         $tuitionId = TuitionReceipt::query()->whereKey($id)->value('student_tuition_id');
 
         // Khoá công nợ trước (cùng thứ tự với SePay/hoàn phí), rồi khoá phiếu; duyệt + tính lại nợ trong CÙNG transaction.
@@ -944,8 +966,17 @@ class TuitionController extends Controller
         return $branchId ? (int) $branchId : null;
     }
 
+    /** Chi nhánh cấp số HĐ cho phiếu sinh tự động (hoàn phí / chuyển nhượng) của một khoản học phí. */
+    private function tuitionBranchId(StudentTuition $tuition): ?int
+    {
+        $branchId = $tuition->branch_id ?? $tuition->student?->branch_id;
+
+        return $branchId ? (int) $branchId : null;
+    }
+
     public function rejectReceiptAction(Request $request, $id)
     {
+        abort_unless(TuitionBranchScope::allowsReceipt(TuitionReceipt::with(['tuition.student.currentClass', 'student.currentClass'])->findOrFail($id), $this->branchScope()), 403, self::OUT_OF_SCOPE);
         $validated = $request->validate([
             'rejection_reason' => 'nullable|string|max:1000',
         ]);
@@ -991,7 +1022,8 @@ class TuitionController extends Controller
 
     public function history(Request $request)
     {
-        $receipts = TuitionReceipt::with(['tuition.student', 'tuition.classModel', 'student', 'creator', 'approver'])
+        $receipts = TuitionBranchScope::receipts(TuitionReceipt::query(), $this->branchScope())
+            ->with(['tuition.student', 'tuition.classModel', 'student', 'creator', 'approver'])
             ->latest()
             ->paginate($request->perPage(15))
             ->withQueryString();
@@ -1001,18 +1033,20 @@ class TuitionController extends Controller
 
     public function invoiceCancellations(Request $request)
     {
-        $branches = Branch::all();
+        $scope = $this->branchScope();
+        $scoped = fn () => $this->scopedCancellations($scope);
+        $branches = TuitionBranchScope::branches($scope)->get();
 
         // Metrics
-        $pendingCount = InvoiceCancellation::where('status', 'pending')->count();
-        $approvedMonthCount = InvoiceCancellation::where('status', 'approved')
+        $pendingCount = $scoped()->where('status', 'pending')->count();
+        $approvedMonthCount = $scoped()->where('status', 'approved')
             ->whereMonth('updated_at', now()->month)
             ->whereYear('updated_at', now()->year)
             ->count();
-        $rejectedCount = InvoiceCancellation::where('status', 'rejected')->count();
+        $rejectedCount = $scoped()->where('status', 'rejected')->count();
 
         // Query
-        $query = InvoiceCancellation::with([
+        $query = $scoped()->with([
             'receipt.tuition.student.branch',
             'receipt.student.branch',
             'student.branch',
@@ -1055,6 +1089,10 @@ class TuitionController extends Controller
             ])->find($request->input('selected_id'));
         }
 
+        if ($selectedCancellation && $scope !== null && ! $scoped()->whereKey($selectedCancellation->id)->exists()) {
+            $selectedCancellation = null;
+        }
+
         if (! $selectedCancellation && $cancellations->isNotEmpty()) {
             $selectedCancellation = $cancellations->first();
         }
@@ -1067,6 +1105,28 @@ class TuitionController extends Controller
             'approvedMonthCount',
             'rejectedCount'
         ));
+    }
+
+    /** Yêu cầu hủy hóa đơn trong phạm vi chi nhánh: theo phiếu thu gắn kèm, thiếu phiếu thì theo học viên. */
+    private function scopedCancellations(?array $scope)
+    {
+        $query = InvoiceCancellation::query();
+        if ($scope === null) {
+            return $query;
+        }
+
+        return $query->where(fn ($q) => $q->whereHas('receipt', fn ($r) => TuitionBranchScope::receipts($r, $scope))
+            ->orWhere(fn ($q) => $q->whereNull('tuition_receipt_id')
+                ->whereHas('student', fn ($s) => TuitionBranchScope::students($s, $scope)))
+            // Yêu cầu không gắn phiếu lẫn học viên (dữ liệu cũ) không thuộc chi nhánh nào: vẫn hiện để xử lý
+            // (duyệt sẽ bị chặn vì không có phiếu để hoàn tác công nợ).
+            ->orWhere(fn ($q) => $q->whereNull('tuition_receipt_id')->whereNull('student_id')));
+    }
+
+    private function abortUnlessCancellationInScope($id): void
+    {
+        $scope = $this->branchScope();
+        abort_if($scope !== null && ! $this->scopedCancellations($scope)->whereKey($id)->exists(), 403, self::OUT_OF_SCOPE);
     }
 
     public function storeInvoiceCancellation(Request $request)
@@ -1120,6 +1180,7 @@ class TuitionController extends Controller
 
     public function approveInvoiceCancellation(Request $request, $id)
     {
+        $this->abortUnlessCancellationInScope($id);
         $receiptId = InvoiceCancellation::query()->whereKey($id)->value('tuition_receipt_id');
         $tuitionId = $receiptId ? TuitionReceipt::query()->whereKey($receiptId)->value('student_tuition_id') : null;
 
@@ -1143,6 +1204,11 @@ class TuitionController extends Controller
                 'rejection_reason' => null,
             ]);
 
+            // Hoa hồng của phiếu đã chi trong kỳ lương đã duyệt → thu hồi ở kỳ kế tiếp (kỳ chưa duyệt tự tính lại).
+            $clawback = app(SalesCommissionService::class)
+                ->recordCancellationClawback($receipt, Auth::user(), (string) $cancellation->invoice_number);
+            $cancellation->setAttribute('commission_clawback', $clawback);
+
             // Giữ nguyên invoice_number (không tái sử dụng số HĐ), chỉ vô hiệu phiếu.
             $receipt->update([
                 'status' => TuitionReceipt::STATUS_CANCELLED,
@@ -1157,11 +1223,18 @@ class TuitionController extends Controller
             return redirect()->back()->withErrors(['cancellation' => $result]);
         }
 
-        return redirect()->back()->with('status', "Đã duyệt hủy hóa đơn {$result->invoice_number} và hoàn tác công nợ học viên!");
+        $message = "Đã duyệt hủy hóa đơn {$result->invoice_number} và hoàn tác công nợ học viên!";
+        if ($clawback = $result->getAttribute('commission_clawback')) {
+            $message .= ' Kỳ lương chứa phiếu đã duyệt: thu hồi '.number_format(abs((float) $clawback->amount), 0, ',', '.')
+                .' VNĐ hoa hồng của '.($clawback->user?->name ?? 'sale').' ở lần tính lương kế tiếp.';
+        }
+
+        return redirect()->back()->with('status', $message);
     }
 
     public function rejectInvoiceCancellation(Request $request, $id)
     {
+        $this->abortUnlessCancellationInScope($id);
         $validated = $request->validate([
             'rejection_reason' => 'nullable|string|max:1000',
         ]);
@@ -1189,7 +1262,10 @@ class TuitionController extends Controller
 
     public function refunds()
     {
-        $refundRequests = TuitionRefundRequest::with(['student.currentClass', 'student.tuition', 'targetStudent.currentClass', 'requester', 'approver', 'clawbackUser'])->latest()->get();
+        $scope = $this->branchScope();
+        $refundRequests = TuitionRefundRequest::with(['student.currentClass', 'student.tuition', 'targetStudent.currentClass', 'requester', 'approver', 'clawbackUser'])
+            ->when($scope !== null, fn ($q) => $q->whereHas('student', fn ($s) => TuitionBranchScope::students($s, $scope)))
+            ->latest()->get();
         // Gợi ý thu hồi hoa hồng cho hồ sơ hoàn phí đang chờ duyệt (học < 1 tháng → có).
         $commissionService = app(SalesCommissionService::class);
         $clawbackHints = $refundRequests->where('status', 'pending')->where('type', 'refund')
@@ -1199,7 +1275,7 @@ class TuitionController extends Controller
                 'owner' => ($ownerId = $commissionService->ownerOfStudent((int) $refund->student_id)) ? User::find($ownerId)?->name : null,
                 'start' => $commissionService->studyStartDate((int) $refund->student_id),
             ]]);
-        $students = Student::with(['currentClass.course', 'tuition.classModel.course', 'branch'])->orderBy('name')->get();
+        $students = TuitionBranchScope::students(Student::with(['currentClass.course', 'tuition.classModel.course', 'branch']), $scope)->orderBy('name')->get();
 
         // Số liệu thật cho bảng tính hoàn phí / chuyển nhượng / bảo lưu (không còn số ghi cứng).
         $studentFinance = $students->mapWithKeys(fn (Student $student) => [$student->id => $this->refundBasis($student)]);
@@ -1267,8 +1343,9 @@ class TuitionController extends Controller
             'defer_to.after' => 'Ngày kết thúc bảo lưu phải sau ngày bắt đầu.',
         ]);
 
-        $student = Student::with('tuition')->find($validated['student_id']);
+        $student = Student::with(['tuition', 'currentClass'])->find($validated['student_id']);
         $type = $validated['type'];
+        abort_unless(TuitionBranchScope::allowsStudent($student, $this->branchScope()), 403, self::OUT_OF_SCOPE);
 
         if (in_array($type, [TuitionRefundRequest::TYPE_EXTENSION, TuitionRefundRequest::TYPE_DEFERRAL], true) && ! $student?->tuition) {
             return redirect()->back()->withErrors(['student_id' => 'Học viên chưa có hồ sơ học phí để khất nợ / bảo lưu.'])->withInput();
@@ -1317,6 +1394,8 @@ class TuitionController extends Controller
             'clawback_commission' => ['nullable', 'boolean'],
             'clawback_amount' => ['nullable', 'numeric', 'min:0'],
         ]);
+
+        abort_unless(TuitionBranchScope::allowsStudent(TuitionRefundRequest::with('student.currentClass')->findOrFail($id)->student, $this->branchScope()), 403, self::OUT_OF_SCOPE);
 
         $result = DB::transaction(function () use ($id, $clawbackInput) {
             $refund = TuitionRefundRequest::query()->lockForUpdate()->findOrFail($id);
@@ -1382,7 +1461,8 @@ class TuitionController extends Controller
             // Bên nguồn: phiếu âm + giảm giá trị hợp đồng tương ứng để công nợ không tăng giả.
             TuitionReceipt::create([
                 'receipt_number' => TuitionReceipt::generateReceiptNumber(),
-                'invoice_number' => InvoiceConfiguration::consumeNextInvoiceNumber(),
+                // Số HĐ lấy theo dải của chi nhánh học viên (hết/không có dải → dải mặc định), như phiếu thu thường.
+                'invoice_number' => InvoiceConfiguration::consumeNextInvoiceNumber($this->tuitionBranchId($sourceTuition)),
                 'student_tuition_id' => $sourceTuition->id,
                 'student_id' => $sourceTuition->student_id,
                 'amount' => -$amount,
@@ -1413,7 +1493,7 @@ class TuitionController extends Controller
             // Bên nhận: phiếu dương cấn trừ công nợ (đã chặn vượt nợ ở trên nên không thất thoát).
             TuitionReceipt::create([
                 'receipt_number' => TuitionReceipt::generateReceiptNumber(),
-                'invoice_number' => InvoiceConfiguration::consumeNextInvoiceNumber(),
+                'invoice_number' => InvoiceConfiguration::consumeNextInvoiceNumber($this->tuitionBranchId($targetTuition)),
                 'student_tuition_id' => $targetTuition->id,
                 'student_id' => $targetTuition->student_id,
                 'amount' => $amount,
@@ -1514,6 +1594,7 @@ class TuitionController extends Controller
 
     public function rejectRefundRequest($id)
     {
+        abort_unless(TuitionBranchScope::allowsStudent(TuitionRefundRequest::with('student.currentClass')->findOrFail($id)->student, $this->branchScope()), 403, self::OUT_OF_SCOPE);
         $refund = DB::transaction(function () use ($id) {
             $refund = TuitionRefundRequest::query()->lockForUpdate()->findOrFail($id);
             if ($refund->status !== 'pending') {
@@ -1547,7 +1628,9 @@ class TuitionController extends Controller
         $upcomingDays = (int) config('tuition.upcoming_days', 14);
         $today = now()->startOfDay();
 
-        $query = StudentTuition::with(['student', 'classModel.course', 'branch', 'contactLogs.user'])
+        $scope = $this->branchScope();
+        $query = TuitionBranchScope::tuitions(StudentTuition::query(), $scope)
+            ->with(['student', 'classModel.course', 'branch', 'contactLogs.user'])
             ->where('debt_amount', '>', 0)
             ->whereNotNull('due_date')
             ->where(function ($q) use ($today, $upcomingDays) {
@@ -1598,7 +1681,7 @@ class TuitionController extends Controller
         $overdueTuitions = $seriousOverdue->concat($newOverdue);
 
         // Thống kê công nợ quá hạn theo chi nhánh / lớp (toàn bộ khoản đang nợ, không theo bộ lọc tìm kiếm).
-        $allDebts = StudentTuition::with(['branch', 'classModel'])->where('debt_amount', '>', 0)->get();
+        $allDebts = TuitionBranchScope::tuitions(StudentTuition::query(), $scope)->with(['branch', 'classModel'])->where('debt_amount', '>', 0)->get();
         $isOverdue = fn (StudentTuition $t) => $t->due_date && $t->due_date->lt($today) && ! $t->remindersPausedOn();
         $statsByBranch = $allDebts->groupBy('branch_id')->map(fn ($items) => [
             'branch_name' => $items->first()->branch?->name ?? 'Chưa gán chi nhánh',
@@ -1614,8 +1697,8 @@ class TuitionController extends Controller
             'overdue_count' => $items->filter($isOverdue)->count(),
         ])->values();
 
-        $branches = Branch::where('is_active', true)->get();
-        $classes = ClassModel::orderBy('name')->get();
+        $branches = TuitionBranchScope::branches($scope)->where('is_active', true)->get();
+        $classes = ClassModel::when($scope !== null, fn ($q) => $q->whereIn('branch_id', $scope))->orderBy('name')->get();
 
         return view('tuition.overdue', compact(
             'seriousOverdue',
@@ -1643,7 +1726,8 @@ class TuitionController extends Controller
             'contacted_at.before_or_equal' => 'Thời gian liên hệ không được ở tương lai.',
         ]);
 
-        $tuition = StudentTuition::with('student')->findOrFail($id);
+        $tuition = StudentTuition::with('student.currentClass')->findOrFail($id);
+        abort_unless(TuitionBranchScope::allowsTuition($tuition, $this->branchScope()), 403, self::OUT_OF_SCOPE);
 
         TuitionContactLog::create([
             'student_tuition_id' => $tuition->id,
@@ -1663,7 +1747,8 @@ class TuitionController extends Controller
             'note' => 'nullable|string|max:1000',
         ]);
 
-        $tuition = StudentTuition::with(['student', 'classModel', 'branch'])->findOrFail($id);
+        $tuition = StudentTuition::with(['student.currentClass', 'classModel', 'branch'])->findOrFail($id);
+        abort_unless(TuitionBranchScope::allowsTuition($tuition, $this->branchScope()), 403, self::OUT_OF_SCOPE);
         $days = $tuition->daysOverdue();
         $reporter = $request->user();
 
@@ -1706,7 +1791,8 @@ class TuitionController extends Controller
 
     public function sendUpcomingReminder($id)
     {
-        $tuition = StudentTuition::with(['student', 'classModel'])->findOrFail($id);
+        $tuition = StudentTuition::with(['student.currentClass', 'classModel'])->findOrFail($id);
+        abort_unless(TuitionBranchScope::allowsTuition($tuition, $this->branchScope()), 403, self::OUT_OF_SCOPE);
 
         try {
             $result = app(NotificationService::class)->notifyDebtReminderByMilestone($tuition);
@@ -1723,7 +1809,8 @@ class TuitionController extends Controller
 
     public function sendOverdueReminder($id)
     {
-        $tuition = StudentTuition::with(['student', 'classModel'])->findOrFail($id);
+        $tuition = StudentTuition::with(['student.currentClass', 'classModel'])->findOrFail($id);
+        abort_unless(TuitionBranchScope::allowsTuition($tuition, $this->branchScope()), 403, self::OUT_OF_SCOPE);
 
         try {
             $result = app(NotificationService::class)->notifyDebtReminderByMilestone($tuition);

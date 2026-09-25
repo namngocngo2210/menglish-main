@@ -178,6 +178,20 @@
 
             <!-- Lifecycle Status Switcher Form -->
             @can('student.change_status')
+            <div class="flex flex-wrap items-center gap-3">
+            @if ($student->status === 'deferred')
+                {{-- Kết thúc bảo lưu: về Đang học (lớp đã khai giảng) / Chờ khai giảng, bỏ đóng băng học phí, báo Học vụ. --}}
+                <form action="{{ route('students.end-deferral', $student->id) }}" method="POST"
+                      onsubmit="return confirm('Kết thúc bảo lưu cho học viên này? Học viên sẽ về Đang học (hoặc Chờ khai giảng nếu lớp chưa khai giảng) và công nợ, nhắc nợ chạy lại.')">
+                    @csrf
+                    <x-ui.button type="submit" variant="secondary" size="sm" icon="play_circle">
+                        Kết thúc bảo lưu
+                        @if ($student->tuition?->deferred_until)
+                            <span class="text-on-surface-variant">(hạn {{ $student->tuition->deferred_until->format('d/m/Y') }})</span>
+                        @endif
+                    </x-ui.button>
+                </form>
+            @endif
             <form action="{{ route('students.status.update', $student->id) }}" method="POST" class="relative">
                 @csrf
                 @method('PUT')
@@ -191,6 +205,7 @@
                     </select>
                 </div>
             </form>
+            </div>
             @endcan
         </section>
 

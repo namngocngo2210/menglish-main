@@ -133,6 +133,21 @@
                                    class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
                             <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[11px] text-gray-400 font-medium">học viên</div>
                         </div>
+                        @error('si_so_toi_da') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
+                    </div>
+
+                    <!-- Ngưỡng khai giảng -->
+                    <div class="md:col-span-4">
+                        <label for="min_students" class="block text-xs font-bold text-gray-700 mb-1.5">Ngưỡng khai giảng</label>
+                        <div class="relative">
+                            <input type="number" id="min_students" name="min_students"
+                                   min="1" max="100"
+                                   value="{{ old('min_students', $class->min_students ?? 6) }}"
+                                   class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
+                            <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[11px] text-gray-400 font-medium">học viên</div>
+                        </div>
+                        <p class="text-[11px] text-gray-400 mt-1">Số học viên tối thiểu để mở lớp; không vượt sĩ số tối đa.</p>
+                        @error('min_students') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
                     </div>
 
                     <!-- Trạng thái -->

@@ -234,17 +234,11 @@ class Penalty extends Model
                 ->orWhereIn('payroll_record_id', $period->records()->select('id')));
     }
 
+    /**
+     * Mã biên bản BB-YYYY-NNN, lấy từ bộ sinh mã dùng chung (không đếm bản ghi nữa).
+     */
     public static function generateCode(): string
     {
-        $prefix = 'BB-'.date('Y').'-';
-        $last = static::where('code', 'like', $prefix.'%')->pluck('code')
-            ->map(fn (string $code) => (int) substr($code, strlen($prefix)))
-            ->max() ?? 0;
-
-        do {
-            $code = $prefix.str_pad((string) ++$last, 3, '0', STR_PAD_LEFT);
-        } while (static::where('code', $code)->exists());
-
-        return $code;
+        return app(\App\Services\DocumentCodeGenerator::class)->penaltyCode();
     }
 }
