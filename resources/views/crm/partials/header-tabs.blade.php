@@ -31,7 +31,7 @@
             Danh sách
         </a>
         <a href="{{ route('crm.waiting-list') }}" class="pb-3 border-b-2 transition whitespace-nowrap {{ request()->routeIs('crm.waiting-list') ? 'border-[#ea580c] text-[#ea580c] font-bold' : 'border-transparent text-gray-600 hover:text-gray-900' }}">
-            Danh sách chờ lớp
+            Chờ xếp lớp
         </a>
         <a href="{{ route('crm.reports') }}" class="pb-3 border-b-2 transition whitespace-nowrap {{ request()->routeIs('crm.reports') ? 'border-[#ea580c] text-[#ea580c] font-bold' : 'border-transparent text-gray-600 hover:text-gray-900' }}">
             Báo cáo doanh số

@@ -5,7 +5,8 @@
                 <span class="material-symbols-outlined text-primary text-2xl">how_to_reg</span>
                 Cổng Giáo viên — Check-in & Lịch dạy hôm nay
             </h1>
-            <p class="text-xs text-gray-500 mt-0.5">Xin chào {{ $teacher->name }} · {{ \Carbon\Carbon::parse($today)->format('d/m/Y') }}</p>
+            <p class="text-xs text-gray-500 mt-0.5">Xin chào {{ $teacher->name }} · {{ \Carbon\Carbon::parse($today)->format('d/m/Y') }}
+                · <a href="{{ route('teacher.trial-guests') }}" class="font-semibold text-primary hover:underline">Khách học thử</a></p>
         </div>
     </x-slot>
 

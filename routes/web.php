@@ -32,6 +32,7 @@ use App\Http\Controllers\SyllabusController;
 use App\Http\Controllers\SystemCategoryController;
 use App\Http\Controllers\SystemConfigController;
 use App\Http\Controllers\TeacherPortalController;
+use App\Http\Controllers\TrialGuestController;
 use App\Http\Controllers\TuitionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserPermissionOverrideController;
@@ -117,16 +118,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/customers/create', [CrmController::class, 'createCustomer'])->middleware('can:lead.create')->name('customers.create');
         Route::get('/customers/{id}', [CrmController::class, 'showCustomer'])->name('customers.show');
         Route::put('/customers/{id}', [CrmController::class, 'updateCustomer'])->middleware('can:lead.update')->name('customers.update');
-        Route::post('/customers/{id}/stage', [CrmController::class, 'updateStage'])->middleware('can:lead.update')->name('customers.stage');
-        Route::post('/customers/{id}/next-stage', [CrmController::class, 'nextStage'])->middleware('can:lead.update')->name('customers.next-stage');
+        // Quyền chuyển giai đoạn theo vai trò (CM tiến 1 bước, Admin lùi bước) do CrmStageService kiểm tra.
+        Route::post('/customers/{id}/stage', [CrmController::class, 'updateStage'])->name('customers.stage');
+        Route::post('/customers/{id}/next-stage', [CrmController::class, 'nextStage'])->name('customers.next-stage');
         Route::delete('/customers/{id}', [CrmController::class, 'destroyCustomer'])->middleware('can:lead.delete')->name('customers.destroy');
         Route::post('/customers/{id}/notes', [CrmController::class, 'addNote'])->middleware('can:lead.update')->name('customers.notes.store');
         Route::post('/customers/{id}/schedule-test', [CrmController::class, 'schedulePlacementTest'])->middleware('can:entrance_test.send')->name('customers.schedule-test');
         Route::post('/customers/{id}/test-score', [CrmController::class, 'saveTestScore'])->middleware('can:entrance_test.grade')->name('customers.save-test-score');
-        Route::post('/customers/{id}/schedule-trial', [CrmController::class, 'scheduleTrial'])->middleware('can:lead.update')->name('customers.schedule-trial');
-        Route::post('/customers/{id}/trial-feedback', [CrmController::class, 'saveTrialFeedback'])->middleware('can:entrance_test.grade')->name('customers.trial-feedback');
-        Route::post('/customers/{id}/trial-status', [CrmController::class, 'updateTrialStatus'])->middleware('can:lead.update')->name('customers.trial-status');
-        Route::post('/customers/{id}/waiting-list', [CrmController::class, 'addToWaitingList'])->middleware('can:lead.update')->name('customers.waiting-list');
+        Route::post('/customers/{id}/trial-bookings', [CrmController::class, 'storeTrialBooking'])->name('customers.trial-bookings.store');
+        Route::post('/customers/{id}/trial-bookings/{booking}/cancel', [CrmController::class, 'cancelTrialBooking'])->name('customers.trial-bookings.cancel');
+        Route::post('/customers/{id}/assign-class', [CrmController::class, 'assignClass'])->middleware('can:student.assign_class')->name('customers.assign-class');
         Route::get('/customers/{id}/edit', [CrmController::class, 'editCustomer'])->middleware('can:lead.update')->name('customers.edit');
         Route::get('/customers-won', [CrmController::class, 'wonCustomers'])->name('customers.won');
         Route::get('/closing-wizard', [CrmController::class, 'closingWizard'])->middleware('can:lead.convert')->name('closing-wizard');
@@ -537,6 +538,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/big-test-report', 'bigTestReport')->name('big-test-report');
         Route::get('/general-report', 'generalReport')->name('general-report');
     });
+    // Khách học thử trên buổi dạy của giáo viên + phản hồi gắn với lead
+    Route::get('/teacher/trial-guests', [TrialGuestController::class, 'index'])->name('teacher.trial-guests');
+    Route::post('/teacher/trial-guests/{booking}/feedback', [TrialGuestController::class, 'feedback'])->name('teacher.trial-guests.feedback');
 
     // ──────────────────────────────────────
     // Báo cáo & Nhật ký (Học vụ ngày / Học thuật tuần / GV tháng / Admin tổng)

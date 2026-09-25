@@ -501,7 +501,7 @@ class TuitionBusinessTest extends TestCase
             'name' => 'Nguyễn Thị Bích Phương',
             'phone' => '0988 777 666',
             'branch_id' => $this->branch->id,
-            'stage' => 'closing',
+            'stage' => 'result_sent',
         ]);
 
         $feeItems = collect([

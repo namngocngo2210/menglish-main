@@ -132,7 +132,7 @@ class CrmTest extends TestCase
             'code' => 'KH-CW001',
             'name' => 'Hoàng Mai Phương',
             'phone' => '0933 444 555',
-            'stage' => 'closing',
+            'stage' => 'result_sent',
         ]);
         $course = Course::create([
             'code' => 'COURSE-CW', 'name' => 'IELTS 6.5 Intensive', 'tuition_fee' => 14000000, 'is_active' => true,

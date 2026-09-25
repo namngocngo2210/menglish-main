@@ -142,7 +142,7 @@ class CrmSalesDataScopeTest extends TestCase
             'code' => 'KH-BOB-SECRET',
             'name' => 'Khách VIP của Bob',
             'phone' => '0955555555',
-            'stage' => 'closing',
+            'stage' => 'result_sent',
             'branch_id' => $this->branch->id,
             'assigned_user_id' => $this->saleBob->id,
         ]);
