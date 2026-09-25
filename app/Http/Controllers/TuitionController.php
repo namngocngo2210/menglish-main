@@ -1117,7 +1117,10 @@ class TuitionController extends Controller
 
         return $query->where(fn ($q) => $q->whereHas('receipt', fn ($r) => TuitionBranchScope::receipts($r, $scope))
             ->orWhere(fn ($q) => $q->whereNull('tuition_receipt_id')
-                ->whereHas('student', fn ($s) => TuitionBranchScope::students($s, $scope))));
+                ->whereHas('student', fn ($s) => TuitionBranchScope::students($s, $scope)))
+            // Yêu cầu không gắn phiếu lẫn học viên (dữ liệu cũ) không thuộc chi nhánh nào: vẫn hiện để xử lý
+            // (duyệt sẽ bị chặn vì không có phiếu để hoàn tác công nợ).
+            ->orWhere(fn ($q) => $q->whereNull('tuition_receipt_id')->whereNull('student_id')));
     }
 
     private function abortUnlessCancellationInScope($id): void
