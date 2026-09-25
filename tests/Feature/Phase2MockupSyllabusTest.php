@@ -301,4 +301,59 @@ class Phase2MockupSyllabusTest extends TestCase
         $this->actingAs($this->academic)->get(route('syllabus.assignments', ['status' => 'completed']))->assertOk()
             ->assertSee('0 lượt');
     }
+
+    // ---- 03_Cong_Giao_Vien/14 — Xin điều chỉnh tiến độ; 01_Web_Admin/04 — Duyệt yêu cầu điều chỉnh tiến độ ----
+
+    public function test_progress_adjustment_screens_match_mockups(): void
+    {
+        // Chưa có chặng mở → trạng thái trống như mockup
+        $this->actingAs($this->teacher)->get(route('syllabus.teacher-adjust'))->assertOk()
+            ->assertSee('Xin điều chỉnh tiến độ')
+            ->assertSee('Không có chặng học nào đang mở');
+
+        $this->openStage();
+        $this->actingAs($this->teacher)->get(route('syllabus.teacher-adjust'))->assertOk()
+            ->assertSee('Gửi yêu cầu')
+            ->assertSee('Lớp học / Chặng học')
+            ->assertSee('Lớp Mockup 01 - Chặng 1: Nền tảng (MK-01)')
+            ->assertSee('Lý do xin điều chỉnh')
+            ->assertSee('Số buổi cần thêm')
+            ->assertSee('1 buổi')->assertSee('2 buổi')
+            ->assertDontSee('Xin thêm 02 buổi phụ đạo Speaking'); // bỏ loại điều chỉnh soạn sẵn
+
+        // Mockup không có "loại điều chỉnh": hệ thống tự đặt theo số buổi
+        $this->actingAs($this->teacher)->post(route('syllabus.adjustment-requests.store'), [
+            'class_id' => $this->class->id, 'reason' => 'Học sinh chưa nắm vững Speaking', 'extra_sessions' => 2,
+        ])->assertSessionHasNoErrors();
+        $req = \App\Models\SyllabusAdjustmentRequest::firstOrFail();
+        $this->assertSame('Xin giãn tiến độ thêm 2 buổi', $req->request_type);
+        $this->assertNotNull($req->syllabus_assignment_id);
+
+        $this->actingAs($this->teacher)->get(route('syllabus.teacher-adjust'))->assertOk()
+            ->assertSee('Danh sách yêu cầu đã gửi')
+            ->assertSee('Lớp / Chặng')
+            ->assertSee('Số buổi thêm')
+            ->assertSee('Lớp Mockup 01 - Chặng 1: Nền tảng');
+
+        // Màn duyệt: thẻ có SLA còn hạn / quá hạn, lớp - chặng, xin thêm N buổi, luồng từ chối có xác nhận
+        $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests'))->assertOk()
+            ->assertSee('Duyệt yêu cầu xin điều chỉnh tiến độ')
+            ->assertSee('Danh sách chờ duyệt')
+            ->assertSee('1 Yêu cầu')
+            ->assertSee('Còn hạn')
+            ->assertSee('Xin thêm:')
+            ->assertSee('Chi tiết yêu cầu')
+            ->assertSee('Lý do xin giãn tiến độ')
+            ->assertSee('Lý do từ chối (Bắt buộc)')
+            ->assertSee('Xác nhận từ chối')
+            ->assertSee('GV-MK-01');
+
+        $req->forceFill(['created_at' => now()->subHours(\App\Models\SyllabusAdjustmentRequest::SLA_HOURS + 1)])->save();
+        $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests'))->assertOk()->assertSee('Quá hạn');
+
+        $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.reject', $req->id), ['rejection_reason' => 'Chưa đủ căn cứ'])->assertRedirect();
+        // Mặc định lọc "chờ duyệt"; "Tất cả" vẫn thấy yêu cầu đã xử lý
+        $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests'))->assertOk()->assertSee('0 Yêu cầu');
+        $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests', ['status' => 'all']))->assertOk()->assertSee('Chưa đủ căn cứ');
+    }
 }

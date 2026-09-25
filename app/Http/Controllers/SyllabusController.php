@@ -824,42 +824,53 @@ class SyllabusController extends Controller
     public function teacherAdjust(Request $request)
     {
         $user = $request->user();
-        $classes = ClassModel::visibleTo($user)->where('status', '!=', 'cancelled')->orderBy('name')->get();
-        $requests = SyllabusAdjustmentRequest::with(['classModel', 'teacher'])
+        // Mockup: chỉ chọn được lớp đang có chặng mở (giãn tiến độ cho chặng đang học).
+        $openAssignments = SyllabusAssignment::open()->with('stage')
+            ->whereIn('class_id', ClassModel::visibleTo($user)->where('status', '!=', 'cancelled')->select('id'))
+            ->get()->keyBy('class_id');
+        $classes = ClassModel::whereIn('id', $openAssignments->keys())->orderBy('name')->get();
+        $requests = SyllabusAdjustmentRequest::with(['classModel', 'teacher', 'assignment'])
             ->when(! $user->can('syllabus.approve_adjustment'), fn ($q) => $q->where('user_id', $user->id))
             ->latest()
             ->paginate($request->perPage(15))
             ->withQueryString();
 
-        return view('syllabus.teacher-adjust', compact('classes', 'requests'));
+        return view('syllabus.teacher-adjust', compact('classes', 'requests', 'openAssignments'));
     }
 
     public function adjustmentRequests(Request $request)
     {
         $user = $request->user();
-        $requests = SyllabusAdjustmentRequest::with(['classModel', 'teacher', 'approver'])
-            ->when(! $user->can('syllabus.approve_adjustment'), fn ($q) => $q->where('user_id', $user->id))
+        $canReview = $user->can('syllabus.approve_adjustment');
+        // Mockup "Danh sách chờ duyệt": người duyệt mặc định lọc yêu cầu chờ duyệt; "all" = tất cả.
+        $status = $request->query('status', $canReview ? 'pending' : 'all');
+        $scoped = SyllabusAdjustmentRequest::query()->when(! $canReview, fn ($q) => $q->where('user_id', $user->id));
+        $pendingCount = (clone $scoped)->where('status', 'pending')->count();
+        $requests = (clone $scoped)->with(['classModel', 'teacher', 'approver', 'assignment'])
+            ->when(array_key_exists($status, SyllabusAdjustmentRequest::STATUS_LABELS), fn ($q) => $q->where('status', $status))
             ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
             ->latest()
             ->paginate($request->perPage(15))
             ->withQueryString();
         $selected = $request->filled('request')
-            ? SyllabusAdjustmentRequest::with(['classModel', 'teacher', 'approver'])->findOrFail($request->integer('request'))
+            ? SyllabusAdjustmentRequest::with(['classModel', 'teacher', 'approver', 'assignment'])->findOrFail($request->integer('request'))
             : $requests->first();
-        abort_if($selected && ! $user->can('syllabus.approve_adjustment') && (int) $selected->user_id !== (int) $user->id, 404);
-        $classes = ClassModel::visibleTo($user)->where('status', '!=', 'cancelled')->orderBy('name')->get();
+        abort_if($selected && ! $canReview && (int) $selected->user_id !== (int) $user->id, 404);
 
-        return view('syllabus.adjustment-requests', compact('requests', 'selected', 'classes'));
+        return view('syllabus.adjustment-requests', compact('requests', 'selected', 'status', 'pendingCount'));
     }
 
     public function storeAdjustmentRequest(Request $request)
     {
         $validated = $request->validate([
             'class_id' => 'required|exists:classes,id',
-            'request_type' => 'required|string|max:255',
+            'request_type' => 'nullable|string|max:255',
             'reason' => 'required|string|max:2000',
             'extra_sessions' => 'nullable|integer|min:0|max:'.SyllabusAdjustmentRequest::MAX_EXTRA_SESSIONS,
         ]);
+        $extra = (int) ($validated['extra_sessions'] ?? 0);
+        // Mockup không có ô "loại điều chỉnh": mặc định là giãn tiến độ N buổi.
+        $validated['request_type'] = trim((string) ($validated['request_type'] ?? '')) ?: ($extra > 0 ? "Xin giãn tiến độ thêm {$extra} buổi" : 'Xin điều chỉnh tiến độ');
 
         $user = $request->user();
         $class = ClassModel::findOrFail($validated['class_id']);
