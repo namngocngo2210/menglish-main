@@ -6,7 +6,7 @@
 
 ---
 
-## Phần A — Báo cáo Audit
+## Phần A — Audit nghiệp vụ & bảo mật
 
 ### A1. Tổng quan
 
@@ -188,12 +188,12 @@
 
 ---
 
-## Phần D — Audit giao diện (so với 66 màn mockup)
+## Phần B — Audit giao diện (so với 66 màn mockup)
 
 > **Phương pháp:** đọc view (Blade) và controller, đối chiếu với `code.html` của từng mockup. **Chưa chạy app, chưa so ảnh chụp màn hình.**
 > **Mức độ:** P1 = người dùng thấy thiếu hoặc sai (thiếu màn, trường, cột, bộ lọc, nút; nút giả; dữ liệu giả). P2 = thẩm mỹ (nhãn chữ, icon, bố cục, màu).
 
-### D1. Tổng quan
+### B1. Tổng quan
 
 | Nhóm | Số màn | Khớp | Làm một phần | Thiếu / khác hẳn | P1 | P2 |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -219,7 +219,7 @@
   - Cấu hình nhắc nợ: khác chức năng.
 - **2 màn khớp:** Báo cáo doanh thu tạm tính, Khoản chi vận hành.
 
-### D2. Các vấn đề chung trên toàn giao diện
+### B2. Các vấn đề chung trên toàn giao diện
 
 1. **Khung giao diện lệch bộ token mockup:**
    - Font chữ là Inter thay vì Be Vietnam Pro, và tải từ Google Fonts thay vì lưu sẵn trên server.
@@ -250,7 +250,7 @@
 8. **Chưa có giao diện điện thoại** cho portal trợ giảng / giáo viên. Mockup có thanh điều hướng dưới đáy, nhưng code đang dùng layout máy tính.
 9. **View chết:** `payroll/periods-index`, `payroll/periods-show`, `tuition/receipts-approve`, `tuition/receipts-create`, `syllabus/big-test-distribution`, `syllabus/big-test-results` không được dùng ở đâu.
 
-### D3. Lỗi bảo mật phát hiện thêm khi audit giao diện
+### B3. Lỗi bảo mật phát hiện thêm khi audit giao diện
 
 | Vấn đề | Mức |
 |---|---|
@@ -259,7 +259,7 @@
 | Pipeline: tên khách được chèn vào đoạn JavaScript, nên tên có dấu nháy có thể chạy mã độc (XSS) | P1 |
 | Thông báo toast chèn nội dung vào JavaScript không an toàn | P2 |
 
-### D4. Khoảng cách lớn nhất theo từng nhóm
+### B4. Khoảng cách lớn nhất theo từng nhóm
 
 **CRM & học viên**
 - **Pipeline:** không có bộ lọc; thiếu hạn liên hệ (Quá hạn / Sắp hết hạn), tên phụ huynh, "Sửa giai đoạn".
@@ -312,10 +312,10 @@
 - **Danh mục:** thiếu "Kích hoạt lại".
 - **Nhật ký:** chưa có so sánh trước/sau, hoàn tác, lọc ngày, xuất Excel. Mỗi thao tác bị ghi 2 lần.
 
-### D5. Xếp vào các phase
+### B5. Xếp vào các phase
 - **Phase 1:**
-  - Nền giao diện chung (mục D2.1–D2.7), vì mọi màn làm sau đều phụ thuộc.
-  - Các lỗi bảo mật ở mục D3.
+  - Nền giao diện chung (mục B2), vì mọi màn làm sau đều phụ thuộc.
+  - Các lỗi bảo mật ở mục B3.
   - Giao diện nhóm CRM & học viên.
 - **Phase 2:** giao diện nhóm Lịch & vận hành và Giáo trình & Big Test. Portal trợ giảng dạng điện thoại.
 - **Phase 3:** giao diện nhóm Lương & chấm công, gồm màn phiếu lương từng người.
@@ -323,7 +323,7 @@
 
 ---
 
-## Phần B — Kế hoạch 4 phase
+## Phần C — Kế hoạch 4 phase
 
 **Nguyên tắc:**
 - Mỗi phase làm trọn một luồng nghiệp vụ theo BPMN: màn hình theo mockup, dữ liệu, phân quyền và test.
@@ -346,7 +346,7 @@
 - **Công nợ:** giảm giá/phụ thu tính sai, phiếu thu tự duyệt, hủy hóa đơn không hoàn nợ, hoàn phí làm tăng nợ, doanh thu tính cả phiếu chưa duyệt, nhắc nợ tự động không chạy.
 - **Lịch học:** đổi giáo viên hoặc lưu TKB làm hỏng các buổi đã dạy.
 
-**2. Nền giao diện chung** (xem Phần D)
+**2. Nền giao diện chung** (xem Phần B)
 - Áp dụng đúng bộ token của mockup: font Be Vietnam Pro lưu sẵn trên server, màu, cỡ chữ, khoảng cách, sidebar 240px, topbar có tìm kiếm.
 - Bộ component dùng chung: nút, badge, bảng có phân trang, bộ lọc, form có hiện lỗi, trạng thái trống.
 - Gỡ dữ liệu giả, sửa menu theo đúng quyền, bỏ chữ kỹ thuật trong tiêu đề.
@@ -484,7 +484,7 @@
 
 ---
 
-## Phần C — Theo dõi tiến độ
+## Phần D — Theo dõi tiến độ
 
 > Cập nhật cuối mỗi phase. Trạng thái: ⬜ Chưa làm · 🟦 Đang làm · ✅ Xong · ⚠️ Trễ/Rủi ro
 
