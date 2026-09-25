@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\BigTest;
+use App\Models\BigTestOrder;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\CourseLevel;
@@ -355,5 +357,75 @@ class Phase2MockupSyllabusTest extends TestCase
         // Mặc định lọc "chờ duyệt"; "Tất cả" vẫn thấy yêu cầu đã xử lý
         $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests'))->assertOk()->assertSee('0 Yêu cầu');
         $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests', ['status' => 'all']))->assertOk()->assertSee('Chưa đủ căn cứ');
+    }
+
+    // ---- 03_Cong_Giao_Vien/07 — Chặng đang dạy & Order Test; 01_Web_Admin/06 — Duyệt & phân phối đề Big Test ----
+
+    public function test_order_uses_open_stage_and_distribution_matches_mockup(): void
+    {
+        $this->actingAs($this->teacher)->get(route('syllabus.teaching-stages'))->assertOk()
+            ->assertSee('Chặng đang dạy &amp; Order Test', false)
+            ->assertSee('Chưa được giao chặng nào');
+
+        $assignment = $this->openStage();
+        $this->actingAs($this->teacher)->get(route('syllabus.teaching-stages'))->assertOk()
+            ->assertSee('Lớp Mockup 01 - MK-01')
+            ->assertSee('Chặng 1: Nền tảng')
+            ->assertSee('Bắt đầu: '.now()->format('d/m/Y'))
+            ->assertSee('Giáo viên chính')
+            ->assertSee('Order đề Big Test');
+        $this->actingAs($this->assistant)->get(route('syllabus.teaching-stages'))->assertOk()
+            ->assertSee('Trợ giảng (Chỉ xem)')->assertDontSee('Order đề Big Test');
+
+        // Order gắn chặng đang mở; chặng hiển thị chỉ đọc, không còn ô nhập tên chặng
+        $this->actingAs($this->teacher)->get(route('teacher.order-test', $this->class->id))->assertOk()
+            ->assertSee('Chặng đang dạy')->assertSee('Chặng 1: Nền tảng')->assertDontSee('name="stage_name"', false);
+        $this->actingAs($this->teacher)->post(route('teacher.order-test.submit', $this->class->id), [
+            'test_type' => 'big', 'exam_date' => now()->addDays(4)->toDateString(), 'note' => 'Nhờ chuẩn bị đề tập trung Speaking',
+        ])->assertSessionHasNoErrors();
+        $order = BigTestOrder::firstOrFail();
+        $this->assertSame($assignment->stage_id, $order->syllabus_stage_id);
+        $this->assertSame('Chặng 1: Nền tảng', $order->stage_name);
+        // Không order trùng khi order trước còn chờ duyệt
+        $this->actingAs($this->teacher)->post(route('teacher.order-test.submit', $this->class->id), ['test_type' => 'big'])->assertSessionHasErrors('stage');
+
+        $this->actingAs($this->teacher)->get(route('syllabus.teaching-stages'))->assertOk()->assertSee('Đã order - Chờ HT duyệt');
+
+        // Màn duyệt: tìm lớp, cảnh báo SLA (hạn = ngày thi − 3 ngày = ngày mai), class ID, xem trước tệp, ghi chú nghiệp vụ
+        $this->actingAs($this->academic)->get(route('syllabus.big-tests.distribution'))->assertOk()
+            ->assertSee('Duyệt &amp; Phân phối đề Big Test', false)
+            ->assertSee('Yêu cầu chờ duyệt')
+            ->assertSee('Tìm tên lớp...')
+            ->assertSee('Cảnh báo SLA')
+            ->assertSee('CLASS ID: MK-01')
+            ->assertSee('Yêu cầu từ Giáo viên')
+            ->assertSee('Nhờ chuẩn bị đề tập trung Speaking')
+            ->assertSee('Link đề Big Test (Folder lớp)')
+            ->assertSee('Xem trước tệp')
+            ->assertSee('GV chỉ được quyền xem phần Speaking của đề sau khi phân phối.')
+            ->assertSee('Từ chối yêu cầu')
+            ->assertSee('Phê duyệt &amp; Phân phối', false);
+        $this->actingAs($this->academic)->get(route('syllabus.big-tests.distribution', ['order_search' => 'Không có lớp này']))->assertOk()
+            ->assertSee('Không có order đề nào');
+
+        // Gắn chặng cho một đợt Big Test đã tạo (đợt thi cũ chưa gắn chặng)
+        $test = BigTest::create([
+            'code' => 'BT-MK-OLD', 'title' => 'Big Test cũ', 'class_id' => $this->class->id, 'test_type' => 'midterm',
+            'scheduled_at' => now()->addDays(4), 'room' => 'Lab', 'is_distributed' => true, 'status' => 'distributed',
+        ]);
+        $this->actingAs($this->academic)->get(route('syllabus.big-tests.distribution'))->assertOk()
+            ->assertSee('Chưa gắn chặng')->assertSee('Gắn chặng');
+        $this->actingAs($this->teacher)->post(route('syllabus.big-tests.stage', $test->id), ['syllabus_stage_id' => $this->stages[0]->id])->assertForbidden();
+        $foreign = SyllabusCurriculum::create(['code' => 'CUR-FX', 'title' => 'Khác', 'version' => 'v1']);
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.stage', $test->id), ['syllabus_stage_id' => $foreign->stages()->first()->id])
+            ->assertSessionHasErrors('syllabus_stage_id');
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.stage', $test->id), ['syllabus_stage_id' => $this->stages[0]->id])
+            ->assertSessionHasNoErrors();
+        $this->assertSame($this->stages[0]->id, $test->fresh()->syllabus_stage_id);
+
+        // Duyệt order gắn vào đợt thi
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://drive.example.com/de', 'big_test_id' => $test->id])
+            ->assertSessionHasNoErrors();
+        $this->actingAs($this->teacher)->get(route('syllabus.teaching-stages'))->assertOk()->assertSee('Đã có đề');
     }
 }

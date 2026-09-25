@@ -427,7 +427,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/adjustment-requests', [SyllabusController::class, 'storeAdjustmentRequest'])->middleware('can:syllabus.propose_adjustment')->name('adjustment-requests.store');
         Route::post('/adjustment-requests/{id}/approve', [SyllabusController::class, 'approveAdjustmentRequest'])->middleware('can:syllabus.approve_adjustment')->name('adjustment-requests.approve');
         Route::post('/adjustment-requests/{id}/reject', [SyllabusController::class, 'rejectAdjustmentRequest'])->middleware('can:syllabus.approve_adjustment')->name('adjustment-requests.reject');
+        Route::get('/teaching-stages', [SyllabusController::class, 'teachingStages'])->name('teaching-stages');
         Route::get('/big-tests/distribution', [SyllabusController::class, 'bigTestDistribution'])->name('big-tests.distribution');
+        Route::post('/big-tests/{id}/stage', [SyllabusController::class, 'assignBigTestStage'])->whereNumber('id')->middleware('can:syllabus.approve_adjustment')->name('big-tests.stage');
         Route::post('/big-tests/distribution', [SyllabusController::class, 'storeBigTest'])->middleware('can:syllabus.manage')->name('big-tests.store');
         Route::post('/big-tests/{id}/approve', [SyllabusController::class, 'approveAndDistributeBigTest'])->middleware('can:syllabus.approve_adjustment')->name('big-tests.approve');
         Route::post('/big-tests/orders/{id}/approve', [SyllabusController::class, 'approveBigTestOrder'])->whereNumber('id')->middleware('can:syllabus.approve_adjustment')->name('big-tests.orders.approve');

@@ -126,14 +126,24 @@ final class SidebarMenu
                     ['label' => 'Tài liệu & Giáo trình', 'route' => 'syllabus.documents'],
                     ['label' => 'Soạn Syllabus chặng', 'route' => 'syllabus.builder'],
                     ['label' => 'Giao chặng cho giáo viên', 'route' => 'syllabus.assignments'],
-                    ['label' => 'Xem bài giảng (Cổng GV)', 'route' => 'syllabus.teacher-view'],
-                    ['label' => 'Đề xuất sửa giáo trình', 'route' => 'syllabus.teacher-propose'],
                     ['label' => 'Duyệt đề xuất sửa giáo trình', 'route' => 'syllabus.versions'],
-                    ['label' => 'Xin điều chỉnh tiến độ', 'route' => 'syllabus.teacher-adjust'],
                     ['label' => 'Duyệt điều chỉnh tiến độ', 'route' => 'syllabus.adjustment-requests'],
                     ['label' => 'Duyệt phân phối Big Test', 'route' => 'syllabus.big-tests.distribution'],
                     ['label' => 'Nhắc lịch Big Test', 'route' => 'syllabus.big-tests.schedules'],
                     ['label' => 'Bảng điểm & Kết quả Big Test', 'route' => 'syllabus.big-tests.results', 'active' => ['syllabus.big-tests.results*']],
+                ],
+            ],
+            [
+                // Cổng GV — nhóm Giáo trình & Big Test (mockup 03_Cong_Giao_Vien/07–11, 14)
+                'id' => 'teacher_syllabus',
+                'label' => 'Giáo trình & Big Test (GV)',
+                'icon' => 'auto_stories',
+                'roles' => array_merge(['admin', 'manager', 'academic_staff', 'academic_lead'], self::TEACHER_ROLES),
+                'items' => [
+                    ['label' => 'Chặng đang dạy & Order Test', 'route' => 'syllabus.teaching-stages', 'active' => ['syllabus.teaching-stages', 'teacher.order-test*']],
+                    ['label' => 'Xem bài giảng (Cổng GV)', 'route' => 'syllabus.teacher-view'],
+                    ['label' => 'Đề xuất sửa giáo trình', 'route' => 'syllabus.teacher-propose'],
+                    ['label' => 'Xin điều chỉnh tiến độ', 'route' => 'syllabus.teacher-adjust'],
                 ],
             ],
             [

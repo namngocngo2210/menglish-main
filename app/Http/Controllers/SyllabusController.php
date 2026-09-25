@@ -985,6 +985,28 @@ class SyllabusController extends Controller
     // 6. Big Test: order đề, duyệt & phân phối, nhắc lịch, kết quả
     // ─────────────────────────────────────────────
 
+    /**
+     * Cổng GV — "Chặng đang dạy & Order Test": mỗi lớp mình dạy đang mở chặng là một thẻ (chặng, ngày bắt đầu,
+     * vai trò, trạng thái order đề Big Test của chặng).
+     */
+    public function teachingStages(Request $request)
+    {
+        $user = $request->user();
+        $assignments = SyllabusAssignment::open()
+            ->with(['stage', 'classModel.course'])
+            ->whereIn('class_id', ClassModel::visibleTo($user)->where('status', '!=', 'cancelled')->select('id'))
+            ->get()
+            ->sortBy(fn ($a) => $a->classModel?->name)
+            ->values();
+        $orders = BigTestOrder::where('test_type', 'big')
+            ->whereIn('class_id', $assignments->pluck('class_id'))
+            ->latest('id')
+            ->get()
+            ->groupBy('class_id');
+
+        return view('syllabus.teaching-stages', compact('assignments', 'orders'));
+    }
+
     public function bigTestDistribution(Request $request)
     {
         $user = $request->user();
@@ -992,20 +1014,59 @@ class SyllabusController extends Controller
         $bigTests = BigTest::with(['classModel', 'proctor', 'stage'])->visibleTo($user)->latest()->paginate($request->perPage(15), ['*'], 'tests_page')->withQueryString();
 
         $orderStatus = $request->query('order_status', 'pending');
-        $orders = BigTestOrder::with(['classModel', 'teacher', 'reviewer'])
+        $orderSearch = trim((string) $request->query('order_search', ''));
+        $orders = BigTestOrder::with(['classModel', 'teacher', 'reviewer', 'stage'])
             ->visibleTo($user)
             ->when(in_array($orderStatus, array_keys(BigTestOrder::STATUS_LABELS), true), fn ($q) => $q->where('status', $orderStatus))
+            ->when($orderSearch !== '', fn ($q) => $q->whereHas('classModel', fn ($c) => $c->where('name', 'like', "%{$orderSearch}%")->orWhere('code', 'like', "%{$orderSearch}%")))
             ->orderByRaw('due_date IS NULL')
             ->orderBy('due_date')
             ->latest()
             ->paginate($request->perPage(10), ['*'], 'orders_page')
             ->withQueryString();
         $selectedOrder = $request->filled('order')
-            ? BigTestOrder::with(['classModel.course', 'teacher', 'reviewer'])->visibleTo($user)->findOrFail($request->integer('order'))
-            : $orders->first()?->load('classModel.course');
+            ? BigTestOrder::with(['classModel.course', 'classModel.branch', 'teacher', 'reviewer', 'stage'])->visibleTo($user)->findOrFail($request->integer('order'))
+            : $orders->first()?->load(['classModel.course', 'classModel.branch']);
         $pendingOrders = BigTestOrder::visibleTo($user)->where('status', 'pending')->count();
 
-        return view('syllabus.big-tests-distribution', compact('classes', 'bigTests', 'orders', 'selectedOrder', 'orderStatus', 'pendingOrders'));
+        // "Gắn chặng" cho đợt thi: chặng của các giáo trình lớp đã/đang học (hoặc giáo trình theo trình độ).
+        $stageOptions = $bigTests->getCollection()->pluck('class_id')->filter()->unique()
+            ->mapWithKeys(fn ($classId) => [$classId => $this->stageOptionsForClass((int) $classId)->pluck('label', 'id')]);
+
+        return view('syllabus.big-tests-distribution', compact('classes', 'bigTests', 'orders', 'selectedOrder', 'orderStatus', 'orderSearch', 'pendingOrders', 'stageOptions'));
+    }
+
+    /** Các chặng có thể gắn cho đợt thi của lớp: giáo trình của các lượt chặng của lớp + giáo trình theo trình độ lớp. */
+    private function stageOptionsForClass(int $classId): Collection
+    {
+        $class = ClassModel::find($classId);
+        $curriculumIds = SyllabusAssignment::where('class_id', $classId)->pluck('curriculum_id')
+            ->push($class ? CourseLevel::where('code', $class->level)->value('syllabus_curriculum_id') : null)
+            ->filter()->unique();
+
+        return SyllabusStage::whereIn('curriculum_id', $curriculumIds)->orderBy('curriculum_id')->orderBy('position')->get();
+    }
+
+    /**
+     * Gắn lại chặng cho một đợt Big Test đã tạo (đợt thi cũ trước Q4 chưa gắn chặng, hoặc gắn nhầm).
+     * Nếu đợt thi đã duyệt & gửi đủ và chặng là chặng đang mở của lớp → đóng chặng, mở chặng kế (như luồng thường).
+     */
+    public function assignBigTestStage(Request $request, int $id, SyllabusProgressionService $progression)
+    {
+        $test = BigTest::with('classModel')->findOrFail($id);
+        $validated = $request->validate(['syllabus_stage_id' => ['nullable', 'integer']]);
+        $stageId = $validated['syllabus_stage_id'] ?? null;
+        if ($stageId && ! $this->stageOptionsForClass((int) $test->class_id)->contains('id', (int) $stageId)) {
+            throw ValidationException::withMessages(['syllabus_stage_id' => 'Chặng không thuộc giáo trình của lớp thi.']);
+        }
+
+        $test->update(['syllabus_stage_id' => $stageId]);
+        $label = $stageId ? SyllabusStage::find($stageId)?->label : null;
+        $note = $stageId ? $progression->describe($progression->syncBigTest($test->fresh(), $request->user())) : '';
+
+        return redirect()->back()->with('status', $label
+            ? "Đã gắn đợt thi {$test->code} vào {$label}.".$note
+            : "Đã bỏ gắn chặng của đợt thi {$test->code}.");
     }
 
     public function approveBigTestOrder(Request $request, int $id)
@@ -1030,6 +1091,10 @@ class SyllabusController extends Controller
         ]);
         if ($order->big_test_id) {
             BigTest::whereKey($order->big_test_id)->whereNull('content_url')->update(['content_url' => $order->test_link]);
+            // Đợt thi chưa gắn chặng → gắn chặng của order (Big Test cuối chặng).
+            if ($order->syllabus_stage_id) {
+                BigTest::whereKey($order->big_test_id)->whereNull('syllabus_stage_id')->update(['syllabus_stage_id' => $order->syllabus_stage_id]);
+            }
         }
         $this->notifyUser($order->teacher_id, 'Order đề đã được duyệt', "Đề {$order->type_label} chặng \"{$order->stage_name}\" lớp {$order->classModel?->name} đã được phân phối.", route('syllabus.big-tests.distribution', ['order' => $order->id, 'order_status' => 'approved']));
 

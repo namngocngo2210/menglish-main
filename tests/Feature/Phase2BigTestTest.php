@@ -66,11 +66,20 @@ class Phase2BigTestTest extends TestCase
     public function test_teacher_order_reaches_approval_screen_with_deadline(): void
     {
         $examDate = now()->addDays(10)->toDateString();
+        // Q4: lớp chưa mở chặng thì chưa order được; order luôn gắn chặng đang mở (không nhập tên chặng tự do).
         $this->actingAs($this->teacherA)->post(route('teacher.order-test.submit', $this->classA->id), [
-            'stage_name' => 'Chặng 2: Present Simple', 'test_type' => 'big', 'exam_date' => $examDate, 'note' => 'Tập trung Speaking',
+            'test_type' => 'big', 'exam_date' => $examDate,
+        ])->assertSessionHasErrors('stage');
+        $curriculum = \App\Models\SyllabusCurriculum::create(['code' => 'CUR-BT2', 'title' => 'GT BT2', 'version' => 'v1', 'stage_name' => 'Present Simple']);
+        app(\App\Services\SyllabusProgressionService::class)->open($this->classA, $curriculum->stages()->firstOrFail(), $this->teacherA->id, $this->academic);
+
+        $this->actingAs($this->teacherA)->post(route('teacher.order-test.submit', $this->classA->id), [
+            'stage_name' => 'Tên tự do bị bỏ qua', 'test_type' => 'big', 'exam_date' => $examDate, 'note' => 'Tập trung Speaking',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $order = BigTestOrder::firstOrFail();
+        $this->assertSame('Chặng 1: Present Simple', $order->stage_name);
+        $this->assertSame($curriculum->stages()->first()->id, $order->syllabus_stage_id);
         $this->assertSame('pending', $order->status);
         $this->assertSame($this->teacherA->id, $order->teacher_id);
         $this->assertSame(now()->addDays(7)->toDateString(), $order->due_date->toDateString());
@@ -78,14 +87,14 @@ class Phase2BigTestTest extends TestCase
 
         $this->actingAs($this->academic)->get(route('syllabus.big-tests.distribution'))
             ->assertOk()
-            ->assertSee('Chặng 2: Present Simple')
+            ->assertSee('Chặng 1: Present Simple')
             ->assertSee('Tập trung Speaking')
             ->assertSee($order->due_date->format('d/m/Y'))
             ->assertSee(route('syllabus.big-tests.orders.approve', $order->id))
             ->assertSee(route('syllabus.big-tests.orders.reject', $order->id));
 
-        // Lịch sử order ở Cổng GV đọc cùng bảng
-        $this->actingAs($this->teacherA)->get(route('teacher.order-test', $this->classA->id))->assertOk()->assertSee('Chờ duyệt');
+        // Lịch sử order ở Cổng GV đọc cùng bảng (nhãn mockup "Đã order - Chờ HT duyệt")
+        $this->actingAs($this->teacherA)->get(route('teacher.order-test', $this->classA->id))->assertOk()->assertSee('Đã order - Chờ HT duyệt');
     }
 
     public function test_order_approval_requires_link_and_rejection_requires_reason(): void
