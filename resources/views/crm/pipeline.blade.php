@@ -208,6 +208,9 @@
                 <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-3 text-xs" @click.outside="stageEdit.open = false">
                     <h3 class="font-bold text-sm">Sửa giai đoạn: <span x-text="stageEdit.name"></span></h3>
                     <p class="text-gray-500">Hiện tại: <strong x-text="permissions.labels[stageEdit.from]"></strong>. Học vụ / Quản lý cơ sở chỉ chuyển tiến 1 bước; chỉ Admin được lùi bước. Mọi thay đổi được lưu vào lịch sử khách.</p>
+                    @if ($stagePermissions['canBackward'])
+                        <p class="text-rose-700 font-semibold">Lùi giai đoạn: bắt buộc nhập lý do (không áp dụng cho khách đã chốt).</p>
+                    @endif
                     <select x-model="stageEdit.target" class="w-full rounded-xl border-gray-200 text-xs" aria-label="Giai đoạn mới">
                         <template x-for="option in stageEditOptions()" :key="option.value">
                             <option :value="option.value" x-text="option.label"></option>
