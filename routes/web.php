@@ -98,7 +98,7 @@ Route::post('/portal/recruitment', [RecruitmentController::class, 'portalSubmit'
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    // Người dùng KHÔNG được tự xóa tài khoản (Phase 4): chỉ người quản lý tài khoản xóa/khóa qua màn Tài khoản.
 
     // ─────────────────────────────────────────────
     // Tuyển dụng & Quản lý Hồ sơ CV Ứng viên
