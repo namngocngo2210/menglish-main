@@ -81,7 +81,9 @@
                             </td>
                             <td class="py-3.5 px-4 font-mono text-gray-500">{{ $en->enrolled_at ? $en->enrolled_at->format('d/m/Y') : '—' }}</td>
                             <td class="py-3.5 px-4 text-right">
-                                @can('student.assign_class')
+                                @if ($en->status === \App\Models\Student::ENROLLMENT_DROPPED)
+                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border-rose-200 border">Thôi học</span>
+                                @elsecan('student.assign_class')
                                     <form method="POST" action="{{ route('students.enrollments.update', $en->id) }}" class="inline-flex items-center justify-end gap-2">
                                         @csrf
                                         @method('PUT')
@@ -93,7 +95,7 @@
                                     <span class="px-2.5 py-1 rounded-full text-[10px] font-bold {{ $en->status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200' }} border">
                                         {{ $en->status === 'completed' ? 'Hoàn tất' : 'Chờ bàn giao' }}
                                     </span>
-                                @endcan
+                                @endif
                             </td>
                         </tr>
                     @empty

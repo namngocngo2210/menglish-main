@@ -105,12 +105,13 @@ class StudentBusinessTest extends TestCase
             'branch_id' => $this->branchHanoi->id,
             'current_class_id' => $this->classHanoi->id,
             'target' => 'IELTS 7.5 Overall',
-            'status' => 'studying',
+            // BA chốt Q5: hồ sơ mới khởi tạo ở "Chờ khai giảng" (trước đây sai: 'studying').
+            'status' => Student::INITIAL_STATUS,
         ]);
 
         $student = Student::where('phone', '0934567890')->first();
         $this->assertNotNull($student);
-        $this->assertStringStartsWith('HV-', $student->code);
+        $this->assertMatchesRegularExpression('/^HV-\d{5}$/', $student->code);
     }
 
     public function test_student_creation_validation_rules(): void
@@ -253,23 +254,27 @@ class StudentBusinessTest extends TestCase
         $responseHanoi->assertSee('Nguyễn Văn Hà Nội');
         $responseHanoi->assertDontSee('Lê Sài Gòn');
 
-        // Filter by search name
-        $responseSearch = $this->actingAs($this->academicOfficer)->get(route('students.index', [
+        // Filter by search name (Admin thấy mọi chi nhánh). Học vụ Hà Nội không thấy học viên HCM
+        // (BA chốt Q7 — trước đây test này cho Học vụ tìm được học viên chi nhánh khác).
+        $admin = User::factory()->create(['is_active' => true]);
+        $admin->assignRole('admin');
+        $responseSearch = $this->actingAs($admin)->get(route('students.index', [
             'search' => 'Sài Gòn',
         ]));
         $responseSearch->assertOk();
         $responseSearch->assertSee('Lê Sài Gòn');
         $responseSearch->assertDontSee('Nguyễn Văn Hà Nội');
 
+        $this->actingAs($this->academicOfficer)->get(route('students.index', ['search' => 'Sài Gòn']))
+            ->assertOk()->assertDontSee('Lê Sài Gòn');
+
         // Scoped student detail page
         $responseScoped = $this->actingAs($this->academicOfficer)->get(route('students.scoped', $stuHanoi->id));
         $responseScoped->assertOk();
         $responseScoped->assertSee('Nguyễn Văn Hà Nội');
 
-        // Scoped student fallback for demo HV-01 route
-        $responseDemo = $this->actingAs($this->academicOfficer)->get(route('students.scoped', 'HV-01'));
-        $responseDemo->assertOk();
-        $responseDemo->assertSee('Phân quyền');
+        // Mã không tồn tại => 404 (trước đây lấy nhầm học viên đầu tiên).
+        $this->actingAs($this->academicOfficer)->get(route('students.scoped', 'HV-01'))->assertNotFound();
     }
 
     public function test_can_view_comprehensive_student_show_page(): void
