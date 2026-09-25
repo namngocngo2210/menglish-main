@@ -153,4 +153,19 @@ class ClassSession extends Model
             ->whereDoesntHave('timesheets')
             ->whereDoesntHave('supportSession');
     }
+
+    /**
+     * Buổi chưa diễn ra được đồng bộ nhân sự/phòng khi sửa lớp: buổi chính khóa + buổi học bù
+     * (xếp tự động khi thêm ngày nghỉ), cùng điều kiện bảo vệ như replaceable() (chưa điểm danh,
+     * chưa chấm công, không gắn phụ đạo). Không dùng để xóa — xếp lại TKB vẫn chỉ xóa buổi chính khóa.
+     */
+    public function scopeStaffSyncable(Builder $query): Builder
+    {
+        return $query->whereIn('type', [self::TYPE_REGULAR, self::TYPE_MAKEUP])
+            ->where('status', 'scheduled')
+            ->whereDate('date', '>=', now()->toDateString())
+            ->whereDoesntHave('attendances')
+            ->whereDoesntHave('timesheets')
+            ->whereDoesntHave('supportSession');
+    }
 }

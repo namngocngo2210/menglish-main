@@ -622,7 +622,8 @@ class ClassManagementController extends Controller
 
         // Chỉ buổi chưa diễn ra, chưa điểm danh/check-in mới được đồng bộ nhân sự/phòng;
         // buổi quá khứ là dữ liệu lịch sử (bảng công, điểm danh khớp theo buổi).
-        $futureSessions = ClassSession::where('class_id', $class->id)->replaceable()->get();
+        // Gồm cả buổi học bù (type makeup) xếp khi thêm ngày nghỉ.
+        $futureSessions = ClassSession::where('class_id', $class->id)->staffSyncable()->get();
         $this->assertStaffChangeHasNoConflicts($class, $futureSessions, $branchId, [
             'teacher' => $newTeacherId ?? $newForeignTeacherId,
             'teacher_field' => $newTeacherId ? 'giao_vien_chinh' : 'giao_vien_nn',
