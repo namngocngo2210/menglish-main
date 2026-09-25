@@ -14,14 +14,17 @@ use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
 use App\Services\NotificationService;
+use App\Services\SafeUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class TuitionController extends Controller
 {
+    /** Minh chứng phiếu thu / hủy hóa đơn: ảnh hoặc PDF (theo nội dung file). */
+    private const PROOF_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
+
     public function students(Request $request)
     {
         $query = StudentTuition::with(['student', 'classModel', 'branch'])->latest();
@@ -140,15 +143,9 @@ class TuitionController extends Controller
 
         $proofPath = null;
         if ($request->hasFile('proof_image')) {
-            $file = $request->file('proof_image');
-            $fileName = time().'_'.Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)).'.'.$file->getClientOriginalExtension();
-            $destinationDir = public_path('uploads/tuition/receipts');
-            if (! file_exists($destinationDir)) {
-                mkdir($destinationDir, 0777, true);
-            }
-            $file->move($destinationDir, $fileName);
+            $fileName = SafeUploadService::moveTo($request->file('proof_image'), public_path('uploads/tuition/receipts'), self::PROOF_EXTENSIONS, 'proof_image');
             $proofPath = '/uploads/tuition/receipts/'.$fileName;
-        } elseif ($request->filled('proof_image_preview')) {
+        } elseif ($request->filled('proof_image_preview') && $this->isSafeProofReference((string) $request->input('proof_image_preview'))) {
             $proofPath = $request->input('proof_image_preview');
         }
 
@@ -687,13 +684,7 @@ class TuitionController extends Controller
 
         $proofPath = null;
         if ($request->hasFile('proof_image')) {
-            $file = $request->file('proof_image');
-            $fileName = time().'_cancel_'.Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)).'.'.$file->getClientOriginalExtension();
-            $destinationDir = public_path('uploads/tuition/cancellations');
-            if (! file_exists($destinationDir)) {
-                mkdir($destinationDir, 0777, true);
-            }
-            $file->move($destinationDir, $fileName);
+            $fileName = SafeUploadService::moveTo($request->file('proof_image'), public_path('uploads/tuition/cancellations'), self::PROOF_EXTENSIONS, 'proof_image');
             $proofPath = '/uploads/tuition/cancellations/'.$fileName;
         }
 
@@ -1115,5 +1106,14 @@ class TuitionController extends Controller
         $config->save();
 
         return redirect()->back()->with('status', 'Đã lưu cấu hình dải số hóa đơn điện tử thành công!');
+    }
+
+    /**
+     * Minh chứng dạng tham chiếu (ảnh xem trước base64 hoặc link) chỉ nhận ảnh
+     * base64 hoặc URL http(s)/uploads, không nhận javascript:, data:text/html...
+     */
+    private function isSafeProofReference(string $value): bool
+    {
+        return (bool) preg_match('#^(https?://|/uploads/|data:image/(png|jpe?g|webp);base64,)#i', $value);
     }
 }

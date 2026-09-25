@@ -20,7 +20,6 @@ return Application::configure(basePath: dirname(__DIR__))
             AuditOperationMiddleware::class,
         ]);
         $middleware->validateCsrfTokens(except: [
-            'api/academic-system/*',
             'hook/sepay-gateway/*',
             'api/sepay/*',
         ]);

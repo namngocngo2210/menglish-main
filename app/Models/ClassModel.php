@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -39,6 +40,36 @@ class ClassModel extends Model
         'end_date' => 'date',
         'max_capacity' => 'integer',
     ];
+
+    /**
+     * Lớp mà người dùng được xem: nhân sự quản lý lớp (class.create/update) thấy
+     * tất cả; giáo viên / GVNN / trợ giảng chỉ thấy lớp mình phụ trách hoặc có
+     * buổi dạy; vai trò khác (học viên...) không thấy lớp nào.
+     */
+    public function scopeVisibleTo(Builder $query, ?User $user): Builder
+    {
+        if (! $user) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if (self::userManagesAll($user)) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $query) use ($user) {
+            $query->where('teacher_id', $user->id)
+                ->orWhere('assistant_id', $user->id)
+                ->orWhere('foreign_teacher_id', $user->id)
+                ->orWhereHas('sessions', function (Builder $sessions) use ($user) {
+                    $sessions->where(fn (Builder $q) => $q->where('teacher_id', $user->id)->orWhere('assistant_id', $user->id));
+                });
+        });
+    }
+
+    public static function userManagesAll(User $user): bool
+    {
+        return $user->can('class.create') || $user->can('class.update');
+    }
 
     public function course(): BelongsTo
     {

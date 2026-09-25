@@ -48,10 +48,13 @@ Route::get('/dashboard', function () {
 })->middleware(['auth'])->name('dashboard');
 
 // Interactive Mockup Hub Navigator (Admin / Manager)
-Route::get('/mockup-hub', [MockupHubController::class, 'index'])->middleware(['auth'])->name('mockup-hub.index');
+Route::get('/mockup-hub', [MockupHubController::class, 'index'])->middleware(['auth', 'can:system_category.manage'])->name('mockup-hub.index');
 
 // ─────────────────────────────────────────────────────────────
 // Hệ thống Giao diện & Nghiệp vụ MENGLISH (58 Màn hình - Round Cuối)
+// Bộ màn mockup cũ đọc AcademicRecord không lọc theo người dùng (bài tập, phản
+// hồi, khảo sát của mọi học viên) nên chỉ Admin được xem bản mockup; vai trò
+// khác được chuyển sang màn Laravel thật tương ứng (xem AcademicSystemController::show).
 // ─────────────────────────────────────────────────────────────
 Route::prefix('academic-system')->name('academic-system.')->middleware(['auth'])->group(function () {
     Route::get('/', [AcademicSystemController::class, 'index'])->name('index');
@@ -69,14 +72,14 @@ Route::get('/teacher-portal/{screen?}', [AcademicSystemController::class, 'teach
 Route::get('/parent-portal/{screen?}', [AcademicSystemController::class, 'parentPortal'])->middleware(['auth'])->name('parent-portal.shortcut');
 
 // Dashboard Báo cáo & Nhật ký sự vụ Admin
-Route::prefix('academic/dashboards')->name('academic.dashboards.')->middleware(['auth'])->group(function () {
+Route::prefix('academic/dashboards')->name('academic.dashboards.')->middleware(['auth', 'can:class.update'])->group(function () {
     Route::get('/reports', [AcademicDashboardController::class, 'reports'])->name('reports');
     Route::get('/incidents', [AcademicDashboardController::class, 'incidents'])->name('incidents');
 });
 
 // API CSDL Thực Tế cho Hệ Thống 58 Màn Hình
 Route::prefix('api/academic-system')->name('api.academic-system.')->middleware(['auth'])->group(function () {
-    Route::get('/records', [AcademicSystemController::class, 'apiGetRecords'])->middleware('can:report.view')->name('records.index');
+    Route::get('/records', [AcademicSystemController::class, 'apiGetRecords'])->middleware('can:system_category.manage')->name('records.index');
     Route::post('/records', [AcademicSystemController::class, 'apiStoreRecord'])->middleware('can:system_category.manage')->name('records.store');
     Route::put('/records/{id}', [AcademicSystemController::class, 'apiUpdateRecord'])->middleware('can:system_category.manage')->name('records.update');
     Route::delete('/records/{id}', [AcademicSystemController::class, 'apiDeleteRecord'])->middleware('can:system_category.manage')->name('records.destroy');
@@ -598,8 +601,8 @@ Route::prefix('portal/placement-test')->name('portal.test.')->group(function () 
 });
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('/academic/reports', [AcademicDashboardController::class, 'reports'])->name('academic.reports');
-    Route::get('/academic/incidents', [AcademicDashboardController::class, 'incidents'])->name('academic.incidents');
+    Route::get('/academic/reports', [AcademicDashboardController::class, 'reports'])->middleware('can:class.update')->name('academic.reports');
+    Route::get('/academic/incidents', [AcademicDashboardController::class, 'incidents'])->middleware('can:class.update')->name('academic.incidents');
     Route::get('/syllabus', [SyllabusController::class, 'documents'])->name('syllabus.index');
     Route::get('/portal/student/home', [StudentPortalController::class, 'studentHome'])->name('portal.student.home2');
     Route::get('/portal/student/homework', [StudentPortalController::class, 'studentHomework'])->name('portal.student.homework2');

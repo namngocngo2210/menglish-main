@@ -124,11 +124,18 @@ class SupportTicketController extends Controller
     {
         $ticket = SupportTicket::with(['creator', 'assignee', 'messages.user'])->where('id', $id)->orWhere('code', $id)->firstOrFail();
         $this->authorizeTicketParticipant($ticket);
+
+        $canSeeInternal = $ticket->userCanSeeInternalNotes(Auth::user());
+        if (! $canSeeInternal) {
+            $ticket->setRelation('messages', $ticket->messages->reject(fn ($m) => $m->is_internal_note)->values());
+        }
+
+        $canPostInternal = $this->canManageTickets();
         $staffs = Auth::user()->can('support_ticket.assign')
             ? User::where('is_active', true)->get()
             : collect();
 
-        return view('support-tickets.show', compact('ticket', 'staffs'));
+        return view('support-tickets.show', compact('ticket', 'staffs', 'canPostInternal'));
     }
 
     public function storeMessage(Request $request, $id)
@@ -282,11 +289,7 @@ class SupportTicketController extends Controller
 
     private function canManageTickets(): bool
     {
-        $user = Auth::user();
-
-        return $user->can('support_ticket.update')
-            || $user->can('support_ticket.assign')
-            || $user->can('support_ticket.close');
+        return SupportTicket::userCanManage(Auth::user());
     }
 
     private function authorizeTicketParticipant(SupportTicket $ticket): void

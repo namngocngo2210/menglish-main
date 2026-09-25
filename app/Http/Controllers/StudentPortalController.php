@@ -10,6 +10,7 @@ use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\Survey;
 use App\Models\TuitionReceipt;
+use App\Services\SafeUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -17,6 +18,11 @@ use Illuminate\Support\Str;
 
 class StudentPortalController extends Controller
 {
+    /** Đuôi file được phép khi nộp bài tập (theo nội dung file). */
+    private const HOMEWORK_EXTENSIONS = [
+        ...SafeUploadService::IMAGES, ...SafeUploadService::DOCUMENTS, ...SafeUploadService::VIDEO, ...SafeUploadService::AUDIO,
+    ];
+
     private const TEACHER_ROLES = ['teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant'];
 
     protected function canManageStudents(): bool
@@ -352,7 +358,7 @@ class StudentPortalController extends Controller
             'student_id' => 'required|exists:students,id',
             'homework_type' => 'required|string', // video, vocabulary, workbook, extra_book, bgd_book, quiz
             'notes' => 'nullable|string',
-            'attachment' => 'nullable|file|max:102400', // Tối đa 100MB
+            'attachment' => 'nullable|file|max:102400|mimes:'.implode(',', self::HOMEWORK_EXTENSIONS), // Tối đa 100MB
         ]);
 
         $student = Student::findOrFail($validated['student_id']);
@@ -364,8 +370,7 @@ class StudentPortalController extends Controller
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
             $attachmentName = $file->getClientOriginalName();
-            $filename = time().'_'.Str::slug(pathinfo($attachmentName, PATHINFO_FILENAME)).'.'.$file->getClientOriginalExtension();
-            $attachmentPath = $file->storeAs('homework_submissions', $filename, 'public');
+            $attachmentPath = SafeUploadService::store($file, 'homework_submissions', self::HOMEWORK_EXTENSIONS, 'attachment');
         }
 
         $typeLabels = [
@@ -409,7 +414,7 @@ class StudentPortalController extends Controller
 
         $validated = $request->validate([
             'notes' => 'nullable|string',
-            'attachment' => 'nullable|file|max:102400',
+            'attachment' => 'nullable|file|max:102400|mimes:'.implode(',', self::HOMEWORK_EXTENSIONS),
         ]);
 
         $data = $record->data ?? [];
@@ -419,8 +424,7 @@ class StudentPortalController extends Controller
 
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
-            $filename = time().'_'.Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)).'.'.$file->getClientOriginalExtension();
-            $path = $file->storeAs('homework_submissions', $filename, 'public');
+            $path = SafeUploadService::store($file, 'homework_submissions', self::HOMEWORK_EXTENSIONS, 'attachment');
             $data['attachment_path'] = '/storage/'.$path;
             $data['attachment_name'] = $file->getClientOriginalName();
         }
@@ -477,7 +481,7 @@ class StudentPortalController extends Controller
             'student_id' => 'required|exists:students,id',
             'unit_title' => 'required|string',
             'duration' => 'nullable|string',
-            'audio_file' => 'nullable|file|max:51200', // 50MB
+            'audio_file' => 'nullable|file|max:51200|mimes:'.implode(',', SafeUploadService::AUDIO), // 50MB
         ]);
 
         $student = Student::findOrFail($validated['student_id']);
@@ -487,8 +491,7 @@ class StudentPortalController extends Controller
         $audioPath = null;
         if ($request->hasFile('audio_file')) {
             $file = $request->file('audio_file');
-            $filename = time().'_audio_'.Str::slug($validated['unit_title']).'.'.$file->getClientOriginalExtension();
-            $audioPath = $file->storeAs('pronunciation_records', $filename, 'public');
+            $audioPath = SafeUploadService::store($file, 'pronunciation_records', SafeUploadService::AUDIO, 'audio_file');
         }
 
         $scoreNum = rand(88, 98);

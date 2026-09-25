@@ -247,6 +247,13 @@ class NotificationService
             ->pluck('user_id');
         $recipientIds = $recipientIds->merge($participantIds)->unique();
 
+        // Ghi chú nội bộ: chỉ báo cho người xử lý ticket, không báo người tạo (vd. học viên)
+        if ($message->is_internal_note) {
+            $recipientIds = User::whereIn('id', $recipientIds)->get()
+                ->filter(fn (User $user) => $ticket->userCanSeeInternalNotes($user))
+                ->pluck('id');
+        }
+
         $preview = Str::limit(strip_tags($message->message), 100);
 
         // 4. Nếu ticket chưa có assignee và người gửi là creator, gửi thông báo chung cho Admin/Manager
