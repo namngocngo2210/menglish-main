@@ -15,3 +15,5 @@ Schedule::command('crm:scan-stale-leads')->hourly();
 Schedule::command('tuition:send-debt-reminders')->dailyAt('08:30');
 
 Schedule::command('bigtests:remind-upcoming')->dailyAt('07:45');
+// Cảnh báo hợp đồng nhân sự hết hạn trong 30 ngày (idempotent, chạy lại không tạo trùng).
+Schedule::command('hr:notify-expiring-contracts')->dailyAt('07:50');

@@ -9,8 +9,9 @@ use App\Services\MediaManagerService;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class SupportTicketController extends Controller
 {
@@ -71,7 +72,7 @@ class SupportTicketController extends Controller
     public function create()
     {
         $staffs = Auth::user()->can('support_ticket.assign')
-            ? User::where('is_active', true)->get()
+            ? $this->ticketHandlers()
             : collect();
 
         return view('support-tickets.create', compact('staffs'));
@@ -89,6 +90,9 @@ class SupportTicketController extends Controller
         ]);
 
         abort_if(! empty($validated['assignee_id']) && ! Auth::user()->can('support_ticket.assign'), 403);
+        if (! empty($validated['assignee_id'])) {
+            $this->ensureValidHandler((int) $validated['assignee_id']);
+        }
 
         $attachmentPath = $this->handleUploadedFiles($request);
 
@@ -132,7 +136,7 @@ class SupportTicketController extends Controller
 
         $canPostInternal = $this->canManageTickets();
         $staffs = Auth::user()->can('support_ticket.assign')
-            ? User::where('is_active', true)->get()
+            ? $this->ticketHandlers()
             : collect();
 
         return view('support-tickets.show', compact('ticket', 'staffs', 'canPostInternal'));
@@ -198,6 +202,7 @@ class SupportTicketController extends Controller
         $validated = $request->validate([
             'assignee_id' => 'required|exists:users,id',
         ]);
+        $this->ensureValidHandler((int) $validated['assignee_id']);
 
         $ticket->update(['assignee_id' => $validated['assignee_id']]);
 
@@ -211,20 +216,54 @@ class SupportTicketController extends Controller
     }
 
     /**
-     * Lưu file tải lên theo cây thư mục /uploads/YYYY/MM/DD/
+     * Xem / tải file đính kèm của ticket. Chỉ người trong luồng ticket (người tạo,
+     * người xử lý, người quản lý ticket) được xem; file của ghi chú nội bộ chỉ
+     * người được xem ghi chú nội bộ mới mở được. File mới lưu ở disk riêng tư
+     * (storage/app/private/tickets/...); file cũ (public/uploads/...) vẫn phục vụ
+     * qua route này để giữ liên kết.
+     */
+    public function attachment(Request $request, $id)
+    {
+        $ticket = SupportTicket::with('messages')->where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $this->authorizeTicketParticipant($ticket);
+
+        $path = (string) $request->query('path', '');
+        $canSeeInternal = $ticket->userCanSeeInternalNotes(Auth::user());
+
+        $allowed = collect($ticket->attachment_list)
+            ->merge($ticket->messages
+                ->filter(fn (TicketMessage $message) => $canSeeInternal || ! $message->is_internal_note)
+                ->flatMap(fn (TicketMessage $message) => $message->attachment_list));
+
+        abort_unless($path !== '' && $allowed->contains($path), 404);
+        abort_if(str_contains($path, '..'), 404);
+
+        if (str_starts_with($path, 'uploads/')) {
+            // Tương thích dữ liệu cũ lưu trong public/uploads.
+            $absolute = public_path($path);
+            abort_unless(is_file($absolute), 404);
+
+            return response()->file($absolute, ['X-Content-Type-Options' => 'nosniff']);
+        }
+
+        abort_unless(Storage::disk(self::ATTACHMENT_DISK)->exists($path), 404);
+
+        return Storage::disk(self::ATTACHMENT_DISK)->response($path, basename($path), [
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    /** Disk riêng tư lưu file đính kèm ticket (không truy cập trực tiếp qua URL công khai). */
+    public const ATTACHMENT_DISK = 'local';
+
+    /**
+     * Lưu file tải lên vào disk riêng tư theo cây thư mục tickets/YYYY/MM/DD/.
      */
     private function handleUploadedFiles(Request $request): ?string
     {
         $savedPaths = [];
-        $year = date('Y');
-        $month = date('m');
-        $day = date('d');
-        $relativeFolder = "uploads/{$year}/{$month}/{$day}";
-        $destinationPath = public_path($relativeFolder);
-
-        if (! File::isDirectory($destinationPath)) {
-            File::makeDirectory($destinationPath, 0755, true, true);
-        }
+        $relativeFolder = 'tickets/'.date('Y').'/'.date('m').'/'.date('d');
+        $disk = Storage::disk(self::ATTACHMENT_DISK);
 
         // 1. Xử lý file upload thông thường (hoặc qua kéo thả vào input file)
         if ($request->hasFile('attachments')) {
@@ -243,8 +282,7 @@ class SupportTicketController extends Controller
                     $cleanOriginal = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
                     $cleanOriginal = Str::slug(Str::limit($cleanOriginal, 30, ''));
                     $filename = time().'_'.($cleanOriginal ? $cleanOriginal.'_' : '').Str::random(6).'.'.$extension;
-                    $file->move($destinationPath, $filename);
-                    $savedPaths[] = "{$relativeFolder}/{$filename}";
+                    $savedPaths[] = $file->storeAs($relativeFolder, $filename, self::ATTACHMENT_DISK);
                 }
             }
         }
@@ -256,7 +294,7 @@ class SupportTicketController extends Controller
 
             if (is_array($images)) {
                 foreach ($images as $base64) {
-                    if (preg_match('/^data:image\/(\w+);base64,/', $base64, $type)) {
+                    if (is_string($base64) && preg_match('/^data:image\/(\w+);base64,/', $base64, $type)) {
                         $base64Data = substr($base64, strpos($base64, ',') + 1);
                         $type = strtolower($type[1]); // jpg, png, gif, webp
                         if (in_array($type, ['jpeg', 'jpg', 'png', 'gif', 'webp'])) {
@@ -270,9 +308,9 @@ class SupportTicketController extends Controller
                                 'webp' => 'image/webp',
                             ];
                             if ($decoded !== false && strlen($decoded) <= 15 * 1024 * 1024 && ($allowedMimes[$type] ?? null) === $mime) {
-                                $filename = time().'_pasted_'.Str::random(8).'.'.$type;
-                                file_put_contents($destinationPath.'/'.$filename, $decoded);
-                                $savedPaths[] = "{$relativeFolder}/{$filename}";
+                                $path = $relativeFolder.'/'.time().'_pasted_'.Str::random(8).'.'.$type;
+                                $disk->put($path, $decoded);
+                                $savedPaths[] = $path;
                             }
                         }
                     }
@@ -285,6 +323,32 @@ class SupportTicketController extends Controller
         }
 
         return count($savedPaths) === 1 ? $savedPaths[0] : json_encode($savedPaths);
+    }
+
+    /**
+     * Người được phân công xử lý ticket: nhân sự đang hoạt động có quyền
+     * support_ticket.update (theo vai trò hoặc phân quyền cá nhân).
+     */
+    private function ticketHandlers()
+    {
+        return User::query()
+            ->where('is_active', true)
+            ->whereNull('locked_at')
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (User $user) => $user->can('support_ticket.update'))
+            ->values();
+    }
+
+    private function ensureValidHandler(int $userId): void
+    {
+        $handler = User::query()->where('is_active', true)->whereNull('locked_at')->find($userId);
+
+        if (! $handler || ! $handler->can('support_ticket.update')) {
+            throw ValidationException::withMessages([
+                'assignee_id' => 'Chỉ phân công ticket cho nhân sự có quyền xử lý ticket.',
+            ]);
+        }
     }
 
     private function canManageTickets(): bool

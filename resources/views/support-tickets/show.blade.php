@@ -69,7 +69,7 @@
                                         @php
                                             $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
                                             $isImg = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']);
-                                            $fileUrl = asset($file);
+                                            $fileUrl = route('tickets.attachment', ['id' => $ticket->id, 'path' => $file]);
                                         @endphp
                                         @if ($isImg)
                                             <div class="group relative rounded-xl border border-gray-200 overflow-hidden bg-gray-50 hover:shadow-md transition cursor-pointer"

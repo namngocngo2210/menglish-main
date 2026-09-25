@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\Audit;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\CrmCustomer;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class BranchController extends Controller
 {
@@ -65,14 +65,8 @@ class BranchController extends Controller
 
         $validated['is_active'] = $request->has('is_active') ? (bool)$request->input('is_active') : true;
 
+        Audit::describe("Thêm mới cơ sở chi nhánh: {$validated['name']} ({$validated['code']})");
         $branch = Branch::create($validated);
-
-        if (function_exists('activity')) {
-            activity('branch')
-                ->causedBy(Auth::user())
-                ->performedOn($branch)
-                ->log("Thêm mới cơ sở chi nhánh: {$branch->name} ({$branch->code})");
-        }
 
         return redirect()->route('branches.index')
             ->with('status', "Đã thêm cơ sở chi nhánh [{$branch->name}] thành công!");
@@ -92,14 +86,8 @@ class BranchController extends Controller
 
         $validated['is_active'] = $request->has('is_active') ? (bool)$request->input('is_active') : false;
 
+        Audit::describe("Cập nhật thông tin cơ sở chi nhánh: {$validated['name']} ({$validated['code']})");
         $branch->update($validated);
-
-        if (function_exists('activity')) {
-            activity('branch')
-                ->causedBy(Auth::user())
-                ->performedOn($branch)
-                ->log("Cập nhật thông tin cơ sở chi nhánh: {$branch->name} ({$branch->code})");
-        }
 
         return redirect()->route('branches.index')
             ->with('status', "Đã cập nhật cơ sở chi nhánh [{$branch->name}] thành công!");
@@ -118,14 +106,8 @@ class BranchController extends Controller
         }
 
         $branchName = $branch->name;
+        Audit::describe("Xóa cơ sở chi nhánh: {$branchName}");
         $branch->delete();
-
-        if (function_exists('activity')) {
-            activity('branch')
-                ->causedBy(Auth::user())
-                ->performedOn($branch)
-                ->log("Xóa cơ sở chi nhánh: {$branchName}");
-        }
 
         return redirect()->route('branches.index')
             ->with('status', "Đã xóa chi nhánh {$branchName} thành công!");

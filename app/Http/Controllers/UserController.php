@@ -7,9 +7,12 @@ use App\Http\Requests\AssignRoleRequest;
 use App\Http\Requests\UserRequest;
 use App\Models\Branch;
 use App\Models\User;
+use App\Services\SafeUploadService;
+use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -22,12 +25,16 @@ class UserController extends Controller
         $currentUser = auth()->user();
         abort_if($currentUser && ($currentUser->hasRole('student') || $currentUser->hasRole('teacher')), 403);
 
-        // Admin & Manager xem toàn bộ; các vai trò khác (ví dụ học vụ) chỉ
+        // Admin xem toàn bộ; Quản lý cơ sở chỉ thấy nhân sự thuộc chi nhánh
+        // mình (branch_id + user_branches); các vai trò khác (ví dụ học vụ) chỉ
         // được thấy tài khoản do chính mình tạo (created_by).
         $isPrivileged = $currentUser && ($currentUser->hasRole('admin') || $currentUser->hasRole('manager'));
-        $scope = function ($q) use ($currentUser, $isPrivileged) {
+        $managedBranchIds = $currentUser?->managedBranchIds();
+        $scope = function ($q) use ($currentUser, $isPrivileged, $managedBranchIds) {
             if (! $isPrivileged && $currentUser) {
                 $q->where('created_by', $currentUser->id);
+            } elseif ($managedBranchIds !== null) {
+                $q->whereIn('branch_id', $managedBranchIds);
             }
 
             return $q;
@@ -66,10 +73,18 @@ class UserController extends Controller
             $q->where('is_active', false)->orWhereNotNull('locked_at');
         })->count();
 
-        $branches = Branch::query()->active()->orderBy('name')->get();
+        $expiringContracts = $scope(User::query())
+            ->whereNotNull('contract_end_date')
+            ->whereDate('contract_end_date', '<=', now()->addDays(User::CONTRACT_WARNING_DAYS)->toDateString())
+            ->where('is_active', true)
+            ->whereNull('locked_at')
+            ->count();
+
+        $branches = $this->assignableBranches();
         $roles = Role::query()->orderBy('name')->pluck('name');
 
         return view('users.index', compact(
+            'expiringContracts',
             'users',
             'totalStaff',
             'activeStaff',
@@ -109,7 +124,7 @@ class UserController extends Controller
     {
         return view('users.form', [
             'user' => new User,
-            'branches' => Branch::query()->active()->orderBy('name')->get(),
+            'branches' => $this->assignableBranches(),
             'roles' => collect($this->creatableRoles(auth()->user())),
         ]);
     }
@@ -117,19 +132,21 @@ class UserController extends Controller
     public function store(UserRequest $request): RedirectResponse
     {
         $this->ensureCanAssignRole($request->validated('role'));
+        $this->ensureBranchInScope((int) $request->validated('branch_id'));
 
+        Audit::describe('Tạo tài khoản nhân viên mới');
+
+        // Tài khoản mới luôn phải đổi mật khẩu ở lần đăng nhập đầu tiên.
         $user = User::create([
-            ...$request->safe()->except(['role', 'password']),
+            ...$request->safe()->except(['role', 'password', 'contract_file']),
             'password' => Hash::make($request->validated('password')),
+            'must_change_password' => true,
             'is_active' => true,
             'created_by' => auth()->id(),
         ]);
 
         $user->syncRoles([$request->validated('role')]);
-
-        activity('user')->causedBy($request->user())->performedOn($user)
-            ->withProperties(['after' => $user->only(['name', 'email', 'branch_id'])])
-            ->log('Tạo tài khoản nhân viên mới');
+        $this->storeContractFile($request, $user);
 
         return redirect()->route('users.index')->with('status', 'Đã tạo tài khoản thành công.');
     }
@@ -139,7 +156,7 @@ class UserController extends Controller
         $this->ensureCanManageTarget($user);
         return view('users.form', [
             'user' => $user,
-            'branches' => Branch::query()->active()->orderBy('name')->get(),
+            'branches' => $this->assignableBranches(),
             'roles' => collect($this->creatableRoles(auth()->user())),
         ]);
     }
@@ -147,22 +164,32 @@ class UserController extends Controller
     public function update(UserRequest $request, User $user): RedirectResponse
     {
         $this->ensureCanManageTarget($user);
-        $before = $user->only(['name', 'email', 'branch_id', 'phone', 'employee_code']);
-
         $this->ensureCanAssignRole($request->validated('role'));
+        $this->ensureBranchInScope((int) $request->validated('branch_id'));
 
-        $user->fill($request->safe()->except(['role', 'password']));
+        Audit::describe('Cập nhật tài khoản nhân viên');
+
+        $user->fill($request->safe()->except(['role', 'password', 'contract_file']));
 
         if ($request->filled('password')) {
             $user->password = Hash::make($request->validated('password'));
         }
 
         $user->save();
-        $user->syncRoles([$request->validated('role')]);
 
-        activity('user')->causedBy($request->user())->performedOn($user)
-            ->withProperties(['before' => $before, 'after' => $user->only(['name', 'email', 'branch_id', 'phone', 'employee_code'])])
-            ->log('Cập nhật tài khoản nhân viên');
+        // Form chỉ chọn vai trò CHÍNH: thay vai trò chính cũ bằng vai trò mới và
+        // giữ nguyên các vai trò kiêm nhiệm (gán ở màn "Gán vai trò").
+        $currentRoles = $user->getRoleNames();
+        $primaryRole = $currentRoles->first();
+        $roles = $currentRoles
+            ->reject(fn (string $role) => $role === $primaryRole)
+            ->prepend($request->validated('role'))
+            ->unique()
+            ->values()
+            ->all();
+        $user->syncRoles($roles);
+
+        $this->storeContractFile($request, $user);
 
         return redirect()->route('users.index')->with('status', 'Đã cập nhật tài khoản thành công.');
     }
@@ -174,11 +201,8 @@ class UserController extends Controller
             return back()->withErrors(['user' => 'Bạn không thể tự xóa tài khoản của chính mình.']);
         }
 
+        Audit::describe('Xóa (soft-delete) tài khoản nhân viên');
         $user->delete();
-
-        activity('user')->causedBy(auth()->user())
-            ->withProperties(['user_id' => $user->id, 'email' => $user->email])
-            ->log('Xóa (soft-delete) tài khoản nhân viên');
 
         return redirect()->route('users.index')->with('status', 'Đã xóa tài khoản.');
     }
@@ -190,9 +214,8 @@ class UserController extends Controller
             return back()->withErrors(['user' => 'Bạn không thể khóa tài khoản của chính mình.']);
         }
 
+        Audit::describe('Vô hiệu hóa tài khoản');
         $user->forceFill(['locked_at' => now()])->save();
-
-        activity('user')->causedBy(auth()->user())->performedOn($user)->log('Vô hiệu hóa tài khoản');
 
         return back()->with('status', 'Đã vô hiệu hóa tài khoản.');
     }
@@ -200,9 +223,8 @@ class UserController extends Controller
     public function unlock(User $user): RedirectResponse
     {
         $this->ensureCanManageTarget($user);
+        Audit::describe('Kích hoạt lại tài khoản');
         $user->forceFill(['locked_at' => null])->save();
-
-        activity('user')->causedBy(auth()->user())->performedOn($user)->log('Kích hoạt lại tài khoản');
 
         return back()->with('status', 'Đã kích hoạt lại tài khoản.');
     }
@@ -211,9 +233,17 @@ class UserController extends Controller
     {
         $this->ensureCanManageTarget($user);
         $temporaryPassword = Str::password(12);
-        $user->forceFill(['password' => Hash::make($temporaryPassword)])->save();
 
-        activity('user')->causedBy(auth()->user())->performedOn($user)->log('Đặt lại mật khẩu');
+        // Mật khẩu tạm: bắt buộc đổi ở lần đăng nhập tiếp theo. Mật khẩu không
+        // ghi vào nhật ký nên ghi thủ công 1 dòng (lưu model không qua audit).
+        $user->forceFill([
+            'password' => Hash::make($temporaryPassword),
+            'must_change_password' => true,
+        ])->saveQuietly();
+
+        activity('Người dùng & Phân quyền')->causedBy(auth()->user())->performedOn($user)
+            ->event('updated')
+            ->log('Đặt lại mật khẩu (bắt buộc đổi ở lần đăng nhập tới)');
 
         // Trong môi trường thực tế nên gửi mật khẩu tạm qua email thay vì hiển thị trực tiếp.
         return back()->with('status', "Đã đặt lại mật khẩu. Mật khẩu tạm thời: {$temporaryPassword}");
@@ -242,6 +272,74 @@ class UserController extends Controller
             ->log('Cập nhật vai trò nhân viên');
 
         return redirect()->route('users.index')->with('status', 'Đã cập nhật vai trò.');
+    }
+
+    /**
+     * Tải file hợp đồng lao động (lưu ở disk riêng tư). Chỉ người quản lý được
+     * tài khoản này hoặc chính nhân sự đó được tải.
+     */
+    public function downloadContract(User $user)
+    {
+        if ((int) $user->id !== (int) auth()->id()) {
+            abort_unless(auth()->user()->can('user.view'), 403);
+            $this->ensureCanManageTarget($user);
+        }
+
+        abort_if(! $user->contract_file_path || ! Storage::disk('local')->exists($user->contract_file_path), 404);
+
+        $extension = pathinfo($user->contract_file_path, PATHINFO_EXTENSION);
+
+        return Storage::disk('local')->download(
+            $user->contract_file_path,
+            'hop-dong-'.Str::slug($user->name).'.'.$extension
+        );
+    }
+
+    private function storeContractFile(UserRequest $request, User $user): void
+    {
+        if (! $request->hasFile('contract_file')) {
+            return;
+        }
+
+        $path = SafeUploadService::store(
+            $request->file('contract_file'),
+            'contracts/'.$user->id,
+            [...SafeUploadService::DOCUMENTS, ...SafeUploadService::IMAGES],
+            'contract_file',
+            'local'
+        );
+
+        $old = $user->contract_file_path;
+        Audit::describe('Cập nhật file hợp đồng lao động');
+        $user->forceFill(['contract_file_path' => $path])->save();
+
+        if ($old && $old !== $path) {
+            Storage::disk('local')->delete($old);
+        }
+    }
+
+    /**
+     * Chi nhánh được chọn khi tạo/sửa tài khoản: Quản lý cơ sở chỉ chọn chi nhánh mình.
+     */
+    private function assignableBranches()
+    {
+        $managed = auth()->user()?->managedBranchIds();
+
+        return Branch::query()->active()
+            ->when($managed !== null, fn ($q) => $q->whereIn('id', $managed))
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function ensureBranchInScope(int $branchId): void
+    {
+        $managed = auth()->user()?->managedBranchIds();
+
+        if ($managed !== null && ! in_array($branchId, $managed, true)) {
+            throw ValidationException::withMessages([
+                'branch_id' => 'Bạn chỉ được quản lý nhân sự thuộc chi nhánh của mình.',
+            ]);
+        }
     }
 
     /**
@@ -291,6 +389,14 @@ class UserController extends Controller
         $outOfScope = $target->getRoleNames()->diff($manageable);
 
         abort_if($target->hasRole('admin') || $outOfScope->isNotEmpty(), 403, 'Bạn không có quyền thao tác trên tài khoản này.');
+
+        // Quản lý cơ sở chỉ thao tác trên nhân sự thuộc chi nhánh của mình.
+        $managed = $actor?->managedBranchIds();
+        abort_if(
+            $managed !== null && ! in_array((int) $target->branch_id, $managed, true),
+            403,
+            'Nhân sự này không thuộc chi nhánh bạn quản lý.'
+        );
     }
 
     /**

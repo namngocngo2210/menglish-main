@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AuditsChanges;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ClassModel extends Model
 {
-    use HasFactory, SoftDeletes;
+    use AuditsChanges, HasFactory, SoftDeletes;
 
     protected $table = 'classes';
 
@@ -52,17 +53,39 @@ class ClassModel extends Model
             return $query->whereRaw('1 = 0');
         }
 
-        if (self::userManagesAll($user)) {
+        // Quản lý cơ sở (không phải Admin) chỉ thấy lớp thuộc chi nhánh mình.
+        $managedBranchIds = $user->managedBranchIds();
+        $managesClasses = self::userManagesAll($user);
+
+        if ($managesClasses && $managedBranchIds === null) {
             return $query;
         }
 
-        return $query->where(function (Builder $query) use ($user) {
+        // Phạm vi được cấp riêng qua "Phân quyền cá nhân" (class.view/update/delete theo chi nhánh/lớp).
+        $grantedBranchIds = [];
+        $grantedClassIds = [];
+        foreach (UserPermissionOverride::SCOPE_ENFORCED['class'] as $action) {
+            $grantedBranchIds = array_merge($grantedBranchIds, $user->scopedOverrideIds('class', $action, UserPermissionOverride::SCOPE_BRANCH));
+            $grantedClassIds = array_merge($grantedClassIds, $user->scopedOverrideIds('class', $action, UserPermissionOverride::SCOPE_CLASS));
+        }
+
+        return $query->where(function (Builder $query) use ($user, $managesClasses, $managedBranchIds, $grantedBranchIds, $grantedClassIds) {
             $query->where('teacher_id', $user->id)
                 ->orWhere('assistant_id', $user->id)
                 ->orWhere('foreign_teacher_id', $user->id)
                 ->orWhereHas('sessions', function (Builder $sessions) use ($user) {
                     $sessions->forStaff($user->id);
                 });
+
+            if ($managesClasses && ! empty($managedBranchIds)) {
+                $query->orWhereIn('branch_id', $managedBranchIds);
+            }
+            if (! empty($grantedBranchIds)) {
+                $query->orWhereIn('branch_id', array_values(array_unique($grantedBranchIds)));
+            }
+            if (! empty($grantedClassIds)) {
+                $query->orWhereIn('id', array_values(array_unique($grantedClassIds)));
+            }
         });
     }
 
@@ -115,9 +138,32 @@ class ClassModel extends Model
         return $left === null || $left >= $count;
     }
 
+    /**
+     * Nhân sự quản lý lớp theo vai trò (hoặc override "Toàn hệ thống"). Override
+     * theo chi nhánh/lớp KHÔNG tính ở đây (chỉ mở rộng trong phạm vi được cấp).
+     */
     public static function userManagesAll(User $user): bool
     {
-        return $user->can('class.create') || $user->can('class.update');
+        return $user->hasModuleAction('class', 'create') || $user->hasModuleAction('class', 'update');
+    }
+
+    /**
+     * Người dùng có được thực hiện "class.$action" trên lớp này không: lớp phải
+     * nằm trong phạm vi được thấy, và quyền được cấp (theo lớp, theo chi nhánh,
+     * toàn hệ thống hoặc theo vai trò).
+     */
+    public function userCan(User $user, string $action): bool
+    {
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        if (! static::query()->visibleTo($user)->whereKey($this->getKey())->exists()) {
+            return false;
+        }
+
+        return $user->hasModuleAction('class', $action, UserPermissionOverride::SCOPE_CLASS, (int) $this->getKey())
+            || ($this->branch_id && $user->hasModuleAction('class', $action, UserPermissionOverride::SCOPE_BRANCH, (int) $this->branch_id));
     }
 
     public function course(): BelongsTo

@@ -44,6 +44,9 @@ class AdminNotification extends Model
             'ticket_assigned' => 'assignment_ind',
             'ticket_message' => 'chat',
             'ticket_status' => 'published_with_changes',
+            'contract_expiring' => 'contract',
+            'task_assigned' => 'assignment',
+            'class_report_pending' => 'fact_check',
             default => 'notifications',
         };
     }
@@ -59,6 +62,9 @@ class AdminNotification extends Model
             'ticket_assigned' => 'bg-purple-50 text-purple-700 border-purple-200',
             'ticket_message' => 'bg-blue-50 text-blue-700 border-blue-200',
             'ticket_status' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
+            'contract_expiring' => 'bg-amber-50 text-amber-700 border-amber-200',
+            'task_assigned' => 'bg-teal-50 text-teal-700 border-teal-200',
+            'class_report_pending' => 'bg-orange-50 text-orange-700 border-orange-200',
             default => 'bg-gray-50 text-gray-700 border-gray-200',
         };
     }
@@ -75,6 +81,9 @@ class AdminNotification extends Model
             'ticket_assigned' => 'Phân công Ticket',
             'ticket_message' => 'Phản hồi Ticket',
             'ticket_status' => 'Cập nhật Ticket',
+            'contract_expiring' => 'Hợp đồng sắp hết hạn',
+            'task_assigned' => 'Được giao việc',
+            'class_report_pending' => 'Báo cáo trực lớp chờ duyệt',
             default => 'Thông báo hệ thống',
         };
     }

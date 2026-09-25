@@ -14,7 +14,7 @@
     </x-slot>
 
     <div class="max-w-2xl mx-auto bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-        <form method="POST" action="{{ $user->exists ? route('users.update', $user) : route('users.store') }}" class="space-y-5">
+        <form method="POST" action="{{ $user->exists ? route('users.update', $user) : route('users.store') }}" enctype="multipart/form-data" class="space-y-5">
             @csrf
             @if ($user->exists) @method('PUT') @endif
 
@@ -64,6 +64,15 @@
                         @endforeach
                     </select>
                     <x-input-error :messages="$errors->get('role')" class="mt-1 text-xs" />
+                    @if ($user->exists && $user->getRoleNames()->count() > 1)
+                        <p class="mt-1 text-[11px] text-gray-500">
+                            Kiêm nhiệm:
+                            @foreach ($user->getRoleNames()->slice(1) as $extraRole)
+                                <span class="inline-flex px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold">{{ \App\Helpers\AclHelper::roleLabel($extraRole) }}</span>
+                            @endforeach
+                            — được giữ nguyên khi lưu. Đổi kiêm nhiệm tại màn "Gán vai trò".
+                        </p>
+                    @endif
                 </div>
             </div>
 
@@ -160,7 +169,21 @@
                         <div>
                             <label for="contract_end_date" class="block text-[11px] font-bold uppercase text-gray-600 mb-1">Ngày kết thúc hợp đồng</label>
                             <input type="date" id="contract_end_date" name="contract_end_date" class="w-full bg-white border border-gray-200 text-gray-900 rounded-xl text-sm focus:ring-primary-container focus:border-primary-container p-2.5 shadow-2xs" value="{{ old('contract_end_date', $user->contract_end_date?->format('Y-m-d')) }}">
+                            <x-input-error :messages="$errors->get('contract_end_date')" class="mt-1 text-xs" />
                         </div>
+                    </div>
+                    <div>
+                        <label for="contract_file" class="block text-[11px] font-bold uppercase text-gray-600 mb-1">File hợp đồng lao động (PDF, Word, ảnh — tối đa 10MB)</label>
+                        <input type="file" id="contract_file" name="contract_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp" class="w-full text-xs text-gray-700 file:mr-3 file:px-3 file:py-2 file:rounded-xl file:border-0 file:bg-orange-50 file:text-primary file:font-semibold">
+                        @if ($user->exists && $user->contract_file_path)
+                            <p class="mt-1 text-[11px] text-gray-500 flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[14px]">description</span>
+                                Đã có file hợp đồng —
+                                <a href="{{ route('users.contract.download', $user) }}" class="text-primary font-semibold hover:underline">Tải xuống</a>
+                                (tải file mới sẽ thay thế file cũ)
+                            </p>
+                        @endif
+                        <x-input-error :messages="$errors->get('contract_file')" class="mt-1 text-xs" />
                     </div>
                 </div>
             </div>

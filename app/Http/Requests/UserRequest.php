@@ -42,6 +42,7 @@ class UserRequest extends FormRequest
             'contract_type' => ['nullable', 'string', 'max:50'],
             'contract_start_date' => ['nullable', 'date'],
             'contract_end_date' => ['nullable', 'date'],
+            'contract_file' => ['nullable', 'file', 'max:10240', 'mimes:pdf,doc,docx,jpg,jpeg,png,webp'],
         ];
     }
 

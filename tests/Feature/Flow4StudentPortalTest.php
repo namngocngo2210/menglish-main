@@ -149,8 +149,11 @@ class Flow4StudentPortalTest extends TestCase
         $response->assertSee('Audio Mẫu từ Giáo trình');
         $response->assertSee('Unit 1: Greetings - Bài 2');
         $response->assertSee('Đang luyện tập:');
-        $response->assertSee('Nộp bài ghi âm AI');
+        $response->assertSee('Nộp bài ghi âm');
         $response->assertSee('Lịch sử của bạn');
+        // Phase 4: không còn lịch sử/điểm "AI" giả khi chưa có bài nộp.
+        $response->assertDontSee('Điểm AI');
+        $response->assertSee('Chưa có bài ghi âm');
     }
 
     /**
@@ -165,10 +168,15 @@ class Flow4StudentPortalTest extends TestCase
         ]);
 
         $response->assertSessionHasNoErrors();
+        // Phase 4: không sinh điểm AI ngẫu nhiên — bài nộp chờ giáo viên chấm.
         $this->assertDatabaseHas('academic_records', [
             'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/04_luyen_phat_am',
-            'status' => 'completed',
+            'status' => 'pending_review',
         ]);
+        $record = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/04_luyen_phat_am')->first();
+        $this->assertNull($record->data['score']);
+        $this->actingAs($this->user)->get(route('portal.student.pronunciation', ['studentId' => $this->student->id]))
+            ->assertSee('Chờ giáo viên chấm');
     }
 
     /**
@@ -180,9 +188,10 @@ class Flow4StudentPortalTest extends TestCase
         $response = $this->actingAs($this->user)->get(route('portal.student.notifications', ['studentId' => $this->student->id]));
         $response->assertStatus(200);
         $response->assertSee('Thông báo');
-        $response->assertSee('Nhắc nhở học phí tháng 9');
         $response->assertSee('Chúc mừng sinh nhật!');
-        $response->assertSee('Lịch nghỉ lễ Quốc Khánh 2/9');
+        // Phase 4: không còn tự tạo thông báo mẫu (học phí/khảo sát/nghỉ lễ giả) khi mở trang.
+        $response->assertDontSee('Nhắc nhở học phí tháng 9');
+        $response->assertDontSee('Lịch nghỉ lễ Quốc Khánh 2/9');
         $response->assertSee('Đánh dấu tất cả đã đọc');
     }
 
@@ -381,9 +390,11 @@ class Flow4StudentPortalTest extends TestCase
      */
     public function test_flow_4_step_5_mark_single_notification_read_and_delete()
     {
-        // Load notifications page to trigger auto-seed
+        // Phase 4: mở trang không tự tạo thông báo mẫu nữa; dùng thông báo thật (sinh nhật).
         $this->actingAs($this->user)->get(route('portal.student.notifications', ['studentId' => $this->student->id]));
+        $this->assertSame(0, AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao')->count());
 
+        $this->artisan('students:send-birthday-notifications', ['--date' => '2026-06-15'])->assertExitCode(0);
         $notif = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao')->first();
         $this->assertNotNull($notif);
 

@@ -164,6 +164,8 @@ class ClassManagementController extends Controller
             throw ValidationException::withMessages(['chi_nhanh' => 'Chi nhánh không tồn tại, vui lòng chọn lại.']);
         }
         $branchId = (int) $branchId;
+        $managedBranchIds = auth()->user()->managedBranchIds();
+        abort_if($managedBranchIds !== null && ! in_array($branchId, $managedBranchIds, true), 403, 'Bạn chỉ được quản lý lớp thuộc chi nhánh của mình.');
 
         // TKB do client render chưa biết lịch nghỉ lễ: loại các buổi rơi vào ngày nghỉ
         // toàn hệ thống hoặc ngày nghỉ riêng của chi nhánh trước khi tạo buổi học.
@@ -538,6 +540,7 @@ class ClassManagementController extends Controller
         abort_if(! auth()->user()->can('class.update'), 403, 'Bạn không có quyền chỉnh sửa lớp học.');
 
         $class = ClassModel::with(['branch', 'teacher', 'assistant', 'foreignTeacher', 'course'])->findOrFail($id);
+        abort_unless($class->userCan(auth()->user(), 'update'), 403, 'Lớp học này nằm ngoài phạm vi bạn được quản lý.');
         $branches = Branch::where('is_active', true)->get();
         $courses = Course::where('is_active', true)->get();
         $levels = CourseLevel::where('is_active', true)->get();
@@ -559,6 +562,7 @@ class ClassManagementController extends Controller
         abort_if(! auth()->user()->can('class.update'), 403, 'Bạn không có quyền chỉnh sửa lớp học.');
 
         $class = ClassModel::findOrFail($id);
+        abort_unless($class->userCan(auth()->user(), 'update'), 403, 'Lớp học này nằm ngoài phạm vi bạn được quản lý.');
 
         $validated = $request->validate([
             'ten_lop' => 'required|string|max:255',
@@ -586,6 +590,8 @@ class ClassManagementController extends Controller
             throw ValidationException::withMessages(['chi_nhanh' => 'Chi nhánh không tồn tại, vui lòng chọn lại.']);
         }
         $branchId = (int) $branchId;
+        $managedBranchIds = auth()->user()->managedBranchIds();
+        abort_if($managedBranchIds !== null && ! in_array($branchId, $managedBranchIds, true), 403, 'Bạn chỉ được quản lý lớp thuộc chi nhánh của mình.');
 
         $this->assertValidTeachingStaff($validated);
 
@@ -678,6 +684,7 @@ class ClassManagementController extends Controller
         abort_if(! auth()->user()->can('class.delete'), 403, 'Bạn không có quyền xóa lớp học.');
 
         $class = ClassModel::findOrFail($id);
+        abort_unless($class->userCan(auth()->user(), 'delete'), 403, 'Lớp học này nằm ngoài phạm vi bạn được quản lý.');
         $className = $class->name;
         $classCode = $class->code;
 

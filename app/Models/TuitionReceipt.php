@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AuditsChanges;
 use App\Services\NotificationService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,7 @@ use Illuminate\Support\Str;
 
 class TuitionReceipt extends Model
 {
-    use HasFactory;
+    use AuditsChanges, HasFactory;
 
     public const STATUS_DRAFT = 'draft';
 

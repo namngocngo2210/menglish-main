@@ -615,6 +615,29 @@
 **Test:** thêm `tests/Feature/Phase1CrmTest.php`, `Phase1EnrollmentTest.php`. Cập nhật `AcademicSystemTest`, `PlacementPortalSecurityTest`: khách trong test được gán chi nhánh của người chấm (hành vi cũ cho chấm khách ngoài phạm vi là sai theo A6).
 **Triển khai:** chạy `php artisan migrate` (migration `2026_09_28_100000_add_phase1_crm_fields`).
 
+#### Phase 4 (nền tảng) — Tài khoản, phân quyền, nhật ký, giao việc, ticket, portal, dashboard
+**Đã làm:**
+- [x] Nhật ký: mỗi request ghi **1 dòng** (middleware gom batch, chỉ ghi dòng chung khi request không sinh dòng nào). Model User, Student, ClassModel, CrmCustomer, TuitionReceipt, SystemCategory, Branch tự ghi **trước/sau** (trait `AuditsChanges`, cấu hình `App\Support\Audit`), che dữ liệu nhạy cảm bằng `SensitiveData`. Màn Nhật ký: lọc ngày/hành động, bảng so sánh trước/sau, **Xuất Excel (CSV)**, **Hoàn tác** (chỉ Admin, chỉ thao tác sửa đơn giản trên trường cho phép, từ chối nếu bản ghi đã đổi tiếp).
+- [x] Phân quyền cá nhân dạng ma trận Xem/Thêm/Sửa/Xóa + quyền khác, chọn **phạm vi chi nhánh/lớp** theo module. Phạm vi được kiểm tra thật cho `class.view/update/delete` (`ClassModel::scopeVisibleTo`, `ClassModel::userCan`, Gate mở route khi có override phạm vi); module khác chỉ nhận "Toàn hệ thống".
+- [x] Quản lý cơ sở chỉ thấy **chi nhánh mình** ở Lớp học (xem/sửa/xóa/tạo), Tài khoản (danh sách, thao tác, chọn chi nhánh) và Giao việc. Admin thấy tất cả.
+- [x] Tài khoản: sửa không còn xóa vai trò kiêm nhiệm; bỏ dữ liệu giả "Cơ sở Cầu Giấy", "0912 345 678"; upload file hợp đồng (lưu riêng tư, tải qua route kiểm tra quyền); tạo tài khoản và đặt lại mật khẩu bắt buộc đổi mật khẩu. Người dùng **không tự xóa** tài khoản được nữa.
+- [x] Cảnh báo hợp đồng: lệnh `hr:notify-expiring-contracts` chạy 07:50 hằng ngày, báo Admin + Quản lý cơ sở của chi nhánh (không trùng); nhãn "HĐ sắp hết hạn/đã hết hạn" trên danh sách nhân sự.
+- [x] Danh mục: nút **Kích hoạt lại**.
+- [x] Giao việc: người không có quyền duyệt chỉ thấy việc mình giao/được giao; đổi trạng thái theo quy tắc chuyển trạng thái và vai trò (người làm không tự hoàn thành, **không tự duyệt**); **giao việc 2 chiều** (GV/TA dùng quyền mới `work_task.request` giao ngược cho Admin/Quản lý/Học vụ/Học thuật); thông báo cá nhân khi được giao việc. **Báo cáo trực lớp** không có ảnh chờ **GV chính của lớp** hoặc Học vụ/Quản lý duyệt/trả về (Q8 tạm theo mockup: ảnh bảng không bắt buộc, có ảnh thì duyệt luôn).
+- [x] Ticket: ticket chưa phân công báo riêng cho người có quyền phân công ticket **cùng chi nhánh** người tạo (không còn thông báo chung); chỉ phân công cho người có quyền xử lý; file đính kèm mới lưu **riêng tư**, xem qua route kiểm tra người trong luồng (file cũ `public/uploads` vẫn mở được qua route này).
+- [x] Portal học viên: bỏ thông báo mẫu tự tạo; bài phát âm **chờ giáo viên chấm** (tab "Phát âm" ở màn chấm bài của giáo viên), không còn điểm "AI" ngẫu nhiên.
+- [x] Dashboard theo vai trò: Admin (toàn hệ thống), Quản lý cơ sở (chi nhánh), Học thuật (lớp, đề xuất chờ duyệt, Big Test sắp tới). Vai trò khác giữ lưới lối tắt.
+- [x] Gỡ view chết: `payroll/periods-index`, `periods-show`, `tuition/receipts-approve`, `receipts-create`, `syllabus/big-test-distribution`, `big-test-results`.
+
+**Chưa làm / chuyển phase sau:**
+- [ ] Phạm vi chi nhánh/lớp cho module khác (Học viên, Học phí, CRM...) → cần áp vào từng màn; hiện UI khóa ở "Toàn hệ thống".
+- [ ] Học vụ/Học thuật chưa bị giới hạn chi nhánh ở Lớp học/Tài khoản (chỉ Quản lý cơ sở theo A6 Q7) → chờ BA xác nhận.
+- [ ] Xuất nhật ký dạng CSV (mở bằng Excel), chưa phải .xlsx.
+
+**Quyết định phát sinh:** Q8 tạm: báo cáo trực lớp không ảnh do GV chính của lớp duyệt (lớp chưa có GV chính → người có quyền duyệt công việc cùng chi nhánh). Ticket chưa phân công báo cho người có `support_ticket.assign` cùng chi nhánh người tạo; không có ai → Admin.
+
+**Triển khai:** chạy `php artisan migrate` (thêm `users.contract_file_path`, `class_reports.rejection_reason`, quyền `work_task.request` cho vai trò giáo viên/trợ giảng); đảm bảo cron `schedule:run` chạy; thư mục `storage/app/private` ghi được.
+
 ---
 
 ## Phụ lục — Vị trí kỹ thuật các lỗi P0 (cho dev)

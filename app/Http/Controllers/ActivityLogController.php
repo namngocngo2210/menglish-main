@@ -3,56 +3,29 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\Audit;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Spatie\Activitylog\Models\Activity;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ActivityLogController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = Activity::query()
+        $request->validate([
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
+        ]);
+
+        $logs = $this->filteredQuery($request)
             ->with('causer')
-            ->latest();
-
-        // 1. Filter by Module (log_name)
-        if ($request->filled('log_name')) {
-            $query->where('log_name', $request->input('log_name'));
-        }
-
-        // 2. Filter by Event
-        if ($request->filled('event')) {
-            $query->where('event', $request->input('event'));
-        }
-
-        // 3. Filter by User / Causer
-        if ($request->filled('causer_id')) {
-            $query->where('causer_id', $request->input('causer_id'));
-        }
-
-        // 4. Filter by Date range
-        if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->input('date_from'));
-        }
-        if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->input('date_to'));
-        }
-
-        // 5. Search keyword
-        if ($request->filled('search')) {
-            $search = trim($request->input('search'));
-            $query->where(function ($sub) use ($search) {
-                $sub->where('description', 'like', "%{$search}%")
-                    ->orWhere('log_name', 'like', "%{$search}%")
-                    ->orWhere('event', 'like', "%{$search}%")
-                    ->orWhereHas('causer', function ($c) use ($search) {
-                        $c->where('name', 'like', "%{$search}%")
-                            ->orWhere('email', 'like', "%{$search}%");
-                    });
-            });
-        }
-
-        $logs = $query->paginate(request()->perPage(25))->withQueryString();
+            ->paginate($request->perPage(25))
+            ->withQueryString();
 
         // Module choices & Users for filter dropdowns
         $logNames = [
@@ -72,7 +45,7 @@ class ActivityLogController extends Controller
 
         // Merge any extra log names from DB
         $dbLogNames = Activity::query()->whereNotNull('log_name')->distinct()->pluck('log_name')->toArray();
-        $allLogNames = array_unique(array_merge($logNames, $dbLogNames));
+        $allLogNames = array_values(array_unique(array_merge($logNames, $dbLogNames)));
 
         $events = Activity::query()->whereNotNull('event')->distinct()->pluck('event');
         $users = User::select('id', 'name', 'email')->orderBy('name')->get();
@@ -82,6 +55,8 @@ class ActivityLogController extends Controller
         $totalLogsCount = Activity::count();
         $activeUsersToday = Activity::whereDate('created_at', today())->distinct('causer_id')->count('causer_id');
 
+        $canUndo = (bool) $request->user()?->hasRole('admin');
+
         return view('activity-logs.index', compact(
             'logs',
             'allLogNames',
@@ -89,7 +64,196 @@ class ActivityLogController extends Controller
             'users',
             'totalLogsToday',
             'totalLogsCount',
-            'activeUsersToday'
+            'activeUsersToday',
+            'canUndo'
         ));
+    }
+
+    /**
+     * Xuất nhật ký theo bộ lọc hiện tại ra CSV (UTF-8 BOM, mở trực tiếp bằng Excel).
+     */
+    public function export(Request $request): StreamedResponse
+    {
+        $request->validate([
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
+        ]);
+
+        $query = $this->filteredQuery($request)->with('causer');
+        $filename = 'nhat-ky-van-hanh-'.now()->format('Ymd-His').'.csv';
+
+        return response()->streamDownload(function () use ($query) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['ID', 'Thời điểm', 'Người thực hiện', 'Email', 'Phân hệ', 'Hành động', 'Nội dung', 'Đối tượng', 'Trường thay đổi (trước → sau)', 'IP']);
+
+            $query->chunk(500, function ($logs) use ($out) {
+                foreach ($logs as $log) {
+                    fputcsv($out, [
+                        $log->id,
+                        $log->created_at?->format('d/m/Y H:i:s'),
+                        $log->causer?->name ?? 'Hệ thống tự động',
+                        $log->causer?->email,
+                        $log->log_name,
+                        Audit::eventLabel($log->event),
+                        $log->description,
+                        $log->subject_type ? class_basename($log->subject_type).' #'.$log->subject_id : '',
+                        collect(self::diff($log))
+                            ->map(fn ($row, $field) => $field.': '.self::stringify($row['old']).' → '.self::stringify($row['new']))
+                            ->implode('; '),
+                        $log->properties['ip'] ?? '',
+                    ]);
+                }
+            });
+
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * "Hoàn tác": khôi phục giá trị cũ (old) của một thao tác cập nhật đơn giản
+     * trên model trong danh sách cho phép (Audit::MODELS[...]['undo']). Chỉ Admin.
+     * Từ chối nếu bản ghi đã bị sửa tiếp sau thao tác đó (tránh ghi đè dữ liệu mới).
+     */
+    public function undo(Request $request, int $id): RedirectResponse
+    {
+        abort_unless($request->user()?->hasRole('admin'), 403, 'Chỉ Admin được hoàn tác thao tác.');
+
+        $log = Activity::query()->findOrFail($id);
+        [$model, $fields, $error] = self::undoPlan($log);
+
+        if ($error) {
+            return back()->withErrors(['undo' => $error]);
+        }
+
+        $currentValues = $model::logChanges($model);
+        $newValues = (array) ($log->properties['attributes'] ?? []);
+        foreach ($fields as $field) {
+            if (self::stringify($currentValues[$field] ?? null) !== self::stringify($newValues[$field] ?? null)) {
+                return back()->withErrors(['undo' => "Không thể hoàn tác: trường \"{$field}\" đã bị thay đổi sau thao tác này."]);
+            }
+        }
+
+        $old = (array) $log->properties['old'];
+        DB::transaction(function () use ($model, $fields, $old, $log) {
+            foreach ($fields as $field) {
+                $model->setAttribute($field, $old[$field]);
+            }
+            Audit::describe("Hoàn tác thao tác nhật ký #{$log->id}");
+            $model->save();
+        });
+
+        return back()->with('status', "Đã hoàn tác thao tác #{$log->id}: khôi phục ".count($fields).' trường.');
+    }
+
+    /**
+     * Kiểm tra một dòng nhật ký có hoàn tác được không.
+     *
+     * @return array{0: ?Model, 1: string[], 2: ?string}
+     */
+    public static function undoPlan(Activity $log): array
+    {
+        if ($log->event !== 'updated' || ! $log->subject_type || ! $log->subject_id) {
+            return [null, [], 'Chỉ hoàn tác được thao tác "Cập nhật" trên dữ liệu.'];
+        }
+
+        $allowed = Audit::undoableAttributes($log->subject_type);
+        $old = (array) ($log->properties['old'] ?? []);
+        $fields = array_values(array_intersect(array_keys($old), $allowed));
+
+        if (empty($old) || empty($fields)) {
+            return [null, [], 'Thao tác này không có trường nào được phép hoàn tác.'];
+        }
+
+        // Chỉ hoàn tác khi MỌI trường thay đổi đều nằm trong danh sách cho phép
+        // (thao tác "đơn giản"); tránh hoàn tác một nửa nghiệp vụ.
+        if (count($fields) !== count($old)) {
+            return [null, [], 'Thao tác có trường nghiệp vụ không được phép hoàn tác tự động.'];
+        }
+
+        foreach ($fields as $field) {
+            if ($old[$field] === \App\Support\SensitiveData::MASK) {
+                return [null, [], 'Thao tác chứa dữ liệu nhạy cảm đã che, không thể hoàn tác.'];
+            }
+        }
+
+        $class = $log->subject_type;
+        $model = class_exists($class) ? $class::query()->find($log->subject_id) : null;
+        if (! $model) {
+            return [null, [], 'Bản ghi gốc không còn tồn tại.'];
+        }
+
+        return [$model, $fields, null];
+    }
+
+    /**
+     * Danh sách trường thay đổi của một dòng nhật ký: [field => ['old' => ..., 'new' => ...]].
+     * Hỗ trợ cả dữ liệu model (old/attributes) và dạng cũ ghi tay (before/after).
+     */
+    public static function diff(Activity $log): array
+    {
+        $props = $log->properties;
+        $old = (array) ($props['old'] ?? $props['before'] ?? []);
+        $new = (array) ($props['attributes'] ?? $props['after'] ?? []);
+
+        if (empty($old) && empty($new)) {
+            return [];
+        }
+
+        $rows = [];
+        foreach (array_unique(array_merge(array_keys($old), array_keys($new))) as $field) {
+            $rows[$field] = ['old' => $old[$field] ?? null, 'new' => $new[$field] ?? null];
+        }
+
+        return $rows;
+    }
+
+    public static function stringify(mixed $value): string
+    {
+        return match (true) {
+            $value === null => '—',
+            is_bool($value) => $value ? 'Có' : 'Không',
+            is_array($value) => json_encode($value, JSON_UNESCAPED_UNICODE),
+            default => (string) $value,
+        };
+    }
+
+    private function filteredQuery(Request $request): Builder
+    {
+        $query = Activity::query()->latest()->orderByDesc('id');
+
+        if ($request->filled('log_name')) {
+            $query->where('log_name', $request->input('log_name'));
+        }
+
+        if ($request->filled('event')) {
+            $query->where('event', $request->input('event'));
+        }
+
+        if ($request->filled('causer_id')) {
+            $query->where('causer_id', $request->input('causer_id'));
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->input('date_from'));
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->input('date_to'));
+        }
+
+        if ($request->filled('search')) {
+            $search = trim($request->input('search'));
+            $query->where(function ($sub) use ($search) {
+                $sub->where('description', 'like', "%{$search}%")
+                    ->orWhere('log_name', 'like', "%{$search}%")
+                    ->orWhere('event', 'like', "%{$search}%")
+                    ->orWhereHas('causer', function ($c) use ($search) {
+                        $c->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        return $query;
     }
 }

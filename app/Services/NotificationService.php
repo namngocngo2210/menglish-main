@@ -265,21 +265,27 @@ class NotificationService
             ]);
         }
 
-        // 2. Thông báo cho Ban Quản trị / Quản lý xử lý (user_id = null)
-        AdminNotification::create([
-            'user_id' => null,
-            'type' => 'ticket_new',
-            'title' => "[#{$ticket->code}] {$ticket->title}",
-            'message' => "{$creatorName}: ".Str::limit(strip_tags($ticket->description), 120),
-            'data' => [
-                'ticket_id' => $ticket->id,
-                'ticket_code' => $ticket->code,
-                'ticket_title' => $ticket->title,
-                'creator_name' => $creatorName,
-                'link' => route('tickets.show', $ticket->id),
-            ],
-            'is_read' => false,
-        ]);
+        // 2. Ticket chưa có người xử lý: báo riêng cho người có quyền phân công
+        //    ticket (support_ticket.assign) thuộc chi nhánh của người tạo — không
+        //    phát thông báo chung (user_id = null) cho mọi Admin/Quản lý nữa.
+        if (! $ticket->assignee_id) {
+            foreach ($this->ticketDispatcherIds($ticket, $ticket->creator_id) as $userId) {
+                AdminNotification::create([
+                    'user_id' => $userId,
+                    'type' => 'ticket_new',
+                    'title' => "[#{$ticket->code}] {$ticket->title}",
+                    'message' => "{$creatorName}: ".Str::limit(strip_tags($ticket->description), 120),
+                    'data' => [
+                        'ticket_id' => $ticket->id,
+                        'ticket_code' => $ticket->code,
+                        'ticket_title' => $ticket->title,
+                        'creator_name' => $creatorName,
+                        'link' => route('tickets.show', $ticket->id),
+                    ],
+                    'is_read' => false,
+                ]);
+            }
+        }
 
         // 3. Bắn Email SMTP thông báo đến email kỹ thuật / hỗ trợ
         if (SystemSetting::isTicketEventEnabled('created')) {
@@ -345,22 +351,10 @@ class NotificationService
 
         $preview = Str::limit(strip_tags($message->message), 100);
 
-        // 4. Nếu ticket chưa có assignee và người gửi là creator, gửi thông báo chung cho Admin/Manager
+        // 4. Ticket chưa có người xử lý và người tạo nhắn thêm: báo riêng cho
+        //    người phân công ticket của chi nhánh (không phát thông báo chung).
         if (! $ticket->assignee_id && $ticket->creator_id === $sender->id) {
-            AdminNotification::create([
-                'user_id' => null,
-                'type' => 'ticket_message',
-                'title' => "💬 Phản hồi mới trên Ticket #{$ticket->code}",
-                'message' => "{$sender->name}: \"{$preview}\"",
-                'data' => [
-                    'ticket_id' => $ticket->id,
-                    'ticket_code' => $ticket->code,
-                    'ticket_title' => $ticket->title,
-                    'sender_name' => $sender->name,
-                    'link' => route('tickets.show', $ticket->id),
-                ],
-                'is_read' => false,
-            ]);
+            $recipientIds = $recipientIds->merge($this->ticketDispatcherIds($ticket, $sender->id))->unique()->values();
         }
 
         // Tạo thông báo cá nhân cho từng người liên quan trong luồng
@@ -420,6 +414,46 @@ class NotificationService
                 Log::warning("Không thể gửi email phản hồi ticket #{$ticket->code}: ".$e->getMessage());
             }
         }
+    }
+
+    /**
+     * Người nhận thông báo ticket chưa được phân công: nhân sự đang hoạt động có
+     * quyền support_ticket.assign cùng chi nhánh với người tạo ticket (chi nhánh
+     * chính hoặc chi nhánh được cấp thêm). Người tạo không có chi nhánh -> mọi
+     * người có quyền phân công. Không tìm được ai -> Admin.
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public function ticketDispatcherIds(SupportTicket $ticket, ?int $excludeUserId = null)
+    {
+        $creator = $ticket->creator;
+        $branchIds = $creator
+            ? $creator->branches()->pluck('branches.id')->push($creator->branch_id)->filter()->map(fn ($id) => (int) $id)->unique()->values()
+            : collect();
+
+        $candidates = User::query()
+            ->with('branches:id')
+            ->where('is_active', true)
+            ->whereNull('locked_at')
+            ->get()
+            ->filter(fn (User $user) => $user->can('support_ticket.assign'));
+
+        $inBranch = $branchIds->isEmpty()
+            ? $candidates
+            : $candidates->filter(function (User $user) use ($branchIds) {
+                $userBranches = $user->branches->pluck('id')->push($user->branch_id)->filter()->map(fn ($id) => (int) $id);
+
+                return $userBranches->intersect($branchIds)->isNotEmpty();
+            });
+
+        if ($inBranch->isEmpty()) {
+            $inBranch = $candidates->filter(fn (User $user) => $user->hasRole('admin'));
+        }
+
+        return $inBranch->pluck('id')
+            ->reject(fn ($id) => $excludeUserId !== null && (int) $id === (int) $excludeUserId)
+            ->unique()
+            ->values();
     }
 
     /**

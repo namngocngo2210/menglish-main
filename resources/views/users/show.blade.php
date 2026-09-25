@@ -15,7 +15,7 @@
                             <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">Đang hoạt động</span>
                         @endif
                     </h1>
-                    <p class="text-xs text-gray-500 font-mono">{{ $user->employee_code ?? ('NV-' . str_pad($user->id, 4, '0', STR_PAD_LEFT)) }} · {{ $user->email }} · {{ $user->branch?->name ?? 'Cơ sở Cầu Giấy' }}</p>
+                    <p class="text-xs text-gray-500 font-mono">{{ $user->employee_code ?? ('NV-' . str_pad($user->id, 4, '0', STR_PAD_LEFT)) }} · {{ $user->email }} · {{ $user->branch?->name ?? 'Chưa gán chi nhánh' }}</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -45,11 +45,11 @@
                 <div>
                     <h2 class="text-lg font-bold text-gray-900">{{ $user->name }}</h2>
                     <p class="text-xs text-gray-500">
-                        {{ $user->roles->first()?->name ? \App\Helpers\AclHelper::roleLabel($user->roles->first()->name) : 'Nhân sự' }} — {{ $user->branch?->name ?? 'Cơ sở Cầu Giấy' }}
+                        {{ $user->roles->first()?->name ? \App\Helpers\AclHelper::roleLabel($user->roles->first()->name) : 'Nhân sự' }} — {{ $user->branch?->name ?? 'Chưa gán chi nhánh' }}
                     </p>
                     <div class="flex items-center gap-3 mt-2 text-xs text-gray-600">
                         <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-gray-400">mail</span> {{ $user->email }}</span>
-                        <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-gray-400">call</span> {{ $user->phone ?? '0912 345 678' }}</span>
+                        <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-gray-400">call</span> {{ $user->phone ?? 'Chưa cập nhật' }}</span>
                     </div>
                 </div>
             </div>
@@ -151,21 +151,39 @@
                         </div>
                         <div>
                             <span class="text-[11px] text-gray-400 font-bold uppercase block mb-0.5">Thời hạn còn lại</span>
-                            <span class="font-bold {{ $user->contract_end_date && $user->contract_end_date->isPast() ? 'text-rose-600' : 'text-emerald-600' }}">
-                                {{ $user->contract_end_date ? ($user->contract_end_date->isPast() ? 'Đã hết hạn' : 'Còn hiệu lực') : 'Chưa cập nhật' }}
+                            @php($contractStatus = $user->contractExpiryStatus())
+                            <span class="font-bold {{ $contractStatus === 'expired' ? 'text-rose-600' : ($contractStatus === 'expiring' ? 'text-amber-600' : 'text-emerald-600') }}">
+                                @if (! $user->contract_end_date)
+                                    Chưa cập nhật
+                                @elseif ($contractStatus === 'expired')
+                                    Đã hết hạn
+                                @elseif ($contractStatus === 'expiring')
+                                    Sắp hết hạn (còn {{ (int) now()->startOfDay()->diffInDays($user->contract_end_date->copy()->startOfDay()) }} ngày)
+                                @else
+                                    Còn hiệu lực
+                                @endif
                             </span>
                         </div>
                     </div>
 
                     <div class="flex items-center gap-3 pt-3 border-t border-gray-100">
-                        <button class="flex-1 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition">
-                            <span class="material-symbols-outlined text-[16px]">upload_file</span>
-                            Tải lên HĐ mới
-                        </button>
-                        <button class="flex-1 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition">
-                            <span class="material-symbols-outlined text-[16px]">visibility</span>
-                            Xem / Tải hợp đồng
-                        </button>
+                        @can('user.update')
+                            <a href="{{ route('users.edit', $user) }}#contract_file" class="flex-1 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                                <span class="material-symbols-outlined text-[16px]">upload_file</span>
+                                Tải lên HĐ mới
+                            </a>
+                        @endcan
+                        @if ($user->contract_file_path)
+                            <a href="{{ route('users.contract.download', $user) }}" class="flex-1 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                                <span class="material-symbols-outlined text-[16px]">download</span>
+                                Tải hợp đồng
+                            </a>
+                        @else
+                            <span class="flex-1 py-2 bg-gray-50 text-gray-400 border border-gray-200 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5">
+                                <span class="material-symbols-outlined text-[16px]">description</span>
+                                Chưa có file hợp đồng
+                            </span>
+                        @endif
                     </div>
                 </div>
             </div>

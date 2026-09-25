@@ -79,7 +79,12 @@
             </div>
         @endif
 
-        <!-- Key Operating KPI Cards (Gated by Permissions) -->
+        @if (! empty($roleDashboard))
+            @include('dashboard.partials.role-widgets', ['roleDashboard' => $roleDashboard])
+        @endif
+
+        @if (empty($roleDashboard))
+        <!-- Key Operating KPI Cards (Gated by Permissions) — vai trò không có dashboard riêng -->
         @php
             $dbLeadCount = \App\Models\CrmCustomer::count();
             $dbWonCount = \App\Models\CrmCustomer::where('stage', 'won')->count();
@@ -153,12 +158,14 @@
                     </div>
                     <div class="mt-3 text-2xl font-black text-gray-900">{{ $user->can('payroll.view') ? number_format(($latestPayroll?->total_amount ?? 0) / 1000000, 1) . ' tr' : 'Xem phiếu' }}</div>
                     <div class="mt-1 flex items-center justify-between text-xs">
-                        <span class="text-cyan-700 font-bold">{{ $latestPayroll?->title ?? 'Tháng 08/2026' }}</span>
+                        <span class="text-cyan-700 font-bold">{{ $latestPayroll?->title ?? 'Chưa có kỳ lương' }}</span>
                         <span class="text-cyan-600 font-bold group-hover:translate-x-1 transition">→ Chi tiết</span>
                     </div>
                 </a>
             @endif
         </div>
+
+        @endif
 
         <!-- Quick Access Module Grid -->
         <div class="space-y-3">

@@ -10,6 +10,7 @@ use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CourseLevelController;
 use App\Http\Controllers\CrmController;
 use App\Http\Controllers\CrmImportController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\KpiController;
@@ -44,9 +45,8 @@ Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth'])->name('dashboard');
+// Dashboard theo vai trò (BPMN 22): Admin / Quản lý cơ sở / Học thuật có số liệu riêng.
+Route::get('/dashboard', DashboardController::class)->middleware(['auth'])->name('dashboard');
 
 // Interactive Mockup Hub Navigator (Admin / Manager)
 Route::get('/mockup-hub', [MockupHubController::class, 'index'])->middleware(['auth', 'can:system_category.manage'])->name('mockup-hub.index');
@@ -99,7 +99,7 @@ Route::post('/portal/recruitment', [RecruitmentController::class, 'portalSubmit'
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    // Người dùng KHÔNG được tự xóa tài khoản (Phase 4): chỉ người quản lý tài khoản xóa/khóa qua màn Tài khoản.
 
     // ─────────────────────────────────────────────
     // Tuyển dụng & Quản lý Hồ sơ CV Ứng viên
@@ -450,6 +450,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/{user}/reset-password', 'resetPassword')->middleware('can:user.reset_password')->name('reset-password');
         Route::get('/{user}/roles', 'editRoles')->middleware('can:user.assign_role')->name('roles.edit');
         Route::put('/{user}/roles', 'updateRoles')->middleware('can:user.assign_role')->name('roles.update');
+        // File hợp đồng lưu riêng tư; quyền kiểm tra trong controller (chính chủ hoặc người quản lý tài khoản).
+        Route::get('/{user}/contract', 'downloadContract')->name('contract.download');
     });
 
     Route::get('/users/{user}/permissions', [UserPermissionOverrideController::class, 'edit'])
@@ -485,6 +487,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/create', [SupportTicketController::class, 'create'])->middleware('can:support_ticket.create')->name('create');
         Route::post('/', [SupportTicketController::class, 'store'])->middleware('can:support_ticket.create')->name('store');
         Route::get('/{id}', [SupportTicketController::class, 'show'])->middleware('can:support_ticket.view')->name('show');
+        Route::get('/{id}/attachment', [SupportTicketController::class, 'attachment'])->middleware('can:support_ticket.view')->name('attachment');
         Route::post('/{id}/messages', [SupportTicketController::class, 'storeMessage'])->middleware('can:support_ticket.view')->name('messages.store');
         Route::post('/{id}/status', [SupportTicketController::class, 'updateStatus'])->middleware('can:support_ticket.close')->name('status.update');
         Route::post('/{id}/assign', [SupportTicketController::class, 'assign'])->middleware('can:support_ticket.assign')->name('assign');
@@ -498,6 +501,8 @@ Route::middleware('auth')->group(function () {
     Route::delete('branches/{branch}', [BranchController::class, 'destroy'])->middleware('can:branch.delete')->name('branches.destroy');
     Route::post('branches/{id}/toggle', [BranchController::class, 'toggleStatus'])->middleware('can:branch.manage')->name('branches.toggle');
     Route::resource('system-categories', SystemCategoryController::class)->except('show')->middleware('can:system_category.manage');
+    Route::post('system-categories/{system_category}/reactivate', [SystemCategoryController::class, 'reactivate'])
+        ->middleware('can:system_category.manage')->name('system-categories.reactivate');
 
     // ─────────────────────────────────────────────
     // Quản lý Danh mục Hàng hóa, Sách & Vật phẩm
@@ -515,6 +520,9 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('holidays', HolidayController::class)->except('show')->middleware('can:holiday.manage');
     Route::get('/activity-logs', [ActivityLogController::class, 'index'])->middleware('can:activity_log.view')->name('activity-logs.index');
+    Route::get('/activity-logs/export', [ActivityLogController::class, 'export'])->middleware('can:activity_log.view')->name('activity-logs.export');
+    // Hoàn tác chỉ dành cho Admin (kiểm tra trong controller).
+    Route::post('/activity-logs/{id}/undo', [ActivityLogController::class, 'undo'])->middleware('can:activity_log.view')->name('activity-logs.undo');
 
     // ─────────────────────────────────────────────
     // 11. Trung Tâm Thông Báo & Cảnh Báo Lead Sót (Notifications)
@@ -532,18 +540,23 @@ Route::middleware('auth')->group(function () {
     // ─────────────────────────────────────────────
     Route::prefix('tasks')->name('tasks.')->middleware('can:work_task.view')->group(function () {
         Route::get('/', [WorkTaskController::class, 'index'])->name('index');
-        Route::get('/create', [WorkTaskController::class, 'create'])->middleware('can:work_task.create')->name('create');
-        Route::post('/', [WorkTaskController::class, 'store'])->middleware('can:work_task.create')->name('store');
-        Route::post('/{id}/status', [WorkTaskController::class, 'updateStatus'])->middleware('can:work_task.update')->name('status.update');
+        // Giao việc 2 chiều: work_task.create (giao cho mọi người) hoặc work_task.request (GV/TA giao ngược
+        // cho Admin/Học vụ) — kiểm tra trong controller. Đổi trạng thái: người thực hiện/người giao/người duyệt.
+        Route::get('/create', [WorkTaskController::class, 'create'])->name('create');
+        Route::post('/', [WorkTaskController::class, 'store'])->name('store');
+        Route::post('/{id}/status', [WorkTaskController::class, 'updateStatus'])->name('status.update');
         Route::get('/classes-dashboard', [WorkTaskController::class, 'classesDashboard'])->name('classes-dashboard');
         Route::get('/ta-assign', [WorkTaskController::class, 'taAssignForm'])->middleware('can:work_task.assign')->name('ta-assign');
         Route::post('/ta-assign', [WorkTaskController::class, 'taAssignStore'])->middleware('can:work_task.assign')->name('ta-assign.store');
         Route::post('/{id}/complete', [WorkTaskController::class, 'completeTask'])->name('complete');
         Route::get('/class-reports/create', [WorkTaskController::class, 'createClassReport'])->name('class-reports.create');
         Route::post('/class-reports', [WorkTaskController::class, 'storeClassReport'])->name('class-reports.store');
-        Route::get('/manual-approvals', [WorkTaskController::class, 'manualApprovals'])->middleware('can:work_task.approve')->name('manual-approvals');
-        Route::post('/{id}/approve', [WorkTaskController::class, 'approveTask'])->middleware('can:work_task.approve')->name('approve');
-        Route::post('/{id}/reject', [WorkTaskController::class, 'rejectTask'])->middleware('can:work_task.approve')->name('reject');
+        // Người giao việc hoặc người có work_task.approve duyệt (không tự duyệt) — kiểm tra trong controller.
+        Route::get('/manual-approvals', [WorkTaskController::class, 'manualApprovals'])->name('manual-approvals');
+        Route::post('/{id}/approve', [WorkTaskController::class, 'approveTask'])->name('approve');
+        Route::post('/{id}/reject', [WorkTaskController::class, 'rejectTask'])->name('reject');
+        Route::post('/class-reports/{id}/approve', [WorkTaskController::class, 'approveClassReport'])->name('class-reports.approve');
+        Route::post('/class-reports/{id}/reject', [WorkTaskController::class, 'rejectClassReport'])->name('class-reports.reject');
         Route::get('/schedule-config', [WorkTaskController::class, 'scheduleConfig'])->name('schedule-config');
         Route::post('/schedule-config', [WorkTaskController::class, 'updateScheduleConfig'])->middleware('can:work_task.assign')->name('schedule-config.update');
         Route::get('/support-sessions', [WorkTaskController::class, 'supportSessions'])->name('support-sessions');

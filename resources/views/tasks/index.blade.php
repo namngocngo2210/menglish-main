@@ -6,10 +6,12 @@
                 <p class="text-sm text-gray-500 mt-0.5">Quản lý, phân công và theo dõi tiến độ công việc toàn diện</p>
             </div>
             <div class="flex items-center gap-3">
-                <button @click="$dispatch('open-create-task-modal')" class="bg-primary-container text-white hover:bg-primary transition-colors px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-sm">
-                    <span class="material-symbols-outlined text-[20px]">add</span>
-                    Giao việc
-                </button>
+                @if (auth()->user()->can('work_task.create') || auth()->user()->can('work_task.request'))
+                    <button @click="$dispatch('open-create-task-modal')" class="bg-primary-container text-white hover:bg-primary transition-colors px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-sm">
+                        <span class="material-symbols-outlined text-[20px]">add</span>
+                        {{ auth()->user()->can('work_task.create') ? 'Giao việc' : 'Đề xuất việc cho Admin / Học vụ' }}
+                    </button>
+                @endif
             </div>
         </div>
     </x-slot>
@@ -82,10 +84,12 @@
             <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-200 pb-3 gap-4">
                 <!-- Tab bar -->
                 <div class="flex items-center gap-6 overflow-x-auto">
+                    @if ($canViewAll)
                     <a href="{{ route('tasks.index', array_merge(request()->query(), ['tab' => 'all'])) }}"
                        class="pb-2 text-sm font-semibold transition border-b-2 {{ $tab === 'all' ? 'text-primary border-primary-container' : 'text-gray-500 border-transparent hover:text-gray-900' }}">
                         Tất cả <span class="ml-1 px-1.5 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{{ $counts['all'] }}</span>
                     </a>
+                    @endif
                     <a href="{{ route('tasks.index', array_merge(request()->query(), ['tab' => 'mine'])) }}"
                        class="pb-2 text-sm font-semibold transition border-b-2 {{ $tab === 'mine' ? 'text-primary border-primary-container' : 'text-gray-500 border-transparent hover:text-gray-900' }}">
                         Của tôi <span class="ml-1 px-1.5 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{{ $counts['mine'] }}</span>
@@ -207,19 +211,36 @@
                                         <button @click="open = !open" @click.outside="open = false" class="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition">
                                             <span class="material-symbols-outlined text-[20px]">more_vert</span>
                                         </button>
-                                        <div x-show="open" x-cloak class="origin-top-right absolute right-0 mt-2 w-48 rounded-xl shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20 divide-y divide-gray-100 py-1">
+                                        @php $allowedStatuses = \App\Http\Controllers\WorkTaskController::allowedTransitions($task, auth()->user()); @endphp
+                                        <div x-show="open" x-cloak class="origin-top-right absolute right-0 mt-2 w-52 rounded-xl shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20 divide-y divide-gray-100 py-1">
+                                            @if (in_array('in_progress', $allowedStatuses, true))
                                             <button @click="openStatusModal({{ json_encode($task) }}, 'in_progress'); open = false;" class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                                                <span class="material-symbols-outlined text-[16px] text-amber-500">play_arrow</span> Đang thực hiện
+                                                <span class="material-symbols-outlined text-[16px] text-amber-500">play_arrow</span> {{ $task->status === 'pending_confirmation' ? 'Trả về làm tiếp' : 'Đang thực hiện' }}
                                             </button>
+                                            @endif
+                                            @if (in_array('blocked', $allowedStatuses, true))
                                             <button @click="openStatusModal({{ json_encode($task) }}, 'blocked'); open = false;" class="w-full text-left px-4 py-2 text-xs text-rose-700 hover:bg-rose-50 flex items-center gap-2">
                                                 <span class="material-symbols-outlined text-[16px] text-rose-500">block</span> Báo Bị chặn
                                             </button>
-                                            <button @click="openStatusModal({{ json_encode($task) }}, 'completed'); open = false;" class="w-full text-left px-4 py-2 text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2">
-                                                <span class="material-symbols-outlined text-[16px] text-emerald-500">check_circle</span> Đánh dấu Hoàn thành
+                                            @endif
+                                            @if (in_array('pending_confirmation', $allowedStatuses, true))
+                                            <button @click="openStatusModal({{ json_encode($task) }}, 'pending_confirmation'); open = false;" class="w-full text-left px-4 py-2 text-xs text-orange-700 hover:bg-orange-50 flex items-center gap-2">
+                                                <span class="material-symbols-outlined text-[16px] text-orange-500">outgoing_mail</span> Gửi chờ xác nhận
                                             </button>
+                                            @endif
+                                            @if (in_array('completed', $allowedStatuses, true))
+                                            <button @click="openStatusModal({{ json_encode($task) }}, 'completed'); open = false;" class="w-full text-left px-4 py-2 text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2">
+                                                <span class="material-symbols-outlined text-[16px] text-emerald-500">check_circle</span> Xác nhận Hoàn thành
+                                            </button>
+                                            @endif
+                                            @if (in_array('canceled', $allowedStatuses, true))
                                             <button @click="openStatusModal({{ json_encode($task) }}, 'canceled'); open = false;" class="w-full text-left px-4 py-2 text-xs text-gray-500 hover:bg-gray-50 flex items-center gap-2">
                                                 <span class="material-symbols-outlined text-[16px] text-gray-400">cancel</span> Hủy công việc
                                             </button>
+                                            @endif
+                                            @if (empty($allowedStatuses))
+                                                <div class="px-4 py-2 text-[11px] text-gray-400">Không có thao tác khả dụng</div>
+                                            @endif
                                         </div>
                                     </div>
                                 </td>

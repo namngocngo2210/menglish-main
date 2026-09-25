@@ -6,7 +6,7 @@
                     <span class="material-symbols-outlined text-indigo-600">history_edu</span>
                     Nhật Ký Vận Hành Toàn Hệ Thống
                 </h1>
-                <p class="text-xs text-gray-500">Ghi lại chi tiết 100% mọi thao tác: CRM, Học phí, Điểm danh, Đề thi, Giáo trình, Lương, Công việc, Ticket, Media và Phân quyền</p>
+                <p class="text-xs text-gray-500">Mỗi thao tác được ghi một lần, kèm dữ liệu trước/sau khi sửa. Lọc theo ngày, xuất Excel; Admin có thể hoàn tác thao tác sửa đơn giản.</p>
             </div>
             <div class="flex items-center gap-2">
                 <span class="px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 font-mono font-bold text-xs flex items-center gap-1.5 shadow-2xs">
@@ -52,8 +52,14 @@
         </div>
 
         <!-- Filter Bar -->
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-2xs p-4">
-            <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-2xs p-4 space-y-3">
+            @if ($errors->has('undo'))
+                <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">{{ $errors->first('undo') }}</div>
+            @endif
+            @if (session('status'))
+                <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">{{ session('status') }}</div>
+            @endif
+            <form method="GET" action="{{ route('activity-logs.index') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <!-- Search input -->
                 <div class="lg:col-span-2">
                     <label class="block text-[11px] font-bold text-gray-500 mb-1">Tìm kiếm từ khóa</label>
@@ -86,12 +92,40 @@
                     </select>
                 </div>
 
+                <!-- Event Select -->
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 mb-1">Hành động</label>
+                    <select name="event" class="w-full py-2 px-3 rounded-xl border border-gray-200 text-xs focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="">-- Tất cả hành động --</option>
+                        @foreach ($events as $ev)
+                            <option value="{{ $ev }}" @selected(request('event') === $ev)>{{ \App\Support\Audit::eventLabel($ev) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Date range -->
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 mb-1">Từ ngày</label>
+                    <input type="date" name="date_from" value="{{ request('date_from') }}" class="w-full py-2 px-3 rounded-xl border border-gray-200 text-xs focus:ring-indigo-500 focus:border-indigo-500" />
+                    <x-input-error :messages="$errors->get('date_from')" class="mt-1 text-xs" />
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 mb-1">Đến ngày</label>
+                    <input type="date" name="date_to" value="{{ request('date_to') }}" class="w-full py-2 px-3 rounded-xl border border-gray-200 text-xs focus:ring-indigo-500 focus:border-indigo-500" />
+                    <x-input-error :messages="$errors->get('date_to')" class="mt-1 text-xs" />
+                </div>
+
                 <!-- Actions / Buttons -->
                 <div class="flex items-end gap-2">
                     <button type="submit" class="flex-1 py-2 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-2xs transition flex items-center justify-center gap-1">
                         <span class="material-symbols-outlined text-[16px]">filter_list</span>
                         <span>Lọc</span>
                     </button>
+                    <a href="{{ route('activity-logs.export', request()->only(['search', 'log_name', 'causer_id', 'date_from', 'date_to', 'event'])) }}"
+                       class="flex-1 py-2 px-3.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold transition flex items-center justify-center gap-1" title="Xuất Excel (CSV) theo bộ lọc hiện tại">
+                        <span class="material-symbols-outlined text-[16px]">download</span>
+                        <span>Xuất Excel</span>
+                    </a>
                     @if (request()->hasAny(['search', 'log_name', 'causer_id', 'date_from', 'date_to', 'event']))
                         <a href="{{ route('activity-logs.index') }}" class="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition" title="Xóa bộ lọc">
                             <span class="material-symbols-outlined text-[16px]">refresh</span>
@@ -181,16 +215,57 @@
                                         };
                                     @endphp
                                     <span class="px-2 py-0.5 rounded-md text-[10px] font-bold {{ $eventBadge }}">
-                                        {{ $event }}
+                                        {{ \App\Support\Audit::eventLabel($log->event) }}
                                     </span>
                                 </td>
 
-                                <!-- Description & Payload Details -->
+                                <!-- Description, before/after diff & payload -->
                                 <td class="py-3.5 px-4">
                                     <div class="font-semibold text-gray-900 leading-snug">
                                         {{ $log->description }}
                                     </div>
-                                    @if ($log->properties->isNotEmpty() && $log->properties->has('payload') && !empty($log->properties['payload']))
+                                    @if ($log->subject_type)
+                                        <div class="text-[10px] text-gray-400 font-mono mt-0.5">{{ class_basename($log->subject_type) }} #{{ $log->subject_id }}</div>
+                                    @endif
+                                    @php $diffRows = \App\Http\Controllers\ActivityLogController::diff($log); @endphp
+                                    @if (! empty($diffRows))
+                                        <details class="mt-1.5 text-xs text-gray-600" @if ($log->event === 'updated') open @endif>
+                                            <summary class="cursor-pointer text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 inline-flex items-center gap-0.5">
+                                                <span class="material-symbols-outlined text-[13px]">compare_arrows</span>
+                                                <span>So sánh trước / sau ({{ count($diffRows) }} trường)</span>
+                                            </summary>
+                                            <table class="mt-1.5 w-full border border-gray-200 rounded-lg overflow-hidden text-[11px]">
+                                                <thead class="bg-gray-50 text-gray-500">
+                                                    <tr>
+                                                        <th class="px-2 py-1 text-left font-semibold">Trường</th>
+                                                        <th class="px-2 py-1 text-left font-semibold">Trước</th>
+                                                        <th class="px-2 py-1 text-left font-semibold">Sau</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-gray-100">
+                                                    @foreach ($diffRows as $field => $row)
+                                                        <tr>
+                                                            <td class="px-2 py-1 font-mono text-gray-500">{{ $field }}</td>
+                                                            <td class="px-2 py-1 text-rose-700 bg-rose-50/40 break-all">{{ \App\Http\Controllers\ActivityLogController::stringify($row['old']) }}</td>
+                                                            <td class="px-2 py-1 text-emerald-700 bg-emerald-50/40 break-all">{{ \App\Http\Controllers\ActivityLogController::stringify($row['new']) }}</td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </details>
+                                    @endif
+                                    @if ($canUndo && $log->event === 'updated' && ! empty($diffRows))
+                                        @php [, , $undoError] = \App\Http\Controllers\ActivityLogController::undoPlan($log); @endphp
+                                        @if (! $undoError)
+                                            <form method="POST" action="{{ route('activity-logs.undo', $log->id) }}" class="mt-1.5" onsubmit="return confirm('Khôi phục các giá trị trước của thao tác này?');">
+                                                @csrf
+                                                <button type="submit" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 text-[11px] font-bold hover:bg-amber-100">
+                                                    <span class="material-symbols-outlined text-[14px]">undo</span> Hoàn tác
+                                                </button>
+                                            </form>
+                                        @endif
+                                    @endif
+                                    @if ($log->properties->has('payload') && ! empty($log->properties['payload']))
                                         <details class="mt-1.5 text-xs text-gray-500">
                                             <summary class="cursor-pointer text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 inline-flex items-center gap-0.5">
                                                 <span class="material-symbols-outlined text-[13px]">code</span>

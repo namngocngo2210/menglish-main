@@ -5,7 +5,10 @@ namespace App\Providers;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Models\UserPermissionOverride;
+use App\Support\SensitiveData;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Spatie\Activitylog\Models\Activity;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
@@ -38,6 +41,32 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->registerRequestMacros();
         $this->registerDynamicMailConfig();
+        $this->registerActivityLogHardening();
+    }
+
+    /**
+     * Mọi dòng nhật ký (kể cả dòng model tự ghi trước/sau) đều được che dữ
+     * liệu nhạy cảm và gắn ngữ cảnh request (IP, URL, route) nếu có.
+     */
+    protected function registerActivityLogHardening(): void
+    {
+        Activity::creating(function (Activity $activity) {
+            $properties = $activity->properties instanceof Collection
+                ? $activity->properties->toArray()
+                : (array) ($activity->properties ?? []);
+
+            $properties = SensitiveData::mask($properties, PHP_INT_MAX);
+
+            $request = request();
+            if ($request && $request->route() && ! isset($properties['ip'])) {
+                $properties['ip'] = $request->ip();
+                $properties['url'] = SensitiveData::maskUrl($request->fullUrl());
+                $properties['method'] = $request->method();
+                $properties['route'] = $request->route()->getName();
+            }
+
+            $activity->properties = collect($properties);
+        });
     }
 
     /**
@@ -119,8 +148,28 @@ class AppServiceProvider extends ServiceProvider
             );
 
             // Có override phạm vi "all" => quyết định luôn (allow hoặc deny).
+            if ($override !== null) {
+                return (bool) $override->allow;
+            }
+
+            // Override "cho phép" theo chi nhánh/lớp: chỉ mở cửa route cho các
+            // module đã lọc dữ liệu theo phạm vi (UserPermissionOverride::SCOPE_ENFORCED);
+            // dữ liệu ngoài phạm vi bị chặn trong module (vd. ClassModel::scopeVisibleTo).
+            if (UserPermissionOverride::supportsScope($module, $action)) {
+                $hasScopedAllow = $user->getRelation('permissionOverrides')->contains(
+                    fn (UserPermissionOverride $o) => $o->module === $module
+                        && $o->action === $action
+                        && $o->scope_type !== UserPermissionOverride::SCOPE_ALL
+                        && $o->allow
+                );
+
+                if ($hasScopedAllow) {
+                    return true;
+                }
+            }
+
             // Không có => trả null để fallback về quyền theo role (Spatie).
-            return $override !== null ? (bool) $override->allow : null;
+            return null;
         });
     }
 }

@@ -8,9 +8,9 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-rose-600">mic</span>
-                        Flow 4 — Bước 4: Luyện phát âm & Thu âm giọng nói AI
+                        Flow 4 — Bước 4: Luyện phát âm & Thu âm giọng nói
                     </h1>
-                    <p class="text-xs text-gray-500">Học sinh nghe file audio mẫu từ giáo trình và thu âm giọng nói AI trực tiếp để nộp bài.</p>
+                    <p class="text-xs text-gray-500">Học sinh nghe file audio mẫu từ giáo trình và thu âm giọng nói trực tiếp để nộp bài. Giáo viên nghe và chấm điểm.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -82,7 +82,7 @@
             <a href="{{ route('portal.student.pronunciation', ['studentId' => $student?->id]) }}"
                class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-primary-container text-primary font-bold text-xs">
                 <span class="material-symbols-outlined text-[16px]">mic</span>
-                <span>Luyện phát âm AI</span>
+                <span>Luyện phát âm</span>
             </a>
         </div>
 
@@ -203,7 +203,7 @@
                         <button type="submit"
                                 class="w-full max-w-[240px] bg-primary-container hover:bg-primary text-white font-bold text-xs py-3 px-6 rounded-xl transition shadow-md flex items-center justify-center gap-2 active:scale-95">
                             <span class="material-symbols-outlined text-[18px]">send</span>
-                            <span>Nộp bài ghi âm AI</span>
+                            <span>Nộp bài ghi âm</span>
                         </button>
                     </form>
                 </div>
@@ -213,7 +213,7 @@
             <section class="bg-white rounded-2xl border border-gray-200 p-4 space-y-3 shadow-2xs">
                 <div class="flex items-center justify-between">
                     <h2 class="text-sm font-bold text-gray-900">Lịch sử của bạn</h2>
-                    <span class="text-[10px] text-gray-400 font-medium">Chấm tự động bởi AI</span>
+                    <span class="text-[10px] text-gray-400 font-medium">Giáo viên chấm điểm</span>
                 </div>
 
                 <div class="space-y-2">
@@ -229,12 +229,21 @@
                                     <span>•</span>
                                     <span class="flex items-center gap-0.5 font-mono">
                                         <span class="material-symbols-outlined text-[13px]">timer</span>
-                                        {{ $rec->data['duration'] ?? '00:42' }}
+                                        {{ $rec->data['duration'] ?? '—' }}
                                     </span>
                                 </div>
-                                <span class="inline-block mt-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                    Điểm AI: {{ $rec->data['score'] ?? '95/100' }}
-                                </span>
+                                @if ($rec->status === 'reviewed' && ! empty($rec->data['score']))
+                                    <span class="inline-block mt-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                        Giáo viên chấm: {{ $rec->data['score'] }}
+                                    </span>
+                                    @if (! empty($rec->data['feedback']))
+                                        <p class="mt-1 text-[11px] text-gray-600 italic">"{{ $rec->data['feedback'] }}"</p>
+                                    @endif
+                                @else
+                                    <span class="inline-block mt-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                        Chờ giáo viên chấm
+                                    </span>
+                                @endif
                             </div>
                             <div class="flex items-center gap-1.5">
                                 <button type="button" class="w-8 h-8 rounded-full bg-orange-100 hover:bg-primary-container hover:text-white transition flex items-center justify-center text-primary shadow-2xs" title="Nghe lại">
@@ -250,52 +259,7 @@
                             </div>
                         </div>
                     @empty
-                        <!-- Default mock history matching prototype -->
-                        <div class="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition border border-gray-200/80">
-                            <div>
-                                <p class="text-xs font-bold text-gray-900">Bản ghi Unit 1 - Bài 1</p>
-                                <div class="flex items-center gap-2 text-[11px] text-gray-500 mt-1">
-                                    <span class="flex items-center gap-0.5">
-                                        <span class="material-symbols-outlined text-[13px]">calendar_today</span>
-                                        Hôm nay, 10:30 AM
-                                    </span>
-                                    <span>•</span>
-                                    <span class="flex items-center gap-0.5 font-mono">
-                                        <span class="material-symbols-outlined text-[13px]">timer</span>
-                                        00:42
-                                    </span>
-                                </div>
-                                <span class="inline-block mt-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                    Điểm AI: 94/100 (Phát âm chuẩn)
-                                </span>
-                            </div>
-                            <button type="button" class="w-9 h-9 rounded-full bg-orange-100 hover:bg-primary-container hover:text-white transition flex items-center justify-center text-primary shadow-2xs">
-                                <span class="material-symbols-outlined text-[20px]">play_arrow</span>
-                            </button>
-                        </div>
-
-                        <div class="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition border border-gray-200/80">
-                            <div>
-                                <p class="text-xs font-bold text-gray-900">Bản ghi Unit 1 - Bài 1 (Lần 1)</p>
-                                <div class="flex items-center gap-2 text-[11px] text-gray-500 mt-1">
-                                    <span class="flex items-center gap-0.5">
-                                        <span class="material-symbols-outlined text-[13px]">calendar_today</span>
-                                        Hôm qua, 15:45 PM
-                                    </span>
-                                    <span>•</span>
-                                    <span class="flex items-center gap-0.5 font-mono">
-                                        <span class="material-symbols-outlined text-[13px]">timer</span>
-                                        00:38
-                                    </span>
-                                </div>
-                                <span class="inline-block mt-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                    Điểm AI: 91/100 (Cần chú ý âm đuôi)
-                                </span>
-                            </div>
-                            <button type="button" class="w-9 h-9 rounded-full bg-orange-100 hover:bg-primary-container hover:text-white transition flex items-center justify-center text-primary shadow-2xs">
-                                <span class="material-symbols-outlined text-[20px]">play_arrow</span>
-                            </button>
-                        </div>
+                        <x-ui.empty-state icon="mic" title="Chưa có bài ghi âm" description="Chọn bài, thu âm và bấm Nộp bài — giáo viên sẽ chấm và phản hồi." />
                     @endforelse
                 </div>
             </section>

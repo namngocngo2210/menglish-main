@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AuditsChanges;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,7 +17,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable, SoftDeletes;
+    use AuditsChanges, HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -44,6 +45,7 @@ class User extends Authenticatable
         'contract_type',
         'contract_start_date',
         'contract_end_date',
+        'contract_file_path',
         'password',
         'must_change_password',
         'is_active',
@@ -155,6 +157,75 @@ class User extends Authenticatable
     public function isLocked(): bool
     {
         return ! $this->is_active || $this->locked_at !== null;
+    }
+
+    /** Số ngày trước khi hết hạn hợp đồng bắt đầu cảnh báo. */
+    public const CONTRACT_WARNING_DAYS = 30;
+
+    /**
+     * Trạng thái hợp đồng để cảnh báo: 'expired' (đã hết hạn), 'expiring'
+     * (hết hạn trong CONTRACT_WARNING_DAYS ngày tới) hoặc null.
+     */
+    public function contractExpiryStatus(): ?string
+    {
+        if (! $this->contract_end_date) {
+            return null;
+        }
+
+        $end = $this->contract_end_date->copy()->startOfDay();
+        $today = now()->startOfDay();
+
+        if ($end->lt($today)) {
+            return 'expired';
+        }
+
+        return $end->lte($today->copy()->addDays(self::CONTRACT_WARNING_DAYS)) ? 'expiring' : null;
+    }
+
+    /**
+     * Chi nhánh mà người dùng bị giới hạn dữ liệu (Quản lý cơ sở chỉ thấy chi
+     * nhánh của mình: branch_id + user_branches). Trả về null nếu không bị giới
+     * hạn theo chi nhánh (Admin tổng, hoặc vai trò không phải Quản lý cơ sở).
+     *
+     * @return int[]|null
+     */
+    public function managedBranchIds(): ?array
+    {
+        if ($this->hasRole('admin') || ! $this->hasRole('manager')) {
+            return null;
+        }
+
+        return $this->branches()->pluck('branches.id')
+            ->push($this->branch_id)
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Id phạm vi (chi nhánh hoặc lớp) mà người dùng được cấp riêng quyền
+     * "module.action" qua phân quyền cá nhân (override allow có scope cụ thể).
+     *
+     * @return int[]
+     */
+    public function scopedOverrideIds(string $module, string $action, string $scopeType): array
+    {
+        $overrides = $this->relationLoaded('permissionOverrides')
+            ? $this->getRelation('permissionOverrides')
+            : $this->permissionOverrides()->get();
+
+        return $overrides
+            ->filter(fn (UserPermissionOverride $o) => $o->module === $module
+                && $o->action === $action
+                && $o->scope_type === $scopeType
+                && $o->allow
+                && $o->scope_id !== null)
+            ->map(fn (UserPermissionOverride $o) => (int) $o->scope_id)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
