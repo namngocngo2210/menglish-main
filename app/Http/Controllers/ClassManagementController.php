@@ -533,7 +533,22 @@ class ClassManagementController extends Controller
             $class = $classes->first();
         }
 
-        return view('classes.academic-detail', compact('class', 'classes'));
+        // Dữ liệu học thuật thật của lớp: chặng đang áp dụng, tiến độ buổi học, Big Test.
+        $currentStage = $class
+            ? \App\Models\SyllabusAssignment::where('class_id', $class->id)->where('status', 'in_progress')->latest()->first()
+            : null;
+        $sessionProgress = null;
+        $bigTests = collect();
+        if ($class) {
+            $sessions = $class->sessions()->where('status', '!=', 'cancelled');
+            $sessionProgress = [
+                'total' => (clone $sessions)->count(),
+                'done' => (clone $sessions)->whereDate('date', '<=', today())->count(),
+            ];
+            $bigTests = \App\Models\BigTest::where('class_id', $class->id)->orderBy('scheduled_at')->get();
+        }
+
+        return view('classes.academic-detail', compact('class', 'classes', 'currentStage', 'sessionProgress', 'bigTests'));
     }
 
     /**

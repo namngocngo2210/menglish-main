@@ -44,11 +44,12 @@
 
     
 
-    <div class="max-w-6xl mx-auto space-y-6" x-data="{
-        variant: 'admin',
-        activeClassId: '{{ $class?->id ?? 1 }}'
-    }">
-        <!-- Top Class Selector & Variant Toggle Bar (Exact Match BA) -->
+    {{-- Quyền xem SĐT / nút sửa quyết định phía server (trước là nút đổi "góc nhìn" demo phía trình duyệt). --}}
+    @php
+        $canManageClass = $class && auth()->user()->can('class.update');
+    @endphp
+    <div class="max-w-6xl mx-auto space-y-6">
+        <!-- Chọn lớp -->
         <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
             <!-- Class Switcher -->
             <div class="flex items-center gap-2.5">
@@ -63,22 +64,6 @@
                 </select>
             </div>
 
-            <!-- Demo Toggle: Chọn biến thể hiển thị (Admin vs Giáo viên) -->
-            <div class="flex items-center gap-3 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
-                <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider pl-2">Góc nhìn:</span>
-                <button type="button"
-                        @click="variant = 'admin'"
-                        :class="variant === 'admin' ? 'bg-white text-primary font-bold shadow-2xs' : 'text-gray-600 hover:text-gray-900 font-medium'"
-                        class="px-3 py-1 rounded-lg text-xs transition">
-                    Học vụ / Admin (Hiện SĐT &amp; Nút sửa)
-                </button>
-                <button type="button"
-                        @click="variant = 'teacher'"
-                        :class="variant === 'teacher' ? 'bg-white text-secondary font-bold shadow-2xs' : 'text-gray-600 hover:text-gray-900 font-medium'"
-                        class="px-3 py-1 rounded-lg text-xs transition">
-                    GV / GVNN / Học thuật (Ẩn SĐT)
-                </button>
-            </div>
         </div>
 
         <!-- Page Header (Exact Match BA) -->
@@ -86,7 +71,7 @@
             <div>
                 <div class="flex items-center gap-3">
                     <h1 class="text-2xl font-bold text-gray-900 tracking-tight">
-                        {{ $class ? 'Hồ sơ lớp ' . $class->name : 'Hồ sơ lớp Business English - Lớp 01' }}
+                        {{ $class ? 'Hồ sơ lớp ' . $class->name : 'Chưa có lớp học' }}
                     </h1>
                 @php
                     $statusLabel = match ($class?->status) {
@@ -105,8 +90,8 @@
                 <p class="text-xs text-gray-500 mt-1">Thông tin chi tiết về lớp học, giáo viên và danh sách học viên</p>
             </div>
 
-            <div x-show="variant === 'admin'" class="flex items-center gap-2">
-                @if($class)
+            <div class="flex items-center gap-2">
+                @if($canManageClass)
                     <a href="{{ route('classes.edit', $class->id) }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-secondary/10 hover:bg-secondary/20 text-secondary text-xs font-semibold transition">
                         <span>✏️</span>
                         <span>Sửa thông tin lớp</span>
@@ -122,10 +107,12 @@
                     <span class="material-symbols-outlined text-primary text-[20px]">info</span>
                     Thông tin chung
                 </h2>
-                <a href="{{ route('tasks.schedule-config') }}" x-show="variant === 'admin'" class="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
+                @if ($canManageClass)
+                <a href="{{ route('tasks.schedule-config') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
                     <span>📅</span>
                     <span>Cấu hình lịch</span>
                 </a>
+                @endif
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -201,7 +188,9 @@
                             <th class="py-3 px-4">Trường học</th>
                             <th class="py-3 px-4">Địa chỉ</th>
                             <th class="py-3 px-4">Tên phụ huynh</th>
-                            <th x-show="variant === 'admin'" class="py-3 px-4 text-primary font-bold">SĐT phụ huynh</th>
+                            @if ($canManageClass)
+                                <th class="py-3 px-4 text-primary font-bold">SĐT</th>
+                            @endif
                             <th class="py-3 px-4">Ghi chú</th>
                         </tr>
                     </thead>
@@ -214,7 +203,7 @@
                                     <div class="text-[10px] text-gray-400 font-mono">{{ $st->code ?? '—' }}</div>
                                 </td>
                                 <td class="py-3 px-4 text-gray-600 font-mono">
-                                    {{ $st->dob ? $st->dob->format('d/m/Y') : '15/03/2010' }}
+                                    {{ $st->dob ? $st->dob->format('d/m/Y') : '—' }}
                                 </td>
                                 <td class="py-3 px-4 text-gray-700">
                                     {{ $st->target ?? '—' }}
@@ -225,9 +214,11 @@
                                 <td class="py-3 px-4 text-gray-800 font-medium">
                                     {{ $st->parent_name ?? '—' }}
                                 </td>
-                                <td x-show="variant === 'admin'" class="py-3 px-4 font-mono font-bold text-gray-900">
-                                    {{ $st->phone ?? '—' }}
-                                </td>
+                                @if ($canManageClass)
+                                    <td class="py-3 px-4 font-mono font-bold text-gray-900">
+                                        {{ $st->phone ?? '—' }}
+                                    </td>
+                                @endif
                                 <td class="py-3 px-4 text-gray-500">
                                     {{ $st->notes ?? '—' }}
                                 </td>
