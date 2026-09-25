@@ -501,6 +501,7 @@ class WorkTaskController extends Controller
                 if (! empty($supp['student_id']) && ! empty($supp['reason'])) {
                     ClassReportStudentSupport::create([
                         'class_report_id' => $report->id,
+                        'class_id' => $report->class_id,
                         'student_id' => $supp['student_id'],
                         'absence_session' => $supp['absence_session'] ?? null,
                         'reason' => $supp['reason'],

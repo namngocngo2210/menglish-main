@@ -16,6 +16,9 @@ class ClassModel extends Model
 
     protected $table = 'classes';
 
+    /** Sĩ số đã nạp sẵn bởi loadRosterCounts() (không phải cột DB). */
+    public ?int $rosterCountCache = null;
+
     protected $fillable = [
         'code',
         'name',
@@ -102,15 +105,78 @@ class ClassModel extends Model
      */
     public function occupiedSeats(): int
     {
-        $viaEnrollments = $this->enrollments()
-            ->whereIn('status', self::ACTIVE_ENROLLMENT_STATUSES)
-            ->whereHas('student', fn (Builder $q) => $q->whereIn('status', self::SEAT_HOLDING_STUDENT_STATUSES))
-            ->pluck('student_id');
-        $viaCurrentClass = $this->students()
-            ->whereIn('status', self::SEAT_HOLDING_STUDENT_STATUSES)
-            ->pluck('id');
+        return $this->roster()->count();
+    }
 
-        return $viaEnrollments->merge($viaCurrentClass)->map(fn ($id) => (int) $id)->unique()->count();
+    /**
+     * Danh sách lớp thật (audit A4 #7): hợp của học viên có current_class_id là lớp này và học
+     * viên có lượt xếp lớp còn hiệu lực ("Liên kết lớp khác"), chỉ học viên còn giữ chỗ (bỏ Thôi
+     * học / Hoàn thành / Bảo lưu). Dùng cho điểm danh, hồ sơ lớp, sĩ số, nhập điểm.
+     */
+    public function roster(): Builder
+    {
+        return static::rosterQuery($this->getKey());
+    }
+
+    /**
+     * @param  array<int>|int  $classIds
+     */
+    public static function rosterQuery(array|int $classIds): Builder
+    {
+        return Student::query()
+            ->inClasses($classIds)
+            ->whereIn('status', self::SEAT_HOLDING_STUDENT_STATUSES);
+    }
+
+    /** Học viên trong danh sách lớp (đã sắp theo tên). */
+    public function rosterStudents(): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->roster()->orderBy('name')->get();
+    }
+
+    public function hasOnRoster(int $studentId): bool
+    {
+        return $this->roster()->whereKey($studentId)->exists();
+    }
+
+    /**
+     * Sĩ số (theo danh sách lớp thật) cho nhiều lớp bằng 2 truy vấn; gán vào thuộc tính
+     * roster_count của từng lớp để view dùng $class->roster_count.
+     *
+     * @param  iterable<ClassModel>  $classes
+     */
+    public static function loadRosterCounts(iterable $classes): void
+    {
+        $list = collect($classes instanceof \Illuminate\Contracts\Pagination\Paginator ? $classes->items() : $classes);
+        $ids = $list->pluck('id')->filter()->map(fn ($id) => (int) $id)->all();
+        if ($ids === []) {
+            return;
+        }
+
+        $pairs = Student::query()
+            ->whereIn('status', self::SEAT_HOLDING_STUDENT_STATUSES)
+            ->whereIn('current_class_id', $ids)
+            ->get(['id', 'current_class_id'])
+            ->map(fn ($s) => [(int) $s->current_class_id, (int) $s->id]);
+        $pairs = $pairs->merge(
+            ClassEnrollment::query()
+                ->whereIn('class_id', $ids)
+                ->whereIn('status', self::ACTIVE_ENROLLMENT_STATUSES)
+                ->whereHas('student', fn (Builder $q) => $q->whereIn('status', self::SEAT_HOLDING_STUDENT_STATUSES))
+                ->get(['class_id', 'student_id'])
+                ->map(fn ($e) => [(int) $e->class_id, (int) $e->student_id])
+        );
+        $counts = $pairs->groupBy(0)->map(fn ($rows) => $rows->pluck(1)->unique()->count());
+
+        foreach ($list as $class) {
+            $class->rosterCountCache = (int) ($counts[(int) $class->id] ?? 0);
+        }
+    }
+
+    /** Sĩ số theo danh sách lớp thật (dùng giá trị đã nạp sẵn nếu có). */
+    public function getRosterCountAttribute(): int
+    {
+        return $this->rosterCountCache ??= $this->occupiedSeats();
     }
 
     /**

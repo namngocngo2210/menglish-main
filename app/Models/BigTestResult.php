@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\SupportListService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -52,6 +53,13 @@ class BigTestResult extends Model
         'notified_at' => 'datetime',
         'approved_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        // Điểm Big Test dưới 7/10 (không tính vắng thi) → tự vào danh sách bổ trợ.
+        static::saved(fn (BigTestResult $result) => app(SupportListService::class)->syncBigTest($result));
+        static::deleted(fn (BigTestResult $result) => app(SupportListService::class)->forget(SupportListService::SOURCE_BIG_TEST, $result->id));
+    }
 
     public function test(): BelongsTo
     {
