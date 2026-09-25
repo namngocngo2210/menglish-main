@@ -19,7 +19,7 @@
 <x-app-layout title="TKB — Quản lý lớp học">
     <x-ui.page-header title="TKB — Quản lý lớp học" description="Cấu hình thời khóa biểu lớp học và báo cáo phòng / nhân sự theo buổi học thực tế.">
         <x-slot:actions>
-            <x-ui.button variant="secondary" icon="download" onclick="window.print()">Xuất báo cáo</x-ui.button>
+            <x-ui.button variant="secondary" icon="download" :href="request()->fullUrlWithQuery(['export' => 1])">Xuất báo cáo phòng / nhân sự</x-ui.button>
             <x-ui.button variant="secondary" icon="dashboard" :href="route('tasks.classes-dashboard')">Dashboard lớp</x-ui.button>
             @can('class.create')
                 <x-ui.button icon="add" :href="route('classes.create')">Tạo lớp mới</x-ui.button>

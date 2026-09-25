@@ -637,10 +637,6 @@
                     </div>
 
                     <div class="flex items-center gap-3">
-                        <button type="button" disabled class="hidden sm:inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-400 font-medium text-xs bg-slate-50 cursor-not-allowed" title="Chỉ xuất biên lai khi phiếu ở trạng thái Đã duyệt">
-                            <span class="material-symbols-outlined text-base">print</span>
-                            Xuất biên lai
-                        </button>
                         <button type="submit" name="submit_action" value="submit" :disabled="!isValidReceipt" :class="isValidReceipt ? 'bg-primary-container hover:bg-primary-hover text-white shadow-md' : 'bg-slate-200 text-slate-400 cursor-not-allowed'" class="px-6 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2">
                             <span class="material-symbols-outlined text-base">save</span>
                             <span>{{ $editingReceipt ? 'Lưu & Gửi duyệt lại' : 'Lưu phiếu thu & Gửi duyệt' }} (<span class="font-mono" x-text="formatVND(totalAmount)"></span>)</span>

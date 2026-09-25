@@ -50,4 +50,9 @@ class AcademicRecord extends Model
     {
         return $query->where('status', 'active');
     }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return \App\Support\StatusLabel::for($this->status);
+    }
 }

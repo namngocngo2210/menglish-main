@@ -259,6 +259,29 @@ class WorkTaskController extends Controller
             ->get();
         $matrix = $dashboard->weekMatrix($weekSessions, $weekStart);
 
+        // Xuất Excel đúng dữ liệu đang xem (tab ngày hoặc tuần).
+        if ($request->boolean('export')) {
+            $rows = ($tab === 'week' ? $weekSessions : $daySessions)->map(fn (ClassSession $s) => [
+                $s->date?->format('d/m/Y'),
+                trim(($s->start_time?->format('H:i') ?? '').' - '.($s->end_time?->format('H:i') ?? ''), ' -'),
+                $s->classModel?->code,
+                $s->classModel?->name,
+                $s->branch?->name ?? $s->classModel?->branch?->name,
+                $s->room ?: $s->classModel?->room,
+                $s->teacher?->name,
+                $s->foreignTeacher?->name,
+                $s->assistant?->name,
+                $dashboard->attendanceState($s, $today)['label'],
+            ])->values()->all();
+
+            return \App\Exports\ArrayExport::download(
+                'lich-lop-'.($tab === 'week' ? $week : $date),
+                ['Ngày', 'Giờ', 'Mã lớp', 'Tên lớp', 'Chi nhánh', 'Phòng', 'Giáo viên', 'GVNN', 'Trợ giảng', 'Điểm danh'],
+                $rows,
+                $request->query('format', 'xlsx')
+            );
+        }
+
         return view('tasks.classes-dashboard', compact(
             'tab', 'branches', 'branchId', 'selectedBranch', 'date', 'week', 'today',
             'daySessions', 'dayStats', 'seats', 'assistantsToday', 'weekStart', 'matrix', 'dashboard'
@@ -948,6 +971,27 @@ class WorkTaskController extends Controller
 
         $selectedClassId = old('class_id', $validated['class_id'] ?? null);
 
+        // Xuất Excel báo cáo phòng / nhân sự 7 ngày của chi nhánh đang chọn.
+        if ($request->boolean('export')) {
+            $branchName = $branches->firstWhere('id', $reportBranchId)?->name ?? '';
+            $rows = $report->map(fn (array $d) => [
+                $d['label'].' '.$d['date']->format('d/m/Y'),
+                $branchName,
+                $d['shifts'],
+                $d['rooms'],
+                $d['teachers'],
+                $d['assistants'],
+                $d['staff_needed'],
+            ])->values()->all();
+
+            return \App\Exports\ArrayExport::download(
+                'bao-cao-phong-nhan-su-'.$reportStart->format('Ymd'),
+                ['Ngày', 'Chi nhánh', 'Số ca', 'Số phòng', 'Số GV/GVNN', 'Số trợ giảng', 'Nhu cầu nhân sự'],
+                $rows,
+                $request->query('format', 'xlsx')
+            );
+        }
+
         return view('tasks.schedule-config', compact(
             'classes', 'branches', 'scheduleData', 'selectedClassId',
             'reportBranchId', 'reportStart', 'reportEnd', 'report', 'classCountChange', 'holidaySessions'
@@ -1315,6 +1359,34 @@ class WorkTaskController extends Controller
         $to = $from->endOfMonth();
 
         $staffOptions = $kpi->staffQuery()->get(['id', 'name']);
+
+        // Xuất Excel toàn bộ nhân sự theo bộ lọc hiện tại (không phân trang).
+        if ($request->boolean('export')) {
+            $fmt = fn ($v) => $v === null ? 'Chưa có dữ liệu' : $v.'%';
+            $rows = $kpi->staffQuery()
+                ->when($validated['user_id'] ?? null, fn ($q, $userId) => $q->whereKey($userId))
+                ->get()
+                ->map(function (User $user) use ($kpi, $from, $to, $fmt) {
+                    $m = $kpi->metricsFor($user, $from, $to);
+
+                    return [
+                        'NS-'.str_pad((string) $user->id, 3, '0', STR_PAD_LEFT),
+                        $user->name,
+                        $m['classes'] ?? 0,
+                        $fmt($m['attendance'] ?? null), $m['attendance_detail'] ?? '',
+                        $fmt($m['homework'] ?? null), $m['homework_detail'] ?? '',
+                        $fmt($m['tasks'] ?? null), $m['tasks_detail'] ?? '',
+                        $fmt($m['retention'] ?? null), $m['retention_detail'] ?? '',
+                    ];
+                })->all();
+
+            return \App\Exports\ArrayExport::download(
+                'kpi-'.$month,
+                ['Mã NS', 'Nhân sự', 'Số lớp', 'Chuyên cần', 'Chi tiết chuyên cần', 'Bài tập', 'Chi tiết bài tập', 'Công việc', 'Chi tiết công việc', 'Giữ chân', 'Chi tiết giữ chân'],
+                $rows,
+                $request->query('format', 'xlsx')
+            );
+        }
         $staff = $kpi->staffQuery()
             ->when($validated['user_id'] ?? null, fn ($q, $userId) => $q->whereKey($userId))
             ->paginate($request->perPage(20))

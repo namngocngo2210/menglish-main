@@ -388,14 +388,11 @@
 
             <div class="company">
                 <div class="company-name">
-                    MENGLISH - MEDUCATION
+                    {{ \App\Support\CenterInfo::name() }}
                 </div>
 
                 <div class="company-info">
-                    <div>Địa chỉ: CS1: 15/172 Phố Ngọc Hà - Ba Đình</div>
-                    <div>CS2: 23/209 Phố Đội Cấn - Ba Đình</div>
-                    <div>CS3: 24/55 Hoàng Hoa Thám - Ba Đình</div>
-                    <div>Điện thoại: 0975996986</div>
+                    @include('partials.center-info-lines')
                 </div>
             </div>
         </div>
@@ -535,7 +532,7 @@
             <tr>
                 <td class="label">Ghi chú:</td>
                 <td class="value">
-                    {{ $tuition->notes ?? 'Học viên hoàn thành thủ tục nhập học theo quy định của trung tâm.' }}
+                    {{ $tuition->notes ?? '' }}
                 </td>
             </tr>
         </table>

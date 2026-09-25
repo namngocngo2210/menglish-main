@@ -2,7 +2,7 @@
 <x-app-layout title="Dashboard lớp học">
     <x-ui.page-header title="Dashboard lớp học" description="Lịch học, điểm danh và chấm công theo từng buổi học thực tế.">
         <x-slot:actions>
-            <x-ui.button variant="secondary" icon="download" onclick="window.print()">Xuất báo cáo</x-ui.button>
+            <x-ui.button variant="secondary" icon="download" :href="request()->fullUrlWithQuery(['export' => 1])">Xuất Excel</x-ui.button>
             @can('class.create')
                 <x-ui.button icon="add" :href="route('classes.create')">Thêm lớp học</x-ui.button>
             @endcan

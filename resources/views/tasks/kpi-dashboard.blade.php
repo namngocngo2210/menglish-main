@@ -5,7 +5,7 @@
 <x-app-layout title="Bảng KPI tự động">
     <x-ui.page-header title="Bảng KPI tự động" description="Theo dõi các chỉ số hiệu suất chính của nhân sự giảng dạy, tính tự động từ điểm danh, bài tập và công việc.">
         <x-slot:actions>
-            <x-ui.button variant="secondary" icon="download" onclick="window.print()">Xuất KPI</x-ui.button>
+            <x-ui.button variant="secondary" icon="download" :href="request()->fullUrlWithQuery(['export' => 1, 'page' => null])">Xuất Excel KPI</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
 

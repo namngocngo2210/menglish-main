@@ -14,9 +14,13 @@
     </x-slot>
 
     <div class="max-w-3xl mx-auto space-y-6" x-data="{
-        supports: [
-            { id: 1, student_id: '{{ $students->first()?->id ?? '' }}', absence_session: 'Buổi 3 - Speaking', reason: 'Học sinh yếu kỹ năng nghe, không theo kịp tiến độ trên lớp.', action_plan: 'Làm lại bài tập nghe Part 1 trang 12 và ghi âm gửi TA.' }
-        ],
+        supports: {{ \Illuminate\Support\Js::from(collect(old('supports', []))->values()->map(fn ($sup, $i) => [
+            'id' => $i + 1,
+            'student_id' => (string) ($sup['student_id'] ?? ''),
+            'absence_session' => $sup['absence_session'] ?? '',
+            'reason' => $sup['reason'] ?? '',
+            'action_plan' => $sup['action_plan'] ?? '',
+        ])) }},
         addSupport() {
             this.supports.push({
                 id: Date.now(),
@@ -47,11 +51,12 @@
                         <label class="block text-[11px] font-bold uppercase text-gray-500 mb-1">Lớp học</label>
                         <select name="class_id" required class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container">
                             @foreach($classes as $c)
-                                <option value="{{ $c->id }}" {{ $selectedClass && $selectedClass->id === $c->id ? 'selected' : '' }}>
+                                <option value="{{ $c->id }}" @selected((string) old('class_id', $selectedClass?->id) === (string) $c->id)>
                                     {{ $c->name }} ({{ $c->code }}) · {{ $c->schedule_text }}
                                 </option>
                             @endforeach
                         </select>
+                        <x-input-error :messages="$errors->get('class_id')" class="mt-1" />
                     </div>
                 </div>
 
@@ -61,8 +66,9 @@
                     </div>
                     <div class="flex-1">
                         <label class="block text-[11px] font-bold uppercase text-gray-500 mb-1">Buổi học</label>
-                        <input type="text" name="session_name" required value="Buổi 5 - Listening Practice"
+                        <input type="text" name="session_name" required value="{{ old('session_name') }}" placeholder="VD: Buổi 5 - Listening Practice"
                                class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container">
+                        <x-input-error :messages="$errors->get('session_name')" class="mt-1" />
                     </div>
                 </div>
             </div>
@@ -74,7 +80,8 @@
                         Hôm nay học gì <span class="text-rose-500">*</span>
                     </label>
                     <textarea id="hom_nay_hoc_gi" name="hom_nay_hoc_gi" required rows="3" placeholder="Tóm tắt nội dung chính đã giảng dạy..."
-                              class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container">Hôm nay học Section 1 & Section 2 dạng bài Form/Note Completion, chiến thuật bắt từ khóa (Keywords) và tránh bẫy ngữ pháp.</textarea>
+                              class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container">{{ old('hom_nay_hoc_gi') }}</textarea>
+                    <x-input-error :messages="$errors->get('hom_nay_hoc_gi')" class="mt-1" />
                 </div>
 
                 <div>
@@ -82,7 +89,8 @@
                         Nhật ký dạy <span class="text-gray-400 font-normal text-xs">(Tùy chọn)</span>
                     </label>
                     <textarea id="nhat_ky_day" name="nhat_ky_day" rows="3" placeholder="Ghi chú về thái độ học tập, vấn đề phát sinh..."
-                              class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container">Lớp học nghiêm túc, phần nghe số điện thoại và tên riêng còn một số bạn nhầm lẫn giữa 15 và 50.</textarea>
+                              class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container">{{ old('nhat_ky_day') }}</textarea>
+                    <x-input-error :messages="$errors->get('nhat_ky_day')" class="mt-1" />
                 </div>
 
                 <!-- Đính kèm hình ảnh bảng / lớp -->
@@ -94,6 +102,7 @@
                         <p class="text-[11px] text-gray-400 mt-0.5">Hỗ trợ JPG, PNG (Tối đa 10MB)</p>
                         <input type="file" name="board_image" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
                     </div>
+                    <x-input-error :messages="$errors->get('board_image')" class="mt-1" />
                 </div>
             </div>
 
@@ -108,6 +117,8 @@
                 </div>
 
                 <div class="space-y-4">
+                    <p x-show="supports.length === 0" class="text-xs text-gray-400 text-center py-2">Chưa có học sinh cần bổ trợ.</p>
+                    <x-input-error :messages="collect($errors->get('supports.*'))->flatten()->all()" />
                     <template x-for="(sup, idx) in supports" :key="sup.id">
                         <div class="bg-gray-50/80 border border-gray-200 rounded-xl p-4 relative space-y-3">
                             <button type="button" @click="removeSupport(idx)" title="Xóa" class="absolute top-3 right-3 text-gray-400 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50">

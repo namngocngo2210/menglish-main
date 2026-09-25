@@ -9,7 +9,7 @@
                     <span class="material-symbols-outlined text-primary">admin_panel_settings</span>
                     {{ $role->exists ? 'Chỉnh Sửa Vai Trò & Phân Quyền' : 'Tạo Vai Trò & Thiết Lập Quyền Hạn' }}
                 </h1>
-                <p class="text-xs text-gray-500">Cấu hình danh sách quyền hạn chi tiết (Permissions) bằng Tiếng Việt cho vai trò</p>
+                <p class="text-xs text-gray-500">Cấu hình danh sách quyền hạn chi tiết cho vai trò</p>
             </div>
         </div>
     </x-slot>
@@ -30,7 +30,7 @@
 
             <div>
                 <div class="flex items-center justify-between mb-4 pb-2 border-b border-gray-100">
-                    <label class="font-bold text-sm text-gray-900">Danh Mục Quyền Hạn Hệ Thống (Permissions Tiếng Việt)</label>
+                    <label class="font-bold text-sm text-gray-900">Danh mục quyền hạn hệ thống</label>
                     <span class="text-xs text-gray-400">Chọn các quyền cho phép vai trò này thao tác</span>
                 </div>
 

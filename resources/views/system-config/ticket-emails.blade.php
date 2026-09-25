@@ -4,7 +4,7 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">forward_to_inbox</span>
-                    <span>Cấu hình Email nhận &amp; Hòm thư gửi (Lưu Database)</span>
+                    <span>Cấu hình Email nhận &amp; Hòm thư gửi</span>
                 </h1>
                 <p class="text-xs text-gray-500">Quản lý danh sách email nhận thông báo Ticket và cấu hình tài khoản SMTP gửi thư trực tiếp trong hệ thống</p>
             </div>
@@ -286,13 +286,13 @@
                         </div>
                     </div>
 
-                    <!-- Card 2: Cấu hình Tài khoản Gửi thư SMTP (Lưu Database) -->
+                    <!-- Card 2: Cấu hình Tài khoản Gửi thư SMTP -->
                     <div class="bg-white rounded-2xl border border-gray-200 shadow-xs p-6 space-y-5">
                         <div class="flex items-center justify-between border-b border-gray-100 pb-4">
                             <div>
                                 <h2 class="text-sm font-bold text-gray-900 flex items-center gap-2">
                                     <span class="material-symbols-outlined text-primary text-[20px]">outbox</span>
-                                    <span>Cấu hình Hòm thư &amp; Tài khoản gửi SMTP (Lưu Database)</span>
+                                    <span>Cấu hình Hòm thư &amp; Tài khoản gửi SMTP</span>
                                 </h2>
                                 <p class="text-xs text-gray-500 mt-0.5">Hệ thống sẽ dùng tài khoản này để gửi mail thông báo và email thử nghiệm mà không phụ thuộc file .env</p>
                             </div>
@@ -622,7 +622,7 @@
                             class="px-6 py-2.5 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer"
                         >
                             <span class="material-symbols-outlined text-[20px]">save</span>
-                            <span>Lưu Cấu Hình Vào Database</span>
+                            <span>Lưu cấu hình</span>
                         </button>
                     </div>
                 </form>
@@ -647,7 +647,7 @@
                             <input 
                                 type="email" 
                                 name="test_email" 
-                                value="{{ auth()->user()?->email ?? 'tech.vmst@gmail.com' }}"
+                                value="{{ auth()->user()?->email ?? '' }}"
                                 placeholder="Nhập email nhận thư test..." 
                                 class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-mono focus:border-primary-container focus:ring-primary-container" 
                                 required
@@ -671,7 +671,7 @@
                         <span class="material-symbols-outlined text-primary text-[22px]">dns</span>
                         <div>
                             <h3 class="text-sm font-bold text-gray-900">Trạng Thái Kết Nối SMTP</h3>
-                            <p class="text-[11px] text-gray-500">Thông số gửi thư hiện hành nạp từ Database</p>
+                            <p class="text-[11px] text-gray-500">Thông số gửi thư đang áp dụng</p>
                         </div>
                     </div>
 

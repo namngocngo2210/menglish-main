@@ -36,10 +36,10 @@ class ClassManagementController extends Controller
         }
         $classes = $classesQuery->get();
 
-        // Lead mẫu hoặc lấy từ CRM
-        $customerName = $request->query('customer_name', 'Nguyễn Văn A');
-        $customerLevel = $request->query('customer_level', 'Pre-IELTS');
-        $customerBranch = $branches->firstWhere('id', $selectedBranchId)?->name ?? 'Cầu Giấy, Hà Nội';
+        // Thông tin khách truyền từ CRM (không có thì để trống cho người dùng nhập)
+        $customerName = (string) $request->query('customer_name', '');
+        $customerLevel = (string) $request->query('customer_level', '');
+        $customerBranch = $branches->firstWhere('id', $selectedBranchId)?->name ?? '';
 
         // Lấy lịch sử đặt học thử đã lưu
         $bookings = AcademicRecord::where('screen_key', '01_Web_Admin/12_dat_lich_hoc_thu_popup')
@@ -92,11 +92,11 @@ class ClassManagementController extends Controller
             'status' => 'confirmed',
             'data' => [
                 'customer_name' => $validated['customer_name'],
-                'customer_level' => $validated['customer_level'] ?? 'Pre-IELTS',
+                'customer_level' => $validated['customer_level'] ?? null,
                 'class_name' => $validated['class_name'],
                 'class_id' => $validated['class_id'] ?? null,
                 'session_time' => $validated['session_time'],
-                'branch_name' => $validated['branch_name'] ?? 'Cầu Giấy',
+                'branch_name' => $validated['branch_name'] ?? null,
                 'booked_at' => now()->toDateTimeString(),
             ],
             'user_id' => Auth::id(),
@@ -467,9 +467,16 @@ class ClassManagementController extends Controller
         if ($selectedBranch !== 'all' && is_numeric($selectedBranch)) {
             $classesQuery->where('branch_id', $selectedBranch);
         }
-        $totalActive = $classesQuery->where('status', '!=', 'cancelled')->count();
+        $classesQuery->where('status', '!=', 'cancelled');
+        $totalActive = (clone $classesQuery)->count();
 
-        return view('classes.academic-overview', compact('branches', 'selectedBranch', 'totalActive'));
+        // Số lớp thật theo chương trình và theo trình độ / khối (cột classes.program / classes.level).
+        $programCounts = (clone $classesQuery)->selectRaw("COALESCE(NULLIF(program, ''), '') as label, COUNT(*) as total")
+            ->groupBy('label')->orderByDesc('total')->pluck('total', 'label');
+        $levelCounts = (clone $classesQuery)->selectRaw("COALESCE(NULLIF(level, ''), '') as label, COUNT(*) as total")
+            ->groupBy('label')->orderByDesc('total')->pluck('total', 'label');
+
+        return view('classes.academic-overview', compact('branches', 'selectedBranch', 'totalActive', 'programCounts', 'levelCounts'));
     }
 
     /**
@@ -482,6 +489,7 @@ class ClassManagementController extends Controller
         $search = $request->query('search');
         $branchFilter = $request->query('branch_id');
         $programFilter = $request->query('program');
+        $levelFilter = $request->query('level');
 
         $this->ensureCanBrowseClasses();
         $classesQuery = ClassModel::with(['branch', 'teacher', 'assistant'])->visibleTo(auth()->user())->where('status', '!=', 'cancelled');
@@ -494,11 +502,31 @@ class ClassManagementController extends Controller
         if ($branchFilter) {
             $classesQuery->where('branch_id', $branchFilter);
         }
+        if ($programFilter) {
+            $classesQuery->where('program', $programFilter);
+        }
+        if ($levelFilter) {
+            $classesQuery->where('level', $levelFilter);
+        }
 
-        $classes = $classesQuery->get();
-        ClassModel::loadRosterCounts($classes);
+        // Tiến độ thật: số buổi (không tính buổi hủy) và số buổi đã diễn ra.
+        $classesQuery->withCount([
+            'sessions as total_sessions_count' => fn ($q) => $q->where('status', '!=', 'cancelled'),
+            'sessions as done_sessions_count' => fn ($q) => $q->where('status', '!=', 'cancelled')->whereDate('date', '<=', today()),
+        ]);
+        $classes = $classesQuery->orderBy('code')->paginate(20)->withQueryString();
+        ClassModel::loadRosterCounts($classes->getCollection());
 
-        return view('classes.academic-list', compact('classes', 'branches', 'search', 'branchFilter', 'programFilter'));
+        // Big Test của các lớp đang hiển thị (thật, theo thứ tự lịch thi)
+        $bigTests = \App\Models\BigTest::whereIn('class_id', $classes->pluck('id'))
+            ->orderBy('scheduled_at')
+            ->get(['id', 'class_id', 'title', 'scheduled_at', 'status'])
+            ->groupBy('class_id');
+
+        $programs = ClassModel::visibleTo(auth()->user())->whereNotNull('program')->where('program', '!=', '')
+            ->distinct()->orderBy('program')->pluck('program');
+
+        return view('classes.academic-list', compact('classes', 'branches', 'search', 'branchFilter', 'programFilter', 'levelFilter', 'programs', 'bigTests'));
     }
 
     /**
@@ -514,7 +542,22 @@ class ClassManagementController extends Controller
             $class = $classes->first();
         }
 
-        return view('classes.academic-detail', compact('class', 'classes'));
+        // Dữ liệu học thuật thật của lớp: chặng đang áp dụng, tiến độ buổi học, Big Test.
+        $currentStage = $class
+            ? \App\Models\SyllabusAssignment::where('class_id', $class->id)->where('status', 'in_progress')->latest()->first()
+            : null;
+        $sessionProgress = null;
+        $bigTests = collect();
+        if ($class) {
+            $sessions = $class->sessions()->where('status', '!=', 'cancelled');
+            $sessionProgress = [
+                'total' => (clone $sessions)->count(),
+                'done' => (clone $sessions)->whereDate('date', '<=', today())->count(),
+            ];
+            $bigTests = \App\Models\BigTest::where('class_id', $class->id)->orderBy('scheduled_at')->get();
+        }
+
+        return view('classes.academic-detail', compact('class', 'classes', 'currentStage', 'sessionProgress', 'bigTests'));
     }
 
     /**

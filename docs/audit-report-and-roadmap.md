@@ -716,6 +716,21 @@
 **Test:** `tests/Feature/Phase2AttendanceTest.php` (11 test). Không phải sửa test cũ — các test điểm danh cũ (không truyền buổi) vẫn chạy theo mặc định "buổi hôm nay".
 **Triển khai:** chạy `php artisan migrate` (migration `2026_09_29_100000_phase2_attendance_support_care`: bỏ unique `(class_id, student_id, session_date)` của điểm danh, thêm unique `(class_session_id, student_id)` + `recorded_by`, gắn buổi cho điểm danh cũ; mở rộng bảng bổ trợ; thêm `work_tasks.student_id/care_milestone`). Cron `schedule:run` phải chạy. Build lại asset (`npm run build`).
 
+#### Rà soát giao diện B2 mục 2–7 (nhánh `feat/ui-sweep`)
+**Đã làm:**
+- [x] Dữ liệu giả → dữ liệu thật / trạng thái trống: dashboard báo cáo đào tạo (chuyên cần, báo cáo trực lớp, sĩ số theo điểm danh), dashboard sự vụ (ticket khẩn + nhật ký thật, lọc chi nhánh/mức độ/trạng thái), sơ đồ khối lớp (đếm theo `program`/`level`), danh sách lớp chi tiết (tiến độ buổi, Big Test, lọc chương trình/trình độ, phân trang), chi tiết lớp (chặng, buổi đã học, Big Test), hồ sơ lớp, đặt lịch học thử (nhập tên khách thay "Nguyễn Văn A"), hồ sơ nhân sự (lớp đang phụ trách), phiếu thu / hóa đơn / lịch sử thu, trang cá nhân. Form không còn nội dung soạn sẵn (đề test, báo cáo trực lớp, 3 dòng giao việc, phòng thi). Ba màn mockup tĩnh (dự giờ QA, checklist học phí & feedback, đánh giá dự giờ) hiện "Chức năng chưa triển khai".
+- [x] SĐT / địa chỉ trung tâm: `App\Support\CenterInfo` (system_settings `center_phone`, `center_name`, `center_tax_code`, `center_website` → `config('app.center_*')`; địa chỉ lấy từ chi nhánh).
+- [x] Bộ lọc / phân trang: kỳ lương (tìm kiếm + trạng thái phía server, phân trang), giao chặng (tìm phía server), bỏ nút phân trang tĩnh ở sổ khoản chi.
+- [x] Nút giả: xuất Excel/CSV thật cho bảng lương theo kỳ/khối, dashboard lớp theo ngày/tuần, bảng KPI, báo cáo phòng/nhân sự; `alert()` → toast; bỏ nút "Thêm quyền (DEV ONLY)", "Xuất biên lai" luôn khóa, link `#`.
+- [x] Lỗi validate: layout đã có alert lỗi chung; thêm lỗi theo từng trường + giữ `old()` cho form giao việc, ticket, hàng hóa, báo cáo trực lớp, giao việc TA, đặt học thử; trang làm bài test công khai có khối lỗi riêng.
+- [x] Tiêu đề kỹ thuật: bỏ "(Flow N — Bước #N)", "(Lưu Database)", "(Permissions Tiếng Việt)"; mã trạng thái thô → `App\Support\StatusLabel`.
+- [x] Menu: đã không trùng route (test cũ) + thêm test không trùng nhãn. Topbar: ô tìm kiếm chung `/search` (khách CRM, học viên, lớp theo tên/mã/SĐT, qua `visibleTo()`), thêm "Tạo ticket hỗ trợ" vào "Tạo mới".
+**Chưa làm / để lại:**
+- [ ] `classes/create`, `classes/edit`, `teacher/*`, `portal/*` (nhánh khác đang sửa) còn `alert()` / fallback giả ("Nguyễn Văn A", "IELTS Starter - M01"...).
+- [ ] Dự giờ QA / checklist học phí & feedback / đánh giá dự giờ: chưa có mô hình dữ liệu.
+- [ ] "In phiếu" (lịch sử thu, phiếu lương cá nhân, bảng điểm Big Test, bảng đánh giá test) vẫn dùng in của trình duyệt (đúng nhãn "In").
+**Test:** `tests/Feature/UiSweepTest.php`.
+
 ---
 
 ## Phụ lục — Vị trí kỹ thuật các lỗi P0 (cho dev)

@@ -8,7 +8,7 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">class</span>
-                        Chi tiết lớp học Học thuật (Flow 1 — Bước #6)
+                        Chi tiết lớp học Học thuật
                     </h1>
                     <p class="text-xs text-gray-500">Tiến độ chi tiết từng chặng học, unit bài giảng và timeline các bài kiểm tra định kỳ Big Test.</p>
                 </div>
@@ -16,7 +16,7 @@
             <div class="flex items-center gap-2">
                 <a href="{{ route('classes.trial-booking') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition">
                     <span class="material-symbols-outlined text-[16px]">restart_alt</span>
-                    <span>Bắt đầu lại (Bước #1)</span>
+                    <span>Bắt đầu lại</span>
                 </a>
                 <a href="{{ route('classes.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-dark transition">
                     <span class="material-symbols-outlined text-[16px]">add</span>
@@ -34,11 +34,13 @@
             <div>
                 <div class="flex items-center gap-3">
                     <h2 class="text-xl font-bold text-gray-900 tracking-tight">
-                        Chi tiết lớp {{ $class?->code ?? 'IELTS_INT_01' }}
+                        Chi tiết lớp {{ $class?->code ?? '' }}
                     </h2>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
-                        Đang học
-                    </span>
+                    @if ($class)
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                            {{ \App\Support\StatusLabel::for($class->status) }}
+                        </span>
+                    @endif
                 </div>
                 <p class="text-xs text-gray-500 mt-0.5">Quản lý và theo dõi thông tin học thuật chi tiết của lớp học.</p>
             </div>
@@ -79,7 +81,7 @@
                     </div>
                     <div>
                         <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Sĩ số</span>
-                        <span class="font-bold text-primary font-mono">{{ $class?->roster_count ?? 0 }}/{{ $class?->max_capacity ?? 15 }}</span>
+                        <span class="font-bold text-primary font-mono">{{ $class?->roster_count ?? 0 }}/{{ $class?->max_capacity ?? '—' }}</span>
                     </div>
                     <div>
                         <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Ngày khai giảng</span>
@@ -101,108 +103,64 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-xs">
                     <div>
                         <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Tên chương trình</span>
-                        <span class="font-bold text-gray-900">{{ $class?->program ?? $class?->course?->name ?? 'IELTS Luyện thi' }}</span>
+                        <span class="font-bold text-gray-900">{{ $class?->program ?? $class?->course?->name ?? 'Chưa cập nhật' }}</span>
                     </div>
                     <div>
                         <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Chặng hiện tại</span>
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-primary-container/10 text-primary font-bold text-[11px]">
-                            Chặng 2 (Intermediate)
-                        </span>
+                        @if ($currentStage)
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-primary-container/10 text-primary font-bold text-[11px]">{{ $currentStage->stage_name }}</span>
+                        @else
+                            <span class="font-bold text-gray-400">Chưa giao chặng</span>
+                        @endif
                     </div>
                     <div>
                         <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Ngày mở chặng</span>
-                        <span class="font-bold text-gray-900 font-mono">15/10/2023</span>
+                        <span class="font-bold text-gray-900 font-mono">{{ $currentStage?->created_at?->format('d/m/Y') ?? '—' }}</span>
                     </div>
                     <div>
-                        <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Unit/Buổi hiện tại</span>
-                        <span class="font-bold text-gray-900 font-mono text-sm text-primary">Unit 5 - Buổi 12</span>
+                        <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Buổi đã học</span>
+                        @if ($sessionProgress && $sessionProgress['total'] > 0)
+                            <span class="font-bold text-gray-900 font-mono text-sm text-primary">{{ $sessionProgress['done'] }} / {{ $sessionProgress['total'] }} buổi</span>
+                        @else
+                            <span class="font-bold text-gray-400">Chưa có lịch học</span>
+                        @endif
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 3. Lịch Big Test (Timeline Matching Exact BA) -->
+        <!-- 3. Lịch Big Test -->
         <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
             <div class="flex items-center gap-2 mb-6 border-b border-gray-100 pb-3">
                 <span class="material-symbols-outlined text-primary text-[22px]">event_available</span>
                 <h3 class="text-base font-bold text-gray-900">Lịch Big Test</h3>
             </div>
 
-            <div class="relative pl-4 space-y-6 before:absolute before:left-[21px] before:top-3 before:bottom-3 before:w-0.5 before:bg-gray-200">
-                <!-- Timeline Item 1 -->
-                <div class="relative flex items-start gap-4 group">
-                    <div class="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 z-10 shadow-2xs">
-                        <div class="w-3 h-3 rounded-full bg-emerald-600"></div>
-                    </div>
-                    <div class="flex-1 flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-gray-50/70 hover:bg-gray-50 rounded-xl border border-gray-200/80 transition">
-                        <div>
-                            <span class="text-xs font-bold text-gray-900 block">Big Test 1 (Chặng Foundation)</span>
-                            <span class="text-[11px] text-gray-500 font-mono">20/09/2023 • Trực tiếp tại phòng Lab A</span>
+            @if ($bigTests->isEmpty())
+                <p class="text-xs text-gray-400">Lớp chưa có đợt Big Test nào.</p>
+            @else
+                <div class="relative pl-4 space-y-6 before:absolute before:left-[21px] before:top-3 before:bottom-3 before:w-0.5 before:bg-gray-200">
+                    @foreach ($bigTests as $bt)
+                        @php($btPast = $bt->scheduled_at && $bt->scheduled_at->isPast())
+                        <div class="relative flex items-start gap-4 group">
+                            <div class="w-7 h-7 rounded-full {{ $btPast ? 'bg-emerald-100' : 'bg-orange-100' }} flex items-center justify-center shrink-0 z-10 shadow-2xs">
+                                <div class="w-3 h-3 rounded-full {{ $btPast ? 'bg-emerald-600' : 'bg-primary-container' }}"></div>
+                            </div>
+                            <div class="flex-1 flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-gray-50/70 hover:bg-gray-50 rounded-xl border border-gray-200/80 transition">
+                                <div>
+                                    <span class="text-xs font-bold text-gray-900 block">{{ $bt->title }}</span>
+                                    <span class="text-[11px] text-gray-500 font-mono">{{ $bt->scheduled_at?->format('d/m/Y H:i') ?? 'Chưa xếp lịch' }}{{ $bt->room ? ' • '.$bt->room : '' }}</span>
+                                </div>
+                                <div class="mt-2 sm:mt-0">
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-lg {{ $btPast ? 'bg-emerald-100 text-emerald-800' : 'bg-orange-100 text-primary' }} font-bold text-[11px]">
+                                        {{ $btPast ? 'Đã diễn ra' : 'Sắp diễn ra' }}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="mt-2 sm:mt-0">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-bold text-[11px]">
-                                <span class="material-symbols-outlined text-[14px] mr-1">check</span>
-                                Đã duyệt gửi PH
-                            </span>
-                        </div>
-                    </div>
+                    @endforeach
                 </div>
-
-                <!-- Timeline Item 2 -->
-                <div class="relative flex items-start gap-4 group">
-                    <div class="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 z-10 shadow-2xs">
-                        <div class="w-3 h-3 rounded-full bg-emerald-600"></div>
-                    </div>
-                    <div class="flex-1 flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-gray-50/70 hover:bg-gray-50 rounded-xl border border-gray-200/80 transition">
-                        <div>
-                            <span class="text-xs font-bold text-gray-900 block">Big Test 2 (Giữa kỳ Intermediate)</span>
-                            <span class="text-[11px] text-gray-500 font-mono">15/10/2023 • Trực tiếp tại phòng 301</span>
-                        </div>
-                        <div class="mt-2 sm:mt-0">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-bold text-[11px]">
-                                <span class="material-symbols-outlined text-[14px] mr-1">check</span>
-                                Đã duyệt gửi PH
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Timeline Item 3 -->
-                <div class="relative flex items-start gap-4 group">
-                    <div class="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center shrink-0 z-10 shadow-2xs">
-                        <div class="w-3 h-3 rounded-full bg-primary-container"></div>
-                    </div>
-                    <div class="flex-1 flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-orange-50/40 rounded-xl border border-orange-200 transition">
-                        <div>
-                            <span class="text-xs font-bold text-primary block">Big Test 3 (Cuối chặng 2)</span>
-                            <span class="text-[11px] text-gray-500 font-mono">10/11/2023 • Dự kiến xếp lịch</span>
-                        </div>
-                        <div class="mt-2 sm:mt-0">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-orange-100 text-primary font-bold text-[11px]">
-                                Sắp diễn ra
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Timeline Item 4 -->
-                <div class="relative flex items-start gap-4 group">
-                    <div class="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center shrink-0 z-10 shadow-2xs">
-                        <div class="w-3 h-3 rounded-full bg-gray-400"></div>
-                    </div>
-                    <div class="flex-1 flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-gray-50 rounded-xl border border-gray-200 transition">
-                        <div>
-                            <span class="text-xs font-bold text-gray-600 block">Big Test 4 (Final Test)</span>
-                            <span class="text-[11px] text-gray-400 font-mono">05/12/2023 • Kết thúc khóa học</span>
-                        </div>
-                        <div class="mt-2 sm:mt-0">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 font-bold text-[11px]">
-                                Chưa diễn ra
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            @endif
         </div>
     </div>
 </x-app-layout>

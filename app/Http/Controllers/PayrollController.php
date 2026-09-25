@@ -26,13 +26,25 @@ use Illuminate\Validation\ValidationException;
 
 class PayrollController extends Controller
 {
-    public function periods()
+    public function periods(Request $request)
     {
         $currentUser = auth()->user();
         abort_if($currentUser && ($currentUser->hasRole('student') || $currentUser->hasRole('teacher') || $currentUser->hasRole('academic_lead')), 403);
-        $periods = PayrollPeriod::withCount('records')->latest()->get();
 
-        return view('payroll.periods', compact('periods'));
+        $search = trim((string) $request->query('search', ''));
+        $status = $request->query('status');
+
+        $periods = PayrollPeriod::withCount('records')
+            ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('code', 'like', "%{$search}%")
+                ->orWhere('title', 'like', "%{$search}%")
+                ->orWhereHas('records.user', fn ($u) => $u->where('name', 'like', "%{$search}%"))))
+            ->when(in_array($status, ['draft', 'reviewing', 'approved', 'paid'], true), fn ($q) => $q->where('status', $status))
+            ->latest()
+            ->paginate(12)
+            ->withQueryString();
+        $allPeriods = PayrollPeriod::latest()->get(['id', 'code', 'title']);
+
+        return view('payroll.periods', compact('periods', 'allPeriods', 'search', 'status'));
     }
 
     public function storePeriod(Request $request)
@@ -75,6 +87,48 @@ class PayrollController extends Controller
         $period = PayrollPeriod::with(['records.user'])->where('id', $id)->orWhere('code', $id)->firstOrFail();
 
         return view('payroll.show', compact('period'));
+    }
+
+    /**
+     * Xuất bảng lương của kỳ ra Excel (.xlsx) hoặc CSV; lọc theo khối (department) nếu có.
+     */
+    public function exportPeriod(Request $request, $id)
+    {
+        $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $department = $request->query('department');
+        $departments = ['teacher' => 'Giáo viên', 'fulltime' => 'GV Full-time', 'academic' => 'Học thuật', 'operations' => 'Vận hành'];
+
+        $records = $period->records()->with('user')
+            ->when(is_string($department) && $department !== '', fn ($q) => $q->where('department', $department))
+            ->orderBy('department')->orderBy('id')
+            ->get();
+
+        $rows = $records->map(fn (PayrollRecord $r) => [
+            $r->user?->name ?? 'Chưa cập nhật',
+            $r->user?->email,
+            $departments[$r->department] ?? $r->department,
+            (float) $r->base_salary,
+            (float) $r->actual_hours,
+            (float) $r->teaching_salary,
+            (float) $r->kpi_bonus,
+            (float) $r->commission_bonus,
+            (float) $r->allowance,
+            (float) $r->other_bonus,
+            (float) $r->insurance_deduction,
+            (float) $r->tax_deduction,
+            (float) $r->penalty_deduction,
+            (float) $r->commission_clawback,
+            (float) $r->foreign_teacher_deduction,
+            (float) $r->other_deduction,
+            (float) $r->net_salary,
+        ])->all();
+
+        return \App\Exports\ArrayExport::download(
+            'bang-luong-'.\Illuminate\Support\Str::slug($period->code ?: $period->id).($department ? '-'.$department : ''),
+            ['Nhân sự', 'Email', 'Khối', 'Lương cơ bản', 'Giờ dạy', 'Lương dạy', 'Thưởng KPI', 'Hoa hồng', 'Phụ cấp', 'Thưởng khác', 'BHXH', 'Thuế TNCN', 'Phạt', 'Thu hồi hoa hồng', 'Trừ GVNN', 'Khấu trừ khác', 'Thực lĩnh'],
+            $rows,
+            $request->query('format', 'xlsx')
+        );
     }
 
     public function approvePeriod($id)

@@ -24,7 +24,7 @@
                 </div>
                 <div>
                     <span class="text-xs font-medium text-gray-500">Tổng sự vụ ghi nhận</span>
-                    <p class="text-2xl font-extrabold text-gray-900">{{ max($totalIncidents, 12) }} <span class="text-xs text-gray-400">vụ</span></p>
+                    <p class="text-2xl font-extrabold text-gray-900">{{ $totalIncidents }} <span class="text-xs text-gray-400">vụ</span></p>
                 </div>
             </div>
 
@@ -34,7 +34,7 @@
                 </div>
                 <div>
                     <span class="text-xs font-medium text-rose-700 font-semibold">Khẩn cấp cần xử lý</span>
-                    <p class="text-2xl font-extrabold text-rose-600">{{ max($urgentCount, 2) }} <span class="text-xs text-rose-500">ưu tiên cao</span></p>
+                    <p class="text-2xl font-extrabold text-rose-600">{{ $urgentCount }} <span class="text-xs text-rose-500">ticket khẩn cấp</span></p>
                 </div>
             </div>
 
@@ -44,7 +44,7 @@
                 </div>
                 <div>
                     <span class="text-xs font-medium text-amber-800 font-semibold">Đang theo dõi / Xử lý</span>
-                    <p class="text-2xl font-extrabold text-amber-600">{{ max($openCount, 3) }} <span class="text-xs text-amber-500">vụ</span></p>
+                    <p class="text-2xl font-extrabold text-amber-600">{{ $openCount }} <span class="text-xs text-amber-500">vụ</span></p>
                 </div>
             </div>
 
@@ -54,7 +54,7 @@
                 </div>
                 <div>
                     <span class="text-xs font-medium text-emerald-800 font-semibold">Đã giải quyết</span>
-                    <p class="text-2xl font-extrabold text-emerald-600">{{ max($resolvedCount, 9) }} <span class="text-xs text-emerald-500">92% SLA</span></p>
+                    <p class="text-2xl font-extrabold text-emerald-600">{{ $resolvedCount }} <span class="text-xs text-emerald-500">vụ</span></p>
                 </div>
             </div>
         </div>
@@ -66,15 +66,28 @@
                     <h3 class="font-bold text-gray-900 text-sm">Danh sách Sự vụ Nổi cộm Các Cơ sở</h3>
                     <p class="text-xs text-gray-500">Theo dõi, giao quyền xử lý và ghi nhận giải pháp khắc phục</p>
                 </div>
-                <div class="flex items-center gap-2">
+                <form method="GET" action="{{ route('academic.dashboards.incidents') }}" class="flex flex-wrap items-center gap-2">
                     <span class="text-xs text-gray-500 font-medium">Lọc theo:</span>
-                    <select class="text-xs rounded-xl border-gray-200 font-semibold py-1.5 px-3">
+                    <select name="branch_id" class="text-xs rounded-xl border-gray-200 font-semibold py-1.5 px-3" onchange="this.form.submit()">
                         <option value="">Tất cả cơ sở</option>
                         @foreach($branches as $b)
-                            <option value="{{ $b->id }}">{{ $b->name }}</option>
+                            <option value="{{ $b->id }}" @selected((string) $branchId === (string) $b->id)>{{ $b->name }}</option>
                         @endforeach
                     </select>
-                </div>
+                    <select name="severity" class="text-xs rounded-xl border-gray-200 font-semibold py-1.5 px-3" onchange="this.form.submit()">
+                        <option value="all">Mọi mức độ</option>
+                        <option value="urgent" @selected($severity === 'urgent')>Khẩn cấp</option>
+                        <option value="high" @selected($severity === 'high')>Cao</option>
+                        <option value="medium" @selected($severity === 'medium')>Trung bình</option>
+                        <option value="low" @selected($severity === 'low')>Thấp</option>
+                    </select>
+                    <select name="status" class="text-xs rounded-xl border-gray-200 font-semibold py-1.5 px-3" onchange="this.form.submit()">
+                        <option value="all">Mọi trạng thái</option>
+                        <option value="open" @selected($status === 'open')>Đang xử lý</option>
+                        <option value="resolved" @selected($status === 'resolved')>Đã giải quyết</option>
+                    </select>
+                    <noscript><button type="submit" class="text-xs font-bold">Lọc</button></noscript>
+                </form>
             </div>
 
             <div class="overflow-x-auto">
@@ -90,101 +103,63 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
-                        <!-- Sự vụ 1: Khẩn cấp -->
-                        <tr class="hover:bg-gray-50/80 transition bg-rose-50/10">
-                            <td class="py-3 px-4">
-                                <span class="font-bold text-gray-900 font-mono">SV-2026-081</span>
-                                <span class="block text-[11px] text-gray-500">Cơ sở 1 (Cầu Giấy)</span>
-                            </td>
-                            <td class="py-3 px-4">
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                                    Khiếu nại Phụ huynh
-                                </span>
-                            </td>
-                            <td class="py-3 px-4 max-w-sm">
-                                <p class="font-semibold text-gray-900">Phụ huynh em Nguyễn Minh Tuấn (Lớp B2-01) phản ánh chất lượng phòng học</p>
-                                <p class="text-[11px] text-gray-500 line-clamp-1">Máy lạnh phòng 201 bị rò rỉ nước trong giờ học, ảnh hưởng buổi học.</p>
-                            </td>
-                            <td class="py-3 px-4">
-                                <span class="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600">
-                                    <span class="w-2 h-2 rounded-full bg-rose-600 animate-pulse"></span>
-                                    Khẩn cấp
-                                </span>
-                            </td>
-                            <td class="py-3 px-4">
-                                <span class="font-bold text-gray-900">Lê Hoàng C (Trưởng CS)</span>
-                                <span class="block text-[11px] text-emerald-700 font-medium">Đã gọi thợ sửa máy lạnh & gọi điện xin lỗi PH</span>
-                            </td>
-                            <td class="py-3 px-4">
-                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                    Đang xử lý
-                                </span>
-                            </td>
-                        </tr>
-
-                        <!-- Sự vụ 2: Vắng liên tiếp -->
-                        <tr class="hover:bg-gray-50/80 transition">
-                            <td class="py-3 px-4">
-                                <span class="font-bold text-gray-900 font-mono">SV-2026-080</span>
-                                <span class="block text-[11px] text-gray-500">Cơ sở 2 (Đống Đa)</span>
-                            </td>
-                            <td class="py-3 px-4">
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                                    Học viên vắng liên tiếp
-                                </span>
-                            </td>
-                            <td class="py-3 px-4 max-w-sm">
-                                <p class="font-semibold text-gray-900">Học viên Lê Thu Trang vắng 3 buổi liên tiếp không rõ lý do</p>
-                                <p class="text-[11px] text-gray-500 line-clamp-1">Lớp IELTS Starter - M01. Đã gọi 2 cuộc nhưng chưa bắt máy.</p>
-                            </td>
-                            <td class="py-3 px-4">
-                                <span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600">
-                                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                                    Cảnh báo
-                                </span>
-                            </td>
-                            <td class="py-3 px-4">
-                                <span class="font-bold text-gray-900">Trần Thị B (Học vụ)</span>
-                                <span class="block text-[11px] text-gray-600">Liên hệ qua Zalo PH & xếp lịch phụ đạo bù kiến thức</span>
-                            </td>
-                            <td class="py-3 px-4">
-                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                    Đang follow-up
-                                </span>
-                            </td>
-                        </tr>
-
-                        <!-- Sự vụ 3: Đã giải quyết -->
-                        <tr class="hover:bg-gray-50/80 transition">
-                            <td class="py-3 px-4">
-                                <span class="font-bold text-gray-900 font-mono">SV-2026-079</span>
-                                <span class="block text-[11px] text-gray-500">Cơ sở 1 (Cầu Giấy)</span>
-                            </td>
-                            <td class="py-3 px-4">
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
-                                    Giáo viên xin nghỉ đột xuất
-                                </span>
-                            </td>
-                            <td class="py-3 px-4 max-w-sm">
-                                <p class="font-semibold text-gray-900">GV Johnathan xin nghỉ ca 19:45 do bị ốm</p>
-                                <p class="text-[11px] text-gray-500 line-clamp-1">Đã điều động GV Hoàng Minh dạy thay kịp thời trước giờ học 3 tiếng.</p>
-                            </td>
-                            <td class="py-3 px-4">
-                                <span class="inline-flex items-center gap-1 text-[11px] font-bold text-gray-500">
-                                    <span class="w-2 h-2 rounded-full bg-gray-400"></span>
-                                    Thông thường
-                                </span>
-                            </td>
-                            <td class="py-3 px-4">
-                                <span class="font-bold text-gray-900">Ban Học thuật</span>
-                                <span class="block text-[11px] text-emerald-600">Đã chốt ca dạy thay, thông báo lớp học</span>
-                            </td>
-                            <td class="py-3 px-4">
-                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                    Đã giải quyết
-                                </span>
-                            </td>
-                        </tr>
+                        @php
+                            $priorityLabels = ['urgent' => 'Khẩn cấp', 'high' => 'Cao', 'medium' => 'Trung bình', 'low' => 'Thấp'];
+                        @endphp
+                        @foreach ($urgentTickets as $ticket)
+                            <tr class="hover:bg-gray-50/80 transition {{ $ticket->priority === 'urgent' ? 'bg-rose-50/10' : '' }}">
+                                <td class="py-3 px-4">
+                                    <a href="{{ route('tickets.show', $ticket->id) }}" class="font-bold text-gray-900 font-mono hover:underline">{{ $ticket->code }}</a>
+                                    <span class="block text-[11px] text-gray-500">{{ $ticket->creator?->branch?->name ?? 'Chưa cập nhật' }}</span>
+                                </td>
+                                <td class="py-3 px-4">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-800 border border-gray-200">{{ $ticket->category_label }}</span>
+                                </td>
+                                <td class="py-3 px-4 max-w-sm">
+                                    <p class="font-semibold text-gray-900">{{ $ticket->title }}</p>
+                                    <p class="text-[11px] text-gray-500 line-clamp-1">{{ \Illuminate\Support\Str::limit(strip_tags((string) $ticket->description), 140) }}</p>
+                                </td>
+                                <td class="py-3 px-4">
+                                    <span class="px-2 py-0.5 rounded-full text-[11px] border {{ $ticket->priority_badge }}">{{ $priorityLabels[$ticket->priority] ?? 'Chưa cập nhật' }}</span>
+                                </td>
+                                <td class="py-3 px-4">
+                                    <span class="font-bold text-gray-900">{{ $ticket->assignee?->name ?? 'Chưa phân công' }}</span>
+                                    <span class="block text-[11px] text-gray-500">Người tạo: {{ $ticket->creator?->name ?? 'Chưa cập nhật' }}</span>
+                                </td>
+                                <td class="py-3 px-4">
+                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border {{ $ticket->status_badge }}">{{ $ticket->status_label }}</span>
+                                </td>
+                            </tr>
+                        @endforeach
+                        @foreach ($incidents as $incident)
+                            <tr class="hover:bg-gray-50/80 transition">
+                                <td class="py-3 px-4">
+                                    <span class="font-bold text-gray-900 font-mono">{{ $incident->record_code ?: 'Nhật ký #' . $incident->id }}</span>
+                                    <span class="block text-[11px] text-gray-500">{{ $incident->user?->branch?->name ?? 'Chưa cập nhật' }}</span>
+                                </td>
+                                <td class="py-3 px-4">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">Nhật ký học vụ</span>
+                                </td>
+                                <td class="py-3 px-4 max-w-sm">
+                                    <p class="font-semibold text-gray-900">{{ $incident->title }}</p>
+                                    @if (! empty($incident->data['noi_dung']))
+                                        <p class="text-[11px] text-gray-500 line-clamp-1">{{ $incident->data['noi_dung'] }}</p>
+                                    @endif
+                                </td>
+                                <td class="py-3 px-4 text-[11px] text-gray-400">—</td>
+                                <td class="py-3 px-4">
+                                    <span class="font-bold text-gray-900">{{ $incident->user?->name ?? 'Chưa cập nhật' }}</span>
+                                </td>
+                                <td class="py-3 px-4">
+                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-50 text-gray-700 border border-gray-200">{{ $incident->status_label }}</span>
+                                </td>
+                            </tr>
+                        @endforeach
+                        @if ($urgentTickets->isEmpty() && $incidents->isEmpty())
+                            <tr>
+                                <td colspan="6" class="py-10 text-center text-gray-400">Chưa có sự vụ nào phù hợp bộ lọc.</td>
+                            </tr>
+                        @endif
                     </tbody>
                 </table>
             </div>

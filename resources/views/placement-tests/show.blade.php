@@ -27,7 +27,7 @@
             <!-- Compact Sleek Actions Menu -->
             <div class="flex items-center gap-1.5 flex-wrap">
                 <!-- Copy Portal Link -->
-                <button type="button" onclick="navigator.clipboard.writeText('{{ route('portal.test.take', $test->code) }}'); alert('Đã sao chép link làm bài thi: {{ route('portal.test.take', $test->code) }}');" class="px-2.5 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold transition flex items-center gap-1 shadow-2xs">
+                <button type="button" onclick="navigator.clipboard.writeText({{ \Illuminate\Support\Js::from(route('portal.test.take', $test->code)) }}); window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Đã sao chép link làm bài thi.', type: 'success' } }));" class="px-2.5 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold transition flex items-center gap-1 shadow-2xs">
                     <span class="material-symbols-outlined text-[15px] text-gray-500">content_copy</span>
                     <span>Sao chép Link</span>
                 </button>

@@ -38,88 +38,27 @@
     @endif
 
     @php
+        // Đề mới bắt đầu với 1 câu hỏi trống (không soạn sẵn nội dung mẫu).
         $defaultQuestions = [
             [
                 'id' => 1,
-                'skill' => 'listening',
-                'type' => 'multiple_choice',
-                'section' => 'A. LISTENING - Exercise 1',
-                'title' => "What is the passenger's final destination in the conversation?",
-                'audio_url' => '/uploads/2026/dethitest/de-test-lop-6-len-7/track-1-4-20260819105025-7k9aa.mp3',
-                'passage' => 'Listen to the audio clip at Customer Service Desk.',
-                'options' => [
-                    ['key' => 'A', 'text' => 'London Heathrow'],
-                    ['key' => 'B', 'text' => 'Melbourne International Airport'],
-                    ['key' => 'C', 'text' => 'Tokyo Narita'],
-                    ['key' => 'D', 'text' => 'Singapore Changi'],
-                ],
-                'correct_answer' => 'B',
-                'points' => 1,
-                'explanation' => 'The passenger confirms connecting flight to Melbourne.',
-                'teacher_note' => 'Hướng dẫn nghe từ khóa "final destination".'
-            ],
-            [
-                'id' => 2,
                 'skill' => 'reading',
                 'type' => 'multiple_choice',
-                'section' => 'B. READING - Exercise 1',
-                'title' => 'According to the passage, what is the primary benefit of renewable energy?',
+                'section' => 'READING SECTION',
+                'title' => '',
                 'audio_url' => '',
-                'passage' => 'Renewable energy sources, such as solar and wind power, emit little to no greenhouse gases during operation. In addition, they decrease reliance on finite fossil fuel reserves and stimulate local job growth in clean tech sectors.',
+                'passage' => '',
                 'options' => [
-                    ['key' => 'A', 'text' => 'It eliminates the need for power grids'],
-                    ['key' => 'B', 'text' => 'It significantly reduces greenhouse gas emissions'],
-                    ['key' => 'C', 'text' => 'It requires no initial capital investment'],
-                    ['key' => 'D', 'text' => 'It operates without any maintenance'],
+                    ['key' => 'A', 'text' => ''],
+                    ['key' => 'B', 'text' => ''],
+                    ['key' => 'C', 'text' => ''],
+                    ['key' => 'D', 'text' => ''],
                 ],
-                'correct_answer' => 'B',
+                'correct_answer' => 'A',
                 'points' => 1,
-                'explanation' => 'The passage explicitly states that renewable energy emits little to no greenhouse gases.',
-                'teacher_note' => 'Kiểm tra kỹ năng Scanning thông tin trong đoạn.'
+                'explanation' => '',
+                'teacher_note' => '',
             ],
-            [
-                'id' => 3,
-                'skill' => 'grammar',
-                'type' => 'fill_blank',
-                'section' => 'C. GRAMMAR & VOCABULARY',
-                'title' => 'Complete the sentence: If she _____ (study) harder last month, she would have passed the IELTS exam.',
-                'audio_url' => '',
-                'passage' => '',
-                'options' => [],
-                'correct_answer' => 'had studied',
-                'points' => 1,
-                'explanation' => 'Third conditional structure: If + S + had + V3/ed, S + would have + V3/ed.',
-                'teacher_note' => 'Câu điều kiện loại 3.'
-            ],
-            [
-                'id' => 4,
-                'skill' => 'writing',
-                'type' => 'essay',
-                'section' => 'D. WRITING TASK',
-                'title' => 'Writing Task: Some people believe that studying online is more effective than traditional classroom learning. Discuss both views and give your opinion.',
-                'audio_url' => '',
-                'passage' => '',
-                'options' => [],
-                'correct_answer' => '',
-                'min_words' => 120,
-                'points' => 9,
-                'explanation' => 'Chấm theo 4 tiêu chí IELTS: Task Response, Coherence & Cohesion, Lexical Resource, Grammatical Range & Accuracy.',
-                'teacher_note' => 'Yêu cầu tối thiểu 120 từ.'
-            ],
-            [
-                'id' => 5,
-                'skill' => 'speaking',
-                'type' => 'speaking_prompt',
-                'section' => 'E. SPEAKING TEST',
-                'title' => 'Speaking Part 2: Describe a memorable journey or trip you took.',
-                'audio_url' => '',
-                'passage' => "• Where you went and who you went with\n• How you travelled there\n• What you did during the trip\n• And explain why this trip was so memorable for you",
-                'options' => [],
-                'correct_answer' => '',
-                'points' => 9,
-                'explanation' => 'Đánh giá độ trôi chảy, phản xạ phát âm, từ vựng và cấu trúc câu.',
-                'teacher_note' => 'Chấm theo thang Rubric Speaking Cambridge / CEFR.'
-            ]
         ];
 
         $initialQuestions = old('questions');
@@ -160,7 +99,7 @@
                         <div class="space-y-2.5 text-xs">
                             <div>
                                 <label class="block font-bold text-gray-700 mb-1 text-[11px]">Tên đề thi <span class="text-rose-500">*</span></label>
-                                <input type="text" name="title" value="{{ old('title', 'Đề Kiểm Tra Trình Độ 4 Kỹ Năng - Standard ' . date('Y')) }}" required placeholder="VD: Đề Test Đầu Vào IELTS 6.5" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-bold focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs" />
+                                <input type="text" name="title" value="{{ old('title') }}" required placeholder="VD: Đề Test Đầu Vào IELTS 6.5" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-bold focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs" />
                             </div>
 
                             <div class="grid grid-cols-2 gap-2">
@@ -188,7 +127,7 @@
 
                             <div>
                                 <label class="block font-bold text-gray-700 mb-1 text-[11px]">Mô tả / Hướng dẫn làm bài</label>
-                                <textarea name="description" rows="2" placeholder="Ghi chú hướng dẫn..." class="w-full text-xs rounded-xl border border-gray-300 p-2.5 focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs">{{ old('description', 'Bài kiểm tra đánh giá năng lực ngôn ngữ toàn diện gồm 4 kỹ năng: Nghe, Đọc, Viết và Nói.') }}</textarea>
+                                <textarea name="description" rows="2" placeholder="Ghi chú hướng dẫn..." class="w-full text-xs rounded-xl border border-gray-300 p-2.5 focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs">{{ old('description') }}</textarea>
                             </div>
                         </div>
                     </div>
@@ -617,7 +556,7 @@
 
                 deleteQuestion(idx) {
                     if (this.questions.length <= 1) {
-                        alert('Đề thi phải có ít nhất 1 câu hỏi!');
+                        window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Đề thi phải có ít nhất 1 câu hỏi!', type: 'error' } }));
                         return;
                     }
                     if (confirm('Bạn có chắc chắn muốn xóa câu hỏi này?')) {

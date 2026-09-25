@@ -4,7 +4,7 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">admin_panel_settings</span>
-                    Quản Lý Danh Sách Vai Trò (Roles &amp; Permissions)
+                    Quản lý danh sách vai trò
                 </h1>
                 <p class="text-xs text-gray-500">Phân quyền chức năng theo từng phòng ban: Quản trị, Kế toán, Học vụ, Tuyển sinh, Giáo viên</p>
             </div>
@@ -35,7 +35,7 @@
                         <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
                             <th class="py-3 px-4">Tên Vai Trò (Tiếng Việt)</th>
                             <th class="py-3 px-4">Mã định danh</th>
-                            <th class="py-3 px-4 text-center">Số quyền hạn (Permissions)</th>
+                            <th class="py-3 px-4 text-center">Số quyền hạn</th>
                             <th class="py-3 px-4 text-center">Số nhân sự đảm nhiệm</th>
                             <th class="py-3 px-4 text-right">Thao tác</th>
                         </tr>

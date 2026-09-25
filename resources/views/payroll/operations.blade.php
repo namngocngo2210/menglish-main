@@ -18,10 +18,10 @@
             </div>
 
             <div class="flex items-center gap-2">
-                <button type="button" onclick="window.print();" class="px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold shadow-2xs transition flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[16px]">picture_as_pdf</span>
-                    <span>Xuất PDF</span>
-                </button>
+                <a href="{{ route('payroll.periods.export', [$period->id, 'department' => 'operations']) }}" class="px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold shadow-2xs transition flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">download</span>
+                    <span>Xuất Excel</span>
+                </a>
             </div>
         </div>
     </x-slot>
@@ -113,20 +113,23 @@
                 <div class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-3 text-xs">
                     <h4 class="font-bold text-xs uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-orange-600 text-base">receipt_long</span>
-                        <span>Quy Chế Hoa Hồng Tuyển Sinh &amp; Tái Tục Khối Vận Hành</span>
+                        <span>Cách tính hoa hồng khối vận hành</span>
                     </h4>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {{-- Theo SalesCommissionService / cấu hình mốc hoa hồng; không ghi cứng tỷ lệ ở đây. --}}
                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                            <span class="font-bold text-gray-800">1. Hoa Hồng Tuyển Mới</span>
-                            <p class="text-gray-500 text-[11px]">Chiết khấu 10% - 15% tính trên tổng doanh thu học phí thực thu của lead mới chốt thành công.</p>
+                            <span class="font-bold text-gray-800">1. Hoa hồng tuyển mới</span>
+                            <p class="text-gray-500 text-[11px]">Tính trên tiền thực thu (phiếu thu đã duyệt) của khách mới do sale phụ trách, theo mốc hoa hồng đang hiệu lực.
+                                @can('commission_config.manage')<a href="{{ route('payroll.config.commission-tiers') }}" class="text-primary font-semibold hover:underline">Xem mốc hoa hồng</a>@endcan
+                            </p>
                         </div>
                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                            <span class="font-bold text-gray-800">2. Thưởng Chăm Sóc Tái Tục</span>
-                            <p class="text-gray-500 text-[11px]">Thưởng 5% - 8% tính trên các hợp đồng học viên gia hạn khóa học tiếp theo (Re-enrollment).</p>
+                            <span class="font-bold text-gray-800">2. Thưởng tái tục</span>
+                            <p class="text-gray-500 text-[11px]">Chưa áp dụng — chờ Ban giám đốc chốt công thức (Q3).</p>
                         </div>
                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                            <span class="font-bold text-gray-800">3. Điểm Danh &amp; Giao Tiếp Phụ Huynh</span>
-                            <p class="text-gray-500 text-[11px]">KPI duy trì tỷ lệ chuyên cần trên 90% và gửi báo cáo học tập đúng hạn định kỳ.</p>
+                            <span class="font-bold text-gray-800">3. Thu hồi hoa hồng</span>
+                            <p class="text-gray-500 text-[11px]">Khi hoàn phí có chọn thu hồi, khoản thu hồi được trừ ở lần tính lương kế tiếp.</p>
                         </div>
                     </div>
                 </div>

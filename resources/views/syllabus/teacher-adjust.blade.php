@@ -8,7 +8,7 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">speed</span>
-                        Xin điều chỉnh tiến độ (Cổng Giáo viên — Bước #7)
+                        Xin điều chỉnh tiến độ (Cổng Giáo viên)
                     </h1>
                     <p class="text-xs text-gray-500">Giáo viên gửi yêu cầu xin giãn tiến độ, tăng ca bổ trợ hoặc lùi lịch thi gửi lên Ban Đào tạo.</p>
                 </div>
@@ -16,7 +16,7 @@
             <div class="flex items-center gap-2">
                 <a href="{{ route('syllabus.adjustment-requests') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
                     <span class="material-symbols-outlined text-[18px]">rule</span>
-                    <span>Admin duyệt tiến độ (Bước #8)</span>
+                    <span>Admin duyệt tiến độ</span>
                 </a>
             </div>
         </div>

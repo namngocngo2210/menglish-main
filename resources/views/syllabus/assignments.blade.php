@@ -13,7 +13,7 @@
             <div class="flex items-center gap-2">
                 <a href="{{ route('teacher-portal.shortcut', '08_xem_tai_lieu_giao_trinh') }}" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
                     <span class="material-symbols-outlined text-[18px]">menu_book</span>
-                    <span>Cổng GV xem tài liệu (Bước #4)</span>
+                    <span>Cổng GV xem tài liệu</span>
                 </a>
             </div>
         </div>
@@ -127,12 +127,12 @@
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-200 text-gray-700">{{ $assignments->total() }} lượt giao</span>
                     </div>
 
-                    <div class="flex items-center gap-2">
+                    <form method="GET" action="{{ route('syllabus.assignments') }}" class="flex items-center gap-2">
                         <div class="relative">
-                            <input type="text" id="assignSearch" onkeyup="filterAssignTable()" class="pl-9 pr-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none w-56" placeholder="Tìm tên giáo viên, lớp..." />
+                            <input type="search" name="search" value="{{ request('search') }}" class="pl-9 pr-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none w-56" placeholder="Tìm tên giáo viên, lớp, chặng..." />
                             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
                         </div>
-                    </div>
+                    </form>
                 </div>
 
                 <!-- Assignments Table -->
@@ -154,7 +154,7 @@
                                     <td class="py-3.5 px-4 font-semibold text-gray-900">
                                         <div class="flex items-center gap-2">
                                             <span class="material-symbols-outlined text-primary text-[18px]">school</span>
-                                            <span>{{ $as->curriculum?->title ?? 'IELTS Intensive' }}<small class="block text-gray-400">{{ $as->classModel?->name ?? 'Chưa gắn lớp' }}</small></span>
+                                            <span>{{ $as->curriculum?->title ?? 'Chưa gắn giáo trình' }}<small class="block text-gray-400">{{ $as->classModel?->name ?? 'Chưa gắn lớp' }}</small></span>
                                         </div>
                                     </td>
                                     <td class="py-3.5 px-4">
@@ -196,7 +196,7 @@
                                         @elseif ($as->status === 'completed')
                                             <x-ui.badge color="neutral">Đã hoàn thành</x-ui.badge>
                                         @else
-                                            <x-ui.badge color="warning">{{ $as->status }}</x-ui.badge>
+                                            <x-ui.badge color="warning">{{ \App\Support\StatusLabel::for($as->status) }}</x-ui.badge>
                                         @endif
                                     </td>
                                 </tr>
@@ -214,21 +214,4 @@
         </div>
     </div>
 
-    <script>
-        function filterAssignTable() {
-            const input = document.getElementById('assignSearch');
-            const filter = input.value.toLowerCase();
-            const table = document.getElementById('assignTable');
-            const tr = table.getElementsByTagName('tr');
-
-            for (let i = 1; i < tr.length; i++) {
-                const text = tr[i].textContent || tr[i].innerText;
-                if (text.toLowerCase().indexOf(filter) > -1) {
-                    tr[i].style.display = '';
-                } else {
-                    tr[i].style.display = 'none';
-                }
-            }
-        }
-    </script>
 </x-app-layout>

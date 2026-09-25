@@ -667,7 +667,7 @@
                                 <span class="material-symbols-outlined text-[15px]">open_in_new</span>
                                 <span>Mở Cổng Test Ngay</span>
                             </a>
-                            <button type="button" @click="navigator.clipboard.writeText(testLink); alert('Đã sao chép đường dẫn bài test vào clipboard!');" class="w-full py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold text-xs rounded-xl shadow-2xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <button type="button" @click="navigator.clipboard.writeText(testLink); $dispatch('toast', { message: 'Đã sao chép đường dẫn bài test.', type: 'success' });" class="w-full py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold text-xs rounded-xl shadow-2xs transition flex items-center justify-center gap-1.5 cursor-pointer">
                                 <span class="material-symbols-outlined text-[15px]">content_copy</span>
                                 <span>Sao chép Link Test</span>
                             </button>

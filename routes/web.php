@@ -38,6 +38,7 @@ use App\Http\Controllers\TrialGuestController;
 use App\Http\Controllers\TuitionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserPermissionOverrideController;
+use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\WorkTaskController;
 use Illuminate\Support\Facades\Route;
 
@@ -47,6 +48,9 @@ Route::get('/', function () {
 
 // Dashboard theo vai trò (BPMN 22): Admin / Quản lý cơ sở / Học thuật có số liệu riêng.
 Route::get('/dashboard', DashboardController::class)->middleware(['auth'])->name('dashboard');
+
+// Tìm kiếm chung trên topbar (khách CRM, học viên, lớp) — mỗi nhóm tự kiểm tra quyền + phạm vi dữ liệu.
+Route::get('/search', GlobalSearchController::class)->middleware(['auth'])->name('search');
 
 // Interactive Mockup Hub Navigator (Admin / Manager)
 Route::get('/mockup-hub', [MockupHubController::class, 'index'])->middleware(['auth', 'can:system_category.manage'])->name('mockup-hub.index');
@@ -299,6 +303,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/periods/{id}/approve', [PayrollController::class, 'approvePeriod'])->middleware('can:payroll.approve')->name('periods.approve');
         Route::post('/periods/{id}/mark-paid', [PayrollController::class, 'markPaid'])->middleware('can:payroll.mark_paid')->name('periods.mark-paid');
         Route::post('/periods/{id}/calculate', [PayrollController::class, 'calculatePeriod'])->middleware('can:payroll.calculate')->name('periods.calculate');
+        Route::get('/periods/{id}/export', [PayrollController::class, 'exportPeriod'])->middleware('can:payroll.view')->name('periods.export');
         Route::get('/periods/{id}/fulltime', [PayrollController::class, 'fulltimePeriod'])->middleware('can:payroll.view')->name('periods.fulltime');
         Route::get('/periods/{id}/academic', [PayrollController::class, 'academicPeriod'])->middleware('can:payroll.view')->name('periods.academic');
         Route::get('/periods/{id}/operations', [PayrollController::class, 'operationsPeriod'])->middleware('can:payroll.view')->name('periods.operations');

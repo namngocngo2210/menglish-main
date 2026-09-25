@@ -57,7 +57,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-[11px] font-bold px-2 py-1 rounded-full {{ $cls }}">{{ $r->status_label }}</span>
-                        <span class="text-[10px] text-gray-500">{{ $r->review_status }}</span>
+                        <span class="text-[10px] text-gray-500">{{ \App\Support\StatusLabel::for($r->review_status, 'Chưa rà soát') }}</span>
                         @if($r->review_status === 'pending_review')
                             <form method="POST" action="{{ route('kpi.attendance-review.update', $r->id) }}" class="flex gap-1">@csrf
                                 <button name="decision" value="approved" class="px-2 py-1 rounded bg-emerald-600 text-white text-[10px] font-bold">Duyệt</button>

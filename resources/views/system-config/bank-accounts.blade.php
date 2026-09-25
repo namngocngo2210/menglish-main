@@ -444,7 +444,7 @@
                                             </span>
                                         @else
                                             <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600">
-                                                {{ $tx->status }}
+                                                {{ \App\Support\StatusLabel::for($tx->status) }}
                                             </span>
                                         @endif
                                     </td>

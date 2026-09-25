@@ -263,7 +263,12 @@ class SyllabusController extends Controller
 
     public function assignments(Request $request)
     {
+        $search = trim((string) $request->query('search', ''));
         $assignments = SyllabusAssignment::with(['teacher', 'curriculum', 'classModel'])
+            ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('stage_name', 'like', "%{$search}%")
+                ->orWhereHas('teacher', fn ($t) => $t->where('name', 'like', "%{$search}%"))
+                ->orWhereHas('classModel', fn ($c) => $c->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))
+                ->orWhereHas('curriculum', fn ($c) => $c->where('title', 'like', "%{$search}%"))))
             ->latest()
             ->paginate($request->perPage(20))
             ->withQueryString();

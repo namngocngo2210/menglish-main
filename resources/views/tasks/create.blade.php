@@ -24,7 +24,8 @@
                         Tiêu đề công việc <span class="text-rose-500">*</span>
                     </label>
                     <input type="text" id="taskTitle" name="taskTitle" required placeholder="Nhập tiêu đề công việc..."
-                           class="w-full rounded-xl border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container p-3">
+                           class="w-full rounded-xl border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container p-3" value="{{ old('taskTitle') }}">
+                    <x-input-error :messages="$errors->get('taskTitle')" class="mt-1" />
                 </div>
 
                 <!-- Mô tả chi tiết -->
@@ -33,7 +34,8 @@
                         Mô tả chi tiết
                     </label>
                     <textarea id="taskDescription" name="taskDescription" rows="4" placeholder="Mô tả nội dung công việc chi tiết..."
-                              class="w-full rounded-xl border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container p-3"></textarea>
+                              class="w-full rounded-xl border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container p-3">{{ old('taskDescription') }}</textarea>
+                    <x-input-error :messages="$errors->get('taskDescription')" class="mt-1" />
                 </div>
 
                 <!-- Người nhận & Hạn hoàn thành -->
@@ -45,16 +47,18 @@
                         <select id="assignee" name="assignee" required class="w-full rounded-xl border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container p-3">
                             <option value="" disabled selected>-- Chọn nhân sự --</option>
                             @foreach($users as $u)
-                                <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->getRoleNames()->implode(', ') ?: 'Nhân viên' }})</option>
+                                <option value="{{ $u->id }}" @selected((string) old('assignee') === (string) $u->id)>{{ $u->name }} ({{ $u->getRoleNames()->implode(', ') ?: 'Nhân viên' }})</option>
                             @endforeach
                         </select>
+                        <x-input-error :messages="$errors->get('assignee')" class="mt-1" />
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 uppercase mb-1.5" for="dueDate">
                             Hạn hoàn thành <span class="text-rose-500">*</span>
                         </label>
-                        <input type="date" id="dueDate" name="dueDate" required value="{{ now()->addDays(2)->format('Y-m-d') }}"
+                        <input type="date" id="dueDate" name="dueDate" required value="{{ old('dueDate', now()->addDays(2)->format('Y-m-d')) }}"
                                class="w-full rounded-xl border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container p-3">
+                        <x-input-error :messages="$errors->get('dueDate')" class="mt-1" />
                     </div>
                 </div>
 
@@ -67,9 +71,10 @@
                         <select id="branch_id" name="branch_id" class="w-full rounded-xl border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container p-3">
                             <option value="">-- Không chỉ định --</option>
                             @foreach($branches as $b)
-                                <option value="{{ $b->id }}">{{ $b->name }}</option>
+                                <option value="{{ $b->id }}" @selected((string) old('branch_id') === (string) $b->id)>{{ $b->name }}</option>
                             @endforeach
                         </select>
+                        <x-input-error :messages="$errors->get('branch_id')" class="mt-1" />
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 uppercase mb-1.5" for="class_id">
@@ -78,9 +83,10 @@
                         <select id="class_id" name="class_id" class="w-full rounded-xl border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container p-3">
                             <option value="">-- Không gắn lớp --</option>
                             @foreach($classes as $c)
-                                <option value="{{ $c->id }}">{{ $c->name }} ({{ $c->code }})</option>
+                                <option value="{{ $c->id }}" @selected((string) old('class_id') === (string) $c->id)>{{ $c->name }} ({{ $c->code }})</option>
                             @endforeach
                         </select>
+                        <x-input-error :messages="$errors->get('class_id')" class="mt-1" />
                     </div>
                 </div>
 
@@ -106,6 +112,7 @@
                             <option value="weekly" selected>Hàng tuần</option>
                             <option value="monthly">Hàng tháng</option>
                         </select>
+                        <x-input-error :messages="$errors->get('frequency')" class="mt-1" />
                     </div>
                 </div>
 

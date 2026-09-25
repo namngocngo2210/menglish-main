@@ -9,8 +9,8 @@
                 <p class="text-xs text-gray-500">Tải lên file giáo trình, slide, audio, video theo chặng và chọn đối tượng được xem.</p>
             </div>
             <div class="flex items-center gap-2">
-                <x-ui.button variant="secondary" icon="edit_document" :href="route('syllabus.builder')">Soạn syllabus (Bước #2)</x-ui.button>
-                <x-ui.button icon="menu_book" :href="route('syllabus.teacher-view')">Xem như giáo viên (Bước #4)</x-ui.button>
+                <x-ui.button variant="secondary" icon="edit_document" :href="route('syllabus.builder')">Soạn syllabus</x-ui.button>
+                <x-ui.button icon="menu_book" :href="route('syllabus.teacher-view')">Xem như giáo viên</x-ui.button>
             </div>
         </div>
     </x-slot>

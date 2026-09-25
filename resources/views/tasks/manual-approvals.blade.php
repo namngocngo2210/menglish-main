@@ -134,15 +134,18 @@
                                 </h4>
                                 <div class="bg-orange-50/50 rounded-xl p-3.5 border border-orange-200 text-gray-800 space-y-2">
                                     <p class="leading-relaxed whitespace-pre-line text-xs">
-                                        {{ $selectedTask->completion_note ?: 'Trợ giảng đã báo cáo hoàn thành nhiệm vụ này và đang chờ xét duyệt.' }}
+                                        {{ $selectedTask->completion_note ?: 'Trợ giảng không ghi chú khi báo hoàn thành.' }}
                                     </p>
 
-                                    @if(str_contains($selectedTask->completion_note, 'http'))
+                                    @php
+                                        preg_match_all('~https?://[^\s<>"\']+~u', (string) $selectedTask->completion_note, $noteLinks);
+                                    @endphp
+                                    @foreach (array_unique($noteLinks[0] ?? []) as $noteLink)
                                         <div class="p-2 bg-white rounded-lg border border-orange-200 flex items-center gap-2">
                                             <span class="material-symbols-outlined text-primary text-[16px]">link</span>
-                                            <a href="#" class="text-blue-600 hover:underline truncate text-xs font-medium">Link tài liệu / Drive đính kèm</a>
+                                            <a href="{{ $noteLink }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline truncate text-xs font-medium">{{ $noteLink }}</a>
                                         </div>
-                                    @endif
+                                    @endforeach
 
                                     @if(!$selectedTask->completion_proof_image)
                                         <div class="text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2 flex items-start gap-1.5">

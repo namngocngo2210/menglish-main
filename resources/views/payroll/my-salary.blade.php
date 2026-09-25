@@ -19,8 +19,8 @@
                     </form>
                 @endif
                 <button type="button" onclick="window.print();" class="px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold shadow-2xs transition flex items-center gap-1.5 cursor-pointer">
-                    <span class="material-symbols-outlined text-[16px]">picture_as_pdf</span>
-                    <span>Tải Phiếu Lương PDF</span>
+                    <span class="material-symbols-outlined text-[16px]">print</span>
+                    <span>In phiếu lương</span>
                 </button>
             </div>
         </div>
