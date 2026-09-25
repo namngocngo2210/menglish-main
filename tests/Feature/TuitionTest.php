@@ -76,6 +76,8 @@ class TuitionTest extends TestCase
             'amount' => 10000000,
             'payment_method' => 'transfer',
             'transaction_code' => 'FT26089999',
+            // Phase 4: chuyển khoản / VietQR bắt buộc minh chứng khi gửi duyệt.
+            'proof_image_preview' => '/uploads/tuition/receipts/test-proof.png',
             'notes' => 'Thanh toán 100% học phí',
         ]);
 
@@ -112,6 +114,8 @@ class TuitionTest extends TestCase
             'amount' => 150000,
             'payment_method' => 'transfer',
             'submit_action' => 'submit',
+            // Phase 4: chuyển khoản / VietQR bắt buộc minh chứng khi gửi duyệt.
+            'proof_image_preview' => '/uploads/tuition/receipts/test-proof.png',
         ]);
 
         $response->assertRedirect();

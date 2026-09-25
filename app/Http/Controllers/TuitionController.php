@@ -10,12 +10,15 @@ use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\InvoiceCancellation;
 use App\Models\InvoiceConfiguration;
+use App\Models\SepayTransaction;
 use App\Models\Student;
 use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
+use App\Models\User;
 use App\Services\NotificationService;
 use App\Services\SafeUploadService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -71,33 +74,83 @@ class TuitionController extends Controller
 
     public function createReceipt(Request $request)
     {
+        return $this->receiptForm($request, null);
+    }
+
+    /**
+     * Màn sửa phiếu thu nháp / bị trả về: dùng lại form lập phiếu, điền sẵn dữ liệu, lưu nháp hoặc gửi duyệt lại.
+     */
+    public function editReceipt(Request $request, $id)
+    {
+        $receipt = TuitionReceipt::with(['tuition.student.branch', 'tuition.classModel', 'student'])->findOrFail($id);
+        $user = $request->user();
+        abort_unless((int) $receipt->creator_id === (int) $user->id || $user->hasRole('admin'), 403, 'Chỉ người lập phiếu mới được sửa phiếu này.');
+
+        if (! in_array($receipt->status, TuitionReceipt::EDITABLE_STATUSES, true)) {
+            return redirect()->route('tuition.receipts.approve', ['selected_id' => $receipt->id])
+                ->withErrors(['receipt' => 'Chỉ sửa được phiếu ở trạng thái Bản nháp hoặc Bị từ chối.']);
+        }
+
+        return $this->receiptForm($request, $receipt);
+    }
+
+    private function receiptForm(Request $request, ?TuitionReceipt $editingReceipt)
+    {
         $students = Student::with(['currentClass', 'tuition', 'branch'])->where('status', '!=', 'dropped')->get();
-        $tuitions = StudentTuition::with(['student.branch', 'classModel', 'receipts'])->where('status', '!=', 'paid')->get();
+        $tuitions = StudentTuition::with(['student.branch', 'student.currentClass.course', 'classModel.course', 'receipts', 'bankAccount'])
+            ->where(function ($q) use ($editingReceipt) {
+                $q->where('status', '!=', 'paid');
+                if ($editingReceipt?->student_tuition_id) {
+                    $q->orWhere('id', $editingReceipt->student_tuition_id);
+                }
+            })
+            ->get();
 
         $selectedTuition = null;
         $selectedStudent = null;
-        if ($request->filled('tuition_id')) {
-            $selectedTuition = StudentTuition::with(['student.branch', 'classModel', 'receipts'])->find($request->input('tuition_id'));
+        if ($editingReceipt) {
+            $selectedTuition = $editingReceipt->tuition;
+            $selectedStudent = $editingReceipt->tuition?->student ?? $editingReceipt->student;
+        } elseif ($request->filled('tuition_id')) {
+            $selectedTuition = $tuitions->firstWhere('id', (int) $request->input('tuition_id'))
+                ?? StudentTuition::with(['student.branch', 'classModel', 'receipts'])->find($request->input('tuition_id'));
             $selectedStudent = $selectedTuition?->student;
         } elseif ($request->filled('student_id')) {
             $selectedStudent = Student::with(['currentClass', 'tuition', 'branch'])->find($request->input('student_id'));
             $selectedTuition = $selectedStudent?->tuition;
         }
 
-        if (! $selectedTuition && $tuitions->isNotEmpty()) {
+        if (! $selectedTuition && ! $editingReceipt && $tuitions->isNotEmpty()) {
             $selectedTuition = $tuitions->first();
             $selectedStudent = $selectedTuition->student;
         }
 
-        // Chỉ dùng tài khoản đang hoạt động; không có thì view cảnh báo và ẩn QR (không fallback số TK giả).
-        $defaultBank = BankAccount::where('is_active', true)
-            ->orderByDesc('is_default_vietqr')
-            ->orderBy('id')
-            ->first();
+        // Mỗi khoản học phí dùng tài khoản của hợp đồng / chi nhánh (fallback mặc định) để tạo QR; số buổi lấy từ dữ liệu thật.
+        $tuitionMeta = $tuitions->mapWithKeys(function (StudentTuition $t) {
+            $bank = $t->resolveBankAccount();
 
-        $nextReceiptNumber = TuitionReceipt::generateReceiptNumber();
+            return [$t->id => [
+                'sessions' => $t->sessionStats(),
+                'bank' => $bank ? [
+                    'bank_code' => $bank->bank_code,
+                    'bank_name' => $bank->bank_name,
+                    'account_number' => $bank->account_number,
+                    'account_holder' => $bank->account_holder,
+                    'scope' => $t->bank_account_id && (int) $t->bank_account_id === (int) $bank->id
+                        ? 'Tài khoản gắn với hợp đồng'
+                        : ($bank->branch_id ? 'Tài khoản chi nhánh '.($bank->branch?->name ?? '') : 'Tài khoản mặc định hệ thống'),
+                ] : null,
+            ]];
+        });
+
+        // Chỉ dùng tài khoản đang hoạt động; không có thì view cảnh báo và ẩn QR (không fallback số TK giả).
+        $defaultBank = $selectedTuition?->resolveBankAccount() ?? BankAccount::defaultAccount();
+
+        $nextReceiptNumber = $editingReceipt?->receipt_number ?? TuitionReceipt::generateReceiptNumber();
         $recentRejection = null;
-        if ($selectedTuition) {
+        if ($editingReceipt?->status === TuitionReceipt::STATUS_REJECTED) {
+            $recentRejection = $editingReceipt;
+        } elseif ($selectedTuition && ! $editingReceipt) {
             $recentRejection = TuitionReceipt::where('student_tuition_id', $selectedTuition->id)
                 ->where('status', 'rejected')
                 ->whereNotNull('rejection_reason')
@@ -105,7 +158,10 @@ class TuitionController extends Controller
                 ->first();
         }
 
-        return view('tuition.create-receipt', compact('students', 'tuitions', 'selectedTuition', 'selectedStudent', 'defaultBank', 'nextReceiptNumber', 'recentRejection'));
+        return view('tuition.create-receipt', compact(
+            'students', 'tuitions', 'selectedTuition', 'selectedStudent', 'defaultBank', 'nextReceiptNumber',
+            'recentRejection', 'editingReceipt', 'tuitionMeta'
+        ));
     }
 
     public function storeReceipt(Request $request)
@@ -142,12 +198,11 @@ class TuitionController extends Controller
             return redirect()->back()->withErrors(['surcharge_reason' => 'Bắt buộc nhập lý do khi có số tiền phụ thu.'])->withInput();
         }
 
-        $proofPath = null;
-        if ($request->hasFile('proof_image')) {
-            $fileName = SafeUploadService::moveTo($request->file('proof_image'), public_path('uploads/tuition/receipts'), self::PROOF_EXTENSIONS, 'proof_image');
-            $proofPath = '/uploads/tuition/receipts/'.$fileName;
-        } elseif ($request->filled('proof_image_preview') && $this->isSafeProofReference((string) $request->input('proof_image_preview'))) {
-            $proofPath = $request->input('proof_image_preview');
+        $isDraft = ($request->input('submit_action') === 'draft');
+        $hasProof = $request->hasFile('proof_image')
+            || ($request->filled('proof_image_preview') && $this->isSafeProofReference((string) $request->input('proof_image_preview')));
+        if (! $isDraft && ($submitError = $this->receiptSubmitError($validated['payment_method'], $validated['transaction_code'] ?? null, $hasProof))) {
+            return redirect()->back()->withErrors($submitError)->withInput();
         }
 
         $collectedItems = null;
@@ -169,7 +224,6 @@ class TuitionController extends Controller
 
         $receiptNumber = TuitionReceipt::generateReceiptNumber();
         // Phiếu thu KHÔNG bao giờ tự duyệt khi lập: chỉ endpoint approve (tuition.approve) mới duyệt & cấp số HĐ.
-        $isDraft = ($request->input('submit_action') === 'draft');
         $status = $isDraft ? TuitionReceipt::STATUS_DRAFT : TuitionReceipt::STATUS_PENDING;
         $surcharge = (float) ($validated['surcharge_amount'] ?? 0);
         $discount = $tuition ? (float) ($validated['discount_amount'] ?? 0) : 0.0;
@@ -178,7 +232,10 @@ class TuitionController extends Controller
             return redirect()->back()->withErrors(['amount' => $overpayError])->withInput();
         }
 
-        $receipt = TuitionReceipt::create([
+        $proofPath = $this->storeProof($request);
+
+        try {
+            $receipt = TuitionReceipt::create([
             'receipt_number' => $receiptNumber,
             'invoice_number' => null,
             'student_tuition_id' => $tuition?->id,
@@ -201,11 +258,16 @@ class TuitionController extends Controller
             'approver_id' => null,
             'status' => $status,
             'notes' => $validated['notes'] ?? 'Lập phiếu thu học phí & phụ thu',
-        ]);
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            return redirect()->back()->withErrors([
+                'transaction_code' => 'Mã giao dịch '.$validated['transaction_code'].' vừa được ghi nhận ở một phiếu thu khác.',
+            ])->withInput();
+        }
 
         if ($isDraft) {
-            return redirect()->route('tuition.receipts.create', ['tuition_id' => $tuition?->id, 'student_id' => $studentId])
-                ->with('status', "Đã lưu nháp phiếu thu {$receipt->receipt_number} thành công!");
+            return redirect()->route('tuition.receipts.edit', $receipt->id)
+                ->with('status', "Đã lưu nháp phiếu thu {$receipt->receipt_number} thành công! Bạn có thể tiếp tục sửa và gửi duyệt.");
         }
 
         $this->notifyReceiptPending($receipt, $tuition?->student ?? Student::find($studentId));
@@ -230,7 +292,10 @@ class TuitionController extends Controller
             'paper_invoice_number' => 'nullable|string|max:100',
             'payer_name' => 'nullable|string|max:255',
             'payer_phone' => 'nullable|string|max:50',
+            'is_vat_invoice' => 'nullable|boolean',
             'notes' => 'nullable|string|max:1000',
+            'proof_image' => 'nullable|file|mimes:jpeg,png,jpg,pdf,webp|max:5120',
+            'remove_proof' => 'nullable|boolean',
             'submit_action' => 'nullable|string|in:draft,submit',
         ]);
 
@@ -245,36 +310,57 @@ class TuitionController extends Controller
         $isDraft = ($validated['submit_action'] ?? null) === 'draft';
         $surcharge = (float) ($validated['surcharge_amount'] ?? 0);
         $discount = $receipt->tuition ? (float) ($validated['discount_amount'] ?? 0) : 0.0;
+        $transactionCode = $request->has('transaction_code')
+            ? (($validated['transaction_code'] ?? null) ?: null)
+            : $receipt->transaction_code;
+
+        $keepsProof = $receipt->proof_image && ! $request->boolean('remove_proof');
+        $hasProof = $keepsProof || $request->hasFile('proof_image')
+            || ($request->filled('proof_image_preview') && $this->isSafeProofReference((string) $request->input('proof_image_preview')));
+        if (! $isDraft && ($submitError = $this->receiptSubmitError($validated['payment_method'], $transactionCode, $hasProof, $receipt->id))) {
+            return redirect()->back()->withErrors($submitError)->withInput();
+        }
 
         if (! $isDraft && $receipt->tuition && ($overpayError = $this->overpaymentError($receipt->tuition, (float) $validated['amount'] - $surcharge, $discount))) {
             return redirect()->back()->withErrors(['amount' => $overpayError])->withInput();
         }
 
-        $updated = DB::transaction(function () use ($id, $validated, $isDraft, $surcharge, $discount) {
-            $locked = TuitionReceipt::query()->lockForUpdate()->findOrFail($id);
-            if (! in_array($locked->status, TuitionReceipt::EDITABLE_STATUSES, true)) {
-                return null;
-            }
+        $newProof = $this->storeProof($request);
+        $proofPath = $newProof ?? ($keepsProof ? $receipt->proof_image : null);
 
-            $locked->update([
-                'amount' => $validated['amount'],
-                'tuition_amount' => (float) $validated['amount'] - $surcharge,
-                'discount_amount' => $discount,
-                'surcharge_amount' => $surcharge,
-                'surcharge_reason' => $validated['surcharge_reason'] ?? null,
-                'payment_method' => $validated['payment_method'],
-                'transaction_code' => $validated['transaction_code'] ?? $locked->transaction_code,
-                'paper_invoice_number' => $validated['paper_invoice_number'] ?? $locked->paper_invoice_number,
-                'payer_name' => $validated['payer_name'] ?? $locked->payer_name,
-                'payer_phone' => $validated['payer_phone'] ?? $locked->payer_phone,
-                'notes' => $validated['notes'] ?? $locked->notes,
-                'status' => $isDraft ? TuitionReceipt::STATUS_DRAFT : TuitionReceipt::STATUS_PENDING,
-                'approver_id' => null,
-                'rejection_reason' => $isDraft ? $locked->rejection_reason : null,
-            ]);
+        try {
+            $updated = DB::transaction(function () use ($id, $validated, $isDraft, $surcharge, $discount, $transactionCode, $proofPath, $request) {
+                $locked = TuitionReceipt::query()->lockForUpdate()->findOrFail($id);
+                if (! in_array($locked->status, TuitionReceipt::EDITABLE_STATUSES, true)) {
+                    return null;
+                }
 
-            return $locked;
-        });
+                $locked->update([
+                    'amount' => $validated['amount'],
+                    'tuition_amount' => (float) $validated['amount'] - $surcharge,
+                    'discount_amount' => $discount,
+                    'surcharge_amount' => $surcharge,
+                    'surcharge_reason' => $validated['surcharge_reason'] ?? null,
+                    'payment_method' => $validated['payment_method'],
+                    'transaction_code' => $transactionCode,
+                    'paper_invoice_number' => $validated['paper_invoice_number'] ?? $locked->paper_invoice_number,
+                    'payer_name' => $validated['payer_name'] ?? $locked->payer_name,
+                    'payer_phone' => $validated['payer_phone'] ?? $locked->payer_phone,
+                    'is_vat_invoice' => $request->has('is_vat_invoice') ? $request->boolean('is_vat_invoice') : $locked->is_vat_invoice,
+                    'proof_image' => $proofPath,
+                    'notes' => $validated['notes'] ?? $locked->notes,
+                    'status' => $isDraft ? TuitionReceipt::STATUS_DRAFT : TuitionReceipt::STATUS_PENDING,
+                    'approver_id' => null,
+                    'rejection_reason' => $isDraft ? $locked->rejection_reason : null,
+                ]);
+
+                return $locked;
+            });
+        } catch (UniqueConstraintViolationException) {
+            return redirect()->back()->withErrors([
+                'transaction_code' => 'Mã giao dịch '.$transactionCode.' vừa được ghi nhận ở một phiếu thu khác.',
+            ])->withInput();
+        }
 
         if (! $updated) {
             return redirect()->back()->withErrors(['receipt' => 'Chỉ sửa được phiếu ở trạng thái Bản nháp hoặc Bị từ chối.']);
@@ -288,6 +374,67 @@ class TuitionController extends Controller
 
         return redirect()->route('tuition.receipts.approve', ['selected_id' => $updated->id])
             ->with('status', "Đã gửi duyệt lại phiếu thu {$updated->receipt_number}.");
+    }
+
+    /**
+     * Điều kiện gửi duyệt (không áp dụng khi lưu nháp):
+     * - Chuyển khoản / VietQR / POS bắt buộc có minh chứng (tiền mặt được miễn).
+     * - Mã giao dịch chuyển khoản không được trùng phiếu khác đang chờ duyệt / đã duyệt,
+     *   hay giao dịch SePay đã tự động gạch nợ.
+     *
+     * @return array<string, string>|null
+     */
+    private function receiptSubmitError(string $method, ?string $transactionCode, bool $hasProof, ?int $ignoreReceiptId = null): ?array
+    {
+        if (in_array($method, TuitionReceipt::PROOF_REQUIRED_METHODS, true) && ! $hasProof) {
+            return ['proof_image' => 'Bắt buộc đính kèm minh chứng (ủy nhiệm chi / ảnh chuyển khoản / biên lai POS) khi gửi duyệt phiếu thu không dùng tiền mặt.'];
+        }
+
+        if (in_array($method, TuitionReceipt::TRANSFER_METHODS, true) && TuitionReceipt::normalizeReference($transactionCode) !== null) {
+            if ($duplicate = TuitionReceipt::findByTransferReference($transactionCode, $ignoreReceiptId)) {
+                return ['transaction_code' => "Mã giao dịch {$transactionCode} đã được ghi nhận ở phiếu {$duplicate->receipt_number} ({$duplicate->status_label}). Không ghi nhận một khoản chuyển khoản 2 lần."];
+            }
+
+            if ($sepay = $this->appliedSepayTransactionFor($transactionCode)) {
+                return ['transaction_code' => "Mã giao dịch {$transactionCode} đã được SePay tự động gạch nợ"
+                    .($sepay->receipt ? " (phiếu {$sepay->receipt->receipt_number})" : '').'. Không lập thêm phiếu thu tay cho giao dịch này.'];
+            }
+        }
+
+        return null;
+    }
+
+    /** Giao dịch SePay (theo mã giao dịch / mã tham chiếu) đã tự tạo phiếu thu gạch nợ. */
+    private function appliedSepayTransactionFor(?string $transactionCode): ?SepayTransaction
+    {
+        $normalized = TuitionReceipt::normalizeReference($transactionCode);
+        if ($normalized === null) {
+            return null;
+        }
+
+        return SepayTransaction::with('receipt')
+            ->whereNotNull('matched_receipt_id')
+            ->where(function ($q) use ($normalized) {
+                $q->whereRaw('UPPER(sepay_id) = ?', [$normalized])
+                    ->orWhereRaw('UPPER(reference_code) = ?', [$normalized]);
+            })
+            ->first();
+    }
+
+    /** Lưu file minh chứng (ảnh/PDF, kiểm tra theo nội dung) hoặc tham chiếu an toàn; không có -> null. */
+    private function storeProof(Request $request): ?string
+    {
+        if ($request->hasFile('proof_image')) {
+            $fileName = SafeUploadService::moveTo($request->file('proof_image'), public_path('uploads/tuition/receipts'), self::PROOF_EXTENSIONS, 'proof_image');
+
+            return '/uploads/tuition/receipts/'.$fileName;
+        }
+
+        if ($request->filled('proof_image_preview') && $this->isSafeProofReference((string) $request->input('proof_image_preview'))) {
+            return (string) $request->input('proof_image_preview');
+        }
+
+        return null;
     }
 
     /**
@@ -329,24 +476,61 @@ class TuitionController extends Controller
         return null;
     }
 
+    /**
+     * Phiếu thu mới / gửi lại chờ duyệt:
+     * - Thông báo chung (user_id = NULL) cho Admin / Quản lý như trước.
+     * - Thông báo cá nhân cho từng Kế toán của chi nhánh ghi nhận học phí (kế toán không gán chi nhánh = kế toán
+     *   toàn hệ thống cũng nhận). Người lập phiếu không tự nhận thông báo duyệt phiếu của mình.
+     */
     private function notifyReceiptPending(TuitionReceipt $receipt, ?Student $student): void
     {
         $studentId = $student?->id ?? $receipt->student_id;
         $stName = $student?->name ?? 'Học viên';
+        $message = "Nhân viên vừa lập phiếu thu #{$receipt->receipt_number} (".number_format((float) $receipt->amount, 0, ',', '.')." VNĐ) cho học viên {$stName}. Vui lòng đối chiếu chứng từ và phê duyệt.";
+        $data = [
+            'receipt_id' => $receipt->id,
+            'receipt_number' => $receipt->receipt_number,
+            'amount' => $receipt->amount,
+            'student_id' => $studentId,
+            'link' => route('tuition.receipts.approve', ['selected_id' => $receipt->id]),
+        ];
+
         try {
             AdminNotification::create([
                 'user_id' => null,
                 'type' => 'receipt_pending',
                 'title' => 'Phiếu thu mới chờ phê duyệt',
-                'message' => "Nhân viên vừa lập phiếu thu #{$receipt->receipt_number} (".number_format((float) $receipt->amount, 0, ',', '.')." VNĐ) cho học viên {$stName}. Vui lòng đối chiếu chứng từ và phê duyệt.",
-                'data' => [
-                    'receipt_id' => $receipt->id,
-                    'receipt_number' => $receipt->receipt_number,
-                    'amount' => $receipt->amount,
-                    'student_id' => $studentId,
-                ],
+                'message' => $message,
+                'data' => $data,
                 'is_read' => false,
             ]);
+
+            $branchId = $this->receiptBranchId($receipt);
+            $accountants = User::query()
+                ->where('is_active', true)
+                ->whereKeyNot((int) $receipt->creator_id)
+                ->whereHas('roles', fn ($q) => $q->where('name', 'accountant'))
+                ->where(function ($q) use ($branchId) {
+                    $q->where(function ($noBranch) {
+                        $noBranch->whereNull('branch_id')->whereDoesntHave('branches');
+                    });
+                    if ($branchId) {
+                        $q->orWhere('branch_id', $branchId)
+                            ->orWhereHas('branches', fn ($b) => $b->where('branches.id', $branchId));
+                    }
+                })
+                ->pluck('id');
+
+            foreach ($accountants as $accountantId) {
+                AdminNotification::create([
+                    'user_id' => $accountantId,
+                    'type' => 'receipt_pending',
+                    'title' => 'Phiếu thu mới chờ bạn phê duyệt',
+                    'message' => $message,
+                    'data' => $data,
+                    'is_read' => false,
+                ]);
+            }
         } catch (\Throwable $e) {
             Log::warning('Lỗi tạo thông báo chờ duyệt phiếu: '.$e->getMessage());
         }
@@ -432,7 +616,17 @@ class TuitionController extends Controller
             ])->latest()->first();
         }
 
+        // Cảnh báo trùng với giao dịch SePay đã tự động gạch nợ (chỉ phiếu chuyển khoản đang chờ duyệt).
+        $sepayWarnings = collect();
+        if ($selectedReceipt && $selectedReceipt->status === TuitionReceipt::STATUS_PENDING) {
+            $exact = $this->appliedSepayTransactionFor($selectedReceipt->transaction_code);
+            $sepayWarnings = $exact && in_array($selectedReceipt->payment_method, TuitionReceipt::TRANSFER_METHODS, true)
+                ? collect([$exact])
+                : $this->similarSepayTransactions($selectedReceipt);
+        }
+
         return view('tuition.approve-receipt', compact(
+            'sepayWarnings',
             'pendingReceipts',
             'selectedReceipt',
             'branches',
@@ -449,7 +643,9 @@ class TuitionController extends Controller
         $tuitionId = TuitionReceipt::query()->whereKey($id)->value('student_tuition_id');
 
         // Khoá công nợ trước (cùng thứ tự với SePay/hoàn phí), rồi khoá phiếu; duyệt + tính lại nợ trong CÙNG transaction.
-        $result = DB::transaction(function () use ($id, $tuitionId, $user) {
+        $confirmNotDuplicate = $request->boolean('confirm_not_duplicate');
+
+        $result = DB::transaction(function () use ($id, $tuitionId, $user, $confirmNotDuplicate) {
             $tuition = $tuitionId ? StudentTuition::query()->lockForUpdate()->find($tuitionId) : null;
             $receipt = TuitionReceipt::query()->lockForUpdate()->findOrFail($id);
 
@@ -459,6 +655,10 @@ class TuitionController extends Controller
 
             if ((int) $receipt->creator_id === (int) $user->id && ! $user->hasRole('admin')) {
                 return 'Người lập phiếu không được tự duyệt phiếu của mình. Vui lòng chuyển Kế toán/Quản lý khác duyệt.';
+            }
+
+            if ($duplicateError = $this->sepayDuplicateError($receipt, $confirmNotDuplicate)) {
+                return $duplicateError;
             }
 
             if ($tuition) {
@@ -483,6 +683,7 @@ class TuitionController extends Controller
             ]);
 
             $tuition?->recalculateDebt();
+            $this->linkUnappliedSepayTransaction($receipt);
 
             return $receipt;
         });
@@ -554,6 +755,101 @@ class TuitionController extends Controller
         return redirect()->back()->with('status', "Đã phê duyệt phiếu thu {$receipt->receipt_number} và phát hành HĐĐT số {$invoiceNumber}!");
     }
 
+    /**
+     * Chống ghi nhận chuyển khoản 2 lần (phiếu tay + SePay tự động):
+     * - Cùng mã giao dịch với giao dịch SePay đã gạch nợ -> chặn hẳn.
+     * - Có giao dịch SePay đã gạch nợ cho cùng học viên / hợp đồng, cùng số tiền, trong ±N ngày -> cảnh báo,
+     *   chỉ duyệt khi kế toán tick xác nhận "không trùng".
+     */
+    private function sepayDuplicateError(TuitionReceipt $receipt, bool $confirmed): ?string
+    {
+        if (! in_array($receipt->payment_method, TuitionReceipt::TRANSFER_METHODS, true)) {
+            return null;
+        }
+
+        if ($applied = $this->appliedSepayTransactionFor($receipt->transaction_code)) {
+            return 'Không thể duyệt: mã giao dịch '.$receipt->transaction_code.' đã được SePay tự động gạch nợ'
+                .($applied->receipt ? ' (phiếu '.$applied->receipt->receipt_number.')' : '').'. Vui lòng từ chối phiếu thu tay này.';
+        }
+
+        if ($confirmed) {
+            return null;
+        }
+
+        $similar = $this->similarSepayTransactions($receipt)->first();
+        if ($similar) {
+            return 'Cảnh báo trùng giao dịch: SePay đã tự động ghi nhận '.number_format((float) $similar->transfer_amount, 0, ',', '.')
+                .' VNĐ cho học viên này ngày '.$similar->transaction_date?->format('d/m/Y H:i')
+                .($similar->receipt ? ' (phiếu '.$similar->receipt->receipt_number.')' : '')
+                .'. Nếu chắc chắn đây là khoản chuyển khác, hãy tick "Xác nhận không trùng giao dịch SePay" rồi duyệt lại.';
+        }
+
+        return null;
+    }
+
+    /**
+     * Giao dịch SePay đã gạch nợ cho cùng học viên / hợp đồng, cùng số tiền, trong khoảng thời gian gần ngày nộp.
+     *
+     * @return \Illuminate\Support\Collection<int, SepayTransaction>
+     */
+    private function similarSepayTransactions(TuitionReceipt $receipt)
+    {
+        if (! in_array($receipt->payment_method, TuitionReceipt::TRANSFER_METHODS, true)) {
+            return collect();
+        }
+
+        $windowDays = (int) config('tuition.sepay_duplicate_window_days', 3);
+        $paidAt = $receipt->payment_date ?? $receipt->created_at ?? now();
+        $studentId = $receipt->student_id ?? $receipt->tuition?->student_id;
+
+        return SepayTransaction::with('receipt')
+            ->whereNotNull('matched_receipt_id')
+            ->where(function ($q) use ($receipt, $studentId) {
+                if ($receipt->student_tuition_id) {
+                    $q->orWhere('matched_tuition_id', $receipt->student_tuition_id);
+                }
+                if ($studentId) {
+                    $q->orWhere('matched_student_id', $studentId);
+                }
+            })
+            ->when(! $receipt->student_tuition_id && ! $studentId, fn ($q) => $q->whereRaw('1 = 0'))
+            ->whereBetween('transaction_date', [
+                $paidAt->copy()->startOfDay()->subDays($windowDays),
+                $paidAt->copy()->endOfDay()->addDays($windowDays),
+            ])
+            ->get()
+            ->filter(fn (SepayTransaction $tx) => abs((float) $tx->transfer_amount - (float) $receipt->amount) < 1
+                || ($tx->receipt && abs((float) $tx->receipt->amount - (float) $receipt->amount) < 1))
+            ->values();
+    }
+
+    /**
+     * Giao dịch SePay cùng mã nhưng chưa được gạch nợ tự động (không khớp học viên / đã hết nợ) được đánh dấu
+     * là đã đối soát bằng phiếu tay này, để lần sau không bị xử lý lại.
+     */
+    private function linkUnappliedSepayTransaction(TuitionReceipt $receipt): void
+    {
+        $normalized = TuitionReceipt::normalizeReference($receipt->transaction_code);
+        if ($normalized === null || ! in_array($receipt->payment_method, TuitionReceipt::TRANSFER_METHODS, true)) {
+            return;
+        }
+
+        SepayTransaction::query()
+            ->whereNull('matched_receipt_id')
+            ->where(function ($q) use ($normalized) {
+                $q->whereRaw('UPPER(sepay_id) = ?', [$normalized])
+                    ->orWhereRaw('UPPER(reference_code) = ?', [$normalized]);
+            })
+            ->update([
+                'status' => 'manual_matched',
+                'matched_receipt_id' => $receipt->id,
+                'matched_tuition_id' => $receipt->student_tuition_id,
+                'matched_student_id' => $receipt->student_id ?? $receipt->tuition?->student_id,
+                'response_message' => 'Đã đối soát thủ công bằng phiếu thu '.$receipt->receipt_number.'.',
+                'updated_at' => now(),
+            ]);
+    }
+
     /** Chi nhánh ghi nhận phiếu thu: theo hợp đồng học phí, fallback chi nhánh học viên. */
     private function receiptBranchId(TuitionReceipt $receipt, ?StudentTuition $tuition = null): ?int
     {
@@ -587,6 +883,24 @@ class TuitionController extends Controller
 
         if (! $receipt) {
             return redirect()->back()->withErrors(['receipt' => 'Phiếu thu này đã được xử lý trước đó.']);
+        }
+
+        if ($receipt->creator_id) {
+            try {
+                AdminNotification::create([
+                    'user_id' => $receipt->creator_id,
+                    'type' => 'receipt_rejected',
+                    'title' => 'Phiếu thu bị trả về cần sửa',
+                    'message' => "Phiếu thu #{$receipt->receipt_number} bị từ chối: {$receipt->rejection_reason}. Vui lòng sửa và gửi duyệt lại.",
+                    'data' => [
+                        'receipt_id' => $receipt->id,
+                        'link' => route('tuition.receipts.edit', $receipt->id),
+                    ],
+                    'is_read' => false,
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('Lỗi tạo thông báo trả phiếu thu: '.$e->getMessage());
+            }
         }
 
         return redirect()->back()->with('status', "Đã từ chối phiếu thu {$receipt->receipt_number} và trả về người lập để chỉnh sửa, gửi duyệt lại!");

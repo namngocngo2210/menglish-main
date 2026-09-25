@@ -82,7 +82,14 @@
                                     <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border {{ $rc->status_badge }}">{{ $rc->status_label }}</span>
                                 </td>
                                 <td class="py-3.5 px-4 text-right whitespace-nowrap">
-                                    <button 
+                                    @if (in_array($rc->status, \App\Models\TuitionReceipt::EDITABLE_STATUSES, true)
+                                        && ((int) $rc->creator_id === (int) auth()->id() || auth()->user()?->hasRole('admin')))
+                                        <a href="{{ route('tuition.receipts.edit', $rc->id) }}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-semibold transition mr-1" title="Sửa phiếu nháp / bị trả về rồi gửi duyệt lại">
+                                            <span class="material-symbols-outlined text-[15px]">edit</span>
+                                            <span>Sửa</span>
+                                        </a>
+                                    @endif
+                                    <button
                                         type="button" 
                                         @click="openPrintModal({
                                             receipt_number: '{{ $rc->receipt_number }}',

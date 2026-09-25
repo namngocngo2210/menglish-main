@@ -101,6 +101,70 @@ class StudentTuition extends Model
         $this->save();
     }
 
+    /**
+     * Tài khoản nhận tiền cho mã QR của khoản học phí: tài khoản gắn với hợp đồng → tài khoản của chi nhánh
+     * (ưu tiên mặc định VietQR) → tài khoản mặc định toàn hệ thống. Chỉ dùng tài khoản đang hoạt động.
+     */
+    public function resolveBankAccount(): ?BankAccount
+    {
+        if ($this->bank_account_id) {
+            $own = BankAccount::query()->whereKey($this->bank_account_id)->where('is_active', true)->first();
+            if ($own) {
+                return $own;
+            }
+        }
+
+        $branchId = $this->branch_id ?? $this->student?->branch_id;
+        if ($branchId) {
+            $branchAccount = BankAccount::query()
+                ->where('branch_id', $branchId)
+                ->where('is_active', true)
+                ->orderByDesc('is_default_vietqr')
+                ->orderBy('id')
+                ->first();
+            if ($branchAccount) {
+                return $branchAccount;
+            }
+        }
+
+        return BankAccount::defaultAccount();
+    }
+
+    /**
+     * Số buổi thật của khoản học phí: tổng buổi theo khóa (course.total_lessons) hoặc số buổi đã lên lịch của lớp,
+     * số buổi đã học theo điểm danh (có mặt / đi muộn). Không đủ dữ liệu -> null (màn hình ẩn khối số buổi).
+     *
+     * @return array{total: int, attended: int, remaining: int, source: string}|null
+     */
+    public function sessionStats(): ?array
+    {
+        $class = $this->classModel ?? $this->student?->currentClass;
+        $total = (int) ($class?->course?->total_lessons ?? 0);
+        $source = 'course';
+
+        if ($total <= 0 && $class) {
+            $total = ClassSession::query()->where('class_id', $class->id)->where('status', '!=', 'cancelled')->count();
+            $source = 'schedule';
+        }
+
+        if ($total <= 0) {
+            return null;
+        }
+
+        $attended = StudentAttendance::query()
+            ->where('student_id', $this->student_id)
+            ->when($class, fn ($q) => $q->where('class_id', $class->id))
+            ->whereIn('status', ['present', 'late'])
+            ->count();
+
+        return [
+            'total' => $total,
+            'attended' => $attended,
+            'remaining' => max(0, $total - $attended),
+            'source' => $source,
+        ];
+    }
+
     public function getStatusBadgeAttribute(): string
     {
         return match ($this->status) {

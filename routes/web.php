@@ -150,6 +150,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/import', [TuitionController::class, 'importTuition'])->name('import.store');
         Route::get('/receipts/create', [TuitionController::class, 'createReceipt'])->name('receipts.create');
         Route::post('/receipts', [TuitionController::class, 'storeReceipt'])->middleware('can:tuition.create')->name('receipts.store');
+        Route::get('/receipts/{id}/edit', [TuitionController::class, 'editReceipt'])->middleware('can:tuition.create')->whereNumber('id')->name('receipts.edit');
         Route::put('/receipts/{id}', [TuitionController::class, 'updateReceipt'])->middleware('can:tuition.create')->name('receipts.update');
         Route::get('/receipts/approve', [TuitionController::class, 'approveReceipt'])->name('receipts.approve');
         Route::post('/receipts/{id}/approve', [TuitionController::class, 'approveReceiptAction'])->middleware('can:tuition.approve')->name('receipts.approve.action');

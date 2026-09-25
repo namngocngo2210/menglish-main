@@ -118,6 +118,8 @@ class TuitionBusinessTest extends TestCase
             'payment_method' => 'vietqr',
             'transaction_code' => 'VQR987654321',
             'notes' => 'Thu tiền học phí đợt 1 qua VietQR Techcombank',
+            // Phase 4: chuyển khoản / VietQR bắt buộc minh chứng khi gửi duyệt.
+            'proof_image_preview' => '/uploads/tuition/receipts/test-proof.png',
         ];
 
         $response = $this->actingAs($this->accountantUser)->post(route('tuition.receipts.store'), $payload);
@@ -168,6 +170,8 @@ class TuitionBusinessTest extends TestCase
             'amount' => 4000000,
             'payment_method' => 'transfer',
             'transaction_code' => 'PAY-01',
+            // Phase 4: chuyển khoản / VietQR bắt buộc minh chứng khi gửi duyệt.
+            'proof_image_preview' => '/uploads/tuition/receipts/test-proof.png',
         ]);
         $this->approveByCode('PAY-01');
 

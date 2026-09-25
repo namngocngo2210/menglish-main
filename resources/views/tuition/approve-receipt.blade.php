@@ -238,6 +238,21 @@
                         $branchName = $st?->branch?->name ?? 'Cơ sở Cầu Giấy';
                     @endphp
 
+                    @if (($sepayWarnings ?? collect())->isNotEmpty())
+                        <x-ui.alert type="warning" title="Có thể trùng giao dịch SePay đã tự động gạch nợ">
+                            <ul class="list-disc space-y-0.5 pl-md">
+                                @foreach ($sepayWarnings as $tx)
+                                    <li>
+                                        SePay #{{ $tx->sepay_id }} — {{ number_format((float) $tx->transfer_amount, 0, ',', '.') }} đ
+                                        ngày {{ $tx->transaction_date?->format('d/m/Y H:i') }}
+                                        @if ($tx->receipt) (phiếu {{ $tx->receipt->receipt_number }}) @endif
+                                    </li>
+                                @endforeach
+                            </ul>
+                            <p class="mt-xs">Đối chiếu sao kê trước khi duyệt. Nếu đúng là khoản chuyển khác, tick xác nhận trong hộp thoại duyệt.</p>
+                        </x-ui.alert>
+                    @endif
+
                     <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col">
                         <!-- Detail Header -->
                         <div class="p-5 lg:p-6 bg-slate-50/70 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
@@ -504,7 +519,11 @@
                                 @elseif (in_array($selectedReceipt->status, \App\Models\TuitionReceipt::EDITABLE_STATUSES, true)
                                     && (auth()->id() === $selectedReceipt->creator_id || auth()->user()?->hasRole('admin')))
                                     <span class="text-xs font-bold px-3.5 py-2 rounded-xl border {{ $selectedReceipt->status_badge }}">{{ $selectedReceipt->status_label }}</span>
-                                    {{-- Người lập gửi duyệt lại (giữ nguyên số liệu; sửa chi tiết qua PUT tuition.receipts.update) --}}
+                                    <a href="{{ route('tuition.receipts.edit', $selectedReceipt->id) }}" class="px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition inline-flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-base">edit</span>
+                                        Sửa phiếu
+                                    </a>
+                                    {{-- Người lập gửi duyệt lại (giữ nguyên số liệu; sửa chi tiết qua màn Sửa phiếu) --}}
                                     <form method="POST" action="{{ route('tuition.receipts.update', $selectedReceipt->id) }}">
                                         @csrf
                                         @method('PUT')
@@ -555,8 +574,14 @@
                                 </div>
                             </div>
 
-                            <form action="{{ route('tuition.receipts.approve.action', $selectedReceipt->id) }}" method="POST" class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                            <form action="{{ route('tuition.receipts.approve.action', $selectedReceipt->id) }}" method="POST" class="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-end gap-2.5">
                                 @csrf
+                                @if (($sepayWarnings ?? collect())->isNotEmpty())
+                                    <label class="w-full flex items-start gap-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900">
+                                        <input type="checkbox" name="confirm_not_duplicate" value="1" class="mt-0.5 rounded text-primary focus:ring-primary-container">
+                                        <span>Xác nhận không trùng giao dịch SePay: tôi đã đối chiếu sao kê, đây là một khoản chuyển khác.</span>
+                                    </label>
+                                @endif
                                 <button type="button" @click="showApproveModal = false" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs transition">
                                     Hủy bỏ
                                 </button>
