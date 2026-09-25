@@ -266,16 +266,18 @@ class WorkTaskSeeder extends Seeder
         foreach ($tasks as $t) {
             // Đánh dấu dữ liệu seed bằng tiền tố "# "
             $t['title'] = '# ' . $t['title'];
-            WorkTask::create($t);
+            // Idempotent: chạy lại db:seed không nhân bản việc mẫu.
+            WorkTask::firstOrCreate(['title' => $t['title'], 'assignee_id' => $t['assignee_id']], $t);
         }
 
         // 2. Seed Báo cáo trực lớp (ClassReport & StudentSupport)
         if ($classIE) {
             $student = Student::where('code', 'HV-00103')->first() ?? Student::first();
-            $report = ClassReport::create([
+            $report = ClassReport::firstOrCreate([
                 'class_id' => $classIE->id,
                 'reporter_id' => $ta1->id,
                 'session_name' => 'Buổi 5 - Listening Practice',
+            ], [
                 'session_date' => now()->toDateString(),
                 'topics_learned' => 'Hôm nay học Section 1 & Section 2 dạng bài Form/Note Completion, chiến thuật bắt từ khóa (Keywords) và tránh bẫy ngữ pháp.',
                 'teaching_log' => 'Lớp học nghiêm túc, phần nghe số điện thoại và tên riêng còn một số bạn nhầm lẫn giữa 15 và 50.',
@@ -287,9 +289,10 @@ class WorkTaskSeeder extends Seeder
             ]);
 
             if ($student) {
-                ClassReportStudentSupport::create([
+                ClassReportStudentSupport::firstOrCreate([
                     'class_report_id' => $report->id,
                     'student_id' => $student->id,
+                ], [
                     'absence_session' => 'Buổi 3 - Speaking',
                     'reason' => 'Học sinh yếu kỹ năng nghe, không theo kịp tiến độ trên lớp.',
                     'action_plan' => 'Làm lại bài tập nghe Part 1 trang 12 và ghi âm gửi TA.',
