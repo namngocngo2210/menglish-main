@@ -15,6 +15,24 @@ class Student extends Model
 
     protected $table = 'students';
 
+    /**
+     * 6 trạng thái hồ sơ học viên (BA chốt 2026-09-25). Hồ sơ chỉ tồn tại sau khi chốt,
+     * nên không có "Học thử"; "Chuyển lớp" không phải trạng thái; không có Blacklist.
+     *
+     * @var array<string, string> key => nhãn tiếng Việt
+     */
+    public const STATUSES = [
+        'waiting_start' => 'Chờ khai giảng',
+        'studying' => 'Đang học',
+        'deferred' => 'Bảo lưu',
+        'summer_break' => 'Nghỉ hè',
+        'completed' => 'Hoàn thành khóa học',
+        'dropped' => 'Thôi học',
+    ];
+
+    /** Trạng thái khởi tạo khi chốt (có hoặc chưa có lớp). */
+    public const INITIAL_STATUS = 'waiting_start';
+
     protected $fillable = [
         'code',
         'user_id',
@@ -81,21 +99,17 @@ class Student extends Model
 
     public function getStatusLabelAttribute(): string
     {
-        return match ($this->status) {
-            'studying' => 'Đang học',
-            'graduated' => 'Đã tốt nghiệp',
-            'deferred' => 'Bảo lưu',
-            'dropped' => 'Rút hồ sơ',
-            default => $this->status,
-        };
+        return self::STATUSES[$this->status] ?? (string) $this->status;
     }
 
     public function getStatusBadgeAttribute(): string
     {
         return match ($this->status) {
+            'waiting_start' => 'bg-sky-50 text-sky-700 border-sky-200',
             'studying' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
-            'graduated' => 'bg-blue-50 text-blue-700 border-blue-200',
             'deferred' => 'bg-amber-50 text-amber-700 border-amber-200',
+            'summer_break' => 'bg-cyan-50 text-cyan-700 border-cyan-200',
+            'completed' => 'bg-blue-50 text-blue-700 border-blue-200',
             'dropped' => 'bg-rose-50 text-rose-700 border-rose-200',
             default => 'bg-gray-50 text-gray-700 border-gray-200',
         };

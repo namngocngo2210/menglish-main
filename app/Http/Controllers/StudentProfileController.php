@@ -8,6 +8,7 @@ use App\Models\ClassModel;
 use App\Models\Student;
 use App\Models\SyllabusUnit;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class StudentProfileController extends Controller
@@ -159,7 +160,7 @@ class StudentProfileController extends Controller
             'phone' => 'required|string|max:20',
             'email' => 'nullable|email|max:255',
             'target' => 'nullable|string|max:100',
-            'status' => 'nullable|string|max:50',
+            'status' => ['nullable', Rule::in(array_keys(Student::STATUSES))],
             'notes' => 'nullable|string|max:500',
         ]);
 
@@ -177,7 +178,7 @@ class StudentProfileController extends Controller
     {
         $student = Student::where('id', $id)->orWhere('code', $id)->firstOrFail();
         $validated = $request->validate([
-            'status' => ['required', 'in:studying,deferred,dropped,graduated'],
+            'status' => ['required', Rule::in(array_keys(Student::STATUSES))],
         ]);
 
         $oldLabel = $student->status_label;

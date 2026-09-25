@@ -72,7 +72,8 @@ class StudentPortalController extends Controller
                     $students->where('user_id', $user->id)->orWhere('email', $user->email);
                 });
             })
-            ->whereIn('status', ['active', 'studying'])
+            // Học viên vừa chốt (Chờ khai giảng) / nghỉ hè vẫn dùng cổng học viên.
+            ->whereIn('status', ['active', 'waiting_start', 'studying', 'summer_break'])
             ->get();
 
         $student = $studentId ? $students->firstWhere('id', $studentId) : $students->first();

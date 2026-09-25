@@ -33,10 +33,9 @@
                 </select>
                 <select name="status" class="text-xs rounded-xl border border-gray-200 py-1.5 px-3" onchange="this.form.submit()">
                     <option value="">Tất cả trạng thái</option>
-                    <option value="studying" {{ request('status') === 'studying' ? 'selected' : '' }}>Đang học</option>
-                    <option value="graduated" {{ request('status') === 'graduated' ? 'selected' : '' }}>Đã tốt nghiệp</option>
-                    <option value="deferred" {{ request('status') === 'deferred' ? 'selected' : '' }}>Bảo lưu</option>
-                    <option value="dropped" {{ request('status') === 'dropped' ? 'selected' : '' }}>Rút hồ sơ</option>
+                    @foreach (\App\Models\Student::STATUSES as $statusKey => $statusLabel)
+                        <option value="{{ $statusKey }}" @selected(request('status') === $statusKey)>{{ $statusLabel }}</option>
+                    @endforeach
                 </select>
                 <button type="submit" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl transition">Lọc</button>
             </div>

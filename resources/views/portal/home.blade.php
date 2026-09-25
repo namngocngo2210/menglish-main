@@ -51,7 +51,7 @@
                             <span class="material-symbols-outlined text-[13px]">edit</span> Sửa
                         </button>
                         <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-[11px] font-bold border border-emerald-200">
-                            {{ $student?->status === 'studying' || $student?->status === 'active' ? 'Đang học' : 'Đang học' }}
+                            {{ $student?->status_label ?? 'Đang học' }}
                         </span>
                     </div>
                 </div>
