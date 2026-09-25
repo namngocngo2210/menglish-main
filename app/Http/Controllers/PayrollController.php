@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ClassModel;
 use App\Models\CommissionAdjustment;
+use App\Models\CommissionItem;
 use App\Models\CommissionTier;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
@@ -15,6 +16,7 @@ use App\Models\TeacherTimesheet;
 use App\Models\TimesheetSyncLog;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Services\PayrollFormulaService;
 use App\Services\SalesCommissionService;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
@@ -107,25 +109,28 @@ class PayrollController extends Controller
             $r->user?->name ?? 'Chưa cập nhật',
             $r->user?->email,
             $departments[$r->department] ?? $r->department,
+            $r->employee_type_label,
             (float) $r->base_salary,
-            (float) $r->actual_hours,
+            (int) $r->teaching_sessions,
             (float) $r->teaching_salary,
             (float) $r->kpi_bonus,
+            (float) $r->foreign_session_pay,
             (float) $r->commission_bonus,
-            (float) $r->allowance,
-            (float) $r->other_bonus,
+            (float) $r->commission_deferred,
+            (float) $r->renew_bonus,
+            (float) $r->allowance + (float) $r->other_bonus,
             (float) $r->insurance_deduction,
+            (float) $r->union_deduction,
             (float) $r->tax_deduction,
             (float) $r->penalty_deduction,
             (float) $r->commission_clawback,
-            (float) $r->foreign_teacher_deduction,
-            (float) $r->other_deduction,
+            (float) $r->other_deduction + (float) $r->foreign_teacher_deduction,
             (float) $r->net_salary,
         ])->all();
 
         return \App\Exports\ArrayExport::download(
             'bang-luong-'.\Illuminate\Support\Str::slug($period->code ?: $period->id).($department ? '-'.$department : ''),
-            ['Nhân sự', 'Email', 'Khối', 'Lương cơ bản', 'Giờ dạy', 'Lương dạy', 'Thưởng KPI', 'Hoa hồng', 'Phụ cấp', 'Thưởng khác', 'BHXH', 'Thuế TNCN', 'Phạt', 'Thu hồi hoa hồng', 'Trừ GVNN', 'Khấu trừ khác', 'Thực lĩnh'],
+            ['Nhân sự', 'Email', 'Khối', 'Loại', 'Lương cơ bản', 'Số buổi', 'Lương buổi dạy', 'KPI', 'Buổi có GVNN (chờ BA)', 'Hoa hồng', 'Hoa hồng hoãn', 'Thưởng tái tục', 'Phụ cấp / cộng khác', 'BHXH', 'Công đoàn', 'Thuế TNCN', 'Phạt', 'Thu hồi hoa hồng', 'Khấu trừ khác', 'Thực lĩnh'],
             $rows,
             $request->query('format', 'xlsx')
         );
@@ -155,6 +160,11 @@ class PayrollController extends Controller
             CommissionAdjustment::whereIn('payroll_record_id', $period->records()->select('id'))
                 ->whereNull('settled_at')
                 ->update(['settled_at' => now()]);
+
+            // Khoản hoa hồng đạt gate kép được trả trong kỳ → đã trả (khoản còn hoãn chờ kỳ sau)
+            CommissionItem::whereIn('payroll_record_id', $period->records()->select('id'))
+                ->whereNull('settled_at')
+                ->update(['settled_at' => now(), 'status' => CommissionItem::STATUS_PAID]);
         });
 
         return redirect()->back()->with('status', "Đã phê duyệt bảng lương {$period->title}!");
@@ -188,33 +198,38 @@ class PayrollController extends Controller
     }
 
     /**
-     * Cập nhật các điều chỉnh thủ công của một bản ghi lương rồi tính lại
-     * thực lĩnh từ toàn bộ thành phần lương và khoản khấu trừ.
+     * Dòng "Buổi có GVNN" (Q3 Part-time — chờ BA chốt cách tính): Kế toán nhập tay số tiền cộng cho GV,
+     * hệ thống chỉ gợi ý số buổi có GVNN cùng lớp. Thay cho quy tắc cũ "trừ 50.000đ/buổi có GVNN".
      */
     public function updateRecord(Request $request, $id)
     {
-        $record = PayrollRecord::findOrFail($id);
-        abort_if(in_array($record->period?->status, ['approved', 'paid'], true), 422, 'Không thể sửa kỳ lương đã khóa.');
+        $record = PayrollRecord::with('period')->findOrFail($id);
+        abort_if($record->isLocked(), 422, 'Không thể sửa kỳ lương đã khóa.');
 
         $validated = $request->validate([
-            'foreign_teacher_sessions_count' => ['required', 'integer', 'min:0'],
-            'foreign_teacher_deduction_rate' => ['required', 'numeric', 'min:0'],
+            'foreign_session_pay' => ['required', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $record->fill($validated);
-        $record->foreign_teacher_deduction =
-            $validated['foreign_teacher_sessions_count'] * $validated['foreign_teacher_deduction_rate'];
-        $record->calculateNetSalary();
+        $before = $record->only(['foreign_session_pay', 'net_salary']);
+        $record->foreign_session_pay = $validated['foreign_session_pay'];
+        if (filled($validated['notes'] ?? null)) {
+            $record->adjustment_notes = $validated['notes'];
+        }
+        $record->applyManualInputs();
         $record->save();
         $record->period->refreshTotals();
 
-        return redirect()->back()->with('status', 'Đã cập nhật điều chỉnh và tính lại lương thực lĩnh.');
+        activity('payroll_record')->causedBy($request->user())->performedOn($record)
+            ->withProperties(['before' => $before, 'after' => $record->only(array_keys($before))])
+            ->log('Nhập lương buổi có GVNN cho '.$record->user?->name.' — '.$record->period->title);
+
+        return redirect()->back()->with('status', 'Đã lưu lương buổi có GVNN và tính lại thực lĩnh.');
     }
 
     /**
-     * Phiếu lương một người: toàn bộ khoản cộng / khoản trừ của một bản ghi lương,
-     * kèm căn cứ (ca dạy, biên bản phạt, phiếu thu tính hoa hồng, thu hồi hoa hồng).
+     * Phiếu lương một người: toàn bộ khoản cộng / khoản trừ của một bản ghi lương theo loại nhân sự,
+     * kèm căn cứ (buổi dạy, HS giữ được, KPI, hoa hồng trả / hoãn, thưởng tái tục, phạt, thu hồi).
      */
     public function showRecord(int $id)
     {
@@ -229,46 +244,82 @@ class PayrollController extends Controller
             ->get();
         $penalties = Penalty::where('payroll_record_id', $record->id)->orderBy('due_date')->get();
         $clawbacks = CommissionAdjustment::with('student')->where('payroll_record_id', $record->id)->get();
-        $commissionReceipts = app(SalesCommissionService::class)
-            ->commissionableReceipts($period->start_date, $period->end_date, $record->user_id)
-            ->load('student');
+        $paidCommission = CommissionItem::with(['student', 'receipt'])->where('payroll_record_id', $record->id)->orderBy('id')->get();
+        $deferredCommission = CommissionItem::with(['student', 'receipt'])
+            ->whereIn('id', collect(data_get($record->calculation_details, 'commission.deferred', []))->pluck('id')->all())
+            ->orderBy('id')->get();
+        // Phiếu trước Q3: vẫn liệt kê phiếu thu làm căn cứ như trước.
+        $commissionReceipts = $record->usesQ3Formula()
+            ? collect()
+            : app(SalesCommissionService::class)->commissionableReceipts($period->start_date, $period->end_date, $record->user_id)->load('student');
+        $lostStudents = app(PayrollFormulaService::class)->studentNames((array) data_get($record->calculation_details, 'retention.lost_ids', []));
+        $settings = PayrollPeriod::payrollSettings();
 
-        return view('payroll.record-show', compact('record', 'period', 'timesheets', 'penalties', 'clawbacks', 'commissionReceipts'));
+        return view('payroll.record-show', compact(
+            'record', 'period', 'timesheets', 'penalties', 'clawbacks', 'commissionReceipts',
+            'paidCommission', 'deferredCommission', 'lostStudents', 'settings'
+        ));
     }
 
     /**
-     * Kế toán điều chỉnh tay các khoản trên phiếu lương khi kỳ chưa duyệt. Các khoản này
-     * được giữ lại khi "Đồng bộ & Tính lại".
+     * Kế toán / Admin nhập các khoản tay trên phiếu lương khi kỳ chưa duyệt — được giữ khi "Đồng bộ & Tính lại":
+     * bậc KPI giữ HS (Part-time), KPI tự do (GV Full-time, Học thuật, Sale, khác), buổi có GVNN (Part-time, chờ BA),
+     * thuế TNCN (Full-time), các dòng phụ cấp / thưởng / khấu trừ tự do có tên, ghi chú.
+     * Hoa hồng và KPI Học vụ tự tính, không sửa tay.
      */
     public function adjustRecord(Request $request, int $id)
     {
         $record = PayrollRecord::with('period')->findOrFail($id);
         abort_if($record->isLocked(), 422, 'Không thể sửa phiếu lương của kỳ đã duyệt/đã chi trả.');
 
+        $tiers = PayrollPeriod::payrollSettings()['retention_tiers'];
         $validated = $request->validate([
-            'allowance_override' => ['nullable', 'numeric', 'min:0'],
-            'other_bonus' => ['nullable', 'numeric', 'min:0'],
-            'other_deduction' => ['nullable', 'numeric', 'min:0'],
+            'retention_tier' => ['nullable', 'numeric', function ($attribute, $value, $fail) use ($tiers) {
+                if ($value !== null && $value !== '' && ! in_array((float) $value, $tiers, true)) {
+                    $fail('Bậc KPI giữ học sinh phải là một trong: '.implode(' / ', array_map(fn ($t) => number_format($t, 0, ',', '.').'đ', $tiers)).'.');
+                }
+            }],
+            'kpi_manual_amount' => ['nullable', 'numeric', 'min:0'],
+            'foreign_session_pay' => ['nullable', 'numeric', 'min:0'],
+            'tax_deduction' => ['nullable', 'numeric', 'min:0'],
+            'lines' => ['nullable', 'array', 'max:30'],
+            'lines.*.kind' => ['required_with:lines.*.label', 'nullable', 'in:earning,deduction'],
+            'lines.*.label' => ['nullable', 'string', 'max:150'],
+            'lines.*.amount' => ['nullable', 'numeric', 'min:0'],
             'adjustment_notes' => ['nullable', 'string', 'max:1000'],
         ]);
-        if (((float) ($validated['other_bonus'] ?? 0) > 0 || (float) ($validated['other_deduction'] ?? 0) > 0)
-            && blank($validated['adjustment_notes'] ?? null)) {
-            throw ValidationException::withMessages(['adjustment_notes' => 'Vui lòng ghi rõ lý do khi cộng/trừ khoản khác.']);
+
+        $lines = collect($validated['lines'] ?? [])
+            ->filter(fn ($line) => filled($line['label'] ?? null) && (float) ($line['amount'] ?? 0) > 0)
+            ->map(fn ($line) => ['kind' => $line['kind'] ?? 'earning', 'label' => trim($line['label']), 'amount' => round((float) $line['amount'], 2)])
+            ->values()->all();
+        $unnamed = collect($validated['lines'] ?? [])->contains(fn ($line) => blank($line['label'] ?? null) && (float) ($line['amount'] ?? 0) > 0);
+        if ($unnamed) {
+            throw ValidationException::withMessages(['lines' => 'Mỗi khoản cộng / trừ tự do cần có tên (VD: Hỗ trợ thỏa thuận, Gửi xe, Thưởng khác).']);
         }
 
-        $before = $record->only(['allowance', 'allowance_override', 'other_bonus', 'other_deduction', 'adjustment_notes', 'net_salary']);
+        $before = $record->only(['retention_tier', 'kpi_manual_amount', 'foreign_session_pay', 'tax_deduction', 'manual_lines', 'adjustment_notes', 'net_salary']);
 
-        $record->allowance_override = $validated['allowance_override'] ?? null;
-        if ($record->allowance_override !== null) {
-            $record->allowance = $record->allowance_override;
-        } elseif ($before['allowance_override'] !== null) {
-            // Bỏ điều chỉnh tay → trở về phụ cấp theo cấu hình
-            $record->allowance = (float) $record->base_salary > 0 ? PayrollPeriod::payrollSettings()['allowance_amount'] : 0;
+        if ($record->usesQ3Formula()) {
+            if ($record->kpi_source === PayrollRecord::KPI_RETENTION) {
+                $record->retention_tier = filled($validated['retention_tier'] ?? null) ? (float) $validated['retention_tier'] : null;
+                $record->foreign_session_pay = (float) ($validated['foreign_session_pay'] ?? 0);
+            }
+            if ($record->kpi_source === PayrollRecord::KPI_MANUAL) {
+                $record->kpi_manual_amount = filled($validated['kpi_manual_amount'] ?? null) ? (float) $validated['kpi_manual_amount'] : null;
+            }
+            if ($record->isFullTime()) {
+                $record->tax_deduction = (float) ($validated['tax_deduction'] ?? 0);
+            }
+            $record->manual_lines = $lines;
+        } else {
+            // Phiếu trước Q3 (chưa tính lại): chỉ ghi chú + tổng khoản tự do vào cột cũ.
+            $record->other_bonus = collect($lines)->where('kind', 'earning')->sum('amount');
+            $record->other_deduction = collect($lines)->where('kind', 'deduction')->sum('amount');
+            $record->manual_lines = $lines;
         }
-        $record->other_bonus = $validated['other_bonus'] ?? 0;
-        $record->other_deduction = $validated['other_deduction'] ?? 0;
         $record->adjustment_notes = $validated['adjustment_notes'] ?? null;
-        $record->calculateNetSalary();
+        $record->applyManualInputs();
         $record->save();
         $record->period->refreshTotals();
 
@@ -277,7 +328,7 @@ class PayrollController extends Controller
             ->log('Điều chỉnh phiếu lương '.$record->user?->name.' — '.$record->period->title);
 
         return redirect()->route('payroll.records.show', $record->id)
-            ->with('status', 'Đã lưu điều chỉnh phiếu lương — thực lĩnh mới '.number_format((float) $record->net_salary, 0, ',', '.').'đ.');
+            ->with('status', 'Đã lưu các khoản nhập tay — thực lĩnh mới '.number_format((float) $record->net_salary, 0, ',', '.').'đ.');
     }
 
     public function fulltimePeriod($id)
@@ -470,11 +521,13 @@ class PayrollController extends Controller
 
         $service = app(SalesCommissionService::class);
         $receiptsBySales = $service->commissionableReceipts($start, $end)->groupBy('commission_owner_id');
+        $closedBySales = $service->closedCountsBySales($start, $end);
 
-        $usersWithSales = $salesUsers->map(function (User $user) use ($receiptsBySales, $service, $end) {
+        $usersWithSales = $salesUsers->map(function (User $user) use ($receiptsBySales, $closedBySales, $service, $end) {
             $receipts = $receiptsBySales->get($user->id, collect());
             $revenue = (float) $receipts->sum('amount');
-            $commission = $service->commissionFor($revenue, $end);
+            // Hoa hồng phát sinh (trước gate kép) — trả thực tế theo phiếu lương.
+            $commission = $service->commissionFor($revenue, (int) ($closedBySales->get($user->id) ?? 0), $end);
             $studentsRetained = $user->branch_id
                 ? Student::where('branch_id', $user->branch_id)->where('status', 'studying')->count()
                 : 0;
@@ -484,7 +537,9 @@ class PayrollController extends Controller
                 'revenue' => $revenue,
                 'deals' => $receipts->pluck('student_id')->unique()->count(),
                 'retained_students' => $studentsRetained,
-                'tier_name' => $commission['tier']?->tier_name ?? 'Mức cơ bản',
+                'tier_name' => $commission['tier']?->tier_name ?? 'Chưa cấu hình bậc',
+                'closed' => $commission['closed'],
+                'percent' => $commission['percent'],
                 'commission' => $commission['amount'],
                 'branch_name' => $user->branch?->name ?? 'Hệ thống MEnglish',
             ];
@@ -500,24 +555,39 @@ class PayrollController extends Controller
         return view('payroll.config-settings', compact('settings'));
     }
 
+    /**
+     * Tham số công thức lương Q3: tỉ lệ BHXH / Công đoàn (trên lương cơ bản Full-time), quỹ KPI Học vụ,
+     * bảng % thưởng tái tục theo số HS nghỉ (các mốc chưa được BA chốt đánh dấu "chờ BA").
+     */
     public function storeSettings(Request $request)
     {
         $validated = $request->validate([
-            'allowance_amount' => ['required', 'numeric', 'min:0'],
-            'kpi_bonus_amount' => ['required', 'numeric', 'min:0'],
-            'kpi_bonus_hours_threshold' => ['required', 'numeric', 'min:1'],
             'insurance_rate_percent' => ['required', 'numeric', 'min:0', 'max:100'],
-            'foreign_teacher_deduction_rate' => ['required', 'numeric', 'min:0'],
+            'union_rate_percent' => ['required', 'numeric', 'min:0', 'max:100'],
+            'academic_kpi_fund' => ['required', 'numeric', 'min:0'],
+            'renewal' => ['nullable', 'array', 'max:20'],
+            'renewal.*.quits' => ['required', 'integer', 'min:0', 'max:50', 'distinct'],
+            'renewal.*.percent' => ['required', 'numeric', 'min:0', 'max:100'],
+            'renewal.*.pending' => ['nullable', 'boolean'],
+            'renewal_beyond_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ], [
             '*.required' => 'Vui lòng nhập đầy đủ các tham số.',
             'insurance_rate_percent.max' => 'Tỉ lệ BHXH không được vượt quá 100%.',
+            'renewal.*.quits.distinct' => 'Mỗi mức số HS nghỉ chỉ được khai báo một lần.',
         ]);
 
-        SystemSetting::set('payroll_allowance_amount', $validated['allowance_amount'], 'Phụ cấp hàng tháng áp dụng khi có lương cứng (đ)');
-        SystemSetting::set('payroll_kpi_bonus_amount', $validated['kpi_bonus_amount'], 'Thưởng KPI khi đạt ngưỡng giờ dạy (đ)');
-        SystemSetting::set('payroll_kpi_bonus_hours_threshold', $validated['kpi_bonus_hours_threshold'], 'Ngưỡng giờ dạy trong kỳ để nhận thưởng KPI (giờ)');
-        SystemSetting::set('payroll_insurance_rate_percent', $validated['insurance_rate_percent'], 'Tỉ lệ bảo hiểm trừ trên lương cứng (%)');
-        SystemSetting::set('payroll_foreign_teacher_deduction_rate', $validated['foreign_teacher_deduction_rate'], 'Mức trừ mỗi buổi có GVNN đồng dạy (đ)');
+        SystemSetting::set('payroll_insurance_rate_percent', $validated['insurance_rate_percent'], 'BHXH trừ trên lương cơ bản Full-time (%)');
+        SystemSetting::set('payroll_union_rate_percent', $validated['union_rate_percent'], 'Công đoàn trừ trên lương cơ bản Full-time (%)');
+        SystemSetting::set('payroll_academic_kpi_fund', $validated['academic_kpi_fund'], 'Quỹ KPI Học vụ mỗi tháng (đ)');
+        if (array_key_exists('renewal', $validated)) {
+            $table = collect($validated['renewal'] ?? [])
+                ->mapWithKeys(fn ($row) => [(int) $row['quits'] => ['percent' => (float) $row['percent'], 'pending' => (bool) ($row['pending'] ?? false)]])
+                ->sortKeys()->all();
+            SystemSetting::set('payroll_renewal_table', $table, 'Thưởng tái tục: % doanh thu lớp theo số HS nghỉ trong kỳ');
+        }
+        if (array_key_exists('renewal_beyond_percent', $validated) && $validated['renewal_beyond_percent'] !== null) {
+            SystemSetting::set('payroll_renewal_beyond_percent', $validated['renewal_beyond_percent'], 'Thưởng tái tục khi số HS nghỉ vượt bảng (%)');
+        }
 
         activity('payroll_settings')->causedBy($request->user())
             ->withProperties(['after' => $validated])
@@ -559,6 +629,8 @@ class PayrollController extends Controller
         $validated = $request->validate([
             'user_id' => ['required', 'exists:users,id'],
             'hourly_rate' => ['required', 'numeric', 'min:1000'],
+            // Q3 Part-time: mặc định đơn giá theo BUỔI; 'hour' giữ cho trường hợp cũ.
+            'rate_unit' => ['nullable', 'in:session,hour'],
             'effective_from' => [
                 'required', 'date',
                 function ($attribute, $value, $fail) use ($request) {
@@ -572,14 +644,15 @@ class PayrollController extends Controller
             'note' => ['nullable', 'string', 'max:500'],
         ]);
 
+        $validated['rate_unit'] ??= TeacherHourlyRate::UNIT_HOUR;
         $rate = TeacherHourlyRate::create($validated + ['created_by' => $request->user()->id]);
 
         activity('teacher_rate')->causedBy($request->user())->performedOn($rate)
             ->withProperties(['new' => $validated])
-            ->log('Thêm đơn giá giờ dạy riêng cho GV #'.$validated['user_id']);
+            ->log('Thêm đơn giá riêng ('.$rate->unit_label.') cho GV #'.$validated['user_id']);
 
         return redirect()->route('payroll.config.teacher-rates', ['teacher_id' => $validated['user_id']])
-            ->with('status', 'Đã thêm đơn giá '.number_format((float) $validated['hourly_rate'], 0, ',', '.').'đ/h hiệu lực từ '
+            ->with('status', 'Đã thêm đơn giá '.number_format((float) $validated['hourly_rate'], 0, ',', '.').' '.$rate->unit_label.' hiệu lực từ '
                 .Carbon::parse($validated['effective_from'])->format('d/m/Y').'.');
     }
 
@@ -608,7 +681,7 @@ class PayrollController extends Controller
     public function commissionTiers(Request $request)
     {
         $asOf = $request->filled('as_of') ? Carbon::parse($request->query('as_of')) : today();
-        $tiers = CommissionTier::effectiveAt($asOf)->orderBy('min_revenue')->get();
+        $tiers = CommissionTier::byStudents()->effectiveAt($asOf)->orderBy('min_students')->get();
         $history = CommissionTier::with(['creator', 'replaces'])
             ->orderByDesc('effective_from')->orderByDesc('id')
             ->paginate($request->perPage(15))
@@ -617,12 +690,17 @@ class PayrollController extends Controller
         return view('payroll.config-commissions', compact('tiers', 'history', 'asOf'));
     }
 
-    /** Luật validate chung cho bậc hoa hồng. renew_percent không còn dùng (A6: không tính tái tục). */
+    /**
+     * Luật validate chung cho bậc hoa hồng (A6 bản sửa): bậc theo SỐ HS CHỐT trong kỳ.
+     * min_revenue / renew_percent / bonus_amount không còn dùng trong tính lương.
+     */
     private function commissionTierRules(): array
     {
         return [
             'tier_name' => 'required|string|max:255',
-            'min_revenue' => 'required|numeric|min:0',
+            'min_students' => 'required|integer|min:0',
+            'max_students' => 'nullable|integer|gte:min_students',
+            'min_revenue' => 'nullable|numeric|min:0',
             'max_revenue' => 'nullable|numeric|gt:min_revenue',
             'new_sale_percent' => 'required|numeric|min:0|max:100',
             'renew_percent' => 'nullable|numeric|min:0|max:100',
@@ -635,6 +713,7 @@ class PayrollController extends Controller
     {
         $validated = $request->validate($this->commissionTierRules());
         $validated['effective_from'] ??= today()->toDateString();
+        $validated['min_revenue'] ??= 0;
         $validated['renew_percent'] ??= 0;
         $validated['bonus_amount'] ??= 0;
 
@@ -658,9 +737,10 @@ class PayrollController extends Controller
 
         $effectiveFrom = Carbon::parse($validated['effective_from'] ?? today())->startOfDay();
         $validated['effective_from'] = $effectiveFrom->toDateString();
+        $validated['min_revenue'] ??= 0;
         $validated['renew_percent'] ??= (float) $commissionTier->renew_percent;
         $validated['bonus_amount'] ??= 0;
-        $before = $commissionTier->only(['tier_name', 'min_revenue', 'max_revenue', 'new_sale_percent', 'bonus_amount', 'effective_from']);
+        $before = $commissionTier->only(['tier_name', 'min_students', 'max_students', 'new_sale_percent', 'effective_from']);
 
         // Phiên bản chưa tới ngày hiệu lực (chưa từng áp dụng) thì được sửa trực tiếp.
         if ($commissionTier->effective_from !== null && $commissionTier->effective_from->isAfter(today())
