@@ -9,6 +9,15 @@
                 <p class="text-xs text-gray-500">Tra cứu chi tiết giờ dạy, các khoản thưởng KPI và phiếu lương cá nhân hàng tháng</p>
             </div>
             <div class="flex items-center gap-2">
+                @if ($records->isNotEmpty())
+                    <form method="GET" action="{{ route('portal.my-salary') }}">
+                        <select name="period_id" onchange="this.form.submit()" class="text-xs rounded-xl border border-gray-300 py-2 pl-3 pr-8 font-semibold text-gray-700">
+                            @foreach ($records as $option)
+                                <option value="{{ $option->payroll_period_id }}" @selected($record && $option->payroll_period_id === $record->payroll_period_id)>{{ $option->period->title }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                @endif
                 <button type="button" onclick="window.print();" class="px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold shadow-2xs transition flex items-center gap-1.5 cursor-pointer">
                     <span class="material-symbols-outlined text-[16px]">picture_as_pdf</span>
                     <span>Tải Phiếu Lương PDF</span>
@@ -19,8 +28,8 @@
 
     @php
         $netSalary = $record ? $record->net_salary : 0;
-        $incomeTotal = $record ? ($record->base_salary + $record->teaching_salary + $record->kpi_bonus + $record->allowance) : 0;
-        $deductionTotal = $record ? ($record->insurance_deduction + $record->tax_deduction + $record->penalty_deduction) : 0;
+        $incomeTotal = $record ? $record->gross_income : 0;
+        $deductionTotal = $record ? $record->total_deductions : 0;
         $hoursTaught = $record ? $record->actual_hours : 0;
     @endphp
 
@@ -75,7 +84,7 @@
                 <div class="relative z-10">
                     <div class="text-3xl font-black font-mono tracking-tight">{{ number_format($netSalary) }} ₫</div>
                     <div class="text-xs text-orange-100 mt-1 font-medium">
-                        Dự kiến chi trả qua tài khoản Ngân hàng
+                        {{ $record?->period?->status === 'paid' ? 'Đã chi trả qua tài khoản Ngân hàng' : 'Dự kiến chi trả qua tài khoản Ngân hàng' }}
                     </div>
                 </div>
             </div>
@@ -119,12 +128,16 @@
                             <span class="font-mono font-bold text-emerald-600">+{{ number_format($record?->teaching_salary ?? 0) }}đ</span>
                         </div>
                         <div class="flex justify-between py-1 border-b border-gray-200">
-                            <span class="text-gray-600">Thưởng KPI duy trì lớp &amp; Tái tục:</span>
+                            <span class="text-gray-600">Thưởng KPI:</span>
                             <span class="font-mono font-bold text-emerald-600">+{{ number_format($record?->kpi_bonus ?? 0) }}đ</span>
                         </div>
-                        <div class="flex justify-between pt-1">
-                            <span class="text-gray-600">Phụ cấp chấm bài / Khảo thí:</span>
+                        <div class="flex justify-between py-1 border-b border-gray-200">
+                            <span class="text-gray-600">Phụ cấp:</span>
                             <span class="font-mono font-bold text-emerald-600">+{{ number_format($record?->allowance ?? 0) }}đ</span>
+                        </div>
+                        <div class="flex justify-between pt-1">
+                            <span class="text-gray-600">Hoa hồng tuyển sinh:</span>
+                            <span class="font-mono font-bold text-emerald-600">+{{ number_format(($record?->commission_bonus ?? 0) + ($record?->renew_bonus ?? 0)) }}đ</span>
                         </div>
                     </div>
                 </div>
@@ -144,9 +157,13 @@
                             <span class="text-gray-600">Thuế thu nhập cá nhân (TNCN):</span>
                             <span class="font-mono font-bold text-rose-600">-{{ number_format($record?->tax_deduction ?? 0) }}đ</span>
                         </div>
-                        <div class="flex justify-between pt-1">
+                        <div class="flex justify-between py-1 border-b border-gray-200">
                             <span class="text-gray-600">Phạt vi phạm quy chế chấm công / Điểm danh:</span>
-                            <span class="font-mono font-bold text-gray-400">-{{ number_format($record?->penalty_deduction ?? 0) }}đ</span>
+                            <span class="font-mono font-bold text-rose-600">-{{ number_format($record?->penalty_deduction ?? 0) }}đ</span>
+                        </div>
+                        <div class="flex justify-between pt-1">
+                            <span class="text-gray-600">Giảm trừ ca có GVNN cùng dạy ({{ $record?->foreign_teacher_sessions_count ?? 0 }} buổi):</span>
+                            <span class="font-mono font-bold text-rose-600">-{{ number_format($record?->foreign_teacher_deduction ?? 0) }}đ</span>
                         </div>
                     </div>
                 </div>
@@ -160,9 +177,13 @@
                     <p class="text-[11px] text-orange-700">Mọi thắc mắc về số giờ dạy hoặc khoản thưởng KPI, vui lòng phản hồi phòng Kế toán trước ngày 03 hàng tháng.</p>
                 </div>
                 <div class="shrink-0">
-                    <span class="px-3 py-1 bg-emerald-600 text-white rounded-full font-bold text-[10px] uppercase shadow-2xs">
-                        ✓ Đã xác thực dữ liệu
-                    </span>
+                    @if ($record)
+                        <span class="px-3 py-1 rounded-full border font-bold text-[10px] uppercase shadow-2xs {{ $record->period->status_badge }}">
+                            {{ $record->period->status_label }}
+                        </span>
+                    @else
+                        <span class="px-3 py-1 bg-gray-100 text-gray-500 rounded-full font-bold text-[10px] uppercase">Chưa có kỳ lương đã duyệt</span>
+                    @endif
                 </div>
             </div>
 

@@ -723,6 +723,11 @@ class WorkTaskController extends Controller
         abort_unless((int) $session->teacher_id === (int) Auth::id() || $request->user()->can('work_task.approve'), 403);
         abort_if($session->status === 'completed', 422, 'Buổi phụ đạo đã hoàn thành.');
         $validated = $request->validate(['completion_note' => ['nullable', 'string', 'max:2000']]);
+        if (\App\Models\PayrollPeriod::isLockedFor($session->session_date)) {
+            $message = \App\Models\PayrollPeriod::lockedMessage($session->session_date);
+
+            return redirect()->back()->withErrors(['session_date' => $message])->with('error', $message);
+        }
 
         DB::transaction(function () use ($session, $validated) {
             $session->update(['status' => 'completed', 'completed_at' => now(), 'completion_note' => $validated['completion_note'] ?? null]);
