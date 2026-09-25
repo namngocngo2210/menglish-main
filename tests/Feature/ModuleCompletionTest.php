@@ -82,9 +82,13 @@ class ModuleCompletionTest extends TestCase
         $this->actingAs($manager)->post(route('penalties.confirm', $penalty->id), ['decision' => 'error'])->assertRedirect();
         $this->assertSame('confirmed', $penalty->fresh()->status);
 
-        // confirm_fine: quyết phạt — lương sẽ trừ
-        $this->actingAs($manager)->post(route('penalties.confirm', $penalty->id), ['decision' => 'fine'])->assertRedirect();
+        // confirm_fine: quyết phạt (Phase 3: bắt buộc số tiền, hạn nộp 2 ngày)
+        $this->actingAs($manager)->post(route('penalties.confirm', $penalty->id), ['decision' => 'fine', 'amount' => 200000])->assertRedirect();
         $this->assertSame('fined', $penalty->fresh()->status);
+        $this->assertSame(today()->addDays(2)->toDateString(), $penalty->fresh()->due_date->toDateString());
+
+        // Giả lập quá hạn nộp mà chưa nộp → bảng lương mới trừ
+        $penalty->update(['due_date' => today()->subDay()->toDateString()]);
 
         // Kỳ lương tính toán phải trừ đúng mức phạt "fined"
         TeacherTimesheet::create([

@@ -357,7 +357,7 @@ class PayrollBusinessTest extends TestCase
         $penalty = Penalty::where('user_id', $this->teacherUser->id)->first();
         $this->assertNotNull($penalty);
         $this->assertStringStartsWith('BB-', $penalty->code);
-        $this->assertEquals('Chờ xác nhận', $penalty->status_label);
+        $this->assertEquals('Chờ giải trình', $penalty->status_label); // Phase 3: bước đầu là nhân sự giải trình
         $this->assertStringContainsString('bg-amber-50', $penalty->status_badge);
 
         // 2. Confirm penalty

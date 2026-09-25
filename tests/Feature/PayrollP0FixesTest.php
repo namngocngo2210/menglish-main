@@ -329,7 +329,7 @@ class PayrollP0FixesTest extends TestCase
         $this->assertDatabaseCount('penalties', 0);
 
         $penalty = $this->penalty($this->teacher, '2026-08-15', 100000, 'pending');
-        $this->actingAs($this->admin)->post(route('penalties.confirm', $penalty->id), ['decision' => 'fine'])
+        $this->actingAs($this->admin)->post(route('penalties.confirm', $penalty->id), ['decision' => 'fine', 'amount' => 100000])
             ->assertSessionHasErrors('violation_date');
         $this->assertSame('pending', $penalty->fresh()->status);
 

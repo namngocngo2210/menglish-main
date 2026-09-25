@@ -87,7 +87,11 @@ class PayrollPeriod extends Model
         $range = [$this->start_date, $this->end_date];
 
         return TeacherTimesheet::whereBetween('teaching_date', $range)->where('updated_at', '>', $this->calculated_at)->exists()
-            || Penalty::whereBetween('violation_date', $range)->where('updated_at', '>', $this->calculated_at)->exists();
+            || Penalty::whereBetween('violation_date', $range)->where('updated_at', '>', $this->calculated_at)->exists()
+            // Biên bản đổi trạng thái sau lần tính (quyết phạt/nộp) hoặc vừa quá hạn nộp mà chưa được trừ
+            || Penalty::whereIn('payroll_record_id', $this->records()->select('id'))->where('updated_at', '>', $this->calculated_at)->exists()
+            || Penalty::deductibleFor($this)->whereNull('payroll_record_id')
+                ->whereIn('user_id', $this->records()->select('user_id'))->exists();
     }
 
     /**
@@ -206,11 +210,10 @@ class PayrollPeriod extends Model
                 $commissionBonus = ($wonRevenue * (float) $tier->new_sale_percent / 100) + (float) ($tier->bonus_amount ?? 0);
             }
 
-            // 3. Giảm trừ vi phạm kỷ luật trong kỳ (chỉ biên bản đã "quyết phạt";
-            //     nộp trực tiếp đã đóng bằng status paid nên không trừ lương nữa)
+            // 3. Giảm trừ vi phạm kỷ luật: chỉ biên bản đã quyết phạt mà QUÁ HẠN NỘP (2 ngày)
+            //     chưa nộp; đã nộp trực tiếp (paid) thì không trừ. Xem Penalty::scopeDeductibleFor.
             $penalties = Penalty::where('user_id', $user->id)
-                ->whereIn('status', Penalty::payableStatuses())
-                ->whereBetween('violation_date', [$this->start_date, $this->end_date])
+                ->deductibleFor($this)
                 ->get(['id', 'amount']);
             $penaltyDeduction = (float) $penalties->sum('amount');
 
