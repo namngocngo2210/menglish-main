@@ -20,6 +20,23 @@ class ArrayExport implements FromArray, ShouldAutoSize, WithCustomCsvSettings, W
      */
     public function __construct(private readonly array $headings, private readonly array $rows) {}
 
+    /**
+     * Tải bảng về dạng .xlsx (mặc định) hoặc .csv (UTF-8 BOM).
+     *
+     * @param  list<string>  $headings
+     * @param  list<array<int, mixed>>  $rows
+     */
+    public static function download(string $name, array $headings, array $rows, ?string $format = 'xlsx'): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        $format = $format === 'csv' ? 'csv' : 'xlsx';
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new self($headings, $rows),
+            $name.'-'.now()->format('Ymd-His').'.'.$format,
+            $format === 'csv' ? \Maatwebsite\Excel\Excel::CSV : \Maatwebsite\Excel\Excel::XLSX
+        );
+    }
+
     public function array(): array
     {
         return $this->rows;

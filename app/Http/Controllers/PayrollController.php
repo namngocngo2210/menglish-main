@@ -77,6 +77,48 @@ class PayrollController extends Controller
         return view('payroll.show', compact('period'));
     }
 
+    /**
+     * Xuất bảng lương của kỳ ra Excel (.xlsx) hoặc CSV; lọc theo khối (department) nếu có.
+     */
+    public function exportPeriod(Request $request, $id)
+    {
+        $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $department = $request->query('department');
+        $departments = ['teacher' => 'Giáo viên', 'fulltime' => 'GV Full-time', 'academic' => 'Học thuật', 'operations' => 'Vận hành'];
+
+        $records = $period->records()->with('user')
+            ->when(is_string($department) && $department !== '', fn ($q) => $q->where('department', $department))
+            ->orderBy('department')->orderBy('id')
+            ->get();
+
+        $rows = $records->map(fn (PayrollRecord $r) => [
+            $r->user?->name ?? 'Chưa cập nhật',
+            $r->user?->email,
+            $departments[$r->department] ?? $r->department,
+            (float) $r->base_salary,
+            (float) $r->actual_hours,
+            (float) $r->teaching_salary,
+            (float) $r->kpi_bonus,
+            (float) $r->commission_bonus,
+            (float) $r->allowance,
+            (float) $r->other_bonus,
+            (float) $r->insurance_deduction,
+            (float) $r->tax_deduction,
+            (float) $r->penalty_deduction,
+            (float) $r->commission_clawback,
+            (float) $r->foreign_teacher_deduction,
+            (float) $r->other_deduction,
+            (float) $r->net_salary,
+        ])->all();
+
+        return \App\Exports\ArrayExport::download(
+            'bang-luong-'.\Illuminate\Support\Str::slug($period->code ?: $period->id).($department ? '-'.$department : ''),
+            ['Nhân sự', 'Email', 'Khối', 'Lương cơ bản', 'Giờ dạy', 'Lương dạy', 'Thưởng KPI', 'Hoa hồng', 'Phụ cấp', 'Thưởng khác', 'BHXH', 'Thuế TNCN', 'Phạt', 'Thu hồi hoa hồng', 'Trừ GVNN', 'Khấu trừ khác', 'Thực lĩnh'],
+            $rows,
+            $request->query('format', 'xlsx')
+        );
+    }
+
     public function approvePeriod($id)
     {
         $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();

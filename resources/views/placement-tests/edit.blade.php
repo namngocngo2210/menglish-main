@@ -631,7 +631,7 @@
 
                 saveModalQuestion() {
                     if (!this.modalForm.title.trim()) {
-                        alert('Vui lòng nhập nội dung câu hỏi!');
+                        window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Vui lòng nhập nội dung câu hỏi!', type: 'error' } }));
                         return;
                     }
 

@@ -18,10 +18,10 @@
             </div>
 
             <div class="flex items-center gap-2">
-                <button type="button" onclick="window.print();" class="px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold shadow-2xs transition flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[16px]">picture_as_pdf</span>
-                    <span>Xuất PDF</span>
-                </button>
+                <a href="{{ route('payroll.periods.export', [$period->id, 'department' => 'academic']) }}" class="px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold shadow-2xs transition flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">download</span>
+                    <span>Xuất Excel</span>
+                </a>
             </div>
         </div>
     </x-slot>

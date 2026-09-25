@@ -936,16 +936,16 @@
                                 } else {
                                     msg = err.message || 'Vui lòng kiểm tra dung lượng và định dạng tệp!';
                                 }
-                                alert('Lỗi tải lên:\n' + msg);
+                                window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Lỗi tải lên: ' + msg, type: 'error' } }));
                             } catch(e) {
-                                alert('Lỗi tải lên tệp tin. Vui lòng thử lại!');
+                                window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Lỗi tải lên tệp tin. Vui lòng thử lại!', type: 'error' } }));
                             }
                         }
                     };
 
                     xhr.onerror = () => {
                         this.isUploading = false;
-                        alert('Lỗi kết nối mạng trong quá trình tải tệp.');
+                        window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Lỗi kết nối mạng trong quá trình tải tệp.', type: 'error' } }));
                     };
 
                     xhr.send(formData);
