@@ -5,17 +5,26 @@ namespace App\Http\Controllers;
 use App\Models\Branch;
 use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
+use App\Models\ClassSession;
 use App\Models\Student;
-use App\Models\SyllabusUnit;
+use App\Models\StudentAttendance;
+use App\Models\User;
+use App\Services\DocumentCodeGenerator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class StudentProfileController extends Controller
 {
+    /** Loại buổi hiển thị trong lộ trình (buổi phụ đạo chỉ hiện nếu học viên có điểm danh). */
+    private const ROADMAP_SESSION_TYPES = [ClassSession::TYPE_REGULAR, ClassSession::TYPE_MAKEUP];
+
     public function index(Request $request)
     {
-        $query = Student::with(['branch', 'currentClass.course'])->latest();
+        $user = $request->user();
+        $query = Student::visibleTo($user)->with(['branch', 'currentClass.course'])->latest();
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
@@ -30,19 +39,25 @@ class StudentProfileController extends Controller
             $query->where('branch_id', $branchId);
         }
 
-        if ($status = $request->input('status')) {
+        if ($classId = $request->input('class_id')) {
+            $query->inClasses((int) $classId);
+        }
+
+        $status = $request->input('status');
+        if ($status && array_key_exists($status, Student::STATUSES)) {
             $query->where('status', $status);
         }
 
         $students = $query->paginate($request->perPage(15))->withQueryString();
-        $branches = Branch::all();
-        $classes = ClassModel::all();
+        $branches = $this->visibleBranches($user);
+        $classes = $this->visibleClasses($user)->orderBy('name')->get(['id', 'name', 'code', 'branch_id']);
 
         return view('students.index', compact('students', 'branches', 'classes'));
     }
 
-    public function storeStudent(Request $request)
+    public function storeStudent(Request $request, DocumentCodeGenerator $codes)
     {
+        $user = $request->user();
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|max:20',
@@ -52,19 +67,57 @@ class StudentProfileController extends Controller
             'target' => 'nullable|string|max:100',
         ]);
 
-        $count = Student::count() + 1;
-        $code = 'HV-'.str_pad($count, 5, '0', STR_PAD_LEFT);
+        $branchId = $validated['branch_id'] ?? null;
+        if (! $user->hasRole('admin')) {
+            $allowed = Student::branchIdsFor($user);
+            $branchId ??= $user->branch_id;
+            if ($branchId && ! in_array((int) $branchId, $allowed, true)) {
+                throw ValidationException::withMessages(['branch_id' => 'Bạn chỉ được tạo học viên cho chi nhánh mình phụ trách.']);
+            }
+        }
 
-        $student = Student::create([
-            'code' => $code,
-            'name' => $validated['name'],
-            'phone' => $validated['phone'],
-            'email' => $validated['email'] ?? null,
-            'branch_id' => $validated['branch_id'] ?? null,
-            'current_class_id' => $validated['current_class_id'] ?? null,
-            'target' => $validated['target'] ?? 'IELTS 6.5',
-            'status' => 'studying',
-        ]);
+        $class = null;
+        if (! empty($validated['current_class_id'])) {
+            $class = $this->visibleClasses($user)->find($validated['current_class_id']);
+            if (! $class) {
+                throw ValidationException::withMessages(['current_class_id' => 'Lớp không thuộc phạm vi bạn quản lý.']);
+            }
+            if ($branchId && $class->branch_id && (int) $class->branch_id !== (int) $branchId) {
+                throw ValidationException::withMessages(['current_class_id' => 'Học viên và lớp phải thuộc cùng chi nhánh.']);
+            }
+            $branchId ??= $class->branch_id;
+        }
+
+        $student = DB::transaction(function () use ($validated, $codes, $branchId, $class) {
+            if ($class) {
+                $this->assertClassHasSeat($class, 'current_class_id');
+            }
+
+            $student = Student::create([
+                'code' => $codes->studentCode(),
+                'name' => $validated['name'],
+                'phone' => $validated['phone'],
+                'email' => $validated['email'] ?? null,
+                'branch_id' => $branchId,
+                'current_class_id' => $class?->id,
+                'target' => $validated['target'] ?? null,
+                // BA chốt Q5: hồ sơ mới luôn bắt đầu ở "Chờ khai giảng".
+                'status' => Student::INITIAL_STATUS,
+            ]);
+
+            if ($class) {
+                ClassEnrollment::create([
+                    'student_id' => $student->id,
+                    'class_id' => $class->id,
+                    'enrolled_at' => now(),
+                    'curriculum_delivered' => false,
+                    'zalo_group_added' => false,
+                    'status' => 'pending',
+                ]);
+            }
+
+            return $student;
+        });
 
         return redirect()->route('students.index')
             ->with('status', "Đã tạo mới hồ sơ học viên {$student->name} ({$student->code}) thành công!");
@@ -72,12 +125,16 @@ class StudentProfileController extends Controller
 
     public function enrollments(Request $request)
     {
+        $user = $request->user();
+        $visibleStudentIds = Student::visibleTo($user)->select('id');
+
         $enrollments = ClassEnrollment::with(['student', 'classModel.teacher', 'classModel.branch'])
+            ->whereIn('student_id', $visibleStudentIds)
             ->latest()
             ->paginate($request->perPage(15))
             ->withQueryString();
-        $classes = ClassModel::all();
-        $students = Student::all();
+        $classes = $this->visibleClasses($user)->orderBy('name')->get();
+        $students = Student::visibleTo($user)->where('status', '!=', Student::STATUS_DROPPED)->orderBy('name')->get();
 
         return view('students.enrollments', compact('enrollments', 'classes', 'students'));
     }
@@ -89,34 +146,78 @@ class StudentProfileController extends Controller
             'class_id' => 'required|exists:classes,id',
         ]);
 
-        $student = Student::findOrFail($validated['student_id']);
-        $class = ClassModel::findOrFail($validated['class_id']);
-        if ($student->branch_id && $class->branch_id && $student->branch_id !== $class->branch_id) {
-            throw ValidationException::withMessages(['class_id' => 'Học viên và lớp phải thuộc cùng chi nhánh.']);
-        }
-        if (ClassEnrollment::where('student_id', $student->id)->where('class_id', $class->id)->exists()) {
-            throw ValidationException::withMessages(['class_id' => 'Học viên đã có trong danh sách bàn giao của lớp này.']);
-        }
+        $student = Student::visibleTo($request->user())->findOrFail($validated['student_id']);
+        $class = $this->visibleClasses($request->user())->findOrFail($validated['class_id']);
+        $this->assertCanJoinClass($student, $class);
 
-        ClassEnrollment::create([
-            'student_id' => $validated['student_id'],
-            'class_id' => $validated['class_id'],
-            'enrolled_at' => now(),
-            'curriculum_delivered' => false,
-            'zalo_group_added' => false,
-            'status' => 'pending',
-        ]);
+        DB::transaction(function () use ($student, $class) {
+            $this->assertClassHasSeat($class);
 
-        // Cập nhật lớp hiện tại của học sinh
-        $student->update(['current_class_id' => $validated['class_id']]);
+            ClassEnrollment::create([
+                'student_id' => $student->id,
+                'class_id' => $class->id,
+                'enrolled_at' => now(),
+                'curriculum_delivered' => false,
+                'zalo_group_added' => false,
+                'status' => 'pending',
+            ]);
+
+            // Cập nhật lớp hiện tại của học sinh
+            $student->update(['current_class_id' => $class->id]);
+        });
 
         return redirect()->route('students.enrollments')
             ->with('status', 'Đã xếp lớp. Học vụ cần hoàn tất checklist giáo trình và nhóm lớp.');
     }
 
+    /**
+     * "Liên kết lớp khác": thêm học viên vào một lớp nữa (học song song) mà không đổi lớp chính.
+     * Kiểm tra cùng chi nhánh, chưa có trong lớp và lớp còn chỗ.
+     */
+    public function linkClass(Request $request, $id)
+    {
+        $student = $this->findVisibleStudent($request->user(), $id);
+        $validated = $request->validate([
+            'class_id' => 'required|exists:classes,id',
+        ]);
+
+        $class = $this->visibleClasses($request->user())->find($validated['class_id']);
+        if (! $class) {
+            throw ValidationException::withMessages(['class_id' => 'Lớp không thuộc phạm vi bạn quản lý.']);
+        }
+        $this->assertCanJoinClass($student, $class);
+
+        DB::transaction(function () use ($student, $class) {
+            $this->assertClassHasSeat($class);
+
+            ClassEnrollment::create([
+                'student_id' => $student->id,
+                'class_id' => $class->id,
+                'enrolled_at' => now(),
+                'curriculum_delivered' => false,
+                'zalo_group_added' => false,
+                'status' => 'pending',
+            ]);
+
+            // Học viên chưa có lớp chính (vd. đang "Chờ xếp lớp") => lớp vừa liên kết thành lớp chính.
+            if (! $student->current_class_id) {
+                $student->update(['current_class_id' => $class->id]);
+            }
+        });
+
+        return redirect()->route('students.show', $student->id)
+            ->with('status', "Đã liên kết học viên {$student->name} với lớp {$class->name}.");
+    }
+
     public function updateEnrollmentHandoff(Request $request, $id)
     {
-        $enrollment = ClassEnrollment::findOrFail($id);
+        $visibleStudentIds = Student::visibleTo($request->user())->select('id');
+        $enrollment = ClassEnrollment::whereIn('student_id', $visibleStudentIds)->findOrFail($id);
+        if ($enrollment->status === Student::ENROLLMENT_DROPPED) {
+            return redirect()->route('students.enrollments')
+                ->with('error', 'Học viên đã thôi học, không cập nhật bàn giao cho lượt xếp lớp này.');
+        }
+
         $curriculumDelivered = $request->boolean('curriculum_delivered');
         $zaloGroupAdded = $request->boolean('zalo_group_added');
 
@@ -132,37 +233,74 @@ class StudentProfileController extends Controller
                 : 'Đã cập nhật checklist; bàn giao vẫn đang chờ hoàn tất.');
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $student = Student::with(['branch', 'currentClass.course', 'currentClass.teacher', 'currentClass.branch', 'currentClass.timesheets.teacher', 'tuition.receipts'])
-            ->where('id', $id)
-            ->orWhere('code', $id)
-            ->first();
+        $user = $request->user();
+        $student = $this->findVisibleStudent($user, $id);
+        $student->load(['branch', 'currentClass.course', 'currentClass.teacher', 'currentClass.branch', 'tuition.receipts', 'enrollments.classModel']);
 
-        if (! $student) {
-            $student = Student::with(['branch', 'currentClass.course', 'currentClass.teacher', 'currentClass.branch', 'currentClass.timesheets.teacher', 'tuition.receipts'])->first();
+        $classIds = $student->activeClassIds();
+        $classes = ClassModel::with(['teacher', 'branch'])->whereIn('id', $classIds)->get();
+
+        // Điểm danh thật của học viên (mới nhất trước).
+        $attendances = StudentAttendance::with(['classModel', 'classSession'])
+            ->where('student_id', $student->id)
+            ->orderByDesc('session_date')
+            ->orderByDesc('id')
+            ->get();
+        $attendanceBySession = $attendances->whereNotNull('class_session_id')->keyBy('class_session_id');
+
+        // Lộ trình = các buổi học thật của (các) lớp học viên đang theo, cùng buổi học viên có điểm danh.
+        $sessions = ClassSession::with(['classModel', 'teacher'])
+            ->where(function (Builder $q) use ($classIds, $attendanceBySession) {
+                $q->where(fn (Builder $q) => $q->whereIn('class_id', $classIds)->whereIn('type', self::ROADMAP_SESSION_TYPES))
+                    ->orWhereIn('id', $attendanceBySession->keys()->all());
+            })
+            ->orderBy('date')
+            ->orderBy('start_time')
+            ->get();
+
+        $attendanceStats = [
+            'recorded' => $attendances->count(),
+            'present' => $attendances->whereIn('status', ['present', 'late'])->count(),
+            'absent' => $attendances->whereIn('status', ['absent', 'excused'])->count(),
+            'scheduled' => $sessions->count(),
+        ];
+        $attendanceStats['rate'] = $attendanceStats['recorded'] > 0
+            ? (int) round($attendanceStats['present'] / $attendanceStats['recorded'] * 100)
+            : null;
+
+        $linkableClasses = collect();
+        if ($user->can('student.assign_class') && $student->status !== Student::STATUS_DROPPED) {
+            $linkableClasses = $this->visibleClasses($user)
+                ->whereNotIn('id', $classIds)
+                ->when($student->branch_id, fn (Builder $q) => $q->where('branch_id', $student->branch_id))
+                ->whereNotIn('status', ['completed', 'cancelled', 'closed'])
+                ->withCount(['enrollments as active_enrollments_count' => fn (Builder $q) => $q->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)])
+                ->orderBy('name')
+                ->get();
         }
 
-        if (! $student) {
-            return redirect()->route('students.index')->with('error', 'Chưa có dữ liệu học viên trong hệ thống.');
-        }
-
-        $syllabusUnits = SyllabusUnit::orderBy('unit_number')->get();
-
-        return view('students.show', compact('student', 'syllabusUnits'));
+        return view('students.show', compact('student', 'classes', 'sessions', 'attendances', 'attendanceBySession', 'attendanceStats', 'linkableClasses'));
     }
 
     public function updateStudent(Request $request, $id)
     {
-        $student = Student::where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $student = $this->findVisibleStudent($request->user(), $id);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|max:20',
             'email' => 'nullable|email|max:255',
             'target' => 'nullable|string|max:100',
+            'address' => 'nullable|string|max:255',
             'status' => ['nullable', Rule::in(array_keys(Student::STATUSES))],
             'notes' => 'nullable|string|max:500',
         ]);
+
+        // Form sửa hồ sơ không gửi trạng thái; đổi trạng thái cần quyền riêng (student.change_status).
+        if (! $request->user()->can('student.change_status') || empty($validated['status'])) {
+            unset($validated['status']);
+        }
 
         $student->update($validated);
 
@@ -171,12 +309,12 @@ class StudentProfileController extends Controller
     }
 
     /**
-     * Đổi trạng thái học tập (đang học / bảo lưu / thôi học / hoàn thành)
-     * qua action riêng, tách khỏi sửa hồ sơ.
+     * Đổi trạng thái học tập (6 trạng thái BA chốt) qua action riêng, tách khỏi sửa hồ sơ.
+     * Chuyển sang Thôi học sẽ bỏ học viên khỏi lớp đang học (xem Student::booted).
      */
     public function updateStudentStatus(Request $request, $id)
     {
-        $student = Student::where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $student = $this->findVisibleStudent($request->user(), $id);
         $validated = $request->validate([
             'status' => ['required', Rule::in(array_keys(Student::STATUSES))],
         ]);
@@ -184,13 +322,17 @@ class StudentProfileController extends Controller
         $oldLabel = $student->status_label;
         $student->update(['status' => $validated['status']]);
 
-        return redirect()->route('students.show', $student->id)
-            ->with('status', "Đã chuyển trạng thái học viên {$student->name} từ \"{$oldLabel}\" sang \"{$student->status_label}\".");
+        $message = "Đã chuyển trạng thái học viên {$student->name} từ \"{$oldLabel}\" sang \"{$student->status_label}\".";
+        if ($student->wasChanged('status') && $student->status === Student::STATUS_DROPPED) {
+            $message .= ' Học viên đã được đưa ra khỏi danh sách lớp đang học; lịch sử học tập vẫn được giữ.';
+        }
+
+        return redirect()->route('students.show', $student->id)->with('status', $message);
     }
 
-    public function destroyStudent($id)
+    public function destroyStudent(Request $request, $id)
     {
-        $student = Student::where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $student = $this->findVisibleStudent($request->user(), $id);
         $name = $student->name;
         $student->delete();
 
@@ -198,21 +340,99 @@ class StudentProfileController extends Controller
             ->with('status', "Đã xóa hồ sơ học viên {$name}!");
     }
 
-    public function scoped($id)
+    /**
+     * Hồ sơ học viên theo phân quyền: server chỉ render các phần người xem có quyền
+     * (học phí chỉ khi có tuition.view), không còn chế độ đổi vai trò phía trình duyệt.
+     */
+    public function scoped(Request $request, $id)
     {
-        $student = Student::with(['branch', 'currentClass', 'tuition'])
-            ->where('id', $id)
-            ->orWhere('code', $id)
-            ->first();
+        $user = $request->user();
+        $student = $this->findVisibleStudent($user, $id);
+        $student->load(['branch', 'currentClass']);
 
-        if (! $student) {
-            $student = Student::with(['branch', 'currentClass', 'tuition'])->first();
+        $canViewTuition = $user->can('tuition.view');
+        $canViewAcademic = $user->can('attendance_student.view') || $user->can('student.update');
+        $canViewContact = $user->can('student.update') || $canViewTuition;
+
+        if ($canViewTuition) {
+            $student->load('tuition');
         }
 
-        if (! $student) {
-            return redirect()->route('students.index')->with('error', 'Chưa có dữ liệu học viên trong hệ thống.');
+        $attendanceStats = null;
+        if ($canViewAcademic) {
+            $records = StudentAttendance::where('student_id', $student->id)->pluck('status');
+            $present = $records->filter(fn ($s) => in_array($s, ['present', 'late'], true))->count();
+            $attendanceStats = [
+                'recorded' => $records->count(),
+                'present' => $present,
+                'rate' => $records->count() > 0 ? (int) round($present / $records->count() * 100) : null,
+            ];
         }
 
-        return view('students.scoped', compact('student'));
+        return view('students.scoped', compact('student', 'canViewTuition', 'canViewAcademic', 'canViewContact', 'attendanceStats'));
+    }
+
+    // ─────────────────────────────────────────────
+    // Helpers
+    // ─────────────────────────────────────────────
+
+    /** Tìm học viên theo id hoặc mã trong phạm vi người dùng được xem; không có => 404. */
+    private function findVisibleStudent(?User $user, $id): Student
+    {
+        return Student::visibleTo($user)
+            ->where(fn (Builder $q) => $q->where('id', $id)->orWhere('code', $id))
+            ->firstOrFail();
+    }
+
+    private function visibleBranches(User $user)
+    {
+        return $user->hasRole('admin')
+            ? Branch::orderBy('name')->get()
+            : Branch::whereIn('id', Student::branchIdsFor($user))->orderBy('name')->get();
+    }
+
+    /** Lớp người dùng được thao tác: admin tất cả; vai trò chi nhánh theo chi nhánh; GV/TA lớp mình dạy. */
+    private function visibleClasses(User $user): Builder
+    {
+        if ($user->hasRole('admin')) {
+            return ClassModel::query();
+        }
+
+        if ($user->hasAnyRole(Student::BRANCH_SCOPED_ROLES)) {
+            return ClassModel::query()->whereIn('branch_id', Student::branchIdsFor($user));
+        }
+
+        return ClassModel::query()->visibleTo($user);
+    }
+
+    private function assertCanJoinClass(Student $student, ClassModel $class): void
+    {
+        if ($student->status === Student::STATUS_DROPPED) {
+            throw ValidationException::withMessages(['class_id' => 'Học viên đã thôi học, không thể xếp vào lớp.']);
+        }
+        if ($student->branch_id && $class->branch_id && (int) $student->branch_id !== (int) $class->branch_id) {
+            throw ValidationException::withMessages(['class_id' => 'Học viên và lớp phải thuộc cùng chi nhánh.']);
+        }
+        if (ClassEnrollment::where('student_id', $student->id)->where('class_id', $class->id)
+            ->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)->exists()) {
+            throw ValidationException::withMessages(['class_id' => 'Học viên đã có trong danh sách của lớp này.']);
+        }
+    }
+
+    /** Kiểm tra sĩ số (max_capacity = 0 nghĩa là không giới hạn). Gọi trong transaction, khóa dòng lớp. */
+    private function assertClassHasSeat(ClassModel $class, string $field = 'class_id'): void
+    {
+        $locked = ClassModel::whereKey($class->id)->lockForUpdate()->first();
+        if (! $locked || $locked->max_capacity <= 0) {
+            return;
+        }
+
+        $taken = ClassEnrollment::where('class_id', $class->id)
+            ->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)
+            ->count();
+
+        if ($taken >= $locked->max_capacity) {
+            throw ValidationException::withMessages([$field => "Lớp {$class->name} đã đủ sĩ số ({$locked->max_capacity} học viên)."]);
+        }
     }
 }

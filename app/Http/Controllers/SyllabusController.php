@@ -200,7 +200,7 @@ class SyllabusController extends Controller
             'room' => 'required|string',
         ]);
 
-        $code = 'BT-'.date('Y').'-'.str_pad(BigTest::count() + 1, 2, '0', STR_PAD_LEFT);
+        $code = app(\App\Services\DocumentCodeGenerator::class)->bigTestCode();
 
         $bt = BigTest::create($validated + [
             'code' => $code,

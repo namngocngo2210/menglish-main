@@ -31,7 +31,13 @@
                         <option value="{{ $br->id }}" {{ request('branch_id') == $br->id ? 'selected' : '' }}>{{ $br->name }}</option>
                     @endforeach
                 </select>
-                <select name="status" class="text-xs rounded-xl border border-gray-200 py-1.5 px-3" onchange="this.form.submit()">
+                <select name="class_id" class="text-xs rounded-xl border border-gray-200 py-1.5 px-3" onchange="this.form.submit()" aria-label="Lọc theo lớp">
+                    <option value="">Tất cả lớp</option>
+                    @foreach ($classes as $cl)
+                        <option value="{{ $cl->id }}" @selected((string) request('class_id') === (string) $cl->id)>{{ $cl->name }}</option>
+                    @endforeach
+                </select>
+                <select name="status" class="text-xs rounded-xl border border-gray-200 py-1.5 px-3" onchange="this.form.submit()" aria-label="Lọc theo trạng thái">
                     <option value="">Tất cả trạng thái</option>
                     @foreach (\App\Models\Student::STATUSES as $statusKey => $statusLabel)
                         <option value="{{ $statusKey }}" @selected(request('status') === $statusKey)>{{ $statusLabel }}</option>
@@ -98,7 +104,15 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="text-center py-8 text-gray-400 text-xs">Chưa có học viên nào trong cơ sở dữ liệu.</td>
+                                <td colspan="8">
+                                    @if (collect(request()->only(['search', 'branch_id', 'class_id', 'status']))->filter()->isNotEmpty())
+                                        <x-ui.empty-state icon="search_off" title="Không tìm thấy học viên" description="Thử đổi từ khóa hoặc bỏ bớt bộ lọc.">
+                                            <x-ui.button variant="secondary" size="sm" :href="route('students.index')">Xóa bộ lọc</x-ui.button>
+                                        </x-ui.empty-state>
+                                    @else
+                                        <x-ui.empty-state icon="school" title="Chưa có học viên nào" description="Danh sách chỉ gồm học viên thuộc chi nhánh / lớp bạn được phân quyền." />
+                                    @endif
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>

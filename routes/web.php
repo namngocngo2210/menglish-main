@@ -196,6 +196,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{id}', [StudentProfileController::class, 'show'])->name('show');
         Route::put('/{id}', [StudentProfileController::class, 'updateStudent'])->middleware('can:student.update')->name('update');
         Route::put('/{id}/status', [StudentProfileController::class, 'updateStudentStatus'])->middleware('can:student.change_status')->name('status.update');
+        Route::post('/{id}/link-class', [StudentProfileController::class, 'linkClass'])->middleware('can:student.assign_class')->name('link-class');
         Route::delete('/{id}', [StudentProfileController::class, 'destroyStudent'])->middleware('can:student.delete')->name('destroy');
         Route::get('/{id}/scoped', [StudentProfileController::class, 'scoped'])->name('scoped');
     });
