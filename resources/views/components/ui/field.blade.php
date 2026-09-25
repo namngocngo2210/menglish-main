@@ -11,7 +11,7 @@
 
 @php
     $errorKey = $name ? rtrim(str_replace(['[]', '[', ']'], ['', '.', ''], $name), '.') : null;
-    $message = $errorKey ? $errors->first($errorKey) : null;
+    $message = $errorKey ? ($errors ?? new \Illuminate\Support\ViewErrorBag)->first($errorKey) : null;
 @endphp
 
 <div {{ $attributes->merge(['class' => 'flex flex-col gap-xs']) }}>

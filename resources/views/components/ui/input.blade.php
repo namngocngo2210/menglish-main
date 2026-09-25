@@ -11,7 +11,7 @@
 @php
     $id = $attributes->get('id') ?? ($name ? 'f_' . preg_replace('/[^A-Za-z0-9_]/', '_', $name) : null);
     $errorKey = $name ? rtrim(str_replace(['[]', '[', ']'], ['', '.', ''], $name), '.') : null;
-    $hasError = $errorKey && $errors->has($errorKey);
+    $hasError = $errorKey && ($errors ?? new \Illuminate\Support\ViewErrorBag)->has($errorKey);
     $val = $type === 'password' ? null : ($name ? old($errorKey, $value) : $value);
     $control = 'w-full rounded-lg border bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface placeholder:text-on-surface-variant/60 transition-colors focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-surface-container-low disabled:text-on-surface-variant '
         . ($hasError ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary-container focus:ring-primary-container/20')
