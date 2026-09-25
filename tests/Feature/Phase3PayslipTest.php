@@ -80,12 +80,14 @@ class Phase3PayslipTest extends TestCase
         $this->actingAs($this->accountant)->get(route('payroll.records.show', $record->id))
             ->assertOk()
             ->assertSee('Phiếu lương: GV Phiếu Lương')
-            ->assertSee('Lương cơ bản / cứng')
-            ->assertSee('Hoa hồng tuyển sinh (khách mới)')
-            ->assertSee('Thu hồi hoa hồng (hoàn phí)')
+            // Q3: GV có lương cơ bản → Full-time
+            ->assertSee('Full-time')
+            ->assertSee('Lương cơ bản')
+            ->assertSee('BHXH (10,5% lương cơ bản)')
+            ->assertSee('Công đoàn (0,5% lương cơ bản)')
+            ->assertSee('Thuế TNCN')
             ->assertSee('Phạt vi phạm (quá hạn nộp)')
-            ->assertSee('Khấu trừ khác')
-            ->assertSee('7.660.000') // 8M + 500k phụ cấp − 840k BHXH
+            ->assertSee('7.120.000') // 8M − 840k BHXH − 40k Công đoàn
             ->assertSee('Lưu điều chỉnh');
 
         // Nhân viên thường không vào được màn phiếu lương quản trị
@@ -97,34 +99,35 @@ class Phase3PayslipTest extends TestCase
         $period = $this->calculatedPeriod();
         $record = $this->record($period);
 
-        // Có khoản cộng/trừ khác thì bắt buộc ghi chú
-        $this->actingAs($this->accountant)->post(route('payroll.records.adjust', $record->id), ['other_bonus' => 300000])
-            ->assertSessionHasErrors('adjustment_notes');
+        // Khoản cộng/trừ tự do phải có tên
+        $this->actingAs($this->accountant)->post(route('payroll.records.adjust', $record->id), ['lines' => [['kind' => 'earning', 'label' => '', 'amount' => 300000]]])
+            ->assertSessionHasErrors('lines');
 
         $this->actingAs($this->accountant)->post(route('payroll.records.adjust', $record->id), [
-            'allowance_override' => 700000, 'other_bonus' => 300000, 'other_deduction' => 100000,
+            'lines' => [
+                ['kind' => 'earning', 'label' => 'Phụ cấp', 'amount' => 700000],
+                ['kind' => 'earning', 'label' => 'Thưởng lễ 2/9', 'amount' => 300000],
+                ['kind' => 'deduction', 'label' => 'Trừ tạm ứng', 'amount' => 100000],
+            ],
             'adjustment_notes' => 'Thưởng lễ 2/9, trừ tạm ứng',
         ])->assertRedirect(route('payroll.records.show', $record->id))->assertSessionHasNoErrors();
 
         $record->refresh();
-        // 8M + 700k + 300k − 840k − 100k
-        $this->assertEquals(8060000, $record->net_salary);
-        $this->assertEquals(8060000, $period->fresh()->total_amount);
+        // 8M + 700k + 300k − 840k − 40k − 100k
+        $this->assertEquals(8020000, $record->net_salary);
+        $this->assertEquals(8020000, $period->fresh()->total_amount);
 
         $period->calculatePayrollForPeriod();
         $record->refresh();
-        $this->assertEquals(700000, $record->allowance);
-        $this->assertEquals(300000, $record->other_bonus);
+        $this->assertEquals(1000000, $record->allowance);
         $this->assertEquals(100000, $record->other_deduction);
         $this->assertSame('Thưởng lễ 2/9, trừ tạm ứng', $record->adjustment_notes);
-        $this->assertEquals(8060000, $record->net_salary);
+        $this->assertEquals(8020000, $record->net_salary);
 
-        // Bỏ điều chỉnh phụ cấp → về mức cấu hình
-        $this->actingAs($this->accountant)->post(route('payroll.records.adjust', $record->id), [
-            'other_bonus' => 0, 'other_deduction' => 0,
-        ])->assertSessionHasNoErrors();
-        $this->assertEquals(500000, $record->fresh()->allowance);
-        $this->assertEquals(7660000, $record->fresh()->net_salary);
+        // Bỏ các dòng tự do → về lương theo công thức
+        $this->actingAs($this->accountant)->post(route('payroll.records.adjust', $record->id), ['lines' => []])->assertSessionHasNoErrors();
+        $this->assertEquals(0, $record->fresh()->allowance);
+        $this->assertEquals(7120000, $record->fresh()->net_salary);
     }
 
     public function test_adjustment_is_blocked_for_non_editors_and_locked_periods(): void

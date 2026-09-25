@@ -29,23 +29,20 @@ class KpiController extends Controller
     public function criteria()
     {
         $this->guard();
-        $criteria = KpiCriterion::orderByDesc('is_active')->orderBy('id')->get();
+        $criteria = KpiCriterion::orderByDesc('is_active')->ordered()->get();
         $totalWeight = $criteria->where('is_active', true)->sum('weight');
+        $fund = KpiCriterion::fund();
+        $groups = $criteria->pluck('group_name')->filter()->unique()->values();
 
-        return view('kpi.criteria', compact('criteria', 'totalWeight'));
+        return view('kpi.criteria', compact('criteria', 'totalWeight', 'fund', 'groups'));
     }
 
     public function criteriaStore(Request $request)
     {
         $this->guard('kpi.manage');
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'weight' => 'required|numeric|min:0|max:100',
-            'target' => 'nullable|string|max:255',
-            'unit' => 'nullable|string|max:50',
-            'description' => 'nullable|string',
-        ]);
+        $validated = $request->validate($this->criterionRules());
         $validated['is_active'] = true;
+        $validated['sort_order'] = (int) KpiCriterion::max('sort_order') + 1;
         KpiCriterion::create($validated);
 
         return back()->with('success', 'Đã thêm chỉ số KPI!');
@@ -55,18 +52,27 @@ class KpiController extends Controller
     {
         $this->guard('kpi.manage');
         $criterion = KpiCriterion::findOrFail($id);
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'weight' => 'required|numeric|min:0|max:100',
-            'target' => 'nullable|string|max:255',
-            'unit' => 'nullable|string|max:50',
-            'description' => 'nullable|string',
-            'is_active' => 'nullable|boolean',
-        ]);
+        $validated = $request->validate($this->criterionRules() + ['is_active' => 'nullable|boolean']);
         $validated['is_active'] = $request->boolean('is_active');
         $criterion->update($validated);
 
         return back()->with('success', 'Đã cập nhật chỉ số KPI!');
+    }
+
+    /** Mục KPI Học vụ: nhóm (1 trong 6 nhóm), mã (1.1…), trọng số % quỹ, ngưỡng đạt 100% / 50%. */
+    private function criterionRules(): array
+    {
+        return [
+            'group_name' => 'nullable|string|max:255',
+            'code' => 'nullable|string|max:10',
+            'name' => 'required|string|max:255',
+            'weight' => 'required|numeric|min:0|max:100',
+            'target' => 'nullable|string|max:255',
+            'threshold_full' => 'nullable|string|max:255',
+            'threshold_half' => 'nullable|string|max:255',
+            'unit' => 'nullable|string|max:50',
+            'description' => 'nullable|string',
+        ];
     }
 
     public function criteriaDestroy(int $id)
@@ -102,13 +108,15 @@ class KpiController extends Controller
         $month = (int) $request->input('month', now()->month);
         $year = (int) $request->input('year', now()->year);
 
-        $criteria = KpiCriterion::active()->orderBy('id')->get();
+        $criteria = KpiCriterion::active()->ordered()->get();
+        $fund = KpiCriterion::fund();
+        $isAcademicStaff = $staff->hasRole('academic_staff');
         $evaluation = KpiEvaluation::with('items')
             ->where('user_id', $userId)->where('month', $month)->where('year', $year)->first();
         $scores = $evaluation ? $evaluation->items->keyBy('kpi_criterion_id') : collect();
         $isSelf = $userId === (int) $request->user()->id;
 
-        return view('kpi.evaluate', compact('staff', 'criteria', 'evaluation', 'scores', 'month', 'year', 'isSelf'));
+        return view('kpi.evaluate', compact('staff', 'criteria', 'evaluation', 'scores', 'month', 'year', 'isSelf', 'fund', 'isAcademicStaff'));
     }
 
     public function evaluateStore(Request $request, int $userId)
@@ -128,16 +136,15 @@ class KpiController extends Controller
 
         $criteria = KpiCriterion::active()->get()->keyBy('id');
 
-        // Tính điểm tổng theo trọng số: sum(score*weight)/sum(weight)
+        // Điểm tổng theo trọng số: Σ(điểm × trọng số) / Σ trọng số CÁC MỤC ĐANG ÁP DỤNG (mục chưa chấm = 0) —
+        // cùng cách tính với KPI Học vụ trên bảng lương (quỹ × điểm tổng %).
         $weightedSum = 0;
-        $weightTotal = 0;
+        $weightTotal = (float) $criteria->sum('weight');
         foreach ($validated['score'] as $criterionId => $score) {
             if (! isset($criteria[$criterionId]) || $score === null || $score === '') {
                 continue;
             }
-            $w = (float) $criteria[$criterionId]->weight;
-            $weightedSum += (float) $score * $w;
-            $weightTotal += $w;
+            $weightedSum += (float) $score * (float) $criteria[$criterionId]->weight;
         }
         $total = $weightTotal > 0 ? round($weightedSum / $weightTotal, 2) : 0;
 

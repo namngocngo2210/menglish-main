@@ -34,16 +34,30 @@
                 <input type="hidden" name="month" value="{{ $month }}">
                 <input type="hidden" name="year" value="{{ $year }}">
 
+                @if ($isAcademicStaff)
+                    <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-800">
+                        KPI Học vụ tính lương tự động: <strong>quỹ {{ number_format($fund, 0, ',', '.') }}đ × điểm KPI tổng</strong>
+                        (mục chưa chấm tính 0%). Chấm theo ngưỡng: đạt ngưỡng 100% → 100, đạt ngưỡng 50% → 50.
+                    </div>
+                @endif
+
+                @foreach ($criteria->groupBy(fn ($c) => $c->group_name ?: 'Chưa phân nhóm') as $groupName => $groupItems)
                 <div class="bg-white rounded-2xl border border-gray-200 shadow-sm divide-y divide-gray-100">
-                    @foreach ($criteria as $cr)
+                    <div class="px-4 py-2 bg-gray-50 rounded-t-2xl flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-gray-700">{{ $groupName }}</span>
+                        <span class="text-[11px] text-gray-500">Quỹ nhóm {{ number_format($groupItems->sum(fn ($c) => $c->fundAmount($fund)), 0, ',', '.') }}đ</span>
+                    </div>
+                    @foreach ($groupItems as $cr)
                         @php $item = $scores->get($cr->id); @endphp
                         <div class="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                             <div class="flex-1 min-w-0">
-                                <div class="font-semibold text-sm text-gray-900">{{ $cr->name }}
-                                    <span class="text-[11px] font-bold text-primary">({{ rtrim(rtrim(number_format($cr->weight,2),'0'),'.') }}%)</span>
+                                <div class="font-semibold text-sm text-gray-900">@if($cr->code)<span class="font-mono text-gray-500">{{ $cr->code }}</span> @endif{{ $cr->name }}
+                                    <span class="text-[11px] font-bold text-primary">({{ rtrim(rtrim(number_format($cr->weight,2),'0'),'.') }}% · {{ number_format($cr->fundAmount($fund), 0, ',', '.') }}đ)</span>
                                 </div>
                                 <div class="text-[11px] text-gray-400">
-                                    @if($cr->target) Mục tiêu: {{ $cr->target }} @endif
+                                    @if($cr->threshold_full) Ngưỡng 100%: {{ $cr->threshold_full }} @endif
+                                    @if($cr->threshold_half) · Ngưỡng 50%: {{ $cr->threshold_half }} @endif
+                                    @if($cr->target) · Mục tiêu: {{ $cr->target }} @endif
                                     @if($cr->description) · {{ $cr->description }} @endif
                                 </div>
                             </div>
@@ -58,6 +72,7 @@
                         </div>
                     @endforeach
                 </div>
+                @endforeach
 
                 <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
                     <label class="block text-xs font-semibold text-gray-500 mb-1">Nhận xét tổng quan</label>
@@ -66,7 +81,9 @@
 
                 <div class="flex items-center justify-between">
                     @if ($evaluation)
-                        <span class="text-sm text-gray-500">Điểm tổng hiện tại: <span class="font-black text-primary">{{ rtrim(rtrim(number_format($evaluation->total_score,2),'0'),'.') }}%</span></span>
+                        <span class="text-sm text-gray-500">Điểm tổng hiện tại: <span class="font-black text-primary">{{ rtrim(rtrim(number_format($evaluation->total_score,2),'0'),'.') }}%</span>
+                            @if ($isAcademicStaff) · Tiền KPI dự tính: <span class="font-black text-primary">{{ number_format(round($fund * (float) $evaluation->total_score / 100), 0, ',', '.') }}đ</span> @endif
+                        </span>
                     @else <span></span> @endif
                     @unless ($isSelf ?? false)
                     <button type="submit" class="px-6 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">

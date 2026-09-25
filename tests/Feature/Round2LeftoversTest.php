@@ -304,13 +304,17 @@ class Round2LeftoversTest extends TestCase
 
     public function test_invoice_cancellation_after_approved_payroll_claws_back_commission(): void
     {
-        CommissionTier::create(['tier_name' => 'Mức 5%', 'min_revenue' => 0, 'new_sale_percent' => 5, 'renew_percent' => 10, 'bonus_amount' => 0]);
+        // Q3: bậc theo số HS chốt — thay 3 bậc mặc định bằng một bậc 5%
+        CommissionTier::query()->delete();
+        CommissionTier::create(['tier_name' => 'Mức 5%', 'min_revenue' => 0, 'min_students' => 0, 'new_sale_percent' => 5, 'renew_percent' => 10, 'bonus_amount' => 0]);
         $sales = $this->makeUser('sales_consultant');
         $student = $this->makeStudent('HV-R2-CB');
         CrmCustomer::create([
             'code' => 'KH-R2-CB', 'name' => 'Khách CB', 'phone' => $student->phone, 'stage' => 'won', 'deal_value' => 10000000,
             'branch_id' => $this->branch->id, 'assigned_user_id' => $sales->id, 'commission_user_id' => $sales->id,
-            'converted_student_id' => $student->id, 'converted_at' => '2026-09-01 09:00:00',
+            'converted_student_id' => $student->id, 'converted_at' => '2026-08-20 09:00:00',
+            // Gate kép (Q3): đủ 30 ngày từ ngày chốt trước 30/09 + đủ 3/3 mốc chăm sóc → hoa hồng trả trong kỳ tháng 9
+            'care_checklist' => ['session_1' => ['done_at' => '2026-08-22'], 'session_4_5' => ['done_at' => '2026-09-01'], 'day_30' => ['done_at' => '2026-09-19']],
         ]);
         $tuition = $this->makeTuition($student, 10000000);
 

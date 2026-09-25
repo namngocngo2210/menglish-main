@@ -61,56 +61,7 @@
                         <span class="text-xs font-bold text-gray-500 font-mono">{{ $records->count() }} nhân sự</span>
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse text-xs">
-                            <thead>
-                                <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
-                                    <th class="py-3 px-4">Giáo viên</th>
-                                    <th class="py-3 px-4 text-right">Lương cứng</th>
-                                    <th class="py-3 px-4 text-center">Định mức</th>
-                                    <th class="py-3 px-4 text-center">Thực dạy</th>
-                                    <th class="py-3 px-4 text-right">Thù lao dạy</th>
-                                    <th class="py-3 px-4 text-right">Thưởng KPI</th>
-                                    <th class="py-3 px-4 text-right">Phụ cấp</th>
-                                    <th class="py-3 px-4 text-right">Hoa hồng</th>
-                                    <th class="py-3 px-4 text-right">Giảm trừ</th>
-                                    <th class="py-3 px-4 text-right font-black">Thực lĩnh</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
-                                @forelse ($records as $r)
-                                    <tr class="hover:bg-orange-50/20 transition">
-                                        <td class="py-3.5 px-4 font-bold text-gray-900">
-                                            <div class="flex items-center gap-2">
-                                                <div class="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-xs">
-                                                    {{ Str::substr($r->user?->name ?? 'G', 0, 1) }}
-                                                </div>
-                                                <div>
-                                                    <a href="{{ route('payroll.records.show', $r->id) }}" class="text-xs font-bold text-gray-900 hover:text-orange-600 hover:underline" title="Xem phiếu lương">{{ $r->user?->name }}</a>
-                                                    <p class="text-[10px] text-gray-400 font-mono">{{ $r->user?->email }}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="py-3.5 px-4 text-right font-mono font-semibold">{{ number_format($r->base_salary) }}đ</td>
-                                        <td class="py-3.5 px-4 text-center font-mono font-bold">{{ $r->standard_hours ?: 60 }}h</td>
-                                        <td class="py-3.5 px-4 text-center font-mono font-bold text-indigo-700">{{ $r->actual_hours }}h</td>
-                                        <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">{{ number_format($r->teaching_salary) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono text-amber-600 font-semibold">{{ number_format($r->kpi_bonus) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono">{{ number_format($r->allowance) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">{{ number_format($r->commission_bonus) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono text-rose-600">-{{ number_format($r->total_deductions) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono font-black text-orange-600 text-sm">
-                                            {{ number_format($r->net_salary) }}đ
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="10" class="text-center py-8 text-gray-400 text-xs">Chưa có bản ghi lương giáo viên full-time trong kỳ này.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
+                    @include('payroll.partials.fulltime-table', ['records' => $records, 'emptyText' => 'Chưa có bản ghi lương giáo viên full-time trong kỳ này.', 'avatarClass' => 'bg-orange-100 text-orange-600', 'showCommission' => false, 'showRenewal' => true])
                 </div>
 
                 <!-- Detailed Compensation Formula Reference -->
@@ -120,18 +71,17 @@
                         <span>Quy Chế Tính Lương GV Cơ Hữu MEnglish</span>
                     </h4>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        {{-- Công thức đang áp dụng trong PayrollPeriod::calculatePayrollForPeriod(); công thức chính thức chờ BA chốt Q3. --}}
                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                            <span class="font-bold text-gray-800">1. Lương cứng &amp; phụ cấp</span>
-                            <p class="text-gray-500 text-[11px]">Lương cứng theo hồ sơ nhân sự; có lương cứng thì được phụ cấp và trừ BHXH theo cấu hình tham số lương.</p>
+                            <span class="font-bold text-gray-800">1. Lương cơ bản &amp; khấu trừ</span>
+                            <p class="text-gray-500 text-[11px]">BHXH, Công đoàn tự động trên lương cơ bản (tỉ lệ ở Tham số tính lương); thuế TNCN Admin nhập tay. Không trả thêm theo giờ dạy — buổi dạy chỉ để đối soát.</p>
                         </div>
                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                            <span class="font-bold text-gray-800">2. Thù lao giờ dạy</span>
-                            <p class="text-gray-500 text-[11px]">Số giờ chấm công hợp lệ × đơn giá hiệu lực tại ngày dạy (đơn giá riêng ca dạy → đơn giá GV → hồ sơ nhân sự).</p>
+                            <span class="font-bold text-gray-800">2. KPI (nhập tự do)</span>
+                            <p class="text-gray-500 text-[11px]">GV Full-time: Admin / Kế toán nhập số tiền KPI trên phiếu lương, giữ khi tính lại.</p>
                         </div>
                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                            <span class="font-bold text-gray-800">3. Thưởng KPI</span>
-                            <p class="text-gray-500 text-[11px]">Đạt ngưỡng giờ dạy trong kỳ thì nhận thưởng KPI theo cấu hình. Thưởng tái tục chưa áp dụng (chờ BA chốt Q3).</p>
+                            <span class="font-bold text-gray-800">3. Thưởng tái tục</span>
+                            <p class="text-gray-500 text-[11px]">% theo số HS nghỉ trong lớp phụ trách (giữ đủ → 1%, nghỉ 1 → 0,7%, các mốc khác chờ BA) × doanh thu lớp trong kỳ.</p>
                         </div>
                     </div>
                 </div>
@@ -152,8 +102,8 @@
                     </div>
                     <div class="pt-3 border-t border-white/20 grid grid-cols-2 gap-2 text-xs">
                         <div>
-                            <span class="text-orange-200 block text-[10px] uppercase font-bold">Tổng giờ thực dạy:</span>
-                            <span class="font-bold font-mono text-sm">{{ $records->sum('actual_hours') }} giờ</span>
+                            <span class="text-orange-200 block text-[10px] uppercase font-bold">Thưởng tái tục:</span>
+                            <span class="font-bold font-mono text-sm">{{ number_format($records->sum('renew_bonus')) }}đ</span>
                         </div>
                         <div>
                             <span class="text-orange-200 block text-[10px] uppercase font-bold">Tổng KPI thưởng:</span>

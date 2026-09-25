@@ -61,52 +61,7 @@
                         <span class="text-xs font-bold text-gray-500 font-mono">{{ $records->count() }} nhân sự</span>
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse text-xs">
-                            <thead>
-                                <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
-                                    <th class="py-3 px-4">Nhân sự</th>
-                                    <th class="py-3 px-4 text-right">Lương cứng</th>
-                                    <th class="py-3 px-4 text-right">Thù lao dạy</th>
-                                    <th class="py-3 px-4 text-right">Thưởng KPI</th>
-                                    <th class="py-3 px-4 text-right">Phụ cấp</th>
-                                    <th class="py-3 px-4 text-right">Hoa hồng Tuyển sinh</th>
-                                    <th class="py-3 px-4 text-right">Giảm trừ</th>
-                                    <th class="py-3 px-4 text-right font-black">Thực lĩnh</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
-                                @forelse ($records as $r)
-                                    <tr class="hover:bg-orange-50/20 transition">
-                                        <td class="py-3.5 px-4 font-bold text-gray-900">
-                                            <div class="flex items-center gap-2">
-                                                <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
-                                                    {{ Str::substr($r->user?->name ?? 'V', 0, 1) }}
-                                                </div>
-                                                <div>
-                                                    <a href="{{ route('payroll.records.show', $r->id) }}" class="text-xs font-bold text-gray-900 hover:text-orange-600 hover:underline" title="Xem phiếu lương">{{ $r->user?->name }}</a>
-                                                    <p class="text-[10px] text-gray-400 font-mono">{{ $r->user?->email }}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="py-3.5 px-4 text-right font-mono font-semibold">{{ number_format($r->base_salary) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono text-indigo-600 font-semibold">{{ number_format($r->teaching_salary) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono text-amber-600 font-semibold">{{ number_format($r->kpi_bonus) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono">{{ number_format($r->allowance) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">{{ number_format($r->commission_bonus) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono text-rose-600">-{{ number_format($r->total_deductions) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono font-black text-orange-600 text-sm">
-                                            {{ number_format($r->net_salary) }}đ
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="8" class="text-center py-8 text-gray-400 text-xs">Chưa có bản ghi lương nhân sự học vụ trong kỳ này.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
+                    @include('payroll.partials.fulltime-table', ['records' => $records, 'emptyText' => 'Chưa có bản ghi lương nhân sự học vụ trong kỳ này.', 'avatarClass' => 'bg-blue-100 text-blue-700', 'showCommission' => true, 'showRenewal' => false])
                 </div>
 
                 <!-- Operations Commission Guidelines -->
@@ -119,13 +74,13 @@
                         {{-- Theo SalesCommissionService / cấu hình mốc hoa hồng; không ghi cứng tỷ lệ ở đây. --}}
                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
                             <span class="font-bold text-gray-800">1. Hoa hồng tuyển mới</span>
-                            <p class="text-gray-500 text-[11px]">Tính trên tiền thực thu (phiếu thu đã duyệt) của khách mới do sale phụ trách, theo mốc hoa hồng đang hiệu lực.
+                            <p class="text-gray-500 text-[11px]">% theo bậc số HS chốt trong kỳ (mặc định 3% / 4% / 5%) × tiền thực thu của khách mới. Chỉ trả khi đủ 30 ngày từ ngày chốt và đủ 3/3 mốc chăm sóc; chưa đủ thì hoãn sang kỳ sau.
                                 @can('commission_config.manage')<a href="{{ route('payroll.config.commission-tiers') }}" class="text-primary font-semibold hover:underline">Xem mốc hoa hồng</a>@endcan
                             </p>
                         </div>
                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                            <span class="font-bold text-gray-800">2. Thưởng tái tục</span>
-                            <p class="text-gray-500 text-[11px]">Chưa áp dụng — chờ Ban giám đốc chốt công thức (Q3).</p>
+                            <span class="font-bold text-gray-800">2. KPI Học vụ (tự động)</span>
+                            <p class="text-gray-500 text-[11px]">Quỹ KPI × điểm KPI 6 nhóm / 15 mục của đánh giá tháng đã chốt. Nhân viên không tự chấm. Vận hành khác: KPI nhập tay.</p>
                         </div>
                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
                             <span class="font-bold text-gray-800">3. Thu hồi hoa hồng</span>

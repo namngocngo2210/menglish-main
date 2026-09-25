@@ -407,9 +407,13 @@ class MasterEntitySeeder extends Seeder
             ['criteria' => 'Thạc sĩ TESOL / Giáo viên Bản ngữ', 'communication_rate' => 450000, 'ielts_rate' => 600000]
         );
 
-        CommissionTier::query()->updateOrCreate(['tier_name' => 'Mức 1 (Cơ bản)'], ['min_revenue' => 50000000, 'max_revenue' => 100000000, 'new_sale_percent' => 3.0, 'renew_percent' => 5.0, 'bonus_amount' => 1000000]);
-        CommissionTier::query()->updateOrCreate(['tier_name' => 'Mức 2 (Nâng cao)'], ['min_revenue' => 100000001, 'max_revenue' => 200000000, 'new_sale_percent' => 4.5, 'renew_percent' => 7.0, 'bonus_amount' => 2500000]);
-        CommissionTier::query()->updateOrCreate(['tier_name' => 'Mức 3 (Xuất sắc)'], ['min_revenue' => 200000001, 'max_revenue' => null, 'new_sale_percent' => 6.0, 'renew_percent' => 10.0, 'bonus_amount' => 5000000]);
+        // A6 (bản sửa 25/09/2026): bậc hoa hồng theo SỐ HS CHỐT trong kỳ, mặc định 3% / 4% / 5% (config/payroll.php).
+        // Migration 2026_10_02_100200 đã tạo khi chưa có; seeder chỉ bổ sung nếu thiếu (idempotent).
+        if (! CommissionTier::query()->byStudents()->exists()) {
+            foreach (config('payroll.commission.default_tiers', []) as $tier) {
+                CommissionTier::query()->create($tier + ['min_revenue' => 0, 'renew_percent' => 0, 'bonus_amount' => 0]);
+            }
+        }
 
         // 7. Bảng lương kỳ & Timesheets
         $period = PayrollPeriod::query()->updateOrCreate(

@@ -109,14 +109,18 @@ class PayrollP0FixesTest extends TestCase
     public function test_commission_is_persisted_in_record_and_net(): void
     {
         $sales = $this->userWithRole('sales_consultant', ['name' => 'Sales Hoa Hồng']);
-        CommissionTier::create(['tier_name' => 'Mức 1', 'min_revenue' => 0, 'new_sale_percent' => 5, 'renew_percent' => 0, 'bonus_amount' => 200000]);
+        // Q3: bậc theo số HS chốt (thay bậc mặc định); thưởng vượt mốc không còn dùng
+        CommissionTier::query()->delete();
+        CommissionTier::create(['tier_name' => 'Mức 1', 'min_revenue' => 0, 'min_students' => 0, 'new_sale_percent' => 5, 'renew_percent' => 0, 'bonus_amount' => 200000]);
         // Phase 3 (A6): căn cứ hoa hồng = tiền thực thu (phiếu duyệt trong kỳ), không phải deal_value
         $student = \App\Models\Student::create(['code' => 'HV-P0-1', 'name' => 'HV Won', 'phone' => '0900000001', 'branch_id' => $this->branch->id]);
         CrmCustomer::create([
             'code' => 'KH-P0-1', 'name' => 'Lead Won', 'phone' => '0900000001', 'stage' => 'won',
             'deal_value' => 99000000, 'branch_id' => $this->branch->id,
             'assigned_user_id' => $sales->id, 'commission_user_id' => $sales->id,
-            'converted_at' => '2026-08-10 10:00:00', 'converted_student_id' => $student->id,
+            'converted_at' => '2026-07-20 10:00:00', 'converted_student_id' => $student->id,
+            // Gate kép: đủ 30 ngày từ ngày chốt + đủ 3/3 mốc chăm sóc
+            'care_checklist' => ['session_1' => ['done_at' => '2026-07-25'], 'session_4_5' => ['done_at' => '2026-08-05'], 'day_30' => ['done_at' => '2026-08-20']],
         ]);
         $tuition = \App\Models\StudentTuition::create([
             'student_id' => $student->id, 'branch_id' => $this->branch->id,
@@ -132,31 +136,31 @@ class PayrollP0FixesTest extends TestCase
         $period->calculatePayrollForPeriod();
 
         $record = $this->record($period, $sales);
-        // 20M × 5% + 200k thưởng bậc = 1.2M
-        $this->assertEquals(1200000, $record->commission_bonus);
-        $this->assertEquals(1200000, $record->net_salary);
-        $this->assertEquals(1200000, $period->fresh()->total_amount);
+        // 20M × 5% = 1M (A6 bản sửa: chỉ % × doanh thu, không cộng thưởng vượt mốc)
+        $this->assertEquals(1000000, $record->commission_bonus);
+        $this->assertEquals(1000000, $record->net_salary);
+        $this->assertEquals(1000000, $period->fresh()->total_amount);
     }
 
-    public function test_foreign_teacher_adjustment_keeps_commission_and_updates_period_total(): void
+    public function test_foreign_session_line_keeps_commission_and_updates_period_total(): void
     {
         $period = $this->period();
         $record = PayrollRecord::create([
-            'payroll_period_id' => $period->id, 'user_id' => $this->teacher->id,
+            'payroll_period_id' => $period->id, 'user_id' => $this->teacher->id, 'employee_type' => 'parttime',
             'teaching_salary' => 3000000, 'commission_bonus' => 1000000, 'net_salary' => 4000000,
         ]);
         $period->update(['total_amount' => 4000000]);
 
+        // Q3: "Buổi có GVNN" là khoản cộng Kế toán nhập tay (chờ BA chốt cách tính)
         $this->actingAs($this->admin)->post(route('payroll.records.update', $record->id), [
-            'foreign_teacher_sessions_count' => 2,
-            'foreign_teacher_deduction_rate' => 50000,
+            'foreign_session_pay' => 100000,
         ])->assertSessionHasNoErrors();
 
         $record->refresh();
         $this->assertEquals(1000000, $record->commission_bonus);
-        // 3M + 1M hoa hồng − 2 × 50k GVNN
-        $this->assertEquals(3900000, $record->net_salary);
-        $this->assertEquals(3900000, $period->fresh()->total_amount);
+        // 3M + 1M hoa hồng + 100k buổi có GVNN
+        $this->assertEquals(4100000, $record->net_salary);
+        $this->assertEquals(4100000, $period->fresh()->total_amount);
     }
 
     public function test_period_views_show_commission_column_that_reconciles_with_net(): void
@@ -176,12 +180,14 @@ class PayrollP0FixesTest extends TestCase
         $this->actingAs($this->admin)->get(route('payroll.periods.show', $period->id))
             ->assertOk()->assertSee('Hoa hồng')->assertSee('1,234,000');
 
+        // Q3: bảng Full-time tách BHXH / Công đoàn / TNCN / phạt; cột hoa hồng ở bảng Học vụ & Vận hành (khối có sale)
+        $this->actingAs($this->admin)->get(route('payroll.periods.operations', $period->id))
+            ->assertOk()->assertSee('Hoa hồng')->assertSee('1,234,000');
         foreach (['fulltime', 'academic', 'operations'] as $department) {
             $this->actingAs($this->admin)->get(route("payroll.periods.{$department}", $period->id))
                 ->assertOk()
-                ->assertSee('Hoa hồng')
-                ->assertSee('1,234,000')   // hoa hồng
-                ->assertSee('-625,000')    // tổng giảm trừ = BHXH + phạt
+                ->assertSee('-525,000')    // BHXH
+                ->assertSee('-100,000')    // phạt
                 ->assertSee('7,409,000');
         }
     }
@@ -363,17 +369,17 @@ class PayrollP0FixesTest extends TestCase
     public function test_show_page_hides_adjustment_on_locked_period_and_shows_paid_badge(): void
     {
         $period = $this->period(8, 2026, 'paid');
-        PayrollRecord::create(['payroll_period_id' => $period->id, 'user_id' => $this->teacher->id, 'net_salary' => 1000000]);
+        PayrollRecord::create(['payroll_period_id' => $period->id, 'user_id' => $this->teacher->id, 'employee_type' => 'parttime', 'net_salary' => 1000000]);
 
         $this->actingAs($this->admin)->get(route('payroll.periods.show', $period->id))
             ->assertOk()
             ->assertSee('Đã trả')
-            ->assertDontSee('Trừ GVNN');
+            ->assertDontSee('Lương buổi có GVNN');
 
         $period->update(['status' => 'reviewing']);
         $this->actingAs($this->admin)->get(route('payroll.periods.show', $period->id))
             ->assertOk()
-            ->assertSee('Trừ GVNN');
+            ->assertSee('Lương buổi có GVNN');
     }
 
     // ───────────── 5. Tính lại không để lại bản ghi cũ ─────────────

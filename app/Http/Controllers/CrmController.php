@@ -2272,12 +2272,13 @@ class CrmController extends Controller
         })->values()->all();
 
         // 3. Lấy cấu hình Hoa hồng từ bảng commission_tiers (cùng luật chọn bậc với tính lương)
-        $commissionTiers = CommissionTier::orderByDesc('min_revenue')->get();
+        $commissionTiers = CommissionTier::byStudents()->effectiveAt($endDate)->orderByDesc('min_students')->get();
 
-        // Cùng căn cứ với bảng lương (SalesCommissionService): bậc hiệu lực tại cuối kỳ báo cáo,
-        // chưa đạt mốc nào thì không có hoa hồng.
+        // Cùng căn cứ với bảng lương (SalesCommissionService): bậc theo số HS chốt trong kỳ báo cáo,
+        // hiệu lực tại cuối kỳ. Đây là hoa hồng PHÁT SINH; trả thực tế theo gate kép trên phiếu lương.
         $commissionService = app(\App\Services\SalesCommissionService::class);
-        $calculateCommission = fn (float $revenue) => $commissionService->commissionFor($revenue, $endDate);
+        $closedBySales = $commissionService->closedCountsBySales($startDate, $endDate, $query);
+        $calculateCommission = fn (float $revenue, int $userId) => $commissionService->commissionFor($revenue, (int) ($closedBySales->get($userId) ?? 0), $endDate);
 
         // 4. Bảng hiệu suất theo nhân viên tư vấn tuyển sinh (100% Real from Users in Database)
         try {
@@ -2308,7 +2309,7 @@ class CrmController extends Controller
             $prevUserWonCount = $wonPrev->filter(fn (CrmCustomer $lead) => ($lead->commission_user_id ?? $lead->assigned_user_id) === $user->id)->count();
             $prevUserRate = $prevUserLeadsCount > 0 ? round(($prevUserWonCount / $prevUserLeadsCount) * 100, 1) : 0;
 
-            $commissionResult = $calculateCommission($userRevenue);
+            $commissionResult = $calculateCommission($userRevenue, (int) $user->id);
 
             $rating = 'Cần cải thiện';
             $ratingBadge = 'bg-rose-100 text-rose-800 border-rose-200';
@@ -2340,7 +2341,8 @@ class CrmController extends Controller
                 'rating_badge' => $ratingBadge,
                 'commission_amount' => $commissionResult['amount'],
                 'commission_percent' => $commissionResult['percent'],
-                'commission_bonus' => $commissionResult['bonus'],
+                'commission_bonus' => 0,
+                'closed_students' => $commissionResult['closed'],
                 'tier_name' => $commissionResult['tier_name'],
             ];
         }

@@ -76,6 +76,7 @@ class TeacherTimesheet extends Model
             return (float) $this->hourly_rate;
         }
 
+        // Phiên bản hiệu lực tính theo buổi → rateFor trả null, rơi về đơn giá giờ của hồ sơ / mặc định.
         $personalRate = TeacherHourlyRate::rateFor((int) $this->user_id, $this->teaching_date ?? now());
         if ($personalRate !== null && $personalRate > 0) {
             return $personalRate;
@@ -84,6 +85,28 @@ class TeacherTimesheet extends Model
         $user ??= $this->teacher;
 
         return (float) ($user?->hourly_rate) > 0 ? (float) $user->hourly_rate : self::DEFAULT_HOURLY_RATE;
+    }
+
+    /**
+     * Tiền công của ca dạy cho GV Part-time (Q3: mỗi ca chấm công hợp lệ = 1 buổi):
+     * 1. Ca có đơn giá nhập tay (hourly_rate) → số giờ × đơn giá đó (điều chỉnh riêng ca, như trước).
+     * 2. Đơn giá riêng hiệu lực tại ngày dạy tính theo BUỔI → 1 buổi × đơn giá buổi.
+     * 3. Còn lại (đơn giá riêng theo giờ, users.hourly_rate, mặc định) → số giờ × đơn giá giờ (dữ liệu trước Q3).
+     *
+     * @return array{amount: float, unit: string, rate: float}
+     */
+    public function sessionPay(?User $user = null): array
+    {
+        if ((float) $this->hourly_rate <= 0) {
+            $personal = TeacherHourlyRate::effectiveFor((int) $this->user_id, $this->teaching_date ?? now());
+            if ($personal && $personal->isPerSession() && (float) $personal->hourly_rate > 0) {
+                return ['amount' => (float) $personal->hourly_rate, 'unit' => TeacherHourlyRate::UNIT_SESSION, 'rate' => (float) $personal->hourly_rate];
+            }
+        }
+
+        $rate = $this->effectiveHourlyRate($user);
+
+        return ['amount' => round((float) $this->hours * $rate, 2), 'unit' => TeacherHourlyRate::UNIT_HOUR, 'rate' => $rate];
     }
 
     /**

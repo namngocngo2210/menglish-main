@@ -1,8 +1,8 @@
 <x-app-layout>
     <x-ui.page-header title="Cấu hình mốc hoa hồng tuyển sinh"
-                      description="Hoa hồng tính trên tiền thực thu của khách mới (gồm giáo trình, đồ dùng), theo mốc hiệu lực tại kỳ lương. Không tính hoa hồng tái tục.">
+                      description="Hoa hồng = % theo bậc (bậc chọn theo SỐ HS CHỐT của sale trong kỳ) × tiền thực thu của khách mới (gồm giáo trình, đồ dùng). Hệ thống tự tính, không sửa tay.">
         <x-slot:actions>
-            <x-ui.button variant="secondary" icon="price_change" :href="route('payroll.config.teacher-rates')">Đơn giá giờ dạy GV</x-ui.button>
+            <x-ui.button variant="secondary" icon="price_change" :href="route('payroll.config.teacher-rates')">Đơn giá GV</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -22,6 +22,13 @@
             khi tính lại các kỳ lương trước đó. Kỳ lương dùng mốc hiệu lực tại <strong>ngày cuối kỳ</strong>.
         </x-ui.alert>
 
+        <x-ui.alert type="info" title="Gate kép — hoãn, không mất">
+            Hoa hồng của từng khách chỉ được trả khi <strong>đủ {{ config('payroll.commission.gate_days') }} ngày từ ngày chốt</strong> và
+            <strong>đủ {{ config('payroll.commission.gate_milestones') }}/3 mốc chăm sóc tháng đầu</strong> (buổi 1, buổi 4–5, đủ 30 ngày).
+            Chưa đủ thì khoản hoa hồng (giữ % của kỳ phát sinh) được <strong>hoãn sang kỳ sau</strong> và trả ở kỳ đầu tiên đạt điều kiện.
+            Ngưỡng số HS mặc định (0–5 / 6–10 / từ 11) đang chờ BA xác nhận.
+        </x-ui.alert>
+
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-lg items-start">
             <div class="lg:col-span-8 space-y-lg">
                 <x-ui.data-table min-width="640px">
@@ -36,9 +43,8 @@
                         <thead>
                             <tr>
                                 <th>Bậc</th>
-                                <th class="text-right">Doanh thu thực thu</th>
-                                <th class="text-center">% Tuyển mới</th>
-                                <th class="text-right">Thưởng vượt mốc</th>
+                                <th class="text-right">Số HS chốt trong kỳ</th>
+                                <th class="text-center">% Hoa hồng</th>
                                 <th>Hiệu lực từ</th>
                                 <th class="text-right">Thao tác</th>
                             </tr>
@@ -47,20 +53,14 @@
                             @forelse ($tiers as $tier)
                                 <tr>
                                     <td class="font-semibold">{{ $tier->tier_name }}</td>
-                                    <td class="text-right font-code text-code">
-                                        ≥ {{ number_format($tier->min_revenue, 0, ',', '.') }}đ
-                                        @if ($tier->max_revenue)
-                                            <span class="block font-caption text-caption text-on-surface-variant">đến {{ number_format($tier->max_revenue, 0, ',', '.') }}đ</span>
-                                        @endif
-                                    </td>
+                                    <td class="text-right font-code text-code">{{ $tier->student_range_label }}</td>
                                     <td class="text-center"><x-ui.badge color="success">{{ rtrim(rtrim(number_format((float) $tier->new_sale_percent, 2, '.', ''), '0'), '.') }}%</x-ui.badge></td>
-                                    <td><x-ui.money :value="$tier->bonus_amount" suffix="đ" /></td>
                                     <td class="font-code text-code">{{ $tier->effective_from?->format('d/m/Y') ?? 'Từ đầu' }}</td>
                                     <td class="text-right">
                                         @if ($tier->effective_to === null)
                                             <div class="flex justify-end gap-xs">
                                                 <x-ui.button variant="ghost" size="sm" icon="edit"
-                                                             @click="editing = {{ Js::from($tier->only(['id', 'tier_name', 'min_revenue', 'max_revenue', 'new_sale_percent', 'bonus_amount'])) }}; $dispatch('open-modal', 'edit-tier')">Phiên bản mới</x-ui.button>
+                                                             @click="editing = {{ Js::from($tier->only(['id', 'tier_name', 'min_students', 'max_students', 'new_sale_percent'])) }}; $dispatch('open-modal', 'edit-tier')">Phiên bản mới</x-ui.button>
                                                 <form action="{{ route('payroll.config.commission-tiers.destroy', $tier) }}" method="POST" data-confirm="Ngừng áp dụng mốc {{ $tier->tier_name }} từ hôm nay?">
                                                     @csrf
                                                     @method('DELETE')
@@ -71,7 +71,7 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="6"><x-ui.empty-state icon="percent" title="Chưa có mốc hoa hồng hiệu lực tại ngày này" /></td></tr>
+                                <tr><td colspan="5"><x-ui.empty-state icon="percent" title="Chưa có mốc hoa hồng hiệu lực tại ngày này" /></td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -85,9 +85,8 @@
                         <thead>
                             <tr>
                                 <th>Bậc</th>
-                                <th class="text-right">Doanh thu từ</th>
-                                <th class="text-center">% Tuyển mới</th>
-                                <th class="text-right">Thưởng</th>
+                                <th class="text-right">Số HS chốt</th>
+                                <th class="text-center">% Hoa hồng</th>
                                 <th>Hiệu lực</th>
                                 <th>Người tạo</th>
                             </tr>
@@ -101,9 +100,8 @@
                                             <span class="block font-caption text-caption text-on-surface-variant">thay cho “{{ $version->replaces->tier_name }}”</span>
                                         @endif
                                     </td>
-                                    <td class="text-right font-code text-code">{{ number_format($version->min_revenue, 0, ',', '.') }}đ</td>
+                                    <td class="text-right font-code text-code">{{ $version->student_range_label }}</td>
                                     <td class="text-center font-code text-code">{{ rtrim(rtrim(number_format((float) $version->new_sale_percent, 2, '.', ''), '0'), '.') }}%</td>
-                                    <td><x-ui.money :value="$version->bonus_amount" suffix="đ" /></td>
                                     <td class="font-code text-code whitespace-nowrap">
                                         {{ $version->effective_from?->format('d/m/Y') ?? 'Từ đầu' }} → {{ $version->effective_to?->format('d/m/Y') ?? 'nay' }}
                                         @if ($version->effective_to === null)
@@ -113,7 +111,7 @@
                                     <td>{{ $version->creator?->name ?? '—' }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="6"><x-ui.empty-state icon="history" title="Chưa có lịch sử" /></td></tr>
+                                <tr><td colspan="5"><x-ui.empty-state icon="history" title="Chưa có lịch sử" /></td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -127,14 +125,12 @@
                     @csrf
                     <h3 class="font-h3 text-h3 text-on-surface">Thêm mốc hoa hồng</h3>
                     <x-ui.input name="tier_name" label="Tên bậc" required placeholder="VD: Bậc 4 (Kim Cương)" />
-                    <x-ui.input type="number" name="min_revenue" label="Doanh thu thực thu tối thiểu (VNĐ)" required min="0" step="1000000" />
-                    <x-ui.input type="number" name="max_revenue" label="Doanh thu tối đa (VNĐ)" min="0" step="1000000" hint="Bỏ trống = không giới hạn." />
+                    <x-ui.input type="number" name="min_students" label="Số HS chốt trong kỳ — từ" required min="0" step="1" />
+                    <x-ui.input type="number" name="max_students" label="Số HS chốt — đến" min="0" step="1" hint="Bỏ trống = không giới hạn." />
                     <x-ui.input type="number" name="new_sale_percent" label="% Hoa hồng khách mới" required min="0" max="100" step="0.1" />
-                    <x-ui.input type="number" name="bonus_amount" label="Thưởng vượt mốc (VNĐ)" min="0" step="100000" />
                     <x-ui.date name="effective_from" label="Hiệu lực từ ngày" required :value="old('effective_from', now()->toDateString())" />
                     <x-ui.button type="submit" icon="save" class="w-full">Lưu mốc mới</x-ui.button>
-                    {{-- Thưởng / hoa hồng tái tục: A6 chốt không tính; khoản thưởng tái tục chờ BA chốt Q3. --}}
-                    <p class="font-caption text-caption text-on-surface-variant">Không có % tái tục: theo quyết định 25/09/2026 chỉ tính hoa hồng khách mới.</p>
+                    <p class="font-caption text-caption text-on-surface-variant">Không có hoa hồng tái tục (A6). Thưởng tái tục của GV phụ trách lớp cấu hình ở Tham số tính lương.</p>
                 </form>
             </div>
         </div>
@@ -149,17 +145,14 @@
                             <input type="text" name="tier_name" x-model="editing.tier_name" required class="w-full rounded-lg border border-outline-variant px-md py-sm font-body-base text-body-base">
                         </x-ui.field>
                         <div class="grid grid-cols-2 gap-md">
-                            <x-ui.field label="Doanh thu tối thiểu" required>
-                                <input type="number" name="min_revenue" x-model="editing.min_revenue" min="0" required class="w-full rounded-lg border border-outline-variant px-md py-sm font-code text-code">
+                            <x-ui.field label="Số HS chốt — từ" required>
+                                <input type="number" name="min_students" x-model="editing.min_students" min="0" required class="w-full rounded-lg border border-outline-variant px-md py-sm font-code text-code">
                             </x-ui.field>
-                            <x-ui.field label="Doanh thu tối đa">
-                                <input type="number" name="max_revenue" x-model="editing.max_revenue" min="0" class="w-full rounded-lg border border-outline-variant px-md py-sm font-code text-code">
+                            <x-ui.field label="Số HS chốt — đến">
+                                <input type="number" name="max_students" x-model="editing.max_students" min="0" class="w-full rounded-lg border border-outline-variant px-md py-sm font-code text-code">
                             </x-ui.field>
-                            <x-ui.field label="% Khách mới" required>
+                            <x-ui.field label="% Hoa hồng" required>
                                 <input type="number" name="new_sale_percent" x-model="editing.new_sale_percent" min="0" max="100" step="0.1" required class="w-full rounded-lg border border-outline-variant px-md py-sm font-code text-code">
-                            </x-ui.field>
-                            <x-ui.field label="Thưởng vượt mốc">
-                                <input type="number" name="bonus_amount" x-model="editing.bonus_amount" min="0" class="w-full rounded-lg border border-outline-variant px-md py-sm font-code text-code">
                             </x-ui.field>
                         </div>
                         <x-ui.date name="effective_from" label="Phiên bản mới hiệu lực từ" required :value="now()->addDay()->toDateString()"
