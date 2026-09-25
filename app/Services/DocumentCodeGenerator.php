@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\BigTest;
+use App\Models\Penalty;
 use App\Models\Student;
 use App\Models\SupportTicket;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -26,10 +27,9 @@ use Illuminate\Support\Facades\DB;
  *  - Học viên:   HV-00001        (dãy "student", không reset)
  *  - Big Test:   BT-2026-0001    (dãy "big_test", reset theo năm)
  *  - Ticket:     TK-2026-0001    (dãy "support_ticket", reset theo năm)
+ *  - Biên bản:   BB-2026-001     (dãy "penalty", reset theo năm; giữ 3 chữ số như mã cũ)
  *
- * TODO: Biên bản phạt (Penalty::generateCode, đang đếm theo năm "BB-YYYY-NNN") nên
- * chuyển sang dùng next()/format() của lớp này — module Penalty do nhóm lương/phạt
- * phụ trách nên chưa sửa ở đây. Tương tự với các mã hóa đơn/phiếu thu còn đếm bản ghi.
+ * Số hóa đơn phiếu thu dùng dải số riêng (InvoiceConfiguration), không qua lớp này.
  */
 class DocumentCodeGenerator
 {
@@ -126,6 +126,19 @@ class DocumentCodeGenerator
             fn (int $n) => "TK-{$year}-".str_pad((string) $n, 4, '0', STR_PAD_LEFT),
             fn () => $this->maxNumericSuffix(SupportTicket::where('code', 'like', "TK-{$year}-%")->pluck('code'), '/^TK-'.$year.'-(\d+)$/'),
             fn (string $code) => SupportTicket::where('code', $code)->exists(),
+        );
+    }
+
+    public function penaltyCode(?int $year = null): string
+    {
+        $year = (string) ($year ?? now()->year);
+
+        return $this->generate(
+            'penalty',
+            $year,
+            fn (int $n) => "BB-{$year}-".str_pad((string) $n, 3, '0', STR_PAD_LEFT),
+            fn () => $this->maxNumericSuffix(Penalty::where('code', 'like', "BB-{$year}-%")->pluck('code'), '/^BB-'.$year.'-(\d+)$/'),
+            fn (string $code) => Penalty::where('code', $code)->exists(),
         );
     }
 
