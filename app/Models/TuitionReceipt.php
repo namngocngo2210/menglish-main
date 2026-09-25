@@ -28,6 +28,15 @@ class TuitionReceipt extends Model
     /** Trạng thái người lập còn được sửa và gửi duyệt lại. */
     public const EDITABLE_STATUSES = [self::STATUS_DRAFT, self::STATUS_REJECTED];
 
+    /** Hình thức thu qua ngân hàng (có thể trùng với giao dịch SePay tự động). */
+    public const TRANSFER_METHODS = ['transfer', 'vietqr'];
+
+    /** Hình thức thu bắt buộc minh chứng khi gửi duyệt (tiền mặt được miễn). */
+    public const PROOF_REQUIRED_METHODS = ['transfer', 'vietqr', 'pos'];
+
+    /** Trạng thái giữ chỗ mã giao dịch ngân hàng (transfer_reference) để không ghi nhận 2 lần. */
+    public const REFERENCE_HOLDING_STATUSES = [self::STATUS_PENDING, self::STATUS_APPROVED];
+
     protected $table = 'tuition_receipts';
 
     protected $fillable = [
@@ -126,6 +135,44 @@ class TuitionReceipt extends Model
         return 'PT-'.date('Y').'-'.Str::ulid();
     }
 
+    /** Chuẩn hoá mã giao dịch ngân hàng để so trùng (bỏ khoảng trắng, không phân biệt hoa thường). */
+    public static function normalizeReference(?string $code): ?string
+    {
+        $normalized = strtoupper(preg_replace('/\s+/', '', (string) $code));
+
+        return $normalized === '' ? null : $normalized;
+    }
+
+    /**
+     * Khoá duy nhất cho mã giao dịch chuyển khoản: chỉ giữ khi phiếu chuyển khoản đang chờ duyệt / đã duyệt.
+     * Cột transfer_reference có UNIQUE nên cùng một mã giao dịch không thể được ghi nhận 2 lần.
+     */
+    public function computeTransferReference(): ?string
+    {
+        if (! in_array($this->payment_method, self::TRANSFER_METHODS, true)
+            || ! in_array($this->status, self::REFERENCE_HOLDING_STATUSES, true)) {
+            return null;
+        }
+
+        return self::normalizeReference($this->transaction_code);
+    }
+
+    /**
+     * Phiếu khác (chờ duyệt / đã duyệt) đang dùng cùng mã giao dịch chuyển khoản.
+     */
+    public static function findByTransferReference(?string $code, ?int $ignoreId = null): ?self
+    {
+        $normalized = self::normalizeReference($code);
+        if ($normalized === null) {
+            return null;
+        }
+
+        return static::query()
+            ->where('transfer_reference', $normalized)
+            ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
+            ->first();
+    }
+
     protected static function booted(): void
     {
         // Mốc duyệt phiếu = tháng tính hoa hồng tuyển sinh (A6). Ghi tự động ở mọi
@@ -134,6 +181,8 @@ class TuitionReceipt extends Model
             if ($receipt->status === self::STATUS_APPROVED && $receipt->approved_at === null) {
                 $receipt->approved_at = now();
             }
+
+            $receipt->transfer_reference = $receipt->computeTransferReference();
         });
 
         static::created(function (TuitionReceipt $receipt) {

@@ -7,15 +7,15 @@
                 </a>
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span>Lập phiếu thu học phí</span>
+                        <span>{{ $editingReceipt ? 'Sửa phiếu thu học phí' : 'Lập phiếu thu học phí' }}</span>
                     </h1>
                     <p class="text-xs text-gray-500">Quy trình lập, đối soát thanh toán và xuất hóa đơn/biên lai học viên</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border {{ $editingReceipt ? $editingReceipt->status_badge : 'bg-amber-50 text-amber-700 border-amber-200' }}">
                     <span class="material-symbols-outlined text-[14px] mr-1">edit_document</span>
-                    Bản nháp
+                    {{ $editingReceipt ? $editingReceipt->status_label : 'Phiếu mới' }}
                 </span>
                 <div class="bg-white px-3 py-1 rounded-xl border border-gray-200 text-xs shadow-xs">
                     <span class="text-gray-400 font-semibold uppercase text-[10px]">Mã phiếu:</span>
@@ -45,10 +45,12 @@
                 'paid_amount' => (float)($t->paid_amount ?? 0),
                 'debt_amount' => (float)($t->debt_amount ?? 0),
                 'final_amount' => (float)($t->final_amount ?? 0),
-                // Chưa có nguồn số buổi thực tế theo hợp đồng -> không hiển thị số giả (ẩn khối số buổi).
-                'total_sessions' => null,
-                'attended_sessions' => null,
-                'remaining_sessions' => null,
+                // Số buổi thật (khóa học / lịch lớp + điểm danh); không đủ dữ liệu -> null, view ẩn khối số buổi.
+                'total_sessions' => $tuitionMeta[$t->id]['sessions']['total'] ?? null,
+                'attended_sessions' => $tuitionMeta[$t->id]['sessions']['attended'] ?? null,
+                'remaining_sessions' => $tuitionMeta[$t->id]['sessions']['remaining'] ?? null,
+                'is_deferred' => $t->student?->status === 'deferred',
+                'bank' => $tuitionMeta[$t->id]['bank'] ?? null,
                 'fee_items' => $t->fee_items ?? [],
                 'receipt_count' => $t->receipts ? $t->receipts->count() : 0,
             ];
@@ -64,16 +66,46 @@
                 'parent_phone' => $s->parent_phone ?? $s->phone ?? '',
                 'class_name' => $s->currentClass?->name ?? 'Chưa xếp lớp',
                 'branch_name' => $s->branch?->name ?? 'Trụ sở chính',
+                'status_label' => $s->status_label,
             ];
         });
 
-        $initialTuitionId = $selectedTuition?->id ?? ($tuitions->first()?->id ?? '');
-        $initialStudentId = $selectedStudent?->id ?? ($selectedTuition?->student_id ?? ($students->first()?->id ?? ''));
+        $editingJson = $editingReceipt ? [
+            'id' => $editingReceipt->id,
+            'discount_amount' => (float) $editingReceipt->discount_amount,
+            'surcharge_amount' => (float) $editingReceipt->surcharge_amount,
+            'surcharge_reason' => $editingReceipt->surcharge_reason,
+            'tuition_amount' => $editingReceipt->tuitionPortion(),
+            'payment_method' => $editingReceipt->payment_method === 'vietqr' ? 'transfer' : $editingReceipt->payment_method,
+            'transaction_code' => $editingReceipt->transaction_code,
+            'payer_name' => $editingReceipt->payer_name,
+            'payer_phone' => $editingReceipt->payer_phone,
+            'proof_image' => $editingReceipt->proof_image,
+        ] : null;
+        $defaultBankJson = $defaultBank ? [
+            'bank_code' => $defaultBank->bank_code,
+            'bank_name' => $defaultBank->bank_name,
+            'account_number' => $defaultBank->account_number,
+            'account_holder' => $defaultBank->account_holder,
+            'scope' => 'Tài khoản mặc định hệ thống',
+        ] : null;
+
+        if ($editingReceipt) {
+            $initialTuitionId = $editingReceipt->student_tuition_id ?? '';
+            $initialStudentId = $editingReceipt->student_id ?? $editingReceipt->tuition?->student_id ?? '';
+        } else {
+            $initialTuitionId = $selectedTuition?->id ?? ($tuitions->first()?->id ?? '');
+            $initialStudentId = $selectedStudent?->id ?? ($selectedTuition?->student_id ?? ($students->first()?->id ?? ''));
+        }
     @endphp
 
-    <div class="max-w-5xl mx-auto pb-28" x-data="createReceiptManager({{ json_encode($tuitionsJson) }}, {{ json_encode($studentsJson) }}, '{{ $initialTuitionId }}', '{{ $initialStudentId }}', '{{ $defaultBank?->bank_code }}', '{{ $defaultBank?->account_number }}', '{{ $defaultBank?->account_holder }}')">
-        <form action="{{ route('tuition.receipts.store') }}" method="POST" enctype="multipart/form-data" id="receiptForm" class="space-y-6">
+    <div class="max-w-5xl mx-auto pb-28" x-data="createReceiptManager(@js($tuitionsJson), @js($studentsJson), @js((string) $initialTuitionId), @js((string) $initialStudentId), @js($defaultBankJson), @js($editingJson))">
+        <form action="{{ $editingReceipt ? route('tuition.receipts.update', $editingReceipt->id) : route('tuition.receipts.store') }}" method="POST" enctype="multipart/form-data" id="receiptForm" class="space-y-6">
             @csrf
+            @if ($editingReceipt)
+                @method('PUT')
+                <input type="hidden" name="remove_proof" :value="proofRemoved ? 1 : 0">
+            @endif
 
             <!-- Banners thông báo -->
             @if (isset($errors) && $errors->any())
@@ -96,6 +128,12 @@
                     <div>
                         <h4 class="text-xs font-bold text-rose-900 uppercase">Lý do từ chối gần nhất (Phiếu: {{ $recentRejection->receipt_number }})</h4>
                         <p class="text-xs text-rose-800 mt-0.5 leading-relaxed">{{ $recentRejection->rejection_reason }}</p>
+                        @if (! $editingReceipt && in_array($recentRejection->status, \App\Models\TuitionReceipt::EDITABLE_STATUSES, true)
+                            && ((int) $recentRejection->creator_id === (int) auth()->id() || auth()->user()?->hasRole('admin')))
+                            <a href="{{ route('tuition.receipts.edit', $recentRejection->id) }}" class="mt-1.5 inline-flex items-center gap-1 text-xs font-bold text-rose-700 underline">
+                                <span class="material-symbols-outlined text-sm">edit</span> Sửa phiếu bị trả về &amp; gửi duyệt lại
+                            </a>
+                        @endif
                     </div>
                 </div>
             @endif
@@ -117,7 +155,7 @@
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                                 1. Chọn Hồ sơ Học phí đến hạn <span class="text-rose-500">*</span>
                             </label>
-                            <select name="student_tuition_id" x-model="selectedTuitionId" @change="onTuitionChange()" class="w-full text-xs font-bold rounded-xl border-slate-200 focus:border-primary-container focus:ring-primary-container/20 text-slate-900 py-2.5 px-3">
+                            <select name="student_tuition_id" x-model="selectedTuitionId" @change="onTuitionChange()" @disabled($editingReceipt) class="w-full text-xs font-bold rounded-xl border-slate-200 focus:border-primary-container focus:ring-primary-container/20 text-slate-900 py-2.5 px-3">
                                 <option value="">-- Thu riêng phụ thu (Không gắn hồ sơ học phí) --</option>
                                 <template x-for="t in tuitions" :key="t.id">
                                     <option :value="t.id" x-text="t.student_name + ' (' + t.student_code + ') - ' + t.class_name + ' · Nợ: ' + formatVND(t.debt_amount)"></option>
@@ -129,7 +167,7 @@
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                                 Học viên được ghi nhận <span class="text-rose-500">*</span>
                             </label>
-                            <select name="student_id" x-model="selectedStudentId" @change="onStudentChange()" required class="w-full text-xs font-medium rounded-xl border-slate-200 focus:border-primary-container focus:ring-primary-container/20 text-slate-800 py-2.5 px-3">
+                            <select name="student_id" x-model="selectedStudentId" @change="onStudentChange()" required @disabled($editingReceipt) class="w-full text-xs font-medium rounded-xl border-slate-200 focus:border-primary-container focus:ring-primary-container/20 text-slate-800 py-2.5 px-3">
                                 <template x-for="s in students" :key="s.id">
                                     <option :value="s.id" x-text="s.name + ' (' + s.code + ') · ' + s.class_name + ' (' + s.branch_name + ')'"></option>
                                 </template>
@@ -147,21 +185,19 @@
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 flex-grow text-xs">
                             <div>
                                 <span class="text-slate-400 font-semibold uppercase text-[10px] block">Học viên</span>
-                                <span class="text-sm font-bold text-slate-900" x-text="currentStudent?.name || 'Nguyễn Văn A'"></span>
+                                <span class="text-sm font-bold text-slate-900" x-text="currentStudent?.name || '—'"></span>
                             </div>
                             <div>
                                 <span class="text-slate-400 font-semibold uppercase text-[10px] block">Mã học viên</span>
-                                <span class="font-mono font-bold text-primary text-xs" x-text="currentStudent?.code || 'MS-24098'"></span>
+                                <span class="font-mono font-bold text-primary text-xs" x-text="currentStudent?.code || '—'"></span>
                             </div>
                             <div>
                                 <span class="text-slate-400 font-semibold uppercase text-[10px] block">Lớp học hiện tại</span>
-                                <span class="font-medium text-slate-800 text-xs" x-text="currentStudent?.class_name || 'IELTS Foundation 02'"></span>
+                                <span class="font-medium text-slate-800 text-xs" x-text="currentStudent?.class_name || '—'"></span>
                             </div>
                             <div>
                                 <span class="text-slate-400 font-semibold uppercase text-[10px] block">Trạng thái</span>
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-pink-50 text-pink-600 border border-pink-200">
-                                    Đang theo học
-                                </span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-pink-50 text-pink-600 border border-pink-200" x-text="currentStudent?.status_label || '—'"></span>
                             </div>
                         </div>
                     </div>
@@ -229,8 +265,8 @@
                             <span class="text-lg font-bold text-primary" x-text="currentTuition?.remaining_sessions ?? '—'"></span>
                         </div>
                         <div class="p-4">
-                            <span class="text-slate-400 font-semibold uppercase text-[10px] block mb-1">Nghỉ hè / Bảo lưu</span>
-                            <span class="text-lg font-bold text-blue-600">0</span>
+                            <span class="text-slate-400 font-semibold uppercase text-[10px] block mb-1">Trạng thái học</span>
+                            <span class="text-sm font-bold" :class="currentTuition?.is_deferred ? 'text-blue-600' : 'text-slate-700'" x-text="currentTuition?.is_deferred ? 'Đang bảo lưu' : (currentStudent?.status_label || '—')"></span>
                         </div>
                     </div>
 
@@ -243,12 +279,20 @@
 
                         <div class="space-y-2 text-xs">
                             <div class="flex justify-between py-1.5 border-b border-dashed border-slate-200">
-                                <span class="text-slate-600" x-text="'Học phí khóa ' + (currentTuition?.class_name || 'IELTS Foundation') + ' (3 tháng)'"></span>
-                                <span class="font-mono font-bold text-slate-900" x-text="formatVND(currentTuition?.total_amount || 12500000)"></span>
+                                <span class="text-slate-600" x-text="'Học phí khóa / lớp ' + (currentTuition?.class_name || '—')"></span>
+                                <span class="font-mono font-bold text-slate-900" x-text="formatVND(currentTuition?.total_amount || 0)"></span>
+                            </div>
+                            <div class="flex justify-between py-1.5 border-b border-dashed border-slate-200" x-show="currentTuition?.other_fees > 0">
+                                <span class="text-slate-600">Phí học liệu &amp; khoản thu khác</span>
+                                <span class="font-mono font-bold text-slate-900" x-text="formatVND(currentTuition?.other_fees || 0)"></span>
+                            </div>
+                            <div class="flex justify-between py-1.5 border-b border-dashed border-slate-200" x-show="currentTuition?.discount_amount > 0">
+                                <span class="text-slate-600">Ưu đãi trên hợp đồng</span>
+                                <span class="font-mono font-bold text-emerald-700" x-text="'-' + formatVND(currentTuition?.discount_amount || 0)"></span>
                             </div>
                             <div class="flex justify-between py-1.5 border-b border-dashed border-slate-200">
-                                <span class="text-slate-600">Phí học liệu &amp; Giáo trình (Sách bài tập)</span>
-                                <span class="font-mono font-bold text-slate-900" x-text="formatVND(currentTuition?.other_fees || 850000)"></span>
+                                <span class="text-slate-600">Đã nộp / Còn nợ</span>
+                                <span class="font-mono font-bold text-slate-900" x-text="formatVND(currentTuition?.paid_amount || 0) + ' / ' + formatVND(currentTuition?.debt_amount || 0)"></span>
                             </div>
                         </div>
 
@@ -269,6 +313,10 @@
                                 <div class="flex items-baseline gap-4">
                                     <span class="text-slate-500 font-medium">Tổng trước giảm:</span>
                                     <span class="font-mono font-bold text-slate-800" x-text="formatVND(tuitionSubtotal)"></span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <label for="collectAmount" class="text-slate-500 font-medium">Thu đợt này (để trống = thu hết):</label>
+                                    <input id="collectAmount" type="number" min="0" :max="tuitionSubtotal" x-model="collectAmount" class="w-36 h-9 rounded-xl border border-slate-200 text-xs font-mono font-bold px-2 text-right" placeholder="Toàn bộ" />
                                 </div>
                                 <div class="flex items-baseline gap-4">
                                     <span class="text-primary font-bold uppercase tracking-wider">TỔNG PHẢI THU (HỌC PHÍ):</span>
@@ -309,7 +357,7 @@
                                 <span class="text-[11px] text-slate-400">Gợi ý nhanh:</span>
                                 <button type="button" @click="setSurcharge(50000)" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-orange-50 hover:text-primary text-[11px] font-medium text-slate-600 transition">50.000đ</button>
                                 <button type="button" @click="setSurcharge(100000)" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-orange-50 hover:text-primary text-[11px] font-medium text-slate-600 transition">100.000đ</button>
-                                <button type="button" @click="setSurcharge(150000)" class="px-2 py-0.5 rounded bg-orange-100 text-primary font-bold text-[11px] border border-orange-200 transition">150.000đ</button>
+                                <button type="button" @click="setSurcharge(150000)" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-orange-50 hover:text-primary text-[11px] font-medium text-slate-600 transition">150.000đ</button>
                                 <button type="button" @click="setSurcharge(200000)" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-orange-50 hover:text-primary text-[11px] font-medium text-slate-600 transition">200.000đ</button>
                             </div>
                         </div>
@@ -379,7 +427,7 @@
                         <span class="text-xs text-slate-400 italic">CM chọn phương thức</span>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-3 gap-3">
                         <label :class="paymentMethod === 'transfer' ? 'border-primary-container bg-orange-50/60 ring-1 ring-primary-container' : 'border-slate-200 hover:bg-slate-50'" class="relative flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition">
                             <input type="radio" name="payment_method" value="transfer" x-model="paymentMethod" class="sr-only" />
                             <div class="flex flex-col items-center">
@@ -395,6 +443,14 @@
                                 <span class="text-xs font-bold" :class="paymentMethod === 'cash' ? 'text-primary' : 'text-slate-700'">Tiền mặt</span>
                             </div>
                         </label>
+
+                        <label :class="paymentMethod === 'pos' ? 'border-primary-container bg-orange-50/60 ring-1 ring-primary-container' : 'border-slate-200 hover:bg-slate-50'" class="relative flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition">
+                            <input type="radio" name="payment_method" value="pos" x-model="paymentMethod" class="sr-only" />
+                            <div class="flex flex-col items-center">
+                                <span class="material-symbols-outlined mb-1" :class="paymentMethod === 'pos' ? 'text-primary' : 'text-slate-400'">credit_card</span>
+                                <span class="text-xs font-bold" :class="paymentMethod === 'pos' ? 'text-primary' : 'text-slate-700'">Quẹt thẻ POS</span>
+                            </div>
+                        </label>
                     </div>
 
                     <!-- Giao diện Chuyển khoản -->
@@ -408,26 +464,25 @@
                         </div>
 
                         <!-- Card tài khoản ngân hàng mặc định -->
-                        @if ($defaultBank)
-                        <div class="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50 space-y-3 text-xs">
+                        <div x-show="bank" class="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50 space-y-3 text-xs">
                             <div class="flex items-center justify-between border-b border-slate-200/80 pb-2">
-                                <h5 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tài khoản ngân hàng thu tiền mặc định</h5>
-                                <span class="text-[10px] text-slate-400 italic">Cố định hệ thống</span>
+                                <h5 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tài khoản ngân hàng nhận học phí</h5>
+                                <span class="text-[10px] text-slate-400 italic" x-text="bank?.scope"></span>
                             </div>
 
                             <div class="flex flex-col sm:flex-row gap-4 items-center">
                                 <div class="flex-grow space-y-2 w-full">
                                     <div class="flex justify-between border-b border-dashed border-slate-200 pb-1">
                                         <span class="text-slate-500">Ngân hàng</span>
-                                        <span class="font-bold text-slate-900">{{ $defaultBank->bank_name }}</span>
+                                        <span class="font-bold text-slate-900" x-text="bank?.bank_name"></span>
                                     </div>
                                     <div class="flex justify-between border-b border-dashed border-slate-200 pb-1">
                                         <span class="text-slate-500">Số tài khoản</span>
-                                        <span class="font-mono font-bold text-primary">{{ $defaultBank->account_number }}</span>
+                                        <span class="font-mono font-bold text-primary" x-text="bank?.account_number"></span>
                                     </div>
                                     <div class="flex justify-between border-b border-dashed border-slate-200 pb-1">
                                         <span class="text-slate-500">Chủ tài khoản</span>
-                                        <span class="font-bold uppercase text-slate-900">{{ $defaultBank->account_holder }}</span>
+                                        <span class="font-bold uppercase text-slate-900" x-text="bank?.account_holder"></span>
                                     </div>
                                     <div class="flex justify-between items-center pt-0.5">
                                         <span class="text-slate-500">Nội dung CK</span>
@@ -447,11 +502,11 @@
 
                             <div class="px-2.5 py-1.5 bg-slate-100 rounded-lg text-[11px] text-slate-500 italic flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-xs text-slate-400">lock</span>
-                                <span>CM không thể đổi tài khoản nhận tiền trên màn hình này.</span>
+                                <span>Tài khoản lấy theo hợp đồng / chi nhánh của học viên; CM không đổi được trên màn hình này.</span>
                             </div>
                         </div>
-                        @else
-                            <div class="border border-amber-200 rounded-xl p-3.5 bg-amber-50 text-xs text-amber-800 flex items-start gap-2">
+                        @if (! $defaultBank)
+                            <div x-show="!bank" class="border border-amber-200 rounded-xl p-3.5 bg-amber-50 text-xs text-amber-800 flex items-start gap-2">
                                 <span class="material-symbols-outlined text-amber-600 text-base shrink-0">warning</span>
                                 <span><strong>Chưa cấu hình tài khoản ngân hàng</strong> đang hoạt động để nhận học phí. Mã VietQR sẽ không được tạo — vui lòng liên hệ Kế toán/Admin cấu hình tài khoản trước khi hướng dẫn phụ huynh chuyển khoản.</span>
                             </div>
@@ -459,7 +514,7 @@
 
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Mã tham chiếu / Mã giao dịch ngân hàng (nếu có)</label>
-                            <input type="text" name="transaction_code" placeholder="Ví dụ: FT232981354789..." class="w-full text-xs font-mono rounded-xl border border-slate-200 px-3 py-2 focus:border-primary-container focus:ring-primary-container/20" />
+                            <input type="text" name="transaction_code" x-model="transactionCode" placeholder="Ví dụ: FT232981354789..." class="w-full text-xs font-mono rounded-xl border border-slate-200 px-3 py-2 focus:border-primary-container focus:ring-primary-container/20" />
                         </div>
                     </div>
 
@@ -492,7 +547,7 @@
                             </div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" name="is_vat_invoice" value="1" class="sr-only peer" />
+                            <input type="checkbox" name="is_vat_invoice" value="1" class="sr-only peer" @checked(old('is_vat_invoice', $editingReceipt?->is_vat_invoice)) />
                             <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container"></div>
                         </label>
                     </div>
@@ -512,7 +567,7 @@
                     <!-- Ghi chú nội bộ -->
                     <div class="space-y-1 text-xs">
                         <label class="font-bold text-slate-700 uppercase tracking-wider block">Ghi chú nội bộ</label>
-                        <textarea name="notes" rows="3" placeholder="Nhập ghi chú quan trọng cho bộ phận kế toán và quản lý lớp..." class="w-full rounded-xl border border-slate-200 focus:border-primary-container focus:ring-primary-container/20 p-3 text-xs text-slate-800">Phụ huynh nộp thanh toán học phí &amp; phụ thu qua cổng MEnglish.</textarea>
+                        <textarea name="notes" rows="3" placeholder="Nhập ghi chú quan trọng cho bộ phận kế toán và quản lý lớp..." class="w-full rounded-xl border border-slate-200 focus:border-primary-container focus:ring-primary-container/20 p-3 text-xs text-slate-800">{{ old('notes', $editingReceipt?->notes ?? 'Phụ huynh nộp thanh toán học phí & phụ thu qua cổng MEnglish.') }}</textarea>
                     </div>
                 </div>
             </div>
@@ -522,11 +577,11 @@
                 <div class="flex items-center justify-between">
                     <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-primary text-base">upload_file</span>
-                        Minh chứng thanh toán <span class="text-rose-500">*</span>
+                        Minh chứng thanh toán <span class="text-rose-500" x-show="proofRequired">*</span>
                     </h3>
-                    <span class="text-xs text-amber-700 font-medium flex items-center gap-1">
-                        <span class="material-symbols-outlined text-xs">warning</span>
-                        Đính kèm ủy nhiệm chi hoặc ảnh chụp biên lai
+                    <span class="text-xs font-medium flex items-center gap-1" :class="proofRequired ? 'text-amber-700' : 'text-slate-400'">
+                        <span class="material-symbols-outlined text-xs" x-text="proofRequired ? 'warning' : 'info'"></span>
+                        <span x-text="proofRequired ? 'Bắt buộc khi gửi duyệt: ủy nhiệm chi / ảnh chuyển khoản / biên lai POS' : 'Tiền mặt: không bắt buộc minh chứng'"></span>
                     </span>
                 </div>
 
@@ -549,15 +604,16 @@
                         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Minh chứng đã đính kèm</p>
                         <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
                             <div class="w-16 h-16 rounded-lg bg-slate-200 overflow-hidden shrink-0 border border-slate-300 relative group">
-                                <img :src="proofPreviewUrl" alt="Minh chứng" class="w-full h-full object-cover" />
+                                <img :src="proofPreviewUrl" alt="Minh chứng" class="w-full h-full object-cover" x-show="!proofIsPdf" />
+                                <span x-show="proofIsPdf" class="w-full h-full flex items-center justify-center font-bold text-xs text-slate-500">PDF</span>
                             </div>
                             <div class="flex-grow text-xs space-y-0.5">
                                 <span class="font-bold text-emerald-700 flex items-center gap-1 text-[11px]">
                                     <span class="material-symbols-outlined text-xs">verified</span>
                                     Đã tải lên tệp minh chứng
                                 </span>
-                                <p class="text-slate-600 font-mono text-[11px]" x-text="proofFileName || 'unc_chuyen_khoan.png'"></p>
-                                <p class="text-[10px] text-slate-400" x-text="proofFileSize || '1.2 MB'"></p>
+                                <p class="text-slate-600 font-mono text-[11px]" x-text="proofFileName"></p>
+                                <p class="text-[10px] text-slate-400" x-text="proofFileSize"></p>
                             </div>
                             <button type="button" @click="clearProof()" class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition" title="Xóa tệp">
                                 <span class="material-symbols-outlined text-base">delete</span>
@@ -571,7 +627,7 @@
             <div class="fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-slate-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] px-4 md:px-8 z-40">
                 <div class="max-w-5xl mx-auto h-full flex items-center justify-between gap-4">
                     <div class="flex items-center gap-3">
-                        <a href="{{ route('tuition.students') }}" class="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold text-xs hover:bg-slate-50 transition">
+                        <a href="{{ $editingReceipt ? route('tuition.receipts.approve', ['selected_id' => $editingReceipt->id]) : route('tuition.students') }}" class="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold text-xs hover:bg-slate-50 transition">
                             Hủy bỏ
                         </a>
                         <button type="submit" name="submit_action" value="draft" class="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-50 transition flex items-center gap-1.5">
@@ -587,7 +643,7 @@
                         </button>
                         <button type="submit" name="submit_action" value="submit" :disabled="!isValidReceipt" :class="isValidReceipt ? 'bg-primary-container hover:bg-primary-hover text-white shadow-md' : 'bg-slate-200 text-slate-400 cursor-not-allowed'" class="px-6 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2">
                             <span class="material-symbols-outlined text-base">save</span>
-                            <span>Lưu phiếu thu &amp; Gửi duyệt (<span class="font-mono" x-text="formatVND(totalAmount)"></span>)</span>
+                            <span>{{ $editingReceipt ? 'Lưu & Gửi duyệt lại' : 'Lưu phiếu thu & Gửi duyệt' }} (<span class="font-mono" x-text="formatVND(totalAmount)"></span>)</span>
                         </button>
                     </div>
                 </div>
@@ -596,7 +652,7 @@
     </div>
 
     <script>
-        function createReceiptManager(tuitions, students, initialTuitionId, initialStudentId, bankCode, bankAcc, bankHolder) {
+        function createReceiptManager(tuitions, students, initialTuitionId, initialStudentId, defaultBank, editing) {
             return {
                 tuitions: tuitions || [],
                 students: students || [],
@@ -604,25 +660,42 @@
                 selectedStudentId: initialStudentId || '',
                 currentTuition: null,
                 currentStudent: null,
+                editing: editing,
 
                 skipTuition: false,
-                discountAmount: 0,
-                surchargeAmount: 0,
-                surchargeReason: '',
-                paymentMethod: 'transfer',
+                discountAmount: editing ? editing.discount_amount : 0,
+                collectAmount: editing ? String(editing.tuition_amount) : '',
+                surchargeAmount: editing ? editing.surcharge_amount : 0,
+                surchargeReason: editing ? (editing.surcharge_reason || '') : '',
+                paymentMethod: editing ? editing.payment_method : 'transfer',
+                transactionCode: editing ? (editing.transaction_code || '') : '',
                 payerName: '',
                 payerPhone: '',
 
-                bankCode: bankCode || '',
-                bankAcc: bankAcc || '',
-                bankHolder: bankHolder || '',
+                defaultBank: defaultBank,
 
-                proofPreviewUrl: null,
-                proofFileName: '',
+                proofPreviewUrl: editing && editing.proof_image ? editing.proof_image : null,
+                proofFileName: editing && editing.proof_image ? editing.proof_image.split('/').pop() : '',
                 proofFileSize: '',
+                proofIsPdf: !!(editing && editing.proof_image && editing.proof_image.toLowerCase().endsWith('.pdf')),
+                proofRemoved: false,
+
+                get bank() {
+                    return (this.currentTuition && this.currentTuition.bank) ? this.currentTuition.bank : this.defaultBank;
+                },
+
+                get proofRequired() {
+                    return ['transfer', 'vietqr', 'pos'].includes(this.paymentMethod);
+                },
 
                 init() {
-                    if (this.selectedTuitionId) {
+                    if (this.editing && !this.selectedTuitionId) {
+                        // Phiếu chỉ thu phụ thu: giữ nguyên, không tự gắn hồ sơ học phí.
+                        this.skipTuition = true;
+                        this.currentStudent = this.students.find(s => String(s.id) === String(this.selectedStudentId)) || null;
+                        this.payerName = this.editing.payer_name || '';
+                        this.payerPhone = this.editing.payer_phone || '';
+                    } else if (this.selectedTuitionId) {
                         this.onTuitionChange();
                     } else if (this.selectedStudentId) {
                         this.onStudentChange();
@@ -645,8 +718,8 @@
                         this.selectedStudentId = t.student_id;
                         this.currentStudent = this.students.find(s => String(s.id) === String(t.student_id)) || null;
                         this.skipTuition = false;
-                        this.payerName = t.student_parent_name || t.student_name;
-                        this.payerPhone = t.student_parent_phone || t.student_phone;
+                        this.payerName = (this.editing && this.editing.payer_name) || t.student_parent_name || t.student_name;
+                        this.payerPhone = (this.editing && this.editing.payer_phone) || t.student_parent_phone || t.student_phone;
                     }
                 },
 
@@ -687,7 +760,12 @@
                     if (this.skipTuition || !this.currentTuition) return 0;
                     const sub = this.tuitionSubtotal;
                     const disc = parseFloat(this.discountAmount) || 0;
-                    return Math.max(0, sub - disc);
+                    const max = Math.max(0, sub - disc);
+                    // Thu một phần công nợ: nhập số tiền thu đợt này (không vượt phần còn phải thu).
+                    if (this.collectAmount !== '' && this.collectAmount !== null && !isNaN(parseFloat(this.collectAmount))) {
+                        return Math.min(max, Math.max(0, parseFloat(this.collectAmount)));
+                    }
+                    return max;
                 },
 
                 get totalAmount() {
@@ -724,10 +802,11 @@
                 },
 
                 get vietQrUrl() {
-                    if (!this.bankCode || !this.bankAcc) return '';
+                    const bank = this.bank;
+                    if (!bank || !bank.bank_code || !bank.account_number) return '';
                     const memo = this.transferMemo;
                     const amt = this.totalAmount > 0 ? this.totalAmount : 0;
-                    return 'https://img.vietqr.io/image/' + encodeURIComponent(this.bankCode) + '-' + encodeURIComponent(this.bankAcc) + '-compact2.png?amount=' + amt + '&addInfo=' + encodeURIComponent(memo) + '&accountName=' + encodeURIComponent(this.bankHolder);
+                    return 'https://img.vietqr.io/image/' + encodeURIComponent(bank.bank_code) + '-' + encodeURIComponent(bank.account_number) + '-compact2.png?amount=' + amt + '&addInfo=' + encodeURIComponent(memo) + '&accountName=' + encodeURIComponent(bank.account_holder || '');
                 },
 
                 handleFileSelected(event) {
@@ -735,6 +814,7 @@
                     if (!file) return;
                     this.proofFileName = file.name;
                     this.proofFileSize = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+                    this.proofIsPdf = !file.type.startsWith('image/');
                     if (file.type.startsWith('image/')) {
                         const reader = new FileReader();
                         reader.onload = (e) => {
@@ -742,11 +822,12 @@
                         };
                         reader.readAsDataURL(file);
                     } else {
-                        this.proofPreviewUrl = 'https://placehold.co/100x100?text=PDF';
+                        this.proofPreviewUrl = 'pdf';
                     }
                 },
 
                 clearProof() {
+                    this.proofRemoved = true;
                     this.proofPreviewUrl = null;
                     this.proofFileName = '';
                     this.proofFileSize = '';

@@ -32,4 +32,37 @@ class BankAccount extends Model
     {
         return $this->belongsTo(Branch::class);
     }
+
+    /** Tài khoản mặc định toàn hệ thống (đang hoạt động, ưu tiên cờ mặc định VietQR). */
+    public static function defaultAccount(): ?self
+    {
+        return static::query()
+            ->where('is_active', true)
+            ->orderByDesc('is_default_vietqr')
+            ->orderByRaw('CASE WHEN branch_id IS NULL THEN 0 ELSE 1 END')
+            ->orderBy('id')
+            ->first();
+    }
+
+    /** Chuẩn hoá số tài khoản để so khớp (chỉ giữ chữ số và chữ cái, bỏ khoảng trắng/gạch). */
+    public static function normalizeNumber(?string $number): string
+    {
+        return strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string) $number));
+    }
+
+    /**
+     * Số tài khoản (hoặc tài khoản ảo) nhận tiền có thuộc một tài khoản ngân hàng đã cấu hình không.
+     */
+    public static function isConfiguredNumber(?string ...$numbers): bool
+    {
+        $wanted = collect($numbers)->map(fn ($n) => static::normalizeNumber($n))->filter()->values();
+        if ($wanted->isEmpty()) {
+            return false;
+        }
+
+        return static::query()->pluck('account_number')
+            ->map(fn ($n) => static::normalizeNumber($n))
+            ->intersect($wanted)
+            ->isNotEmpty();
+    }
 }

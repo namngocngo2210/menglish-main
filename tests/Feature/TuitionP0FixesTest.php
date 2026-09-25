@@ -181,6 +181,8 @@ class TuitionP0FixesTest extends TestCase
             'student_tuition_id' => $this->tuition->id,
             'amount' => 2000000,
             'payment_method' => 'transfer',
+            // Phase 4: chuyển khoản / VietQR bắt buộc minh chứng khi gửi duyệt.
+            'proof_image_preview' => '/uploads/tuition/receipts/test-proof.png',
         ])->assertSessionHasNoErrors();
 
         $receipt = TuitionReceipt::firstOrFail();
@@ -275,6 +277,8 @@ class TuitionP0FixesTest extends TestCase
                 'payment_method' => 'transfer',
                 'notes' => 'Sửa lại số tiền',
                 'submit_action' => 'submit',
+                // Phase 4: chuyển khoản / VietQR bắt buộc minh chứng khi gửi duyệt.
+                'proof_image_preview' => '/uploads/tuition/receipts/test-proof.png',
             ])->assertSessionHasNoErrors();
 
         $receipt->refresh();
@@ -630,7 +634,8 @@ class TuitionP0FixesTest extends TestCase
     {
         $this->actingAs($this->accountant)
             ->post(route('tuition.import.store'))
-            ->assertSessionHasErrors('import')
+            // Phase 4: nhập Excel đã làm thật — thiếu file/chi nhánh thì báo lỗi validate, không báo thành công.
+            ->assertSessionHasErrors(['excel_file', 'branch_id'])
             ->assertSessionMissing('status');
     }
 }

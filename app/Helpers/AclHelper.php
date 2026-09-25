@@ -39,6 +39,7 @@ class AclHelper
             'holiday' => '🏖️ Lịch Nghỉ Lễ & Ngày Nghỉ',
             'activity_log' => '📜 Nhật Ký Hoạt Động & Audit Log',
             'report' => '📊 Báo Cáo Thống Kê Tổng Hợp',
+            'finance' => '💹 Báo Cáo Thu Chi & Sổ Khoản Chi',
             default => strtoupper($module),
         };
     }

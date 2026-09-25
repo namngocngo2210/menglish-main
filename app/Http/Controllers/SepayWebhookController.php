@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AdminNotification;
+use App\Models\BankAccount;
 use App\Models\CrmCustomer;
 use App\Models\InvoiceConfiguration;
 use App\Models\SepayConfiguration;
@@ -161,6 +162,27 @@ class SepayWebhookController extends Controller
             ]);
         }
 
+        // 4b. Chỉ gạch nợ tiền vào đúng tài khoản ngân hàng của trung tâm đã cấu hình (chống webhook giả / tài khoản lạ).
+        if (! BankAccount::isConfiguredNumber($accountNumber, $subAccount)) {
+            $tx->update([
+                'status' => 'rejected_account',
+                'response_message' => 'Tài khoản nhận '.($accountNumber ?: '(trống)').' không thuộc tài khoản ngân hàng đã cấu hình; không tự động gạch nợ.',
+            ]);
+
+            AdminNotification::create([
+                'title' => 'SePay: Giao dịch vào tài khoản lạ ('.number_format((float) $transferAmount, 0, ',', '.').' VNĐ)',
+                'message' => 'Nhận webhook cho tài khoản '.($accountNumber ?: '(trống)')." không có trong danh sách tài khoản ngân hàng đã cấu hình. ND: '{$content}'. Giao dịch KHÔNG được gạch nợ tự động, vui lòng kiểm tra.",
+                'type' => 'warning',
+                'is_read' => false,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Tài khoản nhận tiền không thuộc cấu hình của hệ thống; giao dịch được lưu để kiểm tra.',
+                'transaction_id' => $tx->id,
+            ]);
+        }
+
         // 5. Intelligent Matcher: find Student / Tuition by transaction content
         $matchedTuition = null;
         $matchedStudent = null;
@@ -236,8 +258,13 @@ class SepayWebhookController extends Controller
                     return ['overpaid' => true, 'tuition' => $tuition, 'applied_amount' => 0.0];
                 }
 
+                // Đã có phiếu thu tay cho cùng giao dịch -> không ghi nhận lần 2.
+                if ($manual = $this->manualReceiptFor($tuition, (string) $sepayId, $referenceCode, $transferAmount, $transactionDate)) {
+                    return ['duplicate' => $manual, 'tuition' => $tuition, 'applied_amount' => 0.0];
+                }
+
                 $appliedAmount = round(min($transferAmount, (float) $tuition->debt_amount), 2);
-                $invoiceNumber = InvoiceConfiguration::consumeNextInvoiceNumber();
+                $invoiceNumber = InvoiceConfiguration::consumeNextInvoiceNumber($tuition->branch_id ?? $tuition->student?->branch_id);
                 // whereHas thay vì role(): webhook public không được 500 khi vai trò admin chưa được seed
                 $adminUser = User::query()->whereHas('roles', fn ($q) => $q->where('name', 'admin'))->first()
                     ?: User::first();
@@ -267,6 +294,39 @@ class SepayWebhookController extends Controller
                     'applied_amount' => $appliedAmount,
                 ];
             });
+
+            if (isset($outcome['duplicate'])) {
+                $manual = $outcome['duplicate'];
+                $exact = TuitionReceipt::normalizeReference($manual->transaction_code) !== null
+                    && in_array(TuitionReceipt::normalizeReference($manual->transaction_code), array_filter([
+                        TuitionReceipt::normalizeReference((string) $sepayId),
+                        TuitionReceipt::normalizeReference($referenceCode),
+                    ]), true);
+
+                $tx->update([
+                    'status' => $exact ? 'duplicate_manual' : 'needs_review',
+                    'matched_student_id' => $matchedStudent?->id,
+                    'matched_tuition_id' => $matchedTuition->id,
+                    'matched_receipt_id' => $exact ? $manual->id : null,
+                    'response_message' => ($exact
+                        ? "Giao dịch đã được ghi nhận bằng phiếu thu tay {$manual->receipt_number}; không tạo phiếu lần 2."
+                        : "Có phiếu thu tay {$manual->receipt_number} cùng số tiền, cùng học viên gần ngày giao dịch; chờ kế toán đối soát, chưa gạch nợ tự động."),
+                ]);
+
+                AdminNotification::create([
+                    'title' => 'SePay: Giao dịch có thể trùng phiếu thu tay ('.number_format((float) $transferAmount, 0, ',', '.').' VNĐ)',
+                    'message' => 'Học viên '.($matchedStudent?->name ?? '#'.$matchedTuition->student_id)
+                        ." đã có phiếu thu tay {$manual->receipt_number} cho khoản tương ứng. Giao dịch SePay #{$sepayId} KHÔNG được gạch nợ tự động. ND: '{$content}'.",
+                    'type' => 'warning',
+                    'is_read' => false,
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Giao dịch đã có phiếu thu tay tương ứng; không ghi nhận 2 lần.',
+                    'transaction_id' => $tx->id,
+                ]);
+            }
 
             if ($outcome['overpaid']) {
                 $tx->update([
@@ -425,6 +485,40 @@ class SepayWebhookController extends Controller
             'success' => true,
             'data' => $transactions,
         ]);
+    }
+
+    /**
+     * Phiếu thu tay đã ghi nhận cùng khoản tiền:
+     * - cùng mã giao dịch (chờ duyệt / đã duyệt), hoặc
+     * - phiếu chuyển khoản tay ĐÃ DUYỆT cho cùng hợp đồng, cùng số tiền, trong ±N ngày (không phải phiếu do SePay tạo).
+     */
+    protected function manualReceiptFor(StudentTuition $tuition, string $sepayId, ?string $referenceCode, float $amount, Carbon $transactionDate): ?TuitionReceipt
+    {
+        $references = array_values(array_filter([
+            TuitionReceipt::normalizeReference($sepayId),
+            TuitionReceipt::normalizeReference($referenceCode),
+        ]));
+
+        if ($references !== []) {
+            $exact = TuitionReceipt::query()->whereIn('transfer_reference', $references)->first();
+            if ($exact) {
+                return $exact;
+            }
+        }
+
+        $windowDays = (int) config('tuition.sepay_duplicate_window_days', 3);
+
+        return TuitionReceipt::query()
+            ->where('student_tuition_id', $tuition->id)
+            ->where('status', TuitionReceipt::STATUS_APPROVED)
+            ->whereIn('payment_method', TuitionReceipt::TRANSFER_METHODS)
+            ->whereBetween('amount', [$amount - 0.5, $amount + 0.5])
+            ->whereBetween('payment_date', [
+                $transactionDate->copy()->subDays($windowDays)->toDateString(),
+                $transactionDate->copy()->addDays($windowDays)->toDateString(),
+            ])
+            ->whereNotIn('id', SepayTransaction::query()->whereNotNull('matched_receipt_id')->select('matched_receipt_id'))
+            ->first();
     }
 
     /**

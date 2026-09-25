@@ -1,68 +1,164 @@
-<x-app-layout hide-errors>
-    <x-slot name="header">
-        <div class="flex items-center gap-3">
-            <a href="{{ route('tuition.students') }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
-                <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-            </a>
-            <div>
-                <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-amber-600">upload_file</span>
-                    Nhập Danh Sách Học Viên Hàng Loạt (Import Excel)
-                </h1>
-                <p class="text-xs text-gray-500">Tải lên file Excel danh sách học sinh và cấu hình thông tin học phí tự động</p>
+{{-- Nhập học phí từ Excel — 3 bước theo mockup "Nhập danh sách hàng loạt": Tải file → Xem trước → Kết quả. --}}
+<x-app-layout title="Nhập học phí từ Excel">
+    @php
+        $step = $result ? 3 : ($preview ? 2 : 1);
+        $validCount = $preview ? collect($preview['rows'])->filter(fn ($r) => empty($r['errors']))->count() : 0;
+        $errorCount = $preview ? count($preview['rows']) - $validCount : 0;
+    @endphp
+
+    <x-ui.page-header title="Nhập học phí hàng loạt" description="Nhập hồ sơ học phí và các khoản đã đóng từ file Excel (.xlsx) hoặc CSV. Khoản đã đóng tạo phiếu thu chờ Kế toán duyệt.">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="download" :href="route('tuition.import.template')">Tải file mẫu (.xlsx)</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <div class="mx-auto max-w-5xl space-y-lg">
+        {{-- Stepper --}}
+        <ol class="flex items-center justify-center gap-md rounded-xl bg-surface-container-low p-md">
+            @foreach ([1 => 'Tải file', 2 => 'Xem trước', 3 => 'Kết quả'] as $n => $label)
+                <li class="flex items-center gap-sm">
+                    <span @class([
+                        'flex h-8 w-8 items-center justify-center rounded-full border-2 font-body-medium',
+                        'border-primary-container text-primary' => $n === $step,
+                        'border-tertiary bg-tertiary text-white' => $n < $step,
+                        'border-outline-variant text-on-surface-variant' => $n > $step,
+                    ])>{{ $n < $step ? '✓' : $n }}</span>
+                    <span @class(['font-body-medium', 'text-primary' => $n === $step, 'text-on-surface-variant' => $n !== $step])>{{ $label }}</span>
+                    @if ($n < 3)<span class="hidden h-px w-16 bg-outline-variant sm:block" aria-hidden="true"></span>@endif
+                </li>
+            @endforeach
+        </ol>
+
+        @if ($step === 1)
+            <form method="POST" action="{{ route('tuition.import.store') }}" enctype="multipart/form-data"
+                  class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-lg"
+                  x-data="{ fileName: '' }">
+                @csrf
+                <x-ui.select name="branch_id" label="Chọn chi nhánh" :options="$branches->pluck('name', 'id')" placeholder="-- Vui lòng chọn chi nhánh --" required />
+
+                <label class="flex cursor-pointer flex-col items-center justify-center gap-sm rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low p-xl text-center hover:border-primary-container"
+                       @dragover.prevent @drop.prevent="$refs.file.files = $event.dataTransfer.files; fileName = $event.dataTransfer.files[0]?.name || ''">
+                    <span class="flex h-16 w-16 items-center justify-center rounded-full bg-primary-fixed text-primary">
+                        <span class="material-symbols-outlined text-[32px]" aria-hidden="true">upload_file</span>
+                    </span>
+                    <span class="font-h3 text-h3 text-on-surface">Kéo thả file vào đây hoặc nhấn để chọn</span>
+                    <span class="font-body-small text-body-small text-on-surface-variant">Hỗ trợ .xlsx, .xls, .csv (tối đa 10MB, 1.000 dòng)</span>
+                    <input type="file" name="excel_file" x-ref="file" accept=".xlsx,.xls,.csv" class="sr-only" @change="fileName = $event.target.files[0]?.name || ''">
+                    <span x-show="fileName" x-cloak class="rounded-lg bg-tertiary-fixed/40 px-sm py-xs font-body-small text-body-small text-on-tertiary-fixed-variant" x-text="'Đã chọn: ' + fileName"></span>
+                </label>
+
+                <x-ui.alert type="info" title="Cột trong file mẫu">
+                    {{ implode(', ', \App\Services\TuitionImportService::TEMPLATE_HEADINGS) }}.
+                    <ul class="mt-xs list-disc space-y-0.5 pl-md">
+                        <li>Học viên chưa có hồ sơ học phí: bắt buộc "Học phí niêm yết" và "Hạn đóng" (dd/mm/yyyy).</li>
+                        <li>Học viên đã có hồ sơ: chỉ nhập "Số tiền đã đóng" — không ghi đè giá trị hợp đồng.</li>
+                        <li>Hình thức: <code>tien_mat</code>, <code>chuyen_khoan</code> (bắt buộc mã giao dịch, không trùng), <code>pos</code>.</li>
+                    </ul>
+                </x-ui.alert>
+
+                <div class="flex justify-end gap-sm">
+                    <x-ui.button variant="secondary" :href="route('tuition.students')">Hủy</x-ui.button>
+                    <x-ui.button type="submit" icon="preview">Kiểm tra &amp; xem trước</x-ui.button>
+                </div>
+            </form>
+        @elseif ($step === 2)
+            <div class="grid grid-cols-1 gap-md sm:grid-cols-3">
+                <x-ui.stat-card label="Tổng số dòng" :value="count($preview['rows'])" icon="table_rows" />
+                <x-ui.stat-card label="Dòng hợp lệ" :value="$validCount" tone="success" icon="check_circle" />
+                <x-ui.stat-card label="Dòng lỗi (bỏ qua)" :value="$errorCount" tone="error" icon="error" />
             </div>
-        </div>
-    </x-slot>
 
-    @include('tuition.partials.errors')
-
-    <div class="max-w-4xl mx-auto mb-4 p-4 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-sm flex items-center gap-2">
-        <span class="material-symbols-outlined text-amber-600">construction</span>
-        Chức năng nhập học phí từ Excel đang được phát triển — hiện chưa nạp được dữ liệu. Vui lòng nhập thủ công.
-    </div>
-
-    <div class="max-w-4xl mx-auto space-y-6" x-data="{
-        fileName: '',
-        fileUploaded: false,
-    }">
-        <form action="{{ route('tuition.import.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
-            @csrf
-            <!-- File upload box -->
-            <div class="bg-white rounded-2xl border-2 border-dashed border-gray-300 p-8 text-center hover:border-primary-container transition cursor-pointer"
-                 @dragover.prevent
-                 @drop.prevent="fileName = 'Danh_sach_hoc_vien_T8_2026.xlsx'; fileUploaded = true"
-                 @click="$refs.fileInput.click()">
-                <input type="file" name="excel_file" x-ref="fileInput" class="hidden" @change="fileName = $event.target.files[0]?.name; fileUploaded = true" />
-
-                <div class="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4">
-                    <span class="material-symbols-outlined text-3xl">cloud_upload</span>
-                </div>
-                <h3 class="text-sm font-bold text-gray-900 mb-1">Kéo thả file Excel (.xlsx, .csv) vào đây hoặc click để chọn</h3>
-                <p class="text-xs text-gray-400 mb-4">Hỗ trợ định dạng .xlsx, .xls, dung lượng tối đa 10MB</p>
-
-                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-200 transition">
-                    <span class="material-symbols-outlined text-base">download</span>
-                    <span>Tải file mẫu Excel chuẩn (Template)</span>
-                </div>
-
-                <template x-if="fileUploaded">
-                    <div class="mt-4 p-3 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-200 inline-flex items-center gap-2 text-xs font-semibold">
-                        <span class="material-symbols-outlined text-emerald-600">check_circle</span>
-                        <span x-text="'Đã sẵn sàng tải lên: ' + fileName"></span>
+            <x-ui.data-table min-width="980px">
+                <x-slot:header>
+                    <div>
+                        <h2 class="font-h3 text-h3">{{ $preview['file_name'] }}</h2>
+                        <p class="font-body-small text-body-small text-on-surface-variant">Chi nhánh: {{ $preview['branch_name'] }}</p>
                     </div>
-                </template>
-            </div>
+                </x-slot:header>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Dòng</th>
+                            <th>Học viên</th>
+                            <th>Hồ sơ học phí</th>
+                            <th class="text-right">Phải thu</th>
+                            <th>Hạn đóng</th>
+                            <th class="text-right">Đã đóng</th>
+                            <th>Hình thức / Mã GD</th>
+                            <th>Kết quả kiểm tra</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($preview['rows'] as $row)
+                            <tr @class(['bg-error-container/30' => ! empty($row['errors'])])>
+                                <td class="font-code">{{ $row['line'] }}</td>
+                                <td>
+                                    <div class="font-body-medium">{{ $row['student_name'] ?? '—' }}</div>
+                                    <div class="font-caption text-caption text-on-surface-variant">{{ $row['student_code'] }}</div>
+                                </td>
+                                <td>
+                                    @if ($row['creates_tuition'])
+                                        <x-ui.badge color="info">Tạo mới</x-ui.badge>
+                                        @if ($row['class_code'])<div class="font-caption text-caption">Lớp {{ $row['class_code'] }}</div>@endif
+                                    @else
+                                        <span class="text-on-surface-variant">Đã có</span>
+                                    @endif
+                                </td>
+                                <td><x-ui.money :value="$row['final_amount']" /></td>
+                                <td class="font-code">{{ $row['due_date'] ? \Illuminate\Support\Carbon::parse($row['due_date'])->format('d/m/Y') : '—' }}</td>
+                                <td><x-ui.money :value="$row['paid_amount'] ?: null" /></td>
+                                <td class="font-caption text-caption">
+                                    {{ \App\Services\TuitionImportService::METHOD_LABELS[$row['payment_method']] ?? '—' }}
+                                    @if ($row['transaction_code'])<div class="font-code">{{ $row['transaction_code'] }}</div>@endif
+                                </td>
+                                <td>
+                                    @if (empty($row['errors']))
+                                        <x-ui.badge color="success">Hợp lệ</x-ui.badge>
+                                    @else
+                                        <ul class="list-disc space-y-0.5 pl-md font-caption text-caption text-error">
+                                            @foreach ($row['errors'] as $error)<li>{{ $error }}</li>@endforeach
+                                        </ul>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </x-ui.data-table>
 
-            <!-- Submit Button -->
-            <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100" x-show="fileUploaded">
-                <a href="{{ route('tuition.students') }}" class="px-4 py-2 border border-gray-200 text-xs font-semibold text-gray-700 rounded-xl hover:bg-gray-50">
-                    Hủy
-                </a>
-                <button type="submit" class="px-5 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-base">cloud_done</span>
-                    <span>Tiến hành Import vào CSDL</span>
-                </button>
+            <form method="POST" action="{{ route('tuition.import.confirm') }}" class="flex flex-wrap items-center justify-between gap-sm">
+                @csrf
+                <input type="hidden" name="token" value="{{ $preview['token'] }}">
+                <p class="font-body-small text-body-small text-on-surface-variant">Chỉ {{ $validCount }} dòng hợp lệ được nhập; dòng lỗi bị bỏ qua — sửa file rồi tải lên lại.</p>
+                <div class="flex gap-sm">
+                    <x-ui.button variant="secondary" :href="route('tuition.import')">Chọn file khác</x-ui.button>
+                    <x-ui.button type="submit" icon="cloud_done" :disabled="$validCount === 0">Nhập {{ $validCount }} dòng hợp lệ</x-ui.button>
+                </div>
+            </form>
+        @else
+            <div class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
+                <h2 class="font-h3 text-h3">Kết quả nhập file {{ $result['file_name'] ?? '' }}</h2>
+                <div class="grid grid-cols-1 gap-md sm:grid-cols-4">
+                    <x-ui.stat-card label="Hồ sơ học phí tạo mới" :value="$result['tuitions']" tone="success" />
+                    <x-ui.stat-card label="Phiếu thu chờ duyệt" :value="$result['receipts']" tone="primary" />
+                    <x-ui.stat-card label="Dòng lỗi bỏ qua" :value="$result['skipped'] ?? 0" tone="warning" />
+                    <x-ui.stat-card label="Lỗi khi ghi" :value="count($result['failed'])" tone="error" />
+                </div>
+                @if (! empty($result['failed']))
+                    <x-ui.alert type="error" title="Các dòng không ghi được">
+                        <ul class="list-disc pl-md">
+                            @foreach ($result['failed'] as $failed)<li>Dòng {{ $failed['line'] }}: {{ $failed['error'] }}</li>@endforeach
+                        </ul>
+                    </x-ui.alert>
+                @endif
+                <div class="flex flex-wrap justify-end gap-sm">
+                    <x-ui.button variant="secondary" icon="upload_file" :href="route('tuition.import')">Nhập file khác</x-ui.button>
+                    @if ($result['receipts'] > 0)
+                        <x-ui.button variant="secondary" icon="fact_check" :href="route('tuition.receipts.approve', ['status' => 'pending'])">Duyệt phiếu thu</x-ui.button>
+                    @endif
+                    <x-ui.button icon="list" :href="route('tuition.students')">Danh sách thu phí</x-ui.button>
+                </div>
             </div>
-        </form>
+        @endif
     </div>
 </x-app-layout>

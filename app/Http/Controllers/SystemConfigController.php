@@ -155,26 +155,102 @@ class SystemConfigController extends Controller
 
     public function debtReminders()
     {
-        $rules = DebtReminderRule::all();
+        $rules = DebtReminderRule::query()->get()
+            ->sortBy(fn (DebtReminderRule $rule) => $rule->effectiveOffset() ?? PHP_INT_MAX)
+            ->values();
+        $mustContactDays = (int) SystemSetting::get('debt_reminder.must_contact_days', config('tuition.overdue_serious_days', 7));
 
-        return view('system-config.debt-reminders', compact('rules'));
+        return view('system-config.debt-reminders', compact('rules', 'mustContactDays'));
     }
 
+    /**
+     * Lưu (thêm mới / cập nhật theo milestone_key) một mốc nhắc nợ: thời điểm so với hạn đóng, kênh gửi, mẫu tin.
+     * Mẫu tin chỉ được dùng các biến hệ thống thay được, để tin gửi đi không còn nguyên {BIEN}.
+     */
     public function storeDebtReminder(Request $request)
     {
         $validated = $request->validate([
-            'milestone_key' => 'required|string',
-            'title' => 'required|string',
-            'template_content' => 'required|string',
+            'milestone_key' => 'nullable|string|max:30',
+            'title' => 'required|string|max:255',
+            'template_content' => 'required|string|max:2000',
+            'timing' => 'nullable|in:before,due,after',
+            'days' => 'nullable|integer|min:1|max:60',
+            'channels' => 'nullable|array',
+            'channels.*' => 'in:'.implode(',', array_keys(DebtReminderRule::CHANNELS)),
+            'is_enabled' => 'nullable|boolean',
+        ], [
+            'days.min' => 'Số ngày phải từ 1 đến 60.',
+            'days.max' => 'Số ngày phải từ 1 đến 60.',
+            'channels.*.in' => 'Kênh gửi không hợp lệ.',
         ]);
 
+        if ($unknown = DebtReminderRule::unknownVariables($validated['template_content'])) {
+            return redirect()->back()->withErrors([
+                'template_content' => 'Mẫu tin có biến hệ thống không hỗ trợ: '.implode(', ', $unknown)
+                    .'. Chỉ dùng: '.implode(', ', array_keys(DebtReminderRule::VARIABLES)).'.',
+            ])->withInput();
+        }
+
+        $offset = null;
+        if (! empty($validated['timing'])) {
+            if ($validated['timing'] !== 'due' && empty($validated['days'])) {
+                return redirect()->back()->withErrors(['days' => 'Vui lòng nhập số ngày trước / sau hạn đóng.'])->withInput();
+            }
+            $offset = match ($validated['timing']) {
+                'before' => -1 * (int) $validated['days'],
+                'after' => (int) $validated['days'],
+                default => 0,
+            };
+        }
+
+        $key = $validated['milestone_key'] ?? null;
+        $existing = $key ? DebtReminderRule::where('milestone_key', $key)->first() : null;
+        $offset ??= $existing?->offset_days ?? DebtReminderRule::offsetFromKey($key);
+        if ($offset === null) {
+            return redirect()->back()->withErrors(['timing' => 'Vui lòng chọn thời điểm gửi (trước hạn / đúng hạn / quá hạn).'])->withInput();
+        }
+        $key ??= 'T'.($offset > 0 ? '+' : '').$offset;
+
+        $duplicate = DebtReminderRule::query()
+            ->when($existing, fn ($q) => $q->whereKeyNot($existing->id))
+            ->where('milestone_key', '!=', $key)
+            ->get()
+            ->first(fn (DebtReminderRule $rule) => $rule->effectiveOffset() === $offset);
+        if ($duplicate) {
+            return redirect()->back()->withErrors(['days' => "Đã có mốc {$duplicate->milestone_key} ({$duplicate->offset_label}). Mỗi thời điểm chỉ một mốc nhắc."])->withInput();
+        }
+
         $rule = DebtReminderRule::updateOrCreate(
-            ['milestone_key' => $validated['milestone_key']],
-            $validated + ['is_enabled' => true]
+            ['milestone_key' => $key],
+            [
+                'title' => $validated['title'],
+                'template_content' => $validated['template_content'],
+                'offset_days' => $offset,
+                'channels' => $request->has('channels') || $request->boolean('channels_submitted')
+                    ? array_values($validated['channels'] ?? [])
+                    : ($existing?->channels ?? DebtReminderRule::DEFAULT_CHANNELS),
+                'is_enabled' => $request->has('is_enabled') ? $request->boolean('is_enabled') : ($existing?->is_enabled ?? true),
+            ]
         );
 
         return redirect()->route('system-config.debt-reminders')
-            ->with('status', "Đã lưu mẫu tin nhắn nhắc nợ {$rule->milestone_key} thành công!");
+            ->with('status', "Đã lưu mốc nhắc nợ {$rule->milestone_key} ({$rule->offset_label}) thành công!");
+    }
+
+    /** Ngưỡng "quá hạn bắt buộc liên hệ" dùng để chia nhóm danh sách thu phí quá hạn. */
+    public function updateDebtReminderSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'must_contact_days' => 'required|integer|min:1|max:60',
+        ], [
+            'must_contact_days.min' => 'Giá trị không hợp lệ. Vui lòng nhập trong khoảng từ 1–60 ngày.',
+            'must_contact_days.max' => 'Giá trị không hợp lệ. Vui lòng nhập trong khoảng từ 1–60 ngày.',
+        ]);
+
+        SystemSetting::set('debt_reminder.must_contact_days', (int) $validated['must_contact_days'], 'Số ngày quá hạn phải gọi điện liên hệ trực tiếp (nhóm quá hạn nghiêm trọng).');
+
+        return redirect()->route('system-config.debt-reminders')
+            ->with('status', 'Đã lưu mốc quá hạn bắt buộc liên hệ: '.$validated['must_contact_days'].' ngày.');
     }
 
     /**

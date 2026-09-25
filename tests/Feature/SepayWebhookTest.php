@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AdminNotification;
+use App\Models\BankAccount;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\Course;
@@ -45,6 +46,12 @@ class SepayWebhookTest extends TestCase
         ]);
 
         $this->branch = Branch::create(['name' => 'CN SePay', 'code' => 'SP', 'is_active' => true]);
+
+        // Phase 4: webhook chỉ gạch nợ khi tiền vào đúng tài khoản đã cấu hình.
+        BankAccount::create([
+            'bank_code' => 'MBB', 'bank_name' => 'MB Bank', 'account_number' => '0123 456 789',
+            'account_holder' => 'TRUNG TAM MENGLISH', 'branch_id' => $this->branch->id, 'is_active' => true,
+        ]);
         $course = Course::create(['code' => 'SP-COURSE', 'name' => 'Khóa SePay', 'is_active' => true]);
         ClassModel::create([
             'code' => 'SP-CLASS', 'name' => 'Lớp SePay', 'course_id' => $course->id,
@@ -74,6 +81,7 @@ class SepayWebhookTest extends TestCase
     {
         return $this->postJson(route('sepay.webhook.api'), array_merge([
             'id' => 'SP-'.random_int(1000, 999999),
+            'accountNumber' => '0123456789',
             'transferType' => 'in',
             'transferAmount' => 3000000,
             'content' => 'HV-SEPAY01 NGUYEN VAN A thanh toan hoc phi',
@@ -152,6 +160,51 @@ class SepayWebhookTest extends TestCase
         $response->assertOk();
         $this->assertSame(1, TuitionReceipt::count());
         $this->assertSame('waiting_class', $lead->fresh()->stage, 'Thanh toán không được tự chuyển giai đoạn Lead (Đã chốt chỉ qua gán lớp)');
+    }
+
+    public function test_transfer_to_unconfigured_account_is_not_reconciled(): void
+    {
+        $response = $this->postWebhook(['accountNumber' => '9999999999', 'transferAmount' => 3000000]);
+
+        $response->assertOk()->assertJson(['success' => false]);
+        $this->assertSame(0, TuitionReceipt::count(), 'Tiền vào tài khoản lạ không được gạch nợ');
+        $this->assertSame('rejected_account', SepayTransaction::firstOrFail()->status);
+        $this->assertSame(5000000.0, (float) $this->tuition->fresh()->debt_amount);
+
+        // Thiếu số tài khoản cũng không được gạch nợ.
+        $this->postWebhook(['accountNumber' => null, 'transferAmount' => 3000000])->assertJson(['success' => false]);
+        $this->assertSame(0, TuitionReceipt::count());
+    }
+
+    public function test_sepay_does_not_double_count_manual_receipt_with_same_reference(): void
+    {
+        TuitionReceipt::create([
+            'receipt_number' => 'PT-MANUAL-1', 'student_tuition_id' => $this->tuition->id, 'student_id' => $this->student->id,
+            'amount' => 3000000, 'tuition_amount' => 3000000, 'payment_method' => 'transfer', 'transaction_code' => 'FT-SAME-01',
+            'payment_date' => now(), 'status' => 'approved', 'invoice_number' => 'C26MEN-0000001',
+        ]);
+        $this->tuition->recalculateDebt();
+
+        $this->postWebhook(['id' => 'SP-X1', 'referenceCode' => 'ft-same-01', 'transferAmount' => 3000000])->assertOk();
+
+        $this->assertSame(1, TuitionReceipt::count());
+        $this->assertSame('duplicate_manual', SepayTransaction::where('sepay_id', 'SP-X1')->value('status'));
+        $this->assertSame(2000000.0, (float) $this->tuition->fresh()->debt_amount);
+    }
+
+    public function test_sepay_holds_transfer_matching_recent_manual_receipt_for_review(): void
+    {
+        TuitionReceipt::create([
+            'receipt_number' => 'PT-MANUAL-2', 'student_tuition_id' => $this->tuition->id, 'student_id' => $this->student->id,
+            'amount' => 3000000, 'tuition_amount' => 3000000, 'payment_method' => 'transfer',
+            'payment_date' => now()->subDay(), 'status' => 'approved', 'invoice_number' => 'C26MEN-0000002',
+        ]);
+        $this->tuition->recalculateDebt();
+
+        $this->postWebhook(['id' => 'SP-X2', 'transferAmount' => 3000000])->assertOk();
+
+        $this->assertSame(1, TuitionReceipt::count(), 'Không tự tạo phiếu thứ 2 khi đã có phiếu tay cùng tiền, cùng ngày');
+        $this->assertSame('needs_review', SepayTransaction::where('sepay_id', 'SP-X2')->value('status'));
     }
 
     public function test_webhook_returns_503_when_disabled_by_flag(): void

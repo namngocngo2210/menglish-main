@@ -742,7 +742,7 @@ class NotificationService
     }
 
     /**
-     * Engine nhắc nợ theo cấu hình DebtReminderRule (mốc T-3 / T0 / T+3):
+     * Engine nhắc nợ theo cấu hình DebtReminderRule (mốc theo số ngày so với hạn đóng, mặc định T-3 / T0 / T+3):
      * - Rule phải tồn tại và đang bật thì mới gửi.
      * - Nội dung dùng template đã cấu hình với placeholder {ten_hoc_vien} {ma_hoc_vien}
      *   {so_dien_thoai} {lop_hoc} {so_tien} {han_dong}.
@@ -781,7 +781,8 @@ class NotificationService
             return ['sent' => false, 'milestone' => $milestone, 'reason' => 'Không tìm thấy hồ sơ học viên.'];
         }
 
-        $replacements = [
+        // Biến mẫu: dạng thường / IN HOA và các biến đồng nghĩa cũ ({ten_lop}, {han_nop}, {han_chot}) đều được thay.
+        $content = DebtReminderRule::render((string) $rule->template_content, [
             '{ten_hoc_vien}' => $student->name,
             '{ma_hoc_vien}' => $student->code ?? '—',
             '{so_dien_thoai}' => $student->phone ?? '—',
@@ -789,25 +790,24 @@ class NotificationService
             '{so_tien}' => number_format((float) $tuition->debt_amount, 0, ',', '.').' VNĐ',
             '{han_dong}' => Carbon::parse($tuition->due_date)->format('d/m/Y'),
             '{moc_nhac}' => $rule->title,
-        ];
-        // Màn cấu hình hiển thị placeholder IN HOA ({TEN_HOC_VIEN} {TEN_LOP} {HAN_NOP} {SO_TIEN}) -> hỗ trợ cả hai bộ.
-        $replacements += [
-            '{TEN_HOC_VIEN}' => $replacements['{ten_hoc_vien}'],
-            '{MA_HOC_VIEN}' => $replacements['{ma_hoc_vien}'],
-            '{SO_DIEN_THOAI}' => $replacements['{so_dien_thoai}'],
-            '{TEN_LOP}' => $replacements['{lop_hoc}'],
-            '{LOP_HOC}' => $replacements['{lop_hoc}'],
-            '{SO_TIEN}' => $replacements['{so_tien}'],
-            '{HAN_NOP}' => $replacements['{han_dong}'],
-            '{HAN_DONG}' => $replacements['{han_dong}'],
-            '{MOC_NHAC}' => $replacements['{moc_nhac}'],
-        ];
-        $content = strtr($rule->template_content, $replacements);
+        ]);
+
+        $channels = $rule->activeChannels();
+        if ($channels === []) {
+            return ['sent' => false, 'milestone' => $milestone, 'reason' => "Mốc nhắc {$milestone} chưa chọn kênh gửi."];
+        }
+
+        // Bản ghi nhắc nợ là mốc chống gửi trùng trong ngày; chỉ hiện ở Cổng PH/HS khi bật kênh in-app.
+        $screenKey = in_array('portal', $channels, true) ? '04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao' : 'tuition/debt_reminder_log';
+        $recordCode = 'DEBTREMIND-'.$milestone.'-'.$tuition->id.'-'.now()->toDateString();
+        if (AcademicRecord::where('record_code', $recordCode)->exists()) {
+            return ['sent' => true, 'milestone' => $milestone, 'reason' => 'Đã gửi mốc '.$rule->title.' trong hôm nay.'];
+        }
 
         $record = AcademicRecord::firstOrCreate(
             [
-                'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao',
-                'record_code' => 'DEBTREMIND-'.$milestone.'-'.$tuition->id.'-'.now()->toDateString(),
+                'screen_key' => $screenKey,
+                'record_code' => $recordCode,
             ],
             [
                 'module' => 'student_portal',
@@ -828,11 +828,11 @@ class NotificationService
             ]
         );
 
-        if ($record->wasRecentlyCreated) {
+        if ($record->wasRecentlyCreated && in_array('email', $channels, true)) {
             $this->sendOperationalAlertEmail(
                 'overdue_debt',
                 "[Nhắc nợ {$milestone}] {$student->name} — ".number_format((float) $tuition->debt_amount, 0, ',', '.').' VNĐ',
-                $content."\n\n(Đã đồng thời gửi thông báo vào Cổng PH/HS của học viên.)",
+                $content.(in_array('portal', $channels, true) ? "\n\n(Đã đồng thời gửi thông báo vào Cổng PH/HS của học viên.)" : ''),
                 [
                     'code' => 'DEBT-'.$milestone.'-'.$tuition->id,
                     'title' => "[Nhắc nợ {$milestone}] {$student->name}",

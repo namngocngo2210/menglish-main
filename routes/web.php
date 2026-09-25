@@ -160,9 +160,12 @@ Route::middleware('auth')->group(function () {
     Route::prefix('tuition')->name('tuition.')->middleware('can:tuition.view')->group(function () {
         Route::get('/students', [TuitionController::class, 'students'])->name('students');
         Route::get('/import', [TuitionController::class, 'import'])->name('import');
-        Route::post('/import', [TuitionController::class, 'importTuition'])->name('import.store');
+        Route::post('/import', [TuitionController::class, 'importTuition'])->middleware('can:tuition.create')->name('import.store');
+        Route::post('/import/confirm', [TuitionController::class, 'confirmImport'])->middleware('can:tuition.create')->name('import.confirm');
+        Route::get('/import/template', [TuitionController::class, 'downloadImportTemplate'])->name('import.template');
         Route::get('/receipts/create', [TuitionController::class, 'createReceipt'])->name('receipts.create');
         Route::post('/receipts', [TuitionController::class, 'storeReceipt'])->middleware('can:tuition.create')->name('receipts.store');
+        Route::get('/receipts/{id}/edit', [TuitionController::class, 'editReceipt'])->middleware('can:tuition.create')->whereNumber('id')->name('receipts.edit');
         Route::put('/receipts/{id}', [TuitionController::class, 'updateReceipt'])->middleware('can:tuition.create')->name('receipts.update');
         Route::get('/receipts/approve', [TuitionController::class, 'approveReceipt'])->name('receipts.approve');
         Route::post('/receipts/{id}/approve', [TuitionController::class, 'approveReceiptAction'])->middleware('can:tuition.approve')->name('receipts.approve.action');
@@ -179,14 +182,18 @@ Route::middleware('auth')->group(function () {
         Route::get('/overdue', [TuitionController::class, 'overdue'])->name('overdue');
         Route::post('/overdue/{id}/remind', [TuitionController::class, 'sendOverdueReminder'])->middleware('can:tuition.mark_contacted')->name('overdue.remind');
         Route::post('/overdue/{id}/upcoming-remind', [TuitionController::class, 'sendUpcomingReminder'])->middleware('can:tuition.mark_contacted')->name('overdue.upcoming-remind');
+        Route::post('/overdue/{id}/contacted', [TuitionController::class, 'markContacted'])->middleware('can:tuition.mark_contacted')->name('overdue.contacted');
+        Route::post('/overdue/{id}/report-admin', [TuitionController::class, 'reportOverdueToAdmin'])->middleware('can:tuition.report_overdue')->name('overdue.report-admin');
         Route::get('/config', [TuitionController::class, 'config'])->name('config');
         Route::post('/config', [TuitionController::class, 'updateConfig'])->middleware('can:invoice_range.manage')->name('config.update');
+        Route::post('/config/ranges', [TuitionController::class, 'storeInvoiceRange'])->middleware('can:invoice_range.manage')->name('config.ranges.store');
+        Route::post('/config/ranges/{id}/toggle', [TuitionController::class, 'toggleInvoiceRange'])->middleware('can:invoice_range.manage')->name('config.ranges.toggle');
     });
 
     // ─────────────────────────────────────────────
     // 2.1. Tài chính & Báo cáo Thu Chi (Epic 13)
     // ─────────────────────────────────────────────
-    Route::prefix('finance')->name('finance.')->middleware('can:report.view')->group(function () {
+    Route::prefix('finance')->name('finance.')->middleware('can:finance.view')->group(function () {
         Route::get('/expenses', [FinanceController::class, 'expenses'])->name('expenses.index');
         Route::post('/expenses', [FinanceController::class, 'storeExpense'])->middleware('can:tuition.create')->name('expenses.store');
         Route::put('/expenses/{id}', [FinanceController::class, 'updateExpense'])->middleware('can:tuition.create')->name('expenses.update');
@@ -428,6 +435,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/sepay', [SystemConfigController::class, 'updateSepayConfig'])->middleware('can:bank_account.manage')->name('sepay.update');
         Route::get('/debt-reminders', [SystemConfigController::class, 'debtReminders'])->middleware('can:fee_reminder_config.manage')->name('debt-reminders');
         Route::post('/debt-reminders', [SystemConfigController::class, 'storeDebtReminder'])->middleware('can:fee_reminder_config.manage')->name('debt-reminders.store');
+        Route::post('/debt-reminders/settings', [SystemConfigController::class, 'updateDebtReminderSettings'])->middleware('can:fee_reminder_config.manage')->name('debt-reminders.settings');
         Route::get('/ticket-emails', [SystemConfigController::class, 'ticketEmails'])->middleware('can:support_ticket.update')->name('ticket-emails');
         Route::post('/ticket-emails', [SystemConfigController::class, 'updateTicketEmails'])->middleware('can:support_ticket.update')->name('ticket-emails.update');
         Route::post('/ticket-emails/test', [SystemConfigController::class, 'sendTestTicketEmail'])->middleware('can:support_ticket.update')->name('ticket-emails.test');

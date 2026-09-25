@@ -35,7 +35,7 @@
                     <span class="material-symbols-outlined text-slate-400 text-lg mr-2">storefront</span>
                     <label for="filter-branch" class="text-xs font-semibold text-slate-500 mr-2 uppercase">CƠ SỞ:</label>
                     <select id="filter-branch" name="branch_id" onchange="this.form.submit()" class="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer text-sm">
-                        <option value="all" {{ $branchId === 'all' ? 'selected' : '' }}>Tất cả chi nhánh</option>
+                        @unless ($branchScoped ?? false)<option value="all" {{ $branchId === 'all' ? 'selected' : '' }}>Tất cả chi nhánh</option>@endunless
                         @foreach ($branches as $b)
                             <option value="{{ $b->id }}" {{ (string)$branchId === (string)$b->id ? 'selected' : '' }}>{{ $b->name }}</option>
                         @endforeach
