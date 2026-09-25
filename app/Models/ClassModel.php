@@ -61,9 +61,58 @@ class ClassModel extends Model
                 ->orWhere('assistant_id', $user->id)
                 ->orWhere('foreign_teacher_id', $user->id)
                 ->orWhereHas('sessions', function (Builder $sessions) use ($user) {
-                    $sessions->where(fn (Builder $q) => $q->where('teacher_id', $user->id)->orWhere('assistant_id', $user->id));
+                    $sessions->forStaff($user->id);
                 });
         });
+    }
+
+    /** Trạng thái học viên còn giữ chỗ trong lớp (tính vào sĩ số). */
+    public const SEAT_HOLDING_STUDENT_STATUSES = ['waiting_start', 'studying', 'summer_break'];
+
+    /** Trạng thái bàn giao xếp lớp còn hiệu lực (khớp CRM: pending/completed). */
+    public const ACTIVE_ENROLLMENT_STATUSES = ['pending', 'completed'];
+
+    /**
+     * Số học viên đang giữ chỗ: hợp của bàn giao xếp lớp còn hiệu lực và học viên có
+     * current_class_id là lớp này (hai nguồn có thể lệch nhau — xem audit A4 #7), chỉ tính
+     * học viên chưa thôi học/hoàn thành/bảo lưu.
+     */
+    public function occupiedSeats(): int
+    {
+        $viaEnrollments = $this->enrollments()
+            ->whereIn('status', self::ACTIVE_ENROLLMENT_STATUSES)
+            ->whereHas('student', fn (Builder $q) => $q->whereIn('status', self::SEAT_HOLDING_STUDENT_STATUSES))
+            ->pluck('student_id');
+        $viaCurrentClass = $this->students()
+            ->whereIn('status', self::SEAT_HOLDING_STUDENT_STATUSES)
+            ->pluck('id');
+
+        return $viaEnrollments->merge($viaCurrentClass)->map(fn ($id) => (int) $id)->unique()->count();
+    }
+
+    /**
+     * Số chỗ còn trống; null khi lớp không giới hạn sĩ số (max_capacity trống hoặc 0).
+     */
+    public function seatsLeft(): ?int
+    {
+        if ((int) $this->max_capacity <= 0) {
+            return null;
+        }
+
+        return max(0, (int) $this->max_capacity - $this->occupiedSeats());
+    }
+
+    public function isFull(): bool
+    {
+        return $this->seatsLeft() === 0;
+    }
+
+    /** Còn đủ chỗ cho $count học viên nữa không (dùng khi xếp lớp thủ công). */
+    public function hasSeatsFor(int $count = 1): bool
+    {
+        $left = $this->seatsLeft();
+
+        return $left === null || $left >= $count;
     }
 
     public static function userManagesAll(User $user): bool
