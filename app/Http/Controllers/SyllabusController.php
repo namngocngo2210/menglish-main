@@ -808,7 +808,11 @@ class SyllabusController extends Controller
         }
 
         $results = $test ? BigTestResult::with('student')->where('big_test_id', $test->id)->get() : collect();
-        $students = $test?->classModel?->students()->orderBy('name')->get() ?? collect();
+        // Danh sách lớp thật (gồm học viên liên kết lớp khác) + học viên đã có kết quả.
+        $students = $test?->classModel
+            ? $test->classModel->rosterStudents()->concat(\App\Models\Student::whereIn('id', $results->pluck('student_id'))
+                ->whereNotIn('id', $test->classModel->roster()->pluck('id'))->orderBy('name')->get())
+            : collect();
 
         return view('syllabus.big-tests-results', compact('test', 'allTests', 'results', 'students'));
     }
@@ -842,7 +846,9 @@ class SyllabusController extends Controller
             throw ValidationException::withMessages(['results' => 'Học viên đã đánh dấu "Vắng thi" thì không nhập điểm.']);
         }
 
-        $classStudentIds = $test->classModel?->students()->pluck('id') ?? collect();
+        $classStudentIds = $test->classModel
+            ? $test->classModel->roster()->pluck('id')->merge(BigTestResult::where('big_test_id', $test->id)->pluck('student_id'))->map(fn ($id) => (int) $id)
+            : collect();
         abort_if(
             $rows->contains(fn (array $row) => ! $classStudentIds->contains((int) $row['student_id'])),
             422,

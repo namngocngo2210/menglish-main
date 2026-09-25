@@ -431,15 +431,16 @@ class ClassManagementController extends Controller
     public function profile(Request $request, $id = null)
     {
         $this->ensureCanBrowseClasses();
-        $classes = ClassModel::with(['course', 'branch', 'teacher', 'assistant', 'foreignTeacher', 'students'])->visibleTo(auth()->user())->get();
+        $classes = ClassModel::with(['course', 'branch', 'teacher', 'assistant', 'foreignTeacher'])->visibleTo(auth()->user())->get();
 
         $class = $id ? $classes->firstWhere('id', $id) : $classes->first();
         if (! $class && $classes->isNotEmpty()) {
             $class = $classes->first();
         }
 
-        // Lấy danh sách học sinh của lớp (không nạp học sinh lớp khác khi lớp trống)
-        $students = $class ? $class->students : collect();
+        // Danh sách lớp thật: học viên có lớp chính là lớp này + học viên liên kết lớp khác,
+        // bỏ Thôi học / Hoàn thành / Bảo lưu (audit A4 #7).
+        $students = $class ? $class->rosterStudents() : collect();
 
         return view('classes.profile', compact('class', 'classes', 'students'));
     }
@@ -475,7 +476,7 @@ class ClassManagementController extends Controller
         $programFilter = $request->query('program');
 
         $this->ensureCanBrowseClasses();
-        $classesQuery = ClassModel::with(['branch', 'teacher', 'assistant', 'students'])->visibleTo(auth()->user())->where('status', '!=', 'cancelled');
+        $classesQuery = ClassModel::with(['branch', 'teacher', 'assistant'])->visibleTo(auth()->user())->where('status', '!=', 'cancelled');
         if ($search) {
             // Phải bọc closure: orWhere viết thẳng sẽ thoát cả filter status lẫn chi nhánh.
             $classesQuery->where(function ($query) use ($search) {
@@ -487,6 +488,7 @@ class ClassManagementController extends Controller
         }
 
         $classes = $classesQuery->get();
+        ClassModel::loadRosterCounts($classes);
 
         return view('classes.academic-list', compact('classes', 'branches', 'search', 'branchFilter', 'programFilter'));
     }
@@ -498,7 +500,7 @@ class ClassManagementController extends Controller
     public function academicDetail(Request $request, $id = null)
     {
         $this->ensureCanBrowseClasses();
-        $classes = ClassModel::with(['branch', 'teacher', 'assistant', 'course', 'students'])->visibleTo(auth()->user())->get();
+        $classes = ClassModel::with(['branch', 'teacher', 'assistant', 'course'])->visibleTo(auth()->user())->get();
         $class = $id ? $classes->firstWhere('id', $id) : $classes->first();
         if (! $class && $classes->isNotEmpty()) {
             $class = $classes->first();
@@ -518,7 +520,7 @@ class ClassManagementController extends Controller
         $statusFilter = $request->query('status');
 
         $this->ensureCanBrowseClasses();
-        $query = ClassModel::with(['branch', 'teacher', 'students'])
+        $query = ClassModel::with(['branch', 'teacher'])
             ->visibleTo(auth()->user())
             ->when($search, fn ($q) => $q->where(fn ($q) => $q->where('name', 'LIKE', "%{$search}%")->orWhere('code', 'LIKE', "%{$search}%")))
             ->when($branchFilter, fn ($q) => $q->where('branch_id', $branchFilter))
@@ -526,6 +528,7 @@ class ClassManagementController extends Controller
             ->latest();
 
         $classes = $query->paginate(15)->withQueryString();
+        ClassModel::loadRosterCounts($classes);
         $totalCount = ClassModel::visibleTo(auth()->user())->count();
         $activeCount = ClassModel::visibleTo(auth()->user())->where('status', 'active')->count();
 

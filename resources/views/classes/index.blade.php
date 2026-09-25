@@ -128,7 +128,7 @@
                                 <td class="py-3 px-4 text-gray-700 font-medium">{{ $c->branch?->name ?? '—' }}</td>
                                 <td class="py-3 px-4 text-gray-700">{{ $c->teacher?->name ?? '—' }}</td>
                                 <td class="py-3 px-4 text-center">
-                                    <span class="font-bold text-gray-900">{{ $c->students->count() }}</span>
+                                    <span class="font-bold text-gray-900">{{ $c->roster_count }}</span>
                                     <span class="text-gray-400">/{{ $c->max_capacity }}</span>
                                 </td>
                                 <td class="py-3 px-4">
