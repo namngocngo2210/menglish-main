@@ -658,6 +658,24 @@
 
 **Triển khai:** chạy `php artisan migrate` (5 migration `2026_09_28_2000xx`); migration đã gán `finance.view` cho admin/accountant/manager, hoặc chạy lại `db:seed --class=PermissionSeeder` + `RoleSeeder`. Phải cấu hình số tài khoản ngân hàng nhận tiền trước khi bật SePay, nếu không webhook sẽ không gạch nợ.
 
+#### Phase 2 (vòng 2) — Điểm danh, bổ trợ, cổng học viên, chăm sóc (nhánh `feat/phase2-attendance`)
+**Đã làm:**
+- [x] Điểm danh theo **từng buổi học** (`class_session_id`, `?session=` từ dashboard lớp/lịch dạy, `?date=`, mặc định buổi hôm nay). Điểm danh bù buổi đã qua, buổi học bù/phụ đạo trong ngày; chặn buổi đã hủy/chưa tới ngày. Học vụ / Học thuật / Quản lý cơ sở (lớp trong phạm vi) **điểm danh thay GV** — `user_id` giữ là GV của buổi, `recorded_by` là người lưu. Lưu điểm danh vẫn chốt buổi "completed".
+- [x] Lịch dạy GV (Cổng GV) từ buổi học thật: hôm nay (check-in theo buổi), lịch tuần (GV/TA/GVNN), danh sách buổi đã qua chưa điểm danh (30 ngày).
+- [x] A4.7 — `ClassModel::roster()` = học viên có lớp chính là lớp này ∪ lượt xếp lớp còn hiệu lực ("Liên kết lớp khác"), bỏ Thôi học/Hoàn thành/Bảo lưu. Dùng cho điểm danh, nhập điểm mini test, nhận xét, nhập kết quả Big Test, hồ sơ lớp, sĩ số danh sách lớp (`occupiedSeats()` dùng chung).
+- [x] Danh sách bổ trợ tự động: vắng (kể cả vắng có phép), mini test < 7/10 (quy đổi theo điểm tối đa), Big Test < 7 (không tính vắng thi) → thêm vào `class_report_student_supports` (thêm lớp, nguồn, bản ghi nguồn, điểm; mỗi học viên + lớp + nguồn + bản ghi 1 dòng). Sửa lại thành có mặt / điểm ≥ 7 thì tự gỡ nếu chưa xếp buổi. Màn phụ đạo hiện nguồn/lý do, lọc theo nguồn, "Xếp buổi" từ dòng bổ trợ; kiểm tra trùng lịch bỏ qua buổi đã hủy, tính cả vai trò trợ giảng/GVNN của người dạy.
+- [x] Cổng học viên: lịch học 14 ngày tới (lớp chính + lớp liên kết + buổi phụ đạo của mình), lịch sử điểm danh, kết quả Big Test đã duyệt/đã gửi; màn "Học tập của tôi" dùng nhận xét buổi học, điểm mini test/Big Test, bài tập giao thật. Bỏ dữ liệu mẫu (tên, ngày sinh, địa chỉ, lớp, số tiền, chặng feedback).
+- [x] Chăm sóc tháng đầu: lệnh `students:schedule-first-month-care` (07:40 hằng ngày) tạo việc cho Học vụ chi nhánh ở ngày 3/7/14/30 kể từ buổi có mặt đầu tiên (chưa có thì ngày xếp lớp), idempotent (`work_tasks.student_id + care_milestone`). Mốc gắn với checklist chăm sóc tháng đầu của CRM — hoàn thành việc tự tick mục CRM. Hồ sơ học viên có khối "Chăm sóc tháng đầu".
+- [x] Sinh nhật: bỏ học viên Thôi học/Hoàn thành; nhắc GV/GVNN/TA các lớp và Học vụ chi nhánh (1 lần/học viên/năm).
+- [x] Chấm bài nộp (GV): bỏ 3 học viên mẫu, chỉ bài nộp thật của danh sách lớp đang chọn, lọc theo loại bài; không tự điền điểm "10/10" / nhận xét mẫu.
+**Chưa làm / chuyển phase sau:**
+- [ ] Nhận xét buổi học (`teacher.remarks`) vẫn lưu theo lớp + ngày (chưa theo buổi).
+- [ ] Sửa điểm danh đã duyệt sẽ đưa dòng đó về "chờ duyệt" (giữ hành vi cũ).
+- [ ] Học viên bắt đầu học > 37 ngày trước khi bật lệnh chăm sóc sẽ không được tạo việc bù (chỉ bù trong 7 ngày).
+**Quyết định phát sinh (tạm, chờ BA):** "Vắng có phép" cũng vào danh sách bổ trợ; ngưỡng điểm 7/10 áp cho mini test (quy đổi) và Big Test (điểm tổng); việc chăm sóc giao cho Học vụ đầu tiên của chi nhánh (không có thì Quản lý cơ sở), người giao là Quản lý cơ sở/Admin.
+**Test:** `tests/Feature/Phase2AttendanceTest.php` (11 test). Không phải sửa test cũ — các test điểm danh cũ (không truyền buổi) vẫn chạy theo mặc định "buổi hôm nay".
+**Triển khai:** chạy `php artisan migrate` (migration `2026_09_29_100000_phase2_attendance_support_care`: bỏ unique `(class_id, student_id, session_date)` của điểm danh, thêm unique `(class_session_id, student_id)` + `recorded_by`, gắn buổi cho điểm danh cũ; mở rộng bảng bổ trợ; thêm `work_tasks.student_id/care_milestone`). Cron `schedule:run` phải chạy. Build lại asset (`npm run build`).
+
 ---
 
 ## Phụ lục — Vị trí kỹ thuật các lỗi P0 (cho dev)
