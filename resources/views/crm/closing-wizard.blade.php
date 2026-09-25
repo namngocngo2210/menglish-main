@@ -6,11 +6,8 @@
                     <span class="material-symbols-outlined text-[18px]">arrow_back</span>
                 </a>
                 <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">route</span>
-                        Quy trình Chốt hợp đồng &amp; Xếp lớp (Closing Wizard)
-                    </h1>
-                    <p class="text-xs text-gray-500">4 bước liên thông từ CRM Lead -> Tạo Học viên -> Bàn giao Lớp học -> Lập Học phí &amp; Xuất Phiếu thu</p>
+                    <h1 class="font-h1 text-h1 text-on-surface">Quy trình Chốt &amp; Xếp lớp</h1>
+                    <p class="font-body-small text-body-small text-on-surface-variant">Chốt khách → tạo học viên, tài khoản, học phí → xếp lớp (hoặc Chờ xếp lớp) → thu phí đăng ký</p>
                 </div>
             </div>
 
@@ -26,7 +23,7 @@
     <div class="max-w-4xl mx-auto space-y-6" x-data="closingWizard()">
         @if ($errors->any())
             <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-                <div class="font-bold mb-1">Không thể hoàn tất chốt Lead:</div>
+                <div class="font-bold mb-1">Không thể hoàn tất chốt khách:</div>
                 <ul class="list-disc pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
             </div>
         @endif
@@ -37,7 +34,7 @@
         @endif
         @if ($customers->isEmpty())
             <div class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800 font-semibold">
-                Chưa có Lead nào sẵn sàng chốt (Đang tư vấn, Đã test hoặc Gửi kết quả).
+                Chưa có khách nào sẵn sàng chốt (Đang tư vấn, Đã test hoặc Gửi kết quả).
             </div>
         @endif
         @if ($classes->isEmpty())
@@ -46,12 +43,12 @@
             </div>
         @endif
         <!-- Wizard Step Indicator -->
-        <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-xs flex items-center justify-between">
+        <div class="flex items-center justify-between rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
             <div class="flex items-center gap-3 cursor-pointer" @click="step = 1">
                 <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" :class="step >= 1 ? 'bg-primary-container text-white' : 'bg-gray-100 text-gray-500'">1</div>
                 <div class="hidden sm:block text-left">
-                    <div class="text-xs font-bold text-gray-900">Chọn Khách hàng Lead</div>
-                    <div class="text-[10px] text-gray-400">Từ dữ liệu CRM</div>
+                    <div class="text-xs font-bold text-gray-900">Xác nhận Chốt</div>
+                    <div class="text-[10px] text-gray-400">Khách &amp; khóa đăng ký</div>
                 </div>
             </div>
             <div class="h-0.5 w-12 bg-gray-200"></div>
@@ -68,8 +65,8 @@
             <div class="flex items-center gap-3 cursor-pointer" @click="step = 3">
                 <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" :class="step >= 3 ? 'bg-primary-container text-white' : 'bg-gray-100 text-gray-500'">3</div>
                 <div class="hidden sm:block text-left">
-                    <div class="text-xs font-bold text-gray-900">Xếp lớp &amp; Lịch học</div>
-                    <div class="text-[10px] text-gray-400">Lớp học khả dụng</div>
+                    <div class="text-xs font-bold text-gray-900">Danh sách lớp</div>
+                    <div class="text-[10px] text-gray-400">Lớp đề xuất / Xếp lớp sau</div>
                 </div>
             </div>
             <div class="h-0.5 w-12 bg-gray-200"></div>
@@ -77,7 +74,7 @@
             <div class="flex items-center gap-3 cursor-pointer" @click="step = 4">
                 <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" :class="step >= 4 ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-500'">4</div>
                 <div class="hidden sm:block text-left">
-                    <div class="text-xs font-bold text-gray-900">Chốt Deal &amp; Thu tiền</div>
+                    <div class="text-xs font-bold text-gray-900">Chốt &amp; Thu phí</div>
                     <div class="text-[10px] text-gray-400">VietQR, Quẹt thẻ &amp; Bill</div>
                 </div>
             </div>
@@ -108,15 +105,15 @@
             <!-- ═════════════════════════════════════════════════════════════════
                  BƯỚC 1: CHỌN KHÁCH HÀNG LEAD
                  ═════════════════════════════════════════════════════════════════ -->
-            <div x-show="step === 1" class="bg-white rounded-2xl p-6 border border-gray-200 shadow-xs space-y-6">
-                <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider pb-2 border-b border-gray-100 flex items-center gap-2">
+            <div x-show="step === 1" class="space-y-lg rounded-xl border border-surface-container-highest bg-surface-container-lowest p-lg shadow-sm">
+                <h2 class="flex items-center gap-sm border-b border-surface-container-highest pb-sm font-h3 text-h3 text-on-surface">
                     <span class="material-symbols-outlined text-primary-container text-base">person_search</span>
-                    Bước 1: Chọn Khách hàng Lead trong Pipeline
+                    Bước 1: Xác nhận Chốt khách
                 </h2>
 
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Chọn Khách hàng cần chốt hợp đồng <span class="text-rose-500">*</span></label>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Khách cần chốt <span class="text-rose-500">*</span></label>
                         <select class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container" @change="updateCustomer($event)">
                             @foreach ($customers as $c)
                                 <option
@@ -128,12 +125,46 @@
                                     data-code="{{ $c->code }}"
                                     data-branch="{{ $c->branch?->code ?? 'BD' }}"
                                     data-branch-id="{{ $c->branch_id }}"
-                                    data-tuition="{{ $c->deal_value > 0 ? $c->deal_value : 12500000 }}"
+                                    data-stage="{{ $c->stage_label }}"
+                                    data-level="{{ $c->level_label }}"
+                                    data-level-keys="{{ implode('|', $c->level_keys) }}"
                                 >
                                     {{ $c->name }} ({{ $c->code }} - {{ $c->phone }}) · {{ $c->course_interest ?? 'Chưa chọn khóa' }} · {{ $c->stage_label }}
                                 </option>
                             @endforeach
                         </select>
+                    </div>
+
+                    {{-- Thẻ khách theo mockup: tên, "Đã đóng học phí đăng ký", SĐT, giai đoạn, trình độ --}}
+                    <div class="rounded-xl border border-surface-container-highest bg-surface-container-low p-md" x-show="customerId" data-customer-summary>
+                        <div class="flex items-start gap-md">
+                            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary-fixed text-primary">
+                                <span class="material-symbols-outlined">person</span>
+                            </div>
+                            <div class="min-w-0 flex-1 space-y-xs">
+                                <div class="flex flex-wrap items-center justify-between gap-sm">
+                                    <h2 class="font-h2 text-h2 text-on-surface" x-text="customerName"></h2>
+                                    <span class="inline-flex items-center gap-xs font-body-small text-body-small" :class="feePaid ? 'text-tertiary' : 'text-on-surface-variant'">
+                                        <span class="material-symbols-outlined text-[18px]" x-text="feePaid ? 'check_box' : 'check_box_outline_blank'"></span>Đã đóng học phí đăng ký
+                                    </span>
+                                </div>
+                                <p class="flex flex-wrap items-center gap-sm font-body-small text-body-small text-on-surface-variant">
+                                    <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]">phone</span><span class="font-code" x-text="customerPhone"></span></span>
+                                    <span>|</span>
+                                    <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]">analytics</span>Giai đoạn: <span x-text="customerStage"></span></span>
+                                    <span>|</span>
+                                    <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]">school</span>Trình độ: <span x-text="customerLevel || 'Chưa có kết quả test'"></span></span>
+                                </p>
+                            </div>
+                        </div>
+                        <div x-show="!feePaid" x-cloak class="mt-md flex items-start gap-sm rounded-lg border-l-4 border-amber-500 bg-amber-50 p-sm font-body-small text-body-small text-amber-900">
+                            <span class="material-symbols-outlined text-amber-600">info</span>
+                            <div><p class="font-semibold">Chưa hoàn thành phí đăng ký</p><p>Hệ thống sẽ tự động tạo nhắc việc thu phí sau khi Chốt.</p></div>
+                        </div>
+                        <div class="mt-md flex items-center gap-sm font-body-small text-body-small text-on-surface-variant">
+                            <span class="material-symbols-outlined text-secondary">upgrade</span>
+                            <p>Khi Chốt, hồ sơ khách sẽ được nâng cấp thành tài khoản học viên chính thức.</p>
+                        </div>
                     </div>
 
                     <div>
@@ -158,9 +189,9 @@
             <!-- ═════════════════════════════════════════════════════════════════
                  BƯỚC 2: HỌC PHÍ, ƯU ĐÃI (CÓ NÚT TẠO MỚI), THU TRƯỚC, THU KHÁC
                  ═════════════════════════════════════════════════════════════════ -->
-            <div x-show="step === 2" class="bg-white rounded-2xl p-6 border border-gray-200 shadow-xs space-y-6">
+            <div x-show="step === 2" class="space-y-lg rounded-xl border border-surface-container-highest bg-surface-container-lowest p-lg shadow-sm">
                 <div class="flex items-center justify-between pb-2 border-b border-gray-100">
-                    <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                    <h2 class="flex items-center gap-sm font-h3 text-h3 text-on-surface">
                         <span class="material-symbols-outlined text-primary-container text-base">percent</span>
                         Bước 2: Học phí, Ưu đãi, Thu trước &amp; Thu khác
                     </h2>
@@ -240,7 +271,7 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1 flex items-center justify-between">
                             <span>Thu trước (VNĐ)</span>
-                            <span class="text-[10px] text-gray-400">Đã cọc / Đóng trước</span>
+                            <span class="text-[10px] text-gray-400">Đã đóng trước</span>
                         </label>
                         <input 
                             type="number" 
@@ -337,7 +368,7 @@
                         <span class="font-mono text-sm text-primary-container" x-text="formatVND(contractTotal)"></span>
                     </div>
                     <div class="flex justify-between items-center text-amber-700 pt-1">
-                        <span>- Thu trước (Đã cọc / thanh toán trước):</span>
+                        <span>- Thu trước (đã thanh toán trước):</span>
                         <span class="font-mono font-semibold" x-text="'- ' + formatVND(prepaidAmount)"></span>
                     </div>
                     <div class="flex justify-between items-center font-black text-emerald-700 pt-2 border-t border-gray-200 text-sm">
@@ -360,11 +391,12 @@
             <!-- ═════════════════════════════════════════════════════════════════
                  BƯỚC 3: XẾP LỚP & BÀN GIAO HỌC VIÊN
                  ═════════════════════════════════════════════════════════════════ -->
-            <div x-show="step === 3" class="bg-white rounded-2xl p-6 border border-gray-200 shadow-xs space-y-6">
-                <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider pb-2 border-b border-gray-100 flex items-center gap-2">
+            <div x-show="step === 3" class="space-y-lg rounded-xl border border-surface-container-highest bg-surface-container-lowest p-lg shadow-sm">
+                <h2 class="flex items-center gap-sm border-b border-surface-container-highest pb-sm font-h3 text-h3 text-on-surface">
                     <span class="material-symbols-outlined text-primary-container text-base">meeting_room</span>
-                    Bước 3: Chọn Lớp học &amp; Bàn giao Học viên
+                    Bước 3: Lớp học phù hợp đề xuất
                 </h2>
+                <p class="-mt-md font-body-small text-body-small text-on-surface-variant" x-show="customerLevel">Dựa trên trình độ <strong x-text="customerLevel"></strong> của học viên</p>
 
                 <div class="space-y-4">
                     <div class="flex flex-wrap gap-3 text-xs font-semibold">
@@ -374,12 +406,12 @@
                         </label>
                         <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer" :class="assignLater ? 'border-primary-container bg-orange-50 text-primary-container' : 'border-gray-200 text-gray-600'">
                             <input type="radio" name="class_mode" value="later" :checked="assignLater" @change="setAssignLater(true)" />
-                            <span>Xếp lớp sau</span>
+                            <span class="flex flex-col"><span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]">event_busy</span>Xếp lớp sau</span><span class="text-[10px] font-normal">Khách sẽ xuất hiện trong mục "Chờ xếp lớp"</span></span>
                         </label>
                     </div>
 
                     <div x-show="assignLater" x-cloak class="p-3 rounded-xl border border-yellow-200 bg-yellow-50 text-xs text-yellow-800">
-                        Học viên vẫn được tạo hồ sơ, tài khoản và học phí (theo khóa <strong x-text="courseName"></strong>), nhưng chưa ghi danh vào lớp. Lead chuyển sang <strong>Chờ xếp lớp</strong>; Học vụ gán lớp sau ở màn Khách hàng chốt thành công.
+                        Học viên vẫn được tạo hồ sơ, tài khoản và học phí (theo khóa <strong x-text="courseName"></strong>), nhưng chưa ghi danh vào lớp. Khách chuyển sang <strong>Chờ xếp lớp</strong>; Học vụ gán lớp sau ở mục "Chờ xếp lớp".
                     </div>
 
                     <div x-show="!assignLater">
@@ -416,7 +448,17 @@
                                                 <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[10px]">Đang học</span>
                                             @endif
                                         </div>
-                                        <div class="text-gray-500">{{ $cl->course?->name ?? 'Chưa gán khóa' }} · {{ $cl->branch?->name }} · {{ $cl->schedule_text ?: 'Chưa có lịch' }}</div>
+                                        <div class="font-code text-[10px] text-gray-400">{{ $cl->code }}</div>
+                                        <span x-show="levelMatches(@js($cl->level_haystack))" x-cloak class="inline-block rounded bg-tertiary/10 px-1.5 py-0.5 text-[10px] font-bold text-tertiary">Phù hợp trình độ</span>
+                                        <div class="text-gray-500">{{ $cl->course?->name ?? 'Chưa gán khóa' }} · {{ $cl->branch?->name }}</div>
+                                        <div class="flex items-center gap-1 text-gray-600"><span class="material-symbols-outlined text-[14px]">calendar_today</span>Lịch học: {{ $cl->schedule_text ?: 'Chưa có lịch' }}</div>
+                                        <div class="flex items-center gap-1 text-gray-600"><span class="material-symbols-outlined text-[14px]">account_circle</span>Giáo viên: {{ $cl->teacher?->name ?? 'Chưa phân công' }}</div>
+                                        @php
+                                            $cap = $cl->max_capacity > 0 ? $cl->max_capacity : max((int) $cl->min_students, $cl->active_enrollments_count, 1);
+                                            $fill = min(100, (int) round($cl->active_enrollments_count / max(1, $cap) * 100));
+                                        @endphp
+                                        <div class="h-1.5 w-full overflow-hidden rounded-full bg-surface-container-high"><div class="h-full rounded-full {{ $cl->needed_to_open > 0 ? 'bg-amber-500' : 'bg-tertiary' }}" style="width: {{ $fill }}%"></div></div>
+                                        <div class="text-gray-600">Số học viên hiện có: <span class="font-semibold text-gray-900">{{ $cl->active_enrollments_count }} / {{ $cl->max_capacity > 0 ? $cl->max_capacity : '∞' }}</span> (ngưỡng khai giảng {{ (int) $cl->min_students }})</div>
                                         <div class="flex flex-wrap items-center gap-2 pt-1">
                                             <span class="font-semibold text-gray-800">Sĩ số {{ $cl->active_enrollments_count }}/{{ $cl->max_capacity > 0 ? $cl->max_capacity : '∞' }}</span>
                                             <span class="text-gray-400">·</span>
@@ -429,6 +471,9 @@
                                                 <div class="text-emerald-700 font-semibold">Đã đủ ngưỡng khai giảng ({{ (int) $cl->min_students }} học viên)</div>
                                             @endif
                                         @endif
+                                        <div class="pt-1 text-right font-semibold" :class="String(classId) === '{{ $cl->id }}' ? 'text-primary' : 'text-gray-400'">
+                                            <span x-text="String(classId) === '{{ $cl->id }}' ? 'Đã chọn lớp này' : 'Chọn lớp này'"></span>
+                                        </div>
                                     </button>
                                 @endforeach
                             </div>
@@ -462,9 +507,9 @@
             <!-- ═════════════════════════════════════════════════════════════════
                  BƯỚC 4: XÁC NHẬN, CHỌN PHƯƠNG THỨC THANH TOÁN (KẾT HỢP) & VIETQR
                  ═════════════════════════════════════════════════════════════════ -->
-            <div x-show="step === 4" class="bg-white rounded-2xl p-6 border border-gray-200 shadow-xs space-y-6">
+            <div x-show="step === 4" class="space-y-lg rounded-xl border border-surface-container-highest bg-surface-container-lowest p-lg shadow-sm">
                 <div class="flex items-center justify-between pb-2 border-b border-gray-100">
-                    <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                    <h2 class="flex items-center gap-sm font-h3 text-h3 text-on-surface">
                         <span class="material-symbols-outlined text-emerald-600 text-base">verified</span>
                         Bước 4: Xác nhận Hợp đồng, Chọn Phương thức Thanh toán &amp; Xuất Phiếu thu
                     </h2>
@@ -513,7 +558,7 @@
                             </template>
                             <template x-if="prepaidAmount > 0">
                                 <div class="flex justify-between py-1 text-amber-700">
-                                    <span>Đã thu trước (Cọc):</span>
+                                    <span>Đã thu trước:</span>
                                     <span class="font-mono font-bold" x-text="formatVND(prepaidAmount)"></span>
                                 </div>
                             </template>
@@ -527,7 +572,7 @@
                             <input type="checkbox" x-model="feePaid" @change="onFeePaidChange()" class="rounded border-emerald-300 text-emerald-600" />
                             <span>Đã đóng học phí đăng ký</span>
                         </label>
-                        <p x-show="!feePaid" x-cloak class="text-[11px] text-amber-700">Chưa thu tiền: hệ thống tạo task "Nhắc thu học phí" cho người phụ trách Lead (hạn 3 ngày).</p>
+                        <p x-show="!feePaid" x-cloak class="text-[11px] text-amber-700">Chưa thu tiền: hệ thống tạo task "Nhắc thu học phí" cho người phụ trách khách (hạn 3 ngày).</p>
 
                         <!-- Số tiền thực thu đợt 1 -->
                         <div x-show="feePaid">
@@ -899,7 +944,7 @@
                             </tr>
                             <template x-if="prepaidAmount > 0">
                                 <tr>
-                                    <td style="border: 1px solid #d5d5d5; padding: 8px 10px; font-weight: 700; background: #fafafa;">Thu trước (Đã cọc):</td>
+                                    <td style="border: 1px solid #d5d5d5; padding: 8px 10px; font-weight: 700; background: #fafafa;">Thu trước:</td>
                                     <td style="border: 1px solid #d5d5d5; padding: 8px 10px; color: #2563eb; font-weight: bold;" x-text="'- ' + formatVND(prepaidAmount)"></td>
                                 </tr>
                             </template>
@@ -969,7 +1014,11 @@
                 customerPhone: @js($customers->first()?->phone ?? ''),
                 customerBranch: @js($customers->first()?->branch?->code ?? 'BD'),
                 customerBranchId: @js((string) ($customers->first()?->branch_id ?? '')),
-                studentCodePreview: 'HS' + String({{ \App\Models\Student::count() + 1 }}).padStart(6, '0'),
+                customerStage: @js($customers->first()?->stage_label ?? ''),
+                customerLevel: @js($customers->first()?->level_label ?? ''),
+                customerLevelKeys: @js($customers->first()?->level_keys ?? []),
+                // Mã học viên do hệ thống sinh khi chốt — không đoán trước.
+                studentCodePreview: 'mã HV sinh khi chốt',
                 courseName: @js($classes->first()?->course?->name ?? ''),
                 classId: @js($classes->first()?->id ?? ''),
                 assignLater: @js($classes->isEmpty()),
@@ -1323,7 +1372,14 @@
                     this.customerPhone = opt.getAttribute('data-phone');
                     this.customerBranch = opt.getAttribute('data-branch') || 'BD';
                     this.customerBranchId = opt.getAttribute('data-branch-id') || '';
+                    this.customerStage = opt.getAttribute('data-stage') || '';
+                    this.customerLevel = opt.getAttribute('data-level') || '';
+                    this.customerLevelKeys = (opt.getAttribute('data-level-keys') || '').split('|').filter(Boolean);
                     this.paidAmount = this.feePaid ? this.amountDue : 0;
+                },
+
+                levelMatches(haystack) {
+                    return this.customerLevelKeys.length > 0 && this.customerLevelKeys.some((key) => String(haystack || '').includes(key));
                 },
                 
                 selectClassCard(id) {

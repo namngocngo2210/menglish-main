@@ -1385,16 +1385,22 @@ class CrmController extends Controller
             }
         }
         $customers = $this->scopeCustomerQuery()
+            ->with(['branch', 'latestSubmission'])
             ->whereIn('stage', CrmCustomer::CLOSABLE_STAGES)
             ->when($selectedCustomerId, fn (Builder $query, int $customerId) => $query->orderByRaw('id = ? desc', [$customerId]))
             ->latest()
-            ->get();
+            ->get()
+            // Mockup quy-trinh-chot-xep-lop: "Trình độ" của khách (lớp xếp sau test) + từ khóa để gợi ý lớp phù hợp.
+            ->each(function (CrmCustomer $customer) {
+                $customer->setAttribute('level_label', $customer->latestSubmission?->finalClass() ?? $customer->course_interest);
+                $customer->setAttribute('level_keys', $this->trialLevelKeywords($customer, $customer->latestSubmission));
+            });
         $branches = Branch::all();
         $courses = Course::where('is_active', true)->get();
         // Lớp đang học + lớp sắp khai giảng (chưa bắt đầu), còn chỗ.
         $classes = $this->enrollableClassesQuery()
             ->when($selectedCustomer?->branch_id, fn (Builder $query, int $branchId) => $query->where('branch_id', $branchId))
-            ->with(['course', 'branch'])
+            ->with(['course.level', 'branch', 'teacher'])
             ->withCount(['enrollments as active_enrollments_count' => fn (Builder $query) => $query->whereIn('status', ['pending', 'completed'])])
             ->orderByRaw("CASE WHEN status = 'upcoming' THEN 0 ELSE 1 END")
             ->orderBy('start_date')
@@ -1403,6 +1409,9 @@ class CrmController extends Controller
             ->each(function (ClassModel $class) {
                 $class->setAttribute('remaining_seats', $class->max_capacity > 0 ? max(0, $class->max_capacity - $class->active_enrollments_count) : null);
                 $class->setAttribute('needed_to_open', $class->status === 'upcoming' ? max(0, (int) $class->min_students - $class->active_enrollments_count) : 0);
+                $class->setAttribute('level_haystack', Str::upper(implode(' ', array_filter([
+                    $class->name, $class->level, $class->course?->name, $class->course?->level?->name,
+                ]))));
             })
             ->values();
         $bankAccounts = BankAccount::where('is_active', true)

@@ -180,6 +180,33 @@ class Phase1MockupParityTest extends TestCase
             ->assertDontSee('[Plugin: crm_sales_report_tab]');
     }
 
+    // ── 7. Chốt & Xếp lớp ────────────────────────────────────────────────
+
+    public function test_closing_wizard_matches_mockup_steps_and_class_cards(): void
+    {
+        $course = Course::create(['name' => 'Starters', 'code' => 'STR', 'tuition_fee' => 6000000, 'is_active' => true]);
+        $teacher = $this->userWithRole('teacher', 'Cô Tuyết Mai');
+        ClassModel::create([
+            'code' => 'STR-01', 'name' => 'Starters FAM 1', 'course_id' => $course->id, 'branch_id' => $this->branch->id,
+            'teacher_id' => $teacher->id, 'status' => 'upcoming', 'start_date' => now()->addWeek(), 'max_capacity' => 10, 'min_students' => 6,
+            'schedule_text' => 'Thứ 2 - Thứ 4 - Thứ 6',
+        ]);
+        $lead = $this->lead('tested', ['name' => 'Nguyễn Minh Hoàng', 'course_interest' => 'Starters']);
+
+        $this->actingAs($this->manager)->get(route('crm.closing-wizard', ['customer_id' => $lead->id]))->assertOk()
+            ->assertSee('Quy trình Chốt &amp; Xếp lớp', false)->assertDontSee('Closing Wizard')
+            ->assertSee('Xác nhận Chốt')->assertSee('Danh sách lớp')
+            ->assertSee('Đã đóng học phí đăng ký')->assertSee('Chưa hoàn thành phí đăng ký')
+            ->assertSee('Hệ thống sẽ tự động tạo nhắc việc thu phí sau khi Chốt.')
+            ->assertSee('Khi Chốt, hồ sơ khách sẽ được nâng cấp thành tài khoản học viên chính thức.')
+            ->assertSee('Lớp học phù hợp đề xuất')->assertSee('Xếp lớp sau')->assertSee('Khách sẽ xuất hiện trong mục')
+            ->assertSee('Lịch học: Thứ 2 - Thứ 4 - Thứ 6')->assertSee('Giáo viên: Cô Tuyết Mai')
+            ->assertSee('Số học viên hiện có:')->assertSee('ngưỡng khai giảng 6')->assertSee('Cần thêm 6 học viên để khai giảng')
+            ->assertSee('Chọn lớp này')
+            // A6: không có "cọc", không dữ liệu học phí giả
+            ->assertDontSee('Cọc')->assertDontSee('12500000');
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────
 
     private function lead(string $stage, array $attributes = []): CrmCustomer
