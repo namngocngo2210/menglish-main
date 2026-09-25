@@ -162,6 +162,28 @@
 
 **Nguyên tắc tạm thời nếu chưa chốt kịp:** theo **BPMN + mockup**, và ghi rõ vào mục Nhật ký giai đoạn.
 
+### A6. Quyết định đã chốt
+
+| Ngày | Chủ đề | Quyết định |
+|---|---|---|
+| 25/09/2026 | Thứ tự sửa | Sửa toàn bộ lỗi P0 (bảo mật, lương, công nợ) trong 2 ngày đầu tuần 1 |
+| 25/09/2026 | Q2 — Điểm test | Là **test đầu vào**. Cách tính (trung bình 4 kỹ năng hay tổng theo khối lớp) đang chờ BA trả lời tiếp |
+| 25/09/2026 | Q6 — Chốt khách | Khi chốt được **chọn lớp** (kiểm tra còn chỗ) **hoặc đưa vào lớp chờ** nếu chưa có lịch khớp. Học vụ gán lớp sau từ danh sách "Chờ xếp lớp" |
+| 25/09/2026 | Q6 — Hoa hồng | Hoa hồng tính trên **tổng tiền thực thu** (phiếu thu đã duyệt), **gồm cả tiền giáo trình, đồ dùng**. Không tính trên giá trị hợp đồng |
+| 25/09/2026 | Q7 — Nhập điểm test | Chỉ **Học vụ** và **Admin cơ sở** nhập điểm test đầu vào, gồm cả phần Viết/Nói của bài test online. Sale và giáo viên không nhập |
+| 25/09/2026 | Q7 — Xem khách | Admin cơ sở / Học vụ **chỉ thấy khách của chi nhánh mình**. Admin tổng thấy tất cả. Sale chỉ thấy khách được giao |
+| 25/09/2026 | Q7 — Vai trò | "Admin cơ sở" chính là vai trò **Quản lý cơ sở** (`manager`) |
+
+**Còn chờ trả lời:**
+- **Q1:** có cho sửa lùi bước, hủy chốt, mở lại khách không chốt không?
+- **Q2:** cách tính điểm test đầu vào; thang cho học viên lớn (THCS, IELTS, người đi làm).
+- **Q3:** công thức lương.
+- **Q4:** mô hình giáo trình.
+- **Q5:** trạng thái học viên.
+- **Q6:** khách vào lớp chờ có thu cọc ngay không.
+- **Hoa hồng:** tính theo tháng thực thu? Có trừ lại khi hoàn phí? Có dùng tỷ lệ riêng cho tái tục không?
+- **Q8:** báo cáo trực lớp.
+
 ---
 
 ## Phần B — Kế hoạch 4 tuần (28/09 – 25/10/2026)
