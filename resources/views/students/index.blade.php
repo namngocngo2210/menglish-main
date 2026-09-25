@@ -1,125 +1,162 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">school</span>
-                    Danh sách Hồ sơ Học viên
-                </h1>
-                <p class="text-xs text-gray-500">Quản lý toàn bộ thông tin học tập, chuyên cần, bài tập về nhà và tiến độ điểm số</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('students.enrollments') }}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-50 text-primary border border-orange-200 text-xs font-semibold hover:bg-orange-100 transition">
-                    <span class="material-symbols-outlined text-[18px]">how_to_reg</span>
-                    <span>Tiếp nhận &amp; Xếp lớp</span>
-                </a>
-            </div>
-        </div>
-    </x-slot>
-
-    <div class="space-y-4">
-        <!-- Search & Filter -->
-        <form method="GET" action="{{ route('students.index') }}" class="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-3">
-            <div class="flex flex-wrap items-center gap-2 flex-1">
-                <div class="relative min-w-[240px]">
-                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
-                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Tìm theo tên học viên, mã HV, SĐT..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container" />
+{{-- Hồ sơ học sinh — danh sách (mockup epic-6/ho-so-hoc-sinh-danh-sach-lien-ket-lop): lọc chi nhánh / lớp / chip 6 trạng thái (A6 Q5),
+     cột Họ tên & Ngày sinh, Thông tin liên hệ, Lớp hiện tại, Trạng thái, thao tác Chi tiết + Liên kết lớp khác. --}}
+@php
+    $canLink = auth()->user()->can('student.assign_class');
+    $linkOptions = $linkableClasses->map(fn ($c) => [
+        'id' => $c->id,
+        'label' => $c->name.' ('.$c->code.')',
+        'branch_id' => $c->branch_id,
+        'seats' => ($c->roster_count ?? 0).'/'.($c->max_capacity > 0 ? $c->max_capacity : '∞'),
+        'full' => $c->max_capacity > 0 && ($c->roster_count ?? 0) >= $c->max_capacity,
+    ])->values();
+@endphp
+<x-app-layout title="Hồ sơ học sinh">
+    <div x-data="{
+            linkOpen: false,
+            linkStudent: null,
+            classes: @js($linkOptions),
+            baseUrl: @js(url('/students')),
+            openLink(student) { this.linkStudent = student; this.linkOpen = true; },
+            get options() { return this.linkStudent ? this.classes.filter(c => !this.linkStudent.branch_id || c.branch_id === this.linkStudent.branch_id).filter(c => !this.linkStudent.class_ids.includes(c.id)) : []; },
+         }">
+        <x-ui.page-header title="Hồ sơ học sinh" description="Quản lý và tra cứu thông tin học sinh toàn hệ thống.">
+            <x-slot:actions>
+                <div class="flex items-center gap-sm rounded-xl border border-outline-variant bg-surface-container-lowest px-md py-sm">
+                    <span class="font-body-small text-body-small text-on-surface-variant">Tổng số học sinh</span>
+                    <span class="font-h3 text-h3 text-primary" data-testid="student-total">{{ number_format($totalStudents, 0, ',', '.') }}</span>
                 </div>
-                <select name="branch_id" class="text-xs rounded-xl border border-gray-200 py-1.5 px-3" onchange="this.form.submit()">
-                    <option value="">Tất cả cơ sở</option>
-                    @foreach ($branches as $br)
-                        <option value="{{ $br->id }}" {{ request('branch_id') == $br->id ? 'selected' : '' }}>{{ $br->name }}</option>
-                    @endforeach
-                </select>
-                <select name="class_id" class="text-xs rounded-xl border border-gray-200 py-1.5 px-3" onchange="this.form.submit()" aria-label="Lọc theo lớp">
-                    <option value="">Tất cả lớp</option>
-                    @foreach ($classes as $cl)
-                        <option value="{{ $cl->id }}" @selected((string) request('class_id') === (string) $cl->id)>{{ $cl->name }}</option>
-                    @endforeach
-                </select>
-                <select name="status" class="text-xs rounded-xl border border-gray-200 py-1.5 px-3" onchange="this.form.submit()" aria-label="Lọc theo trạng thái">
-                    <option value="">Tất cả trạng thái</option>
-                    @foreach (\App\Models\Student::STATUSES as $statusKey => $statusLabel)
-                        <option value="{{ $statusKey }}" @selected(request('status') === $statusKey)>{{ $statusLabel }}</option>
-                    @endforeach
-                </select>
-                <button type="submit" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl transition">Lọc</button>
+                <x-ui.button variant="secondary" icon="how_to_reg" :href="route('students.enrollments')">Tiếp nhận &amp; Xếp lớp</x-ui.button>
+            </x-slot:actions>
+        </x-ui.page-header>
+
+
+        {{-- Bộ lọc --}}
+        <form method="GET" action="{{ route('students.index') }}" role="search"
+              class="mb-lg space-y-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
+            <div class="grid grid-cols-1 items-end gap-md md:grid-cols-[2fr_1fr_1fr_auto]">
+                <x-ui.field label="Tìm kiếm" for="st_search">
+                    <div class="relative">
+                        <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
+                        <input id="st_search" type="search" name="search" value="{{ request('search') }}" placeholder="Tìm học sinh hoặc SĐT..."
+                               class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-10 pr-md font-body-base text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
+                    </div>
+                </x-ui.field>
+                <x-ui.select name="branch_id" label="Chi nhánh" :options="$branches->pluck('name', 'id')" placeholder="Tất cả chi nhánh" />
+                <x-ui.select name="class_id" label="Lớp học" :options="$classes->pluck('name', 'id')" placeholder="Tất cả các lớp" aria-label="Lọc theo lớp" />
+                <x-ui.button type="submit" icon="filter_list">Lọc dữ liệu</x-ui.button>
             </div>
-            <div class="text-xs text-gray-500">
-                Tổng cộng <strong class="text-gray-900">{{ $students->total() }}</strong> học viên
+            <div class="flex flex-wrap items-center gap-sm">
+                <span class="font-label-caps text-label-caps uppercase text-on-surface-variant">Trạng thái</span>
+                @foreach (\App\Models\Student::STATUSES as $statusKey => $statusLabel)
+                    <label class="cursor-pointer">
+                        <input type="checkbox" name="statuses[]" value="{{ $statusKey }}" @checked(in_array($statusKey, $statuses, true)) class="peer sr-only" onchange="this.form.submit()">
+                        <span class="inline-flex items-center gap-xs rounded-full border border-outline-variant px-md py-xs font-body-small text-body-small text-on-surface-variant transition peer-checked:border-primary-container peer-checked:bg-primary-container/10 peer-checked:font-semibold peer-checked:text-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary-container/40">
+                            {{ $statusLabel }}
+                        </span>
+                    </label>
+                @endforeach
+                @if (collect(request()->only(['search', 'branch_id', 'class_id', 'status', 'statuses']))->filter()->isNotEmpty())
+                    <x-ui.button variant="ghost" size="sm" icon="filter_alt_off" :href="route('students.index')" class="ml-auto">Xóa lọc</x-ui.button>
+                @endif
             </div>
         </form>
 
-        <!-- Students Table -->
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs min-w-[1020px]">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
-                            <th class="py-3 px-4 min-w-[180px] whitespace-nowrap">Mã &amp; Học viên</th>
-                            <th class="py-3 px-4 min-w-[120px] whitespace-nowrap">Số điện thoại</th>
-                            <th class="py-3 px-4 min-w-[140px] whitespace-nowrap">Cơ sở</th>
-                            <th class="py-3 px-4 min-w-[150px] whitespace-nowrap">Lớp đang học</th>
-                            <th class="py-3 px-4 min-w-[160px] whitespace-nowrap">Mục tiêu &amp; Điểm số</th>
-                            <th class="py-3 px-4 min-w-[130px] whitespace-nowrap">Chuyên cần</th>
-                            <th class="py-3 px-4 min-w-[120px] whitespace-nowrap">Trạng thái</th>
-                            <th class="py-3 px-4 text-right min-w-[100px] whitespace-nowrap">Chi tiết</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
-                        @forelse ($students as $st)
-                            <tr class="hover:bg-orange-50/20 transition">
-                                <td class="py-3.5 px-4 font-medium whitespace-nowrap">
-                                    <a href="{{ route('students.show', $st->id) }}" class="font-bold text-gray-900 text-sm hover:text-primary transition flex items-center gap-2 whitespace-nowrap">
-                                        <span class="w-7 h-7 rounded-full bg-primary-container/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
-                                            {{ Str::substr($st->name, 0, 1) }}
+        <x-ui.data-table min-width="900px">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Họ tên &amp; Ngày sinh</th>
+                        <th>Thông tin liên hệ</th>
+                        <th>Lớp hiện tại</th>
+                        <th>Trạng thái</th>
+                        <th class="text-right">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($students as $st)
+                        <tr>
+                            <td>
+                                <a href="{{ route('students.show', $st->id) }}" class="flex items-center gap-sm">
+                                    <x-ui.avatar :name="$st->name" />
+                                    <span class="min-w-0">
+                                        <span class="block font-body-medium text-body-medium font-semibold text-on-surface hover:text-primary">{{ $st->name }}</span>
+                                        <span class="block font-caption text-caption text-on-surface-variant">
+                                            {{ $st->dob ? $st->dob->format('d/m/Y') : 'Chưa có ngày sinh' }} · <span class="font-code">{{ $st->code }}</span>
                                         </span>
-                                        <span class="whitespace-nowrap">{{ $st->name }}</span>
-                                    </a>
-                                    <div class="text-[10px] text-gray-400 font-mono pl-9 whitespace-nowrap">{{ $st->code }}</div>
-                                </td>
-                                <td class="py-3.5 px-4 font-mono text-gray-800 whitespace-nowrap">{{ $st->phone }}</td>
-                                <td class="py-3.5 px-4 whitespace-nowrap">{{ $st->branch?->name ?? '—' }}</td>
-                                <td class="py-3.5 px-4 font-semibold text-primary whitespace-nowrap">
-                                    {{ $st->currentClass?->name ?? 'Chưa xếp lớp' }}
-                                </td>
-                                <td class="py-3.5 px-4 whitespace-nowrap">
-                                    <div class="font-bold text-gray-900 whitespace-nowrap">{{ $st->target }}</div>
-                                    <div class="text-[10px] text-emerald-600 font-semibold whitespace-nowrap">Đầu vào: {{ $st->entrance_score ?? 'Chưa test' }}</div>
-                                </td>
-                                <td class="py-3.5 px-4 font-medium whitespace-nowrap">
-                                    <div class="whitespace-nowrap">{{ $st->attendance_rate }}</div>
-                                    <div class="text-[10px] text-gray-400 whitespace-nowrap">BTVN: {{ $st->homework_rate }}%</div>
-                                </td>
-                                <td class="py-3.5 px-4 whitespace-nowrap">
-                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border {{ $st->status_badge }} whitespace-nowrap inline-block">
-                                        {{ $st->status_label }}
                                     </span>
-                                </td>
-                                <td class="py-3.5 px-4 text-right whitespace-nowrap">
-                                    <a href="{{ route('students.show', $st->id) }}" class="text-primary hover:underline font-semibold whitespace-nowrap">
-                                        Xem hồ sơ
-                                    </a>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="8">
-                                    @if (collect(request()->only(['search', 'branch_id', 'class_id', 'status']))->filter()->isNotEmpty())
-                                        <x-ui.empty-state icon="search_off" title="Không tìm thấy học viên" description="Thử đổi từ khóa hoặc bỏ bớt bộ lọc.">
-                                            <x-ui.button variant="secondary" size="sm" :href="route('students.index')">Xóa bộ lọc</x-ui.button>
-                                        </x-ui.empty-state>
-                                    @else
-                                        <x-ui.empty-state icon="school" title="Chưa có học viên nào" description="Danh sách chỉ gồm học viên thuộc chi nhánh / lớp bạn được phân quyền." />
+                                </a>
+                            </td>
+                            <td>
+                                <p class="font-code text-code text-on-surface">{{ $st->phone ?: '—' }}</p>
+                                <p class="font-caption text-caption text-on-surface-variant">{{ $st->email ?: 'Chưa có email' }}</p>
+                            </td>
+                            <td>
+                                @if ($st->currentClass)
+                                    <span class="inline-flex rounded bg-secondary-fixed px-sm py-[2px] font-code text-caption font-semibold text-on-secondary-fixed" title="{{ $st->currentClass->name }}">{{ $st->currentClass->code ?: $st->currentClass->name }}</span>
+                                    <span class="mt-xs block max-w-[200px] truncate font-caption text-caption text-on-surface-variant">{{ $st->currentClass->name }}</span>
+                                @else
+                                    <span class="inline-flex rounded bg-surface-container-high px-sm py-[2px] font-caption text-caption text-on-surface-variant">Chưa có lớp</span>
+                                @endif
+                            </td>
+                            <td><x-ui.badge :color="$st->status_color" pill>{{ $st->status_label }}</x-ui.badge></td>
+                            <td class="whitespace-nowrap text-right">
+                                <div class="inline-flex items-center gap-sm">
+                                    <x-ui.button variant="ghost" size="sm" icon="visibility" :href="route('students.show', $st->id)">Chi tiết</x-ui.button>
+                                    @if ($canLink && $st->status !== \App\Models\Student::STATUS_DROPPED)
+                                        <x-ui.button variant="secondary" size="sm"
+                                            x-on:click="openLink({{ \Illuminate\Support\Js::from(['id' => $st->id, 'name' => $st->name, 'branch_id' => $st->branch_id, 'class_ids' => array_values(array_filter([$st->current_class_id]))]) }})">
+                                            Liên kết lớp khác
+                                        </x-ui.button>
                                     @endif
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5">
+                                @if (collect(request()->only(['search', 'branch_id', 'class_id', 'status', 'statuses']))->filter()->isNotEmpty())
+                                    <x-ui.empty-state icon="search_off" title="Không tìm thấy học viên" description="Thử đổi từ khóa hoặc bỏ bớt bộ lọc.">
+                                        <x-ui.button variant="secondary" size="sm" :href="route('students.index')">Xóa bộ lọc</x-ui.button>
+                                    </x-ui.empty-state>
+                                @else
+                                    <x-ui.empty-state icon="school" title="Chưa có học viên nào" description="Danh sách chỉ gồm học viên thuộc chi nhánh / lớp bạn được phân quyền." />
+                                @endif
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+            <x-slot:footer><x-ui.pagination :paginator="$students" :options="[10, 20, 50]" unit="học sinh" /></x-slot:footer>
+        </x-ui.data-table>
 
-            <x-pagination :paginator="$students" />
-        </div>
+        {{-- Popup "Liên kết lớp khác" (học song song, không đổi lớp chính) --}}
+        @if ($canLink)
+            <div x-show="linkOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/40 p-md" x-on:keydown.escape.window="linkOpen = false" role="dialog" aria-modal="true">
+                <form method="POST" :action="baseUrl + '/' + linkStudent?.id + '/link-class'" x-on:click.outside="linkOpen = false"
+                      class="w-full max-w-md space-y-md rounded-xl bg-surface-container-lowest p-lg shadow-level-3" data-testid="list-link-class-form">
+                    @csrf
+                    <div class="flex items-start justify-between gap-md">
+                        <div>
+                            <h3 class="font-h3 text-h3 text-on-surface">Liên kết lớp khác</h3>
+                            <p class="font-body-small text-body-small text-on-surface-variant">Học viên <strong x-text="linkStudent?.name"></strong> học thêm lớp này, lớp chính giữ nguyên.</p>
+                        </div>
+                        <button type="button" class="text-on-surface-variant" x-on:click="linkOpen = false" aria-label="Đóng"><span class="material-symbols-outlined">close</span></button>
+                    </div>
+                    <x-ui.field label="Lớp liên kết" for="list_link_class" required>
+                        <select id="list_link_class" name="class_id" required class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base">
+                            <option value="">-- Chọn lớp cùng chi nhánh --</option>
+                            <template x-for="c in options" :key="c.id">
+                                <option :value="c.id" :disabled="c.full" x-text="c.label + ' — ' + c.seats + (c.full ? ' (Đã đủ sĩ số)' : '')"></option>
+                            </template>
+                        </select>
+                    </x-ui.field>
+                    <p x-show="options.length === 0" class="font-caption text-caption text-on-surface-variant">Không còn lớp cùng chi nhánh để liên kết.</p>
+                    <div class="flex justify-end gap-sm">
+                        <x-ui.button variant="secondary" x-on:click="linkOpen = false">Hủy</x-ui.button>
+                        <x-ui.button type="submit" icon="add_link">Liên kết lớp</x-ui.button>
+                    </div>
+                </form>
+            </div>
+        @endif
     </div>
 </x-app-layout>

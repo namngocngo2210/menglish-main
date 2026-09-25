@@ -227,8 +227,12 @@ class WorkTaskController extends Controller
             'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
             'date' => ['nullable', 'date'],
             'week' => ['nullable', 'regex:/^\d{4}-W\d{2}$/'],
+            'attendance' => ['nullable', 'in:done,missing,upcoming,cancelled'],
+            'teacher_id' => ['nullable', 'integer'],
         ]);
         $viewer = $request->user();
+        $attendanceFilter = $validated['attendance'] ?? null;
+        $teacherFilter = isset($validated['teacher_id']) ? (int) $validated['teacher_id'] : null;
         $tab = $validated['tab'] ?? 'day';
         $branchId = isset($validated['branch_id']) ? (int) $validated['branch_id'] : null;
         $today = CarbonImmutable::today();
@@ -242,6 +246,14 @@ class WorkTaskController extends Controller
 
         // Theo ngày: buổi học thật của ngày được chọn (kể cả buổi đã hủy/nghỉ lễ để học vụ nắm được).
         $daySessions = $dashboard->sessionsQuery($viewer, $branchId)->whereDate('date', $date)->get();
+        // "Lọc thêm" (mockup): giáo viên và trạng thái điểm danh — lọc trên buổi thật trong ngày.
+        $dayTeachers = $daySessions->flatMap(fn (ClassSession $s) => [$s->teacher, $s->foreignTeacher])->filter()->unique('id')->sortBy('name')->values();
+        if ($teacherFilter) {
+            $daySessions = $daySessions->filter(fn (ClassSession $s) => in_array($teacherFilter, [(int) $s->teacher_id, (int) $s->foreign_teacher_id], true))->values();
+        }
+        if ($attendanceFilter) {
+            $daySessions = $daySessions->filter(fn (ClassSession $s) => $dashboard->attendanceState($s, $today)['key'] === $attendanceFilter)->values();
+        }
         $dayStats = [
             'total' => $daySessions->where('status', '!=', 'cancelled')->count(),
             'done' => $daySessions->filter(fn ($s) => $s->status !== 'cancelled' && $s->attendances_count > 0)->count(),
@@ -284,7 +296,8 @@ class WorkTaskController extends Controller
 
         return view('tasks.classes-dashboard', compact(
             'tab', 'branches', 'branchId', 'selectedBranch', 'date', 'week', 'today',
-            'daySessions', 'dayStats', 'seats', 'assistantsToday', 'weekStart', 'matrix', 'dashboard'
+            'daySessions', 'dayStats', 'seats', 'assistantsToday', 'weekStart', 'matrix', 'dashboard',
+            'dayTeachers', 'attendanceFilter', 'teacherFilter'
         ));
     }
 
@@ -893,8 +906,10 @@ class WorkTaskController extends Controller
             'report_branch_id' => ['nullable', 'integer', 'exists:branches,id'],
             'report_date' => ['nullable', 'date'],
             'class_id' => ['nullable', 'integer'],
+            'class_q' => ['nullable', 'string', 'max:100'],
         ]);
         $viewer = $request->user();
+        $classSearch = trim((string) ($validated['class_q'] ?? ''));
 
         // Chỉ lớp người xem phụ trách (nhân sự quản lý lớp thấy tất cả).
         $classes = ClassModel::visibleTo($viewer)
@@ -902,6 +917,18 @@ class WorkTaskController extends Controller
             ->orderBy('name')
             ->get();
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
+
+        // Bảng "Danh sách lớp hiện tại": tìm phía server theo tên / mã lớp (form chọn lớp vẫn dùng toàn bộ danh sách).
+        $needle = mb_strtolower($classSearch);
+        $listClasses = $needle === '' ? $classes : $classes->filter(
+            fn (ClassModel $c) => str_contains(mb_strtolower($c->name.' '.$c->code), $needle)
+        )->values();
+
+        // Năm học cho ô chọn "Năm học áp dụng": năm trước → năm sau, cộng các năm học đã lưu.
+        $academicYears = collect(range(now()->year - 1, now()->year + 1))
+            ->map(fn (int $y) => $y.' - '.($y + 1))
+            ->merge($classes->pluck('scheduleConfig.academic_year')->filter())
+            ->unique()->sort()->values();
 
         // Dữ liệu điền sẵn form khi chọn lớp đã có TKB (sửa lịch; buổi quá khứ/đã điểm danh được giữ nguyên).
         $scheduleData = $classes->mapWithKeys(fn (ClassModel $class) => [$class->id => [
@@ -993,7 +1020,7 @@ class WorkTaskController extends Controller
         }
 
         return view('tasks.schedule-config', compact(
-            'classes', 'branches', 'scheduleData', 'selectedClassId',
+            'classes', 'listClasses', 'classSearch', 'academicYears', 'branches', 'scheduleData', 'selectedClassId',
             'reportBranchId', 'reportStart', 'reportEnd', 'report', 'classCountChange', 'holidaySessions'
         ));
     }

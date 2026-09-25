@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\HolidayRequest;
 use App\Models\Branch;
 use App\Models\Holiday;
+use App\Services\DocumentCodeGenerator;
 use App\Services\HolidayRescheduleService;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -14,31 +16,42 @@ class HolidayController extends Controller
 {
     public function __construct(private readonly HolidayRescheduleService $reschedule) {}
 
-    public function index(Request $request): View
+    /**
+     * Mockup "Cấu hình ngày nghỉ": danh sách (tìm kiếm, phân trang) và form Thêm/Sửa bên phải trên cùng một trang.
+     */
+    public function index(Request $request, ?Holiday $editing = null): View
     {
+        $search = trim((string) $request->query('search', ''));
         $holidays = Holiday::query()
             ->with('branches')
+            ->when($search !== '', fn ($q) => $q->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%")))
             ->orderByDesc('start_date')
             ->paginate($request->perPage(15))
             ->withQueryString();
 
-        return view('holidays.index', compact('holidays'));
-    }
+        $holiday = $editing ?? new Holiday;
 
-    public function create(): View
-    {
-        return view('holidays.form', [
-            'holiday' => new Holiday,
+        return view('holidays.index', [
+            'holidays' => $holidays,
+            'holiday' => $holiday,
             'branches' => Branch::query()->active()->orderBy('name')->get(),
-            'selectedBranchIds' => [],
+            'selectedBranchIds' => $holiday->exists ? $holiday->branches->pluck('id')->all() : [],
         ]);
     }
 
-    public function store(HolidayRequest $request): RedirectResponse
+    public function create(Request $request): View
     {
+        return $this->index($request);
+    }
+
+    public function store(HolidayRequest $request, DocumentCodeGenerator $codes): RedirectResponse
+    {
+        $branchIds = $request->validated('branch_ids', []);
         $holiday = Holiday::create([
-            ...$request->safe()->except(['branch_ids', 'is_system_wide']),
-            'is_system_wide' => $request->boolean('is_system_wide'),
+            ...$request->safe()->except(['branch_ids', 'is_system_wide', 'code']),
+            'code' => filled($request->validated('code')) ? $request->validated('code') : $codes->holidayCode(Carbon::parse($request->validated('start_date'))->year),
+            // Không chọn chi nhánh nào = áp dụng toàn hệ thống (mockup: "Để trống nếu muốn áp dụng cho tất cả chi nhánh").
+            'is_system_wide' => $request->boolean('is_system_wide') || empty($branchIds),
         ]);
 
         if (! $holiday->is_system_wide) {
@@ -52,20 +65,18 @@ class HolidayController extends Controller
         return redirect()->route('holidays.index')->with('status', 'Đã thêm ngày nghỉ.'.$this->summaryText($summary));
     }
 
-    public function edit(Holiday $holiday): View
+    public function edit(Request $request, Holiday $holiday): View
     {
-        return view('holidays.form', [
-            'holiday' => $holiday,
-            'branches' => Branch::query()->active()->orderBy('name')->get(),
-            'selectedBranchIds' => $holiday->branches->pluck('id')->all(),
-        ]);
+        return $this->index($request, $holiday->load('branches'));
     }
 
     public function update(HolidayRequest $request, Holiday $holiday): RedirectResponse
     {
+        $branchIds = $request->validated('branch_ids', []);
         $holiday->update([
-            ...$request->safe()->except(['branch_ids', 'is_system_wide']),
-            'is_system_wide' => $request->boolean('is_system_wide'),
+            ...$request->safe()->except(['branch_ids', 'is_system_wide', 'code']),
+            'code' => filled($request->validated('code')) ? $request->validated('code') : $holiday->code,
+            'is_system_wide' => $request->boolean('is_system_wide') || empty($branchIds),
         ]);
 
         $holiday->branches()->sync($holiday->is_system_wide ? [] : $request->validated('branch_ids', []));

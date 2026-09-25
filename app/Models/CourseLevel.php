@@ -17,18 +17,27 @@ class CourseLevel extends Model
     protected $fillable = [
         'code',
         'name',
+        'description',
         'level_group',
         'target',
         'duration',
         'lessons_count',
         'syllabus_curriculum_id',
         'is_active',
+        'sort_order',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'lessons_count' => 'integer',
+        'sort_order' => 'integer',
     ];
+
+    /** Thứ tự hiển thị: theo kéo thả (sort_order), rồi nhóm + mã. */
+    public function scopeOrdered(Builder $query): Builder
+    {
+        return $query->orderBy('sort_order')->orderBy('level_group')->orderBy('code');
+    }
 
     public function courses(): HasMany
     {

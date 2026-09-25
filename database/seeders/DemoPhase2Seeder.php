@@ -303,7 +303,7 @@ class DemoPhase2Seeder extends Seeder
         ]])->all();
         foreach ($toMark->take(-2) as $k => $session) {
             AcademicRecord::updateOrCreate(
-                ['module' => 'teacher_remarks', 'record_code' => $class->id.'-'.$session->date->toDateString()],
+                ['module' => 'teacher_remarks', 'record_code' => TeacherPortalController::remarkRecordCode($session)],
                 ['screen_key' => TeacherPortalController::REMARKS_SCREEN_KEY, 'title' => "Nhận xét lớp {$class->id} ngày ".$session->date->toDateString(),
                     'status' => 'completed', 'user_id' => $teacher->id, 'data' => $remark($k)]
             );

@@ -1,13 +1,17 @@
 {{-- Dashboard lớp học theo ngày / ma trận khung giờ tuần — dữ liệu lấy từ buổi học thật (class_sessions). --}}
 <x-app-layout title="Dashboard lớp học">
-    <x-ui.page-header title="Dashboard lớp học" description="Lịch học, điểm danh và chấm công theo từng buổi học thực tế.">
+    <x-ui.page-header title="Dashboard lớp học" description="Quản lý lịch học, điểm danh và chấm công giảng viên">
         <x-slot:actions>
-            <x-ui.button variant="secondary" icon="download" :href="request()->fullUrlWithQuery(['export' => 1])">Xuất Excel</x-ui.button>
+            <x-ui.button variant="secondary" icon="download" :href="request()->fullUrlWithQuery(['export' => 1])" title="Xuất Excel đúng dữ liệu đang xem">Xuất báo cáo</x-ui.button>
             @can('class.create')
                 <x-ui.button icon="add" :href="route('classes.create')">Thêm lớp học</x-ui.button>
             @endcan
         </x-slot:actions>
     </x-ui.page-header>
+
+    @if (! auth()->user()->branch_id && ! auth()->user()->hasRole('admin'))
+        <x-ui.alert type="warning" class="mb-lg" data-testid="no-branch-alert">Tài khoản chưa gán chi nhánh, liên hệ Quản trị viên.</x-ui.alert>
+    @endif
 
     <x-ui.tabs class="mb-lg">
         <x-ui.tab icon="today" :href="route('tasks.classes-dashboard', ['tab' => 'day', 'date' => $date, 'branch_id' => $branchId])" :active="$tab === 'day'">Theo ngày</x-ui.tab>
@@ -16,10 +20,15 @@
 
     @if ($tab === 'day')
         {{-- ─── THEO NGÀY ─── --}}
-        <x-ui.filter-bar :search="null" :action="route('tasks.classes-dashboard')">
+        <x-ui.filter-bar :search="null" :action="route('tasks.classes-dashboard')" x-data="{ more: {{ $attendanceFilter || $teacherFilter ? 'true' : 'false' }} }">
             <input type="hidden" name="tab" value="day">
             <x-ui.select name="branch_id" inline-label="Chi nhánh:" :options="$branches->pluck('name', 'id')" :value="$branchId" placeholder="Tất cả chi nhánh" />
-            <x-ui.date name="date" inline-label="Ngày:" :value="$date" />
+            <x-ui.date name="date" inline-label="Chọn ngày:" :value="$date" />
+            <x-ui.button variant="secondary" icon="filter_list" x-on:click="more = !more" ::aria-expanded="more">Lọc thêm</x-ui.button>
+            <div x-show="more" x-cloak class="flex w-full flex-wrap items-center gap-md">
+                <x-ui.select name="teacher_id" inline-label="Giáo viên:" :options="$dayTeachers->pluck('name', 'id')" :value="$teacherFilter" placeholder="Tất cả giáo viên" />
+                <x-ui.select name="attendance" inline-label="Điểm danh:" :options="['done' => 'Đã điểm danh', 'missing' => 'Chưa điểm danh', 'upcoming' => 'Chưa diễn ra', 'cancelled' => 'Hủy / nghỉ lễ']" :value="$attendanceFilter" placeholder="Tất cả trạng thái" />
+            </div>
         </x-ui.filter-bar>
 
         <div class="mb-lg grid grid-cols-2 gap-md lg:grid-cols-4">
@@ -57,6 +66,7 @@
                                     $state = $dashboard->attendanceState($session, $today);
                                     // teacher_id cũ = GV chính ?? GVNN: không lặp tên GVNN ở cột GV chính.
                                     $mainTeacher = $session->teacher_id && $session->teacher_id !== $session->foreign_teacher_id ? $session->teacher : null;
+                                    $window = $dashboard->attendanceWindow($session);
                                 @endphp
                                 <tr data-session-id="{{ $session->id }}">
                                     <td>
@@ -85,10 +95,17 @@
                                         @endif
                                     </td>
                                     <td class="whitespace-nowrap text-right">
-                                        @if ($session->status !== 'cancelled' && $class && ! $session->date->gt($today) && auth()->user()->can('attendance_student.record'))
-                                            <x-ui.button size="sm" :variant="$state['key'] === 'done' ? 'secondary' : 'primary'" icon="how_to_reg"
-                                                :href="route('teacher.attendance', ['classId' => $class->id, 'session' => $session->id, 'date' => $session->date->toDateString()])">
-                                                {{ $state['key'] === 'done' ? 'Xem điểm danh' : 'Điểm danh / Chấm công' }}
+                                        @if ($session->status !== 'cancelled' && $class && $state['key'] !== 'done' && $window === 'before' && auth()->user()->can('attendance_student.record'))
+                                            {{-- Mockup: chưa tới giờ học → nút Chấm công khóa kèm quy định cửa sổ 24h. --}}
+                                            <div class="inline-flex flex-col items-end gap-xs">
+                                                <x-ui.button size="sm" variant="secondary" icon="how_to_reg" disabled>Chấm công</x-ui.button>
+                                                <span class="max-w-[180px] whitespace-normal text-right font-caption text-caption text-on-surface-variant">Chỉ được chấm công trong vòng 24h sau giờ học</span>
+                                            </div>
+                                        @elseif ($session->status !== 'cancelled' && $class && ! $session->date->gt($today) && auth()->user()->can('attendance_student.record'))
+                                            <x-ui.button size="sm" :variant="$state['key'] === 'done' || $window === 'closed' ? 'secondary' : 'primary'" icon="how_to_reg"
+                                                :href="route('teacher.attendance', ['classId' => $class->id, 'session' => $session->id, 'date' => $session->date->toDateString()])"
+                                                :title="$window === 'closed' && $state['key'] !== 'done' ? 'Quá 24h sau giờ học — điểm danh bù, Học vụ sẽ rà soát' : null">
+                                                {{ $state['key'] === 'done' ? 'Xem điểm danh' : ($window === 'closed' ? 'Điểm danh bù' : 'Chấm công') }}
                                             </x-ui.button>
                                         @elseif ($session->status === 'cancelled' && $session->makeupSession)
                                             <span class="font-caption text-caption text-on-surface-variant">Bù ngày {{ $session->makeupSession->date->format('d/m') }}</span>
@@ -101,12 +118,17 @@
                                 <tr>
                                     <td colspan="9">
                                         <x-ui.empty-state icon="event_available" title="Không có buổi học nào"
-                                            description="Không có buổi học nào trong ngày đã chọn{{ $selectedBranch ? ' tại '.$selectedBranch->name : '' }}. Lịch học được sinh từ màn TKB." />
+                                            description="Không có buổi học nào {{ $attendanceFilter || $teacherFilter ? 'khớp bộ lọc' : 'trong ngày đã chọn' }}{{ $selectedBranch ? ' tại '.$selectedBranch->name : '' }}. Lịch học được sinh từ màn TKB." />
                                     </td>
                                 </tr>
                             @endforelse
                         </tbody>
                     </table>
+                    <x-slot:footer>
+                        <div class="px-md py-sm font-body-small text-body-small text-on-surface-variant">
+                            Hiển thị {{ $daySessions->count() }} buổi học của {{ $daySessions->pluck('class_id')->unique()->count() }} lớp học
+                        </div>
+                    </x-slot:footer>
                 </x-ui.data-table>
             </div>
 
@@ -114,7 +136,7 @@
             <aside class="rounded-xl border border-outline-variant bg-surface-container-low p-md">
                 <div class="mb-md flex items-center gap-sm border-b border-outline-variant pb-sm">
                     <span class="material-symbols-outlined text-primary-container" aria-hidden="true">support_agent</span>
-                    <h3 class="font-h3 text-h3 text-on-surface">Trợ giảng làm việc</h3>
+                    <h3 class="font-h3 text-h3 text-on-surface">Trợ giảng làm việc {{ \Illuminate\Support\Carbon::parse($date)->isToday() ? 'hôm nay' : 'ngày '.\Illuminate\Support\Carbon::parse($date)->format('d/m') }}</h3>
                 </div>
                 <ul class="space-y-sm">
                     @forelse ($assistantsToday as $duty)
@@ -130,7 +152,8 @@
                     @endforelse
                 </ul>
                 @can('work_task.assign')
-                    <x-ui.button variant="secondary" icon="add" class="mt-md w-full" :href="route('tasks.ta-assign')">Giao việc cho trợ giảng</x-ui.button>
+                    <x-ui.button variant="secondary" class="mt-md w-full" :href="route('portal.ta-tasks', ['date' => $date])">Xem tất cả trợ giảng</x-ui.button>
+                    <x-ui.button variant="ghost" icon="add" class="mt-xs w-full" :href="route('tasks.ta-assign')">Giao việc cho trợ giảng</x-ui.button>
                 @endcan
             </aside>
         </div>
@@ -139,7 +162,7 @@
         <x-ui.filter-bar :search="null" :action="route('tasks.classes-dashboard')">
             <input type="hidden" name="tab" value="week">
             <x-ui.select name="branch_id" inline-label="Chi nhánh:" :options="$branches->pluck('name', 'id')" :value="$branchId" placeholder="Tất cả chi nhánh" />
-            <x-ui.input type="week" name="week" inline-label="Tuần:" :value="$week" />
+            <x-ui.input type="week" name="week" inline-label="Chọn tuần:" :value="$week" />
         </x-ui.filter-bar>
 
         <div class="mb-md flex flex-wrap items-center gap-md font-caption text-caption text-on-surface-variant">

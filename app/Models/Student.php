@@ -56,6 +56,7 @@ class Student extends Model
         'dob',
         'gender',
         'address',
+        'school',
         'branch_id',
         'current_class_id',
         'target',
@@ -227,6 +228,21 @@ class Student extends Model
     public function getStatusLabelAttribute(): string
     {
         return self::STATUSES[$this->status] ?? (string) $this->status;
+    }
+
+    /** Màu <x-ui.badge> theo trạng thái (dùng cho chip trạng thái và bảng danh sách). */
+    public const STATUS_COLORS = [
+        'waiting_start' => 'info',
+        'studying' => 'success',
+        'deferred' => 'warning',
+        'summer_break' => 'secondary',
+        'completed' => 'primary',
+        'dropped' => 'error',
+    ];
+
+    public function getStatusColorAttribute(): string
+    {
+        return self::STATUS_COLORS[$this->status] ?? 'neutral';
     }
 
     public function getStatusBadgeAttribute(): string

@@ -336,6 +336,7 @@ class StudentPortalController extends Controller
         if ($student) {
             $classIds = $student->activeClassIds();
             $remarks = AcademicRecord::where('module', 'teacher_remarks')
+                ->where('status', '!=', 'draft') // nhận xét GV "Lưu nháp" chưa hiển thị cho học viên
                 ->where(function ($q) use ($classIds) {
                     foreach ($classIds as $classId) {
                         $q->orWhere('record_code', 'like', $classId.'-%');
@@ -348,8 +349,9 @@ class StudentPortalController extends Controller
                 ->filter(fn (AcademicRecord $record) => ! empty(array_filter((array) data_get($record->data, (string) $student->id, []))))
                 ->take(3)
                 ->map(fn (AcademicRecord $record) => [
-                    'date' => preg_match('/-(\d{4}-\d{2}-\d{2})$/', (string) $record->record_code, $m) ? Carbon::parse($m[1]) : $record->created_at,
-                    'remark' => (array) data_get($record->data, (string) $student->id, []),
+                    // Mã {lớp}-{ngày} (cũ) hoặc {lớp}-{ngày}-s{buổi} (theo buổi học).
+                    'date' => preg_match('/-(\d{4}-\d{2}-\d{2})(?:-s\d+)?$/', (string) $record->record_code, $m) ? Carbon::parse($m[1]) : $record->created_at,
+                    'remark' => self::normalizeRemark((array) data_get($record->data, (string) $student->id, [])),
                 ])
                 ->values();
             $miniTests = MiniTestScore::where('student_id', $student->id)->latest('test_date')->limit(10)->get();
@@ -370,6 +372,19 @@ class StudentPortalController extends Controller
             'bigTestResults',
             'latestHomework'
         ));
+    }
+
+    /** Nhận xét theo buổi lưu Monsters (Nhóm) / (Thưởng) riêng; bản cũ chỉ có "monsters". */
+    private static function normalizeRemark(array $remark): array
+    {
+        if (blank($remark['monsters'] ?? null)) {
+            $remark['monsters'] = collect(['Nhóm' => $remark['monsters_group'] ?? null, 'Thưởng' => $remark['monsters_bonus'] ?? null])
+                ->filter(fn ($v) => filled($v))
+                ->map(fn ($v, $k) => $k.' '.$v)
+                ->implode(' · ') ?: null;
+        }
+
+        return $remark;
     }
 
     /**

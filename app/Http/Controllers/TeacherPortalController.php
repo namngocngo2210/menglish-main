@@ -187,9 +187,65 @@ class TeacherPortalController extends Controller
             ];
         });
 
+        // Ca sắp / đang diễn ra chưa điểm danh → banner "Ca dạy lúc HH:MM sắp bắt đầu!" (mockup App shell).
+        $nextShift = $shifts->first(function (array $shift) {
+            $end = Carbon::parse($shift['session']->date->format('Y-m-d').' '.($shift['session']->end_time?->format('H:i') ?? '23:59'));
+
+            return ! $shift['attendance_done'] && now()->lte($end);
+        });
+
+        $widgets = $this->homeWidgets($teacher);
+
         return view('teacher.home', compact(
-            'teacher', 'shifts', 'stats', 'today', 'weekDays', 'weekStart', 'pendingSessions', 'attendanceDone'
+            'teacher', 'shifts', 'stats', 'today', 'weekDays', 'weekStart', 'pendingSessions', 'attendanceDone', 'nextShift', 'widgets'
         ));
+    }
+
+    /**
+     * Các thẻ tổng quan của trang chủ GV (mockup App shell Cổng Giáo viên), đều từ dữ liệu thật:
+     * học sinh cần chú ý (mini test dưới 7/10, 30 ngày), lương tạm tính theo giờ dạy trong tháng,
+     * chấm công tháng này, vi phạm trong tháng.
+     */
+    private function homeWidgets(User $teacher): array
+    {
+        $monthStart = now()->startOfMonth();
+        $classIds = ClassModel::query()->where(fn ($q) => $q->where('teacher_id', $teacher->id)
+            ->orWhere('foreign_teacher_id', $teacher->id)->orWhere('assistant_id', $teacher->id))->pluck('id');
+
+        $attention = MiniTestScore::with(['student:id,name', 'classModel:id,name'])
+            ->whereIn('class_id', $classIds)
+            ->whereDate('test_date', '>=', now()->subDays(30)->toDateString())
+            ->where('max_score', '>', 0)
+            ->whereRaw('score * 10 < max_score * 7')
+            ->latest('test_date')
+            ->limit(5)
+            ->get();
+
+        $timesheets = TeacherTimesheet::where('user_id', $teacher->id)
+            ->whereBetween('teaching_date', [$monthStart->toDateString(), now()->toDateString()])
+            ->where('status', '!=', 'rejected')
+            ->get(['id', 'teaching_date', 'hours', 'status']);
+        $estimate = null;
+        foreach ($timesheets as $ts) {
+            $rate = \App\Models\TeacherHourlyRate::rateFor($teacher->id, $ts->teaching_date);
+            if ($rate !== null) {
+                $estimate = ($estimate ?? 0) + $rate * (float) $ts->hours;
+            }
+        }
+
+        $violations = \App\Models\Penalty::where('user_id', $teacher->id)
+            ->whereDate('violation_date', '>=', $monthStart->toDateString())
+            ->latest('violation_date')
+            ->get(['id', 'code', 'violation_type', 'violation_date', 'status', 'notes']);
+
+        return [
+            'attention' => $attention,
+            'estimate' => $estimate,
+            'hours' => (float) $timesheets->sum('hours'),
+            'timesheets_total' => $timesheets->count(),
+            'timesheets_pending' => $timesheets->where('status', 'pending_review')->count(),
+            'violations' => $violations,
+        ];
     }
 
     /**
@@ -317,6 +373,8 @@ class TeacherPortalController extends Controller
         $blockReason = $session ? $this->attendanceBlockReason($session) : null;
         $onBehalf = ! $this->isAssignedStaff($user, $class, $session);
         $today = ($session?->date ?? now())->toDateString();
+        $window = $session ? app(\App\Services\ClassDashboardService::class)->attendanceWindow($session) : null;
+        $rosterSize = $class->occupiedSeats();
 
         // Các buổi gần đây của lớp để chọn điểm danh bù / buổi học bù.
         $recentSessions = ClassSession::where('class_id', $class->id)
@@ -327,7 +385,7 @@ class TeacherPortalController extends Controller
             ->get();
 
         return view('teacher.attendance', compact(
-            'class', 'session', 'students', 'existing', 'today', 'blockReason', 'onBehalf', 'recentSessions'
+            'class', 'session', 'students', 'existing', 'today', 'blockReason', 'onBehalf', 'recentSessions', 'window', 'rosterSize'
         ));
     }
 
@@ -356,6 +414,17 @@ class TeacherPortalController extends Controller
         }
         if ($reason = $this->attendanceBlockReason($session)) {
             return back()->withErrors(['session' => $reason]);
+        }
+
+        // Mockup điểm danh: "Nghỉ có phép" / "Nghỉ không phép" bắt buộc ghi chú lý do vắng.
+        $missingNotes = collect($validated['status'])
+            ->filter(fn ($status, $studentId) => in_array($status, ['absent', 'excused'], true) && blank($validated['note'][$studentId] ?? null))
+            ->keys();
+        if ($missingNotes->isNotEmpty()) {
+            return back()->withInput()->withErrors(array_merge(
+                ['note' => 'Vui lòng điền rõ lý do cho '.$missingNotes->count().' học sinh được đánh dấu "Nghỉ".'],
+                $missingNotes->mapWithKeys(fn ($id) => ["note.{$id}" => 'Cần ghi rõ lý do khi đánh dấu nghỉ'])->all(),
+            ));
         }
 
         $existing = StudentAttendance::where('class_session_id', $session->id)->get()->keyBy('student_id');
@@ -470,14 +539,35 @@ class TeacherPortalController extends Controller
     }
 
     // ───────────────────────── GIAO BÀI TẬP VỀ NHÀ ─────────────────────────
+
+    /**
+     * Giao bài tập về nhà (mockup 03_Cong_Giao_Vien/03): chọn buổi học, hạn nộp (ngày giờ), ghi chú nhắc cả lớp,
+     * tài liệu tham khảo, hạng mục bài tập (≥ 1) kèm yêu cầu. Sửa bài đã giao qua ?edit=; hạng mục đã có học sinh
+     * nộp bài thì khóa (không bỏ được).
+     */
     public function homework(Request $request, int $classId)
     {
         $this->guardTeacher();
         $class = ClassModel::findOrFail($classId);
         $this->authorizeClass($class);
-        $homeworks = Homework::where('class_id', $classId)->latest('due_date')->latest('id')->get();
+        $homeworks = Homework::with(['teacher:id,name', 'classSession:id,date,start_time'])
+            ->where('class_id', $classId)->latest('due_date')->latest('id')->get();
 
-        return view('teacher.homework', compact('class', 'homeworks'));
+        $sessions = ClassSession::where('class_id', $class->id)
+            ->whereIn('type', [ClassSession::TYPE_REGULAR, ClassSession::TYPE_MAKEUP])
+            ->where('status', '!=', 'cancelled')
+            ->whereDate('date', '>=', now()->subDays(self::MAKEUP_LOOKBACK_DAYS)->toDateString())
+            ->whereDate('date', '<=', now()->addDays(14)->toDateString())
+            ->orderBy('date')->orderBy('start_time')
+            ->get();
+        $lessons = app(\App\Services\SessionLessonService::class)->lessonsFor($sessions);
+
+        $lockedTypes = $this->submittedHomeworkTypes($class, $homeworks);
+        $editing = $request->filled('edit') ? $homeworks->firstWhere('id', (int) $request->query('edit')) : null;
+        $selectedSessionId = old('class_session_id', $editing?->class_session_id ?? $request->query('session')
+            ?? $sessions->first(fn (ClassSession $s) => $s->date->isSameDay(now()))?->id);
+
+        return view('teacher.homework', compact('class', 'homeworks', 'sessions', 'lessons', 'lockedTypes', 'editing', 'selectedSessionId'));
     }
 
     public function homeworkStore(Request $request, int $classId)
@@ -485,21 +575,135 @@ class TeacherPortalController extends Controller
         $this->guardTeacher();
         $class = ClassModel::findOrFail($classId);
         $this->authorizeClass($class);
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'due_date' => 'nullable|date',
-        ]);
+        $data = $this->validatedHomework($request, $class);
 
-        Homework::create([
-            'class_id' => $classId,
-            'user_id' => Auth::id(),
-            'title' => $validated['title'],
-            'description' => $validated['description'] ?? null,
-            'due_date' => $validated['due_date'] ?? null,
-        ]);
+        Homework::create($data + ['class_id' => $classId, 'user_id' => Auth::id()]);
 
         return back()->with('success', 'Đã giao bài tập về nhà cho lớp!');
+    }
+
+    public function homeworkUpdate(Request $request, int $classId, int $homeworkId)
+    {
+        $this->guardTeacher();
+        $class = ClassModel::findOrFail($classId);
+        $this->authorizeClass($class);
+        $homework = Homework::where('class_id', $classId)->whereKey($homeworkId)->firstOrFail();
+        $data = $this->validatedHomework($request, $class, $homework);
+
+        $homework->update($data);
+
+        return redirect()->route('teacher.homework', $class->id)->with('success', 'Đã cập nhật bài tập về nhà!');
+    }
+
+    /**
+     * Kiểm tra + chuẩn hóa dữ liệu form giao bài. Form cũ (chỉ Tiêu đề + Mô tả + Hạn nộp) vẫn được chấp nhận.
+     */
+    private function validatedHomework(Request $request, ClassModel $class, ?Homework $homework = null): array
+    {
+        $categories = array_keys(Homework::CATEGORIES);
+        $validated = $request->validate([
+            'class_session_id' => ['nullable', 'integer'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:5000'],
+            'due_date' => ['nullable', 'date'],
+            'due_at' => ['nullable', 'date'],
+            'class_note' => ['nullable', 'string', 'max:2000'],
+            'youtube_url' => ['nullable', 'url', 'max:500'],
+            'quizizz_url' => ['nullable', 'url', 'max:500'],
+            'audio' => ['nullable', 'file', 'max:51200'],
+            'categories' => ['nullable', 'array'],
+            'categories.*' => ['string', 'in:'.implode(',', $categories)],
+            'items' => ['nullable', 'array'],
+            'items.*' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $picked = array_values(array_unique($validated['categories'] ?? []));
+        $newForm = $request->has('categories') || $request->has('items') || $request->filled('class_session_id');
+        if (! $newForm && blank($validated['title'] ?? null)) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['categories' => 'Cần giao ít nhất 1 hạng mục.']);
+        }
+
+        $session = null;
+        if (filled($validated['class_session_id'] ?? null)) {
+            $session = ClassSession::where('class_id', $class->id)->whereKey($validated['class_session_id'])->first();
+            if (! $session) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['class_session_id' => 'Buổi học không thuộc lớp này.']);
+            }
+        }
+
+        $items = null;
+        if ($newForm) {
+            // Hạng mục đã có học sinh nộp bài không được bỏ khi sửa.
+            if ($homework) {
+                $locked = $this->submittedHomeworkTypes($class, collect([$homework]))[$homework->id] ?? [];
+                $picked = array_values(array_unique(array_merge($picked, $locked)));
+            }
+            if ($picked === []) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['categories' => 'Cần giao ít nhất 1 hạng mục.']);
+            }
+            $errors = [];
+            $items = [];
+            foreach ($picked as $key) {
+                $text = trim((string) ($validated['items'][$key] ?? ($homework?->items[$key] ?? '')));
+                if ($text === '') {
+                    $errors["items.{$key}"] = 'Nhập chi tiết yêu cầu cho hạng mục "'.Homework::CATEGORIES[$key][0].'".';
+                }
+                $items[$key] = $text;
+            }
+            if (! $session) {
+                $errors['class_session_id'] = 'Vui lòng chọn buổi học.';
+            }
+            if (blank($validated['due_at'] ?? null) && blank($validated['due_date'] ?? null)) {
+                $errors['due_at'] = 'Vui lòng chọn hạn nộp.';
+            }
+            if ($errors) {
+                throw \Illuminate\Validation\ValidationException::withMessages($errors);
+            }
+        }
+
+        $dueAt = filled($validated['due_at'] ?? null) ? Carbon::parse($validated['due_at']) : null;
+        $data = [
+            'class_session_id' => $session?->id,
+            'title' => filled($validated['title'] ?? null)
+                ? $validated['title']
+                : 'Bài tập buổi '.$session?->date->format('d/m').': '.collect($items)->keys()->map(fn ($k) => Homework::CATEGORIES[$k][0])->implode(', '),
+            'description' => $validated['description'] ?? ($items ? collect($items)->map(fn ($t, $k) => Homework::CATEGORIES[$k][0].': '.$t)->implode("\n") : null),
+            'due_at' => $dueAt,
+            'due_date' => $dueAt?->toDateString() ?? ($validated['due_date'] ?? null),
+            'class_note' => $validated['class_note'] ?? null,
+            'youtube_url' => $validated['youtube_url'] ?? null,
+            'quizizz_url' => $validated['quizizz_url'] ?? null,
+            'items' => $items,
+        ];
+        if ($request->hasFile('audio')) {
+            $data['audio_path'] = \App\Services\SafeUploadService::store($request->file('audio'), 'homework_audio', \App\Services\SafeUploadService::AUDIO, 'audio');
+        }
+
+        return $data;
+    }
+
+    /**
+     * Hạng mục đã có học sinh của lớp nộp bài (từ lúc giao bài) — theo homework_type của bài nộp.
+     *
+     * @return array<int, list<string>> homework_id => các khóa hạng mục bị khóa
+     */
+    private function submittedHomeworkTypes(ClassModel $class, Collection $homeworks): array
+    {
+        $withItems = $homeworks->filter(fn (Homework $h) => ! empty($h->items));
+        if ($withItems->isEmpty()) {
+            return [];
+        }
+        $rosterIds = $class->rosterStudents()->pluck('id')->map(fn ($id) => (string) $id)->all();
+        $submissions = AcademicRecord::where('module', 'student_portal')
+            ->where('created_at', '>=', $withItems->min('created_at'))
+            ->get(['id', 'data', 'created_at'])
+            ->filter(fn (AcademicRecord $r) => in_array((string) data_get($r->data, 'student_id'), $rosterIds, true));
+
+        return $withItems->mapWithKeys(fn (Homework $h) => [$h->id => $submissions
+            ->filter(fn (AcademicRecord $r) => $r->created_at >= $h->created_at)
+            ->pluck('data.homework_type')
+            ->intersect(array_keys($h->items))
+            ->unique()->values()->all()])->all();
     }
 
     public function homeworkDestroy(Request $request, int $classId, int $homeworkId)
@@ -507,12 +711,21 @@ class TeacherPortalController extends Controller
         $this->guardTeacher();
         $class = ClassModel::findOrFail($classId);
         $this->authorizeClass($class);
-        Homework::where('class_id', $classId)->where('id', $homeworkId)->firstOrFail()->delete();
+        $homework = Homework::where('class_id', $classId)->where('id', $homeworkId)->firstOrFail();
+        if (! empty($this->submittedHomeworkTypes($class, collect([$homework]))[$homework->id] ?? [])) {
+            return back()->withErrors(['homework' => 'Bài tập đã có học sinh nộp bài, không xóa được.']);
+        }
+        $homework->delete();
 
         return back()->with('success', 'Đã xoá bài tập!');
     }
 
     // ───────────────────────── NHẬP ĐIỂM MINI TEST ─────────────────────────
+
+    /**
+     * Nhập điểm mini test (mockup 03_Cong_Giao_Vien/06): chọn Unit (giáo trình của lớp) và học sinh, nhập đủ điểm
+     * 4 kỹ năng Nghe / Nói / Đọc / Viết + nhận xét chung. Điểm tổng = trung bình 4 kỹ năng (cùng thang điểm tối đa).
+     */
     public function scores(Request $request, int $classId)
     {
         $this->guardTeacher();
@@ -520,16 +733,24 @@ class TeacherPortalController extends Controller
         $this->authorizeClass($class);
         // Danh sách lớp thật (gồm học viên liên kết lớp khác, bỏ Thôi học/Hoàn thành/Bảo lưu).
         $class->setRelation('students', $class->rosterStudents());
+        $units = app(\App\Services\SessionLessonService::class)->unitsForClass($class);
+
+        $unitId = $request->integer('unit_id') ?: null;
+        $unit = $unitId ? $units->firstWhere('id', $unitId) : null;
+        $testName = $unit ? self::unitTestName($unit) : $request->input('name', $units->isEmpty() ? 'Mini Test' : null);
         $testDate = $request->input('test_date', now()->toDateString());
-        $testName = $request->input('name', 'Mini Test');
 
-        $existing = MiniTestScore::where('class_id', $classId)
-            ->where('name', $testName)
-            ->whereDate('test_date', $testDate)
-            ->get()
-            ->keyBy('student_id');
+        $existing = $testName
+            ? MiniTestScore::where('class_id', $classId)->where('name', $testName)->get()->keyBy('student_id')
+            : collect();
+        $selectedStudentId = $request->integer('student_id') ?: null;
 
-        return view('teacher.scores', compact('class', 'existing', 'testDate', 'testName'));
+        return view('teacher.scores', compact('class', 'units', 'unit', 'existing', 'testDate', 'testName', 'selectedStudentId'));
+    }
+
+    private static function unitTestName(\App\Models\SyllabusUnit $unit): string
+    {
+        return 'Unit '.$unit->unit_number.': '.$unit->title;
     }
 
     public function scoresStore(Request $request, int $classId)
@@ -537,6 +758,58 @@ class TeacherPortalController extends Controller
         $this->guardTeacher();
         $class = ClassModel::findOrFail($classId);
         $this->authorizeClass($class);
+
+        // Form theo mockup: 1 học sinh + 4 kỹ năng.
+        if ($request->has('skills')) {
+            $validated = $request->validate([
+                'unit_id' => 'nullable|integer',
+                'name' => 'nullable|string|max:255',
+                'student_id' => 'required|integer',
+                'test_date' => 'nullable|date',
+                'max_score' => 'nullable|numeric|min:1|max:100',
+                'skills' => 'required|array',
+                'skills.*' => 'nullable|numeric|min:0',
+                'note' => 'nullable|string|max:1000',
+            ], ['student_id.required' => 'Vui lòng chọn học sinh.']);
+            $max = (float) ($validated['max_score'] ?? 10);
+            $skills = collect(array_keys(MiniTestScore::SKILLS))->mapWithKeys(fn ($k) => [$k => $validated['skills'][$k] ?? null]);
+            if ($skills->contains(fn ($v) => $v === null || $v === '')) {
+                return back()->withInput()->withErrors(['skills' => 'Cần nhập đủ điểm 4 kỹ năng.']);
+            }
+            if ($skills->contains(fn ($v) => (float) $v > $max)) {
+                return back()->withInput()->withErrors(['skills' => 'Điểm kỹ năng không được vượt quá điểm tối đa ('.$max.').']);
+            }
+            $unit = filled($validated['unit_id'] ?? null)
+                ? app(\App\Services\SessionLessonService::class)->unitsForClass($class)->firstWhere('id', (int) $validated['unit_id'])
+                : null;
+            if (filled($validated['unit_id'] ?? null) && ! $unit) {
+                return back()->withInput()->withErrors(['unit_id' => 'Unit không thuộc giáo trình của lớp.']);
+            }
+            $name = $unit ? self::unitTestName($unit) : trim((string) ($validated['name'] ?? ''));
+            if ($name === '') {
+                return back()->withInput()->withErrors(['unit_id' => 'Vui lòng chọn Unit bài học.']);
+            }
+            abort_unless($class->hasOnRoster((int) $validated['student_id']), 422, 'Học viên không thuộc lớp này.');
+
+            MiniTestScore::updateOrCreate(
+                ['class_id' => $classId, 'student_id' => $validated['student_id'], 'name' => $name],
+                [
+                    'user_id' => Auth::id(),
+                    'syllabus_unit_id' => $unit?->id,
+                    'score' => round($skills->avg(fn ($v) => (float) $v), 2),
+                    'max_score' => $max,
+                    'skill_scores' => $skills->map(fn ($v) => (float) $v)->all(),
+                    'test_date' => $validated['test_date'] ?? now()->toDateString(),
+                    'note' => $validated['note'] ?? null,
+                ]
+            );
+            $student = Student::find($validated['student_id']);
+
+            return redirect()->route('teacher.scores', array_filter(['classId' => $class->id, 'unit_id' => $unit?->id, 'name' => $unit ? null : $name]))
+                ->with('success', "Đã lưu điểm {$name} cho {$student?->name}.");
+        }
+
+        // Nhập nhanh cả lớp (một điểm tổng / học sinh) — giữ tương thích.
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'test_date' => 'required|date',
@@ -574,55 +847,108 @@ class TeacherPortalController extends Controller
             ->with('success', "Đã lưu điểm {$count} học sinh (bài {$validated['name']}) lớp {$class->name}!");
     }
 
-    // ───────────────────────── NHẬN XÉT BỔ SUNG & STUBS ─────────────────────────
+    // ───────────────────────── NHẬN XÉT BUỔI HỌC ─────────────────────────
+
+    /** Trường nhận xét từng học sinh (mockup 05_nhan_xet_buoi_hoc_cho_tung_hoc_sinh). */
+    private const REMARK_FIELDS = ['monsters_group', 'monsters_bonus', 'grammar', 'attitude', 'result', 'comment'];
+
+    /** Mã bản ghi nhận xét theo buổi học: {lớp}-{ngày}-s{buổi}. Bản cũ (theo lớp + ngày) là {lớp}-{ngày}. */
+    public static function remarkRecordCode(ClassSession $session): string
+    {
+        return $session->class_id.'-'.$session->date->toDateString().'-s'.$session->id;
+    }
+
+    /**
+     * Nhận xét buổi học cho từng học sinh — theo BUỔI HỌC (?session= hoặc ?date=, mặc định buổi hôm nay),
+     * có "Lưu nháp" (chưa hiện cho học viên) và "Lưu nhận xét".
+     */
     public function remarks(Request $request, int $classId)
     {
         $this->guardTeacher();
-        $class = ClassModel::findOrFail($classId);
-        $this->authorizeClass($class);
-        // Danh sách lớp thật (gồm học viên liên kết lớp khác, bỏ Thôi học/Hoàn thành/Bảo lưu).
-        $class->setRelation('students', $class->rosterStudents());
-        $today = now()->toDateString();
+        $class = ClassModel::with('branch')->findOrFail($classId);
+        $user = Auth::user();
+        $session = $this->resolveSession($request, $class, $user);
+        $this->authorizeClass($class, $session);
 
-        $attendance = StudentAttendance::where('class_id', $classId)
-            ->whereDate('session_date', $today)
-            ->get()
-            ->keyBy('student_id');
+        $students = collect();
+        $attendance = collect();
+        $existing = collect();
+        $record = null;
+        $sessionNo = null;
+        $blockReason = null;
+        if ($session) {
+            $blockReason = $this->attendanceBlockReason($session);
+            $students = $this->sessionRoster($class, $session, StudentAttendance::where('class_session_id', $session->id)->get()->keyBy('student_id'));
+            $attendance = StudentAttendance::where('class_id', $class->id)
+                ->where(fn ($q) => $q->where('class_session_id', $session->id)
+                    ->orWhere(fn ($q) => $q->whereNull('class_session_id')->whereDate('session_date', $session->date->toDateString())))
+                ->get()
+                ->keyBy('student_id');
+            $record = AcademicRecord::where('module', 'teacher_remarks')->where('record_code', self::remarkRecordCode($session))->first()
+                // Nhận xét cũ lưu theo lớp + ngày: điền sẵn để GV lưu lại vào đúng buổi.
+                ?? AcademicRecord::where('module', 'teacher_remarks')->where('record_code', $class->id.'-'.$session->date->toDateString())->first();
+            $existing = collect($record?->data ?? [])->map(function ($remark) {
+                $remark = (array) $remark;
+                $remark['monsters_group'] ??= $remark['monsters'] ?? null;
 
-        // Use AcademicRecord or a similar JSON store for now to store remarks since there isn't a dedicated table for generic teacher remarks without ClassReport.
-        $record = AcademicRecord::where('module', 'teacher_remarks')
-            ->where('record_code', $classId.'-'.$today)
-            ->first();
+                return $remark;
+            });
+            $sessionNo = app(\App\Services\SessionLessonService::class)->sessionNumbers([(int) $class->id])[$session->id] ?? null;
+        }
 
-        $existing = collect($record ? $record->data : []);
+        $recentSessions = ClassSession::where('class_id', $class->id)
+            ->where('type', '!=', ClassSession::TYPE_SUPPORT)
+            ->whereDate('date', '>=', now()->subDays(self::MAKEUP_LOOKBACK_DAYS)->toDateString())
+            ->whereDate('date', '<=', now()->toDateString())
+            ->orderByDesc('date')->orderByDesc('start_time')
+            ->get();
 
-        return view('teacher.remarks', compact('class', 'today', 'attendance', 'existing'));
+        return view('teacher.remarks', compact('class', 'session', 'students', 'attendance', 'existing', 'record', 'sessionNo', 'recentSessions', 'blockReason'));
     }
 
     public function remarksStore(Request $request, int $classId)
     {
         $this->guardTeacher();
         $class = ClassModel::findOrFail($classId);
-        $this->authorizeClass($class);
+        $user = Auth::user();
         $validated = $request->validate([
+            'class_session_id' => 'nullable|integer',
+            'action' => 'nullable|in:draft,final',
             'remarks' => 'nullable|array',
+            'remarks.*' => 'array',
+            'remarks.*.*' => 'nullable|string|max:2000',
         ]);
 
-        $today = now()->toDateString();
+        $session = $this->resolveSession($request, $class, $user);
+        $this->authorizeClass($class, $session);
+        if (! $session) {
+            return back()->withErrors(['session' => 'Lớp không có buổi học trong ngày này. Hãy chọn buổi cần nhận xét.']);
+        }
+        if ($reason = $this->attendanceBlockReason($session)) {
+            return back()->withErrors(['session' => $reason]);
+        }
+
+        $rosterIds = $this->sessionRoster($class, $session, collect())->pluck('id')->map(fn ($id) => (string) $id);
+        $remarks = collect($validated['remarks'] ?? [])
+            ->filter(fn ($remark, $studentId) => $rosterIds->contains((string) $studentId))
+            ->map(fn ($remark) => array_intersect_key((array) $remark, array_flip(self::REMARK_FIELDS)))
+            ->all();
+        $isDraft = ($validated['action'] ?? 'final') === 'draft';
 
         AcademicRecord::updateOrCreate(
-            ['module' => 'teacher_remarks', 'record_code' => $classId.'-'.$today],
+            ['module' => 'teacher_remarks', 'record_code' => self::remarkRecordCode($session)],
             [
-                // academic_records.screen_key NOT NULL: thiếu cột này thì lưu nhận xét lỗi 500 (không lưu được).
+                // screen_key bắt buộc (NOT NULL) — trước đây thiếu nên lưu nhận xét luôn lỗi 500.
                 'screen_key' => self::REMARKS_SCREEN_KEY,
-                'title' => 'Nhận xét lớp '.$classId.' ngày '.$today,
-                'status' => 'completed',
-                'user_id' => Auth::id(),
-                'data' => $validated['remarks'] ?? [],
+                'title' => 'Nhận xét lớp '.$class->name.' buổi '.$session->date->format('d/m/Y').' '.$session->start_time?->format('H:i'),
+                'status' => $isDraft ? 'draft' : 'completed',
+                'user_id' => $user->id,
+                'data' => $remarks,
             ]
         );
 
-        return redirect()->route('teacher.home')->with('success', 'Đã lưu nhận xét buổi học!');
+        return redirect()->route('teacher.remarks', ['classId' => $class->id, 'session' => $session->id])
+            ->with('success', $isDraft ? 'Đã lưu nháp nhận xét (chưa hiển thị cho học viên).' : 'Đã lưu nhận xét buổi học!');
     }
 
     // ─────────────────────────────────────────────

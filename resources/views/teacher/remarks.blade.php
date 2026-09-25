@@ -1,107 +1,137 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between gap-4">
-            <div>
-                <h1 class="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary text-2xl">comment</span>
-                    Nhận xét buổi học: {{ $class->name }}
-                </h1>
-                <p class="text-xs text-gray-500 mt-0.5">{{ $class->code }} · Buổi ngày {{ \Carbon\Carbon::parse($today)->format('d/m/Y') }}</p>
-            </div>
-            <a href="{{ route('teacher.home') }}" class="text-xs font-semibold text-gray-500 hover:text-primary flex items-center gap-1">
-                <span class="material-symbols-outlined text-[18px]">arrow_back</span> Về trang chủ
-            </a>
-        </div>
-    </x-slot>
+{{-- Nhận xét buổi học cho từng học sinh (mockup 03_Cong_Giao_Vien/05): theo từng BUỔI học, cột Monsters (Nhóm) / (Thưởng),
+     Thực hành ngữ pháp, Tinh thần học tập, Kết quả, Nhận xét chi tiết; học sinh vắng bị khóa; "Lưu nháp" chưa hiện cho học viên. --}}
+@php
+    $cell = 'w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-body-small text-body-small focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 disabled:cursor-not-allowed disabled:bg-surface-container-low';
+    $fields = [
+        'monsters_group' => ['Monsters (Nhóm)', 'e.g. +5', 'w-[110px]'],
+        'monsters_bonus' => ['Monsters (Thưởng)', 'e.g. +2', 'w-[110px]'],
+        'grammar' => ['Thực hành ngữ pháp', 'Tốt / Khá / Cần cố gắng', 'w-[160px]'],
+        'attitude' => ['Tinh thần học tập', 'Năng nổ, hăng hái', 'w-[160px]'],
+        'result' => ['Kết quả', 'Đạt mục tiêu bài học', 'w-[160px]'],
+    ];
+    $canSave = $session && ! $blockReason && $students->isNotEmpty();
+@endphp
+<x-app-layout title="Nhận xét buổi học — {{ $class->name }}">
+    <div class="mx-auto max-w-7xl space-y-lg pb-24 md:pb-0">
+        <form method="POST" action="{{ route('teacher.remarks.store', $class->id) }}" id="remarks-form" class="space-y-lg">
+            @csrf
+            @if ($session)<input type="hidden" name="class_session_id" value="{{ $session->id }}">@endif
 
-    <div class="space-y-6">
-        @if ($errors->any())
-            <div class="rounded-xl bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 text-sm font-medium">
-                {{ $errors->first() }}
-            </div>
-        @endif
+            <header class="flex flex-col justify-between gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm md:flex-row md:items-center md:p-lg">
+                <div class="min-w-0">
+                    <a href="{{ route('teacher.home') }}" class="mb-xs inline-flex items-center gap-xs font-body-small text-body-small text-on-surface-variant hover:text-primary">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span> Về lịch dạy
+                    </a>
+                    <h1 class="font-h2 text-h2 text-on-surface">Nhận xét buổi học cho từng học sinh</h1>
+                    <div class="mt-xs flex flex-wrap items-center gap-sm font-body-small text-body-small text-on-surface-variant">
+                        <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">class</span>Lớp {{ $class->name }}</span>
+                        @if ($session)
+                            <span class="h-1 w-1 rounded-full bg-outline-variant"></span>
+                            <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">event</span>{{ $sessionNo ? 'Buổi '.$sessionNo.': ' : '' }}{{ $session->date->format('d/m/Y') }} · {{ $session->start_time?->format('H:i') }}-{{ $session->end_time?->format('H:i') }}</span>
+                            @if ($record?->status === 'draft')<x-ui.badge color="warning">Bản nháp</x-ui.badge>@elseif ($record)<x-ui.badge color="success">Đã lưu</x-ui.badge>@endif
+                        @endif
+                    </div>
+                </div>
+                @if ($canSave)
+                    <div class="flex shrink-0 gap-sm">
+                        <x-ui.button type="submit" name="action" value="draft" variant="secondary" icon="save">Lưu nháp</x-ui.button>
+                        <x-ui.button type="submit" name="action" value="final" icon="check_circle">Lưu nhận xét</x-ui.button>
+                    </div>
+                @endif
+            </header>
 
-        
+            @if ($errors->any())
+                <x-ui.alert type="error">{{ $errors->first() }}</x-ui.alert>
+            @endif
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <form action="{{ route('teacher.remarks.store', $class->id) }}" method="POST">
-                @csrf
-                <div class="w-full overflow-x-auto">
-                    <table class="w-full text-left border-collapse min-w-[1200px]">
-                        <thead>
-                            <tr class="bg-gray-50 border-b border-gray-200">
-                                <th class="px-4 py-3 text-xs font-semibold tracking-wider text-gray-500 uppercase sticky left-0 bg-gray-50 z-10 border-r border-gray-200 w-[200px]">Học sinh</th>
-                                <th class="px-4 py-3 text-xs font-semibold tracking-wider text-gray-500 uppercase w-[120px]">Điểm danh</th>
-                                <th class="px-4 py-3 text-xs font-semibold tracking-wider text-gray-500 uppercase w-[100px]">Monsters</th>
-                                <th class="px-4 py-3 text-xs font-semibold tracking-wider text-gray-500 uppercase w-[150px]">Thực hành ngữ pháp</th>
-                                <th class="px-4 py-3 text-xs font-semibold tracking-wider text-gray-500 uppercase w-[150px]">Tinh thần học tập</th>
-                                <th class="px-4 py-3 text-xs font-semibold tracking-wider text-gray-500 uppercase w-[150px]">Kết quả</th>
-                                <th class="px-4 py-3 text-xs font-semibold tracking-wider text-gray-500 uppercase min-w-[250px]">Nhận xét chi tiết</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            @foreach ($class->students as $student)
-                                @php
-                                    $att = $attendance->get($student->id);
-                                    $attStatus = $att ? $att->status : 'none';
-                                    $isAbsent = $attStatus === 'absent' || $attStatus === 'excused';
-                                    $remark = $existing->get($student->id);
-                                @endphp
-                                <tr class="hover:bg-gray-50 {{ $isAbsent ? 'bg-gray-50/50 opacity-75' : '' }}">
-                                    <td class="px-4 py-3 sticky left-0 bg-white {{ $isAbsent ? 'bg-gray-50' : '' }} z-10 border-r border-gray-200">
-                                        <div class="flex items-center gap-3">
-                                            <div class="h-8 w-8 rounded-full bg-primary-container/10 text-primary flex items-center justify-center font-bold text-xs">
-                                                {{ substr($student->name, 0, 1) }}
-                                            </div>
-                                            <span class="text-sm font-medium text-gray-900">{{ $student->name }}</span>
-                                        </div>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        @if ($attStatus === 'present')
-                                            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
-                                                <span class="material-symbols-outlined text-[14px] mr-1">check</span> Có mặt
-                                            </span>
-                                        @elseif ($attStatus === 'late')
-                                            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">
-                                                <span class="material-symbols-outlined text-[14px] mr-1">schedule</span> Đi muộn
-                                            </span>
-                                        @elseif ($isAbsent)
-                                            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-rose-100 text-rose-800">
-                                                <span class="material-symbols-outlined text-[14px] mr-1">close</span> Vắng mặt
-                                            </span>
-                                        @else
-                                            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                                                <span class="material-symbols-outlined text-[14px] mr-1">help</span> Chưa DD
-                                            </span>
-                                        @endif
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <input name="remarks[{{ $student->id }}][monsters]" value="{{ $remark['monsters'] ?? '' }}" type="text" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-container focus:ring focus:ring-primary-container focus:ring-opacity-50 text-sm" placeholder="+5" {{ $isAbsent ? 'disabled' : '' }}>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <input name="remarks[{{ $student->id }}][grammar]" value="{{ $remark['grammar'] ?? '' }}" type="text" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-container focus:ring focus:ring-primary-container focus:ring-opacity-50 text-sm" placeholder="Khá" {{ $isAbsent ? 'disabled' : '' }}>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <input name="remarks[{{ $student->id }}][attitude]" value="{{ $remark['attitude'] ?? '' }}" type="text" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-container focus:ring focus:ring-primary-container focus:ring-opacity-50 text-sm" placeholder="Hăng hái" {{ $isAbsent ? 'disabled' : '' }}>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <input name="remarks[{{ $student->id }}][result]" value="{{ $remark['result'] ?? '' }}" type="text" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-container focus:ring focus:ring-primary-container focus:ring-opacity-50 text-sm" placeholder="Đạt mục tiêu" {{ $isAbsent ? 'disabled' : '' }}>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <textarea name="remarks[{{ $student->id }}][comment]" rows="1" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-container focus:ring focus:ring-primary-container focus:ring-opacity-50 text-sm" placeholder="{{ $isAbsent ? 'Học sinh vắng mặt' : 'Nhận xét chi tiết...' }}" {{ $isAbsent ? 'disabled' : '' }}>{{ $remark['comment'] ?? '' }}</textarea>
-                                    </td>
+            @if (! $session)
+                <div class="rounded-xl border border-outline-variant bg-surface-container-lowest">
+                    <x-ui.empty-state icon="event_busy" title="Lớp không có buổi học trong ngày này" description="Chọn một buổi ở danh sách bên dưới để nhận xét." />
+                </div>
+            @elseif ($blockReason)
+                <x-ui.alert type="warning">{{ $blockReason }}</x-ui.alert>
+            @elseif ($students->isEmpty())
+                <div class="rounded-xl border border-outline-variant bg-surface-container-lowest">
+                    <x-ui.empty-state icon="group_off" title="Chưa có học viên" description="Buổi học này chưa có học viên nào trong danh sách lớp." />
+                </div>
+            @else
+                <div class="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
+                    <div class="custom-scrollbar overflow-x-auto">
+                        <table class="w-full min-w-[1180px] border-collapse text-left">
+                            <thead class="bg-surface-container-low">
+                                <tr class="font-label-caps text-label-caps uppercase text-on-surface-variant">
+                                    <th class="sticky left-0 z-10 w-[200px] border-r border-surface-container bg-surface-container-low px-md py-sm">Học sinh</th>
+                                    <th class="px-md py-sm">Điểm danh</th>
+                                    @foreach ($fields as [$label])<th class="px-sm py-sm">{{ $label }}</th>@endforeach
+                                    <th class="min-w-[260px] px-sm py-sm">Nhận xét chi tiết</th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody class="divide-y divide-surface-container">
+                                @foreach ($students as $student)
+                                    @php
+                                        $att = $attendance->get($student->id);
+                                        $attStatus = $att?->status ?? 'none';
+                                        $isAbsent = in_array($attStatus, ['absent', 'excused'], true);
+                                        $remark = (array) ($existing->get($student->id) ?? $existing->get((string) $student->id) ?? []);
+                                    @endphp
+                                    <tr class="{{ $isAbsent ? 'bg-surface-container-low/60' : 'hover:bg-surface-container-low/40' }}">
+                                        <td class="sticky left-0 z-10 border-r border-surface-container px-md py-sm {{ $isAbsent ? 'bg-surface-container-low' : 'bg-surface-container-lowest' }}">
+                                            <div class="flex items-center gap-sm">
+                                                <x-ui.avatar :name="$student->name" size="sm" />
+                                                <span class="font-body-medium text-body-medium text-on-surface">{{ $student->name }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="whitespace-nowrap px-md py-sm">
+                                            @if ($attStatus === 'present')
+                                                <span class="inline-flex items-center gap-xs rounded bg-tertiary-fixed/40 px-sm py-[2px] font-caption text-caption font-semibold text-on-tertiary-fixed-variant"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">check</span>Có mặt</span>
+                                            @elseif ($attStatus === 'late')
+                                                <span class="inline-flex items-center gap-xs rounded bg-amber-100 px-sm py-[2px] font-caption text-caption font-semibold text-amber-800"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">schedule</span>Đi muộn</span>
+                                            @elseif ($isAbsent)
+                                                <span class="inline-flex items-center gap-xs rounded bg-error-container px-sm py-[2px] font-caption text-caption font-semibold text-on-error-container"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">close</span>Vắng mặt</span>
+                                            @else
+                                                <span class="inline-flex items-center gap-xs rounded bg-surface-container-high px-sm py-[2px] font-caption text-caption font-semibold text-on-surface-variant"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">help</span>Chưa điểm danh</span>
+                                            @endif
+                                        </td>
+                                        @foreach ($fields as $key => [$label, $placeholder, $width])
+                                            <td class="px-sm py-sm">
+                                                <input type="text" name="remarks[{{ $student->id }}][{{ $key }}]" value="{{ old('remarks.'.$student->id.'.'.$key, $remark[$key] ?? '') }}"
+                                                       placeholder="{{ $isAbsent ? '-' : $placeholder }}" aria-label="{{ $label }} — {{ $student->name }}" @disabled($isAbsent)
+                                                       class="{{ $cell }} {{ $width }}">
+                                            </td>
+                                        @endforeach
+                                        <td class="px-sm py-sm">
+                                            <textarea name="remarks[{{ $student->id }}][comment]" rows="2" aria-label="Nhận xét chi tiết — {{ $student->name }}" @disabled($isAbsent)
+                                                      placeholder="{{ $isAbsent ? 'Học sinh vắng mặt...' : 'Nhận xét chi tiết về quá trình học tập trong buổi học này...' }}"
+                                                      class="{{ $cell }}">{{ old('remarks.'.$student->id.'.comment', $remark['comment'] ?? '') }}</textarea>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="flex flex-col justify-end gap-sm border-t border-surface-container bg-surface-container-low p-md sm:flex-row">
+                        <x-ui.button type="submit" name="action" value="draft" variant="secondary">Lưu nháp</x-ui.button>
+                        <x-ui.button type="submit" name="action" value="final" icon="save">Lưu nhận xét</x-ui.button>
+                    </div>
                 </div>
-                <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3">
-                    <button type="submit" class="px-4 py-2 bg-primary-container text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[18px]">check_circle</span>
-                        Lưu nhận xét
-                    </button>
-                </div>
+            @endif
+        </form>
+
+        {{-- Chọn buổi khác --}}
+        @if ($recentSessions->isNotEmpty())
+            <form method="GET" action="{{ route('teacher.remarks', $class->id) }}" class="flex flex-col gap-sm rounded-xl border border-outline-variant bg-surface-container-lowest p-md sm:flex-row sm:items-center">
+                <label for="remark-session" class="shrink-0 font-label-caps text-label-caps uppercase text-on-surface-variant">Nhận xét buổi khác</label>
+                <select id="remark-session" name="session" onchange="this.form.submit()" class="flex-1 rounded-lg border border-outline-variant py-sm pl-md pr-xl font-body-small text-body-small">
+                    @foreach ($recentSessions as $s)
+                        <option value="{{ $s->id }}" @selected($session && $session->id === $s->id) @disabled($s->status === 'cancelled')>
+                            {{ $s->date->format('d/m/Y') }} · {{ $s->start_time?->format('H:i') }}-{{ $s->end_time?->format('H:i') }}{{ $s->type === \App\Models\ClassSession::TYPE_MAKEUP ? ' · Học bù' : '' }}{{ $s->status === 'cancelled' ? ' · Đã hủy' : '' }}
+                        </option>
+                    @endforeach
+                </select>
+                <noscript><x-ui.button type="submit" size="sm" variant="secondary">Chọn</x-ui.button></noscript>
             </form>
-        </div>
+        @endif
     </div>
+
+    @include('teacher.partials.bottom-nav')
 </x-app-layout>

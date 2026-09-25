@@ -20,7 +20,8 @@ class HolidayRequest extends FormRequest
         $holidayId = $this->route('holiday')?->id;
 
         return [
-            'code' => ['required', 'string', 'max:50', Rule::unique('holidays', 'code')->ignore($holidayId)],
+            // Để trống → hệ thống tự sinh mã HOL-YYYY-NNN.
+            'code' => ['nullable', 'string', 'max:50', Rule::unique('holidays', 'code')->ignore($holidayId)],
             'name' => ['required', 'string', 'max:255'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
