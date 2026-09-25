@@ -355,6 +355,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/course-levels', [CourseLevelController::class, 'index'])->middleware('can:level.view')->name('course-levels.index');
     Route::post('/course-levels', [CourseLevelController::class, 'storeLevel'])->middleware('can:level.create')->name('course-levels.store');
+    Route::post('/course-levels/reorder', [CourseLevelController::class, 'reorder'])->middleware('can:level.update')->name('course-levels.reorder');
     Route::put('/course-levels/{id}', [CourseLevelController::class, 'updateLevel'])->middleware('can:level.update')->name('course-levels.update');
     Route::delete('/course-levels/{id}', [CourseLevelController::class, 'destroyLevel'])->middleware('can:level.delete')->name('course-levels.destroy');
 
