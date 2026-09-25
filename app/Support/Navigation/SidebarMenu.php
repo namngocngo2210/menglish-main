@@ -54,7 +54,7 @@ final class SidebarMenu
                 'items' => [
                     ['label' => 'Bảng Kanban Leads', 'route' => 'crm.pipeline'],
                     ['label' => 'Danh sách Lead', 'route' => 'crm.customers.index', 'active' => ['crm.customers.index', 'crm.customers.show', 'crm.customers.edit', 'crm.customers.create']],
-                    ['label' => 'Danh sách chờ lớp', 'route' => 'crm.waiting-list'],
+                    ['label' => 'Chờ xếp lớp', 'route' => 'crm.waiting-list'],
                     ['label' => 'Lead chưa liên hệ (SLA 24h)', 'route' => 'notifications.index', 'active' => ['notifications.*']],
                     ['label' => 'Học viên đã nhập học', 'route' => 'crm.customers.won'],
                     ['label' => 'Lead thất bại', 'route' => 'crm.lost-deals'],
@@ -144,6 +144,7 @@ final class SidebarMenu
                 'items' => [
                     ['label' => 'Check-in & Điểm danh hôm nay', 'route' => 'teacher.home', 'active' => ['teacher.home', 'teacher.attendance*'], 'can' => ['attendance_student.record']],
                     ['label' => 'Chấm bài nộp của lớp', 'route' => 'portal.teacher.submissions', 'active' => ['portal.teacher.submissions*'], 'roles' => array_merge(['admin'], self::TEACHER_ROLES)],
+                    ['label' => 'Khách học thử', 'route' => 'teacher.trial-guests', 'active' => ['teacher.trial-guests*'], 'roles' => array_merge(['admin'], self::TEACHER_ROLES)],
                     ['label' => 'Nhiệm vụ hôm nay của TA', 'route' => 'portal.ta-tasks', 'can' => ['work_task.view']],
                 ],
             ],

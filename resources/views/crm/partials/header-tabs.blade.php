@@ -4,7 +4,7 @@
     $crmTabs = collect([
         ['route' => 'crm.pipeline', 'label' => 'Theo giai đoạn'],
         ['route' => 'crm.customers.index', 'label' => 'Danh sách'],
-        ['route' => 'crm.waiting-list', 'label' => 'Danh sách chờ lớp'],
+        ['route' => 'crm.waiting-list', 'label' => 'Chờ xếp lớp'],
         ['route' => 'crm.reports', 'label' => 'Báo cáo doanh số'],
         ['route' => 'crm.customers.won', 'label' => 'Khách chốt thành công'],
         ['route' => 'crm.lost-deals', 'label' => 'Khách không chốt'],

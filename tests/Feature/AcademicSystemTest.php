@@ -313,9 +313,9 @@ class AcademicSystemTest extends TestCase
         $this->assertSame('pending', $submission->status);
         $this->assertNull($submission->grader_id);
 
-        // 4. Lead tiến sang "tested" nhưng chưa có điểm tổng
+        // 4. Lead ở "Test" (mở link / nộp bài) — chỉ sang "Đã test" khi Học vụ chấm xong; chưa có điểm tổng
         $lead->refresh();
-        $this->assertEquals('tested', $lead->stage);
+        $this->assertEquals('testing', $lead->stage);
         $this->assertNull($lead->test_score);
 
         // 5. Học vụ chấm hoàn tất -> rubric sinh nhận xét, đồng bộ điểm sang CRM

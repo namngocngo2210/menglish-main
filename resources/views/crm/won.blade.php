@@ -23,6 +23,8 @@
                 <div class="mt-1 text-xs">Yêu cầu học viên đổi mật khẩu ngay lần đăng nhập đầu tiên.</div>
             </div>
         @endif
+        @include('crm.partials.waiting-class-table')
+
         <!-- Stats summary -->
         <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div class="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">

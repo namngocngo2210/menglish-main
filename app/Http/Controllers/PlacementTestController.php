@@ -8,6 +8,7 @@ use App\Models\CrmCustomerHistory;
 use App\Models\PlacementTest;
 use App\Models\PlacementTestSubmission;
 use App\Models\User;
+use App\Services\CrmStageService;
 use App\Services\NotificationService;
 use App\Services\PlacementPortalLinkService;
 use App\Services\PlacementRubricService;
@@ -280,6 +281,10 @@ class PlacementTestController extends Controller
         // Chỉ link có chữ ký (CRM sinh, hạn 7 ngày) mới được điền sẵn thông tin lead.
         $lead = $links->leadFromSignedRequest($request);
         $leadToken = $lead ? $links->issueLeadToken($test, $lead, $request) : null;
+        if ($lead) {
+            // BA: thí sinh mở link test riêng → lead tự chuyển sang "Test".
+            app(CrmStageService::class)->advanceTo($lead, 'testing', null, "Thí sinh mở link làm bài test [{$test->code}].");
+        }
 
         return view('placement-tests.portal-take', compact('test', 'lead', 'leadToken'));
     }
@@ -457,10 +462,9 @@ class PlacementTestController extends Controller
 
     private function recordPortalSubmissionOnLead(CrmCustomer $customer, PlacementTestSubmission $submission, PlacementTest $test, bool $viaSignedLink): void
     {
-        $advanced = $customer->canAdvanceToTested();
-        if ($advanced) {
-            $customer->update(['stage' => 'tested']);
-        }
+        // Nộp bài chưa phải "Đã test": chỉ khi Học vụ chấm xong mới chuyển (syncGradedResultToLead).
+        $advanced = $customer->stage === 'testing'
+            || app(CrmStageService::class)->advanceTo($customer, 'testing', null, "Thí sinh nộp bài test [{$test->code}].");
 
         $content = "Học viên đã nộp bài test trực tuyến [{$test->title}] (bài #{$submission->id}), chờ Học vụ chấm điểm.";
         $content .= $viaSignedLink ? ' Nộp qua link test riêng của lead.' : ' Khớp lead theo số điện thoại.';
@@ -483,19 +487,14 @@ class PlacementTestController extends Controller
     private function syncGradedResultToLead(PlacementTestSubmission $submission, CrmCustomer $customer): void
     {
         $scoreText = "{$submission->overall_score} ({$submission->cefr_level})";
-        $updates = [];
-        if ($customer->canAdvanceToTested() || $customer->stage === 'tested') {
-            $updates['test_score'] = $scoreText;
+        if ($customer->canAdvanceToTested() || in_array($customer->stage, ['tested', 'result_sent'], true)) {
+            $customer->update(['test_score' => $scoreText]);
         }
-        if ($customer->canAdvanceToTested()) {
-            $updates['stage'] = 'tested';
-        }
-        if ($updates !== []) {
-            $customer->update($updates);
-        }
+        // BA: Học vụ chấm xong → lead tự chuyển "Đã test" (chỉ đi tiến, không đụng lead đã chốt / thất bại).
+        $advanced = app(CrmStageService::class)->advanceTo($customer, 'tested', Auth::user(), "Học vụ chấm xong bài test #{$submission->id}.");
 
         $content = "Học vụ đã chấm bài test #{$submission->id}: {$scoreText}";
-        if (! isset($updates['stage']) && $customer->stage !== 'tested') {
+        if (! $advanced && ! in_array($customer->stage, ['tested', 'result_sent'], true)) {
             $content .= " · Giữ nguyên giai đoạn hiện tại ({$customer->stage_label}).";
         }
 

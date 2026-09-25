@@ -19,16 +19,9 @@
                 </select>
                 <select name="stage" class="text-xs rounded-xl border border-gray-200 py-1.5 px-3" onchange="this.form.submit()">
                     <option value="">Tất cả trạng thái</option>
-                    <option value="new" {{ request('stage') === 'new' ? 'selected' : '' }}>Mới tiếp nhận</option>
-                    <option value="consulting" {{ request('stage') === 'consulting' ? 'selected' : '' }}>Tư vấn lộ trình</option>
-                    <option value="test_scheduled" {{ request('stage') === 'test_scheduled' ? 'selected' : '' }}>Hẹn Test</option>
-                    <option value="tested" {{ request('stage') === 'tested' ? 'selected' : '' }}>Đã Test</option>
-                    <option value="trial_scheduled" {{ request('stage') === 'trial_scheduled' ? 'selected' : '' }}>Hẹn học thử</option>
-                    <option value="trial_completed" {{ request('stage') === 'trial_completed' ? 'selected' : '' }}>Đã học thử</option>
-                    <option value="waiting_class" {{ request('stage') === 'waiting_class' ? 'selected' : '' }}>Chờ xếp lớp</option>
-                    <option value="closing" {{ request('stage') === 'closing' ? 'selected' : '' }}>Chờ thanh toán</option>
-                    <option value="won" {{ request('stage') === 'won' ? 'selected' : '' }}>Đã chốt (Won)</option>
-                    <option value="lost" {{ request('stage') === 'lost' ? 'selected' : '' }}>Không chốt (Lost)</option>
+                    @foreach (\App\Models\CrmCustomer::PIPELINE_STAGES + ['lost' => \App\Models\CrmCustomer::stageLabel('lost')] as $stageKey => $stageName)
+                        <option value="{{ $stageKey }}" @selected(request('stage') === $stageKey)>{{ $stageName }}</option>
+                    @endforeach
                 </select>
                 <button type="submit" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl transition">
                     Lọc dữ liệu

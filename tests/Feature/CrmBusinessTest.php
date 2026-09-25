@@ -165,7 +165,7 @@ class CrmBusinessTest extends TestCase
             'code' => 'KH-00002',
             'name' => 'Đỗ Duy Mạnh',
             'phone' => '0944555666',
-            'stage' => 'closing',
+            'stage' => 'result_sent',
             'deal_value' => 18000000,
             'branch_id' => $this->branch->id,
             'assigned_user_id' => $this->salesUser->id,
@@ -214,7 +214,9 @@ class CrmBusinessTest extends TestCase
 
         $response->assertRedirect(route('crm.customers.show', $customer->id));
 
-        $this->actingAs($this->salesUser)->post(route('crm.customers.stage', $customer->id), ['stage' => 'consulting']);
+        // BA: Sales không đổi giai đoạn; Học vụ (CM) chuyển tiến 1 bước.
+        $this->actingAs($this->salesUser)->postJson(route('crm.customers.stage', $customer->id), ['stage' => 'consulting'])->assertForbidden();
+        $this->actingAs($this->examiner)->post(route('crm.customers.stage', $customer->id), ['stage' => 'consulting']);
         $customer->refresh();
         $this->assertEquals('Vũ Thuỳ Dung (VIP Lead)', $customer->name);
         $this->assertEquals('consulting', $customer->stage);
@@ -223,8 +225,10 @@ class CrmBusinessTest extends TestCase
         // Verify stage_change history record was created
         $this->assertDatabaseHas('crm_customer_histories', [
             'customer_id' => $customer->id,
-            'user_id' => $this->salesUser->id,
+            'user_id' => $this->examiner->id,
             'type' => 'stage_change',
+            'from_stage' => 'new',
+            'to_stage' => 'consulting',
         ]);
     }
 
@@ -342,7 +346,7 @@ class CrmBusinessTest extends TestCase
             'branch_id' => $this->branch->id,
             'course_interest' => 'IELTS Pro 6.5 - 7.5',
             'test_score' => '5.5 Overall',
-            'stage' => 'closing',
+            'stage' => 'result_sent',
             'assigned_user_id' => $this->salesUser->id,
         ]);
 
@@ -381,7 +385,7 @@ class CrmBusinessTest extends TestCase
         $this->assertEquals('Nam', $student->gender);
         $this->assertEquals($this->branch->id, $student->branch_id);
         $this->assertEquals($this->classModel->id, $student->current_class_id);
-        $this->assertEquals('studying', $student->status);
+        $this->assertEquals('waiting_start', $student->status, 'Hồ sơ tạo khi chốt bắt đầu ở Chờ khai giảng');
 
         // 3. ClassEnrollment created
         $this->assertDatabaseHas('class_enrollments', [
@@ -424,7 +428,7 @@ class CrmBusinessTest extends TestCase
             'code' => 'KH-CW002',
             'name' => 'Trịnh Thị Mai',
             'phone' => '0988666555',
-            'stage' => 'closing',
+            'stage' => 'result_sent',
             'branch_id' => $this->branch->id,
             'assigned_user_id' => $this->salesUser->id,
         ]);
@@ -482,11 +486,11 @@ class CrmBusinessTest extends TestCase
             'payment_method' => '',
         ]);
 
+        // Chốt không bắt buộc thu tiền nên payment_method không còn bắt buộc (chỉ cần khi có khoản thu).
         $response->assertSessionHasErrors([
             'customer_id',
             'class_id',
             'paid_amount',
-            'payment_method',
         ]);
     }
 
@@ -545,7 +549,7 @@ class CrmBusinessTest extends TestCase
             'code' => 'KH-NOTREADY-01',
             'name' => 'Lead Chưa Đủ Điều Kiện Chốt',
             'phone' => '0977888999',
-            'stage' => 'consulting',
+            'stage' => 'test_scheduled',
             'branch_id' => $this->branch->id,
             'assigned_user_id' => $this->salesUser->id,
         ]);
@@ -561,7 +565,7 @@ class CrmBusinessTest extends TestCase
             'code' => 'KH-NOBANK-01',
             'name' => 'Học Viên Không Ngân Hàng',
             'phone' => '0966111222',
-            'stage' => 'closing',
+            'stage' => 'result_sent',
             'branch_id' => $this->branch->id,
             'assigned_user_id' => $this->salesUser->id,
         ]);

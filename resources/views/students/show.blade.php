@@ -137,27 +137,10 @@
                 <div class="flex flex-col">
                     <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Trạng thái hiện tại</span>
                     <div class="flex items-center gap-2 mt-1">
-                        @if ($student->status === 'studying')
-                            <span class="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                <span>Đang học</span>
-                            </span>
-                        @elseif ($student->status === 'deferred')
-                            <span class="px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-bold text-xs flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                                <span>Bảo lưu</span>
-                            </span>
-                        @elseif ($student->status === 'dropped')
-                            <span class="px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-bold text-xs flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-                                <span>Đã thôi học</span>
-                            </span>
-                        @else
-                            <span class="px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-bold text-xs flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-                                <span>Hoàn thành khóa</span>
-                            </span>
-                        @endif
+                        <span class="px-3 py-1 rounded-full border font-bold text-xs flex items-center gap-1.5 {{ $student->status_badge }}">
+                            <span class="w-2 h-2 rounded-full bg-current {{ $student->status === 'studying' ? 'animate-pulse' : '' }}"></span>
+                            <span>{{ $student->status_label }}</span>
+                        </span>
                     </div>
                 </div>
 
@@ -180,10 +163,9 @@
                 <div class="flex items-center gap-2">
                     <label class="text-[11px] font-bold text-gray-600 uppercase">Đổi trạng thái:</label>
                     <select name="status" onchange="this.form.submit()" class="text-xs font-bold rounded-xl border border-gray-300 bg-slate-50 py-2 px-3 focus:ring-primary-container focus:border-primary-container cursor-pointer">
-                        <option value="studying" {{ $student->status === 'studying' ? 'selected' : '' }}>🟢 Đang học</option>
-                        <option value="deferred" {{ $student->status === 'deferred' ? 'selected' : '' }}>🟡 Bảo lưu</option>
-                        <option value="dropped" {{ $student->status === 'dropped' ? 'selected' : '' }}>🔴 Đã thôi học</option>
-                        <option value="graduated" {{ $student->status === 'graduated' ? 'selected' : '' }}>🔵 Hoàn thành khóa</option>
+                        @foreach (\App\Models\Student::STATUSES as $statusKey => $statusLabel)
+                            <option value="{{ $statusKey }}" @selected($student->status === $statusKey)>{{ $statusLabel }}</option>
+                        @endforeach
                     </select>
                 </div>
             </form>

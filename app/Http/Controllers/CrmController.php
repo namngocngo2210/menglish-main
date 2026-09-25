@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\CrmStageTransitionException;
 use App\Models\BankAccount;
 use App\Models\Branch;
 use App\Models\ClassEnrollment;
@@ -11,6 +12,7 @@ use App\Models\CommissionTier;
 use App\Models\Course;
 use App\Models\CrmCustomer;
 use App\Models\CrmCustomerHistory;
+use App\Models\CrmTrialBooking;
 use App\Models\MerchandiseItem;
 use App\Models\PlacementTest;
 use App\Models\PlacementTestSubmission;
@@ -20,11 +22,14 @@ use App\Models\StudentTuition;
 use App\Models\SystemCategory;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Models\WorkTask;
+use App\Services\CrmStageService;
 use App\Services\PlacementPortalLinkService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -35,23 +40,29 @@ use Spatie\Permission\Models\Role;
 class CrmController extends Controller
 {
     /**
-     * Scope query cho CRM:
-     * - Admin / Manager / Học vụ: xem toàn bộ dữ liệu để điều phối và chấm test.
-     * - Các vai trò CRM còn lại: chỉ xem Lead được gán phụ trách.
+     * Scope dữ liệu CRM (BA chốt):
+     * - Admin: toàn bộ.
+     * - Quản lý cơ sở / Học vụ: chỉ lead thuộc chi nhánh của mình (branch_id + user_branches).
+     * - Sales và các vai trò CRM còn lại: chỉ lead được gán phụ trách.
      */
     protected function scopeCustomerQuery(?User $user = null): Builder
     {
         $user = $user ?? Auth::user();
         $query = CrmCustomer::query();
 
-        if ($user) {
-            $isGlobalViewer = $user->hasAnyRole(['admin', 'manager', 'academic_staff', 'academic_lead']);
-            if (! $isGlobalViewer) {
-                $query->where('assigned_user_id', $user->id);
-            }
+        if (! $user || $user->hasRole('admin')) {
+            return $query;
         }
 
-        return $query;
+        if ($user->hasAnyRole(['manager', 'academic_staff', 'academic_lead'])) {
+            $branchIds = $user->branches()->pluck('branches.id')->push($user->branch_id)->filter()->unique()->values();
+
+            return $branchIds->isEmpty()
+                ? $query->whereRaw('1 = 0')
+                : $query->whereIn('branch_id', $branchIds);
+        }
+
+        return $query->where('assigned_user_id', $user->id);
     }
 
     protected function findScopedCustomer(int|string $id): CrmCustomer
@@ -95,41 +106,33 @@ class CrmController extends Controller
         return $phoneNormalized;
     }
 
-    public function pipeline(Request $request)
+    public function pipeline(Request $request, CrmStageService $stages)
     {
         $allCustomers = $this->scopeCustomerQuery()
             ->with(['branch', 'assignedUser', 'convertedStudent.tuition'])
+            ->whereIn('stage', array_keys(CrmCustomer::PIPELINE_STAGES))
             ->latest()
-            ->get();
+            ->get()
+            ->groupBy('stage');
 
-        $stageDefinitions = [
-            'new' => ['name' => 'Mới tiếp nhận', 'color' => 'border-sky-500', 'bg_badge' => 'bg-sky-50 text-sky-700'],
-            'consulting' => ['name' => 'Tư vấn lộ trình', 'color' => 'border-amber-500', 'bg_badge' => 'bg-amber-50 text-amber-700'],
-            'test_scheduled' => ['name' => 'Hẹn Test', 'color' => 'border-indigo-500', 'bg_badge' => 'bg-indigo-50 text-indigo-700'],
-            'tested' => ['name' => 'Đã Test đầu vào', 'color' => 'border-purple-500', 'bg_badge' => 'bg-purple-50 text-purple-700'],
-            'trial_scheduled' => ['name' => 'Hẹn học thử', 'color' => 'border-fuchsia-500', 'bg_badge' => 'bg-fuchsia-50 text-fuchsia-700'],
-            'trial_completed' => ['name' => 'Phản hồi học thử', 'color' => 'border-teal-500', 'bg_badge' => 'bg-teal-50 text-teal-700'],
-            'waiting_class' => ['name' => 'Chờ xếp lớp', 'color' => 'border-yellow-500', 'bg_badge' => 'bg-yellow-50 text-yellow-700'],
-            'closing' => ['name' => 'Chờ thanh toán', 'color' => 'border-cyan-500', 'bg_badge' => 'bg-cyan-50 text-cyan-700'],
-            'won' => ['name' => 'Đã chốt (Won)', 'color' => 'border-emerald-500', 'bg_badge' => 'bg-emerald-50 text-emerald-700'],
-        ];
+        $stageColumns = [];
+        foreach (CrmCustomer::PIPELINE_STAGES as $key => $label) {
+            $group = $allCustomers->get($key, collect());
+            $style = CrmCustomer::stageStyle($key);
 
-        $stages = [];
-        foreach ($stageDefinitions as $key => $meta) {
-            $group = $allCustomers->where('stage', $key);
-            $totalAmount = $group->sum('deal_value');
-
-            $stages[] = [
+            $stageColumns[] = [
                 'id' => $key,
-                'name' => $meta['name'],
+                'name' => $label,
+                'next' => $stages->nextStage($key),
                 'count' => $group->count(),
-                'amount' => number_format($totalAmount).'đ',
-                'color' => $meta['color'],
-                'bg_badge' => $meta['bg_badge'],
+                'amount' => number_format($group->sum('deal_value')).'đ',
+                'color' => $style['border'],
+                'bg_badge' => $style['badge'],
                 'leads' => $group->map(fn (CrmCustomer $c) => [
                     'id' => $c->id,
                     'code' => $c->code,
                     'name' => $c->name,
+                    'parent_name' => $c->parent_name,
                     'phone' => $c->phone,
                     'source' => $c->source ?? 'Trực tiếp',
                     'course' => $c->course_interest ?? 'Chưa chọn khóa',
@@ -137,13 +140,23 @@ class CrmController extends Controller
                     'agent' => $c->assignedUser?->name ?? 'Chưa phân công',
                     'days' => $c->created_at->diffForHumans(),
                     'score' => $c->test_score ?? 'Chưa test',
-                    'status' => $c->stage === 'won' ? ($c->convertedStudent?->tuition?->status_label ?? 'Chưa có học phí') : null,
+                    'status' => $c->converted_student_id ? ($c->convertedStudent?->tuition?->status_label ?? 'Chưa có học phí') : null,
                     'payment_status' => $c->convertedStudent?->tuition?->status,
                 ])->values()->all(),
             ];
         }
 
-        return view('crm.pipeline', compact('stages'));
+        $user = $request->user();
+        $stagePermissions = [
+            'canForward' => $stages->canMoveForward($user),
+            'canBackward' => $stages->canMoveBackward($user),
+            'canConvert' => $user->can('lead.convert'),
+            'order' => array_keys(CrmCustomer::PIPELINE_STAGES),
+            'closed' => CrmCustomer::CLOSED_STAGES,
+            'labels' => CrmCustomer::PIPELINE_STAGES,
+        ];
+
+        return view('crm.pipeline', ['stages' => $stageColumns, 'stagePermissions' => $stagePermissions]);
     }
 
     public function customers(Request $request)
@@ -180,31 +193,43 @@ class CrmController extends Controller
         ]);
     }
 
+    /** Danh sách học viên đã chốt nhưng chưa có lớp (Chờ xếp lớp) để Học vụ gán lớp. */
     public function waitingList()
     {
+        return view('crm.waiting-list', $this->waitingClassData());
+    }
+
+    /**
+     * Lead ở Chờ xếp lớp (đã có hồ sơ học viên) + lớp gợi ý: đúng khóa, đúng chi nhánh, còn chỗ.
+     *
+     * @return array{waitingLeads: Collection, matchingClassesByLead: Collection}
+     */
+    protected function waitingClassData(): array
+    {
         $waitingLeads = $this->scopeCustomerQuery()
-            ->with(['assignedUser', 'waitingCourse', 'waitingBranch'])
+            ->with(['assignedUser', 'branch', 'waitingCourse', 'convertedStudent'])
             ->where('stage', 'waiting_class')
-            ->orderByDesc('waiting_priority')
-            ->orderBy('waiting_since')
+            ->orderBy('converted_at')
             ->get();
 
-        $classes = ClassModel::query()
+        $classes = $waitingLeads->isEmpty() ? collect() : ClassModel::query()
             ->with(['course', 'branch'])
             ->withCount(['enrollments as active_enrollments_count' => fn (Builder $query) => $query->whereIn('status', ['pending', 'completed'])])
             ->whereIn('status', ['active', 'upcoming'])
+            ->whereIn('branch_id', $waitingLeads->map(fn (CrmCustomer $lead) => $lead->convertedStudent?->branch_id ?? $lead->branch_id)->filter()->unique())
             ->get();
 
         $matchingClassesByLead = $waitingLeads->mapWithKeys(function (CrmCustomer $lead) use ($classes) {
-            $matches = $classes->filter(fn (ClassModel $class) => $class->course_id === $lead->waiting_course_id
-                && $class->branch_id === $lead->waiting_branch_id
+            $branchId = $lead->convertedStudent?->branch_id ?? $lead->branch_id;
+            $matches = $classes->filter(fn (ClassModel $class) => $class->branch_id === $branchId
+                && (! $lead->waiting_course_id || $class->course_id === $lead->waiting_course_id)
                 && ($class->max_capacity <= 0 || $class->active_enrollments_count < $class->max_capacity)
             )->values();
 
             return [$lead->id => $matches];
         });
 
-        return view('crm.waiting-list', compact('waitingLeads', 'matchingClassesByLead'));
+        return compact('waitingLeads', 'matchingClassesByLead');
     }
 
     public function createCustomer()
@@ -293,10 +318,11 @@ class CrmController extends Controller
             ->with('status', "Đã thêm khách hàng {$customer->name} ({$customer->code}) thành công vào Cơ sở dữ liệu!");
     }
 
-    public function showCustomer($id)
+    public function showCustomer(Request $request, CrmStageService $stages, $id)
     {
         $customer = $this->scopeCustomerQuery()
-            ->with(['branch', 'assignedUser', 'assignedTest', 'examiner', 'trialTeacher', 'trialClass', 'waitingCourse', 'waitingBranch', 'histories.user', 'submissions.test', 'submissions.grader', 'latestSubmission'])
+            ->with(['branch', 'assignedUser', 'assignedTest', 'examiner', 'waitingCourse', 'waitingBranch', 'histories.user', 'submissions.test', 'submissions.grader', 'latestSubmission',
+                'trialBookings' => fn ($query) => $query->with(['session', 'classModel.course', 'feedbackBy'])->latest()])
             ->where(function ($q) use ($id) {
                 $q->where('id', $id)->orWhere('code', $id);
             })
@@ -308,22 +334,44 @@ class CrmController extends Controller
         $examiners = User::where('is_active', true)
             ->role(['admin', 'manager', 'academic_staff', 'academic_lead', 'teacher', 'teacher_fulltime', 'teacher_parttime'])
             ->get();
-        $trialClasses = ClassModel::whereIn('status', ['active', 'upcoming'])->with(['course', 'branch'])->get();
         $courses = Course::where('is_active', true)->orderBy('name')->get();
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
+
+        $user = $request->user();
+        $canBookTrial = $stages->canMoveForward($user) && in_array($customer->stage, CrmCustomer::TRIAL_BOOKABLE_STAGES, true);
+        $trialSessions = $canBookTrial ? $this->upcomingTrialSessions($customer) : collect();
+        $stageControls = [
+            'next' => $stages->manualNextStage($customer, $user),
+            'backward' => $stages->backwardTargets($customer, $user),
+            'canLose' => $stages->canMoveForward($user) && ! $customer->isClosed() && $customer->stage !== CrmCustomer::STAGE_LOST,
+        ];
 
         // Link test riêng của lead: có chữ ký + hạn 7 ngày, chỉ khi đã gán đề đang hoạt động.
         $portalTestLink = $customer->assignedTest?->is_active
             ? app(PlacementPortalLinkService::class)->signedLinkForLead($customer->assignedTest, $customer)
             : null;
 
-        return view('crm.show', compact('customer', 'placementTests', 'examiners', 'latestSubmission', 'trialClasses', 'courses', 'branches', 'portalTestLink'));
+        return view('crm.show', compact('customer', 'placementTests', 'examiners', 'latestSubmission', 'courses', 'branches', 'portalTestLink', 'canBookTrial', 'trialSessions', 'stageControls'));
+    }
+
+    /** Buổi học sắp tới của lớp đang mở tại chi nhánh của lead (ứng viên cho học thử). */
+    protected function upcomingTrialSessions(CrmCustomer $customer)
+    {
+        return ClassSession::query()
+            ->with(['classModel.course', 'teacher'])
+            ->where('status', 'scheduled')
+            ->whereDate('date', '>=', today())
+            ->when($customer->branch_id, fn (Builder $query, int $branchId) => $query->where('branch_id', $branchId))
+            ->whereHas('classModel', fn (Builder $query) => $query->whereIn('status', ['active', 'upcoming']))
+            ->orderBy('date')->orderBy('start_time')
+            ->limit(60)
+            ->get();
     }
 
     public function saveTestScore(Request $request, $id)
     {
         $customer = $this->findScopedCustomer($id);
-        if (! in_array($customer->stage, ['consulting', 'test_scheduled', 'tested'], true)) {
+        if (! in_array($customer->stage, ['consulting', 'test_scheduled', 'testing', 'tested', 'result_sent'], true)) {
             throw ValidationException::withMessages(['placement_test_id' => 'Lead phải ở bước tư vấn hoặc luồng test để nhập điểm.']);
         }
 
@@ -396,8 +444,8 @@ class CrmController extends Controller
         $customer->update([
             'test_score' => $cefr ? "{$overall} ({$cefr})" : (string) $overall,
             'test_decision' => 'test',
-            'stage' => $customer->canAdvanceToTested() ? 'tested' : $customer->stage,
         ]);
+        app(CrmStageService::class)->advanceTo($customer, 'tested', $request->user(), "Học vụ nhập điểm test đầu vào (bài #{$submission->id}).");
 
         CrmCustomerHistory::create([
             'customer_id' => $customer->id,
@@ -412,7 +460,7 @@ class CrmController extends Controller
     public function schedulePlacementTest(Request $request, $id)
     {
         $customer = $this->findScopedCustomer($id);
-        if (! in_array($customer->stage, ['consulting', 'test_scheduled', 'tested'], true)) {
+        if (! in_array($customer->stage, ['consulting', 'test_scheduled', 'testing', 'tested'], true)) {
             throw ValidationException::withMessages(['appointment_date' => 'Lead phải ở bước tư vấn hoặc luồng test để đặt lịch.']);
         }
 
@@ -455,14 +503,8 @@ class CrmController extends Controller
             $hasConflict = CrmCustomer::query()
                 ->whereKeyNot($customer->id)
                 ->whereNotIn('stage', ['won', 'lost'])
-                ->where(function (Builder $query) use ($examiner, $conflictStart, $conflictEnd) {
-                    $query->where(fn (Builder $testQuery) => $testQuery
-                        ->where('examiner_id', $examiner->id)
-                        ->whereBetween('appointment_at', [$conflictStart, $conflictEnd]))
-                        ->orWhere(fn (Builder $trialQuery) => $trialQuery
-                            ->where('trial_teacher_id', $examiner->id)
-                            ->whereBetween('trial_at', [$conflictStart, $conflictEnd]));
-                })
+                ->where('examiner_id', $examiner->id)
+                ->whereBetween('appointment_at', [$conflictStart, $conflictEnd])
                 ->exists();
             if ($hasConflict || $sessionConflict) {
                 throw ValidationException::withMessages(['appointment_time' => 'Người chấm đã có lịch khác trong khung giờ này.']);
@@ -477,8 +519,8 @@ class CrmController extends Controller
             'assigned_test_id' => $validated['assigned_test_id'] ?? null,
             'examiner_id' => $validated['examiner_id'] ?? null,
             'test_decision' => 'test',
-            'stage' => 'test_scheduled',
         ]);
+        app(CrmStageService::class)->advanceTo($customer, 'test_scheduled', $request->user(), 'Đặt lịch hẹn test đầu vào.');
 
         $test = $customer->assignedTest;
         $testTitle = $test ? $test->title : 'Bài Test Chuẩn Hóa MEnglish';
@@ -495,187 +537,87 @@ class CrmController extends Controller
             ->with('status', "Đã đặt lịch hẹn test thành công cho khách hàng {$customer->name} vào lúc ".date('d/m/Y H:i', strtotime($appointmentDateTime)).'!');
     }
 
-    public function scheduleTrial(Request $request, $id)
+    /**
+     * CM đặt 1–2 buổi học thử cho khách vào buổi học thật của lớp. Học thử là hoạt động
+     * trong giai đoạn tư vấn — không đổi stage của lead.
+     */
+    public function storeTrialBooking(Request $request, CrmStageService $stages, $id)
     {
         $customer = $this->findScopedCustomer($id);
-        if (! in_array($customer->stage, ['tested', 'trial_scheduled'], true)) {
-            throw ValidationException::withMessages(['trial_date' => 'Lead phải hoàn tất bài test trước khi hẹn học thử.']);
-        }
+        abort_unless($stages->canMoveForward($request->user()), 403, 'Chỉ Học vụ / Quản lý cơ sở được đặt lịch học thử.');
+
         $validated = $request->validate([
-            'trial_date' => 'required|date|after_or_equal:today',
-            'trial_time' => 'required|date_format:H:i',
-            'trial_teacher_id' => 'required|exists:users,id',
-            'trial_class_id' => 'nullable|exists:classes,id',
-            'trial_mode' => 'required|in:online,offline',
+            'class_session_ids' => 'required|array|min:1|max:'.CrmTrialBooking::MAX_ACTIVE_PER_LEAD,
+            'class_session_ids.*' => 'integer|distinct|exists:class_sessions,id',
             'notes' => 'nullable|string|max:1000',
         ]);
 
-        $teacher = User::findOrFail($validated['trial_teacher_id']);
-        if (! $teacher->is_active || ! $teacher->hasAnyRole(['admin', 'manager', 'academic_staff', 'academic_lead', 'teacher', 'teacher_fulltime', 'teacher_parttime'])) {
-            throw ValidationException::withMessages(['trial_teacher_id' => 'Giáo viên học thử không hợp lệ hoặc đã ngừng hoạt động.']);
+        if (! in_array($customer->stage, CrmCustomer::TRIAL_BOOKABLE_STAGES, true)) {
+            throw ValidationException::withMessages(['class_session_ids' => 'Chỉ đặt học thử cho khách đang tư vấn (chưa chốt, chưa thất bại).']);
         }
 
-        $trialAt = Carbon::parse($validated['trial_date'].' '.$validated['trial_time']);
-        if (! $trialAt->isFuture()) {
-            throw ValidationException::withMessages(['trial_time' => 'Lịch học thử phải ở thời điểm trong tương lai.']);
-        }
-        $trialClass = ! empty($validated['trial_class_id'])
-            ? ClassModel::whereIn('status', ['active', 'upcoming'])->find($validated['trial_class_id'])
-            : null;
-        if (! empty($validated['trial_class_id']) && ! $trialClass) {
-            throw ValidationException::withMessages(['trial_class_id' => 'Lớp học thử không còn khả dụng.']);
-        }
-        if ($customer->branch_id && $teacher->branch_id && $customer->branch_id !== $teacher->branch_id) {
-            throw ValidationException::withMessages(['trial_teacher_id' => 'Giáo viên học thử phải thuộc cùng chi nhánh với Lead.']);
-        }
-        if ($trialClass && $customer->branch_id && $trialClass->branch_id !== $customer->branch_id) {
-            throw ValidationException::withMessages(['trial_class_id' => 'Lớp học thử phải thuộc cùng chi nhánh với Lead.']);
-        }
-
-        $conflictStart = $trialAt->copy()->subMinutes(59);
-        $conflictEnd = $trialAt->copy()->addMinutes(59);
-        $teacherConflict = CrmCustomer::query()
-            ->whereKeyNot($customer->id)
-            ->whereNotIn('stage', ['won', 'lost'])
-            ->where(function (Builder $query) use ($teacher, $conflictStart, $conflictEnd) {
-                $query->where(fn (Builder $trialQuery) => $trialQuery
-                    ->where('trial_teacher_id', $teacher->id)
-                    ->whereBetween('trial_at', [$conflictStart, $conflictEnd]))
-                    ->orWhere(fn (Builder $testQuery) => $testQuery
-                        ->where('examiner_id', $teacher->id)
-                        ->whereBetween('appointment_at', [$conflictStart, $conflictEnd]));
-            })
-            ->exists();
-        $sessionConflict = ClassSession::query()
-            ->where('teacher_id', $teacher->id)
-            ->whereDate('date', $trialAt->toDateString())
-            ->where('status', '!=', 'cancelled')
-            ->where('start_time', '<', $trialAt->copy()->addHour()->format('H:i:s'))
-            ->where('end_time', '>', $trialAt->format('H:i:s'))
-            ->exists();
-        if ($teacherConflict || $sessionConflict) {
-            throw ValidationException::withMessages(['trial_time' => 'Giáo viên đã có lịch khác trong khung giờ này.']);
-        }
-        if ($trialClass) {
-            $classConflict = ClassSession::query()
-                ->where('class_id', $trialClass->id)
-                ->whereDate('date', $trialAt->toDateString())
-                ->where('status', '!=', 'cancelled')
-                ->where('start_time', '<', $trialAt->copy()->addHour()->format('H:i:s'))
-                ->where('end_time', '>', $trialAt->format('H:i:s'))
-                ->exists();
-            if ($classConflict) {
-                throw ValidationException::withMessages(['trial_class_id' => 'Lớp đã có buổi học trong khung giờ này.']);
+        $bookings = DB::transaction(function () use ($customer, $validated, $request) {
+            CrmCustomer::whereKey($customer->id)->lockForUpdate()->first();
+            $active = $customer->trialBookings()->where('status', '!=', 'cancelled')->get();
+            if ($active->count() + count($validated['class_session_ids']) > CrmTrialBooking::MAX_ACTIVE_PER_LEAD) {
+                throw ValidationException::withMessages(['class_session_ids' => 'Mỗi khách chỉ học thử tối đa '.CrmTrialBooking::MAX_ACTIVE_PER_LEAD.' buổi.']);
             }
-        }
-        $customer->update([
-            'trial_at' => $trialAt,
-            'trial_teacher_id' => $teacher->id,
-            'trial_class_id' => $trialClass?->id,
-            'trial_mode' => $validated['trial_mode'],
-            'trial_status' => 'scheduled',
-            'trial_notes' => $validated['notes'] ?? null,
-            'test_decision' => 'test',
-            'stage' => 'trial_scheduled',
-        ]);
+
+            $sessions = ClassSession::with('classModel')->whereIn('id', $validated['class_session_ids'])->get();
+            foreach ($sessions as $session) {
+                if ($session->status !== 'scheduled' || $session->date->lt(today())
+                    || ! in_array($session->classModel?->status, ['active', 'upcoming'], true)) {
+                    throw ValidationException::withMessages(['class_session_ids' => 'Buổi học đã chọn không còn khả dụng.']);
+                }
+                if ($customer->branch_id && $session->branch_id && $session->branch_id !== $customer->branch_id) {
+                    throw ValidationException::withMessages(['class_session_ids' => 'Buổi học thử phải thuộc chi nhánh của khách.']);
+                }
+                if ($active->contains('class_session_id', $session->id)) {
+                    throw ValidationException::withMessages(['class_session_ids' => 'Khách đã được đặt học thử buổi này.']);
+                }
+            }
+
+            return $sessions->map(fn (ClassSession $session) => CrmTrialBooking::create([
+                'customer_id' => $customer->id,
+                'class_id' => $session->class_id,
+                'class_session_id' => $session->id,
+                'booked_by' => $request->user()->id,
+                'status' => 'scheduled',
+                'notes' => $validated['notes'] ?? null,
+            ])->setRelation('session', $session));
+        });
+
         CrmCustomerHistory::create([
             'customer_id' => $customer->id,
-            'user_id' => Auth::id(),
-            'type' => 'meet',
-            'content' => 'Đã hẹn học thử '.($validated['trial_mode'] === 'online' ? 'online' : 'tại trung tâm').' lúc '.$trialAt->format('d/m/Y H:i').' với '.$teacher->name.($trialClass ? ' · Lớp '.$trialClass->name : '').'. '.($validated['notes'] ?? ''),
+            'user_id' => $request->user()->id,
+            'type' => 'trial',
+            'content' => 'Đặt lịch học thử: '.$bookings->map(fn (CrmTrialBooking $booking) => $booking->session->classModel?->name.' ('.$booking->session->date->format('d/m/Y').' '.$booking->session->start_time?->format('H:i').')')->implode(', ')
+                .(! empty($validated['notes']) ? '. Ghi chú: '.$validated['notes'] : '.'),
         ]);
 
-        return redirect()->back()->with('status', 'Đã lưu lịch học thử.');
+        return redirect()->back()->with('status', 'Đã đặt lịch học thử cho khách.');
     }
 
-    public function saveTrialFeedback(Request $request, $id)
+    public function cancelTrialBooking(Request $request, CrmStageService $stages, $id, CrmTrialBooking $booking)
     {
         $customer = $this->findScopedCustomer($id);
-        if (! in_array($customer->stage, ['trial_scheduled', 'trial_completed'], true)) {
-            throw ValidationException::withMessages(['trial_feedback' => 'Lead chưa có lịch học thử để ghi nhận phản hồi.']);
+        abort_unless($stages->canMoveForward($request->user()), 403);
+        abort_unless($booking->customer_id === $customer->id, 404);
+
+        $validated = $request->validate(['reason' => 'required|string|max:1000']);
+        if ($booking->status !== 'scheduled') {
+            throw ValidationException::withMessages(['reason' => 'Chỉ hủy được buổi học thử đang chờ.']);
         }
 
-        $validated = $request->validate([
-            'trial_rating' => 'required|integer|min:1|max:5',
-            'trial_feedback' => 'required|string|max:3000',
-        ]);
-        $customer->update($validated + ['stage' => 'trial_completed', 'trial_status' => 'attended']);
+        $booking->update(['status' => 'cancelled', 'notes' => trim(($booking->notes ? $booking->notes."\n" : '').'Hủy: '.$validated['reason'])]);
         CrmCustomerHistory::create([
             'customer_id' => $customer->id,
-            'user_id' => Auth::id(),
-            'type' => 'meet',
-            'content' => "Phản hồi học thử ({$validated['trial_rating']}/5): {$validated['trial_feedback']}",
+            'user_id' => $request->user()->id,
+            'type' => 'trial',
+            'content' => 'Hủy buổi học thử #'.$booking->id.'. Lý do: '.$validated['reason'],
         ]);
 
-        return redirect()->back()->with('status', 'Đã ghi nhận phản hồi buổi học thử.');
-    }
-
-    public function updateTrialStatus(Request $request, $id)
-    {
-        $customer = $this->findScopedCustomer($id);
-        if ($customer->stage !== 'trial_scheduled') {
-            throw ValidationException::withMessages(['trial_status' => 'Lead không có lịch học thử đang chờ xử lý.']);
-        }
-
-        $validated = $request->validate([
-            'trial_status' => 'required|in:cancelled,no_show',
-            'reason' => 'required|string|max:1000',
-        ]);
-        $label = $validated['trial_status'] === 'cancelled' ? 'đã hủy' : 'vắng mặt';
-        $customer->update([
-            'trial_status' => $validated['trial_status'],
-            'stage' => $customer->test_decision === 'test' && $customer->test_score ? 'tested' : 'consulting',
-            'trial_notes' => trim(($customer->trial_notes ? $customer->trial_notes."\n" : '')."{$label}: {$validated['reason']}"),
-        ]);
-        CrmCustomerHistory::create([
-            'customer_id' => $customer->id,
-            'user_id' => Auth::id(),
-            'type' => 'meet',
-            'content' => "Buổi học thử {$label}. Lý do: {$validated['reason']}",
-        ]);
-
-        return redirect()->back()->with('status', "Đã ghi nhận buổi học thử {$label}; Lead quay lại bước tư vấn để hẹn lại.");
-    }
-
-    public function addToWaitingList(Request $request, $id)
-    {
-        $customer = $this->findScopedCustomer($id);
-        if (! in_array($customer->stage, ['consulting', 'waiting_class'], true)) {
-            throw ValidationException::withMessages(['preferred_schedule' => 'Không thể đưa Lead đã kết thúc vào danh sách chờ.']);
-        }
-        $validated = $request->validate([
-            'preferred_schedule' => 'required|string|max:255',
-            'waiting_course_id' => 'required|exists:courses,id',
-            'waiting_branch_id' => 'required|exists:branches,id',
-            'desired_start_date' => 'nullable|date|after_or_equal:today',
-            'waiting_priority' => 'required|integer|min:1|max:5',
-            'waiting_notes' => 'nullable|string|max:1000',
-        ]);
-        if (! Course::whereKey($validated['waiting_course_id'])->where('is_active', true)->exists()) {
-            throw ValidationException::withMessages(['waiting_course_id' => 'Khóa học chờ không còn hoạt động.']);
-        }
-        if (! Branch::whereKey($validated['waiting_branch_id'])->where('is_active', true)->exists()) {
-            throw ValidationException::withMessages(['waiting_branch_id' => 'Cơ sở chờ không còn hoạt động.']);
-        }
-        $customer->update([
-            'stage' => 'waiting_class',
-            'test_decision' => 'no_test',
-            'waiting_since' => today(),
-            'preferred_schedule' => $validated['preferred_schedule'],
-            'waiting_course_id' => $validated['waiting_course_id'],
-            'waiting_branch_id' => $validated['waiting_branch_id'],
-            'desired_start_date' => $validated['desired_start_date'] ?? null,
-            'waiting_priority' => $validated['waiting_priority'],
-            'waiting_notes' => $validated['waiting_notes'] ?? null,
-        ]);
-        CrmCustomerHistory::create([
-            'customer_id' => $customer->id,
-            'user_id' => Auth::id(),
-            'type' => 'system',
-            'content' => 'Đưa vào danh sách chờ lớp: '.$validated['preferred_schedule'].' · Ưu tiên '.$validated['waiting_priority'].'/5.',
-        ]);
-
-        return redirect()->back()->with('status', 'Đã đưa Lead vào danh sách chờ lớp.');
+        return redirect()->back()->with('status', 'Đã hủy buổi học thử.');
     }
 
     public function editCustomer($id)
@@ -730,111 +672,65 @@ class CrmController extends Controller
             ->with('status', 'Cập nhật thông tin khách hàng thành công!');
     }
 
-    public function updateStage(Request $request, $id)
+    /**
+     * Chuyển giai đoạn bằng tay (Kanban / hồ sơ). Luật nằm ở CrmStageService:
+     * CM tiến 1 bước, Admin lùi bước kèm lý do, Sales không đổi giai đoạn.
+     */
+    public function updateStage(Request $request, CrmStageService $stages, $id)
     {
         $customer = $this->findScopedCustomer($id);
 
         $validated = $request->validate([
-            'stage' => 'required|string|in:new,consulting,test_scheduled,tested,trial_scheduled,trial_completed,waiting_class,closing,won,lost',
+            'stage' => ['required', 'string', 'in:'.implode(',', [...array_keys(CrmCustomer::PIPELINE_STAGES), CrmCustomer::STAGE_LOST])],
             'lost_reason' => 'required_if:stage,lost|nullable|string|max:1000',
+            'reason' => 'nullable|string|max:1000',
         ]);
 
-        $newStage = $validated['stage'];
-        $currentStage = $customer->stage;
+        $reason = $validated['stage'] === CrmCustomer::STAGE_LOST ? $validated['lost_reason'] : ($validated['reason'] ?? null);
 
-        if (in_array($currentStage, ['won', 'lost'], true) && $newStage !== $currentStage) {
-            return $this->stageError($request, 'Lead đã kết thúc; không thể thay đổi giai đoạn.');
+        try {
+            $stages->move($customer, $validated['stage'], $request->user(), $reason);
+        } catch (CrmStageTransitionException $e) {
+            return $this->stageError($request, $e->getMessage(), $e->status());
         }
 
-        if ($newStage === 'won') {
-            return $this->stageError($request, 'Phải hoàn tất Closing Wizard để chốt Lead thành công.');
-        }
-
-        if ($newStage === 'lost' && ! $request->user()->can('lead.mark_lost')) {
-            abort(403);
-        }
-
-        $allowedTransitions = [
-            'new' => ['consulting'],
-            'consulting' => [],
-            'test_scheduled' => [],
-            'tested' => [],
-            'trial_scheduled' => [],
-            'trial_completed' => ['closing'],
-            'waiting_class' => ['closing'],
-            'closing' => [],
-        ];
-
-        if ($newStage !== $currentStage
-            && $newStage !== 'lost'
-            && ! in_array($newStage, $allowedTransitions[$currentStage] ?? [], true)) {
-            return $this->stageError(
-                $request,
-                'Chuyển giai đoạn không hợp lệ. Hãy dùng đúng thao tác nghiệp vụ: hẹn test, nhập điểm, hẹn học thử, phản hồi hoặc đưa vào danh sách chờ.'
-            );
-        }
-
-        if ($currentStage !== $newStage) {
-            $customer->update([
-                'stage' => $newStage,
-                'lost_reason' => $newStage === 'lost' ? $validated['lost_reason'] : null,
-                'lost_at' => $newStage === 'lost' ? now() : null,
-            ]);
-
-            CrmCustomerHistory::create([
-                'customer_id' => $customer->id,
-                'user_id' => Auth::id(),
-                'type' => 'stage_change',
-                'content' => "Chuyển giai đoạn Pipeline từ '{$currentStage}' sang '{$customer->stage_label}'",
-            ]);
-        }
-
+        $message = "Đã chuyển khách hàng {$customer->name} sang giai đoạn {$customer->stage_label}!";
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => "Đã chuyển khách hàng {$customer->name} sang giai đoạn {$customer->stage_label}!",
-                'customer' => $customer,
-                'stage' => $newStage,
+                'message' => $message,
+                'stage' => $customer->stage,
                 'stage_label' => $customer->stage_label,
             ]);
         }
 
-        return redirect()->back()->with('status', "Đã chuyển khách hàng {$customer->name} sang giai đoạn {$customer->stage_label}!");
+        return redirect()->back()->with('status', $message);
     }
 
-    protected function stageError(Request $request, string $message)
+    protected function stageError(Request $request, string $message, int $status = 422)
     {
+        if ($status === 403 && ! ($request->wantsJson() || $request->ajax())) {
+            abort(403, $message);
+        }
         if ($request->wantsJson() || $request->ajax()) {
-            return response()->json(['success' => false, 'message' => $message], 422);
+            return response()->json(['success' => false, 'message' => $message], $status);
         }
 
         return redirect()->back()->withErrors(['stage' => $message]);
     }
 
-    public function nextStage(Request $request, $id)
+    /** Nút "Tiếp theo": chuyển lead sang đúng bước kế tiếp (CM). */
+    public function nextStage(Request $request, CrmStageService $stages, $id)
     {
         $customer = $this->findScopedCustomer($id);
-        $automaticTransitions = [
-            'new' => 'consulting',
-            'trial_completed' => 'closing',
-            'waiting_class' => 'closing',
-        ];
-
-        if (isset($automaticTransitions[$customer->stage])) {
-            $nextStageKey = $automaticTransitions[$customer->stage];
-            $request->merge(['stage' => $nextStageKey]);
-
-            return $this->updateStage($request, $id);
+        $next = $stages->nextStage($customer->stage);
+        if (! $next) {
+            return $this->stageError($request, 'Lead đã ở giai đoạn cuối hoặc đã thất bại.');
         }
 
-        if ($request->wantsJson() || $request->ajax()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Giai đoạn này cần một thao tác nghiệp vụ cụ thể; vui lòng mở hồ sơ Lead để tiếp tục.',
-            ], 422);
-        }
+        $request->merge(['stage' => $next]);
 
-        return redirect()->back()->withErrors(['stage' => 'Giai đoạn này cần một thao tác nghiệp vụ cụ thể; vui lòng mở hồ sơ Lead để tiếp tục.']);
+        return $this->updateStage($request, $stages, $id);
     }
 
     public function destroyCustomer($id)
@@ -884,7 +780,7 @@ class CrmController extends Controller
         $totalCollectedAmount = $wonCustomers->sum(fn (CrmCustomer $customer) => (float) ($customer->convertedStudent?->tuition?->paid_amount ?? 0));
         $totalDebtAmount = $wonCustomers->sum(fn (CrmCustomer $customer) => (float) ($customer->convertedStudent?->tuition?->debt_amount ?? 0));
 
-        return view('crm.won', compact('wonCustomers', 'totalContractAmount', 'totalCollectedAmount', 'totalDebtAmount'));
+        return view('crm.won', compact('wonCustomers', 'totalContractAmount', 'totalCollectedAmount', 'totalDebtAmount') + $this->waitingClassData());
     }
 
     public function closingWizard(Request $request)
@@ -893,13 +789,13 @@ class CrmController extends Controller
         $selectedCustomer = null;
         if ($selectedCustomerId) {
             $selectedCustomer = $this->findScopedCustomer($selectedCustomerId);
-            if (! in_array($selectedCustomer->stage, ['trial_completed', 'waiting_class', 'closing'], true)) {
+            if (! in_array($selectedCustomer->stage, CrmCustomer::CLOSABLE_STAGES, true)) {
                 return redirect()->route('crm.pipeline')
                     ->withErrors(['stage' => 'Lead chưa sẵn sàng để chốt.']);
             }
         }
         $customers = $this->scopeCustomerQuery()
-            ->whereIn('stage', ['trial_completed', 'waiting_class', 'closing'])
+            ->whereIn('stage', CrmCustomer::CLOSABLE_STAGES)
             ->when($selectedCustomerId, fn (Builder $query, int $customerId) => $query->orderByRaw('id = ? desc', [$customerId]))
             ->latest()
             ->get();
@@ -985,75 +881,110 @@ class CrmController extends Controller
         return redirect()->back()->with('status', "Đã tạo mới ưu đãi '{$promotion->name}' thành công!");
     }
 
+    /**
+     * Chốt & Xếp lớp (BA chốt 2026-09-25):
+     * - Cho phép từ Đang tư vấn (nhánh không test), Đã test, Gửi kết quả.
+     * - Luôn tạo hồ sơ học viên (HV-), tài khoản portal và học phí.
+     * - Có lớp → ghi danh + Đã chốt. "Xếp lớp sau" → không ghi danh, Chờ xếp lớp; học phí tính theo khóa.
+     * - Không bắt buộc thu tiền: chưa đóng học phí đăng ký → tạo task "Nhắc thu học phí" cho người phụ trách.
+     */
     public function processClosingWizard(Request $request)
     {
         $validated = $request->validate([
             'customer_id' => 'required|exists:crm_customers,id',
-            'class_id' => 'required|exists:classes,id',
+            'class_id' => 'nullable|exists:classes,id',
+            'course_id' => 'nullable|required_without:class_id|exists:courses,id',
+            'fee_paid_at_closing' => 'nullable|boolean',
             'promotion_id' => 'nullable|exists:promotions,id',
             'fee_items' => 'nullable',
             'prepaid_amount' => 'nullable|numeric|min:0',
-            'paid_amount' => 'required|numeric|min:0',
-            'payment_method' => 'required|in:cash,transfer,pos,split',
+            'paid_amount' => 'nullable|numeric|min:0',
+            'payment_method' => 'nullable|in:cash,transfer,pos,split',
             'split_cash_amount' => 'nullable|numeric|min:0',
             'split_transfer_amount' => 'nullable|numeric|min:0',
             'split_pos_amount' => 'nullable|numeric|min:0',
             'transfer_memo' => 'nullable|string|max:255',
             'bank_account_id' => 'nullable|exists:bank_accounts,id',
             'bill_notes' => 'nullable|string|max:2000',
+        ], [
+            'course_id.required_without' => 'Chọn khóa học khi xếp lớp sau để tính học phí.',
         ]);
 
-        $result = DB::transaction(function () use ($request, $validated): array {
-            $customerQuery = CrmCustomer::query()->lockForUpdate();
-            if (! $request->user()->hasAnyRole(['admin', 'manager', 'academic_staff', 'academic_lead'])) {
-                $customerQuery->where('assigned_user_id', $request->user()->id);
-            }
-            $customer = $customerQuery->findOrFail($validated['customer_id']);
+        $paidAmount = (float) ($validated['paid_amount'] ?? 0);
+        $prepaidAmount = (float) ($validated['prepaid_amount'] ?? 0);
+        // Không gửi cờ → suy ra từ số tiền thu (tương thích form cũ).
+        $feePaid = array_key_exists('fee_paid_at_closing', $validated) && $validated['fee_paid_at_closing'] !== null
+            ? (bool) $validated['fee_paid_at_closing']
+            : ($paidAmount + $prepaidAmount) > 0;
+        if ($feePaid && ($paidAmount + $prepaidAmount) <= 0) {
+            throw ValidationException::withMessages(['paid_amount' => 'Đã tích "Đã đóng học phí đăng ký" thì phải nhập số tiền đã thu.']);
+        }
+        if (! $feePaid && $paidAmount > 0) {
+            throw ValidationException::withMessages(['paid_amount' => 'Chưa đóng học phí thì không ghi nhận khoản thu; hệ thống sẽ tạo task nhắc thu.']);
+        }
+        if (($paidAmount > 0 || $prepaidAmount > 0) && empty($validated['payment_method'])) {
+            throw ValidationException::withMessages(['payment_method' => 'Vui lòng chọn phương thức thanh toán.']);
+        }
+        $paymentMethod = $validated['payment_method'] ?? 'cash';
+
+        $result = DB::transaction(function () use ($request, $validated, $paidAmount, $prepaidAmount, $feePaid, $paymentMethod): array {
+            $customer = $this->scopeCustomerQuery()->lockForUpdate()->findOrFail($validated['customer_id']);
 
             if ($customer->converted_student_id) {
                 $existingTuition = StudentTuition::where('student_id', $customer->converted_student_id)->latest()->firstOrFail();
 
                 return [$customer->convertedStudent, $existingTuition, null, true];
             }
-            if ($customer->stage !== 'closing') {
-                throw ValidationException::withMessages(['customer_id' => 'Lead phải ở giai đoạn Chờ thanh toán trước khi chốt.']);
+            if (! in_array($customer->stage, CrmCustomer::CLOSABLE_STAGES, true)) {
+                throw ValidationException::withMessages(['customer_id' => 'Chỉ chốt được Lead ở bước Đang tư vấn, Đã test hoặc Gửi kết quả.']);
             }
 
-            $class = ClassModel::with(['course', 'branch'])->lockForUpdate()->findOrFail($validated['class_id']);
-            if ($class->status !== 'active' || ! $class->course || ! $class->course->is_active) {
-                throw ValidationException::withMessages(['class_id' => 'Lớp hoặc khóa học không còn hoạt động.']);
+            $class = null;
+            if (! empty($validated['class_id'])) {
+                $class = ClassModel::with(['course', 'branch'])->lockForUpdate()->findOrFail($validated['class_id']);
+                if ($class->status !== 'active' || ! $class->course || ! $class->course->is_active) {
+                    throw ValidationException::withMessages(['class_id' => 'Lớp hoặc khóa học không còn hoạt động.']);
+                }
+                if ($customer->branch_id && $class->branch_id && $customer->branch_id !== $class->branch_id) {
+                    throw ValidationException::withMessages(['class_id' => 'Lớp được chọn phải thuộc cùng chi nhánh với Lead.']);
+                }
+                if ($class->max_capacity > 0 && $class->enrollments()->whereIn('status', ['pending', 'completed'])->count() >= $class->max_capacity) {
+                    throw ValidationException::withMessages(['class_id' => 'Lớp đã đủ sĩ số, vui lòng chọn lớp khác.']);
+                }
+                $course = $class->course;
+                $baseTuition = (float) ($class->tuition_fee > 0 ? $class->tuition_fee : $course->tuition_fee);
+            } else {
+                $course = Course::whereKey($validated['course_id'])->where('is_active', true)->first();
+                if (! $course) {
+                    throw ValidationException::withMessages(['course_id' => 'Khóa học không còn hoạt động.']);
+                }
+                // Chưa có lớp: học phí theo giá niêm yết của khóa (trừ ưu đãi), không phụ thuộc lớp.
+                $baseTuition = (float) $course->tuition_fee;
             }
-            if ($customer->branch_id && $class->branch_id && $customer->branch_id !== $class->branch_id) {
-                throw ValidationException::withMessages(['class_id' => 'Lớp được chọn phải thuộc cùng chi nhánh với Lead.']);
+            if ($baseTuition <= 0) {
+                throw ValidationException::withMessages([$class ? 'class_id' : 'course_id' => 'Lớp / khóa học chưa được cấu hình học phí.']);
             }
+            $branchId = $class?->branch_id ?? $customer->branch_id;
+            $branch = $class?->branch ?? ($branchId ? Branch::find($branchId) : null);
 
-            if ($class->max_capacity > 0 && $class->enrollments()->whereIn('status', ['pending', 'completed'])->count() >= $class->max_capacity) {
-                throw ValidationException::withMessages(['class_id' => 'Lớp đã đủ sĩ số, vui lòng chọn lớp khác.']);
-            }
-
-            $needsBankAccount = $validated['payment_method'] === 'transfer'
-                || ($validated['payment_method'] === 'split' && (float) ($validated['split_transfer_amount'] ?? 0) > 0);
+            $needsBankAccount = $paidAmount > 0 && ($paymentMethod === 'transfer'
+                || ($paymentMethod === 'split' && (float) ($validated['split_transfer_amount'] ?? 0) > 0));
             $bankAccount = ! empty($validated['bank_account_id'])
                 ? BankAccount::whereKey($validated['bank_account_id'])->where('is_active', true)->first()
                 : null;
             if ($needsBankAccount && ! $bankAccount) {
                 throw ValidationException::withMessages(['bank_account_id' => 'Chuyển khoản cần một tài khoản ngân hàng đang hoạt động.']);
             }
-            if ($bankAccount?->branch_id && $class->branch_id && $bankAccount->branch_id !== $class->branch_id) {
+            if ($bankAccount?->branch_id && $branchId && $bankAccount->branch_id !== $branchId) {
                 throw ValidationException::withMessages(['bank_account_id' => 'Tài khoản thu tiền không thuộc chi nhánh của lớp.']);
-            }
-
-            $baseTuition = (float) ($class->tuition_fee > 0 ? $class->tuition_fee : $class->course->tuition_fee);
-            if ($baseTuition <= 0) {
-                throw ValidationException::withMessages(['class_id' => 'Lớp chưa được cấu hình học phí.']);
             }
 
             $promotion = null;
             $discount = 0.0;
             if (! empty($validated['promotion_id'])) {
                 $promotion = Promotion::whereKey($validated['promotion_id'])->lockForUpdate()->first();
-                if (! $promotion?->isApplicable($class->branch_id, $class->course_id)) {
-                    throw ValidationException::withMessages(['promotion_id' => 'Ưu đãi không còn hiệu lực hoặc không áp dụng cho lớp đã chọn.']);
+                if (! $promotion?->isApplicable($branchId, $course->id)) {
+                    throw ValidationException::withMessages(['promotion_id' => 'Ưu đãi không còn hiệu lực hoặc không áp dụng cho khóa / lớp đã chọn.']);
                 }
                 $discount = $promotion->calculateDiscount($baseTuition);
             }
@@ -1061,7 +992,6 @@ class CrmController extends Controller
             $feeItems = $this->resolveFeeItems($request->input('fee_items'));
             $otherFees = array_sum(array_column($feeItems, 'amount'));
             $contractTotal = max(0, $baseTuition - $discount + $otherFees);
-            $prepaidAmount = (float) ($validated['prepaid_amount'] ?? 0);
             if ($prepaidAmount > 0 && ! $request->user()->hasAnyRole(['admin', 'manager'])) {
                 throw ValidationException::withMessages(['prepaid_amount' => 'Khoản thu trước phải được quản lý xác nhận.']);
             }
@@ -1069,14 +999,13 @@ class CrmController extends Controller
                 throw ValidationException::withMessages(['prepaid_amount' => 'Khoản thu trước vượt quá giá trị hợp đồng.']);
             }
 
-            $paidAmount = (float) $validated['paid_amount'];
             $netDue = $contractTotal - $prepaidAmount;
             if ($paidAmount > $netDue) {
                 throw ValidationException::withMessages(['paid_amount' => 'Số tiền thu vượt quá số tiền còn phải nộp.']);
             }
 
             $splitDetails = null;
-            if ($validated['payment_method'] === 'split') {
+            if ($paymentMethod === 'split' && $paidAmount > 0) {
                 $splitDetails = [
                     'cash' => (float) ($validated['split_cash_amount'] ?? 0),
                     'transfer' => (float) ($validated['split_transfer_amount'] ?? 0),
@@ -1107,7 +1036,7 @@ class CrmController extends Controller
                     'name' => $customer->name,
                     'email' => $studentEmail,
                     'phone' => $customer->phone,
-                    'branch_id' => $class->branch_id,
+                    'branch_id' => $branchId,
                     'password' => Hash::make($temporaryPassword),
                     'must_change_password' => true,
                     'is_active' => true,
@@ -1126,31 +1055,25 @@ class CrmController extends Controller
                 'dob' => $customer->dob,
                 'gender' => $customer->gender,
                 'address' => $customer->address,
-                'branch_id' => $class->branch_id,
-                'current_class_id' => $class->id,
-                'target' => $customer->course_interest ?? $class->course->name,
+                'branch_id' => $branchId,
+                'current_class_id' => $class?->id,
+                'target' => $customer->course_interest ?? $course->name,
                 'entrance_score' => $customer->test_score ?? 'Chưa test',
-                'status' => 'studying',
-                'total_lessons' => $class->course->total_lessons,
+                'status' => Student::INITIAL_STATUS,
+                'total_lessons' => $course->total_lessons,
             ]);
 
-            ClassEnrollment::create([
-                'student_id' => $student->id,
-                'class_id' => $class->id,
-                'customer_id' => $customer->id,
-                'enrolled_at' => now(),
-                'curriculum_delivered' => false,
-                'zalo_group_added' => false,
-                'status' => 'pending',
-            ]);
+            if ($class) {
+                $this->enrollStudent($student, $class, $customer);
+            }
 
             // Memo phải sinh từ mã học viên thật sau khi tạo hồ sơ — giá trị preview phía client
             // chỉ mang tính minh hoạ (không biết trước mã HV) nên luôn bị ghi đè.
-            $transferMemo = self::buildTransferMemo($student->code, $student->name, $class->name, $class->branch?->code);
+            $transferMemo = self::buildTransferMemo($student->code, $student->name, $class?->name ?? $course->code ?? $course->name, $branch?->code);
             $tuition = StudentTuition::create([
                 'student_id' => $student->id,
-                'class_id' => $class->id,
-                'branch_id' => $class->branch_id,
+                'class_id' => $class?->id,
+                'branch_id' => $branchId,
                 'bank_account_id' => $bankAccount?->id,
                 'promotion_id' => $promotion?->id,
                 'total_amount' => $baseTuition,
@@ -1174,7 +1097,7 @@ class CrmController extends Controller
                     'student_id' => $student->id,
                     'amount' => $prepaidAmount,
                     'tuition_amount' => $prepaidAmount,
-                    'payment_method' => $validated['payment_method'],
+                    'payment_method' => $paymentMethod,
                     'transaction_code' => 'CWD-'.Str::upper((string) Str::ulid()),
                     'payment_date' => now(),
                     'creator_id' => Auth::id(),
@@ -1192,7 +1115,7 @@ class CrmController extends Controller
                     'student_id' => $student->id,
                     'amount' => $paidAmount,
                     'tuition_amount' => min($paidAmount, max(0, $baseTuition - $discount)),
-                    'payment_method' => $validated['payment_method'],
+                    'payment_method' => $paymentMethod,
                     'split_details' => $splitDetails,
                     'collected_items' => $feeItems ?: null,
                     'transaction_code' => 'CW-'.Str::upper((string) Str::ulid()),
@@ -1205,12 +1128,15 @@ class CrmController extends Controller
             }
 
             $customer->update([
-                'stage' => 'won',
                 'deal_value' => $contractTotal,
                 'converted_student_id' => $student->id,
                 'converted_by' => Auth::id(),
                 'commission_user_id' => $customer->assigned_user_id ?? Auth::id(),
                 'converted_at' => now(),
+                'fee_paid_at_closing' => $feePaid,
+                'waiting_course_id' => $class ? $customer->waiting_course_id : $course->id,
+                'waiting_branch_id' => $class ? $customer->waiting_branch_id : $branchId,
+                'waiting_since' => $class ? $customer->waiting_since : today(),
             ]);
             if ($promotion) {
                 $promotion->increment('used_count');
@@ -1218,12 +1144,17 @@ class CrmController extends Controller
             foreach ($feeItems as $feeItem) {
                 MerchandiseItem::whereKey($feeItem['id'])->decrement('stock_quantity');
             }
-            CrmCustomerHistory::create([
-                'customer_id' => $customer->id,
-                'user_id' => Auth::id(),
-                'type' => 'stage_change',
-                'content' => 'Chốt hợp đồng thành công qua Closing Wizard (Tổng giá trị: '.number_format($contractTotal).'đ).',
-            ]);
+            app(CrmStageService::class)->advanceTo(
+                $customer,
+                $class ? 'won' : 'waiting_class',
+                $request->user(),
+                'Chốt hợp đồng qua Chốt & Xếp lớp (Tổng giá trị: '.number_format($contractTotal).'đ, '
+                    .($class ? "lớp {$class->name}" : "khóa {$course->name}, xếp lớp sau")
+                    .($feePaid ? ', đã đóng học phí đăng ký' : ', chưa đóng học phí').').'
+            );
+            if (! $feePaid) {
+                $this->createFeeReminderTask($customer, $student, $tuition, $request->user());
+            }
 
             return [$student, $tuition, $temporaryPassword, false];
         }, 3);
@@ -1231,13 +1162,91 @@ class CrmController extends Controller
         [$student, $tuition, $temporaryPassword, $alreadyConverted] = $result;
         $message = $alreadyConverted
             ? 'Lead này đã được chốt trước đó; hệ thống không tạo dữ liệu trùng.'
-            : "Đã chốt deal và tạo hồ sơ {$student->code}. Khoản thu đang chờ Kế toán/Admin duyệt.";
+            : "Đã chốt deal và tạo hồ sơ {$student->code}."
+                .($student->current_class_id ? '' : ' Học viên đang ở danh sách Chờ xếp lớp.')
+                .($tuition->receipts()->exists() ? ' Khoản thu đang chờ Kế toán/Admin duyệt.' : ' Đã tạo task nhắc thu học phí cho người phụ trách.');
 
         return redirect()->route('crm.customers.won')
             ->with('status', $message)
             ->with('bill_url', route('crm.tuition-bill', ['id' => $tuition->id]))
             ->with('student_account_email', $student->email)
             ->with('temporary_password', $temporaryPassword);
+    }
+
+    /** Ghi danh học viên vào lớp + cập nhật lớp hiện tại (lớp đã được lock & kiểm tra sĩ số). */
+    protected function enrollStudent(Student $student, ClassModel $class, CrmCustomer $customer): void
+    {
+        ClassEnrollment::create([
+            'student_id' => $student->id,
+            'class_id' => $class->id,
+            'customer_id' => $customer->id,
+            'enrolled_at' => now(),
+            'curriculum_delivered' => false,
+            'zalo_group_added' => false,
+            'status' => 'pending',
+        ]);
+        $student->forceFill(['current_class_id' => $class->id])->save();
+    }
+
+    /** Chốt khi chưa đóng học phí → task "Nhắc thu học phí" cho người phụ trách lead. */
+    protected function createFeeReminderTask(CrmCustomer $customer, Student $student, StudentTuition $tuition, User $actor): WorkTask
+    {
+        return WorkTask::create([
+            'title' => "Nhắc thu học phí: {$student->name} ({$student->code})",
+            'description' => "Học viên {$student->name} ({$student->code}) đã chốt từ Lead {$customer->code} nhưng chưa đóng học phí đăng ký. "
+                .'Số tiền cần thu: '.number_format((float) $tuition->final_amount).'đ. '
+                .'Hồ sơ Lead: '.route('crm.customers.show', $customer->id).' · Phiếu học phí: '.route('crm.tuition-bill', ['id' => $tuition->id]),
+            'creator_id' => $actor->id,
+            'assignee_id' => $customer->assigned_user_id ?? $actor->id,
+            'branch_id' => $student->branch_id,
+            'task_type' => 'one_time',
+            'time_slot_category' => 'during',
+            'due_date' => today()->addDays(3),
+            'due_time' => '17:00',
+            'status' => 'new',
+        ]);
+    }
+
+    /**
+     * Học vụ gán lớp cho học viên đang Chờ xếp lớp: lock lớp, kiểm tra sĩ số / chi nhánh / khóa,
+     * ghi danh, cập nhật lớp hiện tại + lớp của học phí, lead Chờ xếp lớp → Đã chốt.
+     */
+    public function assignClass(Request $request, CrmStageService $stages, $id)
+    {
+        $validated = $request->validate(['class_id' => 'required|exists:classes,id']);
+
+        DB::transaction(function () use ($request, $stages, $validated, $id) {
+            $customer = $this->scopeCustomerQuery()
+                ->where(fn (Builder $query) => $query->where('id', $id)->orWhere('code', $id))
+                ->lockForUpdate()
+                ->firstOrFail();
+            $student = $customer->converted_student_id ? Student::lockForUpdate()->find($customer->converted_student_id) : null;
+            if ($customer->stage !== 'waiting_class' || ! $student) {
+                throw ValidationException::withMessages(['class_id' => 'Chỉ gán lớp cho học viên đang Chờ xếp lớp.']);
+            }
+
+            $class = ClassModel::with('course')->lockForUpdate()->findOrFail($validated['class_id']);
+            if (! in_array($class->status, ['active', 'upcoming'], true) || ! $class->course?->is_active) {
+                throw ValidationException::withMessages(['class_id' => 'Lớp hoặc khóa học không còn hoạt động.']);
+            }
+            $branchId = $student->branch_id ?? $customer->branch_id;
+            if ($branchId && $class->branch_id !== $branchId) {
+                throw ValidationException::withMessages(['class_id' => 'Lớp phải thuộc chi nhánh của học viên.']);
+            }
+            if ($customer->waiting_course_id && $class->course_id !== $customer->waiting_course_id) {
+                throw ValidationException::withMessages(['class_id' => 'Lớp phải thuộc khóa học đã chốt ('.($customer->waitingCourse?->name ?? 'khóa đã chọn').').']);
+            }
+            if ($class->max_capacity > 0 && $class->enrollments()->whereIn('status', ['pending', 'completed'])->count() >= $class->max_capacity) {
+                throw ValidationException::withMessages(['class_id' => 'Lớp đã đủ sĩ số, vui lòng chọn lớp khác.']);
+            }
+
+            $this->enrollStudent($student, $class, $customer);
+            StudentTuition::where('student_id', $student->id)->whereNull('class_id')->update(['class_id' => $class->id]);
+            $customer->update(['waiting_since' => null]);
+            $stages->advanceTo($customer, 'won', $request->user(), "Học vụ gán lớp {$class->name} cho học viên {$student->code}.");
+        }, 3);
+
+        return redirect()->back()->with('status', 'Đã gán lớp cho học viên và chuyển Lead sang Đã chốt.');
     }
 
     protected function resolveFeeItems(mixed $raw): array
@@ -1540,24 +1549,25 @@ class CrmController extends Controller
         $metricLostDeals = $lostDeals;
 
         // Phân bố trạng thái của cohort, giữ nguyên hai nhánh test/không-test.
-        $stageReportDefinitions = [
-            'new' => ['Mới nhận', 'bg-blue-500', 'text-blue-600', 'Chưa bắt đầu tư vấn'],
-            'consulting' => ['Đang tư vấn', 'bg-amber-500', 'text-amber-600', 'Đang xác định lộ trình'],
-            'test_scheduled' => ['Hẹn test', 'bg-indigo-500', 'text-indigo-600', 'Đã đặt lịch kiểm tra'],
-            'tested' => ['Đã test', 'bg-purple-500', 'text-purple-600', 'Đã có kết quả đầu vào'],
-            'trial_scheduled' => ['Hẹn học thử', 'bg-fuchsia-500', 'text-fuchsia-600', 'Đã đặt lịch học thử'],
-            'trial_completed' => ['Đã học thử', 'bg-teal-500', 'text-teal-600', 'Đã có phản hồi học thử'],
-            'waiting_class' => ['Chờ xếp lớp', 'bg-yellow-500', 'text-yellow-600', 'Nhánh chờ lớp phù hợp'],
-            'closing' => ['Chờ thanh toán', 'bg-cyan-500', 'text-cyan-600', 'Đang hoàn tất hợp đồng'],
-            'won' => ['Đã chốt', 'bg-emerald-500', 'text-emerald-600', 'Đã tạo hồ sơ và xếp lớp'],
+        $stageDescriptions = [
+            'new' => 'Chưa bắt đầu tư vấn',
+            'consulting' => 'Đang xác định lộ trình',
+            'test_scheduled' => 'Đã đặt lịch kiểm tra',
+            'testing' => 'Đang làm bài test',
+            'tested' => 'Đã có kết quả đầu vào',
+            'result_sent' => 'Đã gửi kết quả cho khách',
+            'waiting_class' => 'Đã chốt, chờ Học vụ xếp lớp',
+            'won' => 'Đã chốt và xếp lớp',
         ];
-        $funnelStages = collect($stageReportDefinitions)->map(function (array $meta, string $stage) use ($allCurrent, $totalLeads) {
-            $count = $allCurrent->where('stage', $stage)->count();
+        $cohortByStage = $allCurrent->countBy('stage');
+        $funnelStages = collect(CrmCustomer::PIPELINE_STAGES)->map(function (string $label, string $stage) use ($cohortByStage, $totalLeads, $stageDescriptions) {
+            $count = (int) $cohortByStage->get($stage, 0);
+            $style = CrmCustomer::stageStyle($stage);
 
             return [
-                'name' => $meta[0], 'count' => $count,
+                'name' => $label, 'count' => $count,
                 'percent' => $totalLeads > 0 ? round(($count / $totalLeads) * 100, 1) : 0,
-                'bar_color' => $meta[1], 'text_color' => $meta[2], 'desc' => $meta[3],
+                'bar_color' => $style['bar'], 'text_color' => $style['text'], 'desc' => $stageDescriptions[$stage],
             ];
         })->values()->all();
 

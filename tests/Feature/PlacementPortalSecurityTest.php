@@ -170,7 +170,8 @@ class PlacementPortalSecurityTest extends TestCase
         $this->post(route('portal.test.submit', $test->code), $this->submitPayload(['candidate_phone' => '0977.888.999']))->assertRedirect();
         $first = PlacementTestSubmission::latest('id')->firstOrFail();
         $this->assertSame($consulting->id, $first->customer_id);
-        $this->assertSame('tested', $consulting->fresh()->stage);
+        // BA: nộp bài → "Test"; chỉ khi Học vụ chấm xong mới sang "Đã test".
+        $this->assertSame('testing', $consulting->fresh()->stage);
         $this->assertTrue(CrmCustomerHistory::where('customer_id', $consulting->id)->where('type', 'test')->exists());
 
         $this->post(route('portal.test.submit', $test->code), $this->submitPayload(['candidate_phone' => '0966555444']))->assertRedirect();
@@ -206,7 +207,8 @@ class PlacementPortalSecurityTest extends TestCase
 
         $this->post(route('portal.test.submit', $test->code), $this->submitPayload(['lead_token' => $token]))->assertRedirect();
 
-        $this->assertSame('tested', $lead->fresh()->stage);
+        // Mở link → "Test"; nộp bài giữ "Test" chờ Học vụ chấm.
+        $this->assertSame('testing', $lead->fresh()->stage);
         $this->assertSame($lead->id, PlacementTestSubmission::latest('id')->value('customer_id'));
     }
 
@@ -448,9 +450,12 @@ class PlacementPortalSecurityTest extends TestCase
 
     public function test_crm_save_test_score_keeps_missing_values_null_and_requires_test(): void
     {
+        // Quản lý cơ sở chỉ thấy lead thuộc chi nhánh của mình.
+        $branch = \App\Models\Branch::create(['name' => 'Cơ sở test', 'code' => 'CST', 'is_active' => true]);
         $manager = $this->userWithRole('manager');
+        $manager->update(['branch_id' => $branch->id]);
         $this->makeTest();
-        $lead = $this->makeLead('consulting');
+        $lead = $this->makeLead('consulting', ['branch_id' => $branch->id]);
 
         // Không có đề: không được lấy đại PlacementTest::first()
         $this->actingAs($manager)->post(route('crm.customers.save-test-score', $lead->id), [

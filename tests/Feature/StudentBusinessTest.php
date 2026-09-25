@@ -142,7 +142,7 @@ class StudentBusinessTest extends TestCase
             'phone' => '0945678123',
             'email' => 'thutrang.nguyen@gmail.com',
             'target' => 'IELTS 8.0 Overall',
-            'status' => 'graduated',
+            'status' => 'completed',
             'notes' => 'Đã hoàn thành khóa học và đạt chứng chỉ IELTS 8.0',
         ]);
 
@@ -151,8 +151,8 @@ class StudentBusinessTest extends TestCase
         $student->refresh();
         $this->assertEquals('Nguyễn Thu Trang (Đã đổi tên)', $student->name);
         $this->assertEquals('IELTS 8.0 Overall', $student->target);
-        $this->assertEquals('graduated', $student->status);
-        $this->assertEquals('Đã tốt nghiệp', $student->status_label);
+        $this->assertEquals('completed', $student->status);
+        $this->assertEquals('Hoàn thành khóa học', $student->status_label);
 
         // Soft delete profile
         $responseDelete = $this->actingAs($this->academicOfficer)->delete(route('students.destroy', $student->id));
@@ -188,7 +188,7 @@ class StudentBusinessTest extends TestCase
         $droppedStudent = new Student([
             'status' => 'dropped',
         ]);
-        $this->assertEquals('Rút hồ sơ', $droppedStudent->status_label);
+        $this->assertEquals('Thôi học', $droppedStudent->status_label);
         $this->assertStringContainsString('bg-rose-50', $droppedStudent->status_badge);
     }
 
@@ -242,7 +242,7 @@ class StudentBusinessTest extends TestCase
             'phone' => '0922000222',
             'branch_id' => $this->branchHcm->id,
             'current_class_id' => $this->classHcm->id,
-            'status' => 'graduated',
+            'status' => 'completed',
         ]);
 
         // Filter by branch Hanoi
@@ -289,5 +289,31 @@ class StudentBusinessTest extends TestCase
         $response->assertSee('Trần Bảo Anh');
         $response->assertSee('HV-00099');
         $response->assertSee('Đang học');
+    }
+
+    public function test_student_profile_has_exactly_the_six_ba_statuses(): void
+    {
+        $this->assertSame(
+            ['waiting_start', 'studying', 'deferred', 'summer_break', 'completed', 'dropped'],
+            array_keys(Student::STATUSES)
+        );
+        $this->assertSame('Chờ khai giảng', (new Student(['status' => 'waiting_start']))->status_label);
+        $this->assertSame('Nghỉ hè', (new Student(['status' => 'summer_break']))->status_label);
+
+        $student = Student::create([
+            'code' => 'HV-STATUS', 'name' => 'Học viên trạng thái', 'phone' => '0900111222',
+            'branch_id' => $this->branchHanoi->id, 'status' => 'waiting_start',
+        ]);
+
+        foreach (['trial', 'graduated', 'blacklist', 'transferred'] as $invalid) {
+            $this->actingAs($this->academicOfficer)->put(route('students.status.update', $student->id), ['status' => $invalid])
+                ->assertSessionHasErrors('status');
+        }
+        $this->actingAs($this->academicOfficer)->put(route('students.status.update', $student->id), ['status' => 'summer_break'])
+            ->assertRedirect();
+        $this->assertSame('summer_break', $student->fresh()->status);
+
+        $this->actingAs($this->academicOfficer)->get(route('students.index'))
+            ->assertOk()->assertSee('Chờ khai giảng')->assertSee('Hoàn thành khóa học')->assertDontSee('Học thử');
     }
 }

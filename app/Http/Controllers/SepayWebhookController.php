@@ -294,13 +294,7 @@ class SepayWebhookController extends Controller
             $appliedAmount = $outcome['applied_amount'];
             $overAmount = round($transferAmount - $appliedAmount, 2);
 
-            // If linked with CRM Lead in closing stage, mark WON
-            if ($matchedStudent) {
-                $linkedCustomer = $this->findLeadByPhone($matchedStudent->phone);
-                if ($linkedCustomer && in_array($linkedCustomer->stage, ['new', 'consulting', 'test_scheduled', 'tested', 'closing'])) {
-                    $linkedCustomer->update(['stage' => 'won']);
-                }
-            }
+            // Thanh toán KHÔNG đổi giai đoạn Lead: Đã chốt chỉ qua Chốt & Xếp lớp / Gán lớp (CrmStageService).
 
             // Update transaction record
             $overNote = $overAmount > 0
@@ -468,27 +462,5 @@ class SepayWebhookController extends Controller
 
         // Trả về model đầy đủ — caller cần cả các trường khác (name, code...) chứ không chỉ phone
         return $match ? Student::find($match->id) : null;
-    }
-
-    /**
-     * Tìm CRM lead theo SĐT học viên (dùng cho việc đánh dấu Won sau khi nhận tiền).
-     */
-    protected function findLeadByPhone(?string $phone): ?CrmCustomer
-    {
-        $normalized = $this->normalizePhone($phone);
-        if ($normalized === '') {
-            return null;
-        }
-
-        $exact = CrmCustomer::where('phone', $phone)->first();
-        if ($exact && $this->normalizePhone($exact->phone) === $normalized) {
-            return $exact;
-        }
-
-        $candidates = CrmCustomer::get(['id', 'phone']);
-        $match = $candidates->first(fn (CrmCustomer $candidate) => $this->normalizePhone($candidate->phone) === $normalized);
-
-        // Trả về model đầy đủ — caller cần cả các trường khác (stage, code...) chứ không chỉ phone
-        return $match ? CrmCustomer::find($match->id) : null;
     }
 }

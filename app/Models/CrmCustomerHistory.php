@@ -17,6 +17,9 @@ class CrmCustomerHistory extends Model
         'user_id',
         'type',
         'content',
+        'from_stage',
+        'to_stage',
+        'reason',
     ];
 
     public function customer(): BelongsTo
@@ -37,6 +40,7 @@ class CrmCustomerHistory extends Model
             'meet' => 'groups',
             'test' => 'quiz',
             'stage_change' => 'sync_alt',
+            'trial' => 'school',
             default => 'notes',
         };
     }

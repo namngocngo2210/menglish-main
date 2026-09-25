@@ -69,33 +69,21 @@
                     @endcan
                 @endif
 
-                @can('lead.update')
-                @if (in_array($customer->stage, ['tested', 'trial_scheduled'], true))
+                @if ($canBookTrial)
                 <button type="button" onclick="document.getElementById('scheduleTrialModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-fuchsia-50 text-fuchsia-700 border border-fuchsia-200 text-xs font-bold">
-                    <span class="material-symbols-outlined text-[16px]">school</span><span>Hẹn học thử</span>
+                    <span class="material-symbols-outlined text-[16px]">school</span><span>Đặt học thử</span>
                 </button>
                 @endif
-                @if (in_array($customer->stage, ['consulting', 'waiting_class'], true))
-                <button type="button" onclick="document.getElementById('waitingListModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-yellow-50 text-yellow-700 border border-yellow-200 text-xs font-bold">
-                    <span class="material-symbols-outlined text-[16px]">hourglass_top</span><span>Chờ lớp</span>
-                </button>
-                @endif
+
+                @can('lead.update')
                 <a href="{{ route('crm.customers.edit', $customer->id) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition whitespace-nowrap shrink-0 shadow-2xs">
                     <span class="material-symbols-outlined text-[16px]">edit</span>
                     <span>Sửa thông tin</span>
                 </a>
                 @endcan
 
-                @can('entrance_test.grade')
-                @if (in_array($customer->stage, ['trial_scheduled', 'trial_completed']))
-                    <button type="button" onclick="document.getElementById('trialFeedbackModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 text-xs font-bold">
-                        <span class="material-symbols-outlined text-[16px]">rate_review</span><span>Phản hồi học thử</span>
-                    </button>
-                @endif
-                @endcan
-
                 @can('lead.convert')
-                @if (in_array($customer->stage, ['trial_completed', 'waiting_class', 'closing'], true))
+                @if (in_array($customer->stage, \App\Models\CrmCustomer::CLOSABLE_STAGES, true) && ! $customer->converted_student_id)
                 <a href="{{ route('crm.closing-wizard', ['customer_id' => $customer->id]) }}" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm transition whitespace-nowrap shrink-0">
                     <span class="material-symbols-outlined text-[16px] text-amber-400">route</span>
                     <span>Chốt &amp; Xếp lớp</span>
@@ -103,13 +91,36 @@
                 @endif
                 @endcan
 
-                @can('lead.mark_lost')
-                @if (! in_array($customer->stage, ['won', 'lost']))
+                @if ($customer->stage === 'waiting_class')
+                @can('student.assign_class')
+                <a href="{{ route('crm.customers.won') }}#waiting-class" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-yellow-50 text-yellow-800 border border-yellow-200 text-xs font-bold">
+                    <span class="material-symbols-outlined text-[16px]">assignment_turned_in</span><span>Gán lớp</span>
+                </a>
+                @endcan
+                @endif
+
+                @if ($stageControls['next'])
+                <form action="{{ route('crm.customers.stage', $customer->id) }}" method="POST" class="inline shrink-0">
+                    @csrf
+                    <input type="hidden" name="stage" value="{{ $stageControls['next'] }}" />
+                    <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold cursor-pointer" title="Chuyển tiến 1 bước">
+                        <span>{{ \App\Models\CrmCustomer::stageLabel($stageControls['next']) }}</span>
+                        <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                    </button>
+                </form>
+                @endif
+
+                @if ($stageControls['backward'])
+                <button type="button" onclick="document.getElementById('stageBackwardModal').classList.remove('hidden')" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white text-rose-700 border border-rose-200 text-xs font-bold">
+                    <span class="material-symbols-outlined text-[16px]">undo</span><span>Lùi giai đoạn</span>
+                </button>
+                @endif
+
+                @if ($stageControls['canLose'])
                     <button type="button" onclick="document.getElementById('markLostModal').classList.remove('hidden')" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold">
-                        <span class="material-symbols-outlined text-[16px]">cancel</span><span>Không chốt</span>
+                        <span class="material-symbols-outlined text-[16px]">cancel</span><span>Thất bại</span>
                     </button>
                 @endif
-                @endcan
 
                 @can('lead.delete')
                 @if ($customer->stage !== 'won' && !$customer->converted_student_id)
@@ -128,7 +139,8 @@
 
     <div id="markLostModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <h3 class="font-bold text-sm mb-4">Ghi nhận lý do không chốt</h3>
+            <h3 class="font-bold text-sm mb-4">Ghi nhận lý do thất bại</h3>
+            <p class="text-xs text-gray-500 mb-3">Lead thất bại được lưu để đối soát và không mở lại.</p>
             <form action="{{ route('crm.customers.stage', $customer->id) }}" method="POST" class="space-y-3 text-xs">
                 @csrf
                 <input type="hidden" name="stage" value="lost" />
@@ -141,100 +153,59 @@
         </div>
     </div>
 
-    <!-- Trial lesson workflow -->
-    <div id="scheduleTrialModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    @if ($stageControls['backward'])
+    <div id="stageBackwardModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <h3 class="font-bold text-sm mb-4">Hẹn buổi học thử</h3>
-            <form action="{{ route('crm.customers.schedule-trial', $customer->id) }}" method="POST" class="space-y-3 text-xs">
+            <h3 class="font-bold text-sm mb-2">Lùi giai đoạn Lead</h3>
+            <p class="text-xs text-gray-500 mb-3">Chỉ Admin được lùi giai đoạn; lý do được lưu vào lịch sử.</p>
+            <form action="{{ route('crm.customers.stage', $customer->id) }}" method="POST" class="space-y-3 text-xs">
                 @csrf
-                <div class="grid grid-cols-2 gap-3">
-                    <input type="date" name="trial_date" value="{{ now()->addDay()->format('Y-m-d') }}" required class="rounded-xl border-gray-200 text-xs" />
-                    <input type="time" name="trial_time" value="18:00" required class="rounded-xl border-gray-200 text-xs" />
-                </div>
-                <select name="trial_teacher_id" required class="w-full rounded-xl border-gray-200 text-xs">
-                    <option value="">-- Chọn giáo viên --</option>
-                    @foreach ($examiners as $examiner)<option value="{{ $examiner->id }}">{{ $examiner->name }}</option>@endforeach
+                <select name="stage" required class="w-full rounded-xl border-gray-200 text-xs">
+                    @foreach (array_reverse($stageControls['backward']) as $target)
+                        <option value="{{ $target }}">{{ \App\Models\CrmCustomer::stageLabel($target) }}</option>
+                    @endforeach
                 </select>
-                <div class="grid grid-cols-2 gap-3">
-                    <select name="trial_mode" required class="w-full rounded-xl border-gray-200 text-xs">
-                        <option value="offline">Tại trung tâm</option>
-                        <option value="online">Online</option>
-                    </select>
-                    <select name="trial_class_id" class="w-full rounded-xl border-gray-200 text-xs">
-                        <option value="">-- Chưa gán lớp --</option>
-                        @foreach ($trialClasses as $trialClass)
-                            <option value="{{ $trialClass->id }}">{{ $trialClass->name }} · {{ $trialClass->schedule_text ?: 'Chưa có lịch' }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <textarea name="notes" rows="2" placeholder="Ghi chú buổi học thử" class="w-full rounded-xl border-gray-200 text-xs"></textarea>
+                <textarea name="reason" rows="3" required placeholder="Lý do lùi giai đoạn (bắt buộc)" class="w-full rounded-xl border-gray-200 text-xs"></textarea>
                 <div class="flex justify-end gap-2">
-                    <button type="button" onclick="document.getElementById('scheduleTrialModal').classList.add('hidden')" class="px-3 py-2 border rounded-xl">Hủy</button>
-                    <button type="submit" class="px-4 py-2 bg-fuchsia-600 text-white font-bold rounded-xl">Lưu lịch</button>
+                    <button type="button" onclick="document.getElementById('stageBackwardModal').classList.add('hidden')" class="px-3 py-2 border rounded-xl">Hủy</button>
+                    <button type="submit" class="px-4 py-2 bg-rose-600 text-white font-bold rounded-xl">Lùi giai đoạn</button>
                 </div>
             </form>
         </div>
-    </div>
-
-    <div id="trialFeedbackModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <h3 class="font-bold text-sm mb-4">Phản hồi buổi học thử</h3>
-            <form action="{{ route('crm.customers.trial-feedback', $customer->id) }}" method="POST" class="space-y-3 text-xs">
-                @csrf
-                <select name="trial_rating" required class="w-full rounded-xl border-gray-200 text-xs">
-                    @foreach ([5, 4, 3, 2, 1] as $rating)<option value="{{ $rating }}" @selected(old('trial_rating', $customer->trial_rating) == $rating)>{{ $rating }}/5</option>@endforeach
-                </select>
-                <textarea name="trial_feedback" rows="4" required placeholder="Mức độ phù hợp, tương tác, đề xuất lộ trình..." class="w-full rounded-xl border-gray-200 text-xs">{{ old('trial_feedback', $customer->trial_feedback) }}</textarea>
-                <div class="flex justify-end gap-2">
-                    <button type="button" onclick="document.getElementById('trialFeedbackModal').classList.add('hidden')" class="px-3 py-2 border rounded-xl">Hủy</button>
-                    <button type="submit" class="px-4 py-2 bg-teal-600 text-white font-bold rounded-xl">Lưu phản hồi</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    @if($customer->stage === 'trial_scheduled')
-    <div class="mb-4 rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-3 text-xs flex flex-wrap items-center justify-between gap-3">
-        <span class="font-semibold text-fuchsia-800">Buổi học thử đang chờ: có thể nhập phản hồi, hẹn lại hoặc ghi nhận hủy/vắng.</span>
-        <form action="{{ route('crm.customers.trial-status', $customer->id) }}" method="POST" class="flex flex-wrap gap-2 items-center">
-            @csrf
-            <select name="trial_status" class="rounded-lg border-fuchsia-200 text-xs"><option value="cancelled">Đã hủy</option><option value="no_show">Vắng mặt</option></select>
-            <input name="reason" required placeholder="Lý do" class="rounded-lg border-fuchsia-200 text-xs" />
-            <button class="px-3 py-2 rounded-lg bg-fuchsia-700 text-white font-bold">Ghi nhận</button>
-        </form>
     </div>
     @endif
 
-    <div id="waitingListModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <h3 class="font-bold text-sm mb-4">Đưa Lead vào danh sách chờ lớp</h3>
-            <form action="{{ route('crm.customers.waiting-list', $customer->id) }}" method="POST" class="space-y-3 text-xs">
+    @if ($canBookTrial)
+    <!-- Học thử: hoạt động trong giai đoạn tư vấn (không đổi stage) -->
+    <div id="scheduleTrialModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+            <h3 class="font-bold text-sm mb-1">Đặt lịch học thử</h3>
+            <p class="text-xs text-gray-500 mb-4">Chọn 1–2 buổi học thật của lớp cùng trình độ tại {{ $customer->branch?->name ?? 'chi nhánh của khách' }}. Giáo viên của buổi sẽ thấy khách và gửi phản hồi.</p>
+            <form action="{{ route('crm.customers.trial-bookings.store', $customer->id) }}" method="POST" class="space-y-3 text-xs">
                 @csrf
-                <input name="preferred_schedule" required value="{{ old('preferred_schedule', $customer->preferred_schedule) }}" placeholder="Ca học mong muốn, ví dụ T2-T4-T6 19:30" class="w-full rounded-xl border-gray-200 text-xs" />
-                <div class="grid grid-cols-2 gap-3">
-                    <select name="waiting_course_id" required class="w-full rounded-xl border-gray-200 text-xs">
-                        <option value="">-- Khóa học --</option>
-                        @foreach ($courses as $course)<option value="{{ $course->id }}" @selected(old('waiting_course_id', $customer->waiting_course_id) == $course->id)>{{ $course->name }}</option>@endforeach
-                    </select>
-                    <select name="waiting_branch_id" required class="w-full rounded-xl border-gray-200 text-xs">
-                        <option value="">-- Cơ sở --</option>
-                        @foreach ($branches as $branch)<option value="{{ $branch->id }}" @selected(old('waiting_branch_id', $customer->waiting_branch_id ?? $customer->branch_id) == $branch->id)>{{ $branch->name }}</option>@endforeach
-                    </select>
+                <div class="max-h-64 overflow-y-auto border border-gray-100 rounded-xl divide-y divide-gray-100">
+                    @forelse ($trialSessions as $session)
+                        <label class="flex items-start gap-2 p-2.5 hover:bg-fuchsia-50/40 cursor-pointer">
+                            <input type="checkbox" name="class_session_ids[]" value="{{ $session->id }}" class="mt-0.5 rounded border-gray-300 text-fuchsia-600" />
+                            <span>
+                                <span class="font-bold text-gray-900">{{ $session->classModel?->name }}</span>
+                                <span class="text-gray-500">· {{ $session->classModel?->course?->name ?? 'Chưa gán khóa' }}{{ $session->classModel?->level ? ' · '.$session->classModel->level : '' }}</span>
+                                <span class="block text-gray-500">{{ $session->date->format('d/m/Y') }} · {{ $session->start_time?->format('H:i') }}–{{ $session->end_time?->format('H:i') }} · GV: {{ $session->teacher?->name ?? 'Chưa gán' }}</span>
+                            </span>
+                        </label>
+                    @empty
+                        <div class="p-4 text-center text-gray-400">Chưa có buổi học sắp tới phù hợp.</div>
+                    @endforelse
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <input type="date" name="desired_start_date" min="{{ today()->format('Y-m-d') }}" value="{{ old('desired_start_date', $customer->desired_start_date?->format('Y-m-d')) }}" class="w-full rounded-xl border-gray-200 text-xs" />
-                    <select name="waiting_priority" required class="w-full rounded-xl border-gray-200 text-xs">
-                        @foreach ([1 => '1 - Thấp', 2 => '2', 3 => '3 - Bình thường', 4 => '4', 5 => '5 - Cao'] as $value => $label)<option value="{{ $value }}" @selected(old('waiting_priority', $customer->waiting_priority ?? 3) == $value)>{{ $label }}</option>@endforeach
-                    </select>
-                </div>
-                <textarea name="waiting_notes" rows="2" placeholder="Ghi chú ghép lớp / liên hệ" class="w-full rounded-xl border-gray-200 text-xs">{{ old('waiting_notes', $customer->waiting_notes) }}</textarea>
+                <textarea name="notes" rows="2" placeholder="Ghi chú cho giáo viên (trình độ, mục tiêu...)" class="w-full rounded-xl border-gray-200 text-xs"></textarea>
                 <div class="flex justify-end gap-2">
-                    <button type="button" onclick="document.getElementById('waitingListModal').classList.add('hidden')" class="px-3 py-2 border rounded-xl">Hủy</button>
-                    <button type="submit" class="px-4 py-2 bg-yellow-600 text-white font-bold rounded-xl">Xác nhận chờ lớp</button>
+                    <button type="button" onclick="document.getElementById('scheduleTrialModal').classList.add('hidden')" class="px-3 py-2 border rounded-xl">Hủy</button>
+                    <button type="submit" class="px-4 py-2 bg-fuchsia-600 text-white font-bold rounded-xl">Lưu lịch học thử</button>
                 </div>
             </form>
         </div>
     </div>
+    @endif
 
     <!-- Schedule Test Modal -->
     <div id="scheduleTestModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -399,20 +370,37 @@
 
     <!-- Success flash banner -->
 
-    @if ($customer->trial_at || $customer->waiting_since)
+    @if ($customer->trialBookings->isNotEmpty() || $customer->stage === 'waiting_class')
         <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-            @if ($customer->trial_at)
-                <div class="rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-3">
-                    <div class="font-bold text-fuchsia-800">Học thử: {{ $customer->trial_at->format('d/m/Y H:i') }}</div>
-                    <div class="text-fuchsia-700">GV: {{ $customer->trialTeacher?->name ?? 'Chưa gán' }} · {{ $customer->trial_mode === 'online' ? 'Online' : 'Tại trung tâm' }} · Lớp: {{ $customer->trialClass?->name ?? 'Chưa gán' }} · Đánh giá: {{ $customer->trial_rating ? $customer->trial_rating.'/5' : 'Chưa có' }}</div>
-                    @if ($customer->trial_feedback)<div class="mt-1 text-gray-700">{{ $customer->trial_feedback }}</div>@endif
+            @if ($customer->trialBookings->isNotEmpty())
+                <div class="rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-3 space-y-2">
+                    <div class="font-bold text-fuchsia-800 flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">school</span>Học thử</div>
+                    @foreach ($customer->trialBookings as $booking)
+                        <div class="rounded-lg bg-white/70 border border-fuchsia-100 p-2">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="font-semibold text-gray-900">{{ $booking->classModel?->name }} · {{ $booking->session?->date?->format('d/m/Y') }} {{ $booking->session?->start_time?->format('H:i') }}</span>
+                                <span class="px-2 py-0.5 rounded-full font-bold {{ $booking->status === 'attended' ? 'bg-emerald-50 text-emerald-700' : ($booking->status === 'scheduled' ? 'bg-sky-50 text-sky-700' : 'bg-rose-50 text-rose-700') }}">{{ $booking->status_label }}</span>
+                            </div>
+                            @if ($booking->feedback)
+                                <div class="mt-1 text-gray-700">{{ $booking->rating ? $booking->rating.'/5 · ' : '' }}{{ $booking->feedback }}</div>
+                                <div class="text-[11px] text-gray-400">{{ $booking->feedbackBy?->name }} · {{ $booking->feedback_at?->format('d/m/Y H:i') }}</div>
+                            @endif
+                            @if ($booking->status === 'scheduled' && $canBookTrial)
+                                <form action="{{ route('crm.customers.trial-bookings.cancel', [$customer->id, $booking->id]) }}" method="POST" class="mt-1 flex gap-1">
+                                    @csrf
+                                    <input name="reason" required placeholder="Lý do hủy" class="flex-1 rounded-lg border-fuchsia-200 text-[11px] py-1" />
+                                    <button class="px-2 py-1 rounded-lg bg-fuchsia-700 text-white font-bold text-[11px]">Hủy buổi</button>
+                                </form>
+                            @endif
+                        </div>
+                    @endforeach
                 </div>
             @endif
-            @if ($customer->waiting_since)
+            @if ($customer->stage === 'waiting_class')
                 <div class="rounded-xl border border-yellow-200 bg-yellow-50 p-3">
-                    <div class="font-bold text-yellow-800">Chờ lớp từ {{ $customer->waiting_since->format('d/m/Y') }}</div>
-                    <div class="text-yellow-700">{{ $customer->waitingCourse?->name ?? 'Chưa chọn khóa' }} · {{ $customer->waitingBranch?->name ?? 'Chưa chọn cơ sở' }} · Ưu tiên {{ $customer->waiting_priority ?? 3 }}/5</div>
-                    <div class="text-yellow-700">Ca mong muốn: {{ $customer->preferred_schedule ?: 'Chưa xác định' }} · Khai giảng: {{ $customer->desired_start_date?->format('d/m/Y') ?? 'Linh hoạt' }}</div>
+                    <div class="font-bold text-yellow-800">Đã chốt, chờ xếp lớp{{ $customer->waiting_since ? ' từ '.$customer->waiting_since->format('d/m/Y') : '' }}</div>
+                    <div class="text-yellow-700">Khóa: {{ $customer->waitingCourse?->name ?? 'Chưa chọn khóa' }} · {{ $customer->waitingBranch?->name ?? $customer->branch?->name }}</div>
+                    <div class="text-yellow-700">Học phí đăng ký: {{ $customer->fee_paid_at_closing ? 'Đã đóng' : 'Chưa đóng (đã tạo task nhắc thu)' }}</div>
                 </div>
             @endif
         </div>

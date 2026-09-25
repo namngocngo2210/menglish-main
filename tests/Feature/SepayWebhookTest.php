@@ -138,7 +138,7 @@ class SepayWebhookTest extends TestCase
             'phone_normalized' => '0912345678',
             'source' => 'Facebook Ads',
             'branch_id' => $this->branch->id,
-            'stage' => 'closing',
+            'stage' => 'waiting_class',
         ]);
 
         // Học viên lưu SĐT dạng +84 — hệ thống phải vẫn khớp với lead 0-prefixed
@@ -151,7 +151,7 @@ class SepayWebhookTest extends TestCase
 
         $response->assertOk();
         $this->assertSame(1, TuitionReceipt::count());
-        $this->assertSame('won', $lead->fresh()->stage, 'Lead ở giai đoạn closing nhận đủ tiền phải được đánh Won');
+        $this->assertSame('waiting_class', $lead->fresh()->stage, 'Thanh toán không được tự chuyển giai đoạn Lead (Đã chốt chỉ qua gán lớp)');
     }
 
     public function test_webhook_returns_503_when_disabled_by_flag(): void

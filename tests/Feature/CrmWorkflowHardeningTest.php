@@ -89,14 +89,19 @@ class CrmWorkflowHardeningTest extends TestCase
     public function test_won_requires_closing_wizard_and_lost_requires_reason(): void
     {
         $lead = $this->leadFor($this->salesA);
+        $academic = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
+        $academic->assignRole('academic_staff');
 
-        $this->actingAs($this->salesA)->postJson(route('crm.customers.stage', $lead), ['stage' => 'won'])
+        $this->actingAs($academic)->postJson(route('crm.customers.stage', $lead), ['stage' => 'won'])
             ->assertUnprocessable();
-        $this->actingAs($this->salesA)->post(route('crm.customers.stage', $lead), ['stage' => 'lost'])
+        $this->actingAs($academic)->post(route('crm.customers.stage', $lead), ['stage' => 'lost'])
             ->assertSessionHasErrors('lost_reason');
+        // Sales không được đổi giai đoạn (kể cả thất bại) theo luật BA mới.
+        $this->actingAs($this->salesA)->postJson(route('crm.customers.stage', $lead), ['stage' => 'lost', 'lost_reason' => 'x'])
+            ->assertForbidden();
 
         $lead->refresh();
-        $this->assertSame('closing', $lead->stage);
+        $this->assertSame('result_sent', $lead->stage);
     }
 
     public function test_closing_is_idempotent_uses_server_prices_and_links_student_account(): void
@@ -141,7 +146,7 @@ class CrmWorkflowHardeningTest extends TestCase
             ->assertSessionHasErrors('payment_method');
 
         $this->assertDatabaseCount('students', 0);
-        $this->assertSame('closing', $lead->fresh()->stage);
+        $this->assertSame('result_sent', $lead->fresh()->stage);
     }
 
     public function test_duplicate_phone_is_detected_after_normalization(): void
@@ -159,41 +164,21 @@ class CrmWorkflowHardeningTest extends TestCase
         $this->assertDatabaseCount('crm_customers', 1);
     }
 
-    public function test_trial_feedback_and_no_test_waiting_list_paths_are_recorded(): void
+    public function test_no_test_consulting_lead_can_be_closed_straight_to_waiting_class(): void
     {
-        $teacher = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
-        $teacher->assignRole('teacher');
-        $academic = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
-        $academic->assignRole('academic_staff');
-        $trialLead = $this->leadFor($this->salesA, null, 'tested');
-        $trialLead->update(['test_decision' => 'test', 'test_score' => '60 (B1)']);
-
-        $this->actingAs($this->salesA)->post(route('crm.customers.schedule-trial', $trialLead), [
-            'trial_date' => now()->addDay()->format('Y-m-d'),
-            'trial_time' => '18:30',
-            'trial_teacher_id' => $teacher->id,
-            'trial_mode' => 'offline',
-        ])->assertRedirect();
-        $this->assertSame('trial_scheduled', $trialLead->fresh()->stage);
-
-        $this->actingAs($academic)->post(route('crm.customers.trial-feedback', $trialLead), [
-            'trial_rating' => 5,
-            'trial_feedback' => 'Phù hợp lớp mục tiêu, tương tác tốt.',
-        ])->assertRedirect();
-        $this->assertDatabaseHas('crm_customers', [
-            'id' => $trialLead->id, 'stage' => 'trial_completed', 'trial_rating' => 5, 'test_decision' => 'test',
-        ]);
-
+        // Nhánh không test (BPMN): Đang tư vấn → Chốt "Xếp lớp sau" → Chờ xếp lớp (đã có hồ sơ học viên).
+        // Học thử không còn là stage — xem CrmPipelineTest cho luồng đặt / phản hồi học thử.
         $waitingLead = $this->leadFor($this->salesA, null, 'consulting');
-        $this->actingAs($this->salesA)->post(route('crm.customers.waiting-list', $waitingLead), [
-            'preferred_schedule' => 'T2-T4-T6 19:30',
-            'waiting_course_id' => $this->classModel->course_id,
-            'waiting_branch_id' => $this->branch->id,
-            'waiting_priority' => 4,
-        ])->assertRedirect();
+        $this->actingAs($this->salesA)->post(route('crm.closing-wizard.store'), [
+            'customer_id' => $waitingLead->id,
+            'course_id' => $this->classModel->course_id,
+            'fee_paid_at_closing' => 0,
+        ])->assertRedirect(route('crm.customers.won'));
+
         $this->assertDatabaseHas('crm_customers', [
-            'id' => $waitingLead->id, 'stage' => 'waiting_class', 'test_decision' => 'no_test', 'preferred_schedule' => 'T2-T4-T6 19:30',
+            'id' => $waitingLead->id, 'stage' => 'waiting_class', 'waiting_course_id' => $this->classModel->course_id,
         ]);
+        $this->assertNotNull($waitingLead->fresh()->converted_student_id);
     }
 
     public function test_paid_cash_closing_needs_no_bank_and_paid_bill_has_no_payment_qr(): void
@@ -239,10 +224,12 @@ class CrmWorkflowHardeningTest extends TestCase
 
     public function test_branching_state_machine_rejects_skips_and_closing_preselects_requested_lead(): void
     {
+        $academic = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
+        $academic->assignRole('academic_staff');
         $lead = $this->leadFor($this->salesA, null, 'consulting');
-        $other = $this->leadFor($this->salesA, null, 'closing');
+        $other = $this->leadFor($this->salesA, null, 'result_sent');
 
-        $this->actingAs($this->salesA)->postJson(route('crm.customers.stage', $lead), ['stage' => 'closing'])
+        $this->actingAs($academic)->postJson(route('crm.customers.stage', $lead), ['stage' => 'result_sent'])
             ->assertUnprocessable();
         $this->assertSame('consulting', $lead->fresh()->stage);
 
@@ -383,7 +370,7 @@ class CrmWorkflowHardeningTest extends TestCase
         $this->assertFalse($studentUser->fresh()->must_change_password);
     }
 
-    private function leadFor(User $sales, ?string $email = null, string $stage = 'closing'): CrmCustomer
+    private function leadFor(User $sales, ?string $email = null, string $stage = 'result_sent'): CrmCustomer
     {
         return CrmCustomer::create([
             'code' => CrmCustomer::generateCode(),

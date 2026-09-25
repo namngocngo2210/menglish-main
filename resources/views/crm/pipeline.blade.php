@@ -1,7 +1,13 @@
 <x-app-layout>
     @include('crm.partials.header-tabs')
 
-    <div class="space-y-4" x-data="crmKanban()">
+    {{-- Lớp màu động của stage (CrmCustomer::stageStyle) — liệt kê để Tailwind quét:
+         border-sky-500 bg-sky-50 text-sky-700 border-amber-500 bg-amber-50 text-amber-700 border-indigo-500 bg-indigo-50 text-indigo-700
+         border-violet-500 bg-violet-50 text-violet-700 bg-violet-500 text-violet-600 border-purple-500 bg-purple-50 text-purple-700
+         border-cyan-500 bg-cyan-50 text-cyan-700 bg-cyan-500 text-cyan-600 border-yellow-500 bg-yellow-50 text-yellow-700 bg-yellow-500 text-yellow-600
+         border-emerald-500 bg-emerald-50 text-emerald-700 bg-sky-500 text-sky-600 bg-amber-500 text-amber-600 bg-indigo-500 text-indigo-600
+         bg-purple-500 text-purple-600 bg-emerald-500 text-emerald-600 --}}
+    <div class="space-y-4" x-data="crmKanban(@js($stagePermissions))">
         <!-- Toast Notification -->
         <div 
             x-show="toast.show" 
@@ -19,8 +25,15 @@
             <span x-text="toast.message"></span>
         </div>
 
+        @unless ($stagePermissions['canForward'])
+            <div class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-xs text-sky-800 flex items-center gap-2">
+                <span class="material-symbols-outlined text-base">info</span>
+                <span>Giai đoạn Lead do Học vụ / Quản lý cơ sở chuyển. Bạn vẫn cập nhật thông tin và ghi nhật ký chăm sóc trong hồ sơ Lead.</span>
+            </div>
+        @endunless
+
         <!-- Pipeline summary cards -->
-        <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+        <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
             @foreach ($stages as $stage)
                 <div class="bg-white rounded-2xl p-3.5 border border-gray-200 shadow-xs border-t-4 {{ $stage['color'] }}">
                     <div class="flex items-center justify-between">
@@ -39,9 +52,9 @@
                     class="kanban-column w-80 shrink-0 bg-slate-50 rounded-2xl p-3 border border-gray-200/90 flex flex-col gap-3 transition-colors duration-200"
                     data-stage-id="{{ $stage['id'] }}"
                     data-stage-index="{{ $index }}"
-                    @dragover.prevent="onDragOver($event, {{ $index }})"
+                    @dragover.prevent="onDragOver($event, @js($stage['id']))"
                     @dragleave="onDragLeave($event)"
-                    @drop="onDrop($event, '{{ $stage['id'] }}', {{ $index }})"
+                    @drop="onDrop($event, @js($stage['id']))"
                 >
                     <!-- Column Header -->
                     <div class="flex items-center justify-between px-1">
@@ -57,20 +70,27 @@
                     <!-- Cards list container -->
                     <div class="cards-container space-y-2.5 min-h-[120px]" id="column-cards-{{ $stage['id'] }}">
                         @foreach ($stage['leads'] as $lead)
+                            @php($draggable = ($stagePermissions['canForward'] && $stage['next'] && ! in_array($stage['next'], $stagePermissions['closed'], true))
+                                || ($stagePermissions['canBackward'] && $index > 0 && ! in_array($stage['id'], $stagePermissions['closed'], true)))
                             <div 
-                                class="kanban-card bg-white rounded-xl p-3.5 border border-gray-200 shadow-xs hover:shadow-md hover:border-primary-container/50 transition duration-150 cursor-grab active:cursor-grabbing group relative"
-                                draggable="true"
+                                class="kanban-card bg-white rounded-xl p-3.5 border border-gray-200 shadow-xs hover:shadow-md hover:border-primary-container/50 transition duration-150 {{ $draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer' }} group relative"
+                                draggable="{{ $draggable ? 'true' : 'false' }}"
                                 data-customer-id="{{ $lead['id'] }}"
                                 data-stage-id="{{ $stage['id'] }}"
                                 data-stage-index="{{ $index }}"
-                                @dragstart="onDragStart($event, {{ $lead['id'] }}, '{{ $stage['id'] }}', {{ $index }})"
+                                @dragstart="onDragStart($event, {{ (int) $lead['id'] }}, @js($stage['id']), @js($lead['name']))"
                                 @dragend="onDragEnd($event)"
-                                @click="openLeadDetails('{{ route('crm.customers.show', $lead['id']) }}')"
+                                @click="openLeadDetails(@js(route('crm.customers.show', $lead['id'])))"
                             >
                                 <div class="flex items-start justify-between gap-2 mb-1.5">
-                                    <h4 class="font-bold text-xs text-gray-900 group-hover:text-primary-container transition line-clamp-1">
-                                        {{ $lead['name'] }}
-                                    </h4>
+                                    <div class="min-w-0">
+                                        <h4 class="font-bold text-xs text-gray-900 group-hover:text-primary-container transition line-clamp-1">
+                                            {{ $lead['name'] }}
+                                        </h4>
+                                        @if ($lead['parent_name'])
+                                            <div class="text-[10px] text-gray-500 line-clamp-1">PH: {{ $lead['parent_name'] }}</div>
+                                        @endif
+                                    </div>
                                     <span class="text-[10px] text-gray-400 whitespace-nowrap shrink-0">{{ $lead['days'] }}</span>
                                 </div>
 
@@ -109,54 +129,97 @@
                                     @endif
                                 </div>
 
-                                <div class="flex items-center justify-between pt-2 border-t border-gray-100 text-[10px]">
-                                    <span class="px-2 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">{{ $lead['source'] }}</span>
-                                    
-                                    <!-- Action: Nút Tiếp theo (nếu chưa ở giai đoạn chốt cuối) -->
-                                    @if ($stage['id'] === 'closing')
-                                        @can('lead.convert')
-                                        <a href="{{ route('crm.closing-wizard', ['customer_id' => $lead['id']]) }}" @click.stop class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-orange-600 text-orange-700 hover:text-white border border-orange-200 text-[11px] font-bold transition">
-                                            <span>Chốt Lead</span>
-                                            <span class="material-symbols-outlined text-[14px]">payments</span>
-                                        </a>
-                                        @endcan
-                                    @elseif (in_array($stage['id'], ['new', 'trial_completed', 'waiting_class'], true))
-                                        <button 
-                                            type="button" 
-                                            @click.stop="moveToNextStage({{ $lead['id'] }}, '{{ $lead['name'] }}')"
-                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 text-[11px] font-bold transition shadow-xs cursor-pointer"
-                                            title="Chuyển ngay sang giai đoạn tiếp theo"
-                                        >
-                                            <span>Tiếp theo</span>
-                                            <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-                                        </button>
-                                    @elseif ($stage['id'] === 'won')
-                                        <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold flex items-center gap-0.5">
-                                            <span class="material-symbols-outlined text-[12px]">check</span>
-                                            <span>Đã chốt</span>
-                                        </span>
-                                    @else
-                                        <a href="{{ route('crm.customers.show', $lead['id']) }}" @click.stop class="font-bold text-indigo-600 hover:underline">Mở hồ sơ để xử lý</a>
-                                    @endif
+                                <div class="flex items-center justify-between gap-1 pt-2 border-t border-gray-100 text-[10px]">
+                                    <span class="px-2 py-0.5 rounded bg-gray-100 text-gray-600 font-medium truncate">{{ $lead['source'] }}</span>
+
+                                    <div class="flex items-center gap-1 shrink-0">
+                                        @if (in_array($stage['id'], \App\Models\CrmCustomer::CLOSABLE_STAGES, true) && $stagePermissions['canConvert'])
+                                            <a href="{{ route('crm.closing-wizard', ['customer_id' => $lead['id']]) }}" @click.stop class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-50 hover:bg-orange-600 text-orange-700 hover:text-white border border-orange-200 text-[11px] font-bold transition">
+                                                <span>Chốt</span>
+                                                <span class="material-symbols-outlined text-[14px]">payments</span>
+                                            </a>
+                                        @endif
+
+                                        @if ($stage['id'] === 'waiting_class')
+                                            @can('student.assign_class')
+                                                <a href="{{ route('crm.customers.won') }}#waiting-class" @click.stop class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-50 hover:bg-yellow-600 text-yellow-800 hover:text-white border border-yellow-200 text-[11px] font-bold transition">
+                                                    <span>Gán lớp</span>
+                                                    <span class="material-symbols-outlined text-[14px]">assignment_turned_in</span>
+                                                </a>
+                                            @endcan
+                                        @elseif ($stage['id'] === 'won')
+                                            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold flex items-center gap-0.5">
+                                                <span class="material-symbols-outlined text-[12px]">check</span>
+                                                <span>Đã chốt</span>
+                                            </span>
+                                        @elseif ($stagePermissions['canForward'] && $stage['next'] && ! in_array($stage['next'], $stagePermissions['closed'], true))
+                                            <button
+                                                type="button"
+                                                @click.stop="moveToNextStage({{ (int) $lead['id'] }}, @js($lead['name']))"
+                                                class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 text-[11px] font-bold transition shadow-xs cursor-pointer"
+                                                title="Chuyển sang: {{ $stagePermissions['labels'][$stage['next']] }}"
+                                            >
+                                                <span>Tiếp theo</span>
+                                                <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                                            </button>
+                                        @endif
+
+                                        @if ($stagePermissions['canBackward'] && $index > 0 && ! in_array($stage['id'], $stagePermissions['closed'], true))
+                                            <button
+                                                type="button"
+                                                @click.stop="openBackward({{ (int) $lead['id'] }}, @js($lead['name']), @js($stage['id']))"
+                                                class="inline-flex items-center px-1.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold transition cursor-pointer"
+                                                title="Lùi giai đoạn"
+                                            >
+                                                <span class="material-symbols-outlined text-[14px]">undo</span>
+                                            </button>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
                         @endforeach
                     </div>
 
+                    @can('lead.create')
+                    @if ($stage['id'] === 'new')
                     <!-- Add button -->
                     <a href="{{ route('crm.customers.create') }}" class="w-full py-2.5 border-2 border-dashed border-gray-200 hover:border-primary-container/50 hover:bg-orange-50/40 rounded-xl text-xs font-bold text-gray-500 hover:text-primary-container transition flex items-center justify-center gap-1.5 bg-white/70">
                         <span class="material-symbols-outlined text-sm">add</span>
                         <span>Thêm deal mới</span>
                     </a>
+                    @endif
+                    @endcan
                 </div>
             @endforeach
         </div>
+
+        @if ($stagePermissions['canBackward'])
+            <!-- Admin: Lùi giai đoạn (bắt buộc lý do) -->
+            <div x-show="backward.open" x-cloak class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-3 text-xs" @click.outside="backward.open = false">
+                    <h3 class="font-bold text-sm">Lùi giai đoạn: <span x-text="backward.name"></span></h3>
+                    <p class="text-gray-500">Chỉ Admin được lùi giai đoạn. Lý do được lưu vào lịch sử Lead.</p>
+                    <select x-model="backward.target" class="w-full rounded-xl border-gray-200 text-xs">
+                        <template x-for="stage in backwardTargets()" :key="stage">
+                            <option :value="stage" x-text="permissions.labels[stage]"></option>
+                        </template>
+                    </select>
+                    <textarea x-model="backward.reason" rows="3" placeholder="Lý do lùi giai đoạn (bắt buộc)" class="w-full rounded-xl border-gray-200 text-xs"></textarea>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" @click="backward.open = false" class="px-3 py-2 border rounded-xl">Hủy</button>
+                        <button type="button" @click="submitBackward()" :disabled="!backward.reason.trim()" class="px-4 py-2 bg-rose-600 disabled:opacity-50 text-white font-bold rounded-xl">Lùi giai đoạn</button>
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 
     <script>
-        function crmKanban() {
+        function crmKanban(permissions) {
             return {
+                permissions: permissions,
                 draggedCard: null,
+                backward: { open: false, customerId: null, name: '', from: '', target: '', reason: '' },
                 toast: {
                     show: false,
                     message: '',
@@ -178,29 +241,29 @@
                     window.location.href = url;
                 },
 
-                canTransition(sourceStage, targetStage) {
-                    const allowed = {
-                        new: ['consulting'],
-                        trial_completed: ['closing'],
-                        waiting_class: ['closing']
-                    };
-                    return (allowed[sourceStage] || []).includes(targetStage);
+                indexOf(stage) {
+                    return this.permissions.order.indexOf(stage);
                 },
 
-                onDragStart(event, customerId, stageId, stageIndex) {
-                    this.draggedCard = {
-                        customerId: customerId,
-                        stageId: stageId,
-                        stageIndex: stageIndex,
-                        element: event.target
-                    };
+                // CM: chỉ tiến đúng 1 bước (không kéo vào Chờ xếp lớp / Đã chốt). Admin: được lùi (kèm lý do).
+                transitionType(sourceStage, targetStage) {
+                    const from = this.indexOf(sourceStage);
+                    const to = this.indexOf(targetStage);
+                    if (from < 0 || to < 0 || from === to) return null;
+                    if (to === from + 1 && this.permissions.canForward && !this.permissions.closed.includes(targetStage)) return 'forward';
+                    if (to < from && this.permissions.canBackward && !this.permissions.closed.includes(sourceStage)) return 'backward';
+                    return null;
+                },
+
+                backwardTargets() {
+                    return this.permissions.order.slice(0, Math.max(0, this.indexOf(this.backward.from)));
+                },
+
+                onDragStart(event, customerId, stageId, name) {
+                    this.draggedCard = { customerId, stageId, name, element: event.target };
                     event.target.classList.add('opacity-40', 'scale-95');
                     event.dataTransfer.effectAllowed = 'move';
-                    event.dataTransfer.setData('text/plain', JSON.stringify({
-                        customerId: customerId,
-                        stageId: stageId,
-                        stageIndex: stageIndex
-                    }));
+                    event.dataTransfer.setData('text/plain', String(customerId));
                 },
 
                 onDragEnd(event) {
@@ -212,51 +275,60 @@
                     });
                 },
 
-                onDragOver(event, targetStageIndex) {
+                onDragOver(event, targetStageId) {
                     if (!this.draggedCard) return;
-
-                    const targetStageId = event.currentTarget.dataset.stageId;
-
-                    if (!this.canTransition(this.draggedCard.stageId, targetStageId)) {
+                    if (!this.transitionType(this.draggedCard.stageId, targetStageId)) {
                         event.dataTransfer.dropEffect = 'none';
                         return;
                     }
-
                     event.dataTransfer.dropEffect = 'move';
-                    const col = event.currentTarget;
-                    col.classList.add('ring-2', 'ring-primary-container', 'bg-orange-50/40');
+                    event.currentTarget.classList.add('ring-2', 'ring-primary-container', 'bg-orange-50/40');
                 },
 
                 onDragLeave(event) {
-                    const col = event.currentTarget;
-                    col.classList.remove('ring-2', 'ring-primary-container', 'bg-orange-50/40');
+                    event.currentTarget.classList.remove('ring-2', 'ring-primary-container', 'bg-orange-50/40');
                 },
 
-                async onDrop(event, targetStageId, targetStageIndex) {
+                async onDrop(event, targetStageId) {
                     event.preventDefault();
-                    const col = event.currentTarget;
-                    col.classList.remove('ring-2', 'ring-primary-container', 'bg-orange-50/40');
-
+                    event.currentTarget.classList.remove('ring-2', 'ring-primary-container', 'bg-orange-50/40');
                     if (!this.draggedCard) return;
 
-                    const { customerId, stageId: sourceStageId, stageIndex: sourceStageIndex } = this.draggedCard;
+                    const { customerId, stageId: sourceStageId, name } = this.draggedCard;
+                    if (sourceStageId === targetStageId) return;
 
-                    // Không làm gì nếu thả cùng cột
-                    if (sourceStageId === targetStageId) {
+                    if (['waiting_class', 'won'].includes(targetStageId)) {
+                        this.showToast('Hãy dùng Chốt & Xếp lớp (hoặc Gán lớp) để chốt Lead.', 'error');
                         return;
                     }
 
-                    if (targetStageId === 'won') {
-                        this.showToast('Hãy dùng Closing Wizard để chốt Lead và tạo hồ sơ học viên.', 'error');
+                    const type = this.transitionType(sourceStageId, targetStageId);
+                    if (type === 'backward') {
+                        this.backward = { open: true, customerId, name, from: sourceStageId, target: targetStageId, reason: '' };
+                        return;
+                    }
+                    if (type !== 'forward') {
+                        this.showToast(this.permissions.canForward
+                            ? 'Chỉ được chuyển tiến 1 bước sang giai đoạn kế tiếp.'
+                            : 'Bạn không có quyền chuyển giai đoạn Lead.', 'error');
                         return;
                     }
 
-                    if (!this.canTransition(sourceStageId, targetStageId)) {
-                        this.showToast('Giai đoạn này cần thao tác nghiệp vụ cụ thể trong hồ sơ Lead.', 'error');
-                        return;
-                    }
+                    await this.postStage(customerId, { stage: targetStageId });
+                },
 
-                    // Gửi request cập nhật giai đoạn lên server
+                openBackward(customerId, name, fromStage) {
+                    const targets = this.permissions.order.slice(0, Math.max(0, this.indexOf(fromStage)));
+                    this.backward = { open: true, customerId, name, from: fromStage, target: targets[targets.length - 1] || '', reason: '' };
+                },
+
+                async submitBackward() {
+                    if (!this.backward.reason.trim() || !this.backward.target) return;
+                    const ok = await this.postStage(this.backward.customerId, { stage: this.backward.target, reason: this.backward.reason });
+                    if (ok) this.backward.open = false;
+                },
+
+                async postStage(customerId, payload) {
                     try {
                         const response = await fetch(`/crm/customers/${customerId}/stage`, {
                             method: 'POST',
@@ -265,25 +337,19 @@
                                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                                 'Accept': 'application/json'
                             },
-                            body: JSON.stringify({
-                                stage: targetStageId
-                            })
+                            body: JSON.stringify(payload)
                         });
-
                         const data = await response.json();
-
                         if (response.ok && data.success) {
                             this.showToast(data.message || 'Đã chuyển giai đoạn thành công!', 'success');
-                            // Tải lại trang sau 300ms để đồng bộ toàn bộ tổng số tiền và số lượng thẻ
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 400);
-                        } else {
-                            this.showToast(data.message || 'Không thể chuyển giai đoạn!', 'error');
+                            setTimeout(() => window.location.reload(), 400);
+                            return true;
                         }
+                        this.showToast(data.message || 'Không thể chuyển giai đoạn!', 'error');
                     } catch (err) {
                         this.showToast('Đã xảy ra lỗi kết nối khi chuyển giai đoạn!', 'error');
                     }
+                    return false;
                 },
 
                 async moveToNextStage(customerId, customerName) {
@@ -296,14 +362,10 @@
                                 'Accept': 'application/json'
                             }
                         });
-
                         const data = await response.json();
-
                         if (response.ok && data.success) {
                             this.showToast(`Đã chuyển ${customerName} sang giai đoạn: ${data.stage_label}!`, 'success');
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 400);
+                            setTimeout(() => window.location.reload(), 400);
                         } else {
                             this.showToast(data.message || 'Không thể chuyển tiếp giai đoạn!', 'error');
                         }

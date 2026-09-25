@@ -426,7 +426,7 @@
             <tr>
                 <td class="label">Lớp :</td>
                 <td class="value">
-                    <strong>{{ $class->name ?? 'Lớp học tiêu chuẩn' }}</strong>
+                    <strong>{{ $class?->name ?? 'Chờ xếp lớp' }}</strong>
                     @if(!empty($class->schedule_text))
                         <span> · {{ $class->schedule_text }}</span>
                     @endif
@@ -436,8 +436,12 @@
             <tr>
                 <td class="label">Thời gian học:</td>
                 <td class="value">
+                    @if ($class)
                     Từ ngày: {{ $class->start_date ? \Carbon\Carbon::parse($class->start_date)->format('d/m/Y') : date('01/m/Y') }} 
                     đến {{ $class->end_date ? \Carbon\Carbon::parse($class->end_date)->format('d/m/Y') : \Carbon\Carbon::now()->addMonths(3)->format('d/m/Y') }}
+                    @else
+                    Sẽ thông báo khi Học vụ xếp lớp
+                    @endif
                 </td>
             </tr>
 

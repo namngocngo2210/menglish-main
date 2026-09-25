@@ -18,6 +18,8 @@ class CrmKanbanStageTest extends TestCase
 
     protected Branch $branch;
 
+    protected User $cmUser;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -39,6 +41,16 @@ class CrmKanbanStageTest extends TestCase
             'is_active' => true,
         ]);
         $this->salesUser->syncRoles(['sales_consultant']);
+
+        // BA: chỉ CM (Học vụ / Quản lý cơ sở / Admin) chuyển giai đoạn; Sales chỉ xem.
+        $this->cmUser = User::create([
+            'name' => 'Học vụ Kanban',
+            'email' => 'academic.kanban@menglish.edu.vn',
+            'password' => bcrypt('password'),
+            'branch_id' => $this->branch->id,
+            'is_active' => true,
+        ]);
+        $this->cmUser->syncRoles(['academic_staff']);
     }
 
     public function test_can_update_stage_forward(): void
@@ -53,7 +65,7 @@ class CrmKanbanStageTest extends TestCase
         ]);
 
         // Move forward from 'new' (0) to 'consulting' (1)
-        $response = $this->actingAs($this->salesUser)->json('POST', route('crm.customers.stage', $customer->id), [
+        $response = $this->actingAs($this->cmUser)->json('POST', route('crm.customers.stage', $customer->id), [
             'stage' => 'consulting',
         ]);
 
@@ -82,11 +94,12 @@ class CrmKanbanStageTest extends TestCase
         ]);
 
         // Attempt to move backward from 'test_scheduled' (2) to 'new' (0) -> should be rejected!
-        $response = $this->actingAs($this->salesUser)->json('POST', route('crm.customers.stage', $customer->id), [
+        $response = $this->actingAs($this->cmUser)->json('POST', route('crm.customers.stage', $customer->id), [
             'stage' => 'new',
         ]);
 
-        $response->assertStatus(422);
+        // Chỉ Admin được lùi giai đoạn → CM bị từ chối (403)
+        $response->assertStatus(403);
         $response->assertJsonFragment(['success' => false]);
 
         // Verify stage was NOT changed
@@ -106,20 +119,20 @@ class CrmKanbanStageTest extends TestCase
         ]);
 
         // 1. From 'new' -> 'consulting'
-        $res1 = $this->actingAs($this->salesUser)->json('POST', route('crm.customers.next-stage', $customer->id));
+        $res1 = $this->actingAs($this->cmUser)->json('POST', route('crm.customers.next-stage', $customer->id));
         $res1->assertStatus(200);
         $customer->refresh();
         $this->assertEquals('consulting', $customer->stage);
 
-        // 2. Consulting requires a concrete branch action (test/trial/waiting)
-        $res2 = $this->actingAs($this->salesUser)->json('POST', route('crm.customers.next-stage', $customer->id));
-        $res2->assertStatus(422);
+        // 2. Consulting → Hẹn test (đúng 1 bước kế tiếp)
+        $res2 = $this->actingAs($this->cmUser)->json('POST', route('crm.customers.next-stage', $customer->id));
+        $res2->assertStatus(200);
         $customer->refresh();
-        $this->assertEquals('consulting', $customer->stage);
+        $this->assertEquals('test_scheduled', $customer->stage);
 
         // 3. Set to 'won' and test next-stage boundary
         $customer->update(['stage' => 'won']);
-        $resFinal = $this->actingAs($this->salesUser)->json('POST', route('crm.customers.next-stage', $customer->id));
+        $resFinal = $this->actingAs($this->cmUser)->json('POST', route('crm.customers.next-stage', $customer->id));
         $resFinal->assertStatus(422);
         $this->assertEquals('won', $customer->stage);
     }

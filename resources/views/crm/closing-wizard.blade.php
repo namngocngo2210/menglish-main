@@ -37,12 +37,12 @@
         @endif
         @if ($customers->isEmpty())
             <div class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800 font-semibold">
-                Chưa có Lead nào ở trạng thái sẵn sàng chốt (đã học thử, chờ lớp hoặc chờ thanh toán).
+                Chưa có Lead nào sẵn sàng chốt (Đang tư vấn, Đã test hoặc Gửi kết quả).
             </div>
         @endif
         @if ($classes->isEmpty())
-            <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 font-semibold">
-                Không còn lớp đang hoạt động và còn chỗ. Hãy mở lớp hoặc điều chỉnh sĩ số trước khi chốt Lead.
+            <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 font-semibold">
+                Không còn lớp đang hoạt động và còn chỗ. Bạn vẫn chốt được với "Xếp lớp sau" — học viên vào danh sách Chờ xếp lớp.
             </div>
         @endif
         <!-- Wizard Step Indicator -->
@@ -87,7 +87,9 @@
             @csrf
             <!-- Hidden Form Inputs for Backend Submission -->
             <input type="hidden" name="customer_id" :value="customerId" />
-            <input type="hidden" name="class_id" :value="classId" />
+            <input type="hidden" name="class_id" :value="assignLater ? '' : classId" />
+            <input type="hidden" name="course_id" :value="courseId" />
+            <input type="hidden" name="fee_paid_at_closing" :value="feePaid ? 1 : 0" />
             <input type="hidden" name="course_name" :value="courseName" />
             <input type="hidden" name="base_tuition" :value="baseTuition" />
             <input type="hidden" name="discount" :value="discount" />
@@ -95,7 +97,7 @@
             <input type="hidden" name="other_fees" :value="otherFees" />
             <input type="hidden" name="fee_items" :value="JSON.stringify(feeItems)" />
             <input type="hidden" name="prepaid_amount" :value="prepaidAmount" />
-            <input type="hidden" name="paid_amount" :value="paidAmount" />
+            <input type="hidden" name="paid_amount" :value="feePaid ? paidAmount : 0" />
             <input type="hidden" name="payment_method" :value="paymentMethod" />
             <input type="hidden" name="split_cash_amount" :value="splitCash" />
             <input type="hidden" name="split_transfer_amount" :value="splitTransfer" />
@@ -125,6 +127,7 @@
                                     data-parent="{{ $c->parent_name ?? '' }}"
                                     data-code="{{ $c->code }}"
                                     data-branch="{{ $c->branch?->code ?? 'BD' }}"
+                                    data-branch-id="{{ $c->branch_id }}"
                                     data-tuition="{{ $c->deal_value > 0 ? $c->deal_value : 12500000 }}"
                                 >
                                     {{ $c->name }} ({{ $c->code }} - {{ $c->phone }}) · {{ $c->course_interest ?? 'Chưa chọn khóa' }} · {{ $c->stage_label }}
@@ -135,11 +138,12 @@
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Khóa học đăng ký</label>
-                        <select x-model="courseName" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold text-primary-container focus:border-primary-container focus:ring-primary-container">
+                        <select x-model="courseId" @change="updateCourse($event)" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold text-primary-container focus:border-primary-container focus:ring-primary-container">
                             @foreach ($courses as $crs)
-                                <option value="{{ $crs->name }}">{{ $crs->name }} (Học phí niêm yết: {{ number_format($crs->tuition_fee) }}đ)</option>
+                                <option value="{{ $crs->id }}" data-name="{{ $crs->name }}" data-tuition="{{ (float) $crs->tuition_fee }}">{{ $crs->name }} (Học phí niêm yết: {{ number_format($crs->tuition_fee) }}đ)</option>
                             @endforeach
                         </select>
+                        <p class="mt-1 text-[11px] text-gray-500">Khi chọn lớp ở Bước 3, khóa học lấy theo lớp. Khi "Xếp lớp sau", học phí tính theo giá niêm yết của khóa này (trừ ưu đãi).</p>
                     </div>
                 </div>
 
@@ -363,9 +367,24 @@
                 </h2>
 
                 <div class="space-y-4">
-                    <div>
+                    <div class="flex flex-wrap gap-3 text-xs font-semibold">
+                        <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer" :class="!assignLater ? 'border-primary-container bg-orange-50 text-primary-container' : 'border-gray-200 text-gray-600'">
+                            <input type="radio" name="class_mode" value="class" :checked="!assignLater" @change="setAssignLater(false)" @disabled($classes->isEmpty()) />
+                            <span>Chọn lớp</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer" :class="assignLater ? 'border-primary-container bg-orange-50 text-primary-container' : 'border-gray-200 text-gray-600'">
+                            <input type="radio" name="class_mode" value="later" :checked="assignLater" @change="setAssignLater(true)" />
+                            <span>Xếp lớp sau</span>
+                        </label>
+                    </div>
+
+                    <div x-show="assignLater" x-cloak class="p-3 rounded-xl border border-yellow-200 bg-yellow-50 text-xs text-yellow-800">
+                        Học viên vẫn được tạo hồ sơ, tài khoản và học phí (theo khóa <strong x-text="courseName"></strong>), nhưng chưa ghi danh vào lớp. Lead chuyển sang <strong>Chờ xếp lớp</strong>; Học vụ gán lớp sau ở màn Khách hàng chốt thành công.
+                    </div>
+
+                    <div x-show="!assignLater">
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Chọn Lớp học đang mở tiếp nhận <span class="text-rose-500">*</span></label>
-                        <select class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 text-primary-container focus:border-primary-container focus:ring-primary-container" @change="updateClass($event)">
+                        <select data-class-select class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 text-primary-container focus:border-primary-container focus:ring-primary-container" @change="updateClass($event)">
                             @foreach ($classes as $cl)
                                 <option 
                                     value="{{ $cl->id }}"
@@ -471,8 +490,14 @@
                             </div>
                         </div>
 
+                        <label class="flex items-center gap-2 p-3 rounded-xl border border-emerald-200 bg-emerald-50/60 text-xs font-bold text-emerald-900 cursor-pointer">
+                            <input type="checkbox" x-model="feePaid" @change="onFeePaidChange()" class="rounded border-emerald-300 text-emerald-600" />
+                            <span>Đã đóng học phí đăng ký</span>
+                        </label>
+                        <p x-show="!feePaid" x-cloak class="text-[11px] text-amber-700">Chưa thu tiền: hệ thống tạo task "Nhắc thu học phí" cho người phụ trách Lead (hạn 3 ngày).</p>
+
                         <!-- Số tiền thực thu đợt 1 -->
-                        <div>
+                        <div x-show="feePaid">
                             <label class="block text-xs font-bold text-gray-800 mb-1">
                                 Số tiền thu thực tế đợt 1 (VNĐ) <span class="text-rose-500">*</span>
                             </label>
@@ -671,7 +696,7 @@
                     <button type="button" @click="step = 3" class="px-4 py-2 border border-gray-200 text-xs font-semibold text-gray-700 rounded-xl hover:bg-gray-50 transition">
                         Quay lại
                     </button>
-                    <button type="submit" :disabled="!customerId || !classId || (needsBankAccount && !selectedBankAccountId) || (paymentMethod === 'split' && splitDiff !== 0)" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5">
+                    <button type="submit" :disabled="!customerId || (!assignLater && !classId) || (assignLater && !courseId) || (feePaid && paidAmount <= 0 && prepaidAmount <= 0) || (needsBankAccount && !selectedBankAccountId) || (paymentMethod === 'split' && splitDiff !== 0)" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-base">check_circle</span>
                         <span>Hoàn tất Chốt Deal, Xếp Lớp &amp; Xuất Phiếu Thu</span>
                     </button>
@@ -913,13 +938,16 @@
                 customerName: @js($customers->first()?->name ?? ''),
                 customerPhone: @js($customers->first()?->phone ?? ''),
                 customerBranch: @js($customers->first()?->branch?->code ?? 'BD'),
+                customerBranchId: @js((string) ($customers->first()?->branch_id ?? '')),
                 studentCodePreview: 'HS' + String({{ \App\Models\Student::count() + 1 }}).padStart(6, '0'),
                 courseName: @js($classes->first()?->course?->name ?? ''),
                 classId: @js($classes->first()?->id ?? ''),
+                assignLater: @js($classes->isEmpty()),
+                feePaid: true,
                 className: @js($classes->first()?->name ?? '4M2 T3T6'),
                 classBranch: @js($classes->first()?->branch?->code ?? 'BD'),
                 classBranchId: @js($classes->first()?->branch_id ?? ''),
-                courseId: @js($classes->first()?->course_id ?? ''),
+                courseId: @js((string) ($classes->first()?->course_id ?? $courses->first()?->id ?? '')),
 
                 // Financial fields
                 baseTuition: {{ (float) (($classes->first()?->tuition_fee ?? 0) > 0 ? $classes->first()?->tuition_fee : ($classes->first()?->course?->tuition_fee ?? 0)) }},
@@ -980,13 +1008,13 @@
                 },
 
                 get needsBankAccount() {
-                    return this.paymentMethod === 'transfer'
+                    return this.feePaid && this.paymentMethod === 'transfer'
                         || (this.paymentMethod === 'split' && Number(this.splitTransfer || 0) > 0);
                 },
 
                 get availablePromotions() {
                     return this.promotionsList.filter((promotion) =>
-                        (!promotion.branch_id || String(promotion.branch_id) === String(this.classBranchId))
+                        (!promotion.branch_id || String(promotion.branch_id) === String(this.assignLater ? this.customerBranchId : this.classBranchId))
                         && (!promotion.course_id || String(promotion.course_id) === String(this.courseId))
                     );
                 },
@@ -1215,13 +1243,57 @@
                     }, 400);
                 },
 
+                init() {
+                    if (this.assignLater) this.$nextTick(() => this.setAssignLater(true));
+                },
+
+                courseTuition(courseId) {
+                    const opt = document.querySelector(`select[x-model="courseId"] option[value="${courseId}"]`);
+                    return opt ? { name: opt.getAttribute('data-name') || '', tuition: parseFloat(opt.getAttribute('data-tuition') || 0) } : null;
+                },
+
+                updateCourse(e) {
+                    this.courseId = e.target.value;
+                    if (this.assignLater) this.applyCourseTuition();
+                },
+
+                applyCourseTuition() {
+                    const course = this.courseTuition(this.courseId);
+                    if (!course) return;
+                    this.courseName = course.name;
+                    this.baseTuition = course.tuition;
+                    if (!this.availablePromotions.some((promotion) => String(promotion.id) === String(this.selectedPromotionId))) {
+                        this.selectedPromotionId = '';
+                        this.discount = 0;
+                    }
+                    this.applyPromotion({ target: { value: this.selectedPromotionId } });
+                    this.paidAmount = this.feePaid ? this.amountDue : 0;
+                },
+
+                setAssignLater(value) {
+                    this.assignLater = value;
+                    if (value) {
+                        this.className = 'Xếp lớp sau';
+                        this.applyCourseTuition();
+                    } else {
+                        const select = document.querySelector('select[data-class-select]');
+                        if (select) this.updateClass({ target: select });
+                    }
+                },
+
+                onFeePaidChange() {
+                    this.paidAmount = this.feePaid ? this.amountDue : 0;
+                    this.syncSplitAmounts();
+                },
+
                 updateCustomer(e) {
                     const opt = e.target.options[e.target.selectedIndex];
                     this.customerId = opt.value;
                     this.customerName = opt.getAttribute('data-name');
                     this.customerPhone = opt.getAttribute('data-phone');
                     this.customerBranch = opt.getAttribute('data-branch') || 'BD';
-                    this.paidAmount = this.amountDue;
+                    this.customerBranchId = opt.getAttribute('data-branch-id') || '';
+                    this.paidAmount = this.feePaid ? this.amountDue : 0;
                 },
                 
                 updateClass(e) {
