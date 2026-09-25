@@ -11,6 +11,7 @@ use App\Models\StudentAttendance;
 use App\Models\User;
 use App\Services\DocumentCodeGenerator;
 use App\Services\FirstMonthCareService;
+use App\Services\SessionLessonService;
 use App\Services\StudentDeferralService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -45,16 +46,28 @@ class StudentProfileController extends Controller
             $query->inClasses((int) $classId);
         }
 
-        $status = $request->input('status');
-        if ($status && array_key_exists($status, Student::STATUSES)) {
-            $query->where('status', $status);
+        // Chip trạng thái (mockup): chọn nhiều trạng thái (statuses[]); giữ tương thích ?status= một trạng thái.
+        $statuses = collect((array) $request->input('statuses', []))
+            ->push($request->input('status'))
+            ->filter(fn ($s) => is_string($s) && array_key_exists($s, Student::STATUSES))
+            ->unique()->values()->all();
+        if ($statuses !== []) {
+            $query->whereIn('status', $statuses);
         }
 
-        $students = $query->paginate($request->perPage(15))->withQueryString();
+        $students = $query->paginate($request->perPage(20))->withQueryString();
         $branches = $this->visibleBranches($user);
-        $classes = $this->visibleClasses($user)->orderBy('name')->get(['id', 'name', 'code', 'branch_id']);
+        $classes = $this->visibleClasses($user)->orderBy('name')->get(['id', 'name', 'code', 'branch_id', 'status', 'max_capacity']);
+        $totalStudents = Student::visibleTo($user)->count();
 
-        return view('students.index', compact('students', 'branches', 'classes'));
+        // "Liên kết lớp khác" ngay trên danh sách: lớp đang mở trong phạm vi người dùng, kèm sĩ số giữ chỗ.
+        $linkableClasses = collect();
+        if ($user->can('student.assign_class')) {
+            $linkableClasses = $classes->whereNotIn('status', ['completed', 'cancelled', 'closed'])->values();
+            ClassModel::loadRosterCounts($linkableClasses);
+        }
+
+        return view('students.index', compact('students', 'branches', 'classes', 'statuses', 'totalStudents', 'linkableClasses'));
     }
 
     public function storeStudent(Request $request, DocumentCodeGenerator $codes)
@@ -239,7 +252,39 @@ class StudentProfileController extends Controller
     {
         $user = $request->user();
         $student = $this->findVisibleStudent($user, $id);
-        $student->load(['branch', 'currentClass.course', 'currentClass.teacher', 'currentClass.branch', 'tuition.receipts', 'enrollments.classModel']);
+        $data = $this->profileData($student, $user, true);
+
+        if ($request->query('export') === 'roadmap') {
+            return $this->exportRoadmap($student, $data['sessions'], $data['attendanceBySession'], $data['lessons']);
+        }
+
+        return view('students.show', $data + [
+            'student' => $student,
+            'canEdit' => $user->can('student.update'),
+            'canChangeStatus' => $user->can('student.change_status'),
+            'canViewAcademic' => true,
+            'canViewContact' => true,
+            'canViewTuition' => $user->can('tuition.view'),
+            'scopedView' => false,
+        ]);
+    }
+
+    /**
+     * Dữ liệu hồ sơ dùng chung cho màn Chi tiết và Hồ sơ theo phân quyền: lớp đang học, lộ trình buổi học
+     * thật (kèm nội dung bài theo giáo trình), điểm danh của học viên, lớp liên kết được, chăm sóc tháng đầu.
+     */
+    private function profileData(Student $student, User $user, bool $withAcademic): array
+    {
+        $student->load(['branch', 'currentClass.course', 'currentClass.teacher', 'currentClass.branch', 'enrollments.classModel']);
+        if ($user->can('tuition.view')) {
+            $student->load('tuition.receipts');
+        }
+
+        $empty = collect();
+        if (! $withAcademic) {
+            return ['classes' => $empty, 'sessions' => $empty, 'attendances' => $empty, 'attendanceBySession' => $empty,
+                'attendanceStats' => null, 'linkableClasses' => $empty, 'care' => null, 'lessons' => []];
+        }
 
         $classIds = $student->activeClassIds();
         $classes = ClassModel::with(['teacher', 'branch'])->whereIn('id', $classIds)->get();
@@ -266,7 +311,7 @@ class StudentProfileController extends Controller
             'recorded' => $attendances->count(),
             'present' => $attendances->whereIn('status', ['present', 'late'])->count(),
             'absent' => $attendances->whereIn('status', ['absent', 'excused'])->count(),
-            'scheduled' => $sessions->count(),
+            'scheduled' => $sessions->where('status', '!=', 'cancelled')->count(),
         ];
         $attendanceStats['rate'] = $attendanceStats['recorded'] > 0
             ? (int) round($attendanceStats['present'] / $attendanceStats['recorded'] * 100)
@@ -283,9 +328,37 @@ class StudentProfileController extends Controller
                 ->get();
         }
 
-        $care = app(FirstMonthCareService::class)->checklist($student);
+        return [
+            'classes' => $classes,
+            'sessions' => $sessions,
+            'attendances' => $attendances,
+            'attendanceBySession' => $attendanceBySession,
+            'attendanceStats' => $attendanceStats,
+            'linkableClasses' => $linkableClasses,
+            'care' => app(FirstMonthCareService::class)->checklist($student),
+            'lessons' => app(SessionLessonService::class)->lessonsFor($sessions),
+        ];
+    }
 
-        return view('students.show', compact('student', 'classes', 'sessions', 'attendances', 'attendanceBySession', 'attendanceStats', 'linkableClasses', 'care'));
+    /** Nút tải (download) của bảng Lộ trình học tập: xuất Excel các buổi học + điểm danh của học viên. */
+    private function exportRoadmap(Student $student, $sessions, $attendanceBySession, array $lessons)
+    {
+        $rows = $sessions->map(fn (ClassSession $s) => [
+            $s->date?->format('d/m/Y'),
+            trim(($s->start_time?->format('H:i') ?? '').' - '.($s->end_time?->format('H:i') ?? ''), ' -'),
+            $s->classModel?->name,
+            trim(($lessons[$s->id]['unit'] ?? '').' '.($lessons[$s->id]['title'] ?? '')),
+            $s->teacher?->name,
+            $s->status === 'cancelled' ? 'Đã hủy' : ($s->date?->isFuture() ? 'Sắp diễn ra' : 'Đã hoàn thành'),
+            $attendanceBySession->get($s->id)?->status_label,
+        ])->values()->all();
+
+        return \App\Exports\ArrayExport::download(
+            'lo-trinh-'.$student->code,
+            ['Ngày học', 'Thời gian', 'Lớp', 'Nội dung bài học', 'Giáo viên', 'Trạng thái', 'Điểm danh'],
+            $rows,
+            request()->query('format', 'xlsx')
+        );
     }
 
     public function updateStudent(Request $request, $id)
@@ -297,6 +370,7 @@ class StudentProfileController extends Controller
             'email' => 'nullable|email|max:255',
             'target' => 'nullable|string|max:100',
             'address' => 'nullable|string|max:255',
+            'school' => 'nullable|string|max:255',
             'status' => ['nullable', Rule::in(array_keys(Student::STATUSES))],
             'notes' => 'nullable|string|max:500',
         ]);
@@ -373,28 +447,20 @@ class StudentProfileController extends Controller
     {
         $user = $request->user();
         $student = $this->findVisibleStudent($user, $id);
-        $student->load(['branch', 'currentClass']);
 
         $canViewTuition = $user->can('tuition.view');
         $canViewAcademic = $user->can('attendance_student.view') || $user->can('student.update');
         $canViewContact = $user->can('student.update') || $canViewTuition;
 
-        if ($canViewTuition) {
-            $student->load('tuition');
-        }
-
-        $attendanceStats = null;
-        if ($canViewAcademic) {
-            $records = StudentAttendance::where('student_id', $student->id)->pluck('status');
-            $present = $records->filter(fn ($s) => in_array($s, ['present', 'late'], true))->count();
-            $attendanceStats = [
-                'recorded' => $records->count(),
-                'present' => $present,
-                'rate' => $records->count() > 0 ? (int) round($present / $records->count() * 100) : null,
-            ];
-        }
-
-        return view('students.scoped', compact('student', 'canViewTuition', 'canViewAcademic', 'canViewContact', 'attendanceStats'));
+        return view('students.scoped', $this->profileData($student, $user, $canViewAcademic) + [
+            'student' => $student,
+            'canEdit' => $user->can('student.update'),
+            'canChangeStatus' => $user->can('student.change_status'),
+            'canViewAcademic' => $canViewAcademic,
+            'canViewContact' => $canViewContact,
+            'canViewTuition' => $canViewTuition,
+            'scopedView' => true,
+        ]);
     }
 
     // ─────────────────────────────────────────────

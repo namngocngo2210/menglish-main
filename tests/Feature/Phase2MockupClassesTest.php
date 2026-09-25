@@ -231,4 +231,91 @@ class Phase2MockupClassesTest extends TestCase
         $this->actingAs($this->admin)->get(route('holidays.edit', $tet))->assertOk()
             ->assertSee('Sửa ngày nghỉ')->assertSee('value="Tết Nguyên Đán 2027"', false)->assertSee('Danh sách ngày nghỉ');
     }
+
+    // ── 5. Hồ sơ học sinh — danh sách ─────────────────────────────────────
+
+    public function test_student_list_matches_mockup_with_status_chips_contact_column_and_link_class_popup(): void
+    {
+        $this->student('Nguyễn Nam Anh', ['dob' => '2008-05-12', 'email' => 'namanh@example.com']);
+        $this->student('Lê Hồng Minh', ['status' => 'deferred']);
+        $this->student('Trần Hoàng Long', ['current_class_id' => null, 'status' => 'waiting_start']);
+        $staff = $this->user('academic_staff', 'Học vụ MK2');
+
+        $response = $this->actingAs($staff)->get(route('students.index'))->assertOk()
+            ->assertSee('Hồ sơ học sinh')->assertSee('Quản lý và tra cứu thông tin học sinh toàn hệ thống.')
+            ->assertSee('Tổng số học sinh')->assertSee('Tìm học sinh hoặc SĐT...')->assertSee('Lọc dữ liệu')
+            ->assertSee('Họ tên &amp; Ngày sinh', false)->assertSee('Thông tin liên hệ')->assertSee('Lớp hiện tại')
+            ->assertSee('12/05/2008')->assertSee('namanh@example.com')->assertSee('MK2-01')->assertSee('Chưa có lớp')
+            ->assertSee('Chi tiết')->assertSee('Liên kết lớp khác')->assertSee('data-testid="list-link-class-form"', false)
+            ->assertDontSee('Học thử')->assertDontSee('Blacklist');
+        foreach (Student::STATUSES as $key => $label) {
+            $response->assertSee('name="statuses[]" value="'.$key.'"', false)->assertSee($label);
+        }
+
+        // Chip trạng thái chọn nhiều.
+        $this->actingAs($staff)->get(route('students.index', ['statuses' => ['deferred', 'waiting_start']]))
+            ->assertSee('Lê Hồng Minh')->assertSee('Trần Hoàng Long')->assertDontSee('Nguyễn Nam Anh');
+
+        // Học thuật không có quyền xếp lớp → không có nút Liên kết lớp khác.
+        $this->actingAs($this->user('academic_lead', 'Học thuật MK2'))->get(route('students.index'))->assertOk()->assertDontSee('Liên kết lớp khác');
+    }
+
+    // ── 6. Hồ sơ học sinh — chi tiết + phân quyền ─────────────────────────
+
+    public function test_student_detail_matches_mockup_with_lesson_content_status_menu_school_and_roadmap_export(): void
+    {
+        $curriculum = SyllabusCurriculum::create(['code' => 'SYL-K1', 'title' => 'Kids Early Start']);
+        CourseLevel::create(['code' => 'KID-BEG-01', 'name' => 'Kids Beginner 1', 'target' => 'Starters', 'lessons_count' => 24,
+            'is_active' => true, 'syllabus_curriculum_id' => $curriculum->id]);
+        $unit = \App\Models\SyllabusUnit::create(['curriculum_id' => $curriculum->id, 'stage_id' => $curriculum->stages()->first()->id,
+            'unit_number' => 4, 'title' => 'Future Tech & AI']);
+        \App\Models\SyllabusLesson::create(['curriculum_id' => $curriculum->id, 'unit_id' => $unit->id, 'session_no' => 1, 'title' => 'Grammar: Will vs Be going to']);
+
+        $this->makeSession('2026-10-05', '17:30', '19:00', ['status' => 'completed']);
+        $this->makeSession('2026-10-08', '17:30', '19:00');
+        $this->makeSession('2026-10-12', '17:30', '19:00');
+        $student = $this->student('Nguyễn Minh Tuấn', ['dob' => '2012-08-15']);
+        $staff = $this->user('academic_staff', 'Học vụ MK2');
+
+        $this->actingAs($staff)->get(route('students.show', $student->id))->assertOk()
+            ->assertSee('Chi tiết hồ sơ học sinh')->assertSee('15/08/2012 (14 tuổi)')
+            ->assertSee('Mã học sinh')->assertSee('Ngày nhập học')
+            ->assertSee('Chỉnh sửa thông tin')->assertSee('Trường học')->assertSee('Ghi chú đặc biệt')
+            ->assertSee('Trạng thái hiện tại')->assertSee('Đổi trạng thái')->assertSee('Thời gian cập nhật')
+            ->assertSee('Lộ trình học tập &amp; Danh sách buổi học', false)
+            ->assertSee('Thứ 2, 05/10/2026')->assertSee('Unit 4: Future Tech &amp; AI', false)->assertSee('Grammar: Will vs Be going to')
+            ->assertSee('Đã hoàn thành')->assertSee('Sắp diễn ra')->assertSee('Chưa bắt đầu')
+            ->assertSee('Lớp học hiện tại')->assertSee('Chi tiết lộ trình')->assertSee('Chuyên cần')->assertSee('Số buổi vắng:')
+            ->assertSee('Thông tin học phí')
+            ->assertDontSee('>Học thử<', false);
+
+        $this->actingAs($staff)->put(route('students.update', $student->id), [
+            'name' => $student->name, 'phone' => $student->phone, 'school' => 'Trường THCS Đoàn Thị Điểm',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('Trường THCS Đoàn Thị Điểm', $student->fresh()->school);
+
+        $this->actingAs($staff)->get(route('students.show', ['id' => $student->id, 'export' => 'roadmap', 'format' => 'csv']))
+            ->assertOk()->assertDownload();
+    }
+
+    public function test_scoped_student_profile_shows_locked_controls_and_hides_modules_without_permission(): void
+    {
+        $student = $this->student('Học sinh Phân Quyền');
+
+        // Học thuật: xem được lớp/điểm danh, không sửa, không đổi trạng thái, không học phí/liên hệ.
+        $this->actingAs($this->user('academic_lead', 'Học thuật MK2'))->get(route('students.scoped', $student->id))->assertOk()
+            ->assertSee('Chi tiết hồ sơ học sinh')
+            ->assertSee('Bạn không có quyền sửa thông tin này')
+            ->assertSee('Quyền xem duy nhất')
+            ->assertSee('data-section="academic"', false)
+            ->assertDontSee('data-section="tuition"', false)
+            ->assertDontSee('data-section="contact"', false)
+            ->assertDontSee('data-testid="student-edit-form"', false);
+
+        // Học vụ: sửa + đổi trạng thái được.
+        $staff = $this->user('academic_staff', 'Học vụ MK2');
+        $this->actingAs($staff)->get(route('students.scoped', $student->id))->assertOk()
+            ->assertSee('data-testid="student-edit-form"', false)
+            ->assertDontSee('Quyền xem duy nhất');
+    }
 }
