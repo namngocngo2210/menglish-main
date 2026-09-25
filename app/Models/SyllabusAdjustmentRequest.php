@@ -17,9 +17,32 @@ class SyllabusAdjustmentRequest extends Model
         'user_id',
         'request_type',
         'reason',
+        'extra_sessions',
         'approver_id',
         'status',
+        'rejection_reason',
+        'reviewed_at',
+        'applied_note',
     ];
+
+    public const STATUS_LABELS = [
+        'pending' => 'Chờ duyệt',
+        'approved' => 'Đã duyệt',
+        'rejected' => 'Đã từ chối',
+    ];
+
+    /** Số buổi tối đa được giãn trong một yêu cầu. */
+    public const MAX_EXTRA_SESSIONS = 10;
+
+    protected $casts = [
+        'extra_sessions' => 'integer',
+        'reviewed_at' => 'datetime',
+    ];
+
+    public function getStatusLabelAttribute(): string
+    {
+        return self::STATUS_LABELS[$this->status] ?? (string) $this->status;
+    }
 
     public function classModel(): BelongsTo
     {

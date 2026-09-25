@@ -359,11 +359,23 @@ Route::middleware('auth')->group(function () {
     Route::prefix('syllabus')->name('syllabus.')->middleware('can:syllabus.view')->group(function () {
         Route::get('/documents', [SyllabusController::class, 'documents'])->name('documents');
         Route::post('/documents', [SyllabusController::class, 'storeDocument'])->middleware('can:syllabus.upload')->name('documents.store');
+        Route::get('/documents/{id}/file', [SyllabusController::class, 'documentFile'])->whereNumber('id')->name('documents.file');
+        Route::delete('/documents/{id}', [SyllabusController::class, 'destroyDocument'])->whereNumber('id')->middleware('can:syllabus.upload')->name('documents.destroy');
         Route::get('/builder', [SyllabusController::class, 'builder'])->name('builder');
-        Route::post('/units', [SyllabusController::class, 'storeUnit'])->middleware('can:syllabus.update')->name('units.store');
+        Route::post('/curriculums', [SyllabusController::class, 'storeCurriculum'])->middleware('can:syllabus.manage')->name('curriculums.store');
+        Route::put('/curriculums/{id}', [SyllabusController::class, 'updateCurriculum'])->whereNumber('id')->middleware('can:syllabus.manage')->name('curriculums.update');
+        Route::delete('/curriculums/{id}', [SyllabusController::class, 'destroyCurriculum'])->whereNumber('id')->middleware('can:syllabus.manage')->name('curriculums.destroy');
+        Route::post('/units', [SyllabusController::class, 'storeUnit'])->middleware('can:syllabus.manage')->name('units.store');
+        Route::put('/units/{id}', [SyllabusController::class, 'updateUnit'])->whereNumber('id')->middleware('can:syllabus.manage')->name('units.update');
+        Route::delete('/units/{id}', [SyllabusController::class, 'destroyUnit'])->whereNumber('id')->middleware('can:syllabus.manage')->name('units.destroy');
         Route::get('/assignments', [SyllabusController::class, 'assignments'])->name('assignments');
         Route::post('/assignments', [SyllabusController::class, 'storeAssignment'])->middleware('can:syllabus.manage')->name('assignments.store');
+        Route::post('/assignments/{id}/complete', [SyllabusController::class, 'completeAssignment'])->whereNumber('id')->middleware('can:syllabus.manage')->name('assignments.complete');
         Route::get('/versions', [SyllabusController::class, 'versions'])->name('versions');
+        Route::post('/proposals', [SyllabusController::class, 'storeProposal'])->middleware('can:syllabus.propose_adjustment')->name('proposals.store');
+        Route::post('/proposals/{id}/approve', [SyllabusController::class, 'approveProposal'])->whereNumber('id')->middleware('can:syllabus.approve_adjustment')->name('proposals.approve');
+        Route::post('/proposals/{id}/reject', [SyllabusController::class, 'rejectProposal'])->whereNumber('id')->middleware('can:syllabus.approve_adjustment')->name('proposals.reject');
+        Route::get('/proposals/{id}/attachment', [SyllabusController::class, 'proposalAttachment'])->whereNumber('id')->name('proposals.attachment');
         Route::get('/teacher-view', [SyllabusController::class, 'teacherView'])->name('teacher-view');
         Route::get('/teacher-propose', [SyllabusController::class, 'teacherPropose'])->name('teacher-propose');
         Route::get('/teacher-adjust', [SyllabusController::class, 'teacherAdjust'])->name('teacher-adjust');
@@ -374,6 +386,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/big-tests/distribution', [SyllabusController::class, 'bigTestDistribution'])->name('big-tests.distribution');
         Route::post('/big-tests/distribution', [SyllabusController::class, 'storeBigTest'])->middleware('can:syllabus.manage')->name('big-tests.store');
         Route::post('/big-tests/{id}/approve', [SyllabusController::class, 'approveAndDistributeBigTest'])->middleware('can:syllabus.approve_adjustment')->name('big-tests.approve');
+        Route::post('/big-tests/orders/{id}/approve', [SyllabusController::class, 'approveBigTestOrder'])->whereNumber('id')->middleware('can:syllabus.approve_adjustment')->name('big-tests.orders.approve');
+        Route::post('/big-tests/orders/{id}/reject', [SyllabusController::class, 'rejectBigTestOrder'])->whereNumber('id')->middleware('can:syllabus.approve_adjustment')->name('big-tests.orders.reject');
         Route::get('/big-tests/schedules', [SyllabusController::class, 'bigTestSchedules'])->name('big-tests.schedules');
         Route::post('/big-tests/{id}/remind', [SyllabusController::class, 'sendBigTestReminder'])->middleware('can:syllabus.approve_adjustment')->name('big-tests.remind');
         Route::get('/big-tests/results/{id?}', [SyllabusController::class, 'bigTestResults'])->name('big-tests.results');

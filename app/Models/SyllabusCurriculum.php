@@ -16,6 +16,9 @@ class SyllabusCurriculum extends Model
     protected $fillable = [
         'code',
         'title',
+        'stage_name',
+        'unlock_policy',
+        'overview_link',
         'course_id',
         'version',
         'file_type',
@@ -32,6 +35,22 @@ class SyllabusCurriculum extends Model
     public function units(): HasMany
     {
         return $this->hasMany(SyllabusUnit::class, 'curriculum_id')->orderBy('unit_number');
+    }
+
+    public const UNLOCK_POLICIES = [
+        'weekly' => 'Mở khóa theo tuần',
+        'after_big_test' => 'Hoàn thành Big Test mới được mở',
+        'manual' => 'Mở khóa thủ công bởi Admin',
+    ];
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(SyllabusDocument::class, 'curriculum_id')->latest();
+    }
+
+    public function proposals(): HasMany
+    {
+        return $this->hasMany(SyllabusChangeProposal::class, 'curriculum_id');
     }
 
     public function assignments(): HasMany

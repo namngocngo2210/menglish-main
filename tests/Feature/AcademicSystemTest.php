@@ -354,8 +354,9 @@ class AcademicSystemTest extends TestCase
             'version' => 'v2.0',
         ];
 
-        $responseDoc = $this->actingAs($this->academicHead)->post(route('syllabus.documents.store'), $docPayload);
-        $responseDoc->assertRedirect(route('syllabus.documents'));
+        // Giáo trình tạo ở màn Soạn syllabus (màn Tài liệu chỉ nhận file thật — xem Phase2SyllabusTest).
+        $responseDoc = $this->actingAs($this->academicHead)->post(route('syllabus.curriculums.store'), $docPayload);
+        $responseDoc->assertRedirect();
 
         $this->assertDatabaseHas('syllabus_curriculums', [
             'code' => 'CURR-IE-70-V2',
@@ -378,7 +379,7 @@ class AcademicSystemTest extends TestCase
         ];
 
         $responseUnit = $this->actingAs($this->academicHead)->post(route('syllabus.units.store'), $unitPayload);
-        $responseUnit->assertRedirect(route('syllabus.builder'));
+        $responseUnit->assertRedirect(route('syllabus.builder', ['curriculum' => $curriculum->id]));
 
         $this->assertDatabaseHas('syllabus_units', [
             'curriculum_id' => $curriculum->id,
@@ -445,11 +446,19 @@ class AcademicSystemTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $responseReject = $this->actingAs($this->academicHead)->post(route('syllabus.adjustment-requests.reject', $adjReq2->id));
+        // Từ chối bắt buộc có lý do và lý do được lưu lại.
+        $this->actingAs($this->academicHead)->post(route('syllabus.adjustment-requests.reject', $adjReq2->id))
+            ->assertSessionHasErrors('rejection_reason');
+        $this->assertEquals('pending', $adjReq2->fresh()->status);
+
+        $responseReject = $this->actingAs($this->academicHead)->post(route('syllabus.adjustment-requests.reject', $adjReq2->id), [
+            'rejection_reason' => 'Không phù hợp với lộ trình',
+        ]);
         $responseReject->assertRedirect();
 
         $adjReq2->refresh();
         $this->assertEquals('rejected', $adjReq2->status);
+        $this->assertEquals('Không phù hợp với lộ trình', $adjReq2->rejection_reason);
     }
 
     // =========================================================================

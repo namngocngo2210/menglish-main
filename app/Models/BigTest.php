@@ -32,6 +32,7 @@ class BigTest extends Model
         'approved_by',
         'approved_at',
         'distributed_at',
+        'teacher_reminded_at',
     ];
 
     protected $casts = [
@@ -39,6 +40,7 @@ class BigTest extends Model
         'is_distributed' => 'boolean',
         'approved_at' => 'datetime',
         'distributed_at' => 'datetime',
+        'teacher_reminded_at' => 'datetime',
     ];
 
     public function classModel(): BelongsTo
@@ -54,6 +56,11 @@ class BigTest extends Model
     public function results(): HasMany
     {
         return $this->hasMany(BigTestResult::class, 'big_test_id');
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(BigTestOrder::class, 'big_test_id');
     }
 
     public function approver(): BelongsTo

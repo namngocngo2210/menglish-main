@@ -52,9 +52,10 @@
                         <select name="class_id" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 bg-white">
                             <option disabled selected value="">Chọn lớp...</option>
                             @foreach ($classes as $class)
-                                <option value="{{ $class->id }}">{{ $class->name }} ({{ $class->code }})</option>
+                                <option value="{{ $class->id }}" @selected((string) old('class_id') === (string) $class->id)>{{ $class->name }} ({{ $class->code }})</option>
                             @endforeach
                         </select>
+                        @error('class_id') <p class="text-[11px] text-rose-600 mt-1">{{ $message }}</p> @enderror
                     </div>
 
                     <!-- Chọn Giáo viên -->
@@ -93,7 +94,7 @@
                         <span class="material-symbols-outlined text-primary shrink-0 text-[18px]">info</span>
                         <div>
                             <span class="font-bold text-primary block mb-0.5">Lưu ý nghiệp vụ (R19):</span>
-                            Mỗi LỚP HỌC chỉ được giao duy nhất 1 chặng học có hiệu lực tại một thời điểm. Hệ thống sẽ tự động đóng chặng hiện tại của lớp và mở chặng kế tiếp khi kết quả Big Test được duyệt gửi.
+                            Mỗi LỚP HỌC chỉ được giao duy nhất 1 chặng học có hiệu lực tại một thời điểm. Hãy bấm "Hoàn thành" ở chặng hiện tại của lớp trước khi giao chặng kế tiếp.
                         </div>
                     </div>
 
@@ -123,7 +124,7 @@
                     <div class="flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary text-[20px]">history_edu</span>
                         <h2 class="text-sm font-bold text-gray-900">Lịch sử phân quyền chặng học</h2>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-200 text-gray-700">{{ $assignments->count() }} lượt giao</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-200 text-gray-700">{{ $assignments->total() }} lượt giao</span>
                     </div>
 
                     <div class="flex items-center gap-2">
@@ -182,9 +183,21 @@
                                         <span class="text-[10px] text-gray-400 font-mono mt-1 block">{{ $as->progress_percent }}%</span>
                                     </td>
                                     <td class="py-3.5 px-4 text-right whitespace-nowrap">
-                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                            Đang áp dụng
-                                        </span>
+                                        @if ($as->status === 'in_progress')
+                                            <div class="flex items-center justify-end gap-2">
+                                                <x-ui.badge color="success">Đang áp dụng</x-ui.badge>
+                                                @can('syllabus.manage')
+                                                    <form method="POST" action="{{ route('syllabus.assignments.complete', $as->id) }}" data-confirm="Đánh dấu hoàn thành chặng {{ $as->stage_name }} của lớp {{ $as->classModel?->name }}?">
+                                                        @csrf
+                                                        <x-ui.button type="submit" variant="secondary" size="sm" icon="task_alt">Hoàn thành</x-ui.button>
+                                                    </form>
+                                                @endcan
+                                            </div>
+                                        @elseif ($as->status === 'completed')
+                                            <x-ui.badge color="neutral">Đã hoàn thành</x-ui.badge>
+                                        @else
+                                            <x-ui.badge color="warning">{{ $as->status }}</x-ui.badge>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty
@@ -196,19 +209,7 @@
                     </table>
                 </div>
 
-                <!-- Footer Pagination -->
-                <div class="p-4 border-t border-gray-100 flex items-center justify-between mt-auto bg-gray-50/30">
-                    <p class="text-xs text-gray-500">Hiển thị {{ $assignments->count() }} lượt phân quyền</p>
-                    <div class="flex items-center gap-1">
-                        <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-white disabled:opacity-40" disabled>
-                            <span class="material-symbols-outlined text-[18px]">chevron_left</span>
-                        </button>
-                        <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-primary-container text-white text-xs font-bold shadow-2xs">1</button>
-                        <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-white">
-                            <span class="material-symbols-outlined text-[18px]">chevron_right</span>
-                        </button>
-                    </div>
-                </div>
+                <div class="border-t border-gray-100"><x-ui.pagination :paginator="$assignments" unit="lượt giao" /></div>
             </section>
         </div>
     </div>
