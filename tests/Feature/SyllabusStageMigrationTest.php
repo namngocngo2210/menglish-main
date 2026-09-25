@@ -80,8 +80,9 @@ class SyllabusStageMigrationTest extends TestCase
         $this->assertNotNull(SyllabusAssignment::find($done)->closed_at);
         $this->assertSame([$stage->id], SyllabusAssignment::whereIn('id', [$old, $newer, $done])->pluck('stage_id')->unique()->values()->all());
 
-        // Big Test chưa gửi xong → gắn chặng đang mở; đợt đã gửi hết giữ nguyên (lịch sử).
-        $this->assertSame($stage->id, BigTest::find($pendingTest)->syllabus_stage_id);
+        // Big Test cũ không tự gắn chặng (gửi kết quả đợt cũ không đóng chặng); kết quả giữ nguyên.
+        $this->assertNull(BigTest::find($pendingTest)->syllabus_stage_id);
         $this->assertNull(BigTest::find($sentTest)->syllabus_stage_id);
+        $this->assertSame(1, DB::table('big_test_results')->where('big_test_id', $sentTest)->count());
     }
 }

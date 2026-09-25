@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\Schema;
  *    Id unit giữ nguyên nên đề xuất sửa giáo trình (unit_id) vẫn trỏ đúng.
  *  - Chặng đã giao cho lớp → gắn Chặng 1 của giáo trình; lớp có nhiều chặng `in_progress` thì giữ bản mới nhất,
  *    các bản cũ đóng lại kèm lý do.
- *  - Big Test chưa gửi hết kết quả của lớp đang có chặng mở → gắn vào chặng đó.
+ *  - Big Test cũ không tự gắn chặng (tránh gửi kết quả đợt thi cũ đóng chặng duy nhất của lớp); đợt thi mới tự gắn chặng đang mở.
  */
 return new class extends Migration
 {
@@ -162,21 +162,9 @@ return new class extends Migration
             DB::table('syllabus_assignments')->where('id', $assignment->id)->update($update);
         }
 
-        // Big Test chưa gửi hết kết quả của lớp đang mở chặng → thuộc chặng đang mở.
-        foreach ($openByClass as $classId => $assignment) {
-            $stageId = $stageByCurriculum[$assignment->curriculum_id] ?? null;
-            if (! $stageId) {
-                continue;
-            }
-            $tests = DB::table('big_tests')->where('class_id', $classId)->whereNull('syllabus_stage_id')->pluck('id');
-            foreach ($tests as $testId) {
-                $results = DB::table('big_test_results')->where('big_test_id', $testId);
-                $allSent = (clone $results)->exists() && ! (clone $results)->where('status', '!=', 'sent')->exists();
-                if (! $allSent) {
-                    DB::table('big_tests')->where('id', $testId)->update(['syllabus_stage_id' => $stageId]);
-                }
-            }
-        }
+        // Big Test cũ KHÔNG tự gắn chặng: dữ liệu cũ chỉ có 1 chặng/giáo trình, gắn vào sẽ khiến gửi kết quả
+        // một đợt thi giữa kỳ cũ đóng chặng duy nhất và đánh dấu lớp "hoàn thành giáo trình". Đợt thi tạo mới
+        // tự gắn chặng đang mở của lớp.
     }
 
     public function down(): void
