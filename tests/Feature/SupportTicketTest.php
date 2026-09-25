@@ -66,7 +66,7 @@ class SupportTicketTest extends TestCase
 
         $ticket = SupportTicket::where('title', 'Lỗi không gửi được tin nhắn Zalo nhắc lịch thi')->first();
         $this->assertNotNull($ticket);
-        $this->assertMatchesRegularExpression('/^[0-9]{4}$/', $ticket->code);
+        $this->assertMatchesRegularExpression('/^TK-\d{4}-\d{4}$/', $ticket->code);
         $this->assertEquals('open', $ticket->status);
         $this->assertEquals($this->staff->id, $ticket->creator_id);
         $this->assertNull($ticket->assignee_id);

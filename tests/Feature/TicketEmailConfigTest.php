@@ -241,8 +241,8 @@ class TicketEmailConfigTest extends TestCase
         ]);
 
         $ticket = SupportTicket::where('title', 'Máy chiếu phòng 201 chập chờn')->firstOrFail();
-        // Assert 4-digit numeric code
-        $this->assertMatchesRegularExpression('/^[0-9]{4}$/', $ticket->code);
+        // Mã ticket TK-YYYY-NNNN (audit A3: trước đây sai định dạng 4 chữ số)
+        $this->assertMatchesRegularExpression('/^TK-\d{4}-\d{4}$/', $ticket->code);
 
         // Verify creation email format: directly in title, no "Kính gửi", has colorful template badges
         Mail::shouldHaveReceived('html')->with(

@@ -7,6 +7,7 @@ use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
 use App\Models\Student;
 use App\Models\SyllabusUnit;
+use App\Services\DocumentCodeGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -41,7 +42,7 @@ class StudentProfileController extends Controller
         return view('students.index', compact('students', 'branches', 'classes'));
     }
 
-    public function storeStudent(Request $request)
+    public function storeStudent(Request $request, DocumentCodeGenerator $codes)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -52,8 +53,7 @@ class StudentProfileController extends Controller
             'target' => 'nullable|string|max:100',
         ]);
 
-        $count = Student::count() + 1;
-        $code = 'HV-'.str_pad($count, 5, '0', STR_PAD_LEFT);
+        $code = $codes->studentCode();
 
         $student = Student::create([
             'code' => $code,

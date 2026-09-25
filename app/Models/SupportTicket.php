@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\DocumentCodeGenerator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -79,19 +80,13 @@ class SupportTicket extends Model
         return [$this->attachment_path];
     }
 
+    /**
+     * Mã ticket dạng TK-YYYY-NNNN (theo tài liệu schema), sinh qua bộ đếm dùng chung
+     * nên không trùng khi tạo đồng thời. Ticket cũ (mã 4 chữ số) giữ nguyên mã.
+     */
     public static function generateCode(): string
     {
-        $latest = static::whereRaw('LENGTH(code) = 4 AND code >= "1000" AND code <= "9999"')
-            ->orderBy('code', 'desc')
-            ->value('code');
-
-        $nextNumber = $latest && is_numeric($latest) ? ((int) $latest + 1) : 1001;
-
-        while (static::where('code', (string) $nextNumber)->exists()) {
-            $nextNumber++;
-        }
-
-        return (string) $nextNumber;
+        return app(DocumentCodeGenerator::class)->supportTicketCode();
     }
 
     public function getCategoryLabelAttribute(): string
