@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Báo cáo Doanh thu tạm tính - MENGLISH Admin</title>
+  <!-- Google Fonts: Be Vietnam Pro & Material Symbols Outlined -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Be Vietnam Pro"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              DEFAULT: '#f5691a',
+              hover: '#dc5208',
+              surface: '#fff7ed',
+              dark: '#111A2B',
+              navy: '#1B2A4A'
+            },
+            surface: {
+              dim: '#f3f4f8',
+              card: '#ffffff'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Be Vietnam Pro', sans-serif;
+      background-color: #f8f9fc;
+      color: #1e293b;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      vertical-align: middle;
+    }
+    .material-symbols-outlined.fill {
+      font-variation-settings: 'FILL' 1;
+    }
+  </style>
+</head>
+<body class="p-6 md:p-8 bg-[#f8f9fc]">
+
+  <!-- Main Container Panel (Nhúng trực tiếp vào Dashboard Admin, không có Chrome / Topbar / Sidebar ngoài) -->
+  <div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- 1. Header & Bộ lọc Tháng + Chi nhánh -->
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div>
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-xl bg-orange-100 flex items-center justify-center text-brand">
+            <span class="material-symbols-outlined text-2xl font-semibold">query_stats</span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Báo cáo Doanh thu tạm tính</h1>
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Tính toán thời gian thực
+              </span>
+            </div>
+            <p class="text-sm text-slate-500 mt-0.5">Tổng hợp đối soát Thu (học phí & phụ thu hợp lệ) trừ Chi vận hành (chi thường xuyên & chi lương)</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters & Actions -->
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- Filter Kỳ tháng -->
+        <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-brand/20 focus-within:border-brand transition-all">
+          <span class="material-symbols-outlined text-slate-400 text-lg mr-2">calendar_month</span>
+          <label for="filter-month" class="text-xs font-semibold text-slate-500 mr-2">KỲ THÁNG:</label>
+          <select id="filter-month" class="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer">
+            <option value="2026-09" selected>Tháng 09/2026 (Hiện tại)</option>
+            <option value="2026-08">Tháng 08/2026</option>
+            <option value="2026-07">Tháng 07/2026</option>
+            <option value="2026-06">Tháng 06/2026</option>
+          </select>
+        </div>
+
+        <!-- Filter Chi nhánh -->
+        <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-brand/20 focus-within:border-brand transition-all">
+          <span class="material-symbols-outlined text-slate-400 text-lg mr-2">storefront</span>
+          <label for="filter-branch" class="text-xs font-semibold text-slate-500 mr-2">CƠ SỞ:</label>
+          <select id="filter-branch" class="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer">
+            <option value="all" selected>Tất cả chi nhánh</option>
+            <option value="cau-giay">Cơ sở Cầu Giấy (CS1)</option>
+            <option value="dong-da">Cơ sở Đống Đa (CS2)</option>
+            <option value="hai-ba-trung">Cơ sở Hai Bà Trưng (CS3)</option>
+          </select>
+        </div>
+
+        <!-- Refresh / Export Action Button -->
+        <button class="inline-flex items-center justify-center p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors shadow-sm" title="Làm mới số liệu">
+          <span class="material-symbols-outlined text-xl">sync</span>
+        </button>
+
+        <button class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-all shadow-sm">
+          <span class="material-symbols-outlined text-lg">download</span>
+          <span>Xuất báo cáo</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 2. Thẻ 3 Số Liệu Cốt Lõi: THU - CHI - DOANH THU TẠM TÍNH -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+      <!-- THẺ 1: TỔNG THU -->
+      <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm relative overflow-hidden flex flex-col justify-between group hover:border-emerald-300 transition-all">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+        
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              Tổng thu thực tế
+            </span>
+            <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <span class="material-symbols-outlined text-xl">payments</span>
+            </div>
+          </div>
+
+          <div class="flex items-baseline gap-2">
+            <span class="text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">418.500.000</span>
+            <span class="text-base font-bold text-slate-500">VNĐ</span>
+          </div>
+
+          <div class="mt-2.5 flex items-center gap-2 text-xs font-medium text-emerald-600">
+            <span class="material-symbols-outlined text-sm font-bold">trending_up</span>
+            <span>Tăng 12.4% so với tháng 08/2026</span>
+          </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+          <span class="flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm text-slate-400">receipt_long</span>
+            Gồm 32 phiếu thu hợp lệ
+          </span>
+          <span class="text-slate-400 italic">Đã gồm phụ thu</span>
+        </div>
+      </div>
+
+      <!-- THẺ 2: CHI VẬN HÀNH -->
+      <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm relative overflow-hidden flex flex-col justify-between group hover:border-rose-300 transition-all">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-rose-50 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+              Chi phí vận hành
+            </span>
+            <div class="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+              <span class="material-symbols-outlined text-xl">receipt</span>
+            </div>
+          </div>
+
+          <div class="flex items-baseline gap-2">
+            <span class="text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">124.850.000</span>
+            <span class="text-base font-bold text-slate-500">VNĐ</span>
+          </div>
+
+          <div class="mt-2.5 flex items-center gap-2 text-xs font-medium text-slate-500">
+            <span class="material-symbols-outlined text-sm text-slate-400">info</span>
+            <span>Khoản tự nhập + Lương kỳ 09/2026</span>
+          </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+          <span class="text-rose-600 font-medium">Chiếm 29.8% tổng thu</span>
+          <span class="text-slate-400">7 mục chi</span>
+        </div>
+      </div>
+
+      <!-- THẺ 3: DOANH THU TẠM TÍNH (NỔI BẬT NHẤT = THU - CHI) -->
+      <div class="bg-gradient-to-br from-brand via-[#ea580c] to-brand-navy rounded-2xl p-6 text-white shadow-lg shadow-orange-500/15 relative overflow-hidden flex flex-col justify-between border border-orange-400/30">
+        <!-- Glow accents -->
+        <div class="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+        <div class="absolute -left-6 -top-6 w-32 h-32 bg-orange-300/20 rounded-full blur-xl pointer-events-none"></div>
+
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-sm text-xs font-bold uppercase tracking-wider text-orange-100">
+              <span class="material-symbols-outlined text-sm">stars</span>
+              Doanh thu tạm tính
+            </div>
+            <div class="w-9 h-9 rounded-xl bg-white/15 backdrop-blur-sm text-white flex items-center justify-center">
+              <span class="material-symbols-outlined text-xl">account_balance_wallet</span>
+            </div>
+          </div>
+
+          <div class="flex items-baseline gap-2 mt-1">
+            <span class="text-3xl lg:text-4xl font-black tracking-tight text-white drop-shadow-sm">+293.650.000</span>
+            <span class="text-base font-bold text-orange-200">VNĐ</span>
+          </div>
+
+          <div class="mt-2.5 flex items-center gap-2 text-xs font-medium text-orange-100/90">
+            <span class="material-symbols-outlined text-sm">calculate</span>
+            <span>= Tổng thu (418.5M) − Chi vận hành (124.85M)</span>
+          </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-white/20 flex items-center justify-between text-xs text-orange-100">
+          <span class="font-semibold">Tỷ suất lợi nhuận gộp ước tính:</span>
+          <span class="text-sm font-black text-white bg-white/20 px-2 py-0.5 rounded-md">70.2%</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 3. Chi tiết Bóc tách Nguồn thu & Khoản chi (Breakdown Panel) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+      <!-- Cột Trái: Bóc tách Nguồn Thu -->
+      <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <span class="material-symbols-outlined text-lg">pie_chart</span>
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-800 text-base">Cơ cấu Nguồn Thu</h3>
+              <p class="text-xs text-slate-500">Tất cả phiếu thu còn hiệu lực (đã loại bỏ phiếu bị hủy hóa đơn)</p>
+            </div>
+          </div>
+          <span class="text-sm font-bold text-emerald-600">418.500.000 đ</span>
+        </div>
+
+        <div class="space-y-3 pt-1">
+          <!-- Item 1: Học phí chính thức -->
+          <div class="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+              <div>
+                <p class="text-sm font-semibold text-slate-800">Học phí các khóa học</p>
+                <p class="text-xs text-slate-500">Gồm khóa IELTS Foundation, Speaking Master, v.v.</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-sm font-bold text-slate-800">402.600.000 đ</p>
+              <p class="text-xs text-slate-400 font-medium">96.2%</p>
+            </div>
+          </div>
+
+          <!-- Item 2: Phụ thu phát sinh ngoài học phí -->
+          <div class="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-2.5 h-2.5 rounded-full bg-teal-500"></div>
+              <div>
+                <p class="text-sm font-semibold text-slate-800">Phụ thu phát sinh</p>
+                <p class="text-xs text-slate-500">Giáo trình in ấn bổ sung, lệ phí thi thử, thẻ học viên</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-sm font-bold text-slate-800">15.900.000 đ</p>
+              <p class="text-xs text-slate-400 font-medium">3.8%</p>
+            </div>
+          </div>
+
+          <!-- Phân theo hình thức thanh toán -->
+          <div class="pt-2">
+            <div class="flex justify-between text-xs font-semibold text-slate-600 mb-1.5">
+              <span>Hình thức: Chuyển khoản (86%)</span>
+              <span>Tiền mặt (14%)</span>
+            </div>
+            <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden flex">
+              <div class="bg-emerald-500 h-full" style="width: 86%"></div>
+              <div class="bg-teal-400 h-full" style="width: 14%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-emerald-50/60 rounded-xl p-3 border border-emerald-100 text-xs text-emerald-800 flex items-start gap-2">
+          <span class="material-symbols-outlined text-base text-emerald-600 shrink-0 mt-0.5">verified</span>
+          <div>
+            <p class="font-semibold">Nguyên tắc ghi nhận doanh thu:</p>
+            <p class="text-emerald-700/90 mt-0.5">Mọi phiếu ở trạng thái "Chờ duyệt", "Đã duyệt" hoặc "Tạm thu" đều được cộng dồn. Phiếu bị <strong class="underline">Hủy hóa đơn</strong> tự động bị loại trừ ngay lập tức.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cột Phải: Bóc tách Chi Vận Hành -->
+      <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+              <span class="material-symbols-outlined text-lg">donut_small</span>
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-800 text-base">Cơ cấu Chi Vận Hành</h3>
+              <p class="text-xs text-slate-500">Khoản chi tự nhập thực tế + Chi lương tự động từ Epic 7</p>
+            </div>
+          </div>
+          <span class="text-sm font-bold text-rose-600">124.850.000 đ</span>
+        </div>
+
+        <div class="space-y-3 pt-1">
+          <!-- Chi Lương (Tự động từ Epic 7) -->
+          <div class="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200/70 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-base">lock</span>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <p class="text-sm font-bold text-blue-900">Chi trả lương nhân sự (Kỳ 09/2026)</p>
+                  <span class="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-200 text-blue-800 uppercase tracking-tight">Tự động</span>
+                </div>
+                <p class="text-xs text-blue-700/80">Tổng thực nhận của toàn bộ GV, TA, Học vụ đã chốt bảng</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-sm font-black text-blue-900">98.500.000 đ</p>
+              <p class="text-xs text-blue-600 font-semibold">78.9% chi phí</p>
+            </div>
+          </div>
+
+          <!-- Chi thường xuyên / Cơ sở vật chất -->
+          <div class="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-2.5 h-2.5 rounded-full bg-rose-400"></div>
+              <div>
+                <p class="text-sm font-semibold text-slate-800">Mặt bằng & Tiện ích</p>
+                <p class="text-xs text-slate-500">Tiền thuê trụ sở, điện nước, internet cáp quang</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-sm font-bold text-slate-800">18.850.000 đ</p>
+              <p class="text-xs text-slate-400 font-medium">15.1%</p>
+            </div>
+          </div>
+
+          <!-- Giáo trình, văn phòng phẩm & dịch vụ -->
+          <div class="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-2.5 h-2.5 rounded-full bg-amber-400"></div>
+              <div>
+                <p class="text-sm font-semibold text-slate-800">In ấn giáo trình & Vận hành lớp</p>
+                <p class="text-xs text-slate-500">Sách bổ trợ IELTS, nước uống, bảo dưỡng điều hòa</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-sm font-bold text-slate-800">7.500.000 đ</p>
+              <p class="text-xs text-slate-400 font-medium">6.0%</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-blue-50/60 rounded-xl p-3 border border-blue-100 text-xs text-blue-800 flex items-start gap-2">
+          <span class="material-symbols-outlined text-base text-blue-600 shrink-0 mt-0.5">info</span>
+          <div>
+            <p class="font-semibold">Quy tắc chuẩn hóa kỳ lương:</p>
+            <p class="text-blue-700/90 mt-0.5">Chi lương tự động tính theo <strong class="underline">kỳ lương khớp tháng đã chọn</strong>, kể cả khi ngày thanh toán thực tế lệch sang tháng dương lịch tiếp theo.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 4. Thống kê theo Chi nhánh (Branch Matrix) -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+      <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h3 class="font-bold text-slate-800 text-base">So sánh Hiệu quả Doanh thu giữa các Chi nhánh</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Tổng hợp đối soát chi tiết theo từng cơ sở đào tạo</p>
+        </div>
+        <div class="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-slate-100/80 px-3 py-1.5 rounded-lg">
+          <span class="material-symbols-outlined text-sm text-slate-500">domain</span>
+          <span>Đang hiển thị 3 chi nhánh đang hoạt động</span>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-sm">
+          <thead>
+            <tr class="bg-slate-50/80 text-slate-600 font-semibold border-b border-slate-200 text-xs uppercase tracking-wider">
+              <th class="py-3.5 px-6">Chi nhánh / Cơ sở</th>
+              <th class="py-3.5 px-6 text-right">Tổng thu</th>
+              <th class="py-3.5 px-6 text-right">Chi vận hành</th>
+              <th class="py-3.5 px-6 text-right">Doanh thu tạm tính</th>
+              <th class="py-3.5 px-6 text-center">Tỷ suất gộp</th>
+              <th class="py-3.5 px-6 text-center">Tình trạng</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <!-- Chi nhánh 1: Cầu Giấy -->
+            <tr class="hover:bg-slate-50/60 transition-colors">
+              <td class="py-4 px-6 font-semibold text-slate-800">
+                <div class="flex items-center gap-2.5">
+                  <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+                  <span>Cơ sở Cầu Giấy (CS1)</span>
+                </div>
+              </td>
+              <td class="py-4 px-6 text-right font-bold text-emerald-600">225.400.000 đ</td>
+              <td class="py-4 px-6 text-right font-semibold text-rose-600">68.250.000 đ</td>
+              <td class="py-4 px-6 text-right font-extrabold text-slate-900">+157.150.000 đ</td>
+              <td class="py-4 px-6 text-center">
+                <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700">69.7%</span>
+              </td>
+              <td class="py-4 px-6 text-center">
+                <span class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  Tăng trưởng tốt
+                </span>
+              </td>
+            </tr>
+
+            <!-- Chi nhánh 2: Đống Đa -->
+            <tr class="hover:bg-slate-50/60 transition-colors">
+              <td class="py-4 px-6 font-semibold text-slate-800">
+                <div class="flex items-center gap-2.5">
+                  <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                  <span>Cơ sở Đống Đa (CS2)</span>
+                </div>
+              </td>
+              <td class="py-4 px-6 text-right font-bold text-emerald-600">128.600.000 đ</td>
+              <td class="py-4 px-6 text-right font-semibold text-rose-600">36.400.000 đ</td>
+              <td class="py-4 px-6 text-right font-extrabold text-slate-900">+92.200.000 đ</td>
+              <td class="py-4 px-6 text-center">
+                <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700">71.7%</span>
+              </td>
+              <td class="py-4 px-6 text-center">
+                <span class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  Đạt chỉ tiêu
+                </span>
+              </td>
+            </tr>
+
+            <!-- Chi nhánh 3: Hai Bà Trưng -->
+            <tr class="hover:bg-slate-50/60 transition-colors">
+              <td class="py-4 px-6 font-semibold text-slate-800">
+                <div class="flex items-center gap-2.5">
+                  <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                  <span>Cơ sở Hai Bà Trưng (CS3)</span>
+                </div>
+              </td>
+              <td class="py-4 px-6 text-right font-bold text-emerald-600">64.500.000 đ</td>
+              <td class="py-4 px-6 text-right font-semibold text-rose-600">20.200.000 đ</td>
+              <td class="py-4 px-6 text-right font-extrabold text-slate-900">+44.300.000 đ</td>
+              <td class="py-4 px-6 text-center">
+                <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700">68.7%</span>
+              </td>
+              <td class="py-4 px-6 text-center">
+                <span class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  Ổn định
+                </span>
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr class="bg-slate-50 font-bold border-t-2 border-slate-200 text-slate-900">
+              <td class="py-4 px-6 uppercase text-xs tracking-wider">Tổng cộng toàn hệ thống</td>
+              <td class="py-4 px-6 text-right text-emerald-600 text-base font-extrabold">418.500.000 đ</td>
+              <td class="py-4 px-6 text-right text-rose-600 text-base font-extrabold">124.850.000 đ</td>
+              <td class="py-4 px-6 text-right text-brand text-base font-black">+293.650.000 đ</td>
+              <td class="py-4 px-6 text-center text-xs font-black">70.2%</td>
+              <td class="py-4 px-6 text-center text-xs font-semibold text-emerald-700">Tăng trưởng</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- 5. Ghi chú quy tắc nghiệp vụ cho Quản trị viên (Chị Liên) -->
+    <div class="bg-amber-50/70 rounded-2xl p-4 md:p-5 border border-amber-200/80 text-xs text-amber-900 space-y-2">
+      <div class="flex items-center gap-2 text-amber-800 font-bold text-sm">
+        <span class="material-symbols-outlined text-lg">lightbulb</span>
+        <span>Quy tắc vận hành & Tính toán số liệu Doanh thu tạm tính (Real-time):</span>
+      </div>
+      <ul class="list-disc list-inside space-y-1 text-amber-900/90 pl-1">
+        <li><strong>Nguồn Thu:</strong> Tổng hợp toàn bộ phiếu thu còn hiệu lực (bao gồm cả học phí khóa học và phụ thu) phát sinh trong tháng đang lọc. Phiếu bị Admin duyệt <em>"Đã hủy"</em> hóa đơn sẽ tự động bị loại bỏ ngay lập tức khỏi tổng thu.</li>
+        <li><strong>Nguồn Chi vận hành:</strong> Tổng hợp từ 2 nguồn: các khoản chi quản lý tự nhập trực tiếp tại Sổ khoản chi + Khoản chi lương tự động <code>SUM(thuc_nhan)</code> lấy từ các bảng lương có <code>ky_luong</code> khớp với tháng đã chọn (không phụ thuộc vào ngày chuyển tiền thực tế).</li>
+        <li><strong>Cập nhật tức thì (Không cache):</strong> Khi Quản trị viên thay đổi bộ lọc kỳ tháng hoặc chuyển đổi giữa các chi nhánh, 3 chỉ số chính sẽ được hệ thống tính toán lại tức thì để đảm bảo tính minh bạch và chuẩn xác tuyệt đối.</li>
+      </ul>
+    </div>
+
+  </div>
+
+</body>
+</html>

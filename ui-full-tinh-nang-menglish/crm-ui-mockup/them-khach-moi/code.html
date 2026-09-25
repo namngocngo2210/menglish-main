@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Thêm khách mới | MENGLISH</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Theme Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary": "#a23f00",
+                    "on-tertiary": "#ffffff",
+                    "on-tertiary-fixed": "#062100",
+                    "tertiary-fixed": "#93fb65",
+                    "on-primary-container": "#521c00",
+                    "on-secondary-container": "#faf7ff",
+                    "on-primary-fixed-variant": "#7c2e00",
+                    "primary-fixed": "#ffdbcd",
+                    "secondary-fixed-dim": "#bac3ff",
+                    "on-primary-fixed": "#360f00",
+                    "tertiary": "#256d00",
+                    "surface": "#f9f9ff",
+                    "on-tertiary-fixed-variant": "#1a5200",
+                    "surface-container-high": "#e3e8f9",
+                    "surface-bright": "#f9f9ff",
+                    "on-error-container": "#93000a",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-fixed-dim": "#ffb595",
+                    "primary-container": "#f5691a",
+                    "outline": "#8d7165",
+                    "secondary": "#1e43e7",
+                    "inverse-on-surface": "#ecf0ff",
+                    "background": "#f9f9ff",
+                    "inverse-primary": "#ffb595",
+                    "on-secondary-fixed-variant": "#002fc9",
+                    "surface-tint": "#a23f00",
+                    "outline-variant": "#e1bfb2",
+                    "surface-container-low": "#f1f3ff",
+                    "error-container": "#ffdad6",
+                    "inverse-surface": "#2a303d",
+                    "surface-dim": "#d4daea",
+                    "surface-container-highest": "#dde2f3",
+                    "on-background": "#161c27",
+                    "on-surface": "#161c27",
+                    "on-error": "#ffffff",
+                    "surface-container": "#e8eeff",
+                    "on-primary": "#ffffff",
+                    "on-tertiary-container": "#0e3500",
+                    "secondary-container": "#4160ff",
+                    "error": "#ba1a1a",
+                    "on-secondary-fixed": "#00105b",
+                    "tertiary-container": "#46a917",
+                    "secondary-fixed": "#dee0ff",
+                    "tertiary-fixed-dim": "#78de4b",
+                    "surface-variant": "#dde2f3",
+                    "on-surface-variant": "#594137",
+                    "on-secondary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sm": "8px",
+                    "gutter": "16px",
+                    "base": "8px",
+                    "sidebar-width": "260px",
+                    "lg": "24px",
+                    "md": "16px",
+                    "xs": "4px",
+                    "xl": "32px",
+                    "header-height": "64px"
+            },
+            "fontFamily": {
+                    "body-base": ["Be Vietnam Pro"],
+                    "body-small": ["Be Vietnam Pro"],
+                    "h2": ["Be Vietnam Pro"],
+                    "h3": ["Be Vietnam Pro"],
+                    "caption": ["Be Vietnam Pro"],
+                    "h1": ["Be Vietnam Pro"],
+                    "label": ["Be Vietnam Pro"],
+                    "code": ["JetBrains Mono"],
+                    "body-medium": ["Be Vietnam Pro"]
+            },
+            "fontSize": {
+                    "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                    "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                    "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+      body {
+        font-family: 'Be Vietnam Pro', sans-serif;
+      }
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .modal-overlay {
+        background-color: rgba(22, 28, 39, 0.4);
+        backdrop-filter: blur(4px);
+      }
+      .input-field:focus {
+        border-color: #a23f00;
+        box-shadow: 0 0 0 2px rgba(162, 63, 0, 0.1);
+        outline: none;
+      }
+    </style>
+</head>
+<body class="bg-surface font-body-base text-on-surface antialiased">
+<!-- Popup Component Only -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-md sm:p-lg">
+<!-- Overlay -->
+<div class="modal-overlay absolute inset-0"></div>
+<!-- Modal Container -->
+<div class="relative bg-surface-container-lowest w-full max-w-[560px] rounded-xl shadow-[0px_8px_24px_rgba(0,0,0,0.12)] border border-outline-variant overflow-hidden animate-in fade-in zoom-in duration-300">
+<!-- Header -->
+<div class="px-xl pt-xl pb-md flex items-center justify-between">
+<h2 class="font-h2 text-h2 text-primary">Thêm khách mới</h2>
+<button aria-label="Đóng" class="p-xs text-on-surface-variant hover:bg-surface-variant rounded-full transition-colors active:scale-95">
+<span class="material-symbols-outlined block">close</span>
+</button>
+</div>
+<!-- Form Content -->
+<form class="px-xl pb-xl space-y-md" id="add-lead-form">
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+<!-- Họ và tên -->
+<div class="flex flex-col gap-xs">
+<label class="font-body-medium text-body-medium text-on-surface-variant" for="full_name">
+                            Họ và tên <span class="text-error font-bold">*</span>
+</label>
+<input class="input-field w-full px-md py-sm bg-white border border-outline-variant rounded-lg font-body-base text-on-surface placeholder:text-outline/40 transition-all" id="full_name" name="full_name" placeholder="Nhập họ và tên khách" required="" type="text"/>
+</div>
+<!-- Số điện thoại -->
+<div class="flex flex-col gap-xs">
+<label class="font-body-medium text-body-medium text-on-surface-variant" for="phone">
+                            Số điện thoại <span class="text-error font-bold">*</span>
+</label>
+<input class="input-field w-full px-md py-sm bg-white border border-outline-variant rounded-lg font-body-base text-on-surface placeholder:text-outline/40 transition-all" id="phone" name="phone" placeholder="Nhập số điện thoại" required="" type="tel"/>
+</div>
+</div>
+<!-- Tên phụ huynh -->
+<div class="flex flex-col gap-xs">
+<label class="font-body-medium text-body-medium text-on-surface-variant" for="parent_name">
+                        Tên phụ huynh (tùy chọn)
+                    </label>
+<input class="input-field w-full px-md py-sm bg-white border border-outline-variant rounded-lg font-body-base text-on-surface placeholder:text-outline/40 transition-all" id="parent_name" name="parent_name" placeholder="Nhập tên phụ huynh nếu có" type="text"/>
+</div>
+<!-- Nguồn khách -->
+<div class="flex flex-col gap-xs">
+<label class="font-body-medium text-body-medium text-on-surface-variant" for="nguon_lead">
+                        Nguồn khách <span class="text-error font-bold">*</span>
+</label>
+<div class="relative">
+<select class="input-field w-full appearance-none px-md py-sm bg-white border border-outline-variant rounded-lg font-body-base text-on-surface pr-10 cursor-pointer transition-all" id="nguon_lead" name="nguon_lead" required="">
+<option disabled="" selected="" value="">Chọn nguồn khách</option>
+<option value="Landing page">Trang giới thiệu (Landing page)</option>
+<option value="Marketing">Truyền thông (Marketing)</option>
+<option value="Giới thiệu">Được giới thiệu</option>
+<option value="Vãng lai">Khách vãng lai</option>
+<option value="Tiktok">Tiktok</option>
+<option value="Facebook">Facebook</option>
+<option value="Google Ads">Google Ads</option>
+<option value="Chị Liên">Chị Liên</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">keyboard_arrow_down</span>
+</div>
+</div>
+<!-- Chi nhánh -->
+<div class="flex flex-col gap-xs">
+<label class="font-body-medium text-body-medium text-on-surface-variant" for="nhom_khach_hang_">
+                        Chi nhánh <span class="text-error font-bold">*</span>
+</label>
+<div class="relative">
+<select class="input-field w-full appearance-none px-md py-sm bg-white border border-outline-variant rounded-lg font-body-base text-on-surface pr-10 cursor-pointer transition-all" id="nhom_khach_hang_" name="nhom_khach_hang_" required="">
+<option disabled="" selected="" value="">Chọn cơ sở học tập</option>
+<option value="Cơ sở Đội Cấn">Cơ sở Đội Cấn</option>
+<option value="Cơ sở Ngọc Hà">Cơ sở Ngọc Hà</option>
+<option value="Cơ sở Hoàng Hoa Thám">Cơ sở Hoàng Hoa Thám</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">location_on</span>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="pt-lg flex items-center justify-end gap-md">
+<button class="px-xl py-sm bg-transparent border border-outline-variant text-on-surface-variant font-body-medium rounded-lg hover:bg-surface-variant hover:text-on-surface transition-all active:scale-95 duration-150" type="button">
+                        Hủy
+                    </button>
+<button class="px-xl py-sm bg-primary-container text-on-tertiary font-body-medium rounded-lg shadow-sm hover:shadow-md hover:brightness-110 transition-all active:scale-95 duration-150 flex items-center gap-xs" type="submit">
+                        Lưu thông tin
+                    </button>
+</div>
+</form>
+</div>
+</div>
+<!-- Micro-interaction Script -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('add-lead-form');
+            const overlay = document.querySelector('.modal-overlay');
+            const cancelButton = document.querySelector('button[type="button"]');
+            const closeButton = document.querySelector('button[aria-label="Đóng"]');
+
+            // Form submission logic
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const btn = form.querySelector('button[type="submit"]');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Đang lưu...';
+                btn.classList.add('opacity-80', 'cursor-not-allowed');
+                
+                setTimeout(() => {
+                    alert('Đã thêm khách hàng mới thành công!');
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('opacity-80', 'cursor-not-allowed');
+                }, 1000);
+            });
+
+            // Dismiss modal simulation
+            const closeModal = () => {
+                const modal = document.querySelector('.animate-in');
+                modal.classList.remove('animate-in', 'fade-in', 'zoom-in');
+                modal.classList.add('animate-out', 'fade-out', 'zoom-out');
+                setTimeout(() => {
+                    alert('Đã đóng cửa sổ thêm mới.');
+                }, 300);
+            };
+
+            overlay.addEventListener('click', closeModal);
+            cancelButton?.addEventListener('click', closeModal);
+            closeButton?.addEventListener('click', closeModal);
+        });
+    </script>
+</body></html>

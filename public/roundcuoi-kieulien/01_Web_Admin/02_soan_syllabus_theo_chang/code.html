@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Soạn syllabus theo chặng | MENGLISH Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@100;300;400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "on-secondary": "#ffffff",
+                "primary": "#a23f00",
+                "surface-tint": "#a23f00",
+                "inverse-primary": "#ffb595",
+                "surface-container-highest": "#dde2f3",
+                "tertiary": "#256d00",
+                "on-surface-variant": "#594137",
+                "on-tertiary-fixed": "#062100",
+                "on-secondary-fixed-variant": "#002fc9",
+                "on-secondary-container": "#faf7ff",
+                "on-primary-fixed-variant": "#7c2e00",
+                "secondary-fixed-dim": "#bac3ff",
+                "outline-variant": "#e1bfb2",
+                "on-tertiary": "#ffffff",
+                "primary-fixed": "#ffdbcd",
+                "inverse-surface": "#2a303d",
+                "background": "#f9f9ff",
+                "secondary-container": "#4160ff",
+                "primary-fixed-dim": "#ffb595",
+                "primary-container": "#f5691a",
+                "secondary-fixed": "#dee0ff",
+                "on-tertiary-container": "#0e3500",
+                "error-container": "#ffdad6",
+                "tertiary-fixed-dim": "#78de4b",
+                "tertiary-container": "#46a917",
+                "on-secondary-fixed": "#00105b",
+                "inverse-on-surface": "#ecf0ff",
+                "surface-container": "#e8eeff",
+                "surface-bright": "#f9f9ff",
+                "surface-container-lowest": "#ffffff",
+                "surface-variant": "#dde2f3",
+                "tertiary-fixed": "#93fb65",
+                "error": "#ba1a1a",
+                "on-surface": "#161c27",
+                "on-error-container": "#93000a",
+                "on-primary-container": "#521c00",
+                "surface-dim": "#d4daea",
+                "on-error": "#ffffff",
+                "surface-container-high": "#e3e8f9",
+                "on-primary": "#ffffff",
+                "on-primary-fixed": "#360f00",
+                "outline": "#8d7165",
+                "surface": "#f9f9ff",
+                "surface-container-low": "#f1f3ff",
+                "on-tertiary-fixed-variant": "#1a5200",
+                "secondary": "#1e43e7",
+                "on-background": "#161c27"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "xl": "32px",
+                "sm": "8px",
+                "lg": "24px",
+                "sidebar-width": "260px",
+                "header-height": "64px",
+                "base": "8px",
+                "md": "16px",
+                "gutter": "16px",
+                "xs": "4px"
+        },
+        "fontFamily": {
+                "code": [
+                        "JetBrains Mono"
+                ],
+                "caption": [
+                        "Be Vietnam Pro"
+                ],
+                "h2": [
+                        "Be Vietnam Pro"
+                ],
+                "h3": [
+                        "Be Vietnam Pro"
+                ],
+                "h1": [
+                        "Be Vietnam Pro"
+                ],
+                "body-base": [
+                        "Be Vietnam Pro"
+                ],
+                "label": [
+                        "Be Vietnam Pro"
+                ],
+                "body-medium": [
+                        "Be Vietnam Pro"
+                ],
+                "body-small": [
+                        "Be Vietnam Pro"
+                ]
+        },
+        "fontSize": {
+                "code": [
+                        "13px",
+                        {
+                                "lineHeight": "18px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "caption": [
+                        "11px",
+                        {
+                                "lineHeight": "16px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "h2": [
+                        "22px",
+                        {
+                                "lineHeight": "30px",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "h3": [
+                        "18px",
+                        {
+                                "lineHeight": "26px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "h1": [
+                        "28px",
+                        {
+                                "lineHeight": "36px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "body-base": [
+                        "14px",
+                        {
+                                "lineHeight": "20px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "label": [
+                        "11px",
+                        {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-medium": [
+                        "14px",
+                        {
+                                "lineHeight": "20px",
+                                "fontWeight": "500"
+                        }
+                ],
+                "body-small": [
+                        "13px",
+                        {
+                                "lineHeight": "18px",
+                                "fontWeight": "400"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; background-color: #f9f9ff; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .rich-text-editor { min-height: 120px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e1bfb2; border-radius: 10px; }
+        .input-focus:focus { border-color: #a23f00; box-shadow: 0 0 0 2px rgba(162, 63, 0, 0.1); outline: none; }
+    </style>
+</head>
+<body class="text-on-surface antialiased">
+<!-- Main Content Container -->
+<main class="max-w-5xl mx-auto px-lg py-xl pb-32">
+<!-- Header -->
+<header class="mb-xl">
+<h1 class="font-h1 text-h1 text-on-surface mb-xs">Soạn syllabus theo chặng</h1>
+<p class="font-body-base text-on-surface-variant">Thiết lập cấu trúc chương trình học và nội dung chi tiết từng buổi</p>
+</header>
+<!-- Section 1: Thông tin chung -->
+<section class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg mb-xl shadow-sm">
+<div class="flex items-center gap-sm mb-lg">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">info</span>
+<h2 class="font-h3 text-h3">Thông tin chung chặng học</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg">
+<div class="space-y-sm">
+<label class="font-label text-label text-on-surface-variant uppercase">Tên chặng học <span class="text-error">*</span></label>
+<input class="w-full h-11 px-md rounded-lg border border-outline-variant bg-white text-body-base input-focus transition-all" placeholder="Ví dụ: Chặng 1: Xây dựng nền tảng" type="text"/>
+</div>
+<div class="space-y-sm">
+<label class="font-label text-label text-on-surface-variant uppercase">Chính sách mở khóa</label>
+<div class="relative">
+<select class="w-full h-11 pl-md pr-xl rounded-lg border border-outline-variant bg-white text-body-base input-focus appearance-none transition-all">
+<option>Mở khóa theo tuần</option>
+<option>Hoàn thành bài kiểm tra mới được mở</option>
+<option>Mở khóa thủ công</option>
+</select>
+<span class="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
+</div>
+</div>
+<div class="md:col-span-2 space-y-sm">
+<label class="font-label text-label text-on-surface-variant uppercase">Link ảnh/tài liệu tổng quan chặng (overview_link)</label>
+<div class="flex gap-md">
+<input class="flex-1 h-11 px-md rounded-lg border border-outline-variant bg-white text-body-base input-focus transition-all" placeholder="https://example.com/image-syllabus.jpg" type="text"/>
+<button class="px-lg h-11 rounded-lg border border-outline bg-white text-on-surface font-body-medium hover:bg-surface-container-low transition-all flex items-center gap-xs">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+                            Xem thử
+                        </button>
+</div>
+</div>
+<!-- Image Preview Area -->
+<div class="md:col-span-2 mt-md">
+<div class="w-full h-64 rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low flex flex-col items-center justify-center overflow-hidden relative group">
+<div class="absolute inset-0 bg-cover bg-center opacity-40 group-hover:opacity-60 transition-opacity" data-alt="A professional educational syllabus overview document layout with clean typography, bullet points, and orange branding accents on a white high-quality paper background. The lighting is bright and modern, suggesting a well-structured academic plan. Minimalist design with high contrast and clear information hierarchy." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA9No6KgVR76qfyqUILg3VggTytJuA4mdC_2xzlG3krLSqg1f7cUkHRB76jgM-tLUIpipYITV8h0Da4Xv34gjdLzxDKzC0j1nAeUwk49B6o7I6Bbrntx8BfH3NbOEdzu4Ilk2J-aUyjZx372hg--JRT-xRZZAERCskeAZC28H_3YvqO1A911hieD7dccXk6VGER5_hVUXp4TLzq-2_fyyAIR8fAGMZ1mkdsQe3MrRhV8etqxTutLRXFpqttP2BIEz-AxjgxgQSvZn4')"></div>
+<div class="z-10 flex flex-col items-center text-on-surface-variant text-center px-lg">
+<span class="material-symbols-outlined text-[48px] mb-xs">image</span>
+<p class="font-body-base font-medium">Khu vực hiển thị preview ảnh mục lục tổng quan</p>
+<p class="font-caption text-caption">Nhập link bên trên để hiển thị hình ảnh</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 2: Danh sách buổi học -->
+<section class="space-y-lg">
+<div class="flex items-center justify-between mb-md">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">menu_book</span>
+<h2 class="font-h3 text-h3">Danh sách buổi học trong chặng</h2>
+</div>
+<span class="px-md py-1 bg-primary-fixed/50 text-primary font-label text-label rounded-full">Tổng số: 02 buổi</span>
+</div>
+<!-- List of Lessons -->
+<div class="space-y-lg" id="lessons-container">
+<!-- Lesson 1 Card -->
+<div class="group bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm relative">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+<div class="p-lg">
+<div class="flex justify-between items-start mb-lg">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center font-bold text-primary">1</div>
+<input class="font-h3 text-h3 bg-transparent border-none p-0 focus:ring-0 w-[400px]" type="text" value="Buổi 1: Introduction to IELTS"/>
+</div>
+<button class="p-2 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-colors">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+<div class="grid grid-cols-1 gap-lg">
+<div class="space-y-sm">
+<label class="font-label text-label text-on-surface-variant uppercase">Mục tiêu buổi học (Target)</label>
+<textarea class="w-full min-h-[80px] p-md rounded-lg border border-outline-variant bg-white text-body-base input-focus resize-none" placeholder="Người học cần đạt được điều gì sau buổi này..."></textarea>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg">
+<div class="space-y-sm">
+<label class="font-label text-label text-on-surface-variant uppercase flex items-center justify-between">
+                                        Nội dung bài học chính
+                                        <span class="material-symbols-outlined text-[18px] text-primary cursor-help" title="Hỗ trợ Markdown">info</span>
+</label>
+<div class="border border-outline-variant rounded-lg bg-white overflow-hidden">
+<div class="flex items-center gap-sm px-md py-xs border-b border-outline-variant bg-surface-container-low">
+<button class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant"><span class="material-symbols-outlined text-[20px]">format_bold</span></button>
+<button class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant"><span class="material-symbols-outlined text-[20px]">format_italic</span></button>
+<button class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant"><span class="material-symbols-outlined text-[20px]">format_list_bulleted</span></button>
+<button class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant ml-auto"><span class="material-symbols-outlined text-[20px]">link</span></button>
+</div>
+<textarea class="w-full min-h-[160px] p-md border-none focus:ring-0 text-body-base" placeholder="Nhập nội dung chi tiết..."></textarea>
+</div>
+</div>
+<div class="space-y-sm">
+<label class="font-label text-label text-on-surface-variant uppercase">Bài tập về nhà (Homework)</label>
+<div class="border border-outline-variant rounded-lg bg-white overflow-hidden">
+<div class="flex items-center gap-sm px-md py-xs border-b border-outline-variant bg-surface-container-low">
+<button class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant"><span class="material-symbols-outlined text-[20px]">format_list_numbered</span></button>
+<button class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant"><span class="material-symbols-outlined text-[20px]">checklist</span></button>
+<button class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant ml-auto"><span class="material-symbols-outlined text-[20px]">attach_file</span></button>
+</div>
+<textarea class="w-full min-h-[160px] p-md border-none focus:ring-0 text-body-base" placeholder="Ghi chú bài tập hoặc link bài tập..."></textarea>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Lesson 2 Card (Minimal Example) -->
+<div class="group bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm relative opacity-90">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+<div class="p-lg">
+<div class="flex justify-between items-start mb-lg">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center font-bold text-primary">2</div>
+<input class="font-h3 text-h3 bg-transparent border-none p-0 focus:ring-0 w-[400px]" placeholder="Tên buổi học..." type="text"/>
+</div>
+<button class="p-2 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-colors">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+<div class="text-center py-xl border-2 border-dashed border-outline-variant rounded-lg bg-surface-container-low/50">
+<button class="text-primary font-body-medium flex items-center gap-xs mx-auto hover:underline">
+<span class="material-symbols-outlined text-[20px]">edit_note</span>
+                                Click để nhập nội dung buổi 2
+                            </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Add Lesson Button -->
+<button class="w-full py-xl border-2 border-dashed border-outline-variant rounded-xl flex flex-col items-center justify-center gap-sm text-on-surface-variant hover:bg-white hover:border-primary/50 hover:text-primary transition-all group">
+<div class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center group-hover:bg-primary-fixed transition-colors">
+<span class="material-symbols-outlined text-[28px]">add</span>
+</div>
+<span class="font-body-medium">Thêm buổi học mới vào chặng</span>
+</button>
+</section>
+</main>
+<!-- Action Bar (Sticky Bottom) -->
+<div class="fixed bottom-0 left-0 right-0 bg-white border-t border-outline-variant py-md px-xl z-50 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
+<div class="max-w-5xl mx-auto flex items-center justify-between">
+<div class="flex items-center gap-md text-on-surface-variant">
+<span class="material-symbols-outlined text-tertiary">check_circle</span>
+<span class="font-body-small">Đã tự động lưu nháp lúc 14:30</span>
+</div>
+<div class="flex items-center gap-md">
+<button class="px-xl h-11 rounded-lg border border-outline bg-white text-on-surface font-body-medium hover:bg-surface-container-low transition-all active:scale-95 duration-200">
+                    Hủy
+                </button>
+<button class="px-xl h-11 rounded-lg bg-primary-container text-white font-body-medium shadow-sm hover:opacity-90 transition-all active:scale-95 duration-200 flex items-center gap-sm">
+                    Lưu chặng học
+                    <span class="material-symbols-outlined text-[20px]">save</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Micro-interaction Script -->
+<script>
+        document.querySelectorAll('input, textarea, select').forEach(element => {
+            element.addEventListener('focus', function() {
+                this.closest('.group')?.classList.add('ring-1', 'ring-primary/20');
+            });
+            element.addEventListener('blur', function() {
+                this.closest('.group')?.classList.remove('ring-1', 'ring-primary/20');
+            });
+        });
+
+        // Simple tab/interaction simulation for Rich Text Buttons
+        document.querySelectorAll('.rich-text-editor button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                btn.classList.toggle('bg-primary-fixed');
+                btn.classList.toggle('text-primary');
+            });
+        });
+    </script>
+</body></html>

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rollup thu học phí theo lớp - MENGLISH Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Be Vietnam Pro"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#fff7ed',
+              100: '#ffedd5',
+              500: '#f5691a',
+              600: '#ea580c',
+              700: '#c2410c',
+            },
+            surface: {
+              DEFAULT: '#f8fafc',
+              container: '#ffffff',
+              subtle: '#f1f5f9',
+            },
+            navy: {
+              900: '#0f172a',
+              800: '#1e293b',
+              700: '#334155',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Be Vietnam Pro', sans-serif;
+      background-color: #f8fafc;
+      color: #1e293b;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+  </style>
+</head>
+<body class="p-6 md:p-8 min-h-screen bg-slate-50 text-slate-800">
+  <!-- Điểm ảnh đầu tiên bắt đầu trực tiếp từ tiêu đề màn hình theo đúng yêu cầu -->
+  <div class="max-w-[1720px] mx-auto space-y-6">
+    
+    <!-- Header Section -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 pb-5">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
+          Rollup thu học phí theo lớp
+        </h1>
+        <p class="text-sm text-slate-500 mt-1">
+          Bảng tổng hợp tình hình thu học phí của học sinh theo từng đợt phát sinh thực tế (Chế độ xem dữ liệu)
+        </p>
+      </div>
+
+      <!-- Quick KPI Badges / Indicators -->
+      <div class="flex items-center gap-3">
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          Đang xem dữ liệu thực thu đã duyệt
+        </div>
+        <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-medium border border-slate-200">
+          <span class="material-symbols-outlined text-[16px]">visibility</span>
+          Chỉ xem (Không chỉnh sửa)
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter & Control Section -->
+    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div class="w-full md:w-96">
+        <label for="class-select" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+          Lớp học <span class="text-brand-500">*</span>
+        </label>
+        <div class="relative">
+          <select id="class-select" class="w-full pl-3.5 pr-10 py-2.5 text-sm bg-white border border-slate-300 rounded-lg text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all appearance-none cursor-pointer">
+            <option value="ENG-K12-A1" selected>ENG-K12-A1 — Tiếng Anh Giao Tiếp Nâng Cao (GV: Thầy David Lê)</option>
+            <option value="KID-BEG-01">KID-BEG-01 — Thiếu nhi Khởi động 1 (GV: Cô Mai Anh)</option>
+            <option value="IELT-FOU-02">IELT-FOU-02 — Nền tảng Luyện thi IELTS (GV: Cô Jennifer)</option>
+            <option value="TEEN-INT-01">TEEN-INT-01 — Thiếu niên Trung cấp (GV: Thầy Tuấn Anh)</option>
+          </select>
+          <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+            <span class="material-symbols-outlined text-xl">expand_more</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Class Summary Meta -->
+      <div class="flex flex-wrap items-center gap-4 text-xs md:text-sm text-slate-600 bg-slate-50 px-4 py-2.5 rounded-lg border border-slate-200">
+        <div>
+          <span class="text-slate-400">Sĩ số lớp:</span>
+          <span class="font-bold text-slate-800 ml-1">08 học sinh</span>
+        </div>
+        <div class="h-4 w-px bg-slate-300"></div>
+        <div>
+          <span class="text-slate-400">Số đợt phát sinh:</span>
+          <span class="font-bold text-brand-600 ml-1">02 đợt</span>
+        </div>
+        <div class="h-4 w-px bg-slate-300"></div>
+        <div>
+          <span class="text-slate-400">Chi nhánh:</span>
+          <span class="font-semibold text-slate-800 ml-1">Cơ sở Cầu Giấy, Hà Nội</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Rollup Table Container -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <!-- Table Scroll Wrapper -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse min-w-[1280px]">
+          <thead>
+            <!-- Level 1 Header: Fixed Group & Dynamic Period Groups -->
+            <tr class="bg-slate-100/90 text-xs font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200">
+              <!-- Nhóm cột cố định -->
+              <th colspan="4" class="px-4 py-3 border-r border-slate-300 text-slate-700 bg-slate-100">
+                Thông tin học sinh
+              </th>
+              
+              <!-- Nhóm đợt 1: 01/08/2026 - 31/10/2026 -->
+              <th colspan="4" class="px-4 py-3 border-r border-slate-300 text-brand-700 bg-orange-50/70 text-center">
+                <div class="flex items-center justify-center gap-1.5 font-bold">
+                  <span class="material-symbols-outlined text-[17px] text-brand-500">date_range</span>
+                  Đợt 1: 01/08/2026 – 31/10/2026
+                </div>
+              </th>
+
+              <!-- Nhóm đợt 2: 01/11/2026 - 31/01/2027 -->
+              <th colspan="4" class="px-4 py-3 text-brand-700 bg-amber-50/70 text-center">
+                <div class="flex items-center justify-center gap-1.5 font-bold">
+                  <span class="material-symbols-outlined text-[17px] text-brand-500">date_range</span>
+                  Đợt 2: 01/11/2026 – 31/01/2027
+                </div>
+              </th>
+            </tr>
+
+            <!-- Level 2 Header: Individual Columns -->
+            <tr class="bg-slate-50 text-xs font-semibold text-slate-700 border-b border-slate-200">
+              <!-- Cột cố định -->
+              <th class="w-14 px-3 py-3 text-center border-r border-slate-200 bg-slate-50/80">STT</th>
+              <th class="min-w-[190px] px-4 py-3 border-r border-slate-200 bg-slate-50/80">Họ tên</th>
+              <th class="w-28 px-4 py-3 border-r border-slate-200 bg-slate-50/80">Ngày sinh</th>
+              <th class="min-w-[160px] px-4 py-3 border-r-2 border-slate-300 bg-slate-50/80">Trường</th>
+
+              <!-- Cột đợt 1 lặp -->
+              <th class="w-36 px-4 py-3 text-right font-bold text-slate-800 bg-orange-50/30 border-r border-slate-200">Thực thu</th>
+              <th class="min-w-[150px] px-4 py-3 bg-orange-50/30 border-r border-slate-200">Tình trạng</th>
+              <th class="w-36 px-4 py-3 bg-orange-50/30 border-r border-slate-200">Hình thức nộp</th>
+              <th class="w-32 px-4 py-3 bg-orange-50/30 border-r-2 border-slate-300">Số hóa đơn</th>
+
+              <!-- Cột đợt 2 lặp -->
+              <th class="w-36 px-4 py-3 text-right font-bold text-slate-800 bg-amber-50/30 border-r border-slate-200">Thực thu</th>
+              <th class="min-w-[150px] px-4 py-3 bg-amber-50/30 border-r border-slate-200">Tình trạng</th>
+              <th class="w-36 px-4 py-3 bg-amber-50/30 border-r border-slate-200">Hình thức nộp</th>
+              <th class="w-32 px-4 py-3 bg-amber-50/30">Số hóa đơn</th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-slate-200 text-xs md:text-sm">
+            <!-- Row 1 -->
+            <tr class="hover:bg-slate-50/80 transition-colors">
+              <td class="px-3 py-3.5 text-center font-medium text-slate-400 border-r border-slate-200">1</td>
+              <td class="px-4 py-3.5 font-semibold text-slate-900 border-r border-slate-200">Nguyễn Hoàng Nam</td>
+              <td class="px-4 py-3.5 text-slate-600 border-r border-slate-200">14/05/2012</td>
+              <td class="px-4 py-3.5 text-slate-600 border-r-2 border-slate-300">THCS Đoàn Thị Điểm</td>
+
+              <!-- Đợt 1 -->
+              <td class="px-4 py-3.5 text-right font-semibold text-slate-900 border-r border-slate-200 bg-orange-50/10">6.500.000 đ</td>
+              <td class="px-4 py-3.5 border-r border-slate-200 bg-orange-50/10">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                  Đã hoàn tất
+                </span>
+              </td>
+              <td class="px-4 py-3.5 text-slate-700 border-r border-slate-200 bg-orange-50/10">Chuyển khoản</td>
+              <td class="px-4 py-3.5 text-slate-400 italic border-r-2 border-slate-300 bg-orange-50/10">—</td>
+
+              <!-- Đợt 2 -->
+              <td class="px-4 py-3.5 text-right font-semibold text-slate-900 border-r border-slate-200 bg-amber-50/10">6.500.000 đ</td>
+              <td class="px-4 py-3.5 border-r border-slate-200 bg-amber-50/10">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                  Đã hoàn tất
+                </span>
+              </td>
+              <td class="px-4 py-3.5 text-slate-700 border-r border-slate-200 bg-amber-50/10">Chuyển khoản</td>
+              <td class="px-4 py-3.5 text-slate-400 italic bg-amber-50/10">—</td>
+            </tr>
+
+            <!-- Row 2 -->
+            <tr class="hover:bg-slate-50/80 transition-colors bg-slate-50/30">
+              <td class="px-3 py-3.5 text-center font-medium text-slate-400 border-r border-slate-200">2</td>
+              <td class="px-4 py-3.5 font-semibold text-slate-900 border-r border-slate-200">Trần Thu Trang</td>
+              <td class="px-4 py-3.5 text-slate-600 border-r border-slate-200">22/09/2012</td>
+              <td class="px-4 py-3.5 text-slate-600 border-r-2 border-slate-300">THCS Cầu Giấy</td>
+
+              <!-- Đợt 1 -->
+              <td class="px-4 py-3.5 text-right font-semibold text-slate-900 border-r border-slate-200 bg-orange-50/10">6.500.000 đ</td>
+              <td class="px-4 py-3.5 border-r border-slate-200 bg-orange-50/10">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                  Đã hoàn tất
+                </span>
+              </td>
+              <td class="px-4 py-3.5 text-slate-700 border-r border-slate-200 bg-orange-50/10">Tiền mặt</td>
+              <td class="px-4 py-3.5 font-mono text-xs text-slate-800 font-medium border-r-2 border-slate-300 bg-orange-50/10">HD-2026-0819</td>
+
+              <!-- Đợt 2 -->
+              <td class="px-4 py-3.5 text-right font-semibold text-slate-900 border-r border-slate-200 bg-amber-50/10">3.500.000 đ</td>
+              <td class="px-4 py-3.5 border-r border-slate-200 bg-amber-50/10">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                  Nộp đợt 1 (còn 3tr)
+                </span>
+              </td>
+              <td class="px-4 py-3.5 text-slate-700 border-r border-slate-200 bg-amber-50/10">Tiền mặt</td>
+              <td class="px-4 py-3.5 font-mono text-xs text-slate-800 font-medium bg-amber-50/10">HD-2026-1102</td>
+            </tr>
+
+            <!-- Row 3 -->
+            <tr class="hover:bg-slate-50/80 transition-colors">
+              <td class="px-3 py-3.5 text-center font-medium text-slate-400 border-r border-slate-200">3</td>
+              <td class="px-4 py-3.5 font-semibold text-slate-900 border-r border-slate-200">Vũ Tiến Dũng</td>
+              <td class="px-4 py-3.5 text-slate-600 border-r border-slate-200">05/11/2011</td>
+              <td class="px-4 py-3.5 text-slate-600 border-r-2 border-slate-300">THCS Yên Hòa</td>
+
+              <!-- Đợt 1: Nhiều lần nộp -->
+              <td class="px-4 py-3.5 text-right font-semibold text-slate-900 border-r border-slate-200 bg-orange-50/10">6.500.000 đ</td>
+              <td class="px-4 py-3.5 border-r border-slate-200 bg-orange-50/10">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                  Hoàn tất (2 lần)
+                </span>
+              </td>
+              <td class="px-4 py-3.5 text-slate-700 border-r border-slate-200 bg-orange-50/10">Chuyển khoản, Tiền mặt</td>
+              <td class="px-4 py-3.5 font-mono text-xs text-slate-800 font-medium border-r-2 border-slate-300 bg-orange-50/10">HD-2026-0834</td>
+
+              <!-- Đợt 2 -->
+              <td class="px-4 py-3.5 text-right font-semibold text-slate-900 border-r border-slate-200 bg-amber-50/10">6.500.000 đ</td>
+              <td class="px-4 py-3.5 border-r border-slate-200 bg-amber-50/10">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                  Đã hoàn tất
+                </span>
+              </td>
+              <td class="px-4 py-3.5 text-slate-700 border-r border-slate-200 bg-amber-50/10">Chuyển khoản</td>
+              <td class="px-4 py-3.5 text-slate-400 italic bg-amber-50/10">—</td>
+            </tr>
+
+            <!-- Row 4 -->
+            <tr class="hover:bg-slate-50/80 transition-colors bg-slate-50/30">
+              <td class="px-3 py-3.5 text-center font-medium text-slate-400 border-r border-slate-200">4</td>
+              <td class="px-4 py-3.5 font-semibold text-slate-900 border-r border-slate-200">Đặng Linh Nhi</td>
+              <td class="px-4 py-3.5 text-slate-600 border-r border-slate-200">18/02/2012</td>
+              <td class="px-4 py-3.5 text-slate-600 border-r-2 border-slate-300">THCS Dịch Vọng Hậu</td>
+
+              <!-- Đợt 1 -->
+              <td class="px-4 py-3.5 text-right font-semibold text-slate-900 border-r border-slate-200 bg-orange-50/10">6.500.000 đ</td>
+              <td class="px-4 py-3.5 border-r border-slate-200 bg-orange-50/10">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                  Đã hoàn tất
+                </span>
+              </td>
+              <td class="px-4 py-3.5 text-slate-700 border-r border-slate-200 bg-orange-50/10">Chuyển khoản</td>
+              <td class="px-4 py-3.5 text-slate-400 italic border-r-2 border-slate-300 bg-orange-50/10">—</td>
+
+              <!-- Đợt 2: Chưa đóng -->
+              <td class="px-4 py-3.5 text-right font-medium text-slate-400 border-r border-slate-200 bg-amber-50/10">0 đ</td>
+              <td class="px-4 py-3.5 border-r border-slate-200 bg-amber-50/10">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-rose-100 text-rose-800">
+                  Chưa nộp
+                </span>
+              </td>
+              <td class="px-4 py-3.5 text-slate-400 italic border-r border-slate-200 bg-amber-50/10">—</td>
+              <td class="px-4 py-3.5 text-slate-400 italic bg-amber-50/10">—</td>
+            </tr>
+
+            <!-- Row 5 -->
+            <tr class="hover:bg-slate-50/80 transition-colors">
+              <td class="px-3 py-3.5 text-center font-medium text-slate-400 border-r border-slate-200">5</td>
+              <td class="px-4 py-3.5 font-semibold text-slate-900 border-r border-slate-200">Phan Quốc Việt</td>
+              <td class="px-4 py-3.5 text-slate-600 border-r border-slate-200">30/08/2012</td>
+              <td class="px-4 py-3.5 text-slate-600 border-r-2 border-slate-300">THCS Nghĩa Tân</td>
+
+              <!-- Đợt 1 -->
+              <td class="px-4 py-3.5 text-right font-semibold text-slate-900 border-r border-slate-200 bg-orange-50/10">6.500.000 đ</td>
+              <td class="px-4 py-3.5 border-r border-slate-200 bg-orange-50/10">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                  Đã hoàn tất
+                </span>
+              </td>
+              <td class="px-4 py-3.5 text-slate-700 border-r border-slate-200 bg-orange-50/10">Chuyển khoản</td>
+              <td class="px-4 py-3.5 text-slate-400 italic border-r-2 border-slate-300 bg-orange-50/10">—</td>
+
+              <!-- Đợt 2 -->
+              <td class="px-4 py-3.5 text-right font-semibold text-slate-900 border-r border-slate-200 bg-amber-50/10">6.500.000 đ</td>
+              <td class="px-4 py-3.5 border-r border-slate-200 bg-amber-50/10">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                  Đã hoàn tất
+                </span>
+              </td>
+              <td class="px-4 py-3.5 text-slate-700 border-r border-slate-200 bg-amber-50/10">Chuyển khoản</td>
+              <td class="px-4 py-3.5 text-slate-400 italic bg-amber-50/10">—</td>
+            </tr>
+
+            <!-- Row 6 -->
+            <tr class="hover:bg-slate-50/80 transition-colors bg-slate-50/30">
+              <td class="px-3 py-3.5 text-center font-medium text-slate-400 border-r border-slate-200">6</td>
+              <td class="px-4 py-3.5 font-semibold text-slate-900 border-r border-slate-200">Lê Bảo Trâm</td>
+              <td class="px-4 py-3.5 text-slate-600 border-r border-slate-200">12/03/2012</td>
+              <td class="px-4 py-3.5 text-slate-600 border-r-2 border-slate-300">THCS Lê Quý Đôn</td>
+
+              <!-- Đợt 1 -->
+              <td class="px-4 py-3.5 text-right font-semibold text-slate-900 border-r border-slate-200 bg-orange-50/10">6.500.000 đ</td>
+              <td class="px-4 py-3.5 border-r border-slate-200 bg-orange-50/10">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                  Đã hoàn tất
+                </span>
+              </td>
+              <td class="px-4 py-3.5 text-slate-700 border-r border-slate-200 bg-orange-50/10">Tiền mặt</td>
+              <td class="px-4 py-3.5 font-mono text-xs text-slate-800 font-medium border-r-2 border-slate-300 bg-orange-50/10">HD-2026-0850</td>
+
+              <!-- Đợt 2: Đóng 2 lần tiền mặt -->
+              <td class="px-4 py-3.5 text-right font-semibold text-slate-900 border-r border-slate-200 bg-amber-50/10">6.500.000 đ</td>
+              <td class="px-4 py-3.5 border-r border-slate-200 bg-amber-50/10">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                  Đã hoàn tất (2 lần)
+                </span>
+              </td>
+              <td class="px-4 py-3.5 text-slate-700 border-r border-slate-200 bg-amber-50/10">Tiền mặt</td>
+              <td class="px-4 py-3.5 font-mono text-xs text-slate-800 font-medium bg-amber-50/10">HD-2026-1110, HD-2026-1142</td>
+            </tr>
+
+            <!-- Row 7 -->
+            <tr class="hover:bg-slate-50/80 transition-colors">
+              <td class="px-3 py-3.5 text-center font-medium text-slate-400 border-r border-slate-200">7</td>
+              <td class="px-4 py-3.5 font-semibold text-slate-900 border-r border-slate-200">Hoàng Gia Khang</td>
+              <td class="px-4 py-3.5 text-slate-600 border-r border-slate-200">07/07/2012</td>
+              <td class="px-4 py-3.5 text-slate-600 border-r-2 border-slate-300">THCS Nam Từ Liêm</td>
+
+              <!-- Đợt 1 -->
+              <td class="px-4 py-3.5 text-right font-semibold text-slate-900 border-r border-slate-200 bg-orange-50/10">6.500.000 đ</td>
+              <td class="px-4 py-3.5 border-r border-slate-200 bg-orange-50/10">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                  Đã hoàn tất
+                </span>
+              </td>
+              <td class="px-4 py-3.5 text-slate-700 border-r border-slate-200 bg-orange-50/10">Chuyển khoản</td>
+              <td class="px-4 py-3.5 text-slate-400 italic border-r-2 border-slate-300 bg-orange-50/10">—</td>
+
+              <!-- Đợt 2 -->
+              <td class="px-4 py-3.5 text-right font-semibold text-slate-900 border-r border-slate-200 bg-amber-50/10">6.500.000 đ</td>
+              <td class="px-4 py-3.5 border-r border-slate-200 bg-amber-50/10">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                  Đã hoàn tất
+                </span>
+              </td>
+              <td class="px-4 py-3.5 text-slate-700 border-r border-slate-200 bg-amber-50/10">Chuyển khoản</td>
+              <td class="px-4 py-3.5 text-slate-400 italic bg-amber-50/10">—</td>
+            </tr>
+
+            <!-- Row 8 -->
+            <tr class="hover:bg-slate-50/80 transition-colors bg-slate-50/30">
+              <td class="px-3 py-3.5 text-center font-medium text-slate-400 border-r border-slate-200">8</td>
+              <td class="px-4 py-3.5 font-semibold text-slate-900 border-r border-slate-200">Ngô Minh Quang</td>
+              <td class="px-4 py-3.5 text-slate-600 border-r border-slate-200">25/12/2012</td>
+              <td class="px-4 py-3.5 text-slate-600 border-r-2 border-slate-300">THCS Mai Dịch</td>
+
+              <!-- Đợt 1 -->
+              <td class="px-4 py-3.5 text-right font-semibold text-slate-900 border-r border-slate-200 bg-orange-50/10">6.500.000 đ</td>
+              <td class="px-4 py-3.5 border-r border-slate-200 bg-orange-50/10">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                  Đã hoàn tất
+                </span>
+              </td>
+              <td class="px-4 py-3.5 text-slate-700 border-r border-slate-200 bg-orange-50/10">Chuyển khoản</td>
+              <td class="px-4 py-3.5 text-slate-400 italic border-r-2 border-slate-300 bg-orange-50/10">—</td>
+
+              <!-- Đợt 2 -->
+              <td class="px-4 py-3.5 text-right font-semibold text-slate-900 border-r border-slate-200 bg-amber-50/10">6.500.000 đ</td>
+              <td class="px-4 py-3.5 border-r border-slate-200 bg-amber-50/10">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                  Đã hoàn tất
+                </span>
+              </td>
+              <td class="px-4 py-3.5 text-slate-700 border-r border-slate-200 bg-amber-50/10">Tiền mặt</td>
+              <td class="px-4 py-3.5 font-mono text-xs text-slate-800 font-medium bg-amber-50/10">HD-2026-1155</td>
+            </tr>
+          </tbody>
+
+          <!-- DÒNG TỔNG CUỐI BẢNG (SUM mỗi cột Thực thu) -->
+          <tfoot>
+            <tr class="bg-slate-100 border-t-2 border-slate-300 font-bold text-slate-900 text-xs md:text-sm">
+              <td colspan="4" class="px-4 py-4 text-right uppercase tracking-wider text-slate-700 border-r-2 border-slate-300 bg-slate-200/60">
+                Tổng cộng thực thu theo đợt
+              </td>
+              <!-- Tổng Đợt 1 -->
+              <td class="px-4 py-4 text-right text-brand-600 text-sm md:text-base border-r border-slate-200 bg-orange-100/50">
+                52.000.000 đ
+              </td>
+              <td colspan="3" class="px-4 py-4 text-xs text-slate-500 font-normal italic border-r-2 border-slate-300 bg-orange-50/30">
+                8/8 học sinh hoàn thành (100%)
+              </td>
+
+              <!-- Tổng Đợt 2 -->
+              <td class="px-4 py-4 text-right text-brand-600 text-sm md:text-base border-r border-slate-200 bg-amber-100/50">
+                42.500.000 đ
+              </td>
+              <td colspan="3" class="px-4 py-4 text-xs text-slate-500 font-normal italic bg-amber-50/30">
+                7/8 học sinh đã đóng (1 chưa nộp, 1 thiếu 3tr)
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- Footnote & Data rule notice -->
+      <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500">
+        <div class="flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[16px] text-slate-400">info</span>
+          <span>Cột "Thực thu" tính tổng số tiền từ các phiếu thu học phí có trạng thái <strong>Đã duyệt</strong>. Số hóa đơn hiển thị khi thanh toán bằng Tiền mặt.</span>
+        </div>
+        <div class="text-slate-400">
+          Hiển thị 8/8 học sinh trong danh sách lớp
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

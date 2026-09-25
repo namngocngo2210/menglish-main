@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Cấu hình KPI Học vụ - MENGLISH Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "surface-dim": "#d4daea",
+                "tertiary-container": "#46a917",
+                "outline-variant": "#e1bfb2",
+                "on-error": "#ffffff",
+                "on-secondary-container": "#faf7ff",
+                "on-tertiary-fixed": "#062100",
+                "surface-container": "#e8eeff",
+                "primary-fixed": "#ffdbcd",
+                "background": "#f9f9ff",
+                "tertiary": "#256d00",
+                "error": "#ba1a1a",
+                "surface-container-highest": "#dde2f3",
+                "primary-container": "#f5691a",
+                "on-error-container": "#93000a",
+                "outline": "#8d7165",
+                "on-tertiary": "#ffffff",
+                "on-surface": "#161c27",
+                "primary-fixed-dim": "#ffb595",
+                "surface": "#f9f9ff",
+                "secondary-fixed-dim": "#bac3ff",
+                "error-container": "#ffdad6",
+                "on-surface-variant": "#594137",
+                "surface-tint": "#a23f00",
+                "on-background": "#161c27",
+                "on-primary": "#ffffff",
+                "on-secondary-fixed-variant": "#002fc9",
+                "on-primary-fixed": "#360f00",
+                "tertiary-fixed": "#93fb65",
+                "on-secondary-fixed": "#00105b",
+                "primary": "#a23f00",
+                "on-tertiary-container": "#0e3500",
+                "inverse-on-surface": "#ecf0ff",
+                "surface-bright": "#f9f9ff",
+                "surface-container-high": "#e3e8f9",
+                "secondary": "#1e43e7",
+                "secondary-container": "#4160ff",
+                "on-primary-fixed-variant": "#7c2e00",
+                "surface-container-lowest": "#ffffff",
+                "inverse-surface": "#2a303d",
+                "surface-container-low": "#f1f3ff",
+                "on-secondary": "#ffffff",
+                "inverse-primary": "#ffb595",
+                "on-tertiary-fixed-variant": "#1a5200",
+                "surface-variant": "#dde2f3",
+                "secondary-fixed": "#dee0ff",
+                "on-primary-container": "#521c00",
+                "tertiary-fixed-dim": "#78de4b",
+                "gray": {
+                    50: '#f9fafb',
+                    100: '#f3f4f6',
+                    300: '#d1d5db',
+                    500: '#6b7280',
+                    700: '#374151',
+                    900: '#111827',
+                }
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "xl": "32px",
+                "lg": "24px",
+                "sidebar-width": "260px",
+                "gutter": "16px",
+                "xs": "4px",
+                "md": "16px",
+                "header-height": "64px",
+                "base": "8px",
+                "sm": "8px"
+        },
+        "fontFamily": {
+                "h3": [
+                        "Be Vietnam Pro"
+                ],
+                "caption": [
+                        "Be Vietnam Pro"
+                ],
+                "code": [
+                        "JetBrains Mono"
+                ],
+                "label": [
+                        "Be Vietnam Pro"
+                ],
+                "body-medium": [
+                        "Be Vietnam Pro"
+                ],
+                "h1": [
+                        "Be Vietnam Pro"
+                ],
+                "h2": [
+                        "Be Vietnam Pro"
+                ],
+                "body-small": [
+                        "Be Vietnam Pro"
+                ],
+                "body-base": [
+                        "Be Vietnam Pro"
+                ]
+        },
+        "fontSize": {
+                "h3": [
+                        "18px",
+                        {
+                                "lineHeight": "26px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "caption": [
+                        "11px",
+                        {
+                                "lineHeight": "16px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "code": [
+                        "13px",
+                        {
+                                "lineHeight": "18px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "label": [
+                        "11px",
+                        {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-medium": [
+                        "14px",
+                        {
+                                "lineHeight": "20px",
+                                "fontWeight": "500"
+                        }
+                ],
+                "h1": [
+                        "28px",
+                        {
+                                "lineHeight": "36px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "h2": [
+                        "22px",
+                        {
+                                "lineHeight": "30px",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-small": [
+                        "13px",
+                        {
+                                "lineHeight": "18px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "body-base": [
+                        "14px",
+                        {
+                                "lineHeight": "20px",
+                                "fontWeight": "400"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+<style>
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #F5691A;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #F5691A;
+        }
+        .toggle-checkbox:checked + .toggle-label:after {
+            transform: translateX(100%);
+            border-color: white;
+        }
+        .group-row {
+            background-color: #f1f3ff; /* surface-container-low */
+        }
+        .status-badge-active {
+            background-color: rgba(70, 169, 23, 0.1);
+            color: #46a917;
+        }
+        .status-badge-inactive {
+            background-color: rgba(107, 114, 128, 0.1);
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 font-body-base antialiased">
+<div class="p-lg md:p-xl max-w-[1600px] mx-auto w-full">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-md mb-lg">
+<div>
+<h1 class="font-h1 text-h1 text-gray-900 mb-xs">Cấu hình KPI Học vụ</h1>
+<p class="font-body-small text-body-small text-gray-500">Quản lý và thiết lập các chỉ số KPI đánh giá hiệu suất học vụ.</p>
+</div>
+<button class="bg-primary-container text-white px-md py-sm rounded-lg font-body-medium text-body-medium flex items-center gap-xs hover:bg-primary transition-colors shadow-sm">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                Thêm KPI mới
+            </button>
+</div>
+<!-- Alert Section -->
+<div class="bg-tertiary-fixed text-on-tertiary-fixed p-md rounded-lg flex items-center gap-md mb-lg border border-tertiary-fixed-dim shadow-sm">
+<span class="material-symbols-outlined text-tertiary">check_circle</span>
+<div class="flex-1 font-body-medium text-body-medium">
+<span class="font-semibold">Trạng thái quỹ KPI:</span> Tổng trọng số hiện tại: <strong>2.000.000đ</strong> / Quỹ KPI: <strong>2.000.000đ</strong> (Khớp)
+            </div>
+</div>
+<!-- KPI Table -->
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-gray-50 border-b border-gray-100">
+<th class="py-md px-md font-label text-label text-gray-500 uppercase tracking-wider w-48">Nhóm KPI</th>
+<th class="py-md px-md font-label text-label text-gray-500 uppercase tracking-wider">Tên mục</th>
+<th class="py-md px-md font-label text-label text-gray-500 uppercase tracking-wider text-right w-32">Trọng số (VNĐ)</th>
+<th class="py-md px-md font-label text-label text-gray-500 uppercase tracking-wider text-center w-24">Ngưỡng 100%</th>
+<th class="py-md px-md font-label text-label text-gray-500 uppercase tracking-wider text-center w-24">Ngưỡng 50%</th>
+<th class="py-md px-md font-label text-label text-gray-500 uppercase tracking-wider text-center w-32">Trạng thái</th>
+<th class="py-md px-md font-label text-label text-gray-500 uppercase tracking-wider text-center w-32">Hiệu lực từ</th>
+<th class="py-md px-md font-label text-label text-gray-500 uppercase tracking-wider text-center w-24">Thao tác</th>
+</tr>
+</thead>
+<tbody class="font-body-small text-body-small">
+<!-- Nhóm 1: Chăm sóc học viên -->
+<tr class="hover:bg-gray-50 border-b border-gray-100 transition-colors">
+<td class="py-sm px-md align-top bg-surface-container-low font-body-medium text-body-medium text-on-surface-variant border-r border-gray-100" rowspan="3">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">support_agent</span>
+                                    Chăm sóc học viên
+                                </div>
+</td>
+<td class="py-sm px-md font-medium text-gray-900">Tỷ lệ đi học</td>
+<td class="py-sm px-md text-right font-code text-code text-primary-container font-medium">300,000</td>
+<td class="py-sm px-md text-center">≥ 90%</td>
+<td class="py-sm px-md text-center">≥ 80%</td>
+<td class="py-sm px-md text-center">
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 top-0 left-0 transition-transform duration-200 ease-in-out border-gray-300 translate-x-5 border-primary-container" id="toggle1" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-5 rounded-full bg-primary-container cursor-pointer transition-colors duration-200 ease-in-out" for="toggle1"></label>
+</div>
+</td>
+<td class="py-sm px-md text-center text-gray-500">01/08/2023</td>
+<td class="py-sm px-md text-center">
+<button class="text-gray-500 hover:text-primary-container transition-colors p-xs rounded hover:bg-surface-container-high" title="Sửa">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 border-b border-gray-100 transition-colors">
+<td class="py-sm px-md font-medium text-gray-900">Tỷ lệ bảo lưu</td>
+<td class="py-sm px-md text-right font-code text-code text-primary-container font-medium">200,000</td>
+<td class="py-sm px-md text-center">≤ 2%</td>
+<td class="py-sm px-md text-center">≤ 5%</td>
+<td class="py-sm px-md text-center">
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 top-0 left-0 transition-transform duration-200 ease-in-out border-gray-300 translate-x-5 border-primary-container" id="toggle2" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-5 rounded-full bg-primary-container cursor-pointer transition-colors duration-200 ease-in-out" for="toggle2"></label>
+</div>
+</td>
+<td class="py-sm px-md text-center text-gray-500">01/08/2023</td>
+<td class="py-sm px-md text-center">
+<button class="text-gray-500 hover:text-primary-container transition-colors p-xs rounded hover:bg-surface-container-high" title="Sửa">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 border-b border-gray-200 transition-colors">
+<td class="py-sm px-md font-medium text-gray-900">Check-in đúng hạn</td>
+<td class="py-sm px-md text-right font-code text-code text-primary-container font-medium">100,000</td>
+<td class="py-sm px-md text-center">100%</td>
+<td class="py-sm px-md text-center">≥ 95%</td>
+<td class="py-sm px-md text-center">
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 top-0 left-0 transition-transform duration-200 ease-in-out border-gray-300 translate-x-0" id="toggle3" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer transition-colors duration-200 ease-in-out" for="toggle3"></label>
+</div>
+</td>
+<td class="py-sm px-md text-center text-gray-500">01/09/2023</td>
+<td class="py-sm px-md text-center">
+<button class="text-gray-500 hover:text-primary-container transition-colors p-xs rounded hover:bg-surface-container-high" title="Sửa">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+</td>
+</tr>
+<!-- Nhóm 2: Chất lượng giảng dạy -->
+<tr class="hover:bg-gray-50 border-b border-gray-100 transition-colors">
+<td class="py-sm px-md align-top bg-surface-container-low font-body-medium text-body-medium text-on-surface-variant border-r border-gray-100" rowspan="2">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">school</span>
+                                    Chất lượng giảng dạy
+                                </div>
+</td>
+<td class="py-sm px-md font-medium text-gray-900">Điểm hài lòng PH</td>
+<td class="py-sm px-md text-right font-code text-code text-primary-container font-medium">400,000</td>
+<td class="py-sm px-md text-center">≥ 4.5</td>
+<td class="py-sm px-md text-center">≥ 4.0</td>
+<td class="py-sm px-md text-center">
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 top-0 left-0 transition-transform duration-200 ease-in-out border-gray-300 translate-x-5 border-primary-container" id="toggle4" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-5 rounded-full bg-primary-container cursor-pointer transition-colors duration-200 ease-in-out" for="toggle4"></label>
+</div>
+</td>
+<td class="py-sm px-md text-center text-gray-500">01/08/2023</td>
+<td class="py-sm px-md text-center">
+<button class="text-gray-500 hover:text-primary-container transition-colors p-xs rounded hover:bg-surface-container-high" title="Sửa">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 border-b border-gray-200 transition-colors">
+<td class="py-sm px-md font-medium text-gray-900">Kết quả Big Test</td>
+<td class="py-sm px-md text-right font-code text-code text-primary-container font-medium">350,000</td>
+<td class="py-sm px-md text-center">≥ 80%</td>
+<td class="py-sm px-md text-center">≥ 60%</td>
+<td class="py-sm px-md text-center">
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 top-0 left-0 transition-transform duration-200 ease-in-out border-gray-300 translate-x-5 border-primary-container" id="toggle5" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-5 rounded-full bg-primary-container cursor-pointer transition-colors duration-200 ease-in-out" for="toggle5"></label>
+</div>
+</td>
+<td class="py-sm px-md text-center text-gray-500">01/08/2023</td>
+<td class="py-sm px-md text-center">
+<button class="text-gray-500 hover:text-primary-container transition-colors p-xs rounded hover:bg-surface-container-high" title="Sửa">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+</td>
+</tr>
+<!-- Nhóm 3: Phát triển trung tâm -->
+<tr class="hover:bg-gray-50 border-b border-gray-100 transition-colors">
+<td class="py-sm px-md align-top bg-surface-container-low font-body-medium text-body-medium text-on-surface-variant border-r border-gray-100" rowspan="2">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">trending_up</span>
+                                    Phát triển TT
+                                </div>
+</td>
+<td class="py-sm px-md font-medium text-gray-900">Giới thiệu HV mới</td>
+<td class="py-sm px-md text-right font-code text-code text-primary-container font-medium">450,000</td>
+<td class="py-sm px-md text-center">≥ 5 HV</td>
+<td class="py-sm px-md text-center">≥ 2 HV</td>
+<td class="py-sm px-md text-center">
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 top-0 left-0 transition-transform duration-200 ease-in-out border-gray-300 translate-x-5 border-primary-container" id="toggle6" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-5 rounded-full bg-primary-container cursor-pointer transition-colors duration-200 ease-in-out" for="toggle6"></label>
+</div>
+</td>
+<td class="py-sm px-md text-center text-gray-500">15/08/2023</td>
+<td class="py-sm px-md text-center">
+<button class="text-gray-500 hover:text-primary-container transition-colors p-xs rounded hover:bg-surface-container-high" title="Sửa">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 border-b border-gray-200 transition-colors">
+<td class="py-sm px-md font-medium text-gray-900">Tổ chức sự kiện</td>
+<td class="py-sm px-md text-right font-code text-code text-primary-container font-medium">200,000</td>
+<td class="py-sm px-md text-center">100% HT</td>
+<td class="py-sm px-md text-center">80% HT</td>
+<td class="py-sm px-md text-center">
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 top-0 left-0 transition-transform duration-200 ease-in-out border-gray-300 translate-x-0" id="toggle7" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer transition-colors duration-200 ease-in-out" for="toggle7"></label>
+</div>
+</td>
+<td class="py-sm px-md text-center text-gray-500">-</td>
+<td class="py-sm px-md text-center">
+<button class="text-gray-500 hover:text-primary-container transition-colors p-xs rounded hover:bg-surface-container-high" title="Sửa">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+</td>
+</tr>
+<!-- Summary Row -->
+<tr class="bg-gray-100 border-t-2 border-gray-300">
+<td class="py-md px-md text-right font-h3 text-h3 text-gray-700" colspan="2">Tổng Trọng Số:</td>
+<td class="py-md px-md text-right font-h3 text-h3 text-tertiary">2,000,000</td>
+<td class="py-md px-md text-gray-500 italic" colspan="5">Khớp với Quỹ KPI</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination / Table Footer -->
+<div class="border-t border-gray-100 bg-white px-md py-sm flex items-center justify-between">
+<p class="font-body-small text-body-small text-gray-500">Hiển thị <span class="font-medium text-gray-900">1</span> đến <span class="font-medium text-gray-900">7</span> trong số <span class="font-medium text-gray-900">15</span> mục KPI</p>
+<div class="flex gap-xs">
+<button class="px-sm py-xs border border-gray-300 rounded text-gray-500 hover:bg-gray-50 disabled:opacity-50" disabled="">Trước</button>
+<button class="px-sm py-xs bg-primary-container text-white rounded">1</button>
+<button class="px-sm py-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50">2</button>
+<button class="px-sm py-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50">3</button>
+<button class="px-sm py-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50">Sau</button>
+</div>
+</div>
+</div>
+</div>
+<script>
+        // Simple JS for toggles (visual only for prototype)
+        document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                if(this.checked) {
+                    this.classList.replace('translate-x-0', 'translate-x-5');
+                    this.classList.add('border-primary-container');
+                    this.nextElementSibling.classList.replace('bg-gray-300', 'bg-primary-container');
+                } else {
+                    this.classList.replace('translate-x-5', 'translate-x-0');
+                    this.classList.remove('border-primary-container');
+                    this.nextElementSibling.classList.replace('bg-primary-container', 'bg-gray-300');
+                }
+            });
+        });
+    </script>
+</body></html>

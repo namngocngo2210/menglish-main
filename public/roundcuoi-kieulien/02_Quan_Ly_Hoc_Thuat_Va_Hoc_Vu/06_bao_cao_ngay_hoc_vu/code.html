@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Báo cáo ngày Học vụ</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-surface": "#161c27",
+                        "surface-dim": "#d4daea",
+                        "error": "#ba1a1a",
+                        "surface-container-highest": "#dde2f3",
+                        "on-background": "#161c27",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-container": "#0e3500",
+                        "on-secondary-container": "#faf7ff",
+                        "secondary-container": "#4160ff",
+                        "on-surface-variant": "#594137",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "surface-container": "#e8eeff",
+                        "primary-container": "#f5691a",
+                        "tertiary-fixed": "#93fb65",
+                        "surface-container-low": "#f1f3ff",
+                        "tertiary": "#256d00",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "outline-variant": "#e1bfb2",
+                        "tertiary-container": "#46a917",
+                        "on-tertiary-fixed": "#062100",
+                        "secondary-fixed": "#dee0ff",
+                        "inverse-on-surface": "#ecf0ff",
+                        "on-primary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "background": "#f9f9ff",
+                        "outline": "#8d7165",
+                        "primary-fixed-dim": "#ffb595",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "surface-variant": "#dde2f3",
+                        "primary": "#a23f00",
+                        "inverse-primary": "#ffb595",
+                        "surface-bright": "#f9f9ff",
+                        "error-container": "#ffdad6",
+                        "surface-tint": "#a23f00",
+                        "on-error": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed": "#00105b",
+                        "surface": "#f9f9ff",
+                        "inverse-surface": "#2a303d",
+                        "on-primary-fixed": "#360f00",
+                        "secondary": "#1e43e7",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "surface-container-high": "#e3e8f9",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "on-primary-container": "#521c00",
+                        "surface-container-lowest": "#ffffff",
+                        "primary-fixed": "#ffdbcd"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "header-height": "64px",
+                        "gutter": "16px",
+                        "base": "8px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "md": "16px",
+                        "lg": "24px",
+                        "sidebar-width": "260px",
+                        "sm": "8px"
+                    },
+                    fontFamily: {
+                        "code": ["JetBrains Mono"],
+                        "label": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"]
+                    },
+                    fontSize: {
+                        "code": ["13px", { lineHeight: "18px", fontWeight: "400" }],
+                        "label": ["11px", { lineHeight: "16px", letterSpacing: "0.05em", fontWeight: "600" }],
+                        "body-base": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+                        "body-medium": ["14px", { lineHeight: "20px", fontWeight: "500" }],
+                        "body-small": ["13px", { lineHeight: "18px", fontWeight: "400" }],
+                        "h3": ["18px", { lineHeight: "26px", fontWeight: "600" }],
+                        "caption": ["11px", { lineHeight: "16px", fontWeight: "400" }],
+                        "h1": ["28px", { lineHeight: "36px", letterSpacing: "-0.02em", fontWeight: "700" }],
+                        "h2": ["22px", { lineHeight: "30px", letterSpacing: "-0.01em", fontWeight: "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #dde2f3;
+            border-radius: 10px;
+        }
+        .form-input, .form-textarea, .form-select {
+            @apply w-full rounded-md border border-surface-variant bg-on-tertiary px-3 py-2 text-body-base text-on-surface shadow-sm focus:border-secondary-container focus:ring-1 focus:ring-secondary-container focus:outline-none transition-colors;
+        }
+        .form-label {
+            @apply block text-body-small font-medium text-on-surface-variant mb-1;
+        }
+        .card-header {
+            @apply text-h3 font-h3 text-on-surface mb-lg flex items-center gap-2;
+        }
+        .card-header-icon {
+            @apply text-primary-container;
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-base antialiased min-h-screen">
+<div class="max-w-5xl mx-auto p-lg">
+<header class="mb-xl flex items-center justify-between border-b border-surface-variant pb-md">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface">Báo cáo ngày Học vụ</h1>
+<p class="font-body-base text-on-surface-variant mt-1">Hoàn thành biểu mẫu để cập nhật thông tin vận hành trong ngày.</p>
+</div>
+<div class="text-right">
+<p class="font-body-small text-on-surface-variant">Ngày báo cáo</p>
+<p class="font-body-medium text-on-surface" id="current-date"></p>
+</div>
+</header>
+<form class="space-y-xl">
+<section class="bg-on-tertiary border border-surface-variant rounded-xl p-lg shadow-sm">
+<h2 class="card-header">
+<span class="material-symbols-outlined card-header-icon">school</span>
+                    Vận hành lớp học
+                </h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg mb-lg">
+<div>
+<label class="form-label">Số lớp kế hoạch</label>
+<input class="form-input" min="0" placeholder="0" type="number"/>
+</div>
+<div>
+<label class="form-label">Số lớp thực tế</label>
+<input class="form-input" min="0" placeholder="0" type="number"/>
+</div>
+</div>
+<div class="mb-lg">
+<label class="form-label">Ghi chú lớp học</label>
+<textarea class="form-textarea h-24" placeholder="Nhập danh sách tên lớp..."></textarea>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-lg mb-lg">
+<div class="md:col-span-4">
+<label class="form-label">Số giáo viên</label>
+<input class="form-input" min="0" placeholder="0" type="number"/>
+</div>
+<div class="md:col-span-8">
+<label class="form-label">Ghi chú giáo viên</label>
+<textarea class="form-textarea h-16" placeholder="Ghi chú chi tiết..."></textarea>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-lg mb-lg">
+<div class="md:col-span-4">
+<label class="form-label">Số trợ giảng</label>
+<input class="form-input" min="0" placeholder="0" type="number"/>
+</div>
+<div class="md:col-span-8">
+<label class="form-label">Ghi chú trợ giảng</label>
+<textarea class="form-textarea h-16" placeholder="Ghi chú chi tiết..."></textarea>
+</div>
+</div>
+<div class="mb-lg">
+<label class="form-label">Tình hình lớp học</label>
+<textarea class="form-textarea h-24" placeholder="Nhập thông tin tình hình lớp học tự do..."></textarea>
+</div>
+<div>
+<label class="form-label">Cơ sở vật chất</label>
+<textarea class="form-textarea h-24" placeholder="Ghi nhận sự cố thiết bị / phòng ốc (nếu có)..."></textarea>
+</div>
+</section>
+<section class="bg-on-tertiary border border-surface-variant rounded-xl p-lg shadow-sm">
+<h2 class="card-header">
+<span class="material-symbols-outlined card-header-icon">group_add</span>
+                    Tuyển sinh / Học viên
+                </h2>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-lg mb-lg">
+<div class="md:col-span-4">
+<label class="form-label">Số học sinh bổ trợ</label>
+<input class="form-input" placeholder="VD: 7/10" type="text"/>
+</div>
+<div class="md:col-span-8">
+<label class="form-label">Ghi chú bổ trợ</label>
+<textarea class="form-textarea h-16" placeholder="Ghi chú chi tiết..."></textarea>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-lg mb-lg">
+<div class="md:col-span-4">
+<label class="form-label">Data mới nhận</label>
+<input class="form-input" min="0" placeholder="0" type="number"/>
+</div>
+<div class="md:col-span-8">
+<label class="form-label">Ghi chú data</label>
+<textarea class="form-textarea h-16" placeholder="Ghi chú chi tiết..."></textarea>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-lg mb-lg">
+<div class="md:col-span-4">
+<label class="form-label">Số học sinh test</label>
+<input class="form-input" min="0" placeholder="0" type="number"/>
+</div>
+<div class="md:col-span-8">
+<label class="form-label">Ghi chú test</label>
+<textarea class="form-textarea h-16" placeholder="Ghi chú chi tiết..."></textarea>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-lg">
+<div class="md:col-span-4">
+<label class="form-label">Số lượng thu phí</label>
+<input class="form-input" min="0" placeholder="0" type="number"/>
+</div>
+<div class="md:col-span-8">
+<label class="form-label">Chi tiết thu phí</label>
+<textarea class="form-textarea h-24" placeholder="Liệt kê tên học sinh + số tiền..."></textarea>
+</div>
+</div>
+</section>
+<section class="bg-on-tertiary border border-surface-variant rounded-xl p-lg shadow-sm">
+<h2 class="card-header">
+<span class="material-symbols-outlined card-header-icon">campaign</span>
+                    Truyền thông
+                </h2>
+<div>
+<label class="form-label">Bài đăng truyền thông</label>
+<textarea class="form-textarea h-24" placeholder="Nhập nội dung kèm link bài viết..."></textarea>
+</div>
+</section>
+<section class="bg-surface-container-low border border-primary-fixed-dim rounded-xl p-lg shadow-sm">
+<div class="flex items-center justify-between mb-lg">
+<h2 class="font-h3 text-h3 text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container">assignment_turned_in</span>
+                        Task follow-up
+                    </h2>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" id="task-switch" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-variant rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container"></div>
+<span class="ml-3 font-body-medium text-on-surface">Tạo Task</span>
+</label>
+</div>
+<div class="hidden grid grid-cols-1 md:grid-cols-2 gap-lg transition-all duration-300 ease-in-out origin-top opacity-0 scale-y-0" id="task-details">
+<div class="md:col-span-2">
+<label class="form-label">Tiêu đề công việc follow-up <span class="text-error">*</span></label>
+<input class="form-input" placeholder="Ví dụ: Gọi điện phụ huynh em Minh giải thích việc vắng học..." required="" type="text"/>
+</div>
+<div class="md:col-span-2">
+<label class="form-label">Nội dung chi tiết & hành động tiếp theo <span class="text-error">*</span></label>
+<textarea class="form-textarea h-20" placeholder="Mô tả cụ thể nhiệm vụ, kết quả mong đợi hoặc tài liệu cần chuẩn bị..."></textarea>
+</div>
+<div>
+<label class="form-label">Ngày hạn chót giải quyết <span class="text-error">*</span></label>
+<div class="relative">
+<input class="form-input pl-10" required="" type="date"/>
+<span class="material-symbols-outlined absolute left-3 top-2 text-on-surface-variant">calendar_today</span>
+</div>
+</div>
+<div>
+<label class="form-label">Người phụ trách (PIC) <span class="text-error">*</span></label>
+<div class="relative">
+<select class="form-select pl-10 appearance-none">
+<option value="current">Học vụ (Tôi)</option>
+<option value="user1">Nguyễn Văn A (Trợ giảng)</option>
+<option value="user2">Trần Thị B (Giáo viên chính)</option>
+<option value="user3">Lê Hoàng C (Trưởng cơ sở)</option>
+</select>
+<span class="material-symbols-outlined absolute left-3 top-2 text-on-surface-variant">person</span>
+<span class="material-symbols-outlined absolute right-3 top-2 text-on-surface-variant pointer-events-none">arrow_drop_down</span>
+</div>
+</div>
+</div>
+</section>
+<div class="flex justify-end pt-md">
+<button class="bg-primary-container hover:bg-[#d45511] text-on-primary font-body-medium py-3 px-8 rounded-lg shadow-sm transition-colors flex items-center gap-2" type="button">
+<span class="material-symbols-outlined text-[20px]">save</span>
+                    Lưu báo cáo
+                </button>
+</div>
+</form>
+</div>
+<script>
+        
+        const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('current-date').textContent = new Date().toLocaleDateString('vi-VN', dateOptions);
+
+        
+        const taskSwitch = document.getElementById('task-switch');
+        const taskDetails = document.getElementById('task-details');
+
+        taskSwitch.addEventListener('change', function() {
+            if (this.checked) {
+                taskDetails.classList.remove('hidden');
+                
+                setTimeout(() => {
+                    taskDetails.classList.remove('opacity-0', 'scale-y-0');
+                    taskDetails.classList.add('opacity-100', 'scale-y-100');
+                }, 10);
+            } else {
+                taskDetails.classList.remove('opacity-100', 'scale-y-100');
+                taskDetails.classList.add('opacity-0', 'scale-y-0');
+                
+                setTimeout(() => {
+                    taskDetails.classList.add('hidden');
+                }, 300);
+            }
+        });
+    </script>
+</body></html>

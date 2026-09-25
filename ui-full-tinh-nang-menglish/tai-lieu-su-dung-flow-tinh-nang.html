@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hướng Dẫn & Tài Liệu Flow Tính Năng Từ A-Z — MEnglish Admin</title>
+<style>
+:root {
+  --primary: #0f172a;
+  --secondary: #1e293b;
+  --accent: #2563eb;
+  --accent-light: #3b82f6;
+  --teal: #0d9488;
+  --emerald: #059669;
+  --amber: #d97706;
+  --rose: #e11d48;
+  --purple: #7c3aed;
+  --indigo: #4f46e5;
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --muted: #64748b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+/* Header Hero */
+.hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 40%, #1d4ed8 100%);
+  color: #fff;
+  padding: 56px 40px 48px;
+  position: relative;
+  overflow: hidden;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(0,0,0,0) 70%);
+  border-radius: 50%;
+}
+.hero h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.5px; }
+.hero p { opacity: 0.9; margin-top: 10px; font-size: 1.05rem; max-width: 900px; }
+.hero-badges { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+.hero-badge { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 500; }
+
+/* Navigation Bar Sticky */
+.nav-sticky {
+  background: var(--secondary);
+  padding: 12px 40px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+.nav-sticky a {
+  color: rgba(255,255,255,0.8);
+  text-decoration: none;
+  font-size: 0.8rem;
+  padding: 6px 14px;
+  border-radius: 6px;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.nav-sticky a:hover { background: var(--accent); color: #fff; }
+
+/* Container */
+.container { max-width: 1400px; margin: 0 auto; padding: 40px; }
+
+/* Section styling */
+.section { margin-bottom: 56px; }
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border);
+}
+.section-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  font-size: 1.2rem;
+}
+
+/* Architecture Map / Visual Dependency */
+.map-card {
+  background: var(--card);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 32px;
+  margin-bottom: 32px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+.flow-diagram {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+.flow-node {
+  background: #f8fafc;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  position: relative;
+  transition: all 0.3s;
+}
+.flow-node:hover {
+  transform: translateY(-3px);
+  border-color: var(--accent);
+  box-shadow: 0 8px 16px rgba(37,99,235,0.08);
+}
+.flow-node-step {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.flow-node h4 { font-size: 1.05rem; color: var(--primary); margin-bottom: 6px; }
+.flow-node p { font-size: 0.83rem; color: var(--muted); }
+.flow-node-deps {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  font-size: 0.75rem;
+  color: var(--indigo);
+  font-weight: 600;
+}
+
+/* Flow Step Cards */
+.flow-detail-card {
+  background: var(--card);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  margin-bottom: 28px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.flow-detail-header {
+  padding: 20px 24px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.flow-detail-header h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.flow-tag {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.flow-tag-core { background: #dbeafe; color: #1e40af; }
+.flow-tag-finance { background: #dcfce7; color: #15803d; }
+.flow-tag-hr { background: #fae8ff; color: #86198f; }
+.flow-tag-academic { background: #ffedd5; color: #c2410c; }
+.flow-tag-support { background: #e0e7ff; color: #3730a3; }
+
+.flow-body { padding: 24px; }
+.step-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.step-box {
+  background: #fcfdfe;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  border-left: 4px solid var(--accent);
+}
+.step-box h5 { font-size: 0.95rem; font-weight: 700; color: var(--primary); margin-bottom: 6px; }
+.step-box p, .step-box ul { font-size: 0.84rem; color: #475569; }
+.step-box ul { padding-left: 18px; margin-top: 6px; }
+.step-box li { margin-bottom: 4px; }
+
+/* Alerts and Rule Callouts */
+.rule-callout {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-top: 16px;
+  font-size: 0.85rem;
+  color: #1e40af;
+}
+.rule-callout strong { color: #1d4ed8; }
+.rule-callout-warning {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+.rule-callout-warning strong { color: #b45309; }
+
+/* Dependency Matrix Table */
+.matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  font-size: 0.85rem;
+  background: var(--card);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.matrix-table th {
+  background: #f1f5f9;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 700;
+  color: var(--primary);
+  border-bottom: 2px solid var(--border);
+}
+.matrix-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.matrix-table tr:hover { background: #f8fafc; }
+.badge-req { background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 0.72rem; }
+.badge-gen { background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 0.72rem; }
+
+/* Matrix Roles Table */
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.role-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  background: #fff;
+}
+.role-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.role-name { font-weight: 700; font-size: 0.95rem; color: var(--primary); }
+.role-badge { font-size: 0.72rem; padding: 2px 8px; border-radius: 12px; font-weight: 600; }
+.role-card ul { padding-left: 18px; font-size: 0.8rem; color: var(--muted); }
+.role-card li { margin-bottom: 3px; }
+
+footer {
+  text-align: center;
+  padding: 40px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  border-top: 1px solid var(--border);
+  margin-top: 60px;
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>📖 Hướng Dẫn & Tài Liệu Flow Tính Năng Từ A - Z</h1>
+  <p>Cẩm nang toàn diện phân tích luồng hoạt động, điều kiện tiên quyết, tương tác chồng chéo giữa các module trong hệ thống MEnglish Admin.</p>
+  <div class="hero-badges">
+    <span class="hero-badge">🚀 16 Luồng Nghiệp Vụ Cốt Lõi</span>
+    <span class="hero-badge">🔄 Sơ Đồ Phụ Thuộc Chồng Chéo</span>
+    <span class="hero-badge">🛡️ Ma Trận Phân Quyền 8 Vai Trò</span>
+    <span class="hero-badge">⚡ Closing Wizard Tự Động Hóa</span>
+  </div>
+</div>
+
+<nav class="nav-sticky">
+  <a href="#overview">🗺️ Bản Đồ Phụ Thuộc Tổng Thể</a>
+  <a href="#flow-crm">🎯 1. CRM Tuyển Sinh & Phễu</a>
+  <a href="#flow-placement">📝 2. Test Đầu Vào & Xếp Lớp</a>
+  <a href="#flow-closing">⚡ 3. Closing Wizard (Won Deal)</a>
+  <a href="#flow-academic">🎓 4. Học Vụ, Lớp Học & Bàn Giao</a>
+  <a href="#flow-tuition">💰 5. Học Phí, Thu Tiền & Hóa Đơn</a>
+  <a href="#flow-refund">🔄 6. Hoàn Phí, Bảo Lưu & Chuyển Nhượng</a>
+  <a href="#flow-invoice-cancel">🧾 7. Hủy Hóa Đơn Điện Tử</a>
+  <a href="#flow-syllabus">📚 8. Giáo Trình & Big Test Zalo</a>
+  <a href="#flow-tasks">📌 9. Công Việc & Báo Cáo Trực Lớp</a>
+  <a href="#flow-timesheet">⏱️ 10. Chấm Công Giảng Dạy & FaceID</a>
+  <a href="#flow-penalties">⚖️ 11. Kỷ Luật & Trừ Tiền Phạt</a>
+  <a href="#flow-payroll">💼 12. Công Thức Tính Lương Toàn Diện</a>
+  <a href="#flow-tickets">🎫 13. Helpdesk Support & Thông Báo</a>
+  <a href="#flow-acl">🔐 14. Phân Quyền Đa Tầng & Override</a>
+  <a href="#matrix">📊 Ma Trận Phụ Thuộc & Roles</a>
+</nav>
+
+<div class="container">
+
+  <!-- SECTION 1: MAP TỔNG QUAN -->
+  <section class="section" id="overview">
+    <div class="section-title">
+      <span class="section-badge" style="background:#dbeafe; color:#1d4ed8">🗺️</span>
+      Bản Đồ Phụ Thuộc Nghiệp Vụ Tổng Thể (Master Flow Map)
+    </div>
+
+    <div class="map-card">
+      <h3 style="color:var(--primary); font-size:1.15rem; margin-bottom:8px">Chu trình vận hành xuyên suốt của MEnglish Admin</h3>
+      <p style="color:var(--muted); font-size:0.9rem">Mọi thực thể trong hệ thống không hoạt động độc lập mà liên kết chặt chẽ theo dòng chảy từ Tuyển sinh → Học vụ → Tài chính → Giảng dạy → Nhân sự & Tính lương.</p>
+
+      <div class="flow-diagram">
+        <!-- Node 1 -->
+        <div class="flow-node">
+          <span class="flow-node-step" style="background:#e0f2fe; color:#0369a1">Giai đoạn 1</span>
+          <h4>1. Thiết Lập Hệ Thống</h4>
+          <p>Tạo Chi nhánh, Phân quyền RBAC + Override, Khóa học (Courses), Trình độ (Levels), Đề Test chuẩn.</p>
+          <div class="flow-node-deps">↳ Tiên quyết cho mọi nghiệp vụ sau</div>
+        </div>
+
+        <!-- Node 2 -->
+        <div class="flow-node">
+          <span class="flow-node-step" style="background:#dcfce7; color:#15803d">Giai đoạn 2</span>
+          <h4>2. CRM & Tuyển Sinh</h4>
+          <p>Tiếp nhận Lead → Phân công Tư vấn → Chăm sóc Lead → Đặt lịch hẹn Test đầu vào (Portal/Trực tiếp).</p>
+          <div class="flow-node-deps">↳ Cần: Branch, Sales Consultant, Placement Test</div>
+        </div>
+
+        <!-- Node 3 -->
+        <div class="flow-node">
+          <span class="flow-node-step" style="background:#fef3c7; color:#b45309">Giai đoạn 3</span>
+          <h4>3. Chốt Deal (Closing Wizard)</h4>
+          <p>Chuyển Deal WON → Tự động tạo Hồ sơ Học viên + Cấp tài khoản LMS + Xếp lớp + Khởi tạo Sổ nợ Học phí + Phiếu thu ban đầu.</p>
+          <div class="flow-node-deps">↳ Kích hoạt đồng thời Module Học vụ & Tài chính</div>
+        </div>
+
+        <!-- Node 4 -->
+        <div class="flow-node">
+          <span class="flow-node-step" style="background:#ffedd5; color:#c2410c">Giai đoạn 4</span>
+          <h4>4. Học Vụ & Giảng Dạy</h4>
+          <p>Bàn giao giáo trình, Zalo lớp → Giảng dạy theo Syllabus → Trợ giảng báo cáo trực lớp → Thi Big Test & gửi Zalo phụ huynh.</p>
+          <div class="flow-node-deps">↳ Cần: Student, Class, Teacher, Assistant, Syllabus</div>
+        </div>
+
+        <!-- Node 5 -->
+        <div class="flow-node">
+          <span class="flow-node-step" style="background:#fae8ff; color:#86198f">Giai đoạn 5</span>
+          <h4>5. Chấm Công & Kỷ Luật</h4>
+          <p>Chấm công ca dạy (TeacherTimesheets) / FaceID log + Lập biên bản vi phạm kỷ luật (Penalties).</p>
+          <div class="flow-node-deps">↳ Cần: User, Class, Penalty Codes</div>
+        </div>
+
+        <!-- Node 6 -->
+        <div class="flow-node">
+          <span class="flow-node-step" style="background:#fee2e2; color:#b91c1c">Giai đoạn 6</span>
+          <h4>6. Tự Động Quyết Toán Lương</h4>
+          <p>Engine tính lương quét dữ liệu: Lương cứng + Giờ dạy (Timesheet × Rate) + KPI + Hoa hồng tuyển sinh (CRM Won) - Phạt (Confirmed) - BHXH.</p>
+          <div class="flow-node-deps">↳ Tổng hợp từ CRM, Timesheet, Rates, Penalties</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLOW 1: CRM -->
+  <section class="section" id="flow-crm">
+    <div class="section-title">
+      <span class="section-badge" style="background:#dcfce7; color:#15803d">🎯</span>
+      1. Luồng CRM Tuyển Sinh & Quản Lý Phễu Bán Hàng
+    </div>
+
+    <div class="flow-detail-card">
+      <div class="flow-detail-header">
+        <h3>Tiếp Nhận, Chăm Sóc & Phân Quyền Lead CRM</h3>
+        <span class="flow-tag flow-tag-core">Prefix: /crm/*</span>
+      </div>
+      <div class="flow-body">
+        <div class="step-grid">
+          <div class="step-box">
+            <h5>Bước 1: Tiếp nhận Lead</h5>
+            <p>Tư vấn viên hoặc Admin nhập thông tin khách hàng (Tên, SĐT, Nguồn, Cơ sở, Khóa quan tâm, Deal value). Hệ thống tự sinh mã <code>KH-XXXXX</code> và tự động ghi log lịch sử <code>crm_customer_histories</code> loại <strong>system</strong>.</p>
+          </div>
+          <div class="step-box">
+            <h5>Bước 2: Phân quyền dữ liệu (Data Scope)</h5>
+            <p><strong>Admin / Manager:</strong> Nhìn thấy toàn bộ Lead hệ thống hoặc lọc theo chi nhánh.<br><strong>Sales Consultant:</strong> Bị giới hạn nghiêm ngặt chỉ thấy Lead có <code>assigned_user_id = Auth::id()</code>. Truy cập lead của sale khác sẽ trả về <code>404 Not Found</code>.</p>
+          </div>
+          <div class="step-box">
+            <h5>Bước 3: Tịnh tiến Stage Kanban</h5>
+            <p>Phễu bán hàng tuân theo quy tắc <strong>chỉ tiến, không lùi</strong>:</p>
+            <ul>
+              <li><code>new</code> (Mới tiếp nhận)</li>
+              <li><code>consulting</code> (Đang tư vấn, gọi điện, nhắn tin)</li>
+              <li><code>test_scheduled</code> (Đã xếp lịch hẹn test)</li>
+              <li><code>tested</code> (Đã có điểm test)</li>
+              <li><code>closing</code> (Đang chốt học phí/ưu đãi)</li>
+              <li><code>won</code> (Chốt thành công) / <code>lost</code> (Thất bại kèm lý do)</li>
+            </ul>
+          </div>
+          <div class="step-box">
+            <h5>Bước 4: Cảnh báo Lead Bị Bỏ Quên (&gt; 24h)</h5>
+            <p>Hệ thống có cơ chế <code>scanAndSyncStaleLeads()</code>. Mỗi khi Admin/Manager truy cập, hệ thống tự quét các lead quá 24h chưa có tương tác để phát thông báo <code>stale_lead_24h</code>.</p>
+          </div>
+        </div>
+
+        <div class="rule-callout">
+          <strong>⚠️ Quy tắc nghiệp vụ bắt buộc:</strong> Không thể chuyển deal sang <code>won</code> bằng thao tác kéo thả Kanban thông thường. Chuyển sang <strong>WON</strong> bắt buộc phải thông qua <strong>Closing Wizard</strong> để đảm bảo đồng bộ tài chính và học vụ.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLOW 2: TEST ĐẦU VÀO -->
+  <section class="section" id="flow-placement">
+    <div class="section-title">
+      <span class="section-badge" style="background:#fef3c7; color:#b45309">📝</span>
+      2. Luồng Test Đầu Vào (Placement Test) & Xếp Lớp
+    </div>
+
+    <div class="flow-detail-card">
+      <div class="flow-detail-header">
+        <h3>Thi Trực Tuyến Công Khai, Auto-grading & Nhận Xét Rubric</h3>
+        <span class="flow-tag flow-tag-academic">Prefix: /placement-tests/* & /portal/placement-test/*</span>
+      </div>
+      <div class="flow-body">
+        <div class="step-grid">
+          <div class="step-box">
+            <h5>1. Quản lý Đề Test</h5>
+            <p>Admin tạo đề test với cấu trúc JSON câu hỏi. Các đề đánh dấu <code>is_preset = true</code> được bảo vệ nghiêm ngặt (không thể sửa/xóa, chỉ có thể nhân bản sang bản sao mới).</p>
+          </div>
+          <div class="step-box">
+            <h5>2. Thí sinh làm bài trên Public Portal</h5>
+            <p>Truy cập không cần đăng nhập: <code>GET /portal/placement-test/{code}</code>. Thí sinh nhập Họ tên, SĐT, làm trắc nghiệm Listening, Reading, làm bài Writing và ghi âm/tự đánh giá Speaking.</p>
+          </div>
+          <div class="step-box">
+            <h5>3. Cơ chế Chấm Điểm & AI Rubric</h5>
+            <p>Hệ thống tự chấm tự động:</p>
+            <ul>
+              <li><strong>Listening & Reading:</strong> Chấm theo key trắc nghiệm cứng.</li>
+              <li><strong>Writing:</strong> Đánh giá sơ bộ theo độ dài từ + giáo viên chấm chi tiết.</li>
+              <li><strong>Overall:</strong> <code>ROUND((L + R + W + S) / 4, 1)</code>.</li>
+              <li>Tự động map khung CEFR (A1-C1) & gợi ý khóa học phù hợp.</li>
+            </ul>
+          </div>
+          <div class="step-box">
+            <h5>4. Đồng bộ ngược về CRM</h5>
+            <p>Khi submit bài thi, hệ thống đối soát theo SĐT thí sinh: nếu trùng SĐT với Lead đang ở CRM, hệ thống tự động gắn <code>customer_id</code>, cập nhật điểm <code>test_score</code> và đẩy stage sang <code>tested</code>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLOW 3: CLOSING WIZARD -->
+  <section class="section" id="flow-closing">
+    <div class="section-title">
+      <span class="section-badge" style="background:#fee2e2; color:#b91c1c">⚡</span>
+      3. Luồng Closing Wizard (Chốt Deal Tự Động Hóa)
+    </div>
+
+    <div class="flow-detail-card">
+      <div class="flow-detail-header">
+        <h3>Trái Tim Chuyển Đổi CRM → Học Vụ & Kế Toán (5 Bước Tự Động)</h3>
+        <span class="flow-tag flow-tag-core">Method: POST /crm/closing-wizard</span>
+      </div>
+      <div class="flow-body">
+        <p style="margin-bottom:16px; font-size:0.9rem; color:var(--muted)">Closing Wizard là quy trình quan trọng nhất trong hệ thống, thực thi đồng thời trong 1 giao dịch để đảm bảo tính toàn vẹn dữ liệu:</p>
+
+        <div class="step-grid">
+          <div class="step-box" style="border-left-color:#059669">
+            <h5>1. Cập nhật CRM Lead</h5>
+            <p>Lead chuyển trạng thái sang <code>won</code>. Cập nhật <code>deal_value</code> bằng số tiền học phí thực tế sau giảm giá.</p>
+          </div>
+          <div class="step-box" style="border-left-color:#2563eb">
+            <h5>2. Sinh Hồ Sơ Học Viên</h5>
+            <p>Tạo mới bản ghi trong <code>students</code> với mã tự sinh <code>HV-XXXXX</code>, kế thừa thông tin cá nhân, chi nhánh và điểm test từ CRM Lead.</p>
+          </div>
+          <div class="step-box" style="border-left-color:#7c3aed">
+            <h5>3. Cấp Tài Khoản LMS</h5>
+            <p>Tạo User với email của học viên, mật khẩu mặc định an toàn và tự động gán Spatie Role là <code>student</code>.</p>
+          </div>
+          <div class="step-box" style="border-left-color:#d97706">
+            <h5>4. Xếp Lớp (Class Enrollment)</h5>
+            <p>Tạo bản ghi <code>class_enrollments</code> gắn Học viên vào Lớp học đã chọn, lưu vết <code>customer_id</code> gốc.</p>
+          </div>
+          <div class="step-box" style="border-left-color:#e11d48">
+            <h5>5. Khởi Tạo Công Nợ & Thu Tiền</h5>
+            <p>Tạo <code>student_tuitions</code> (học phí gốc, giảm trừ, số phải thu). Nếu có nộp tiền cọc/đóng đủ ngay, tạo ngay <code>tuition_receipts</code> (mã PT-) và tiêu thụ 1 số HĐGT điện tử <code>C26MEN-</code>.</p>
+          </div>
+        </div>
+
+        <div class="rule-callout-warning rule-callout">
+          <strong>🔒 Ràng buộc dữ liệu:</strong> Bắt buộc phải chọn Lớp học còn chỗ (chưa vượt quá <code>max_capacity</code>), học phí đóng đợt 1 tối thiểu &ge; 0. Sau khi hoàn tất Wizard, doanh số sẽ được ghi nhận ngay cho Tư vấn viên để tính thưởng hoa hồng cuối tháng.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLOW 4: HỌC VỤ & LỚP HỌC -->
+  <section class="section" id="flow-academic">
+    <div class="section-title">
+      <span class="section-badge" style="background:#ffedd5; color:#c2410c">🎓</span>
+      4. Luồng Học Vụ, Quản Lý Lớp Học & Bàn Giao
+    </div>
+
+    <div class="flow-detail-card">
+      <div class="flow-detail-header">
+        <h3>Quản Lý Lớp Học, Sĩ Số & Bàn Giao Giáo Trình/Zalo</h3>
+        <span class="flow-tag flow-tag-academic">Prefix: /students/* & /courses/*</span>
+      </div>
+      <div class="flow-body">
+        <div class="step-grid">
+          <div class="step-box">
+            <h5>1. Cấu trúc Khóa & Lớp</h5>
+            <p>Khóa học (Courses) gắn liền với Khung trình độ (CourseLevels). Lớp học (Classes) thuộc về 1 Khóa học và 1 Chi nhánh cụ thể, chỉ định Giáo viên chính (teacher_id) và Trợ giảng (assistant_id).</p>
+          </div>
+          <div class="step-box">
+            <h5>2. Kiểm soát Sĩ số Lớp</h5>
+            <p>Mỗi lớp có thuộc tính <code>max_capacity</code> (mặc định 15 học viên). Khi xếp lớp, hệ thống hiển thị cảnh báo nếu lớp đã đủ hoặc vượt sĩ số tiêu chuẩn.</p>
+          </div>
+          <div class="step-box">
+            <h5>3. Checklist Bàn Giao Đầu Khóa</h5>
+            <p>Trong <code>class_enrollments</code>, Học vụ theo dõi 2 chỉ số quan trọng:</p>
+            <ul>
+              <li><code>curriculum_delivered</code>: Đã phát giáo trình/tài liệu cho học viên chưa.</li>
+              <li><code>zalo_group_added</code>: Đã thêm phụ huynh/học viên vào nhóm Zalo chăm sóc lớp chưa.</li>
+            </ul>
+          </div>
+          <div class="step-box">
+            <h5>4. Vòng đời Học viên</h5>
+            <p>Trạng thái học viên biến đổi: <code>studying</code> (Đang học) → <code>graduated</code> (Tốt nghiệp) hoặc <code>deferred</code> (Bảo lưu) / <code>dropped</code> (Bỏ học).</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLOW 5: HỌC PHÍ & HÓA ĐƠN -->
+  <section class="section" id="flow-tuition">
+    <div class="section-title">
+      <span class="section-badge" style="background:#dcfce7; color:#15803d">💰</span>
+      5. Luồng Quản Lý Học Phí, Thu Tiền & Hóa Đơn Điện Tử
+    </div>
+
+    <div class="flow-detail-card">
+      <div class="flow-detail-header">
+        <h3>Sổ Cái Công Nợ, Phiếu Thu (PT-) & Tích Hợp VNPT Invoice (C26MEN-)</h3>
+        <span class="flow-tag flow-tag-finance">Prefix: /tuition/*</span>
+      </div>
+      <div class="flow-body">
+        <div class="step-grid">
+          <div class="step-box">
+            <h5>1. Sổ cái Học Phí (StudentTuition)</h5>
+            <p>Quản lý các trường: <code>total_amount</code> (học phí niêm yết), <code>discount_amount</code> (ưu đãi), <code>final_amount</code> (thực thu), <code>paid_amount</code> (đã thu), <code>debt_amount</code> (còn nợ).</p>
+          </div>
+          <div class="step-box">
+            <h5>2. Thu tiền & Phiếu Thu (TuitionReceipt)</h5>
+            <p>Lập phiếu thu mã <code>PT-YYYY-NNNN</code>. Số tiền thu tối thiểu &ge; 1.000 VNĐ. Có 3 phương thức thanh toán: <strong>Chuyển khoản (transfer)</strong>, <strong>Tiền mặt (cash)</strong>, <strong>Quẹt thẻ POS (pos)</strong>.</p>
+          </div>
+          <div class="step-box">
+            <h5>3. Tự động tính toán lại công nợ</h5>
+            <p>Hàm <code>recalculateDebt()</code> tự động chạy:</p>
+            <ul>
+              <li><code>paid_amount = SUM(receipts có status=approved)</code></li>
+              <li><code>debt_amount = MAX(0, final_amount - paid_amount)</code></li>
+              <li><strong>Trạng thái:</strong> debt=0 &rarr; <code>paid</code>; paid&gt;0 &amp; debt&gt;0 &rarr; <code>partial</code>; paid=0 &amp; quá hạn &rarr; <code>overdue</code>.</li>
+            </ul>
+          </div>
+          <div class="step-box">
+            <h5>4. Hóa Đơn Điện Tử VNPT</h5>
+            <p>Sử dụng mẫu số <code>1/001</code>, ký hiệu <code>C26MEN</code>. Mỗi phiếu thu hợp lệ tiêu thụ 1 số hóa đơn tự tăng qua <code>InvoiceConfiguration::consumeNextInvoiceNumber()</code>.</p>
+          </div>
+        </div>
+
+        <div class="rule-callout">
+          <strong>📌 Lưu ý kiểm soát nợ:</strong> Phiếu thu ở trạng thái <code>pending</code> (chờ duyệt) sẽ <strong>KHÔNG</strong> được tính vào <code>paid_amount</code> để ngăn chặn việc ghi nhận khống dòng tiền.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLOW 6: HOÀN PHÍ & BẢO LƯU -->
+  <section class="section" id="flow-refund">
+    <div class="section-title">
+      <span class="section-badge" style="background:#ede9fe; color:#6b21a8">🔄</span>
+      6. Luồng Hoàn Phí, Bảo Lưu & Chuyển Nhượng Học Phí
+    </div>
+
+    <div class="flow-detail-card">
+      <div class="flow-detail-header">
+        <h3>Xử Lý Rút Phí, Khấu Trừ Buổi Học & Chuyển Nhượng Cho Học Viên Khác</h3>
+        <span class="flow-tag flow-tag-finance">Method: POST /tuition/refund-requests</span>
+      </div>
+      <div class="flow-body">
+        <div class="step-grid">
+          <div class="step-box">
+            <h5>Loại 1: Hoàn Phí (Refund)</h5>
+            <p>Tính toán số tiền đã đóng, trừ đi số buổi đã học theo đơn giá buổi và phí quản lý (admin fee). Khi duyệt: Hệ thống tạo 1 <strong>phiếu thu âm (-amount)</strong> để cân đối sổ cái và hoàn tiền mặt/chuyển khoản cho học viên.</p>
+          </div>
+          <div class="step-box">
+            <h5>Loại 2: Gia Hạn / Bảo Lưu (Extension)</h5>
+            <p>Đóng băng công nợ và số buổi học còn lại. Chuyển trạng thái học viên sang <code>deferred</code>, bảo lưu quyền học trong thời hạn quy định.</p>
+          </div>
+          <div class="step-box">
+            <h5>Loại 3: Chuyển Nhượng (Transfer)</h5>
+            <p>Chuyển số tiền còn dư sang học viên đích (<code>target_student_id</code>). Khi duyệt: Tự động tạo 1 phiếu thu âm tại học viên nguồn và 1 phiếu thu dương tại học viên đích, tự động cân đối công nợ cả 2 bên.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLOW 7: HỦY HÓA ĐƠN -->
+  <section class="section" id="flow-invoice-cancel">
+    <div class="section-title">
+      <span class="section-badge" style="background:#fee2e2; color:#b91c1c">🧾</span>
+      7. Luồng Hủy Hóa Đơn Điện Tử (Invoice Cancellation)
+    </div>
+
+    <div class="flow-detail-card">
+      <div class="flow-detail-header">
+        <h3>Quy Trình Phê Duyệt Hủy Hóa Đơn Khớp Chuẩn Kế Toán</h3>
+        <span class="flow-tag flow-tag-finance">Prefix: /tuition/invoice-cancellations/*</span>
+      </div>
+      <div class="flow-body">
+        <p>Khi có sai sót thông tin xuất hóa đơn hoặc phát sinh hoàn trả tiền, quy trình hủy gồm 3 bước:</p>
+        <ol style="padding-left:24px; font-size:0.88rem; color:#475569; margin-top:8px">
+          <li><strong>Yêu cầu hủy:</strong> Nhân viên lập biên bản yêu cầu hủy, điền số hóa đơn, số tiền và lý do hủy chi tiết (lưu vết <code>requester_id</code>, status = <code>pending</code>).</li>
+          <li><strong>Thẩm định kế toán:</strong> Kế toán trưởng hoặc Admin kiểm tra đối soát với hệ thống VNPT.</li>
+          <li><strong>Phê duyệt / Từ chối:</strong> Nếu duyệt (<code>approved</code>), phiếu thu liên quan được đánh dấu và hóa đơn cũ bị hủy hiệu lực; nếu từ chối (<code>rejected</code>), hóa đơn giữ nguyên hiệu lực.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLOW 8: GIÁO TRÌNH & BIG TEST -->
+  <section class="section" id="flow-syllabus">
+    <div class="section-title">
+      <span class="section-badge" style="background:#e0f2fe; color:#0369a1">📚</span>
+      8. Luồng Giáo Trình, Soạn Bài & Big Test Thông Báo Zalo
+    </div>
+
+    <div class="flow-detail-card">
+      <div class="flow-detail-header">
+        <h3>Quản Lý Khung Chương Trình, Phân Công Soạn Bài & Thi Giữa/Cuối Kỳ</h3>
+        <span class="flow-tag flow-tag-academic">Prefix: /syllabus/*</span>
+      </div>
+      <div class="flow-body">
+        <div class="step-grid">
+          <div class="step-box">
+            <h5>1. Giáo Trình &amp; Unit Builder</h5>
+            <p>Mỗi khóa học gắn với 1 Giáo trình chuẩn (<code>SyllabusCurriculum</code>). Bên trong chia thành các bài học chi tiết (<code>SyllabusUnit</code>) chứa: Mục tiêu bài học, Từ vựng trọng tâm, Ngữ pháp, Hướng dẫn bài tập về nhà.</p>
+          </div>
+          <div class="step-box">
+            <h5>2. Phân Công Soạn Bài (Assignments)</h5>
+            <p>Học vụ giao từng Unit cho Giáo viên biên soạn kèm Deadline. Giáo viên cập nhật % tiến độ và nộp tài liệu trực tiếp trên hệ thống.</p>
+          </div>
+          <div class="step-box">
+            <h5>3. Tổ Chức Thi Big Test</h5>
+            <p>Tạo kỳ thi mã <code>BT-YYYY-NN</code> (Midterm / Final) cho từng lớp học, chỉ định Giám thị (proctor_id) và Phòng thi (Lab 201...).</p>
+          </div>
+          <div class="step-box">
+            <h5>4. Bắn Tin Nhắn Zalo ZNS Phụ Huynh</h5>
+            <p>Sau khi chấm điểm 4 kỹ năng, hệ thống tích hợp <code>ZaloZnsService::sendBigTestResult()</code> cho phép gửi thông báo điểm số kèm nhận xét của giáo viên trực tiếp tới Zalo phụ huynh (hỗ trợ gửi hàng loạt 1-click).</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLOW 9: WORK TASKS & TRỰC LỚP -->
+  <section class="section" id="flow-tasks">
+    <div class="section-title">
+      <span class="section-badge" style="background:#fce7f3; color:#9d174d">📌</span>
+      9. Luồng Phân Công Công Việc & Báo Cáo Trực Lớp (TA Portal)
+    </div>
+
+    <div class="flow-detail-card">
+      <div class="flow-detail-header">
+        <h3>Phân Ca Trực 3 Khung Giờ, Ảnh Bảng Minh Chứng & Bổ Trợ Học Viên</h3>
+        <span class="flow-tag flow-tag-support">Prefix: /tasks/* & /portal/ta-tasks</span>
+      </div>
+      <div class="flow-body">
+        <div class="step-grid">
+          <div class="step-box">
+            <h5>1. Phân việc theo 3 Khung Giờ Ca Học</h5>
+            <p>Task được nhóm theo ca:</p>
+            <ul>
+              <li><strong>Before (Trước giờ học):</strong> Chuẩn bị tài liệu, mic, máy chiếu (Due: 14:00).</li>
+              <li><strong>During (Trong giờ học):</strong> Điểm danh, chụp ảnh bảng, hỗ trợ GV (Due: 18:00).</li>
+              <li><strong>After (Sau giờ học):</strong> Viết báo cáo, hỗ trợ HS yếu (Due: 21:30).</li>
+            </ul>
+          </div>
+          <div class="step-box">
+            <h5>2. Cơ chế Hoàn Thành Kèm Bằng Chứng</h5>
+            <p>Khi Trợ giảng báo cáo hoàn thành:</p>
+            <ul>
+              <li><strong>Có upload ảnh minh chứng:</strong> Status chuyển ngay sang <code>completed</code>.</li>
+              <li><strong>Không có ảnh:</strong> Status thành <code>pending_confirmation</code>, bắt buộc Quản lý duyệt tay mới hoàn tất.</li>
+            </ul>
+          </div>
+          <div class="step-box">
+            <h5>3. Báo Cáo Trực Lớp (Class Report)</h5>
+            <p>Trợ giảng nộp báo cáo bắt buộc gồm: Tên buổi học, Nội dung trọng tâm đã dạy, Ảnh chụp bảng viết, và Danh sách học viên cần bổ trợ (<code>ClassReportStudentSupport</code>) kèm lý do vắng/yếu kiến thức.</p>
+          </div>
+          <div class="step-box">
+            <h5>4. Đánh giá KPI Trợ Giảng & GV</h5>
+            <p>Hệ thống tự động tổng hợp tỷ lệ hoàn thành task đúng hạn, tỷ lệ chuyên cần của lớp và tỷ lệ học viên giữ chân (Retention Rate).</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLOW 10: CHẤM CÔNG -->
+  <section class="section" id="flow-timesheet">
+    <div class="section-title">
+      <span class="section-badge" style="background:#e0e7ff; color:#3730a3">⏱️</span>
+      10. Luồng Chấm Công Giảng Dạy & Đồng Bộ FaceID
+    </div>
+
+    <div class="flow-detail-card">
+      <div class="flow-detail-header">
+        <h3>Chấm Công Ca Dạy, Đơn Giá Phân Cấp & Đồng Bộ Máy Chấm Công</h3>
+        <span class="flow-tag flow-tag-hr">Prefix: /payroll/timesheets/*</span>
+      </div>
+      <div class="flow-body">
+        <div class="step-grid">
+          <div class="step-box">
+            <h5>1. Ghi Nhận Giờ Giảng (TeacherTimesheets)</h5>
+            <p>Mỗi ca dạy ghi nhận: Giáo viên, Lớp học, Ngày dạy, Số giờ (tối thiểu &ge; 0.5 giờ), Loại ca (chính thức, dạy thay, kèm 1-1, chấm bài, workshop).</p>
+          </div>
+          <div class="step-box">
+            <h5>2. Thứ Tự Ưu Tiên Xác Định Đơn Giá Giờ Dạy</h5>
+            <p>Hệ thống giải quyết đơn giá theo 3 bậc (Fallback Resolution):</p>
+            <ol style="padding-left:18px; margin-top:4px">
+              <li>Lấy <code>timesheet.hourly_rate</code> nếu được chỉ định riêng cho ca dạy.</li>
+              <li>Nếu không có, lấy <code>user.hourly_rate</code> (đơn giá hợp đồng cá nhân).</li>
+              <li>Nếu vẫn trống, fallback về đơn giá mặc định: <strong>250.000 VNĐ/giờ</strong>.</li>
+            </ol>
+          </div>
+          <div class="step-box">
+            <h5>3. Đồng Bộ Máy Chấm Công (TimesheetSyncLogs)</h5>
+            <p>Hệ thống ghi nhận log kết nối FaceID theo từng chi nhánh, số lượng bản ghi quét được và tỷ lệ khớp với ca dạy thực tế.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLOW 11: KỶ LUẬT & PHẠT -->
+  <section class="section" id="flow-penalties">
+    <div class="section-title">
+      <span class="section-badge" style="background:#fee2e2; color:#b91c1c">⚖️</span>
+      11. Luồng Kỷ Luật, Xử Phạt & Tự Động Khấu Trừ
+    </div>
+
+    <div class="flow-detail-card">
+      <div class="flow-detail-header">
+        <h3>Biên Bản Vi Phạm Mã BB- & Vòng Đời Tác Động Vào Lương</h3>
+        <span class="flow-tag flow-tag-hr">Prefix: /penalties/*</span>
+      </div>
+      <div class="flow-body">
+        <div class="step-grid">
+          <div class="step-box">
+            <h5>1. Lập Biên Bản Vi Phạm</h5>
+            <p>Học vụ / Quản lý lập biên bản mã <code>BB-YYYY-NNN</code> ghi nhận: Nhân viên vi phạm, Ngày vi phạm, Lớp học liên quan, Loại lỗi (Đến muộn, Nghỉ không phép, Không viết báo cáo...) và Số tiền phạt.</p>
+          </div>
+          <div class="step-box">
+            <h5>2. Vòng Đời Trạng Thái Biên Bản</h5>
+            <p>Biên bản chuyển qua các trạng thái:</p>
+            <ul>
+              <li><code>pending</code>: Mới lập, đang chờ giải trình/xác minh.</li>
+              <li><code>confirmed</code>: Đã chốt phạt chính thức (<strong>chỉ trạng thái này mới bị trừ lương</strong>).</li>
+              <li><code>cancelled</code>: Khiếu nại thành công, hủy biên bản.</li>
+              <li><code>deducted</code>: Đã được engine tính lương khấu trừ vào bảng lương tháng.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLOW 12: TÍNH LƯƠNG TỰ ĐỘNG -->
+  <section class="section" id="flow-payroll">
+    <div class="section-title">
+      <span class="section-badge" style="background:#fae8ff; color:#86198f">💼</span>
+      12. Công Thức & Luồng Tính Lương Toàn Diện (Payroll Engine)
+    </div>
+
+    <div class="flow-detail-card">
+      <div class="flow-detail-header">
+        <h3>Cơ Chế Tự Động Quyết Toán Toàn Bộ Nhân Sự (calculatePayrollForPeriod)</h3>
+        <span class="flow-tag flow-tag-hr">Prefix: /payroll/* & /portal/my-salary</span>
+      </div>
+      <div class="flow-body">
+        <div class="map-card" style="background:#fdf4ff; border-color:#f0abfc; padding:20px; margin-bottom:20px">
+          <h4 style="color:#701a75; margin-bottom:8px">Công Thức Quyết Toán Lương Thực Lĩnh (Net Salary):</h4>
+          <p style="font-family:monospace; font-size:0.95rem; color:#4a044e; font-weight:700">
+            Thực Lĩnh = MAX(0, [Lương Cứng + Thù Lao Dạy + Thưởng KPI + Phụ Cấp + Thưởng Hoa Hồng] - [Tiền Phạt + BHXH (10.5%) + Thuế TNCN])
+          </p>
+        </div>
+
+        <div class="step-grid">
+          <div class="step-box">
+            <h5>Chi tiết Khoản Cộng (+)</h5>
+            <ul>
+              <li><strong>Lương Cứng:</strong> Lấy từ <code>user.base_salary</code>.</li>
+              <li><strong>Thù Lao Dạy:</strong> Tổng <code>Σ(hours × rate)</code> từ các Timesheet hợp lệ trong tháng.</li>
+              <li><strong>Thưởng KPI Giảng Dạy:</strong> Tự động cộng <strong>+1.000.000 VNĐ</strong> nếu tổng số giờ dạy trong tháng &ge; 40 giờ.</li>
+              <li><strong>Phụ Cấp Ăn/Đi Lại:</strong> Tự động cộng <strong>+500.000 VNĐ</strong> nếu nhân viên có lương cứng &gt; 0.</li>
+              <li><strong>Hoa Hồng Tuyển Sinh:</strong> Tính cho Tư vấn viên dựa trên doanh số các hợp đồng CRM ở stage <code>won</code> trong kỳ, đối soát theo các bậc <code>commission_tiers</code> (% sale mới + % tái tục + thưởng mốc).</li>
+            </ul>
+          </div>
+          <div class="step-box">
+            <h5>Chi tiết Khoản Trừ (-)</h5>
+            <ul>
+              <li><strong>Khấu Trừ Vi Phạm:</strong> Tổng các biên bản phạt có trạng thái <code>status = confirmed</code> trong kỳ lương.</li>
+              <li><strong>Bảo Hiểm Xã Hội:</strong> Trừ <strong>10.5%</strong> trên mức lương cứng (<code>base_salary × 10.5%</code>).</li>
+              <li><strong>Thuế TNCN:</strong> Khấu trừ theo quy định hiện hành.</li>
+            </ul>
+          </div>
+          <div class="step-box">
+            <h5>Quy trình Duyệt & Chi Trả</h5>
+            <p>Kỳ lương mã <code>PR-YYYY-MM</code> đi qua 4 nấc: <code>draft</code> (Dự thảo) &rarr; <code>reviewing</code> (Kế toán soát) &rarr; <code>approved</code> (Giám đốc duyệt) &rarr; <code>paid</code> (Đã chuyển khoản). Khi đã <code>approved</code>, dữ liệu bị khóa hoàn toàn, việc sửa đổi hoa hồng sau này không làm thay đổi kỳ lương cũ.</p>
+          </div>
+          <div class="step-box">
+            <h5>Portal Xem Lương Cá Nhân</h5>
+            <p>Mỗi nhân viên truy cập <code>/portal/my-salary</code> để tra cứu bảng lương minh bạch của chính mình kèm giải trình chi tiết từng ca dạy và khoản thưởng/phạt.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLOW 13: HELPDESK & NOTIFICATIONS -->
+  <section class="section" id="flow-tickets">
+    <div class="section-title">
+      <span class="section-badge" style="background:#e0e7ff; color:#3730a3">🎫</span>
+      13. Luồng Helpdesk Support Tickets & Trung Tâm Thông Báo
+    </div>
+
+    <div class="flow-detail-card">
+      <div class="flow-detail-header">
+        <h3>Hệ Thống Yêu Cầu Hỗ Trợ Nội Bộ & Phát Thông Báo Real-time</h3>
+        <span class="flow-tag flow-tag-support">Prefix: /tickets/* & /notifications/*</span>
+      </div>
+      <div class="flow-body">
+        <div class="step-grid">
+          <div class="step-box">
+            <h5>1. Phân Loại & Mức Độ Ưu Tiên</h5>
+            <p>Ticket mã <code>TK-YYYY-NNNN</code> phân loại: <strong>technical_issue</strong> (Lỗi kỹ thuật), <strong>curriculum</strong> (Giáo trình), <strong>tuition</strong> (Học phí), <strong>customer_complaint</strong> (Khiếu nại phụ huynh). Mức ưu tiên: <code>low</code>, <code>medium</code>, <code>high</code>, <code>urgent</code>.</p>
+          </div>
+          <div class="step-box">
+            <h5>2. Luồng Trao Đổi & Ghi Chú Nội Bộ</h5>
+            <p>Hỗ trợ tải tệp đính kèm và paste ảnh trực tiếp từ Clipboard. Hỗ trợ tính năng <code>is_internal_note</code> để nhân sự nội bộ trao đổi kín (học viên/người tạo không xem được).</p>
+          </div>
+          <div class="step-box">
+            <h5>3. Tự Động Chuyển Trạng Thái</h5>
+            <p>Khi có phản hồi mới từ nhân viên xử lý, trạng thái tự chuyển từ <code>open</code> &rarr; <code>in_progress</code>. Khi xử lý xong chuyển <code>resolved</code> (lưu vết <code>resolved_at</code>) &rarr; <code>closed</code>.</p>
+          </div>
+          <div class="step-box">
+            <h5>4. Cơ chế Định Tuyến Thông Báo</h5>
+            <p>Thông báo được gửi chính xác đối tượng: Tạo ticket chỉ báo cho Người xử lý (assignee), Có phản hồi chỉ báo cho Người tạo (creator), Đổi trạng thái báo cho cả hai. Người ngoài cuộc không nhận thông báo rác.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLOW 14: PHÂN QUYỀN ĐA TẦNG -->
+  <section class="section" id="flow-acl">
+    <div class="section-title">
+      <span class="section-badge" style="background:#dbeafe; color:#1d4ed8">🔐</span>
+      14. Luồng Phân Quyền Đa Tầng & Bảo Vệ Tài Khoản
+    </div>
+
+    <div class="flow-detail-card">
+      <div class="flow-detail-header">
+        <h3>RBAC Chuẩn Spatie + Cơ Chế Override Cá Nhân Chi Tiết</h3>
+        <span class="flow-tag flow-tag-core">Prefix: /users/*, /roles/*, /permissions/*</span>
+      </div>
+      <div class="flow-body">
+        <div class="step-grid">
+          <div class="step-box">
+            <h5>1. Phân Quyền Theo Role (Spatie RBAC)</h5>
+            <p>Hệ thống có 8 vai trò mặc định, kiểm soát hơn 100 quyền dạng <code>module.action</code> (regex bắt buộc chữ thường, ví dụ: <code>crm.view</code>, <code>tuition.create</code>).</p>
+          </div>
+          <div class="step-box">
+            <h5>2. Lớp Override Cá Nhân (UserPermissionOverride)</h5>
+            <p>Cho phép mở rộng (<code>allow = true</code>) hoặc thu hẹp (<code>allow = false</code>) quyền của từng nhân viên cụ thể theo 3 phạm vi: <strong>Toàn hệ thống (all)</strong>, <strong>Chi nhánh (branch)</strong>, hoặc <strong>Lớp học (class)</strong>.</p>
+          </div>
+          <div class="step-box">
+            <h5>3. Khóa Tài Khoản Tức Thì (Account Locking)</h5>
+            <p>Khi Admin bấm khóa nhân viên (ghi nhận <code>locked_at</code>), middleware <code>EnsureAccountIsActive</code> sẽ lập tức vô hiệu hóa phiên đăng nhập hiện tại và đá người dùng về trang Login ngay ở request kế tiếp.</p>
+          </div>
+          <div class="step-box">
+            <h5>4. Tự Động Ghi Nhật Ký (Audit Log)</h5>
+            <p>Middleware <code>AuditOperationMiddleware</code> tự động ghi lại toàn bộ các thao tác ghi dữ liệu (POST, PUT, PATCH, DELETE) kèm diff dữ liệu trước/sau và tự động ẩn các trường nhạy cảm như mật khẩu.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 15: MA TRẬN PHỤ THUỘC & ROLES -->
+  <section class="section" id="matrix">
+    <div class="section-title">
+      <span class="section-badge" style="background:#f1f5f9; color:#0f172a">📊</span>
+      15. Ma Trận Phụ Thuộc Nghiệp Vụ & Bảng Phân Quyền 8 Vai Trò
+    </div>
+
+    <div class="map-card">
+      <h3 style="color:var(--primary); margin-bottom:12px">Bảng Tra Cứu Điều Kiện Tiên Quyết Khi Tạo Dữ Liệu</h3>
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th>Tính Năng / Hành Động</th>
+            <th>Điều Kiện Tiên Quyết (Prerequisites)</th>
+            <th>Thực Thể Được Sinh Ra / Tác Động</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Tạo Nhân Viên Mới</strong></td>
+            <td><span class="badge-req">Cần có:</span> Branch, Spatie Roles</td>
+            <td><span class="badge-gen">Sinh ra:</span> User (Bcrypt password, employee_code)</td>
+          </tr>
+          <tr>
+            <td><strong>Tạo Lớp Học Mới</strong></td>
+            <td><span class="badge-req">Cần có:</span> Course, Branch, User (Teacher)</td>
+            <td><span class="badge-gen">Sinh ra:</span> Class (status: active/upcoming)</td>
+          </tr>
+          <tr>
+            <td><strong>Chốt Deal (Closing Wizard)</strong></td>
+            <td><span class="badge-req">Cần có:</span> CRM Lead, Class (còn chỗ), Invoice Config</td>
+            <td><span class="badge-gen">Sinh ra:</span> Student, User(LMS), ClassEnrollment, StudentTuition, TuitionReceipt</td>
+          </tr>
+          <tr>
+            <td><strong>Lập Phiếu Thu Học Phí</strong></td>
+            <td><span class="badge-req">Cần có:</span> StudentTuition tồn tại, Amount &ge; 1.000đ</td>
+            <td><span class="badge-gen">Sinh ra:</span> TuitionReceipt (PT-), HĐGT (C26MEN-), giảm công nợ</td>
+          </tr>
+          <tr>
+            <td><strong>Chấm Điểm Thi Big Test</strong></td>
+            <td><span class="badge-req">Cần có:</span> BigTest, Class, Students</td>
+            <td><span class="badge-gen">Sinh ra:</span> BigTestResults, kích hoạt gửi tin nhắn Zalo ZNS phụ huynh</td>
+          </tr>
+          <tr>
+            <td><strong>Báo Cáo Trực Lớp</strong></td>
+            <td><span class="badge-req">Cần có:</span> Class, User (Assistant), Học viên trong lớp</td>
+            <td><span class="badge-gen">Sinh ra:</span> ClassReport, ClassReportStudentSupport, hoàn tất WorkTask</td>
+          </tr>
+          <tr>
+            <td><strong>Tính Lương Tháng</strong></td>
+            <td><span class="badge-req">Cần có:</span> Timesheets duyệt, CRM Won deals, Penalties confirmed</td>
+            <td><span class="badge-gen">Sinh ra:</span> PayrollRecords cho toàn bộ nhân sự</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 8 ROLES SUMMARY -->
+    <div class="map-card" style="margin-top:24px">
+      <h3 style="color:var(--primary); margin-bottom:12px">Quyền Hạn Thao Tác Của 8 Vai Trò Trong Hệ Thống</h3>
+      <div class="role-grid">
+        <div class="role-card" style="border-top:4px solid #ef4444">
+          <div class="role-card-header">
+            <span class="role-name">1. Admin (Quản Trị Viên)</span>
+            <span class="role-badge" style="background:#fee2e2; color:#991b1b">Toàn Quyền</span>
+          </div>
+          <ul>
+            <li>Toàn quyền xem, sửa, xóa, cấu hình toàn hệ thống.</li>
+            <li>Phân quyền, mở khóa/khóa tài khoản, override quyền.</li>
+            <li>Duyệt bảng lương, duyệt hủy hóa đơn, cấu hình VNPT.</li>
+          </ul>
+        </div>
+
+        <div class="role-card" style="border-top:4px solid #f59e0b">
+          <div class="role-card-header">
+            <span class="role-name">2. Manager (Quản Lý Cơ Sở)</span>
+            <span class="role-badge" style="background:#fef3c7; color:#92400e">Quản Lý</span>
+          </div>
+          <ul>
+            <li>Quản lý nhân sự, học viên, lớp học trong chi nhánh.</li>
+            <li>Xem toàn bộ Lead CRM, duyệt báo cáo trực lớp của TA.</li>
+            <li>Lập biên bản kỷ luật, duyệt yêu cầu điều chỉnh giáo trình.</li>
+          </ul>
+        </div>
+
+        <div class="role-card" style="border-top:4px solid #10b981">
+          <div class="role-card-header">
+            <span class="role-name">3. Accountant (Kế Toán)</span>
+            <span class="role-badge" style="background:#d1fae5; color:#065f46">Tài Chính</span>
+          </div>
+          <ul>
+            <li>Toàn quyền quản lý Sổ nợ Học phí, Phiếu thu, Hoàn phí.</li>
+            <li>Duyệt hủy hóa đơn, cấu hình dải số HĐGT VNPT.</li>
+            <li>Soát xét bảng lương, kiểm tra đối soát ngân hàng VietQR.</li>
+          </ul>
+        </div>
+
+        <div class="role-card" style="border-top:4px solid #3b82f6">
+          <div class="role-card-header">
+            <span class="role-name">4. Academic Staff (Học Vụ)</span>
+            <span class="role-badge" style="background:#dbeafe; color:#1e40af">Học Thuật</span>
+          </div>
+          <ul>
+            <li>Quản lý Khóa học, Lớp học, Xếp lớp, Điểm danh học viên.</li>
+            <li>Quản lý Giáo trình, Đề Test đầu vào, Tổ chức thi Big Test.</li>
+            <li>Bắn tin nhắn Zalo kết quả học tập cho phụ huynh.</li>
+          </ul>
+        </div>
+
+        <div class="role-card" style="border-top:4px solid #8b5cf6">
+          <div class="role-card-header">
+            <span class="role-name">5. Sales Consultant (Tư Vấn)</span>
+            <span class="role-badge" style="background:#ede9fe; color:#5b21b6">Tuyển Sinh</span>
+          </div>
+          <ul>
+            <li>Tiếp nhận & chăm sóc các Lead CRM được phân công.</li>
+            <li>Đặt lịch test, nhập điểm và thực thi Closing Wizard.</li>
+            <li>Xem báo cáo doanh số cá nhân và hoa hồng ước tính.</li>
+          </ul>
+        </div>
+
+        <div class="role-card" style="border-top:4px solid #06b6d4">
+          <div class="role-card-header">
+            <span class="role-name">6. Teacher (Giáo Viên)</span>
+            <span class="role-badge" style="background:#cffafe; color:#155e75">Giảng Dạy</span>
+          </div>
+          <ul>
+            <li>Xem danh sách lớp phụ trách, học viên, lịch dạy.</li>
+            <li>Chấm bài test, gửi yêu cầu điều chỉnh tiến độ bài học.</li>
+            <li>Chấm công ca dạy và xem bảng lương cá nhân (my-salary).</li>
+          </ul>
+        </div>
+
+        <div class="role-card" style="border-top:4px solid #ec4899">
+          <div class="role-card-header">
+            <span class="role-name">7. Assistant (Trợ Giảng)</span>
+            <span class="role-badge" style="background:#fce7f3; color:#9d174d">Trợ Giảng</span>
+          </div>
+          <ul>
+            <li>Truy cập TA Portal nhận công việc theo 3 ca.</li>
+            <li>Báo cáo trực lớp kèm ảnh chụp bảng, log học sinh cần bổ trợ.</li>
+            <li>Hỗ trợ điểm danh và giải đáp ticket học viên.</li>
+          </ul>
+        </div>
+
+        <div class="role-card" style="border-top:4px solid #64748b">
+          <div class="role-card-header">
+            <span class="role-name">8. Student (Học Viên)</span>
+            <span class="role-badge" style="background:#f1f5f9; color:#334155">Học Viên</span>
+          </div>
+          <ul>
+            <li>Xem thông tin lớp học, lịch học, giáo trình điện tử.</li>
+            <li>Xem điểm danh, kết quả bài thi Big Test.</li>
+            <li>Tạo ticket yêu cầu hỗ trợ khi gặp vướng mắc.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <p>📘 MEnglish Admin — Tài Liệu Hướng Dẫn & Phân Tích Flow Nghiệp Vụ v1.0</p>
+  <p style="margin-top:4px">Hệ thống quản lý trung tâm Anh ngữ toàn diện · Laravel 11 · MySQL · Phát hành 2026</p>
+</footer>
+
+</body>
+</html>

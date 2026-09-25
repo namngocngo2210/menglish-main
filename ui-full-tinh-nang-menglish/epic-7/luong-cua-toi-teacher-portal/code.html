@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Lương của tôi - Teacher Portal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary-fixed-variant": "#002fc9",
+                      "secondary": "#1e43e7",
+                      "surface-container": "#e8eeff",
+                      "secondary-container": "#4160ff",
+                      "primary": "#a23f00",
+                      "on-secondary-container": "#faf7ff",
+                      "on-primary": "#ffffff",
+                      "surface": "#f9f9ff",
+                      "surface-bright": "#f9f9ff",
+                      "surface-container-lowest": "#ffffff",
+                      "tertiary": "#256d00",
+                      "on-secondary": "#ffffff",
+                      "on-secondary-fixed": "#00105b",
+                      "tertiary-container": "#46a917",
+                      "on-error-container": "#93000a",
+                      "surface-container-highest": "#dde2f3",
+                      "surface-container-low": "#f1f3ff",
+                      "surface-variant": "#dde2f3",
+                      "surface-tint": "#a23f00",
+                      "on-tertiary": "#ffffff",
+                      "on-primary-container": "#521c00",
+                      "surface-container-high": "#e3e8f9",
+                      "tertiary-fixed-dim": "#78de4b",
+                      "on-error": "#ffffff",
+                      "inverse-primary": "#ffb595",
+                      "on-tertiary-container": "#0e3500",
+                      "inverse-surface": "#2a303d",
+                      "error-container": "#ffdad6",
+                      "surface-dim": "#d4daea",
+                      "on-surface": "#161c27",
+                      "primary-fixed-dim": "#ffb595",
+                      "on-background": "#161c27",
+                      "primary-container": "#f5691a",
+                      "on-primary-fixed-variant": "#7c2e00",
+                      "error": "#ba1a1a",
+                      "secondary-fixed-dim": "#bac3ff",
+                      "outline-variant": "#e1bfb2",
+                      "secondary-fixed": "#dee0ff",
+                      "inverse-on-surface": "#ecf0ff",
+                      "on-tertiary-fixed-variant": "#1a5200",
+                      "on-tertiary-fixed": "#062100",
+                      "primary-fixed": "#ffdbcd",
+                      "outline": "#8d7165",
+                      "on-primary-fixed": "#360f00",
+                      "tertiary-fixed": "#93fb65",
+                      "on-surface-variant": "#594137",
+                      "background": "#f9f9ff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "base": "8px",
+                      "xl": "32px",
+                      "lg": "24px",
+                      "sm": "8px",
+                      "md": "16px",
+                      "xs": "4px",
+                      "sidebar-width": "260px",
+                      "header-height": "64px",
+                      "gutter": "16px"
+              },
+              "fontFamily": {
+                      "h2": ["Be Vietnam Pro"],
+                      "code": ["JetBrains Mono"],
+                      "body-base": ["Be Vietnam Pro"],
+                      "body-small": ["Be Vietnam Pro"],
+                      "caption": ["Be Vietnam Pro"],
+                      "body-medium": ["Be Vietnam Pro"],
+                      "h3": ["Be Vietnam Pro"],
+                      "label": ["Be Vietnam Pro"],
+                      "h1": ["Be Vietnam Pro"]
+              },
+              "fontSize": {
+                      "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                      "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                      "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                      "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                      "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                      "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; background-color: #f9f9ff; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid #dde2f3;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+        .status-badge-pending { background-color: rgba(245, 105, 26, 0.1); color: #f5691a; }
+        .status-badge-confirmed { background-color: rgba(70, 169, 23, 0.1); color: #46a917; }
+    </style>
+</head>
+<body class="text-on-surface">
+<!-- Main Content Container (assuming standalone panel) -->
+<main class="w-full max-w-7xl mx-auto p-lg">
+<!-- Header & Filter -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-xl gap-md">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface">Lương của tôi</h1>
+<p class="font-body-base text-body-base text-on-surface-variant mt-xs">Kỳ lương hiện tại: Đang tính</p>
+</div>
+<div class="flex items-center gap-md">
+<div class="relative">
+<select class="appearance-none bg-surface-container-lowest border border-surface-container-highest rounded-lg px-md py-[10px] pr-xl font-body-medium text-body-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent min-w-[200px] cursor-pointer">
+<option>Tháng 10/2023</option>
+<option>Tháng 09/2023</option>
+<option>Tháng 08/2023</option>
+</select>
+<span class="material-symbols-outlined absolute right-sm top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">arrow_drop_down</span>
+</div>
+<button class="bg-surface-container-lowest border border-surface-container-highest hover:bg-surface-container-low text-on-surface font-body-medium text-body-medium px-md py-[10px] rounded-lg transition-colors flex items-center gap-sm">
+<span class="material-symbols-outlined text-[20px]">download</span>
+                    Tải phiếu lương
+                </button>
+</div>
+</div>
+<!-- Summary Cards (Bento Grid Style) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-lg mb-xl">
+<div class="glass-card rounded-xl p-lg flex flex-col justify-between">
+<div class="flex justify-between items-start mb-md">
+<h3 class="font-body-medium text-body-medium text-on-surface-variant uppercase tracking-wider">Tổng thu nhập</h3>
+<div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary text-[20px]">payments</span>
+</div>
+</div>
+<div>
+<div class="font-h1 text-h1 text-on-surface">18,500,000 ₫</div>
+<div class="font-caption text-caption text-tertiary-container flex items-center mt-xs">
+<span class="material-symbols-outlined text-[14px] mr-1">trending_up</span>
+                        +12% so với tháng trước
+                    </div>
+</div>
+</div>
+<div class="glass-card rounded-xl p-lg flex flex-col justify-between">
+<div class="flex justify-between items-start mb-md">
+<h3 class="font-body-medium text-body-medium text-on-surface-variant uppercase tracking-wider">Tổng khoản trừ</h3>
+<div class="w-8 h-8 rounded-full bg-error-container flex items-center justify-center">
+<span class="material-symbols-outlined text-error text-[20px]">money_off</span>
+</div>
+</div>
+<div>
+<div class="font-h1 text-h1 text-on-surface">850,000 ₫</div>
+<div class="font-caption text-caption text-error flex items-center mt-xs">
+<span class="material-symbols-outlined text-[14px] mr-1">warning</span>
+                        Bao gồm phạt và các khoản khác
+                    </div>
+</div>
+</div>
+<div class="glass-card rounded-xl p-lg bg-gradient-to-br from-primary-container to-[#ff8c4a] border-none text-white shadow-lg relative overflow-hidden flex flex-col justify-between">
+<!-- Decorative circles -->
+<div class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-10 -mt-10 pointer-events-none"></div>
+<div class="absolute bottom-0 right-10 w-20 h-20 bg-white opacity-10 rounded-full -mb-10 pointer-events-none"></div>
+<div class="flex justify-between items-start mb-md relative z-10">
+<h3 class="font-body-medium text-body-medium text-white/90 uppercase tracking-wider">Thực nhận</h3>
+<div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+<span class="material-symbols-outlined text-white text-[20px]">account_balance_wallet</span>
+</div>
+</div>
+<div class="relative z-10">
+<div class="font-h1 text-[32px] font-bold leading-tight text-white">17,650,000 ₫</div>
+<div class="font-body-small text-body-small text-white/90 mt-xs">
+                        Sẽ được thanh toán vào ngày 05/11/2023
+                    </div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-lg mb-xl">
+<!-- Income Details Section -->
+<div class="glass-card rounded-xl overflow-hidden flex flex-col">
+<div class="p-lg border-b border-surface-container-highest bg-surface-container-lowest">
+<h2 class="font-h2 text-h2 text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary-container">account_balance</span>
+                        Chi tiết thu nhập
+                    </h2>
+</div>
+<div class="p-0 overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-surface-container-highest">
+<th class="py-md px-lg font-label text-label text-on-surface-variant uppercase">Hạng mục</th>
+<th class="py-md px-lg font-label text-label text-on-surface-variant uppercase text-right">Số lượng</th>
+<th class="py-md px-lg font-label text-label text-on-surface-variant uppercase text-right">Thành tiền (₫)</th>
+</tr>
+</thead>
+<tbody class="font-body-base text-body-base divide-y divide-surface-container-highest bg-surface-container-lowest">
+<tr class="hover:bg-surface transition-colors">
+<td class="py-md px-lg font-medium">Số buổi dạy chính thức</td>
+<td class="py-md px-lg text-right text-on-surface-variant">42 buổi</td>
+<td class="py-md px-lg text-right font-medium text-on-surface">12,600,000</td>
+</tr>
+<tr class="hover:bg-surface transition-colors">
+<td class="py-md px-lg font-medium">Lương dạy thay (Cover)</td>
+<td class="py-md px-lg text-right text-on-surface-variant">5 buổi</td>
+<td class="py-md px-lg text-right font-medium text-on-surface">1,500,000</td>
+</tr>
+<tr class="hover:bg-surface transition-colors">
+<td class="py-md px-lg font-medium">
+                                    KPI giữ học sinh
+                                    <span class="inline-block ml-2 px-2 py-1 rounded bg-secondary-fixed text-on-secondary-fixed-variant font-label text-[10px]">Bậc A</span>
+</td>
+<td class="py-md px-lg text-right text-on-surface-variant">95%</td>
+<td class="py-md px-lg text-right font-medium text-on-surface">3,000,000</td>
+</tr>
+<tr class="hover:bg-surface transition-colors">
+<td class="py-md px-lg font-medium">Phụ cấp khác</td>
+<td class="py-md px-lg text-right text-on-surface-variant">-</td>
+<td class="py-md px-lg text-right font-medium text-on-surface">1,400,000</td>
+</tr>
+</tbody>
+<tfoot>
+<tr class="bg-surface border-t border-surface-container-highest">
+<td class="py-md px-lg font-h3 text-h3 text-right" colspan="2">Tổng thu nhập</td>
+<td class="py-md px-lg text-right font-h3 text-h3 text-primary-container">18,500,000</td>
+</tr>
+</tfoot>
+</table>
+</div>
+</div>
+<!-- Deductions Section -->
+<div class="glass-card rounded-xl overflow-hidden flex flex-col">
+<div class="p-lg border-b border-surface-container-highest bg-surface-container-lowest">
+<h2 class="font-h2 text-h2 text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-error">money_off</span>
+                        Các khoản trừ
+                    </h2>
+</div>
+<div class="p-0 overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-surface-container-highest">
+<th class="py-md px-lg font-label text-label text-on-surface-variant uppercase">Lý do</th>
+<th class="py-md px-lg font-label text-label text-on-surface-variant uppercase text-center">Trạng thái</th>
+<th class="py-md px-lg font-label text-label text-on-surface-variant uppercase text-right">Số tiền (₫)</th>
+</tr>
+</thead>
+<tbody class="font-body-base text-body-base divide-y divide-surface-container-highest bg-surface-container-lowest">
+<tr class="hover:bg-surface transition-colors">
+<td class="py-md px-lg">
+<div class="font-medium text-on-surface">Đi muộn (Quá 15p)</div>
+<div class="font-caption text-caption text-on-surface-variant mt-1">Ngày 12/10 - Lớp ENG101</div>
+</td>
+<td class="py-md px-lg text-center">
+</td>
+<td class="py-md px-lg text-right font-medium text-error">-200,000</td>
+</tr>
+<tr class="hover:bg-surface transition-colors">
+<td class="py-md px-lg">
+<div class="font-medium text-on-surface">Thiếu giáo án (Update muộn)</div>
+<div class="font-caption text-caption text-on-surface-variant mt-1">Tuần 2 - Tháng 10</div>
+</td>
+<td class="py-md px-lg text-center">
+</td>
+<td class="py-md px-lg text-right font-medium text-error">-150,000</td>
+</tr>
+<tr class="hover:bg-surface transition-colors bg-surface-container-low/30">
+<td class="py-md px-lg">
+<div class="font-medium text-on-surface">Trừ khác: Điều chỉnh thiết bị</div>
+<div class="font-caption text-caption text-on-surface-variant mt-1">Hỏng micro phòng 302</div>
+</td>
+<td class="py-md px-lg text-center">
+<!-- Action needed state -->
+</td>
+<td class="py-md px-lg text-right font-medium text-error">-500,000</td>
+</tr>
+<tr class="hover:bg-surface transition-colors">
+<td class="py-md px-lg">
+<div class="font-medium text-on-surface">Trừ khác: Phí đồng phục</div>
+<div class="font-caption text-caption text-on-surface-variant mt-1">Đăng ký áo thun mới</div>
+</td>
+<td class="py-md px-lg text-center">
+</td>
+<td class="py-md px-lg text-right font-medium text-error">-0</td>
+</tr>
+</tbody>
+<tfoot>
+<tr class="bg-surface border-t border-surface-container-highest">
+<td class="py-md px-lg font-h3 text-h3 text-right" colspan="2">Tổng khoản trừ</td>
+<td class="py-md px-lg text-right font-h3 text-h3 text-error">-850,000</td>
+</tr>
+</tfoot>
+</table>
+</div>
+</div>
+</div>
+<!-- Detailed Teaching Sessions Section -->
+<div class="glass-card rounded-xl overflow-hidden">
+<div class="p-lg border-b border-surface-container-highest bg-surface-container-lowest flex justify-between items-center">
+<h2 class="font-h2 text-h2 text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-secondary">history_edu</span>
+                    Chi tiết buổi dạy
+                </h2>
+<div class="flex gap-sm">
+<button class="text-on-surface-variant hover:text-primary-container transition-colors font-body-small text-body-small flex items-center gap-1">
+<span class="material-symbols-outlined text-[18px]">filter_list</span> Lọc
+                    </button>
+</div>
+</div>
+<div class="overflow-x-auto p-lg bg-surface-container-lowest">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low">
+<th class="py-md px-md font-label text-label text-on-surface-variant uppercase rounded-l-lg">Ngày dạy</th>
+<th class="py-md px-md font-label text-label text-on-surface-variant uppercase">Thời gian</th>
+<th class="py-md px-md font-label text-label text-on-surface-variant uppercase">Lớp học</th>
+<th class="py-md px-md font-label text-label text-on-surface-variant uppercase text-right">Đơn giá (₫)</th>
+<th class="py-md px-md font-label text-label text-on-surface-variant uppercase text-right">Hệ số</th>
+<th class="py-md px-md font-label text-label text-on-surface-variant uppercase text-right rounded-r-lg">Thành tiền (₫)</th>
+</tr>
+</thead>
+<tbody class="font-body-base text-body-base">
+<tr class="border-b border-surface-container-highest hover:bg-surface transition-colors">
+<td class="py-md px-md">15/10/2023</td>
+<td class="py-md px-md text-on-surface-variant">18:00 - 19:30</td>
+<td class="py-md px-md font-medium">IELTS_INT_K42</td>
+<td class="py-md px-md text-right">300,000</td>
+<td class="py-md px-md text-right text-on-surface-variant">x1.0</td>
+<td class="py-md px-md text-right font-medium">300,000</td>
+</tr>
+<tr class="border-b border-surface-container-highest hover:bg-surface transition-colors">
+<td class="py-md px-md">15/10/2023</td>
+<td class="py-md px-md text-on-surface-variant">19:45 - 21:15</td>
+<td class="py-md px-md font-medium">TOEIC_ADV_K15</td>
+<td class="py-md px-md text-right">250,000</td>
+<td class="py-md px-md text-right text-on-surface-variant">x1.0</td>
+<td class="py-md px-md text-right font-medium">250,000</td>
+</tr>
+<tr class="border-b border-surface-container-highest hover:bg-surface transition-colors bg-surface-container-low/20">
+<td class="py-md px-md">16/10/2023</td>
+<td class="py-md px-md text-on-surface-variant">18:00 - 19:30</td>
+<td class="py-md px-md font-medium">KIDS_STARTER_01 <span class="ml-2 inline-block px-2 py-0.5 rounded bg-surface-container-highest text-[10px] font-label">Cover</span></td>
+<td class="py-md px-md text-right">300,000</td>
+<td class="py-md px-md text-right text-on-surface-variant">x1.0</td>
+<td class="py-md px-md text-right font-medium">300,000</td>
+</tr>
+<tr class="border-b border-surface-container-highest hover:bg-surface transition-colors">
+<td class="py-md px-md">17/10/2023</td>
+<td class="py-md px-md text-on-surface-variant">09:00 - 11:00</td>
+<td class="py-md px-md font-medium">IELTS_INT_K42 <span class="ml-2 inline-block px-2 py-0.5 rounded bg-surface-container-highest text-[10px] font-label">Cuối tuần</span></td>
+<td class="py-md px-md text-right">300,000</td>
+<td class="py-md px-md text-right text-on-surface-variant">x1.2</td>
+<td class="py-md px-md text-right font-medium">360,000</td>
+</tr>
+<tr class="hover:bg-surface transition-colors">
+<td class="py-md px-md">18/10/2023</td>
+<td class="py-md px-md text-on-surface-variant">18:00 - 19:30</td>
+<td class="py-md px-md font-medium">TOEIC_ADV_K15</td>
+<td class="py-md px-md text-right">250,000</td>
+<td class="py-md px-md text-right text-on-surface-variant">x1.0</td>
+<td class="py-md px-md text-right font-medium">250,000</td>
+</tr>
+</tbody>
+</table>
+<div class="mt-md flex justify-center">
+<button class="text-secondary hover:text-secondary-container font-body-medium text-body-medium transition-colors flex items-center gap-1">
+                        Xem thêm các buổi khác
+                        <span class="material-symbols-outlined text-[18px]">expand_more</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+</body></html>

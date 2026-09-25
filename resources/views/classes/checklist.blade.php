@@ -1,0 +1,210 @@
+<x-app-layout>
+    <style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; background-color: #f9f9ff; }
+        .table-container { overflow-x: auto; }
+        th { background-color: #f1f3ff; color: #594137; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; font-weight: 600; padding: 12px 16px; text-align: left; }
+        td { padding: 12px 16px; border-bottom: 1px solid #dde2f3; background-color: #ffffff; }
+        tr:hover td { background-color: #f9f9ff; }
+        select, input[type="text"] { width: 100%; border: 1px solid #e1bfb2; border-radius: 4px; padding: 6px 10px; font-size: 13px; outline: none; transition: border-color 0.2s; }
+        select:focus, input[type="text"]:focus { border-color: #1e43e7; box-shadow: 0 0 0 2px rgba(30, 67, 231, 0.2); }
+        .error-input { border-color: #ba1a1a; box-shadow: 0 0 0 2px rgba(186, 26, 26, 0.1); }
+        .error-input:focus { border-color: #ba1a1a; box-shadow: 0 0 0 2px rgba(186, 26, 26, 0.2); }
+    </style>
+    <div class="p-6">
+        <div class="max-w-7xl mx-auto bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col min-h-[819px]">
+<!-- Header -->
+<div class="p-lg border-b border-outline-variant flex flex-col md:flex-row md:items-start justify-between gap-md bg-surface-container-lowest">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface mb-xs">Checklist Học phí &amp; Feedback theo lớp</h1>
+<p class="font-body-base text-body-base text-on-surface-variant">Theo dõi quy trình nhắc học phí và feedback Big Test định kỳ theo từng lớp để tính chỉ số KPI.</p>
+</div>
+<div class="flex-shrink-0">
+<label class="sr-only" for="month-select">Tháng theo dõi</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">calendar_month</span>
+<select class="pl-10 pr-8 py-2 border-outline-variant rounded-md text-body-medium bg-surface-container-lowest appearance-none min-w-[160px]" id="month-select">
+<option>Tháng 09/2026</option>
+<option>Tháng 10/2026</option>
+<option>Tháng 11/2026</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px] pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Checklist Table -->
+<div class="table-container flex-grow">
+<table class="w-full min-w-[1000px] border-collapse">
+<thead>
+<tr>
+<th class="w-[180px]">Lớp học</th>
+<th class="w-[120px]">Đến hạn nhắc học phí?</th>
+<th class="w-[140px]">Đã nhắc đúng quy trình?</th>
+<th class="w-[120px]">Thu đúng học phí?</th>
+<th class="w-[200px]">Ghi chú học phí</th>
+<th class="w-[120px]">Đến mốc Big Test?</th>
+<th class="w-[130px]">Feedback đúng hạn?</th>
+<th class="w-[150px]">Feedback tiêu cực đã xử lý?</th>
+</tr>
+</thead>
+<tbody class="font-body-small text-on-surface">
+<!-- Row 1: Normal state -->
+<tr>
+<td class="font-body-medium">IELTS 5.5 - M01</td>
+<td>
+<select>
+<option>Có</option>
+<option>Không</option>
+<option>N-A</option>
+</select>
+</td>
+<td>
+<select>
+<option>Có</option>
+<option>Không</option>
+<option>N-A</option>
+</select>
+</td>
+<td>
+<select>
+<option>Có</option>
+<option>Không</option>
+<option>N-A</option>
+</select>
+</td>
+<td>
+<input placeholder="Nhập ghi chú..." type="text"/>
+</td>
+<td>
+<select>
+<option>Có</option>
+<option>Không</option>
+<option>N-A</option>
+</select>
+</td>
+<td>
+<select>
+<option>Có</option>
+<option>Không</option>
+<option>N-A</option>
+</select>
+</td>
+<td>
+<select>
+<option>Có</option>
+<option>Không</option>
+<option>N-A</option>
+</select>
+</td>
+</tr>
+<!-- Row 2: Validation Error State -->
+<tr>
+<td class="font-body-medium">Foundation - B02</td>
+<td>
+<select>
+<option>Có</option>
+<option>Không</option>
+<option>N-A</option>
+</select>
+</td>
+<td>
+<select>
+<option>Không</option>
+<option>Có</option>
+<option>N-A</option>
+</select>
+</td>
+<td>
+<select>
+<option>Có</option>
+<option>Không</option>
+<option>N-A</option>
+</select>
+</td>
+<td class="relative">
+<input class="error-input" placeholder="Bắt buộc nhập khi chọn 'Không'" type="text"/>
+<span class="material-symbols-outlined text-error absolute right-5 top-1/2 -translate-y-1/2 text-[16px]">error</span>
+</td>
+<td>
+<select>
+<option>Không</option>
+<option>Có</option>
+<option>N-A</option>
+</select>
+</td>
+<td>
+<select>
+<option>N-A</option>
+<option>Có</option>
+<option>Không</option>
+</select>
+</td>
+<td>
+<select>
+<option>N-A</option>
+<option>Có</option>
+<option>Không</option>
+</select>
+</td>
+</tr>
+<!-- Row 3: Normal State -->
+<tr>
+<td class="font-body-medium">Toeic 600 - T05</td>
+<td>
+<select>
+<option>Không</option>
+<option>Có</option>
+<option>N-A</option>
+</select>
+</td>
+<td>
+<select>
+<option>N-A</option>
+<option>Có</option>
+<option>Không</option>
+</select>
+</td>
+<td>
+<select>
+<option>N-A</option>
+<option>Có</option>
+<option>Không</option>
+</select>
+</td>
+<td>
+<input class="bg-surface-container-low opacity-60" disabled="" placeholder="Nhập ghi chú..." type="text"/>
+</td>
+<td>
+<select>
+<option>Có</option>
+<option>Không</option>
+<option>N-A</option>
+</select>
+</td>
+<td>
+<select>
+<option>Có</option>
+<option>Không</option>
+<option>N-A</option>
+</select>
+</td>
+<td>
+<select>
+<option>Có</option>
+<option>Không</option>
+<option>N-A</option>
+</select>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Footer -->
+<div class="p-lg border-t border-outline-variant bg-surface-container-lowest flex justify-end">
+<button class="bg-primary-container text-on-primary font-body-medium text-body-medium px-6 py-2.5 rounded-lg flex items-center gap-2 hover:bg-surface-tint transition-colors shadow-sm active:scale-95 duration-200">
+<span class="material-symbols-outlined text-[20px]">save</span>
+                Lưu checklist
+            </button>
+</div>
+</div>
+    </div>
+</x-app-layout>

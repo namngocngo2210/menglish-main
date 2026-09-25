@@ -1,0 +1,414 @@
+<!DOCTYPE html><html lang="vi"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Phân quyền chi tiết theo cá nhân - MENGLISH Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed": "#93fb65",
+                    "surface-bright": "#f9f9ff",
+                    "primary-fixed": "#ffdbcd",
+                    "surface-container-highest": "#dde2f3",
+                    "tertiary-fixed-dim": "#78de4b",
+                    "secondary-fixed-dim": "#bac3ff",
+                    "on-primary-fixed": "#360f00",
+                    "on-primary": "#ffffff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-secondary-fixed-variant": "#002fc9",
+                    "on-primary-container": "#521c00",
+                    "inverse-primary": "#ffb595",
+                    "on-surface": "#161c27",
+                    "surface-tint": "#a23f00",
+                    "surface-container": "#e8eeff",
+                    "on-surface-variant": "#594137",
+                    "on-background": "#161c27",
+                    "outline": "#8d7165",
+                    "secondary": "#1e43e7",
+                    "surface-variant": "#dde2f3",
+                    "on-secondary-fixed": "#00105b",
+                    "primary": "#a23f00",
+                    "primary-container": "#f5691a",
+                    "error-container": "#ffdad6",
+                    "surface-dim": "#d4daea",
+                    "surface-container-high": "#e3e8f9",
+                    "on-secondary": "#ffffff",
+                    "primary-fixed-dim": "#ffb595",
+                    "error": "#ba1a1a",
+                    "outline-variant": "#e1bfb2",
+                    "on-secondary-container": "#faf7ff",
+                    "on-tertiary-container": "#0e3500",
+                    "on-tertiary-fixed": "#062100",
+                    "tertiary-container": "#46a917",
+                    "surface-container-low": "#f1f3ff",
+                    "on-tertiary": "#ffffff",
+                    "tertiary": "#256d00",
+                    "surface": "#f9f9ff",
+                    "on-tertiary-fixed-variant": "#1a5200",
+                    "secondary-fixed": "#dee0ff",
+                    "on-primary-fixed-variant": "#7c2e00",
+                    "on-error-container": "#93000a",
+                    "on-error": "#ffffff",
+                    "inverse-surface": "#2a303d",
+                    "inverse-on-surface": "#ecf0ff",
+                    "background": "#f9f9ff",
+                    "secondary-container": "#4160ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xl": "32px",
+                    "lg": "24px",
+                    "sidebar-width": "260px",
+                    "base": "8px",
+                    "header-height": "64px",
+                    "md": "16px",
+                    "sm": "8px",
+                    "xs": "4px",
+                    "gutter": "16px"
+            },
+            "fontFamily": {
+                    "h2": ["Be Vietnam Pro"],
+                    "h1": ["Be Vietnam Pro"],
+                    "body-base": ["Be Vietnam Pro"],
+                    "h3": ["Be Vietnam Pro"],
+                    "caption": ["Be Vietnam Pro"],
+                    "code": ["JetBrains Mono"],
+                    "body-medium": ["Be Vietnam Pro"],
+                    "body-small": ["Be Vietnam Pro"],
+                    "label": ["Be Vietnam Pro"]
+            },
+            "fontSize": {
+                    "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                    "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                    "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e1bfb2; border-radius: 10px; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+        .checkbox-custom:checked { background-color: #a23f00; border-color: #a23f00; }
+        .tab-active { border-bottom: 2px solid #a23f00; color: #a23f00; }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen">
+<main class="max-w-[1440px] mx-auto p-lg">
+<!-- Header Section -->
+<header class="mb-lg flex justify-between items-end">
+<div>
+<nav class="flex items-center gap-xs text-on-surface-variant font-body-small mb-xs">
+<span class="material-symbols-outlined text-[18px]">home</span>
+<span>Nhân sự</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span class="text-primary font-body-medium">Phân quyền cá nhân</span>
+</nav>
+<h1 class="font-h1 text-h1 text-on-surface">Cấu hình quyền chi tiết</h1>
+</div>
+<div class="flex gap-md">
+<button class="px-md py-sm bg-white border border-outline-variant text-on-surface font-body-medium rounded-lg hover:bg-surface-container-low transition-colors flex items-center gap-xs">
+<span class="material-symbols-outlined">history</span>
+                    Xem nhật ký
+                </button>
+<button class="px-md py-sm bg-primary-container text-white font-body-medium rounded-lg hover:opacity-90 transition-opacity shadow-sm flex items-center gap-xs">
+<span class="material-symbols-outlined">save</span>
+                    Lưu thay đổi
+                </button>
+</div>
+</header>
+<!-- Security Banner -->
+<div class="mb-lg p-md bg-secondary-container/10 border-l-4 border-secondary-container rounded-r-lg flex items-start gap-md">
+<span class="material-symbols-outlined text-secondary-container mt-1">security</span>
+<div>
+<p class="font-body-medium text-secondary-container">Ghi chú bảo mật quan trọng</p>
+<p class="text-body-small text-on-surface-variant">Mọi thay đổi về phân quyền sẽ được hệ thống tự động ghi lại vào <strong>Nhật ký vận hành</strong> bao gồm: Người thực hiện, Thời gian, và Nội dung thay đổi chi tiết. Vui lòng kiểm tra kỹ trước khi lưu.</p>
+</div>
+</div>
+<div class="grid grid-cols-12 gap-lg items-start">
+<!-- Left Sidebar: Employee Info -->
+<aside class="col-span-12 lg:col-span-3 space-y-lg">
+<div class="bg-white border border-outline-variant rounded-xl p-lg shadow-sm">
+<div class="flex flex-col items-center text-center mb-md">
+<div class="w-24 h-24 rounded-full overflow-hidden mb-md border-4 border-primary-fixed">
+<img class="w-full h-full object-cover" data-alt="Professional studio portrait of a young Vietnamese professional male in his 30s, wearing a clean white shirt and a modern blazer. He has a friendly, confident smile. The background is a soft, out-of-focus modern office setting with neutral warm tones of the MENGLISH brand identity, predominantly whites and oranges." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBctpRiF7BQzTnXZbVhzUVJ4GHY3PGMACat45ItsMg9mUMBplXz6I7eq8Va7OdISsXOq7IcXOyRyzqhbMpGYapFKokcJFGi6-PAAsYgiPuy11wTxK-ld_ab887YxaUtLri6sdCmnJ4lx0FGW2EVRmJaZYleisvduSZgoILUQkB93DQKr6wvfNiIdOs4yru-cKzg26o-iTEuOFWCkOgfMnPwO89K6-zahBIsf4b7YC0W0S0LuLDL7LVJ">
+</div>
+<h2 class="font-h2 text-h2 text-on-surface mb-xs">Nguyễn Văn A</h2>
+<span class="px-md py-xs bg-primary/10 text-primary font-body-medium rounded-full text-xs uppercase tracking-wider">Học vụ</span>
+</div>
+<div class="space-y-md border-t border-outline-variant pt-md">
+<div class="flex items-center gap-md">
+<div class="p-xs bg-surface-container-low rounded-lg">
+<span class="material-symbols-outlined text-on-surface-variant">apartment</span>
+</div>
+<div>
+<p class="text-caption text-on-surface-variant leading-none">Cơ sở trực thuộc</p>
+<p class="font-body-medium text-on-surface">Chi nhánh Quận 1</p>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<div class="p-xs bg-surface-container-low rounded-lg">
+<span class="material-symbols-outlined text-on-surface-variant">mail</span>
+</div>
+<div>
+<p class="text-caption text-on-surface-variant leading-none">Email hệ thống</p>
+<p class="font-body-medium text-on-surface">anv@menglish.edu.vn</p>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<div class="p-xs bg-surface-container-low rounded-lg">
+<span class="material-symbols-outlined text-on-surface-variant">login</span>
+</div>
+<div>
+<p class="text-caption text-on-surface-variant leading-none">Đăng nhập cuối</p>
+<p class="font-body-medium text-on-surface">14:30 - 24/05/2024</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Quick Help -->
+<div class="bg-surface-container-low rounded-xl p-md">
+<h3 class="font-body-medium text-on-surface mb-xs">Hướng dẫn nhanh</h3>
+<p class="text-body-small text-on-surface-variant mb-md">Chọn module và phạm vi áp dụng để tùy chỉnh quyền truy cập cho nhân sự này.</p>
+<ul class="space-y-sm">
+<li class="flex items-center gap-xs text-caption">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+                            Bỏ trống phạm vi = Toàn hệ thống
+                        </li>
+<li class="flex items-center gap-xs text-caption">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+                            Quyền "Xóa" cần phê duyệt cấp cao
+                        </li>
+</ul>
+</div>
+</aside>
+<!-- Right Content: Permissions Matrix -->
+<section class="col-span-12 lg:col-span-9">
+<div class="bg-white border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+<div class="p-md border-b border-outline-variant bg-surface-bright flex justify-between items-center">
+<h3 class="font-h3 text-h3 text-on-surface">Ma trận phân quyền chi tiết</h3>
+<div class="flex gap-md items-center">
+<span class="text-body-small text-on-surface-variant">Chọn nhanh:</span>
+<button class="text-primary font-body-medium text-body-small hover:underline">Chọn tất cả</button>
+<button class="text-on-surface-variant font-body-medium text-body-small hover:underline">Bỏ chọn</button>
+</div>
+</div>
+<!-- Matrix Table -->
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low border-b border-outline-variant">
+<tr>
+<th class="py-md px-lg font-label text-on-surface-variant uppercase tracking-wider w-1/4">Danh mục Module</th>
+<th class="py-md px-md font-label text-on-surface-variant text-center uppercase tracking-wider">Xem</th>
+<th class="py-md px-md font-label text-on-surface-variant text-center uppercase tracking-wider">Thêm</th>
+<th class="py-md px-md font-label text-on-surface-variant text-center uppercase tracking-wider">Sửa</th>
+<th class="py-md px-md font-label text-on-surface-variant text-center uppercase tracking-wider">Xóa</th>
+<th class="py-md px-lg font-label text-on-surface-variant uppercase tracking-wider w-1/3">Phạm vi áp dụng</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- CRM - Tiềm năng -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="py-md px-lg">
+<div class="flex items-center gap-md">
+<div class="w-8 h-8 rounded bg-primary/5 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-[20px]">leaderboard</span>
+</div>
+<span class="font-body-medium text-on-surface">CRM - Tiềm năng</span>
+</div>
+</td>
+<td class="text-center"><input checked="" class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input checked="" class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="py-md px-lg">
+<div class="space-y-sm">
+<select class="w-full text-body-small border-outline-variant rounded-lg focus:border-primary focus:ring-primary/20" multiple="">
+<option selected="">Lớp IELTS Foundation 01</option>
+<option>Lớp TOEIC 450+ K22</option>
+</select>
+<div class="flex flex-wrap gap-xs">
+<span class="px-xs py-[2px] bg-outline-variant/20 rounded text-[10px] text-on-surface-variant">Chi nhánh Q1</span>
+</div>
+</div>
+</td>
+</tr>
+<!-- Học phí & Thu chi -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="py-md px-lg">
+<div class="flex items-center gap-md">
+<div class="w-8 h-8 rounded bg-primary/5 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-[20px]">payments</span>
+</div>
+<span class="font-body-medium text-on-surface">Học phí &amp; Thu chi</span>
+</div>
+</td>
+<td class="text-center"><input checked="" class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="py-md px-lg">
+<div class="flex items-center gap-xs p-xs bg-surface-container-low border border-dashed border-outline-variant rounded-lg text-on-surface-variant italic text-caption">
+<span class="material-symbols-outlined text-[16px]">language</span>
+                                            Toàn hệ thống (Mặc định)
+                                        </div>
+</td>
+</tr>
+<!-- Giáo trình & Syllabus -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="py-md px-lg">
+<div class="flex items-center gap-md">
+<div class="w-8 h-8 rounded bg-primary/5 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-[20px]">menu_book</span>
+</div>
+<span class="font-body-medium text-on-surface">Giáo trình &amp; Syllabus</span>
+</div>
+</td>
+<td class="text-center"><input checked="" class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input checked="" class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input checked="" class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="py-md px-lg">
+<div class="space-y-sm">
+<input class="w-full text-body-small border-outline-variant rounded-lg focus:border-primary focus:ring-primary/20 h-8" placeholder="Gõ tên lớp/cơ sở..." type="text">
+</div>
+</td>
+</tr>
+<!-- Lớp học & Điểm danh -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="py-md px-lg">
+<div class="flex items-center gap-md">
+<div class="w-8 h-8 rounded bg-primary/5 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-[20px]">groups</span>
+</div>
+<span class="font-body-medium text-on-surface">Lớp học &amp; Điểm danh</span>
+</div>
+</td>
+<td class="text-center"><input checked="" class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input checked="" class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input checked="" class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="py-md px-lg">
+<div class="flex flex-wrap gap-xs">
+<span class="px-sm py-xs bg-secondary/10 text-secondary rounded-lg text-caption flex items-center gap-xs">
+                                                Quận 1 <span class="material-symbols-outlined text-[14px] cursor-pointer">close</span>
+</span>
+<span class="px-sm py-xs bg-secondary/10 text-secondary rounded-lg text-caption flex items-center gap-xs">
+                                                Quận 3 <span class="material-symbols-outlined text-[14px] cursor-pointer">close</span>
+</span>
+</div>
+</td>
+</tr>
+<!-- Nhân sự -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="py-md px-lg">
+<div class="flex items-center gap-md">
+<div class="w-8 h-8 rounded bg-primary/5 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-[20px]">badge</span>
+</div>
+<span class="font-body-medium text-on-surface">Quản trị nhân sự</span>
+</div>
+</td>
+<td class="text-center"><input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="py-md px-lg">
+<span class="text-caption text-on-surface-variant opacity-50 italic">Không có quyền truy cập</span>
+</td>
+</tr>
+<!-- Cấu hình hệ thống -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="py-md px-lg">
+<div class="flex items-center gap-md">
+<div class="w-8 h-8 rounded bg-primary/5 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-[20px]">settings</span>
+</div>
+<span class="font-body-medium text-on-surface">Cấu hình hệ thống</span>
+</div>
+</td>
+<td class="text-center"><input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="text-center"><input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"></td>
+<td class="py-md px-lg">
+<span class="text-caption text-on-surface-variant opacity-50 italic">Không có quyền truy cập</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-md bg-surface-container-low border-t border-outline-variant flex justify-between items-center">
+<div class="flex items-center gap-xs text-body-small text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">info</span>
+                            Nhấn đúp vào ô Checkbox để áp dụng nhanh cho toàn bộ cột.
+                        </div>
+<div class="flex gap-md">
+<button class="text-body-medium font-body-medium text-on-surface-variant px-md py-sm hover:text-on-surface">Đặt lại mặc định</button>
+<button class="bg-primary text-white font-body-medium px-xl py-sm rounded-lg hover:bg-surface-tint transition-colors">Lưu phân quyền</button>
+</div>
+</div>
+</div>
+<!-- Footer Summary Card -->
+<div class="mt-lg p-lg bg-surface-container-high rounded-xl grid grid-cols-3 gap-lg border border-outline-variant/30">
+<div class="space-y-xs">
+<p class="text-label text-on-surface-variant uppercase">Tổng số Module</p>
+<p class="text-h2 font-h2 text-on-surface">06 <span class="text-body-small text-on-surface-variant font-normal">danh mục</span></p>
+</div>
+<div class="space-y-xs border-x border-outline-variant/30 px-lg">
+<p class="text-label text-on-surface-variant uppercase">Quyền truy cập</p>
+<div class="flex gap-md items-baseline">
+<p class="text-h2 font-h2 text-primary">12</p>
+<span class="text-body-small text-on-surface-variant">Thao tác cho phép</span>
+</div>
+</div>
+<div class="space-y-xs">
+<p class="text-label text-on-surface-variant uppercase">Phạm vi dữ liệu</p>
+<p class="text-h2 font-h2 text-secondary">04 <span class="text-body-small text-on-surface-variant font-normal">đơn vị quản lý</span></p>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Floating Action Bar for Mobile/Tablet context -->
+<div class="fixed bottom-lg right-lg lg:hidden">
+<button class="w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform">
+<span class="material-symbols-outlined">save</span>
+</button>
+</div>
+<script>
+        // Simple logic for interactive states
+        document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const row = this.closest('tr');
+                if (this.checked) {
+                    row.classList.add('bg-primary/5');
+                } else {
+                    // Check if any other checkbox in the row is checked
+                    const anyChecked = row.querySelectorAll('input[type="checkbox"]:checked').length > 0;
+                    if (!anyChecked) row.classList.remove('bg-primary/5');
+                }
+            });
+        });
+    </script>
+</body></html>

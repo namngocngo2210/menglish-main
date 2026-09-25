@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MH6: Gửi Feedback - MENGLISH</title>
+  <!-- Google Fonts: Be Vietnam Pro & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Be Vietnam Pro"', 'Inter', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            primary: {
+              DEFAULT: '#F5691A',
+              dark: '#C94F0F',
+              light: '#FF8A47',
+              lightest: '#FFE3D1',
+            },
+            secondary: {
+              DEFAULT: '#3B5BFB',
+              dark: '#2A3FC4',
+              light: '#7B93FF',
+            },
+            accent: {
+              DEFAULT: '#4CAF1E',
+              dark: '#3A8817',
+              light: '#7ED957',
+            },
+            neutral: {
+              900: '#1A202C',
+              700: '#4A5568',
+              500: '#8A93A3',
+              300: '#D6DCE5',
+              100: '#EEF1F5',
+              50: '#F7F8FA',
+            },
+            semantic: {
+              success: '#22A559',
+              warning: '#F5A623',
+              error: '#E23D3D',
+              info: '#3B5BFB',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom radio & checkbox animations */
+    .star-rating svg {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .tap-scale:active {
+      transform: scale(0.98);
+    }
+    /* Smooth tab fade */
+    .tab-content {
+      animation: fadeIn 0.25s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="bg-[#F0F3F8] text-neutral-900 font-sans antialiased min-h-screen pb-12">
+
+  <!-- Outer Mobile Container: Content-only (No shell/navigation bottom bar per requirement) -->
+  <div class="max-w-[430px] mx-auto bg-white min-h-screen shadow-xl flex flex-col relative border-x border-neutral-100">
+    
+    <!-- State Demo Switcher Bar (Giúp Sponsor/PO xem toàn bộ 4 trạng thái nghiệp vụ yêu cầu) -->
+    <div class="bg-neutral-900 text-white px-4 py-2.5 text-xs flex items-center justify-between sticky top-0 z-50 shadow-md">
+      <div class="flex items-center gap-1.5 font-medium text-neutral-300">
+        <span class="inline-block w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+        <span>Mô phỏng trạng thái:</span>
+      </div>
+      <div class="flex gap-1 overflow-x-auto pb-0.5 no-scrollbar">
+        <button onclick="switchState('form-new')" id="btn-form-new" class="px-2 py-1 rounded text-[11px] font-medium bg-primary text-white transition-all">
+          Lần đầu
+        </button>
+        <button onclick="switchState('form-updated')" id="btn-form-updated" class="px-2 py-1 rounded text-[11px] font-medium bg-neutral-700 hover:bg-neutral-600 text-neutral-200 transition-all">
+          Đã gửi (sửa tiếp)
+        </button>
+        <button onclick="switchState('state-closed')" id="btn-state-closed" class="px-2 py-1 rounded text-[11px] font-medium bg-neutral-700 hover:bg-neutral-600 text-neutral-200 transition-all">
+          Đợt đóng (Xem lại)
+        </button>
+        <button onclick="switchState('state-empty')" id="btn-state-empty" class="px-2 py-1 rounded text-[11px] font-medium bg-neutral-700 hover:bg-neutral-600 text-neutral-200 transition-all">
+          Chưa mở
+        </button>
+      </div>
+    </div>
+
+    <!-- Header Section (Tiêu đề nội dung MH6 - không vẽ header shell chung) -->
+    <header class="px-5 pt-5 pb-3 bg-white border-b border-neutral-100">
+      <div class="flex items-center justify-between">
+        <div>
+          <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary uppercase tracking-wider bg-primary-lightest px-2.5 py-0.5 rounded-full mb-1">
+            <svg class="w-3 h-3 text-primary" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zm-5 0h-2v2h2V9z" clip-rule="evenodd"/>
+            </svg>
+            Ý kiến đóng góp
+          </span>
+          <h1 class="text-[20px] font-bold text-neutral-900 leading-snug">Đánh giá chặng học</h1>
+        </div>
+        <div class="text-right">
+          <span class="text-[12px] text-neutral-500 font-medium block">Học sinh</span>
+          <span class="text-[13px] font-semibold text-neutral-800">Trần Minh Khang</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN BODY CONTENT -->
+    <main class="flex-1 p-5 space-y-4">
+
+      <!-- ======================================================== -->
+      <!-- VIEW 1: FORM NHẬP / CHỈNH SỬA (Lần đầu hoặc Đã gửi sửa tiếp) -->
+      <!-- ======================================================== -->
+      <div id="view-form" class="tab-content space-y-4">
+
+        <!-- Banner thông báo xác nhận khi vừa gửi/cập nhật thành công (R-06) -->
+        <div id="success-banner" class="hidden bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 flex items-start gap-3 transition-all duration-300">
+          <div class="w-6 h-6 rounded-full bg-semantic-success text-white flex items-center justify-center shrink-0 mt-0.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+          <div class="flex-1">
+            <h4 class="text-xs font-bold text-emerald-900" id="success-title">Đã ghi nhận feedback thành công</h4>
+            <p class="text-[12px] text-emerald-800 mt-0.5 leading-relaxed">
+              Bạn có thể điều chỉnh và bấm "Cập nhật" bất cứ lúc nào trong thời gian đợt thu thập còn mở.
+            </p>
+          </div>
+          <button onclick="document.getElementById('success-banner').classList.add('hidden')" class="text-emerald-500 hover:text-emerald-700 text-xs">
+            ✕
+          </button>
+        </div>
+
+        <!-- Banner Lỗi Hệ Thống Mô Phỏng (R-02 race condition / Đổi lớp AC-R01b) -->
+        <div id="server-error-banner" class="hidden bg-rose-50 border border-rose-200 rounded-xl p-3.5 flex items-start gap-3 animate-shake">
+          <div class="w-6 h-6 rounded-full bg-semantic-error text-white flex items-center justify-center shrink-0 mt-0.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+          </div>
+          <div class="flex-1">
+            <h4 class="text-xs font-bold text-rose-900" id="server-error-title">Không thể lưu đánh giá</h4>
+            <p class="text-[12px] text-rose-800 mt-0.5 leading-relaxed" id="server-error-msg">
+              Đợt thu thập đã đóng hoặc lớp học đã thay đổi. Vui lòng tải lại trang để cập nhật thông tin mới nhất.
+            </p>
+          </div>
+          <button onclick="window.location.reload()" class="px-2.5 py-1 bg-white border border-rose-300 rounded text-[11px] font-semibold text-rose-700 shrink-0 self-center">
+            Tải lại trang
+          </button>
+        </div>
+
+        <!-- 1. TÊN CHẶNG ĐANG MỞ THU THẬP (Read-only, không cho đổi - R-02) -->
+        <div class="bg-neutral-50 border border-neutral-200 rounded-xl p-4">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Chặng học đang mở thu thập</span>
+            <span class="inline-flex items-center gap-1 text-[11px] font-medium text-semantic-success bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              <span class="w-1.5 h-1.5 rounded-full bg-semantic-success animate-ping"></span>
+              Đang mở thu thập
+            </span>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-lg bg-orange-100 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+                C2
+              </div>
+              <div>
+                <h2 class="text-[15px] font-bold text-neutral-900 leading-tight">Chặng 2: Giao tiếp Phản xạ & Ngữ âm</h2>
+                <p class="text-[12px] text-neutral-600 font-medium mt-0.5">Lớp: <span class="text-neutral-800 font-semibold">PRE-IELTS-K28-T2</span></p>
+              </div>
+            </div>
+            <!-- Lock Icon biểu thị Read-only -->
+            <div class="text-neutral-400 p-1" title="Cố định theo chặng đang mở của lớp">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- FORM CHÍNH -->
+        <form id="feedback-form" onsubmit="handleFormSubmit(event)" class="space-y-4">
+
+          <!-- 4. CHỌN MỨC HÀI LÒNG 1-5 (Dạng sao + số trực quan, tùy chọn - R-04) -->
+          <div class="bg-white border border-neutral-200 rounded-xl p-4 shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-[13px] font-bold text-neutral-800 flex items-center gap-1.5">
+                <span>1. Mức độ hài lòng chung</span>
+                <span class="text-[11px] font-normal text-neutral-500">(Tùy chọn)</span>
+              </label>
+              <span id="rating-label-display" class="text-[12px] font-semibold text-primary">Chưa chọn</span>
+            </div>
+
+            <!-- Star controls -->
+            <div class="flex items-center justify-between gap-1 py-1">
+              <!-- Star 1 -->
+              <button type="button" onclick="setRating(1)" class="star-btn p-2 rounded-lg hover:bg-neutral-50 focus:outline-none flex flex-col items-center gap-1 group">
+                <svg id="star-icon-1" class="w-8 h-8 text-neutral-300 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                </svg>
+                <span class="text-[11px] font-mono font-medium text-neutral-500">1</span>
+              </button>
+              <!-- Star 2 -->
+              <button type="button" onclick="setRating(2)" class="star-btn p-2 rounded-lg hover:bg-neutral-50 focus:outline-none flex flex-col items-center gap-1 group">
+                <svg id="star-icon-2" class="w-8 h-8 text-neutral-300 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                </svg>
+                <span class="text-[11px] font-mono font-medium text-neutral-500">2</span>
+              </button>
+              <!-- Star 3 -->
+              <button type="button" onclick="setRating(3)" class="star-btn p-2 rounded-lg hover:bg-neutral-50 focus:outline-none flex flex-col items-center gap-1 group">
+                <svg id="star-icon-3" class="w-8 h-8 text-neutral-300 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                </svg>
+                <span class="text-[11px] font-mono font-medium text-neutral-500">3</span>
+              </button>
+              <!-- Star 4 -->
+              <button type="button" onclick="setRating(4)" class="star-btn p-2 rounded-lg hover:bg-neutral-50 focus:outline-none flex flex-col items-center gap-1 group">
+                <svg id="star-icon-4" class="w-8 h-8 text-neutral-300 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                </svg>
+                <span class="text-[11px] font-mono font-medium text-neutral-500">4</span>
+              </button>
+              <!-- Star 5 -->
+              <button type="button" onclick="setRating(5)" class="star-btn p-2 rounded-lg hover:bg-neutral-50 focus:outline-none flex flex-col items-center gap-1 group">
+                <svg id="star-icon-5" class="w-8 h-8 text-neutral-300 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                </svg>
+                <span class="text-[11px] font-mono font-medium text-neutral-500">5</span>
+              </button>
+            </div>
+            <input type="hidden" id="input-muc-do-hai-long" name="muc_do_hai_long" value="0">
+          </div>
+
+          <!-- 3. 3 CHECKBOX LĨNH VỰC FEEDBACK (Tùy chọn - R-04) -->
+          <div class="bg-white border border-neutral-200 rounded-xl p-4 shadow-sm">
+            <label class="text-[13px] font-bold text-neutral-800 flex items-center justify-between mb-2">
+              <span>2. Lĩnh vực cần góp ý</span>
+              <span class="text-[11px] font-normal text-neutral-500">(Tùy chọn)</span>
+            </label>
+            <div class="grid grid-cols-3 gap-2">
+              
+              <!-- Checkbox 1: fb_hoc_thuat -->
+              <label class="cursor-pointer flex flex-col items-center justify-center p-2.5 rounded-lg border border-neutral-200 hover:border-primary transition-all has-[:checked]:border-primary has-[:checked]:bg-orange-50/50">
+                <input type="checkbox" id="chk-hoc-thuat" name="fb_hoc_thuat" onchange="clearValidationError()" class="w-4 h-4 text-primary rounded border-neutral-300 focus:ring-primary mb-1.5 accent-[#F5691A]">
+                <span class="text-[12px] font-medium text-neutral-700 select-none">Học thuật</span>
+              </label>
+
+              <!-- Checkbox 2: fb_giao_vien -->
+              <label class="cursor-pointer flex flex-col items-center justify-center p-2.5 rounded-lg border border-neutral-200 hover:border-primary transition-all has-[:checked]:border-primary has-[:checked]:bg-orange-50/50">
+                <input type="checkbox" id="chk-giao-vien" name="fb_giao_vien" onchange="clearValidationError()" class="w-4 h-4 text-primary rounded border-neutral-300 focus:ring-primary mb-1.5 accent-[#F5691A]">
+                <span class="text-[12px] font-medium text-neutral-700 select-none">Giáo viên</span>
+              </label>
+
+              <!-- Checkbox 3: fb_khac -->
+              <label class="cursor-pointer flex flex-col items-center justify-center p-2.5 rounded-lg border border-neutral-200 hover:border-primary transition-all has-[:checked]:border-primary has-[:checked]:bg-orange-50/50">
+                <input type="checkbox" id="chk-khac" name="fb_khac" onchange="clearValidationError()" class="w-4 h-4 text-primary rounded border-neutral-300 focus:ring-primary mb-1.5 accent-[#F5691A]">
+                <span class="text-[12px] font-medium text-neutral-700 select-none">Khác</span>
+              </label>
+
+            </div>
+          </div>
+
+          <!-- 2. TEXTAREA NỘI DUNG FEEDBACK (Tùy chọn - R-04) -->
+          <div class="bg-white border border-neutral-200 rounded-xl p-4 shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+              <label for="input-noi-dung" class="text-[13px] font-bold text-neutral-800">
+                3. Nội dung feedback chi tiết
+              </label>
+              <span class="text-[11px] text-neutral-500">(Tùy chọn)</span>
+            </div>
+            <textarea id="input-noi-dung" name="noi_dung_feedback" rows="4" oninput="clearValidationError()" placeholder="Chia sẻ cảm nhận của phụ huynh/học sinh về giáo trình, phương pháp giảng dạy hoặc điểm cần hỗ trợ thêm..." class="w-full text-[13px] text-neutral-800 placeholder-neutral-400 border border-neutral-300 rounded-lg p-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-none transition-all"></textarea>
+            <div class="flex justify-between items-center mt-1.5 text-[11px] text-neutral-500">
+              <span>Ý kiến chân thực giúp trung tâm nâng cao chất lượng dạy học.</span>
+            </div>
+          </div>
+
+          <!-- THÔNG BÁO LỖI VALIDATION: Khi cả 3 mục đều trống (R-04) -->
+          <div id="validation-error-box" class="hidden bg-amber-50 border border-amber-300 rounded-lg p-3 flex items-center gap-2.5">
+            <svg class="w-5 h-5 text-semantic-warning shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            <p class="text-[12px] font-medium text-amber-900 leading-snug">
+              Vui lòng điền ít nhất 1 mục (Nội dung, Lĩnh vực góp ý hoặc Chọn mức hài lòng) để gửi feedback.
+            </p>
+          </div>
+
+          <!-- NÚT GỬI / CẬP NHẬT FEEDBACK (CTA Duy nhất dùng cam Primary - R-04) -->
+          <div class="pt-2">
+            <button type="submit" id="btn-submit-action" class="w-full py-3.5 px-4 bg-primary hover:bg-primary-dark text-white font-bold text-[14px] rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 tap-scale">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+              </svg>
+              <span id="btn-submit-text">Gửi feedback</span>
+            </button>
+            <p class="text-center text-[11px] text-neutral-500 mt-2" id="submit-footnote">
+              Sau khi gửi, bạn vẫn có thể chỉnh sửa lại trong thời gian đợt thu thập còn mở.
+            </p>
+          </div>
+
+        </form>
+
+        <!-- Nút test mô phỏng race-condition / đổi lớp giữa chừng cho tester -->
+        <div class="pt-3 border-t border-dashed border-neutral-200 flex justify-center gap-2">
+          <button type="button" onclick="triggerServerError('closed')" class="text-[11px] text-neutral-500 hover:text-rose-600 underline">
+            Mô phỏng đợt đóng bất ngờ (Race condition)
+          </button>
+          <span class="text-neutral-300">•</span>
+          <button type="button" onclick="triggerServerError('class-changed')" class="text-[11px] text-neutral-500 hover:text-rose-600 underline">
+            Mô phỏng đổi lớp
+          </button>
+        </div>
+
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- VIEW 2: READ-ONLY KHI ĐỢT THU THẬP ĐÃ ĐÓNG (AC-R06b) -->
+      <!-- ======================================================== -->
+      <div id="view-closed-readonly" class="tab-content hidden space-y-4">
+        
+        <!-- Banner cảnh báo Đợt thu thập đã đóng -->
+        <div class="bg-neutral-100 border border-neutral-300 rounded-xl p-3.5 flex items-start gap-3">
+          <div class="w-6 h-6 rounded-full bg-neutral-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <div>
+            <h4 class="text-xs font-bold text-neutral-900">Đợt thu thập feedback đã đóng</h4>
+            <p class="text-[12px] text-neutral-600 mt-0.5 leading-relaxed">
+              Trung tâm đã kết thúc đợt thu thập ý kiến cho chặng này. Dưới đây là nội dung bạn đã gửi (chỉ xem, không thể chỉnh sửa thêm).
+            </p>
+          </div>
+        </div>
+
+        <!-- Tên chặng đã đóng -->
+        <div class="bg-neutral-50 border border-neutral-200 rounded-xl p-4">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Chặng học đã hoàn thành</span>
+            <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-neutral-600 bg-neutral-200/70 px-2 py-0.5 rounded-full">
+              Đã đóng
+            </span>
+          </div>
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-lg bg-neutral-200 flex items-center justify-center text-neutral-700 font-bold text-sm shrink-0">
+              C1
+            </div>
+            <div>
+              <h2 class="text-[15px] font-bold text-neutral-900 leading-tight">Chặng 1: Nền tảng Ngữ pháp & Từ vựng</h2>
+              <p class="text-[12px] text-neutral-500 font-medium mt-0.5">Lớp: PRE-IELTS-K28-T2</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Read-only Card Nội dung đã nộp -->
+        <div class="bg-white border border-neutral-200 rounded-xl p-4 space-y-4 shadow-sm">
+          
+          <!-- Mức độ hài lòng -->
+          <div class="border-b border-neutral-100 pb-3">
+            <span class="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider block mb-1">Mức độ hài lòng đã gửi</span>
+            <div class="flex items-center gap-2">
+              <div class="flex text-amber-400">
+                <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                <svg class="w-5 h-5 fill-current text-neutral-200" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+              </div>
+              <span class="text-[13px] font-bold text-neutral-800">4 / 5</span>
+              <span class="text-[12px] text-neutral-500 font-medium">(Hài lòng)</span>
+            </div>
+          </div>
+
+          <!-- Lĩnh vực góp ý -->
+          <div class="border-b border-neutral-100 pb-3">
+            <span class="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider block mb-1.5">Lĩnh vực đã chọn</span>
+            <div class="flex gap-2">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-md text-[12px] font-medium bg-blue-50 text-secondary border border-blue-200">
+                ✓ Học thuật
+              </span>
+              <span class="inline-flex items-center px-2.5 py-1 rounded-md text-[12px] font-medium bg-blue-50 text-secondary border border-blue-200">
+                ✓ Giáo viên
+              </span>
+            </div>
+          </div>
+
+          <!-- Nội dung chi tiết -->
+          <div>
+            <span class="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider block mb-1">Nội dung đã gửi</span>
+            <p class="text-[13px] text-neutral-800 bg-neutral-50 rounded-lg p-3 border border-neutral-200 leading-relaxed font-normal">
+              Giáo viên giảng dạy nhiệt tình, bài tập ngữ pháp sát thực tế. Tuy nhiên phần bài tập nghe về nhà đôi khi file audio hơi nhanh với sức học của con, mong thầy cô có thêm phiên bản phát âm chậm.
+            </p>
+          </div>
+
+        </div>
+
+        <div class="text-center py-2 text-[12px] text-neutral-500">
+          Cảm ơn bạn đã đóng góp ý kiến xây dựng chất lượng đào tạo.
+        </div>
+
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- VIEW 3: TRẠNG THÁI RỖNG (Không có chặng nào đang mở thu thập - R-02) -->
+      <!-- ======================================================== -->
+      <div id="view-empty" class="tab-content hidden flex flex-col items-center justify-center py-12 px-4 text-center">
+        <div class="w-16 h-16 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center text-primary mb-4 shadow-inner">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+          </svg>
+        </div>
+        <h3 class="text-[16px] font-bold text-neutral-800 mb-1.5">Hiện chưa có đợt thu thập nào đang mở</h3>
+        <p class="text-[13px] text-neutral-500 max-w-[280px] leading-relaxed mb-6">
+          Giáo viên và Ban Học vụ sẽ mở cổng tiếp nhận đánh giá khi hoàn thành từng chặng của khóa học.
+        </p>
+        <div class="bg-neutral-50 border border-neutral-200 rounded-xl p-3.5 text-left w-full max-w-sm">
+          <div class="flex items-center gap-2 text-[12px] font-semibold text-neutral-700 mb-1">
+            <svg class="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+            </svg>
+            Lưu ý từ Trung tâm
+          </div>
+          <p class="text-[11px] text-neutral-600 leading-normal">
+            Nếu phụ huynh hoặc học sinh cần phản ánh khẩn cấp về việc học tập, vui lòng liên hệ trực tiếp với Cố vấn Học tập (CM) qua mục Thông báo hoặc hotline trung tâm.
+          </p>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Footer Note (Khẳng định tính độc lập màn hình, không có bottom bar) -->
+    <footer class="px-5 py-3 border-t border-neutral-100 text-center text-[11px] text-neutral-400">
+      Cổng Phụ huynh & Học sinh MENGLISH • MH6 Gửi Feedback
+    </footer>
+
+  </div>
+
+  <!-- Interactive JavaScript simulating all business rules & state transitions -->
+  <script>
+    let currentRating = 0;
+    const ratingTexts = {
+      0: "Chưa chọn",
+      1: "1 sao - Rất không hài lòng",
+      2: "2 sao - Chưa hài lòng",
+      3: "3 sao - Bình thường",
+      4: "4 sao - Hài lòng",
+      5: "5 sao - Rất hài lòng"
+    };
+
+    function setRating(stars) {
+      currentRating = stars;
+      document.getElementById('input-muc-do-hai-long').value = stars;
+      document.getElementById('rating-label-display').innerText = ratingTexts[stars];
+      clearValidationError();
+
+      for (let i = 1; i <= 5; i++) {
+        const star = document.getElementById(`star-icon-${i}`);
+        if (i <= stars) {
+          star.classList.remove('text-neutral-300');
+          star.classList.add('text-amber-400');
+        } else {
+          star.classList.remove('text-amber-400');
+          star.classList.add('text-neutral-300');
+        }
+      }
+    }
+
+    function clearValidationError() {
+      document.getElementById('validation-error-box').classList.add('hidden');
+      document.getElementById('server-error-banner').classList.add('hidden');
+    }
+
+    // Switch between the required state modes for demo / testing
+    function switchState(state) {
+      const views = ['view-form', 'view-closed-readonly', 'view-empty'];
+      views.forEach(v => document.getElementById(v).classList.add('hidden'));
+
+      const buttons = ['btn-form-new', 'btn-form-updated', 'btn-state-closed', 'btn-state-empty'];
+      buttons.forEach(b => {
+        const el = document.getElementById(b);
+        el.classList.remove('bg-primary', 'text-white');
+        el.classList.add('bg-neutral-700', 'text-neutral-200');
+      });
+
+      // Clear alerts
+      document.getElementById('success-banner').classList.add('hidden');
+      document.getElementById('server-error-banner').classList.add('hidden');
+      document.getElementById('validation-error-box').classList.add('hidden');
+
+      if (state === 'form-new') {
+        document.getElementById('btn-form-new').classList.add('bg-primary', 'text-white');
+        document.getElementById('btn-form-new').classList.remove('bg-neutral-700', 'text-neutral-200');
+        document.getElementById('view-form').classList.remove('hidden');
+
+        // Reset form for fresh submission
+        document.getElementById('feedback-form').reset();
+        setRating(0);
+        document.getElementById('btn-submit-text').innerText = "Gửi feedback";
+        document.getElementById('submit-footnote').innerText = "Sau khi gửi, bạn vẫn có thể chỉnh sửa lại trong thời gian đợt thu thập còn mở.";
+      }
+      else if (state === 'form-updated') {
+        document.getElementById('btn-form-updated').classList.add('bg-primary', 'text-white');
+        document.getElementById('btn-form-updated').classList.remove('bg-neutral-700', 'text-neutral-200');
+        document.getElementById('view-form').classList.remove('hidden');
+
+        // Populate with previously submitted data, still fully editable (R-06)
+        setRating(4);
+        document.getElementById('chk-hoc-thuat').checked = true;
+        document.getElementById('chk-giao-vien').checked = true;
+        document.getElementById('chk-khac').checked = false;
+        document.getElementById('input-noi-dung').value = "Con tiến bộ nhiều về kỹ năng nói phản xạ. Giáo viên bản ngữ phát âm rất chuẩn và tương tác vui vẻ.";
+        
+        // Label changes to "Cập nhật"
+        document.getElementById('btn-submit-text').innerText = "Cập nhật";
+        document.getElementById('submit-footnote').innerText = "Dữ liệu lần gửi trước đã được nạp sẵn. Bạn có thể sửa tiếp bất kỳ lúc nào.";
+        document.getElementById('success-title').innerText = "Dữ liệu feedback đã gửi trước đó";
+        document.getElementById('success-banner').classList.remove('hidden');
+      }
+      else if (state === 'state-closed') {
+        document.getElementById('btn-state-closed').classList.add('bg-primary', 'text-white');
+        document.getElementById('btn-state-closed').classList.remove('bg-neutral-700', 'text-neutral-200');
+        document.getElementById('view-closed-readonly').classList.remove('hidden');
+      }
+      else if (state === 'state-empty') {
+        document.getElementById('btn-state-empty').classList.add('bg-primary', 'text-white');
+        document.getElementById('btn-state-empty').classList.remove('bg-neutral-700', 'text-neutral-200');
+        document.getElementById('view-empty').classList.remove('hidden');
+      }
+    }
+
+    // Submit handler enforcing business rule R-04
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      clearValidationError();
+
+      const rating = parseInt(document.getElementById('input-muc-do-hai-long').value) || 0;
+      const chkHocThuat = document.getElementById('chk-hoc-thuat').checked;
+      const chkGiaoVien = document.getElementById('chk-giao-vien').checked;
+      const chkKhac = document.getElementById('chk-khac').checked;
+      const content = document.getElementById('input-noi-dung').value.trim();
+
+      const hasRating = rating > 0;
+      const hasCheckbox = chkHocThuat || chkGiaoVien || chkKhac;
+      const hasContent = content.length > 0;
+
+      // Rule R-04: At least 1 of the 3 fields must be filled
+      if (!hasRating && !hasCheckbox && !hasContent) {
+        document.getElementById('validation-error-box').classList.remove('hidden');
+        document.getElementById('validation-error-box').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+
+      // Success simulation: switch button to "Cập nhật" and display success toast
+      document.getElementById('btn-submit-text').innerText = "Cập nhật";
+      document.getElementById('success-title').innerText = "Gửi feedback thành công!";
+      document.getElementById('success-banner').classList.remove('hidden');
+      document.getElementById('success-banner').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // Simulate server race condition or class change
+    function triggerServerError(type) {
+      document.getElementById('success-banner').classList.add('hidden');
+      document.getElementById('validation-error-box').classList.add('hidden');
+      const errBanner = document.getElementById('server-error-banner');
+      const msg = document.getElementById('server-error-msg');
+      const title = document.getElementById('server-error-title');
+
+      if (type === 'closed') {
+        title.innerText = "Đợt thu thập vừa được đóng bởi Quản lý";
+        msg.innerText = "Đợt thu thập đã đóng trong lúc bạn đang thao tác. Vui lòng tải lại trang để xem trạng thái mới nhất.";
+      } else {
+        title.innerText = "Học sinh đã được chuyển lớp";
+        msg.innerText = "Thông tin lớp học đã thay đổi trong lúc mở biểu mẫu. Hệ thống đã chặn gửi, vui lòng tải lại trang.";
+      }
+      errBanner.classList.remove('hidden');
+      errBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Initialize default to first-time submission
+    document.addEventListener('DOMContentLoaded', () => {
+      switchState('form-new');
+    });
+  </script>
+</body>
+</html>

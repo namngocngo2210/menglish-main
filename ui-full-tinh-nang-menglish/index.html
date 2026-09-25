@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEnglish Admin — UI Mockup Navigator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --sidebar-w: 295px;
+            --sidebar-collapsed-w: 0px;
+            --primary: #F5691A;
+            --primary-hover: #E05A10;
+            --primary-bg: rgba(245, 105, 26, 0.08);
+            --primary-bg-strong: rgba(245, 105, 26, 0.14);
+            --navy: #111A2B;
+            --navy-light: #1C2940;
+            --navy-lighter: #263452;
+            --text-white: #F1F3F7;
+            --text-dim: #8994A8;
+            --text-muted: #5D6A80;
+            --divider: rgba(255,255,255,0.06);
+            --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Be Vietnam Pro', -apple-system, sans-serif;
+            background: #0D1320;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ===== LAYOUT ===== */
+        .app {
+            display: flex;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width: var(--sidebar-w);
+            min-width: var(--sidebar-w);
+            height: 100vh;
+            background: var(--navy);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--divider);
+            overflow: hidden;
+            z-index: 100;
+            position: fixed;
+            left: 0;
+            top: 0;
+            transition: transform var(--transition);
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(calc(-1 * var(--sidebar-w)));
+        }
+
+        /* ===== MAIN shifts based on sidebar ===== */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            background: #F3F4F6;
+            margin-left: var(--sidebar-w);
+            transition: margin-left var(--transition);
+            height: 100vh;
+        }
+
+        .main.expanded {
+            margin-left: 0;
+        }
+
+        /* -- Logo -- */
+        .sidebar-logo {
+            height: 48px;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 16px;
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .sidebar-logo-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            background: linear-gradient(135deg, #F5691A, #FF8C42);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-logo-icon .material-symbols-outlined { font-size: 16px; color: #FFF; }
+
+        .sidebar-logo-text {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-white);
+            letter-spacing: -0.3px;
+            flex: 1;
+        }
+
+        .sidebar-logo-text em { font-style: normal; color: var(--primary); }
+
+        .sidebar-collapse-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: transparent;
+            border: 1px solid var(--divider);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all var(--transition);
+            flex-shrink: 0;
+        }
+
+        .sidebar-collapse-btn:hover { background: rgba(255,255,255,0.08); }
+        .sidebar-collapse-btn .material-symbols-outlined { font-size: 16px; color: var(--text-dim); }
+
+        /* -- Search bar -- */
+        .sidebar-search {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .sidebar-search-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            padding: 5px 9px;
+            transition: all var(--transition);
+        }
+
+        .sidebar-search-box:focus-within {
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .sidebar-search-box .material-symbols-outlined {
+            font-size: 16px;
+            color: var(--text-muted);
+        }
+
+        .sidebar-search-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-white);
+            font-size: 12px;
+            font-family: inherit;
+            width: 100%;
+        }
+
+        .sidebar-search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* -- Scrollable nav -- */
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 6px 0;
+            scrollbar-width: thin;
+            scrollbar-color: var(--navy-lighter) transparent;
+        }
+
+        .sidebar-nav::-webkit-scrollbar { width: 3px; }
+        .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-nav::-webkit-scrollbar-thumb { background: var(--navy-lighter); border-radius: 3px; }
+
+        /* ===== ACCORDION NAV GROUP ===== */
+        .nav-group { margin-bottom: 2px; }
+        .nav-group.hidden { display: none; }
+
+        .nav-group-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            margin: 1px 6px;
+            border-radius: 7px;
+            user-select: none;
+            cursor: pointer;
+            transition: background var(--transition);
+        }
+
+        .nav-group-header:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-group-arrow {
+            font-size: 17px;
+            color: var(--text-muted);
+            transition: transform var(--transition), color var(--transition);
+            flex-shrink: 0;
+        }
+
+        .nav-group-header:hover .nav-group-arrow {
+            color: var(--text-dim);
+        }
+
+        .nav-group.collapsed .nav-group-arrow {
+            transform: rotate(-90deg);
+        }
+
+        .nav-group-folder-icon {
+            font-size: 16px;
+            color: var(--primary);
+            opacity: 0.85;
+            flex-shrink: 0;
+        }
+
+        .nav-group-label {
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #FFFFFF;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-group-count {
+            font-size: 10px;
+            font-weight: 700;
+            color: #94A3B8;
+            background: rgba(255,255,255,0.12);
+            padding: 2px 7px;
+            border-radius: 100px;
+        }
+
+        .nav-group-body {
+            overflow: hidden;
+            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            max-height: 1200px;
+        }
+
+        .nav-group.collapsed .nav-group-body {
+            max-height: 0;
+        }
+
+        /* -- Menu item -- */
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px 6px 14px;
+            margin: 1px 6px 1px 12px;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: all var(--transition);
+            text-decoration: none;
+            position: relative;
+            min-height: 32px;
+        }
+
+        .nav-item.hidden { display: none !important; }
+
+        .nav-item:hover { background: rgba(255, 255, 255, 0.05); }
+
+        .nav-item.active { background: var(--primary-bg-strong); }
+
+        .nav-item.active::before {
+            content: ';';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 18px;
+            border-radius: 0 3px 3px 0;
+            background: var(--primary);
+        }
+
+        .nav-item-num {
+            font-size: 11px;
+            font-weight: 800;
+            color: #FF8C42;
+            background: rgba(245, 105, 26, 0.18);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-variant-numeric: tabular-nums;
+            flex-shrink: 0;
+            min-width: 24px;
+            text-align: center;
+        }
+
+        .nav-item.active .nav-item-num {
+            color: #FFF;
+            background: var(--primary);
+        }
+
+        .nav-item-icon {
+            width: 22px; height: 22px;
+            border-radius: 5px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .nav-item-icon .material-symbols-outlined {
+            font-size: 17px;
+            color: #CBD5E1;
+            transition: color var(--transition);
+        }
+
+        .nav-item.active .nav-item-icon .material-symbols-outlined { color: var(--primary); }
+
+        .nav-item-text {
+            font-size: 13px;
+            font-weight: 600;
+            color: #E2E8F0;
+            line-height: 1.3;
+            transition: color var(--transition);
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-item.active .nav-item-text { color: #FFFFFF; font-weight: 800; }
+        .nav-item:hover .nav-item-text { color: #FFFFFF; }
+
+        .nav-item-badge {
+            font-size: 9px; font-weight: 600;
+            padding: 2px 5px; border-radius: 4px; flex-shrink: 0;
+        }
+
+        .nav-item-badge.form { background: rgba(251, 146, 60, 0.15); color: #FB923C; }
+        .nav-item-badge.table { background: rgba(129, 140, 248, 0.15); color: #818CF8; }
+        .nav-item-badge.kanban { background: rgba(52, 211, 153, 0.15); color: #34D399; }
+        .nav-item-badge.report { background: rgba(232, 121, 249, 0.15); color: #E879F9; }
+        .nav-item-badge.modal { background: rgba(251, 113, 133, 0.15); color: #FB7185; }
+        .nav-item-badge.wizard { background: rgba(34, 211, 238, 0.15); color: #22D3EE; }
+        .nav-item-badge.layout { background: rgba(167, 139, 250, 0.15); color: #A78BFA; }
+        .nav-item-badge.detail { background: rgba(253, 186, 116, 0.15); color: #FDBA74; }
+
+        .nav-divider { height: 1px; background: var(--divider); margin: 4px 16px; }
+
+        /* -- Footer -- */
+        .sidebar-footer {
+            padding: 10px 16px;
+            border-top: 1px solid var(--divider);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-footer-avatar {
+            width: 30px; height: 30px; border-radius: 7px;
+            background: linear-gradient(135deg, var(--navy-lighter), var(--navy-light));
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+
+        .sidebar-footer-avatar .material-symbols-outlined { font-size: 16px; color: var(--text-dim); }
+
+        .sidebar-footer-info { flex: 1; min-width: 0; }
+        .sidebar-footer-name { font-size: 11px; font-weight: 600; color: var(--text-white); }
+        .sidebar-footer-role { font-size: 9px; color: var(--text-muted); }
+
+        /* ===== TOGGLE BUTTON ===== */
+        .sidebar-toggle-float {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: var(--navy);
+            border: 1px solid rgba(255,255,255,0.1);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 200;
+            transition: all var(--transition);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .sidebar-toggle-float:hover { background: var(--navy-light); }
+        .sidebar-toggle-float .material-symbols-outlined { font-size: 20px; color: var(--text-white); }
+        .sidebar-toggle-float.visible { display: flex; }
+
+        /* ===== MAIN CONTENT ===== */
+        .content-frame {
+            flex: 1;
+            border: none;
+            width: 100%;
+            height: 100%;
+            background: #FFF;
+            display: none;
+        }
+
+        /* -- Welcome state -- */
+        .welcome {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px;
+            background: #FFF;
+        }
+
+        .welcome-inner { max-width: 440px; }
+
+        .welcome-icon {
+            width: 64px; height: 64px; border-radius: 16px;
+            background: linear-gradient(135deg, rgba(245,105,26,0.1), rgba(245,105,26,0.05));
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 16px;
+        }
+
+        .welcome-icon .material-symbols-outlined { font-size: 32px; color: var(--primary); }
+        .welcome h2 { font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 8px; }
+        .welcome p { font-size: 13px; color: #6B7280; line-height: 1.6; }
+
+        .welcome-hint {
+            margin-top: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: #9CA3AF;
+            background: #F9FAFB;
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid #F3F4F6;
+        }
+
+        .welcome-hint .material-symbols-outlined { font-size: 15px; }
+
+        /* ===== SCREEN INFO BAR ===== */
+        .screen-info-bar {
+            position: fixed;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            z-index: 50;
+            background: var(--navy);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 8px 12px 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            opacity: 0;
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            pointer-events: none;
+            max-width: calc(100vw - 40px);
+        }
+
+        .screen-info-bar.visible {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .screen-info-module {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--primary);
+            background: var(--primary-bg);
+            padding: 3px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+
+        .screen-info-name {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-white);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .screen-info-sep { color: rgba(255,255,255,0.15); font-size: 16px; }
+
+        .screen-info-nav {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 4px;
+        }
+
+        .screen-info-btn {
+            width: 28px; height: 28px; border-radius: 6px;
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all var(--transition);
+        }
+
+        .screen-info-btn:hover { background: rgba(255,255,255,0.12); }
+        .screen-info-btn .material-symbols-outlined { font-size: 16px; color: var(--text-dim); }
+
+        .screen-info-btn.open-tab { background: var(--primary-bg); border-color: rgba(245,105,26,0.2); }
+        .screen-info-btn.open-tab .material-symbols-outlined { color: var(--primary); }
+        .screen-info-btn.open-tab:hover { background: rgba(245,105,26,0.2); }
+
+        .screen-info-counter {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-weight: 500;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+            min-width: 32px;
+            text-align: center;
+        }
+
+        .nav-item:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: -2px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar" id="sidebar">
+
+        <div class="sidebar-logo">
+            <div class="sidebar-logo-icon">
+                <span class="material-symbols-outlined">school</span>
+            </div>
+            <div class="sidebar-logo-text"><em>M</em>English Admin</div>
+            <button class="sidebar-collapse-btn" title="Thu gọn menu (Ctrl+B)" onclick="toggleSidebar()">
+                <span class="material-symbols-outlined">left_panel_close</span>
+            </button>
+        </div>
+
+        <div class="sidebar-search">
+            <div class="sidebar-search-box">
+                <span class="material-symbols-outlined">search</span>
+                <input type="text" class="sidebar-search-input" id="searchInput" placeholder="Tìm kiếm 48 màn hình..." />
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+
+            <!-- ── 1. crm-ui-mockup ── -->
+            <div class="nav-group">
+                <div class="nav-group-header" onclick="toggleGroup(this)">
+                    <span class="material-symbols-outlined nav-group-arrow">expand_more</span>
+                    <span class="material-symbols-outlined nav-group-folder-icon">folder</span>
+                    <span class="nav-group-label">1. crm-ui-mockup</span>
+                    <span class="nav-group-count">10</span>
+                </div>
+                <div class="nav-group-body">
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="crm-ui-mockup/app-shell-layout/code.html"
+                         data-module="crm-ui-mockup" data-screen="App Shell — Khung giao diện">
+                        <span class="nav-item-num">01</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">dashboard</span></div>
+                        <span class="nav-item-text">App Shell / Layout</span>
+                        <span class="nav-item-badge layout">Layout</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="crm-ui-mockup/pipeline-tong-quan-giai-doan/code.html"
+                         data-module="crm-ui-mockup" data-screen="Pipeline — Tổng quan theo giai đoạn">
+                        <span class="nav-item-num">02</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">view_kanban</span></div>
+                        <span class="nav-item-text">Pipeline (Kanban)</span>
+                        <span class="nav-item-badge kanban">Kanban</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="crm-ui-mockup/danh-sach-khach/code.html"
+                         data-module="crm-ui-mockup" data-screen="Danh sách Khách hàng">
+                        <span class="nav-item-num">03</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">list_alt</span></div>
+                        <span class="nav-item-text">Danh sách Khách</span>
+                        <span class="nav-item-badge table">Table</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="crm-ui-mockup/them-khach-moi/code.html"
+                         data-module="crm-ui-mockup" data-screen="Thêm khách mới">
+                        <span class="nav-item-num">04</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">person_add</span></div>
+                        <span class="nav-item-text">Thêm khách mới</span>
+                        <span class="nav-item-badge modal">Modal</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="crm-ui-mockup/chi-tiet-khach-hang/code.html"
+                         data-module="crm-ui-mockup" data-screen="Chi tiết Khách hàng">
+                        <span class="nav-item-num">05</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">person</span></div>
+                        <span class="nav-item-text">Chi tiết Khách hàng</span>
+                        <span class="nav-item-badge detail">Detail</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="crm-ui-mockup/sua-thong-tin-khach/code.html"
+                         data-module="crm-ui-mockup" data-screen="Sửa thông tin Khách">
+                        <span class="nav-item-num">06</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">edit</span></div>
+                        <span class="nav-item-text">Sửa thông tin Khách</span>
+                        <span class="nav-item-badge modal">Modal</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="crm-ui-mockup/khach-hang-chot-thanh-cong/code.html"
+                         data-module="crm-ui-mockup" data-screen="Khách chốt thành công">
+                        <span class="nav-item-num">07</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">how_to_reg</span></div>
+                        <span class="nav-item-text">Khách chốt thành công</span>
+                        <span class="nav-item-badge table">Table</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="crm-ui-mockup/quy-trinh-chot-xep-lop/code.html"
+                         data-module="crm-ui-mockup" data-screen="Quy trình Chốt & Xếp lớp">
+                        <span class="nav-item-num">08</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">route</span></div>
+                        <span class="nav-item-text">Chốt & Xếp lớp</span>
+                        <span class="nav-item-badge wizard">Wizard</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="crm-ui-mockup/khach-khong-chot-lost-deals/code.html"
+                         data-module="crm-ui-mockup" data-screen="Khách không chốt (Lost Deals)">
+                        <span class="nav-item-num">09</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">person_off</span></div>
+                        <span class="nav-item-text">Khách không chốt</span>
+                        <span class="nav-item-badge report">Report</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="crm-ui-mockup/bao-cao-doanh-so/code.html"
+                         data-module="crm-ui-mockup" data-screen="Báo cáo Doanh số">
+                        <span class="nav-item-num">10</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">bar_chart</span></div>
+                        <span class="nav-item-text">Báo cáo Doanh số</span>
+                        <span class="nav-item-badge report">Report</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-divider"></div>
+
+            <!-- ── 2. hoc-phi-va-hoa-don-ui-mockup ── -->
+            <div class="nav-group">
+                <div class="nav-group-header" onclick="toggleGroup(this)">
+                    <span class="material-symbols-outlined nav-group-arrow">expand_more</span>
+                    <span class="material-symbols-outlined nav-group-folder-icon">folder</span>
+                    <span class="nav-group-label">2. hoc-phi-va-hoa-don-ui-mockup</span>
+                    <span class="nav-group-count">7</span>
+                </div>
+                <div class="nav-group-body">
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="hoc-phi-va-hoa-don-ui-mockup/danh-sach-hoc-vien-thu-phi/code.html"
+                         data-module="hoc-phi-va-hoa-don" data-screen="Danh sách Học viên & Thu phí">
+                        <span class="nav-item-num">11</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">group</span></div>
+                        <span class="nav-item-text">DS Học viên & Thu phí</span>
+                        <span class="nav-item-badge table">Table</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="hoc-phi-va-hoa-don-ui-mockup/nhap-danh-sach-hang-loat/code.html"
+                         data-module="hoc-phi-va-hoa-don" data-screen="Nhập danh sách hàng loạt (Excel)">
+                        <span class="nav-item-num">12</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">upload_file</span></div>
+                        <span class="nav-item-text">Nhập hàng loạt (Excel)</span>
+                        <span class="nav-item-badge wizard">Wizard</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="hoc-phi-va-hoa-don-ui-mockup/lap-phieu-thu-hoc-phi/code.html"
+                         data-module="hoc-phi-va-hoa-don" data-screen="Lập Phiếu thu Học phí">
+                        <span class="nav-item-num">13</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">receipt_long</span></div>
+                        <span class="nav-item-text">Lập Phiếu thu</span>
+                        <span class="nav-item-badge form">Form</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="hoc-phi-va-hoa-don-ui-mockup/duyet-phieu-thu-hoc-phi/code.html"
+                         data-module="hoc-phi-va-hoa-don" data-screen="Duyệt Phiếu thu Học phí">
+                        <span class="nav-item-num">14</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">fact_check</span></div>
+                        <span class="nav-item-text">Duyệt Phiếu thu</span>
+                        <span class="nav-item-badge detail">Detail</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="hoc-phi-va-hoa-don-ui-mockup/lich-su-thu-hoc-phi/code.html"
+                         data-module="hoc-phi-va-hoa-don" data-screen="Chi tiết & Lịch sử Thu học phí">
+                        <span class="nav-item-num">15</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">history</span></div>
+                        <span class="nav-item-text">Lịch sử Thu học phí</span>
+                        <span class="nav-item-badge detail">Detail</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="hoc-phi-va-hoa-don-ui-mockup/duyet-huy-hoa-don/code.html"
+                         data-module="hoc-phi-va-hoa-don" data-screen="Duyệt / Hủy Hóa đơn">
+                        <span class="nav-item-num">16</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">cancel_presentation</span></div>
+                        <span class="nav-item-text">Duyệt / Hủy Hóa đơn</span>
+                        <span class="nav-item-badge table">Table</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="hoc-phi-va-hoa-don-ui-mockup/hoan-tien-va-khat-no/code.html"
+                         data-module="hoc-phi-va-hoa-don" data-screen="Khất nợ / Hoàn tiền / Chuyển nhượng">
+                        <span class="nav-item-num">17</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">currency_exchange</span></div>
+                        <span class="nav-item-text">Hoàn tiền & Khất nợ</span>
+                        <span class="nav-item-badge form">Form</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-divider"></div>
+
+            <!-- ── 3. epic-5 ── -->
+            <div class="nav-group">
+                <div class="nav-group-header" onclick="toggleGroup(this)">
+                    <span class="material-symbols-outlined nav-group-arrow">expand_more</span>
+                    <span class="material-symbols-outlined nav-group-folder-icon">folder</span>
+                    <span class="nav-group-label">3. epic-5</span>
+                    <span class="nav-group-count">7</span>
+                </div>
+                <div class="nav-group-body">
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-5/quan-ly-tai-khoan-vai-tro/code.html"
+                         data-module="epic-5" data-screen="Quản lý Tài khoản & Vai trò">
+                        <span class="nav-item-num">18</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">manage_accounts</span></div>
+                        <span class="nav-item-text">Quản lý Tài khoản & Vai trò</span>
+                        <span class="nav-item-badge table">Table</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-5/phan-quyen-chi-tiet-ca-nhan/code.html"
+                         data-module="epic-5" data-screen="Phân quyền chi tiết theo cá nhân">
+                        <span class="nav-item-num">19</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">admin_panel_settings</span></div>
+                        <span class="nav-item-text">Phân quyền chi tiết cá nhân</span>
+                        <span class="nav-item-badge form">Form</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-5/quan-ly-danh-muc-he-thong/code.html"
+                         data-module="epic-5" data-screen="Quản lý Danh mục hệ thống">
+                        <span class="nav-item-num">20</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">category</span></div>
+                        <span class="nav-item-text">Quản lý Danh mục hệ thống</span>
+                        <span class="nav-item-badge table">Table</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-5/cau-hinh-ngay-nghi/code.html"
+                         data-module="epic-5" data-screen="Cấu hình Ngày nghỉ">
+                        <span class="nav-item-num">21</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">event_busy</span></div>
+                        <span class="nav-item-text">Cấu hình Ngày nghỉ</span>
+                        <span class="nav-item-badge form">Form</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-5/cau-hinh-nhac-no/code.html"
+                         data-module="epic-5" data-screen="Cấu hình Nhắc nợ">
+                        <span class="nav-item-num">22</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">notifications_active</span></div>
+                        <span class="nav-item-text">Cấu hình Nhắc nợ</span>
+                        <span class="nav-item-badge form">Form</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-5/cau-hinh-tai-khoan-ngan-hang/code.html"
+                         data-module="epic-5" data-screen="Cấu hình Tài khoản ngân hàng thu tiền">
+                        <span class="nav-item-num">23</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">account_balance</span></div>
+                        <span class="nav-item-text">Tài khoản Ngân hàng</span>
+                        <span class="nav-item-badge form">Form</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-5/nhat-ky-van-hanh/code.html"
+                         data-module="epic-5" data-screen="Nhật ký vận hành">
+                        <span class="nav-item-num">24</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">view_list</span></div>
+                        <span class="nav-item-text">Nhật ký vận hành</span>
+                        <span class="nav-item-badge report">Report</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-divider"></div>
+
+            <!-- ── 4. epic-6 ── -->
+            <div class="nav-group">
+                <div class="nav-group-header" onclick="toggleGroup(this)">
+                    <span class="material-symbols-outlined nav-group-arrow">expand_more</span>
+                    <span class="material-symbols-outlined nav-group-folder-icon">folder</span>
+                    <span class="nav-group-label">4. epic-6</span>
+                    <span class="nav-group-count">4</span>
+                </div>
+                <div class="nav-group-body">
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-6/ho-so-hoc-sinh-danh-sach-lien-ket-lop/code.html"
+                         data-module="epic-6" data-screen="Hồ sơ học sinh — Danh sách & Liên kết lớp">
+                        <span class="nav-item-num">25</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">school</span></div>
+                        <span class="nav-item-text">DS & Liên kết lớp học sinh</span>
+                        <span class="nav-item-badge table">Table</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-6/chi-tiet-ho-so-hoc-sinh-phan-quyen/code.html"
+                         data-module="epic-6" data-screen="Chi tiết Hồ sơ Học sinh (Phân quyền)">
+                        <span class="nav-item-num">26</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">badge</span></div>
+                        <span class="nav-item-text">Chi tiết HS (Phân quyền)</span>
+                        <span class="nav-item-badge detail">Detail</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-6/chi-tiet-ho-so-hoc-sinh-desktop/code.html"
+                         data-module="epic-6" data-screen="Chi tiết Hồ sơ Học sinh (Desktop)">
+                        <span class="nav-item-num">27</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">account_box</span></div>
+                        <span class="nav-item-text">Chi tiết HS (Desktop)</span>
+                        <span class="nav-item-badge detail">Detail</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-6/khach-hang-chot-thanh-cong-xac-nhan/code.html"
+                         data-module="epic-6" data-screen="Khách hàng đã chốt (Xác nhận 2026)">
+                        <span class="nav-item-num">28</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">verified_user</span></div>
+                        <span class="nav-item-text">Khách chốt (Xác nhận)</span>
+                        <span class="nav-item-badge table">Table</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-divider"></div>
+
+            <!-- ── 5. epic-7 ── -->
+            <div class="nav-group">
+                <div class="nav-group-header" onclick="toggleGroup(this)">
+                    <span class="material-symbols-outlined nav-group-arrow">expand_more</span>
+                    <span class="material-symbols-outlined nav-group-folder-icon">folder</span>
+                    <span class="nav-group-label">5. epic-7</span>
+                    <span class="nav-group-count">12</span>
+                </div>
+                <div class="nav-group-body">
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-7/danh-sach-bang-luong-theo-ky/code.html"
+                         data-module="epic-7" data-screen="Danh sách Bảng lương theo kỳ">
+                        <span class="nav-item-num">29</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">payments</span></div>
+                        <span class="nav-item-text">DS Bảng lương theo kỳ</span>
+                        <span class="nav-item-badge table">Table</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-7/chi-tiet-bang-luong/code.html"
+                         data-module="epic-7" data-screen="Chi tiết Bảng lương">
+                        <span class="nav-item-num">30</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">request_quote</span></div>
+                        <span class="nav-item-text">Chi tiết Bảng lương</span>
+                        <span class="nav-item-badge detail">Detail</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-7/chi-tiet-bang-luong-gv-fulltime/code.html"
+                         data-module="epic-7" data-screen="Chi tiết Bảng lương GV Full-time">
+                        <span class="nav-item-num">31</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">account_balance_wallet</span></div>
+                        <span class="nav-item-text">Bảng lương GV Full-time</span>
+                        <span class="nav-item-badge detail">Detail</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-7/chi-tiet-bang-luong-hoc-thuat/code.html"
+                         data-module="epic-7" data-screen="Chi tiết Bảng lương Học thuật">
+                        <span class="nav-item-num">32</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">auto_stories</span></div>
+                        <span class="nav-item-text">Bảng lương Học thuật</span>
+                        <span class="nav-item-badge detail">Detail</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-7/chi-tiet-bang-luong-hoc-vu/code.html"
+                         data-module="epic-7" data-screen="Chi tiết Bảng lương Học vụ">
+                        <span class="nav-item-num">33</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">menu_book</span></div>
+                        <span class="nav-item-text">Bảng lương Học vụ</span>
+                        <span class="nav-item-badge detail">Detail</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-7/cham-cong-thu-cong/code.html"
+                         data-module="epic-7" data-screen="Chấm công thủ công">
+                        <span class="nav-item-num">34</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">edit_calendar</span></div>
+                        <span class="nav-item-text">Chấm công thủ công</span>
+                        <span class="nav-item-badge form">Form</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-7/chi-tiet-cham-cong-theo-gv/code.html"
+                         data-module="epic-7" data-screen="Chi tiết Chấm công Giáo viên">
+                        <span class="nav-item-num">35</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">event_available</span></div>
+                        <span class="nav-item-text">Chi tiết Chấm công GV</span>
+                        <span class="nav-item-badge detail">Detail</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-7/lich-su-dong-bo-cham-cong/code.html"
+                         data-module="epic-7" data-screen="Lịch sử Đồng bộ Chấm công">
+                        <span class="nav-item-num">36</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">sync</span></div>
+                        <span class="nav-item-text">Lịch sử Đồng bộ Chấm công</span>
+                        <span class="nav-item-badge table">Table</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-7/bang-kpi-cong-khai/code.html"
+                         data-module="epic-7" data-screen="Bảng xếp hạng KPI & Hoa hồng">
+                        <span class="nav-item-num">37</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">leaderboard</span></div>
+                        <span class="nav-item-text">BXH KPI & Hoa hồng</span>
+                        <span class="nav-item-badge report">Report</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-7/cau-hinh-don-gia-giao-vien/code.html"
+                         data-module="epic-7" data-screen="Cấu hình Đơn giá Giáo viên & Trợ giảng">
+                        <span class="nav-item-num">38</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">price_change</span></div>
+                        <span class="nav-item-text">Cấu hình Đơn giá GV</span>
+                        <span class="nav-item-badge form">Form</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-7/cau-hinh-moc-hoa-hong-thuong-tai-tuc/code.html"
+                         data-module="epic-7" data-screen="Cấu hình Mốc hoa hồng & Thưởng tái tục">
+                        <span class="nav-item-num">39</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">military_tech</span></div>
+                        <span class="nav-item-text">Cấu hình Mốc Hoa hồng</span>
+                        <span class="nav-item-badge form">Form</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-7/luong-cua-toi-teacher-portal/code.html"
+                         data-module="epic-7" data-screen="Lương của tôi (Teacher Portal)">
+                        <span class="nav-item-num">40</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">wallet</span></div>
+                        <span class="nav-item-text">Lương của tôi (Portal)</span>
+                        <span class="nav-item-badge detail">Detail</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-divider"></div>
+
+            <!-- ── 6. epic-8-thu-phi-qua-han ── -->
+            <div class="nav-group">
+                <div class="nav-group-header" onclick="toggleGroup(this)">
+                    <span class="material-symbols-outlined nav-group-arrow">expand_more</span>
+                    <span class="material-symbols-outlined nav-group-folder-icon">folder</span>
+                    <span class="nav-group-label">6. epic-8-thu-phi-qua-han</span>
+                    <span class="nav-group-count">1</span>
+                </div>
+                <div class="nav-group-body">
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-8-thu-phi-qua-han/code.html"
+                         data-module="Epic 8 thu phí quá hạn" data-screen="DS Học viên đến hạn thu phí (Quá hạn)">
+                        <span class="nav-item-num">41</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">alarm_on</span></div>
+                        <span class="nav-item-text">DS Thu phí quá hạn</span>
+                        <span class="nav-item-badge table">Table</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-divider"></div>
+
+            <!-- ── 7. epic-8-danh-sach-phat ── -->
+            <div class="nav-group">
+                <div class="nav-group-header" onclick="toggleGroup(this)">
+                    <span class="material-symbols-outlined nav-group-arrow">expand_more</span>
+                    <span class="material-symbols-outlined nav-group-folder-icon">folder</span>
+                    <span class="nav-group-label">7. epic-8-danh-sach-phat</span>
+                    <span class="nav-group-count">1</span>
+                </div>
+                <div class="nav-group-body">
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="epic-8-danh-sach-phat/code.html"
+                         data-module="Epic 8- Danh sách phạt" data-screen="Danh sách Vi phạm & Phạt">
+                        <span class="nav-item-num">42</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">warning</span></div>
+                        <span class="nav-item-text">Danh sách Vi phạm</span>
+                        <span class="nav-item-badge table">Table</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-divider"></div>
+
+            <!-- ── 8. cau-hinh-trinh-do ── -->
+            <div class="nav-group">
+                <div class="nav-group-header" onclick="toggleGroup(this)">
+                    <span class="material-symbols-outlined nav-group-arrow">expand_more</span>
+                    <span class="material-symbols-outlined nav-group-folder-icon">folder</span>
+                    <span class="nav-group-label">8. cau-hinh-trinh-do</span>
+                    <span class="nav-group-count">1</span>
+                </div>
+                <div class="nav-group-body">
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="cau-hinh-trinh-do/code.html"
+                         data-module="Cấu hình trình độ" data-screen="Cấu hình Trình độ & Syllabus">
+                        <span class="nav-item-num">43</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">workspace_premium</span></div>
+                        <span class="nav-item-text">Cấu hình Trình độ & Syllabus</span>
+                        <span class="nav-item-badge form">Form</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-divider"></div>
+
+            <!-- ── 9. cauhinhhoadon-ui-mockup ── -->
+            <div class="nav-group">
+                <div class="nav-group-header" onclick="toggleGroup(this)">
+                    <span class="material-symbols-outlined nav-group-arrow">expand_more</span>
+                    <span class="material-symbols-outlined nav-group-folder-icon">folder</span>
+                    <span class="nav-group-label">9. cauhinhhoadon-ui-mockup</span>
+                    <span class="nav-group-count">1</span>
+                </div>
+                <div class="nav-group-body">
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="cauhinhhoadon-ui-mockup/code.html"
+                         data-module="cauhinhhoadon-ui-mockup" data-screen="Cấu hình Dải số Hóa đơn">
+                        <span class="nav-item-num">44</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">tune</span></div>
+                        <span class="nav-item-text">Dải số Hóa đơn</span>
+                        <span class="nav-item-badge form">Form</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-divider"></div>
+
+            <!-- ── 10. quan-ly-de-dau-vao-crm ── -->
+            <div class="nav-group">
+                <div class="nav-group-header" onclick="toggleGroup(this)">
+                    <span class="material-symbols-outlined nav-group-arrow">expand_more</span>
+                    <span class="material-symbols-outlined nav-group-folder-icon">folder</span>
+                    <span class="nav-group-label">10. quan-ly-de-dau-vao-crm</span>
+                    <span class="nav-group-count">4</span>
+                </div>
+                <div class="nav-group-body">
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="quan-ly-de-dau-vao-crm/qu_n_l_test_u_v_o_danh_s_ch_menglish_admin/code.html"
+                         data-module="Quản lý đề đầu vào CRM" data-screen="Danh sách Đề test đầu vào">
+                        <span class="nav-item-num">45</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">quiz</span></div>
+                        <span class="nav-item-text">Danh sách Đề test đầu vào</span>
+                        <span class="nav-item-badge table">Table</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="quan-ly-de-dau-vao-crm/t_o_m_i_qu_n_l_test_menglish_admin/code.html"
+                         data-module="Quản lý đề đầu vào CRM" data-screen="Tạo mới Đề test đầu vào">
+                        <span class="nav-item-num">46</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">post_add</span></div>
+                        <span class="nav-item-text">Tạo mới Đề test đầu vào</span>
+                        <span class="nav-item-badge form">Form</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="quan-ly-de-dau-vao-crm/kh_i_test_online_chi_ti_t_kh_ch_h_ng_menglish_admin/code.html"
+                         data-module="Quản lý đề đầu vào CRM" data-screen="Chi tiết & Nhận xét kết quả test">
+                        <span class="nav-item-num">47</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">assignment_turned_in</span></div>
+                        <span class="nav-item-text">Chi tiết & Nhận xét kết quả</span>
+                        <span class="nav-item-badge detail">Detail</span>
+                    </div>
+
+                    <div class="nav-item" tabindex="0"
+                         data-src="Thang điểm + hướng dẫn nhận xét.html"
+                         data-module="Quản lý đề đầu vào CRM" data-screen="Thang điểm & Hướng dẫn nhận xét">
+                        <span class="nav-item-num">48</span>
+                        <div class="nav-item-icon"><span class="material-symbols-outlined">auto_awesome</span></div>
+                        <span class="nav-item-text">Thang điểm & Nhận xét</span>
+                        <span class="nav-item-badge report">Report</span>
+                    </div>
+                </div>
+            </div>
+
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-footer-avatar">
+                <span class="material-symbols-outlined">shield_person</span>
+            </div>
+            <div class="sidebar-footer-info">
+                <div class="sidebar-footer-name">Admin Hệ thống</div>
+                <div class="sidebar-footer-role">UI Mockup Navigator (48 màn)</div>
+            </div>
+        </div>
+
+    </aside>
+
+    <!-- Float toggle button -->
+    <button class="sidebar-toggle-float" id="sidebarToggleFloat" onclick="toggleSidebar()">
+        <span class="material-symbols-outlined">menu</span>
+    </button>
+
+    <!-- ===== MAIN ===== -->
+    <div class="main" id="mainArea">
+
+        <div class="welcome" id="welcomeState">
+            <div class="welcome-inner">
+                <div class="welcome-icon">
+                    <span class="material-symbols-outlined">touch_app</span>
+                </div>
+                <h2>Chọn màn hình từ menu bên trái</h2>
+                <p>Tổng hợp đầy đủ <strong>48 màn hình UI Mockups</strong> được phân chia 1:1 theo đúng 10 thư mục gốc (Epics & Modules). Click tên folder để đóng/mở Accordion.</p>
+                <div class="welcome-hint">
+                    <span class="material-symbols-outlined">keyboard</span>
+                    ↑↓ chuyển mục &nbsp;·&nbsp; Enter mở &nbsp;·&nbsp; Ctrl+B ẩn/hiện menu
+                </div>
+            </div>
+        </div>
+
+        <iframe class="content-frame" id="contentFrame"></iframe>
+
+    </div>
+</div>
+
+<!-- Screen info floating bar -->
+<div class="screen-info-bar" id="screenInfoBar">
+    <span class="screen-info-module" id="infoModule"></span>
+    <span class="screen-info-name" id="infoScreen"></span>
+    <span class="screen-info-sep">│</span>
+    <div class="screen-info-nav">
+        <button class="screen-info-btn" title="Màn hình trước" onclick="navPrev()">
+            <span class="material-symbols-outlined">chevron_left</span>
+        </button>
+        <span class="screen-info-counter" id="infoCounter"></span>
+        <button class="screen-info-btn" title="Màn hình sau" onclick="navNext()">
+            <span class="material-symbols-outlined">chevron_right</span>
+        </button>
+        <button class="screen-info-btn open-tab" title="Mở file gốc trong tab mới" onclick="openInNewTab()">
+            <span class="material-symbols-outlined">open_in_new</span>
+        </button>
+    </div>
+</div>
+
+<script>
+    let navItems = Array.from(document.querySelectorAll('.nav-item'));
+    const frame = document.getElementById('contentFrame');
+    const welcome = document.getElementById('welcomeState');
+    const sidebar = document.getElementById('sidebar');
+    const mainArea = document.getElementById('mainArea');
+    const toggleFloat = document.getElementById('sidebarToggleFloat');
+    const infoBar = document.getElementById('screenInfoBar');
+    const infoModule = document.getElementById('infoModule');
+    const infoScreen = document.getElementById('infoScreen');
+    const infoCounter = document.getElementById('infoCounter');
+    const searchInput = document.getElementById('searchInput');
+
+    let currentIndex = -1;
+    let currentSrc = '';
+    let sidebarCollapsed = false;
+    let infoBarTimeout = null;
+
+    // Toggle Accordion Group
+    function toggleGroup(headerElem) {
+        const group = headerElem.closest('.nav-group');
+        if (group) {
+            group.classList.toggle('collapsed');
+        }
+    }
+
+    function getVisibleNavItems() {
+        return navItems.filter(item => {
+            if (item.classList.contains('hidden')) return false;
+            const group = item.closest('.nav-group');
+            if (group && group.classList.contains('collapsed')) return false;
+            return true;
+        });
+    }
+
+    function activateItem(index) {
+        const visibleItems = getVisibleNavItems();
+        if (index < 0 || index >= visibleItems.length) return;
+
+        const item = visibleItems[index];
+        const src = item.dataset.src;
+        const moduleName = item.dataset.module;
+        const screenName = item.dataset.screen;
+        const itemNum = item.querySelector('.nav-item-num') ? item.querySelector('.nav-item-num').textContent : '';
+
+        navItems.forEach(n => n.classList.remove('active'));
+        item.classList.add('active');
+
+        // Ensure parent group is expanded
+        const group = item.closest('.nav-group');
+        if (group && group.classList.contains('collapsed')) {
+            group.classList.remove('collapsed');
+        }
+
+        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+        currentIndex = index;
+        currentSrc = src;
+        frame.src = src;
+        frame.style.display = 'block';
+        welcome.style.display = 'none';
+
+        // Update floating info bar
+        infoModule.textContent = moduleName;
+        infoScreen.textContent = itemNum ? `[${itemNum}] ${screenName}` : screenName;
+        infoCounter.textContent = (index + 1) + ' / ' + visibleItems.length;
+
+        // Show info bar briefly
+        showInfoBar();
+    }
+
+    function showInfoBar() {
+        infoBar.classList.add('visible');
+        clearTimeout(infoBarTimeout);
+        infoBarTimeout = setTimeout(() => {
+            infoBar.classList.remove('visible');
+        }, 3000);
+    }
+
+    infoBar.addEventListener('mouseenter', () => {
+        clearTimeout(infoBarTimeout);
+        infoBar.classList.add('visible');
+    });
+    infoBar.addEventListener('mouseleave', () => {
+        infoBarTimeout = setTimeout(() => {
+            infoBar.classList.remove('visible');
+        }, 1500);
+    });
+
+    function openInNewTab() {
+        if (currentSrc) window.open(currentSrc, '_blank');
+    }
+
+    function navPrev() {
+        if (currentIndex > 0) activateItem(currentIndex - 1);
+        showInfoBar();
+    }
+
+    function navNext() {
+        const visibleItems = getVisibleNavItems();
+        if (currentIndex < visibleItems.length - 1) activateItem(currentIndex + 1);
+        showInfoBar();
+    }
+
+    function toggleSidebar() {
+        sidebarCollapsed = !sidebarCollapsed;
+        sidebar.classList.toggle('collapsed', sidebarCollapsed);
+        mainArea.classList.toggle('expanded', sidebarCollapsed);
+        toggleFloat.classList.toggle('visible', sidebarCollapsed);
+    }
+
+    // Search filter logic
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            const groups = document.querySelectorAll('.nav-group');
+
+            groups.forEach(group => {
+                const items = Array.from(group.querySelectorAll('.nav-item'));
+                let visibleCount = 0;
+
+                items.forEach(item => {
+                    const text = item.textContent.toLowerCase();
+                    const screen = (item.dataset.screen || '').toLowerCase();
+                    const module = (item.dataset.module || '').toLowerCase();
+                    const match = text.includes(query) || screen.includes(query) || module.includes(query);
+
+                    if (match) {
+                        item.classList.remove('hidden');
+                        visibleCount++;
+                    } else {
+                        item.classList.add('hidden');
+                    }
+                });
+
+                if (visibleCount === 0 && query !== '') {
+                    group.classList.add('hidden');
+                } else {
+                    group.classList.remove('hidden');
+                    if (query !== '') {
+                        group.classList.remove('collapsed');
+                    }
+                }
+            });
+
+            // Reset current index if item is hidden
+            const visibleItems = getVisibleNavItems();
+            if (visibleItems.length > 0 && currentIndex >= visibleItems.length) {
+                currentIndex = 0;
+            }
+        });
+    }
+
+    // Click & key handlers
+    navItems.forEach((item) => {
+        item.addEventListener('click', () => {
+            const group = item.closest('.nav-group');
+            if (group && group.classList.contains('collapsed')) {
+                group.classList.remove('collapsed');
+            }
+            const visibleItems = getVisibleNavItems();
+            const idx = visibleItems.indexOf(item);
+            if (idx !== -1) activateItem(idx);
+        });
+
+        item.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                const group = item.closest('.nav-group');
+                if (group && group.classList.contains('collapsed')) {
+                    group.classList.remove('collapsed');
+                }
+                const visibleItems = getVisibleNavItems();
+                const idx = visibleItems.indexOf(item);
+                if (idx !== -1) activateItem(idx);
+            }
+        });
+    });
+
+    // Global keyboard navigation
+    document.addEventListener('keydown', (e) => {
+        if (document.activeElement === frame || document.activeElement === searchInput) {
+            if (document.activeElement === searchInput && e.key === 'Enter') {
+                const visibleItems = getVisibleNavItems();
+                if (visibleItems.length > 0) {
+                    activateItem(0);
+                    visibleItems[0].focus();
+                }
+            }
+            return;
+        }
+
+        if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+            e.preventDefault();
+            toggleSidebar();
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const visibleItems = getVisibleNavItems();
+            const next = currentIndex < 0 ? 0 : Math.min(currentIndex + 1, visibleItems.length - 1);
+            activateItem(next);
+            if (visibleItems[next]) visibleItems[next].focus();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            const prev = currentIndex <= 0 ? 0 : currentIndex - 1;
+            activateItem(prev);
+            const visibleItems = getVisibleNavItems();
+            if (visibleItems[prev]) visibleItems[prev].focus();
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline-variant": "#e1bfb2",
+                        "tertiary-fixed": "#93fb65",
+                        "on-tertiary-fixed": "#062100",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "inverse-primary": "#ffb595",
+                        "secondary": "#1e43e7",
+                        "primary-container": "#f5691a",
+                        "on-primary-container": "#521c00",
+                        "outline": "#8d7165",
+                        "secondary-container": "#4160ff",
+                        "background": "#f9f9ff",
+                        "primary-fixed": "#ffdbcd",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container": "#e8eeff",
+                        "surface": "#f9f9ff",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "surface-dim": "#d4daea",
+                        "on-background": "#161c27",
+                        "surface-variant": "#dde2f3",
+                        "on-error": "#ffffff",
+                        "surface-container-high": "#e3e8f9",
+                        "on-primary-fixed": "#360f00",
+                        "error": "#ba1a1a",
+                        "primary": "#a23f00",
+                        "inverse-surface": "#2a303d",
+                        "primary-fixed-dim": "#ffb595",
+                        "inverse-on-surface": "#ecf0ff",
+                        "on-secondary-fixed": "#00105b",
+                        "surface-bright": "#f9f9ff",
+                        "on-surface-variant": "#594137",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "on-surface": "#161c27",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "surface-tint": "#a23f00",
+                        "on-tertiary-container": "#0e3500",
+                        "on-secondary-container": "#faf7ff",
+                        "tertiary-container": "#46a917",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "surface-container-low": "#f1f3ff",
+                        "surface-container-highest": "#dde2f3",
+                        "on-secondary": "#ffffff",
+                        "tertiary": "#256d00",
+                        "secondary-fixed": "#dee0ff",
+                        "on-error-container": "#93000a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "32px",
+                        "md": "16px",
+                        "base": "8px",
+                        "gutter": "16px",
+                        "header-height": "64px",
+                        "lg": "24px",
+                        "sidebar-width": "260px",
+                        "xs": "4px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "body-medium": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                        "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                        "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: #f9f9ff;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e1bfb2;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="text-on-surface antialiased">
+<!-- Main Content Canvas -->
+<main class="p-lg max-w-[1600px] mx-auto min-h-screen">
+<!-- Header Section -->
+<header class="mb-xl">
+<h1 class="font-h1 text-h1 text-primary">Duyệt &amp; Phân phối đề Big Test</h1>
+<p class="font-body-base text-on-surface-variant mt-xs">Quản lý yêu cầu ra đề từ giáo viên và phân phối tài liệu kiểm tra.</p>
+</header>
+<!-- Main Layout: 2 Columns (40/60) -->
+<div class="grid grid-cols-12 gap-lg h-[calc(100vh-180px)]">
+<!-- Column Left: Request List (40%) -->
+<aside class="col-span-5 flex flex-col gap-md">
+<div class="flex items-center justify-between">
+<h3 class="font-h3 text-h3 flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">pending_actions</span>
+                        Yêu cầu chờ duyệt
+                        <span class="bg-primary text-on-primary text-[12px] px-2 py-0.5 rounded-full font-bold">12</span>
+</h3>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">search</span>
+<input class="pl-10 pr-md py-sm border border-outline-variant rounded-lg bg-surface font-body-small focus:ring-2 focus:ring-secondary-container focus:border-secondary outline-none transition-all w-48" placeholder="Tìm tên lớp..." type="text"/>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar pr-sm space-y-md">
+<!-- Item 1: SLA Warning -->
+<div class="bg-white border-l-4 border-error p-md rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer active:scale-[0.98]">
+<div class="flex justify-between items-start mb-sm">
+<span class="font-h3 text-primary">IELTS Master - M0124</span>
+<span class="bg-error-container text-on-error-container font-label text-label px-2 py-1 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">warning</span> Cảnh báo SLA
+                            </span>
+</div>
+<div class="grid grid-cols-2 gap-y-sm">
+<div class="flex items-center gap-sm text-on-surface-variant font-body-small">
+<span class="material-symbols-outlined text-[18px]">ads_click</span>
+                                Chặng 2
+                            </div>
+<div class="flex items-center gap-sm text-on-surface-variant font-body-small">
+<span class="material-symbols-outlined text-[18px]">person</span>
+                                GV. Nguyễn Minh Anh
+                            </div>
+<div class="flex items-center gap-sm text-on-surface-variant font-body-small">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+                                Thi: 25/05/2024
+                            </div>
+<div class="flex items-center gap-sm text-on-surface-variant font-body-small">
+<span class="material-symbols-outlined text-[18px]">schedule</span>
+                                Order: 2h trước
+                            </div>
+</div>
+</div>
+<!-- Item 2: Active Selection -->
+<div class="bg-primary-container/10 border-l-4 border-primary p-md rounded-lg shadow-sm relative ring-1 ring-primary/20">
+<div class="flex justify-between items-start mb-sm">
+<span class="font-h3 text-on-primary-container">Cambridge Flyer - F202</span>
+<span class="bg-surface-variant text-on-surface-variant font-label text-label px-2 py-1 rounded-full">Chờ duyệt</span>
+</div>
+<div class="grid grid-cols-2 gap-y-sm">
+<div class="flex items-center gap-sm text-on-surface-variant font-body-small">
+<span class="material-symbols-outlined text-[18px]">ads_click</span>
+                                Chặng cuối
+                            </div>
+<div class="flex items-center gap-sm text-on-surface-variant font-body-small">
+<span class="material-symbols-outlined text-[18px]">person</span>
+                                GV. Trần Quốc Toản
+                            </div>
+<div class="flex items-center gap-sm text-on-surface-variant font-body-small">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+                                Thi: 30/05/2024
+                            </div>
+<div class="flex items-center gap-sm text-on-surface-variant font-body-small">
+<span class="material-symbols-outlined text-[18px]">schedule</span>
+                                Order: Hôm qua
+                            </div>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="bg-white border-l-4 border-outline-variant p-md rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+<div class="flex justify-between items-start mb-sm">
+<span class="font-h3 text-primary">Pre-IELTS 4.5 - P401</span>
+<span class="bg-surface-variant text-on-surface-variant font-label text-label px-2 py-1 rounded-full">Chờ duyệt</span>
+</div>
+<div class="grid grid-cols-2 gap-y-sm">
+<div class="flex items-center gap-sm text-on-surface-variant font-body-small">
+<span class="material-symbols-outlined text-[18px]">ads_click</span>
+                                Chặng 1
+                            </div>
+<div class="flex items-center gap-sm text-on-surface-variant font-body-small">
+<span class="material-symbols-outlined text-[18px]">person</span>
+                                GV. Lê Mỹ Tâm
+                            </div>
+<div class="flex items-center gap-sm text-on-surface-variant font-body-small">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+                                Thi: 02/06/2024
+                            </div>
+<div class="flex items-center gap-sm text-on-surface-variant font-body-small">
+<span class="material-symbols-outlined text-[18px]">schedule</span>
+                                Order: 3 ngày trước
+                            </div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Column Right: Details & Distribution (60%) -->
+<section class="col-span-7 bg-white rounded-xl shadow-sm border border-outline-variant flex flex-col">
+<!-- Detail Header -->
+<div class="p-lg border-b border-outline-variant bg-surface-container-low rounded-t-xl">
+<div class="flex justify-between items-center mb-md">
+<div>
+<div class="flex items-center gap-sm mb-xs">
+<span class="bg-primary text-on-primary text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded">CLASS ID: F202</span>
+<h2 class="font-h2 text-h2 text-on-background">Cambridge Flyer - F202</h2>
+</div>
+<p class="font-body-base text-on-surface-variant">Lớp học cấp độ Flyer, cơ sở Quận 1. Đang thực hiện kiểm tra định kỳ chặng cuối.</p>
+</div>
+<div class="text-right">
+<span class="font-label text-label text-on-surface-variant uppercase block">Ngày thi dự kiến</span>
+<span class="font-h3 text-h3 text-primary">30/05/2024</span>
+</div>
+</div>
+<div class="flex gap-xl">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-secondary">person_pin</span>
+<span class="font-body-medium">Giáo viên: Trần Quốc Toản</span>
+</div>
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-secondary">verified_user</span>
+<span class="font-body-medium">Chặng: Chặng cuối (Flyer Level 3)</span>
+</div>
+</div>
+</div>
+<!-- Detail Body Scrollable -->
+<div class="flex-1 overflow-y-auto p-lg space-y-xl custom-scrollbar">
+<!-- Section: Teacher Requests -->
+<div>
+<h4 class="font-label text-label text-on-surface-variant uppercase mb-md flex items-center gap-sm">
+<span class="material-symbols-outlined text-[16px]">chat_bubble</span>
+                            Yêu cầu từ Giáo viên
+                        </h4>
+<div class="bg-surface-container-highest p-md rounded-lg border border-outline-variant">
+<p class="font-body-base text-on-surface italic leading-relaxed">
+                                "Nhờ Academic Team chuẩn bị đề tập trung mạnh vào phần Speaking do lớp đang cần cải thiện kỹ năng này. Phần nghe nên dùng Audio bản cập nhật 2024. Cần bộ đề trước ngày 27/05 để GV ôn tập nhẹ cho các con."
+                            </p>
+</div>
+</div>
+<!-- Section: Distribution -->
+<div>
+<h4 class="font-label text-label text-on-surface-variant uppercase mb-md flex items-center gap-sm">
+<span class="material-symbols-outlined text-[16px]">folder_shared</span>
+                            Phân phối đề
+                        </h4>
+<div class="space-y-md">
+<div>
+<label class="font-body-medium text-on-surface block mb-sm">Link đề Big Test (Folder lớp)</label>
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">link</span>
+<input class="w-full pl-10 pr-md py-md bg-white border border-outline rounded-lg focus:border-secondary focus:ring-1 focus:ring-secondary outline-none transition-all font-code" placeholder="Dán link Google Drive hoặc OneDrive tại đây..." type="text"/>
+</div>
+</div>
+<!-- SLA Alert (Simulated Calculation) -->
+<div class="flex items-start gap-md p-md bg-error-container/20 border border-error/20 rounded-lg">
+<span class="material-symbols-outlined text-error">warning</span>
+<div>
+<p class="font-body-medium text-error font-bold">Cảnh báo: Phân phối trễ hạn SLA</p>
+<p class="font-body-small text-on-error-container">Hệ thống ghi nhận cần hoàn thành phân phối trước 3 ngày so với lịch thi (Hạn chót: 27/05/2024). Vui lòng ưu tiên xử lý ngay.</p>
+</div>
+</div>
+<!-- Business Rule -->
+<div class="flex items-center gap-sm p-sm bg-surface-container text-on-secondary-fixed-variant rounded-md border border-secondary-container/20">
+<span class="material-symbols-outlined text-[20px]">info</span>
+<span class="font-body-small italic">Ghi chú nghiệp vụ: GV chỉ được quyền xem phần Speaking của đề sau khi phân phối.</span>
+</div>
+</div>
+</div>
+<!-- Abstract Visual Element -->
+<div class="relative h-32 rounded-xl overflow-hidden bg-surface-container-highest border border-dashed border-outline-variant flex items-center justify-center">
+<div class="absolute inset-0 opacity-10">
+</div>
+<div class="relative z-10 text-center">
+<span class="material-symbols-outlined text-outline text-[48px] opacity-30">cloud_upload</span>
+<p class="font-caption text-on-surface-variant/60">Hệ thống lưu trữ tự động hóa</p>
+</div>
+</div>
+</div>
+<!-- Detail Footer -->
+<div class="p-lg border-t border-outline-variant flex justify-between items-center bg-white rounded-b-xl">
+<button class="flex items-center gap-sm text-on-surface-variant font-body-medium px-md py-sm hover:bg-surface-container-high rounded-lg transition-colors border border-outline-variant">
+<span class="material-symbols-outlined">close</span>
+                        Từ chối yêu cầu
+                    </button>
+<div class="flex gap-md">
+<button class="flex items-center gap-sm bg-white text-secondary font-body-medium px-md py-sm border border-secondary rounded-lg hover:bg-secondary/5 transition-all">
+<span class="material-symbols-outlined">visibility</span>
+                            Xem trước tệp
+                        </button>
+<button class="flex items-center gap-sm bg-primary-container text-on-primary-container font-h3 text-body-medium px-xl py-sm rounded-lg shadow-sm hover:bg-primary transition-all active:scale-[0.98]"><span class="material-symbols-outlined">send</span> Phê duyệt &amp; Phân phối</button>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Micro-interaction Script -->
+<script>
+        document.querySelectorAll('aside > div > div').forEach(item => {
+            item.addEventListener('click', function() {
+                // Remove active classes from all
+                document.querySelectorAll('aside > div > div').forEach(i => {
+                    i.classList.remove('bg-primary-container/10', 'border-primary', 'ring-1', 'ring-primary/20');
+                    i.classList.add('bg-white', 'border-outline-variant');
+                });
+                
+                // Add active classes to selected
+                this.classList.remove('bg-white', 'border-outline-variant');
+                this.classList.add('bg-primary-container/10', 'border-primary', 'ring-1', 'ring-primary/20');
+            });
+        });
+    </script>
+</body></html>

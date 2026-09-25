@@ -1,0 +1,479 @@
+<!DOCTYPE html><html class="light" lang="vi"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Nhập danh sách hàng loạt - MENGLISH Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error": "#ba1a1a",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "on-surface": "#161c27",
+                        "on-error-container": "#93000a",
+                        "inverse-surface": "#2a303d",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed": "#93fb65",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "on-surface-variant": "#594137",
+                        "primary-fixed": "#ffdbcd",
+                        "on-primary-container": "#521c00",
+                        "tertiary-container": "#46a917",
+                        "surface-tint": "#a23f00",
+                        "outline-variant": "#e1bfb2",
+                        "on-secondary": "#ffffff",
+                        "outline": "#8d7165",
+                        "on-primary-fixed": "#360f00",
+                        "secondary": "#1e43e7",
+                        "inverse-on-surface": "#ecf0ff",
+                        "on-error": "#ffffff",
+                        "primary": "#a23f00",
+                        "on-secondary-fixed": "#00105b",
+                        "tertiary": "#256d00",
+                        "on-background": "#161c27",
+                        "primary-container": "#f5691a",
+                        "inverse-primary": "#ffb595",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "secondary-container": "#4160ff",
+                        "surface-container-high": "#e3e8f9",
+                        "secondary-fixed": "#dee0ff",
+                        "surface-container": "#e8eeff",
+                        "on-tertiary-fixed": "#062100",
+                        "background": "#f9f9ff",
+                        "surface-container-low": "#f1f3ff",
+                        "on-secondary-container": "#faf7ff",
+                        "surface-variant": "#dde2f3",
+                        "on-tertiary-container": "#0e3500",
+                        "primary-fixed-dim": "#ffb595",
+                        "surface": "#f9f9ff",
+                        "surface-dim": "#d4daea",
+                        "surface-bright": "#f9f9ff",
+                        "on-primary": "#ffffff",
+                        "surface-container-highest": "#dde2f3"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "header-height": "64px",
+                        "xs": "4px",
+                        "md": "16px",
+                        "sm": "8px",
+                        "gutter": "16px",
+                        "base": "8px",
+                        "sidebar-width": "260px",
+                        "lg": "24px",
+                        "xl": "32px"
+                    },
+                    "fontFamily": {
+                        "caption": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "label": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "caption": ["11px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "h3": ["18px", { "lineHeight": "26px", "fontWeight": "600" }],
+                        "body-medium": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "body-small": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "h1": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "code": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "label": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "h2": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-base": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .step-active { color: #f5691a; border-color: #f5691a; }
+        .step-complete { color: #256d00; border-color: #256d00; }
+        .step-inactive { color: #8d7165; border-color: #e1bfb2; }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f3ff; }
+        ::-webkit-scrollbar-thumb { background: #dde2f3; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #bac3ff; }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(8px);
+            border: 1px solid #e8eeff;
+        }
+    </style>
+</head>
+<body class="bg-[#161c27] min-h-screen flex items-center justify-center p-md font-body-base">
+<!-- Modal Container -->
+<div class="w-full max-w-5xl bg-surface-container-lowest rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" id="import-modal">
+<!-- Modal Header -->
+<div class="px-lg py-md border-b border-surface-variant flex justify-between items-center bg-surface">
+<h2 class="font-h2 text-h2 text-on-surface">Nhập danh sách hàng loạt</h2>
+<button class="p-sm hover:bg-surface-variant rounded-full transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Stepper -->
+<div class="px-xl py-md bg-surface-container-low flex justify-center items-center space-x-xl">
+<!-- Step 1 -->
+<div class="flex items-center space-x-sm" id="step-1-indicator">
+<div class="w-8 h-8 rounded-full border-2 flex items-center justify-center font-h3 text-h3 step-active" id="circle-1">1</div>
+<span class="font-body-medium text-body-medium text-primary" id="text-1">Tải file</span>
+</div>
+<div class="w-16 h-px bg-outline-variant"></div>
+<!-- Step 2 -->
+<div class="flex items-center space-x-sm" id="step-2-indicator">
+<div class="w-8 h-8 rounded-full border-2 flex items-center justify-center font-h3 text-h3 step-inactive" id="circle-2">2</div>
+<span class="font-body-medium text-body-medium text-on-surface-variant" id="text-2">Xem trước</span>
+</div>
+<div class="w-16 h-px bg-outline-variant"></div>
+<!-- Step 3 -->
+<div class="flex items-center space-x-sm" id="step-3-indicator">
+<div class="w-8 h-8 rounded-full border-2 flex items-center justify-center font-h3 text-h3 step-inactive" id="circle-3">3</div>
+<span class="font-body-medium text-body-medium text-on-surface-variant" id="text-3">Kết quả</span>
+</div>
+</div>
+<!-- Scrollable Content Area -->
+<div class="flex-1 overflow-y-auto p-lg">
+<!-- STEP 1: Tải file -->
+<div class="space-y-lg" id="content-step-1">
+<div class="max-w-2xl mx-auto space-y-xl py-md">
+<div class="space-y-sm">
+<label class="text-on-surface-variant font-body-medium text-body-medium">Chọn chi nhánh <span class="text-error">*</span></label>
+<select class="w-full h-12 px-md border border-outline-variant rounded-lg bg-surface-container-lowest focus:ring-2 focus:ring-secondary-container focus:border-secondary outline-none transition-all appearance-none cursor-pointer" id="branch-select">
+<option disabled="" selected="" value="">-- Vui lòng chọn chi nhánh --</option>
+<option value="dc">Cơ sở Đội Cấn</option>
+<option value="nh">Cơ sở Ngọc Hà</option>
+<option value="hhh">Cơ sở Hoàng Hoa Thám</option>
+</select>
+</div>
+<div class="border-2 border-dashed border-outline-variant rounded-xl p-xl flex flex-col items-center justify-center space-y-md bg-surface-container-low opacity-50 pointer-events-none transition-all" id="upload-zone">
+<div class="w-16 h-16 rounded-full bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[32px]">upload_file</span>
+</div>
+<div class="text-center">
+<p class="font-h3 text-h3 text-on-surface">Kéo thả file vào đây hoặc nhấn để chọn</p>
+<p class="text-body-small font-body-small text-on-surface-variant mt-xs">Hỗ trợ định dạng .xlsx (Tối đa 10MB)</p>
+</div>
+<button class="px-lg h-10 bg-white border border-outline rounded-lg text-on-surface font-body-medium text-body-medium hover:bg-surface-variant transition-all">Chọn file từ máy tính</button>
+</div>
+<div class="flex justify-between items-center p-md bg-surface-container rounded-lg">
+<div class="flex items-center space-x-sm text-primary">
+<span class="material-symbols-outlined">download</span>
+<a class="font-body-medium text-body-medium underline" href="#">Tải file mẫu (.xlsx)</a>
+</div>
+<p class="text-caption font-caption text-on-surface-variant italic">File mẫu gồm: Họ tên, SĐT, Ngày sinh, Tên phụ huynh, SĐT phụ huynh, Nguồn, Ghi chú</p>
+</div>
+</div>
+</div>
+<!-- STEP 2: Xem trước (Hidden by default) -->
+<div class="hidden space-y-lg" id="content-step-2">
+<div class="flex flex-wrap gap-md justify-between items-end">
+<div class="flex space-x-md">
+<div class="px-md py-sm bg-tertiary-container/10 border border-tertiary-container/30 rounded-lg">
+<p class="text-caption font-caption text-tertiary">Hợp lệ</p>
+<p class="font-h3 text-h3 text-tertiary">42</p>
+</div>
+<div class="px-md py-sm bg-orange-100 border border-orange-200 rounded-lg">
+<p class="text-caption font-caption text-primary">Cảnh báo</p>
+<p class="font-h3 text-h3 text-primary">5</p>
+</div>
+<div class="px-md py-sm bg-error-container/10 border border-error-container/30 rounded-lg">
+<p class="text-caption font-caption text-error">Lỗi</p>
+<p class="font-h3 text-h3 text-error">3</p>
+</div>
+</div>
+<div class="flex items-center space-x-sm bg-surface-container-high px-md py-sm rounded-full border border-outline-variant"><span class="material-symbols-outlined text-error animate-pulse">warning</span>
+<span class="material-symbols-outlined text-primary text-[20px]">timer</span>
+<span class="font-code text-code text-on-surface">Thời gian hiệu lực phiên: <span class="font-bold" id="countdown">30:00</span></span>
+</div>
+</div>
+<div class="border border-outline-variant rounded-xl overflow-hidden bg-white">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container text-on-surface-variant font-label text-label uppercase">
+<tr>
+<th class="px-md py-sm border-b border-outline-variant whitespace-nowrap">STT</th>
+<th class="px-md py-sm border-b border-outline-variant whitespace-nowrap">Họ tên</th>
+<th class="px-md py-sm border-b border-outline-variant whitespace-nowrap">SĐT</th>
+<th class="px-md py-sm border-b border-outline-variant whitespace-nowrap">Ngày sinh</th>
+<th class="px-md py-sm border-b border-outline-variant whitespace-nowrap">Tên phụ huynh</th>
+<th class="px-md py-sm border-b border-outline-variant whitespace-nowrap">SĐT phụ huynh</th>
+<th class="px-md py-sm border-b border-outline-variant whitespace-nowrap">Nguồn</th>
+<th class="px-md py-sm border-b border-outline-variant whitespace-nowrap">Ghi chú</th>
+<th class="px-md py-sm border-b border-outline-variant whitespace-nowrap">Trạng thái</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-variant">
+<!-- Row Hợp lệ -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-md py-md text-body-small">1</td>
+<td class="px-md py-md text-body-small font-medium">Nguyễn Văn An</td>
+<td class="px-md py-md text-code">0912345678</td>
+<td class="px-md py-md text-body-small">15/05/2015</td>
+<td class="px-md py-md text-body-small">Nguyễn Văn Hùng</td>
+<td class="px-md py-md text-code">0987654321</td>
+<td class="px-md py-md text-body-small">Facebook Ads</td>
+<td class="px-md py-md text-body-small italic">Tư vấn lớp Pre-Starters</td>
+<td class="px-md py-md">
+<span class="px-sm py-xs bg-tertiary-container/10 text-tertiary text-caption font-label rounded uppercase">Hợp lệ</span>
+</td>
+</tr>
+<!-- Row Cảnh báo -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-md py-md text-body-small">2</td>
+<td class="px-md py-md text-body-small font-medium">Trần Thị Bình</td>
+<td class="px-md py-md text-code">0922334455</td>
+<td class="px-md py-md text-body-small">20/10/2014</td>
+<td class="px-md py-md text-body-small">Phạm Thị Mai</td>
+<td class="px-md py-md text-code">0933445566</td>
+<td class="px-md py-md text-body-small">Website</td>
+<td class="px-md py-md text-body-small italic">-</td>
+<td class="px-md py-md">
+<span class="px-sm py-xs bg-primary-fixed text-primary text-caption font-label rounded uppercase" title="SĐT trùng hệ thống">Cảnh báo</span>
+</td>
+</tr>
+<!-- Row Lỗi -->
+<tr class="hover:bg-surface-container-low transition-colors bg-error-container/5">
+<td class="px-md py-md text-body-small">3</td>
+<td class="px-md py-md text-body-small font-medium text-error">-- Thiếu --</td>
+<td class="px-md py-md text-code">0944556677</td>
+<td class="px-md py-md text-body-small">01/01/2016</td>
+<td class="px-md py-md text-body-small">Lê Văn Khoa</td>
+<td class="px-md py-md text-code">0955667788</td>
+<td class="px-md py-md text-body-small">Zalo</td>
+<td class="px-md py-md text-body-small italic">-</td>
+<td class="px-md py-md">
+<span class="px-sm py-xs bg-error-container/20 text-error text-caption font-label rounded uppercase" title="Thiếu Họ tên">Lỗi</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="p-md bg-surface-container-low rounded-lg border border-outline-variant">
+<p class="text-body-small font-body-small text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined text-primary text-[18px]">info</span>
+                        Lưu ý: Các dòng trạng thái <span class="text-error font-bold">Lỗi</span> sẽ tự động bị loại bỏ khỏi quá trình nhập dữ liệu.
+                    </p>
+</div>
+</div>
+<!-- STEP 3: Kết quả (Hidden by default) -->
+<div class="hidden space-y-xl py-lg" id="content-step-3">
+<div class="text-center space-y-md max-w-lg mx-auto">
+<div class="w-20 h-20 rounded-full bg-tertiary-container/20 text-tertiary flex items-center justify-center mx-auto mb-md">
+<span class="material-symbols-outlined text-[48px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<h3 class="font-h1 text-h1 text-on-surface">Nhập dữ liệu thành công!</h3>
+<p class="text-body-base font-body-base text-on-surface-variant">Hệ thống đã ghi nhận thành công <span class="font-bold text-on-surface">47</span> khách hàng mới vào chi nhánh <span class="font-bold text-on-surface">Cơ sở Ngọc Hà</span>.</p>
+</div>
+<div class="max-w-3xl mx-auto space-y-md">
+<div class="flex items-center justify-between">
+<h4 class="font-body-medium text-body-medium text-on-surface">Danh sách dòng bị bỏ qua (3)</h4>
+<button class="text-primary font-body-medium text-body-medium hover:underline flex items-center gap-xs">
+<span class="material-symbols-outlined">download</span> Xuất file lỗi
+                        </button>
+</div>
+<div class="border border-outline-variant rounded-lg overflow-hidden">
+<table class="w-full text-left">
+<thead class="bg-surface-container text-on-surface-variant font-label text-label">
+<tr>
+<th class="px-md py-sm border-b border-outline-variant">Dòng</th>
+<th class="px-md py-sm border-b border-outline-variant">Dữ liệu</th>
+<th class="px-md py-sm border-b border-outline-variant">Lý do lỗi</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-variant bg-white">
+<tr>
+<td class="px-md py-sm text-body-small">3</td>
+<td class="px-md py-sm text-body-small font-medium text-on-surface-variant">--- / 0944556677</td>
+<td class="px-md py-sm text-body-small text-error">Thiếu Họ tên (bắt buộc)</td>
+</tr>
+<tr>
+<td class="px-md py-sm text-body-small">12</td>
+<td class="px-md py-sm text-body-small font-medium text-on-surface-variant">Trần Minh Quân / 0911223344</td>
+<td class="px-md py-sm text-body-small text-error">SĐT đã tồn tại trong file excel</td>
+</tr>
+<tr>
+<td class="px-md py-sm text-body-small">25</td>
+<td class="px-md py-sm text-body-small font-medium text-on-surface-variant">Lê Thu Hà / 0966778899</td>
+<td class="px-md py-sm text-body-small text-error">Nguồn "TikTok" không hợp lệ</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+<!-- Modal Footer -->
+<div class="px-lg py-md border-t border-surface-variant flex justify-end items-center space-x-md bg-surface">
+<!-- Footer Step 1 -->
+<div class="flex space-x-md w-full justify-end" id="footer-step-1">
+<button class="px-xl h-11 border border-outline rounded-lg text-on-surface font-body-medium text-body-medium hover:bg-surface-variant transition-all">Hủy bỏ</button>
+<button class="px-xl h-11 bg-primary-container text-white rounded-lg font-body-medium text-body-medium opacity-50 cursor-not-allowed transition-all flex items-center gap-sm" disabled="" id="btn-to-step-2">
+                    Xem trước <span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+<!-- Footer Step 2 -->
+<div class="hidden flex space-x-md w-full justify-between items-center" id="footer-step-2">
+<button class="flex items-center gap-sm text-on-surface-variant font-body-medium text-body-medium hover:text-on-surface transition-all" id="btn-back-to-1"><span class="material-symbols-outlined">chevron_left</span> Quay lại</button>
+<div class="flex space-x-md">
+<button class="px-xl h-11 border border-outline rounded-lg text-on-surface font-body-medium text-body-medium hover:bg-surface-variant transition-all">Hủy phiên</button>
+<button class="px-xl h-11 bg-primary-container text-white rounded-lg font-body-medium text-body-medium hover:bg-primary transition-all flex items-center gap-sm" id="btn-to-step-3">Xác nhận nhập (47 dòng) <span class="material-symbols-outlined">check</span></button>
+</div>
+</div>
+<!-- Footer Step 3 -->
+<div class="hidden flex space-x-md w-full justify-end" id="footer-step-3">
+<button class="px-xl h-11 border border-primary text-primary rounded-lg font-body-medium text-body-medium hover:bg-primary-fixed transition-all" id="btn-restart">Nhập file khác</button>
+<button class="px-xl h-11 bg-primary-container text-white rounded-lg font-body-medium text-body-medium hover:bg-primary transition-all">Hoàn thành</button>
+</div>
+</div>
+</div>
+<script>
+        const branchSelect = document.getElementById('branch-select');
+        const uploadZone = document.getElementById('upload-zone');
+        const btnToStep2 = document.getElementById('btn-to-step-2');
+        const btnToStep3 = document.getElementById('btn-to-step-3');
+        const btnBackTo1 = document.getElementById('btn-back-to-1');
+        const btnRestart = document.getElementById('btn-restart');
+
+        const step1Cont = document.getElementById('content-step-1');
+        const step2Cont = document.getElementById('content-step-2');
+        const step3Cont = document.getElementById('content-step-3');
+
+        const footer1 = document.getElementById('footer-step-1');
+        const footer2 = document.getElementById('footer-step-2');
+        const footer3 = document.getElementById('footer-step-3');
+
+        const indicators = {
+            1: { circle: document.getElementById('circle-1'), text: document.getElementById('text-1') },
+            2: { circle: document.getElementById('circle-2'), text: document.getElementById('text-2') },
+            3: { circle: document.getElementById('circle-3'), text: document.getElementById('text-3') }
+        };
+
+        // Enable Upload zone when branch is selected
+        branchSelect.addEventListener('change', () => {
+            if(branchSelect.value) {
+                uploadZone.classList.remove('opacity-50', 'pointer-events-none');
+                uploadZone.classList.add('cursor-pointer', 'hover:bg-surface-variant/50');
+                btnToStep2.removeAttribute('disabled');
+                btnToStep2.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        });
+
+        // Navigation
+        btnToStep2.addEventListener('click', () => {
+            step1Cont.classList.add('hidden');
+            step2Cont.classList.remove('hidden');
+            footer1.classList.add('hidden');
+            footer2.classList.remove('hidden');
+            
+            updateIndicator(1, 'complete');
+            updateIndicator(2, 'active');
+            startTimer();
+        });
+
+        btnBackTo1.addEventListener('click', () => {
+            step2Cont.classList.add('hidden');
+            step1Cont.classList.remove('hidden');
+            footer2.classList.add('hidden');
+            footer1.classList.remove('hidden');
+            
+            updateIndicator(1, 'active');
+            updateIndicator(2, 'inactive');
+            clearInterval(timerInterval);
+        });
+
+        btnToStep3.addEventListener('click', () => {
+            step2Cont.classList.add('hidden');
+            step3Cont.classList.remove('hidden');
+            footer2.classList.add('hidden');
+            footer3.classList.remove('hidden');
+            
+            updateIndicator(2, 'complete');
+            updateIndicator(3, 'active');
+        });
+
+        btnRestart.addEventListener('click', () => {
+            window.location.reload();
+        });
+
+        function updateIndicator(step, state) {
+            const { circle, text } = indicators[step];
+            circle.className = 'w-8 h-8 rounded-full border-2 flex items-center justify-center font-h3 text-h3 ';
+            text.className = 'font-body-medium text-body-medium ';
+
+            if (state === 'active') {
+                circle.classList.add('step-active');
+                text.classList.add('text-primary');
+                circle.innerHTML = step;
+            } else if (state === 'complete') {
+                circle.classList.add('step-complete');
+                text.classList.add('text-on-tertiary-fixed-variant');
+                circle.innerHTML = '<span class="material-symbols-outlined text-sm">check</span>';
+            } else {
+                circle.classList.add('step-inactive');
+                text.classList.add('text-on-surface-variant');
+                circle.innerHTML = step;
+            }
+        }
+
+        // Countdown Timer
+        let timerInterval;
+        function startTimer() {
+            let time = 30 * 60; // 30 minutes
+            const display = document.getElementById('countdown');
+            
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                let minutes = Math.floor(time / 60);
+                let seconds = time % 60;
+                display.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                if (--time < 0) {
+                    clearInterval(timerInterval);
+                    alert("Phiên đã hết hạn. Vui lòng thực hiện lại.");
+                    window.location.reload();
+                }
+            }, 1000);
+        }
+
+        // Animation for upload zone
+        uploadZone.addEventListener('click', () => {
+            if(!uploadZone.classList.contains('pointer-events-none')) {
+                // Simulate file selected
+                uploadZone.innerHTML = `
+                    <div class="flex items-center space-x-md bg-white p-md rounded-lg shadow-sm border border-outline-variant w-full max-w-md animate-pulse">
+                        <div class="text-tertiary-container"><span class="material-symbols-outlined text-[40px]">description</span></div>
+                        <div class="flex-1">
+                            <p class="font-body-medium text-body-medium text-on-surface">danh_sach_hoc_vien_t9.xlsx</p>
+                            <p class="text-caption text-on-surface-variant">2.4 MB • Đã tải lên 100%</p>
+                        </div>
+                        <div class="text-tertiary"><span class="material-symbols-outlined">check_circle</span></div>
+                    </div>
+                `;
+            }
+        });
+    </script>
+
+
+</body></html>

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Quản lý tài liệu giáo trình</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-on-surface": "#ecf0ff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-fixed": "#360f00",
+                        "surface-container-highest": "#dde2f3",
+                        "tertiary-fixed": "#93fb65",
+                        "surface-tint": "#a23f00",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "on-tertiary-fixed": "#062100",
+                        "secondary": "#1e43e7",
+                        "primary": "#a23f00",
+                        "surface-container-low": "#f1f3ff",
+                        "outline-variant": "#e1bfb2",
+                        "on-surface-variant": "#594137",
+                        "on-tertiary": "#ffffff",
+                        "on-surface": "#161c27",
+                        "surface-container": "#e8eeff",
+                        "background": "#f9f9ff",
+                        "tertiary-container": "#46a917",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "on-secondary": "#ffffff",
+                        "surface-variant": "#dde2f3",
+                        "surface-container-high": "#e3e8f9",
+                        "on-primary-container": "#521c00",
+                        "on-background": "#161c27",
+                        "primary-fixed-dim": "#ffb595",
+                        "on-primary": "#ffffff",
+                        "inverse-surface": "#2a303d",
+                        "outline": "#8d7165",
+                        "error-container": "#ffdad6",
+                        "secondary-container": "#4160ff",
+                        "surface-bright": "#f9f9ff",
+                        "inverse-primary": "#ffb595",
+                        "secondary-fixed": "#dee0ff",
+                        "error": "#ba1a1a",
+                        "on-secondary-container": "#faf7ff",
+                        "on-secondary-fixed": "#00105b",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "on-error": "#ffffff",
+                        "primary-fixed": "#ffdbcd",
+                        "tertiary": "#256d00",
+                        "on-tertiary-container": "#0e3500",
+                        "surface": "#f9f9ff",
+                        "on-error-container": "#93000a",
+                        "surface-dim": "#d4daea",
+                        "primary-container": "#f5691a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "lg": "24px",
+                        "xs": "4px",
+                        "base": "8px",
+                        "header-height": "64px",
+                        "xl": "32px",
+                        "sidebar-width": "260px",
+                        "sm": "8px",
+                        "md": "16px"
+                    },
+                    "fontFamily": {
+                        "caption": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "label": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "caption": ["11px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "body-medium": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "code": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "label": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "h3": ["18px", { "lineHeight": "26px", "fontWeight": "600" }],
+                        "body-base": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "h2": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-small": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "h1": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; }
+        .border-gray-100 { border-color: #f3f4f6; }
+        .bg-gray-50 { background-color: #f9fafb; }
+        .text-gray-500 { color: #6b7280; }
+        .text-gray-700 { color: #374151; }
+        .text-gray-900 { color: #111827; }
+        .border-gray-300 { border-color: #d1d5db; }
+        .focus-ring { focus:ring-2 focus:ring-secondary focus:ring-opacity-50 focus:border-secondary; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface min-h-screen">
+<main class="max-w-7xl mx-auto p-lg">
+<!-- Tiêu đề chính -->
+<header class="mb-lg">
+<h1 class="font-h1 text-h1 text-on-surface">Quản lý tài liệu giáo trình</h1>
+<p class="font-body-base text-body-base text-on-surface-variant mt-xs">Quản lý và cập nhật tài liệu cho các khóa học.</p>
+</header>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-lg">
+<!-- Section Tải lên tài liệu mới -->
+<section class="lg:col-span-4 flex flex-col gap-md">
+<div class="bg-surface-container-lowest rounded-xl border border-surface-container-highest p-md shadow-sm">
+<h2 class="font-h3 text-h3 mb-md">Tải lên tài liệu mới</h2>
+<form class="space-y-md">
+<!-- Chọn giáo trình -->
+<div class="flex flex-col gap-xs">
+<label class="font-body-small text-body-small text-gray-700">Chọn giáo trình <span class="text-error">*</span></label>
+<select class="w-full rounded-lg border-gray-300 bg-surface-container-lowest font-body-base text-body-base text-on-surface py-2 px-3 focus-ring">
+<option value="">-- Chọn giáo trình --</option>
+<option value="ielts">IELTS Masterclass</option>
+<option value="toeic">TOEIC Foundation</option>
+<option value="kids">English for Kids</option>
+</select>
+</div>
+<!-- Chọn chặng học -->
+<div class="flex flex-col gap-xs">
+<label class="font-body-small text-body-small text-gray-700">Chọn chặng học <span class="text-error">*</span></label>
+<select class="w-full rounded-lg border-gray-300 bg-surface-container-lowest font-body-base text-body-base text-on-surface py-2 px-3 focus-ring">
+<option value="">-- Chọn chặng học --</option>
+<option value="phase1">Chặng 1 (0 - 3.0)</option>
+<option value="phase2">Chặng 2 (3.0 - 5.0)</option>
+<option value="phase3">Chặng 3 (5.0 - 6.5)</option>
+</select>
+</div>
+<!-- Chọn đối tượng xem -->
+<div class="flex flex-col gap-xs">
+<label class="font-body-small text-body-small text-gray-700">Chọn đối tượng xem <span class="text-error">*</span></label>
+<div class="space-y-2">
+<label class="flex items-center gap-2 cursor-pointer">
+<input checked="" class="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+<span class="font-body-base text-body-base">Admin</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer">
+<input checked="" class="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+<span class="font-body-base text-body-base">Học vụ</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer">
+<input checked="" class="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+<span class="font-body-base text-body-base">Học thuật</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer">
+<input class="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4" id="teacher-checkbox" type="checkbox"/>
+<span class="font-body-base text-body-base">Giáo viên</span>
+</label>
+</div>
+</div>
+<!-- Vùng kéo thả -->
+<div class="flex flex-col gap-xs">
+<label class="font-body-small text-body-small text-gray-700">Tài liệu đính kèm <span class="text-error">*</span></label>
+<div class="border-2 border-dashed border-gray-300 rounded-lg p-lg flex flex-col items-center justify-center text-center bg-surface hover:bg-surface-container-low transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-4xl text-on-surface-variant mb-sm" style="font-variation-settings: 'FILL' 0;">cloud_upload</span>
+<p class="font-body-medium text-body-medium text-on-surface mb-xs">Kéo thả file vào đây hoặc</p>
+<button class="bg-white border border-gray-300 text-gray-900 font-body-medium text-body-medium py-1 px-4 rounded-lg hover:bg-gray-50 transition-colors" type="button">
+                                Chọn file từ máy tính
+                            </button>
+<p class="font-caption text-caption text-on-surface-variant mt-sm">Hỗ trợ PDF, DOCX, PPTX (Tối đa 50MB)</p>
+</div>
+</div>
+<!-- Banner thông báo tự động (ẩn mặc định) -->
+<div class="hidden bg-error-container text-on-error-container p-sm rounded-lg flex items-start gap-2 border border-error/20" id="teacher-warning-banner">
+<span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1; font-size: 20px;">info</span>
+<p class="font-body-small text-body-small pt-[2px]">Khóa tải xuống — Giáo viên chỉ được phép xem trực tuyến để bảo vệ tài liệu.</p>
+</div>
+<!-- Nút hành động -->
+<div class="pt-sm border-t border-surface-container-highest">
+<button class="w-full bg-primary-container text-white font-body-medium text-body-medium py-2 px-4 rounded-lg hover:bg-primary transition-colors shadow-sm active:scale-[0.98] flex items-center justify-center gap-2" type="submit">
+<span class="material-symbols-outlined" style="font-size: 18px;">save</span>
+                            Lưu tài liệu
+                        </button>
+</div>
+</form>
+</div>
+</section>
+<!-- Section Danh sách tài liệu đã tải lên -->
+<section class="lg:col-span-8 flex flex-col gap-md">
+<div class="bg-surface-container-lowest rounded-xl border border-surface-container-highest flex flex-col shadow-sm overflow-hidden h-full">
+<div class="p-md border-b border-surface-container-highest flex justify-between items-center bg-surface-container-lowest">
+<h2 class="font-h3 text-h3">Danh sách tài liệu đã tải lên</h2>
+<div class="flex items-center gap-2 relative">
+<span class="material-symbols-outlined absolute left-3 text-on-surface-variant" style="font-size: 18px;">search</span>
+<input class="pl-10 pr-3 py-1.5 rounded-lg border-gray-300 bg-surface text-body-small font-body-small w-64 focus-ring" placeholder="Tìm kiếm tài liệu..." type="text"/>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-gray-50 border-b border-gray-100">
+<tr>
+<th class="py-3 px-4 font-label text-label text-gray-500 uppercase tracking-wider">Tên tài liệu</th>
+<th class="py-3 px-4 font-label text-label text-gray-500 uppercase tracking-wider">Chặng học</th>
+<th class="py-3 px-4 font-label text-label text-gray-500 uppercase tracking-wider">Đối tượng xem</th>
+<th class="py-3 px-4 font-label text-label text-gray-500 uppercase tracking-wider">Trạng thái</th>
+<th class="py-3 px-4 font-label text-label text-gray-500 uppercase tracking-wider text-right">Thao tác</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-gray-100 bg-white">
+<!-- Row 1 -->
+<tr class="hover:bg-gray-50 transition-colors group">
+<td class="py-3 px-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-error-container text-error flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+</div>
+<div>
+<p class="font-body-medium text-body-medium text-gray-900 line-clamp-1">IELTS_Reading_Test_1.pdf</p>
+<p class="font-caption text-caption text-gray-500">IELTS Masterclass • 2.4 MB</p>
+</div>
+</div>
+</td>
+<td class="py-3 px-4 font-body-base text-body-base text-gray-700">Chặng 1</td>
+<td class="py-3 px-4">
+<div class="flex flex-wrap gap-1">
+<span class="px-2 py-0.5 rounded-full bg-secondary-container/20 text-secondary-container font-caption text-caption font-semibold">Admin</span>
+<span class="px-2 py-0.5 rounded-full bg-tertiary-container/20 text-tertiary-container font-caption text-caption font-semibold">Học thuật</span>
+</div>
+</td>
+<td class="py-3 px-4">
+<span class="px-2 py-1 rounded bg-tertiary/10 text-tertiary font-body-small text-body-small font-medium inline-flex items-center gap-1">
+<span class="material-symbols-outlined" style="font-size: 14px;">download</span>
+                                        Có thể tải
+                                    </span>
+</td>
+<td class="py-3 px-4 text-right">
+<div class="flex items-center justify-end gap-2">
+<button class="p-1.5 rounded text-on-surface-variant hover:text-primary hover:bg-primary-container/10 transition-colors" title="Tải xuống">
+<span class="material-symbols-outlined" style="font-size: 20px;">download</span>
+</button>
+<button class="p-1.5 rounded text-on-surface-variant hover:text-error hover:bg-error-container/50 transition-colors" title="Xóa">
+<span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-gray-50 transition-colors group">
+<td class="py-3 px-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-secondary-container/20 text-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-size: 18px;">description</span>
+</div>
+<div>
+<p class="font-body-medium text-body-medium text-gray-900 line-clamp-1">TOEIC_Listening_Scripts.docx</p>
+<p class="font-caption text-caption text-gray-500">TOEIC Foundation • 1.1 MB</p>
+</div>
+</div>
+</td>
+<td class="py-3 px-4 font-body-base text-body-base text-gray-700">Chặng 2</td>
+<td class="py-3 px-4">
+<div class="flex flex-wrap gap-1">
+<span class="px-2 py-0.5 rounded-full bg-secondary-container/20 text-secondary-container font-caption text-caption font-semibold">Admin</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-container/20 text-primary-container font-caption text-caption font-semibold">Giáo viên</span>
+</div>
+</td>
+<td class="py-3 px-4">
+<span class="px-2 py-1 rounded bg-error/10 text-error font-body-small text-body-small font-medium inline-flex items-center gap-1">
+<span class="material-symbols-outlined" style="font-size: 14px;">visibility</span>
+                                        Chỉ xem online
+                                    </span>
+</td>
+<td class="py-3 px-4 text-right">
+<div class="flex items-center justify-end gap-2">
+<button class="p-1.5 rounded text-on-surface-variant hover:text-primary hover:bg-primary-container/10 transition-colors" title="Xem chi tiết">
+<span class="material-symbols-outlined" style="font-size: 20px;">visibility</span>
+</button>
+<button class="p-1.5 rounded text-on-surface-variant hover:text-error hover:bg-error-container/50 transition-colors" title="Xóa">
+<span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-gray-50 transition-colors group">
+<td class="py-3 px-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary-container/20 text-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-size: 18px;">slideshow</span>
+</div>
+<div>
+<p class="font-body-medium text-body-medium text-gray-900 line-clamp-1">Lesson_Plan_Unit_4.pptx</p>
+<p class="font-caption text-caption text-gray-500">English for Kids • 5.6 MB</p>
+</div>
+</div>
+</td>
+<td class="py-3 px-4 font-body-base text-body-base text-gray-700">Chặng 1</td>
+<td class="py-3 px-4">
+<div class="flex flex-wrap gap-1">
+<span class="px-2 py-0.5 rounded-full bg-secondary-container/20 text-secondary-container font-caption text-caption font-semibold">Admin</span>
+<span class="px-2 py-0.5 rounded-full bg-tertiary-container/20 text-tertiary-container font-caption text-caption font-semibold">Học vụ</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-container/20 text-primary-container font-caption text-caption font-semibold">Giáo viên</span>
+</div>
+</td>
+<td class="py-3 px-4">
+<span class="px-2 py-1 rounded bg-error/10 text-error font-body-small text-body-small font-medium inline-flex items-center gap-1">
+<span class="material-symbols-outlined" style="font-size: 14px;">visibility</span>
+                                        Chỉ xem online
+                                    </span>
+</td>
+<td class="py-3 px-4 text-right">
+<div class="flex items-center justify-end gap-2">
+<button class="p-1.5 rounded text-on-surface-variant hover:text-primary hover:bg-primary-container/10 transition-colors" title="Xem chi tiết">
+<span class="material-symbols-outlined" style="font-size: 20px;">visibility</span>
+</button>
+<button class="p-1.5 rounded text-on-surface-variant hover:text-error hover:bg-error-container/50 transition-colors" title="Xóa">
+<span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-gray-50 transition-colors group">
+<td class="py-3 px-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-error-container text-error flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+</div>
+<div>
+<p class="font-body-medium text-body-medium text-gray-900 line-clamp-1">IELTS_Speaking_Part2_CueCards.pdf</p>
+<p class="font-caption text-caption text-gray-500">IELTS Masterclass • 1.8 MB</p>
+</div>
+</div>
+</td>
+<td class="py-3 px-4 font-body-base text-body-base text-gray-700">Chặng 3</td>
+<td class="py-3 px-4">
+<div class="flex flex-wrap gap-1">
+<span class="px-2 py-0.5 rounded-full bg-secondary-container/20 text-secondary-container font-caption text-caption font-semibold">Admin</span>
+<span class="px-2 py-0.5 rounded-full bg-tertiary-container/20 text-tertiary-container font-caption text-caption font-semibold">Học thuật</span>
+</div>
+</td>
+<td class="py-3 px-4">
+<span class="px-2 py-1 rounded bg-tertiary/10 text-tertiary font-body-small text-body-small font-medium inline-flex items-center gap-1">
+<span class="material-symbols-outlined" style="font-size: 14px;">download</span>
+                                        Có thể tải
+                                    </span>
+</td>
+<td class="py-3 px-4 text-right">
+<div class="flex items-center justify-end gap-2">
+<button class="p-1.5 rounded text-on-surface-variant hover:text-primary hover:bg-primary-container/10 transition-colors" title="Tải xuống">
+<span class="material-symbols-outlined" style="font-size: 20px;">download</span>
+</button>
+<button class="p-1.5 rounded text-on-surface-variant hover:text-error hover:bg-error-container/50 transition-colors" title="Xóa">
+<span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Phân trang -->
+<div class="p-4 border-t border-gray-100 flex items-center justify-between mt-auto">
+<p class="font-body-small text-body-small text-gray-500">Hiển thị 1-4 của 24 tài liệu</p>
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 flex items-center justify-center rounded border border-gray-300 text-gray-500 hover:bg-gray-50 disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined" style="font-size: 18px;">chevron_left</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-primary-container text-white font-body-small">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-gray-300 text-gray-700 hover:bg-gray-50 font-body-small">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-gray-300 text-gray-700 hover:bg-gray-50 font-body-small">3</button>
+<span class="px-1 text-gray-500">...</span>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-gray-300 text-gray-500 hover:bg-gray-50">
+<span class="material-symbols-outlined" style="font-size: 18px;">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<script>
+    // Logic hiển thị banner cảnh báo khi chọn Giáo viên
+    const teacherCheckbox = document.getElementById('teacher-checkbox');
+    const warningBanner = document.getElementById('teacher-warning-banner');
+
+    teacherCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+            warningBanner.classList.remove('hidden');
+            // Cập nhật text trạng thái thành "Chỉ xem online" (Demo hiệu ứng UX)
+        } else {
+            warningBanner.classList.add('hidden');
+        }
+    });
+</script>
+</body></html>

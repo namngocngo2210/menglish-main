@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Báo cáo tuần — Học thuật</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-surface-variant": "#594137",
+                      "primary-fixed": "#ffdbcd",
+                      "surface-dim": "#d4daea",
+                      "surface-tint": "#a23f00",
+                      "tertiary-fixed": "#93fb65",
+                      "outline-variant": "#e1bfb2",
+                      "tertiary-container": "#46a917",
+                      "inverse-on-surface": "#ecf0ff",
+                      "on-surface": "#161c27",
+                      "on-primary-container": "#521c00",
+                      "surface-container-highest": "#dde2f3",
+                      "surface-container-lowest": "#ffffff",
+                      "on-primary": "#ffffff",
+                      "on-secondary": "#ffffff",
+                      "surface": "#f9f9ff",
+                      "on-tertiary-fixed": "#062100",
+                      "on-background": "#161c27",
+                      "surface-container": "#e8eeff",
+                      "on-error": "#ffffff",
+                      "inverse-primary": "#ffb595",
+                      "surface-bright": "#f9f9ff",
+                      "inverse-surface": "#2a303d",
+                      "error": "#ba1a1a",
+                      "secondary-fixed": "#dee0ff",
+                      "on-tertiary-fixed-variant": "#1a5200",
+                      "on-primary-fixed-variant": "#7c2e00",
+                      "secondary-fixed-dim": "#bac3ff",
+                      "tertiary": "#256d00",
+                      "surface-variant": "#dde2f3",
+                      "on-secondary-fixed-variant": "#002fc9",
+                      "primary-fixed-dim": "#ffb595",
+                      "background": "#f9f9ff",
+                      "surface-container-high": "#e3e8f9",
+                      "tertiary-fixed-dim": "#78de4b",
+                      "error-container": "#ffdad6",
+                      "on-secondary-container": "#faf7ff",
+                      "primary-container": "#f5691a",
+                      "outline": "#8d7165",
+                      "on-tertiary-container": "#0e3500",
+                      "surface-container-low": "#f1f3ff",
+                      "secondary-container": "#4160ff",
+                      "on-secondary-fixed": "#00105b",
+                      "on-error-container": "#93000a",
+                      "secondary": "#1e43e7",
+                      "primary": "#a23f00",
+                      "on-tertiary": "#ffffff",
+                      "on-primary-fixed": "#360f00"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "header-height": "64px",
+                      "md": "16px",
+                      "xl": "32px",
+                      "lg": "24px",
+                      "gutter": "16px",
+                      "sidebar-width": "260px",
+                      "base": "8px",
+                      "sm": "8px",
+                      "xs": "4px"
+              },
+              "fontFamily": {
+                      "label": [
+                              "Be Vietnam Pro"
+                      ],
+                      "h2": [
+                              "Be Vietnam Pro"
+                      ],
+                      "body-base": [
+                              "Be Vietnam Pro"
+                      ],
+                      "body-medium": [
+                              "Be Vietnam Pro"
+                      ],
+                      "code": [
+                              "JetBrains Mono"
+                      ],
+                      "body-small": [
+                              "Be Vietnam Pro"
+                      ],
+                      "h1": [
+                              "Be Vietnam Pro"
+                      ],
+                      "caption": [
+                              "Be Vietnam Pro"
+                      ],
+                      "h3": [
+                              "Be Vietnam Pro"
+                      ]
+              },
+              "fontSize": {
+                      "label": [
+                              "11px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "h2": [
+                              "22px",
+                              {
+                                      "lineHeight": "30px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-base": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-medium": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "code": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-small": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "h1": [
+                              "28px",
+                              {
+                                      "lineHeight": "36px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "caption": [
+                              "11px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "h3": [
+                              "18px",
+                              {
+                                      "lineHeight": "26px",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; }
+        .table-input {
+            width: 100%;
+            min-width: 120px;
+            border: 1px solid #e3e8f9; /* surface-container-high approx */
+            border-radius: 4px;
+            padding: 8px;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .table-input:focus {
+            outline: none;
+            border-color: #4160ff; /* secondary-container */
+            box-shadow: 0 0 0 2px rgba(65, 96, 255, 0.2);
+        }
+        .table-th {
+            background-color: #f9f9ff;
+            color: #594137;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 12px 8px;
+            text-align: left;
+            border-bottom: 2px solid #e3e8f9;
+            white-space: nowrap;
+        }
+        .table-td {
+            padding: 8px;
+            border-bottom: 1px solid #e3e8f9;
+            vertical-align: top;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen p-lg">
+<div class="max-w-[1600px] mx-auto w-full">
+<!-- Header -->
+<header class="mb-xl">
+<h1 class="font-h1 text-h1 text-on-surface mb-md">Báo cáo tuần — Học thuật</h1>
+<div class="inline-flex flex-col gap-xs">
+<label class="font-label text-label text-on-surface-variant">Khoảng ngày báo cáo (Tuần)</label>
+<div class="relative">
+<input class="w-64 pl-10 pr-4 py-2 bg-surface-container-lowest border border-surface-container-high rounded-lg font-body-base text-body-base focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all" placeholder="Chọn ngày..." type="text"/>
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">calendar_today</span>
+</div>
+</div>
+</header>
+<!-- Section 1 -->
+<section class="bg-surface-container-lowest rounded-xl border border-surface-container-high p-lg mb-xl shadow-sm">
+<h2 class="font-h2 text-h2 text-primary mb-md">Công việc đã làm trong tuần</h2>
+<div class="overflow-x-auto pb-4">
+<table class="w-full border-collapse min-w-[1200px]">
+<thead>
+<tr>
+<th class="table-th w-12 text-center">STT</th>
+<th class="table-th min-w-[200px]">Nội dung <span class="text-error">*</span></th>
+<th class="table-th min-w-[200px]">Chi tiết</th>
+<th class="table-th min-w-[150px]">Deadline</th>
+<th class="table-th min-w-[120px]">Tiến độ</th>
+<th class="table-th min-w-[150px]">Link sản phẩm</th>
+<th class="table-th min-w-[150px]">Báo cáo</th>
+<th class="table-th min-w-[150px]">Đề xuất HT</th>
+<th class="table-th min-w-[150px]">Ghi chú</th>
+<th class="table-th w-16 text-center">Thao tác</th>
+</tr>
+</thead>
+<tbody id="table1-body">
+<tr class="hover:bg-surface-container transition-colors">
+<td class="table-td text-center font-body-medium text-body-medium text-on-surface-variant py-4">1</td>
+<td class="table-td"><input class="table-input" placeholder="Nhập nội dung" required="" type="text"/></td>
+<td class="table-td"><textarea class="table-input resize-y min-h-[40px]" placeholder="Chi tiết..."></textarea></td>
+<td class="table-td"><input class="table-input" placeholder="VD: Chủ nhật (05/10)" type="text"/></td>
+<td class="table-td">
+<select class="table-input">
+<option value="">Chọn tiến độ</option>
+<option value="0%">0%</option>
+<option value="25%">25%</option>
+<option value="50%">50%</option>
+<option value="75%">75%</option>
+<option value="100%">100%</option>
+</select>
+</td>
+<td class="table-td"><input class="table-input" placeholder="https://..." type="url"/></td>
+<td class="table-td"><input class="table-input" placeholder="..." type="text"/></td>
+<td class="table-td"><input class="table-input" placeholder="..." type="text"/></td>
+<td class="table-td"><input class="table-input" placeholder="..." type="text"/></td>
+<td class="table-td text-center">
+<button class="text-on-surface-variant hover:text-error transition-colors p-2 rounded-full hover:bg-error-container" title="Xóa dòng" type="button">
+<span class="material-symbols-outlined text-lg">delete</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<button class="mt-md inline-flex items-center gap-xs px-4 py-2 bg-surface border border-outline-variant text-on-surface rounded-lg font-body-medium text-body-medium hover:bg-surface-container-high transition-colors" onclick="addRow('table1-body')" type="button">
+<span class="material-symbols-outlined text-sm">add</span> Thêm dòng
+            </button>
+</section>
+<!-- Section 2 -->
+<section class="bg-surface-container-lowest rounded-xl border border-surface-container-high p-lg mb-xl shadow-sm">
+<h2 class="font-h2 text-h2 text-primary mb-md">Công việc dự kiến tuần tới</h2>
+<div class="overflow-x-auto pb-4">
+<table class="w-full border-collapse min-w-[1200px]">
+<thead>
+<tr>
+<th class="table-th w-12 text-center">STT</th>
+<th class="table-th min-w-[200px]">Nội dung <span class="text-error">*</span></th>
+<th class="table-th min-w-[200px]">Chi tiết</th>
+<th class="table-th min-w-[150px]">Deadline</th>
+<th class="table-th min-w-[120px]">Tiến độ</th>
+<th class="table-th min-w-[150px]">Link sản phẩm</th>
+<th class="table-th min-w-[150px]">Báo cáo</th>
+<th class="table-th min-w-[150px]">Đề xuất HT</th>
+<th class="table-th min-w-[150px]">Ghi chú</th>
+<th class="table-th w-16 text-center">Thao tác</th>
+</tr>
+</thead>
+<tbody id="table2-body">
+<tr class="hover:bg-surface-container transition-colors">
+<td class="table-td text-center font-body-medium text-body-medium text-on-surface-variant py-4">1</td>
+<td class="table-td"><input class="table-input" placeholder="Nhập nội dung" required="" type="text"/></td>
+<td class="table-td"><textarea class="table-input resize-y min-h-[40px]" placeholder="Chi tiết..."></textarea></td>
+<td class="table-td"><input class="table-input" placeholder="VD: Chủ nhật (05/10)" type="text"/></td>
+<td class="table-td">
+<select class="table-input">
+<option value="">Chọn tiến độ</option>
+<option value="0%">0%</option>
+<option value="25%">25%</option>
+<option value="50%">50%</option>
+<option value="75%">75%</option>
+<option value="100%">100%</option>
+</select>
+</td>
+<td class="table-td"><input class="table-input" placeholder="https://..." type="url"/></td>
+<td class="table-td"><input class="table-input" placeholder="..." type="text"/></td>
+<td class="table-td"><input class="table-input" placeholder="..." type="text"/></td>
+<td class="table-td"><input class="table-input" placeholder="..." type="text"/></td>
+<td class="table-td text-center">
+<button class="text-on-surface-variant hover:text-error transition-colors p-2 rounded-full hover:bg-error-container" title="Xóa dòng" type="button">
+<span class="material-symbols-outlined text-lg">delete</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<button class="mt-md inline-flex items-center gap-xs px-4 py-2 bg-surface border border-outline-variant text-on-surface rounded-lg font-body-medium text-body-medium hover:bg-surface-container-high transition-colors" onclick="addRow('table2-body')" type="button">
+<span class="material-symbols-outlined text-sm">add</span> Thêm dòng
+            </button>
+</section>
+<!-- Section 3 -->
+<section class="bg-surface-container-lowest rounded-xl border border-surface-container-high p-lg mb-xl shadow-sm">
+<h2 class="font-h2 text-h2 text-primary mb-md">Quản lý yêu cầu</h2>
+<div class="overflow-x-auto pb-4">
+<table class="w-full border-collapse min-w-[1200px]">
+<thead>
+<tr>
+<th class="table-th w-12 text-center">STT</th>
+<th class="table-th min-w-[200px]">Nội dung <span class="text-error">*</span></th>
+<th class="table-th min-w-[200px]">Chi tiết</th>
+<th class="table-th min-w-[150px]">Deadline</th>
+<th class="table-th min-w-[120px]">Tiến độ</th>
+<th class="table-th min-w-[150px]">Link sản phẩm</th>
+<th class="table-th min-w-[150px]">Báo cáo</th>
+<th class="table-th min-w-[150px]">Đề xuất HT</th>
+<th class="table-th min-w-[150px]">Ghi chú</th>
+<th class="table-th w-16 text-center">Thao tác</th>
+</tr>
+</thead>
+<tbody id="table3-body">
+<tr class="hover:bg-surface-container transition-colors">
+<td class="table-td text-center font-body-medium text-body-medium text-on-surface-variant py-4">1</td>
+<td class="table-td"><input class="table-input" placeholder="Nhập nội dung" required="" type="text"/></td>
+<td class="table-td"><textarea class="table-input resize-y min-h-[40px]" placeholder="Chi tiết..."></textarea></td>
+<td class="table-td"><input class="table-input" placeholder="VD: Chủ nhật (05/10)" type="text"/></td>
+<td class="table-td">
+<select class="table-input">
+<option value="">Chọn tiến độ</option>
+<option value="0%">0%</option>
+<option value="25%">25%</option>
+<option value="50%">50%</option>
+<option value="75%">75%</option>
+<option value="100%">100%</option>
+</select>
+</td>
+<td class="table-td"><input class="table-input" placeholder="https://..." type="url"/></td>
+<td class="table-td"><input class="table-input" placeholder="..." type="text"/></td>
+<td class="table-td"><input class="table-input" placeholder="..." type="text"/></td>
+<td class="table-td"><input class="table-input" placeholder="..." type="text"/></td>
+<td class="table-td text-center">
+<button class="text-on-surface-variant hover:text-error transition-colors p-2 rounded-full hover:bg-error-container" title="Xóa dòng" type="button">
+<span class="material-symbols-outlined text-lg">delete</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<button class="mt-md inline-flex items-center gap-xs px-4 py-2 bg-surface border border-outline-variant text-on-surface rounded-lg font-body-medium text-body-medium hover:bg-surface-container-high transition-colors" onclick="addRow('table3-body')" type="button">
+<span class="material-symbols-outlined text-sm">add</span> Thêm dòng
+            </button>
+</section>
+<!-- Footer Actions -->
+<div class="flex justify-end mt-xl mb-xl">
+<button class="inline-flex items-center gap-sm px-6 py-3 bg-primary-container text-on-primary rounded-lg font-body-medium text-body-medium hover:opacity-90 transition-opacity shadow-md hover:shadow-lg" type="button">
+<span class="material-symbols-outlined">save</span> Lưu báo cáo tuần
+            </button>
+</div>
+</div>
+<script>
+        function addRow(tableId) {
+            const tbody = document.getElementById(tableId);
+            const rowCount = tbody.children.length + 1;
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-surface-container transition-colors';
+            tr.innerHTML = `
+                <td class="table-td text-center font-body-medium text-body-medium text-on-surface-variant py-4">${rowCount}</td>
+                <td class="table-td"><input type="text" class="table-input" placeholder="Nhập nội dung" required></td>
+                <td class="table-td"><textarea class="table-input resize-y min-h-[40px]" placeholder="Chi tiết..."></textarea></td>
+                <td class="table-td"><input type="text" class="table-input" placeholder="VD: Chủ nhật (05/10)"></td>
+                <td class="table-td">
+                    <select class="table-input">
+                        <option value="">Chọn tiến độ</option>
+                        <option value="0%">0%</option>
+                        <option value="25%">25%</option>
+                        <option value="50%">50%</option>
+                        <option value="75%">75%</option>
+                        <option value="100%">100%</option>
+                    </select>
+                </td>
+                <td class="table-td"><input type="url" class="table-input" placeholder="https://..."></td>
+                <td class="table-td"><input type="text" class="table-input" placeholder="..."></td>
+                <td class="table-td"><input type="text" class="table-input" placeholder="..."></td>
+                <td class="table-td"><input type="text" class="table-input" placeholder="..."></td>
+                <td class="table-td text-center">
+                    <button type="button" onclick="this.closest('tr').remove(); updateRowNumbers('${tableId}')" class="text-on-surface-variant hover:text-error transition-colors p-2 rounded-full hover:bg-error-container" title="Xóa dòng">
+                        <span class="material-symbols-outlined text-lg">delete</span>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        function updateRowNumbers(tableId) {
+            const tbody = document.getElementById(tableId);
+            Array.from(tbody.children).forEach((tr, index) => {
+                tr.firstElementChild.textContent = index + 1;
+            });
+        }
+    </script>
+</body></html>

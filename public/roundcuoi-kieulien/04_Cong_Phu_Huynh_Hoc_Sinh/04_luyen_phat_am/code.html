@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MENGLISH - Luyện phát âm</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "primary-fixed-dim": "#ffb595",
+                        "secondary": "#1e43e7",
+                        "inverse-on-surface": "#ecf0ff",
+                        "surface-container": "#e8eeff",
+                        "error": "#ba1a1a",
+                        "tertiary-container": "#46a917",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed": "#00105b",
+                        "on-error-container": "#93000a",
+                        "background": "#f9f9ff",
+                        "surface": "#f9f9ff",
+                        "surface-container-low": "#f1f3ff",
+                        "surface-tint": "#a23f00",
+                        "surface-variant": "#dde2f3",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "error-container": "#ffdad6",
+                        "on-secondary-container": "#faf7ff",
+                        "on-tertiary-container": "#0e3500",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "on-tertiary-fixed": "#062100",
+                        "on-primary": "#ffffff",
+                        "primary": "#a23f00",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "outline-variant": "#e1bfb2",
+                        "surface-container-highest": "#dde2f3",
+                        "surface-bright": "#f9f9ff",
+                        "tertiary-fixed": "#93fb65",
+                        "inverse-surface": "#2a303d",
+                        "on-primary-container": "#521c00",
+                        "surface-dim": "#d4daea",
+                        "primary-container": "#f5691a",
+                        "on-surface": "#161c27",
+                        "secondary-fixed": "#dee0ff",
+                        "tertiary": "#256d00",
+                        "secondary-container": "#4160ff",
+                        "on-error": "#ffffff",
+                        "on-surface-variant": "#594137",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "primary-fixed": "#ffdbcd",
+                        "outline": "#8d7165",
+                        "on-secondary": "#ffffff",
+                        "on-background": "#161c27",
+                        "inverse-primary": "#ffb595",
+                        "surface-container-high": "#e3e8f9",
+                        "on-primary-fixed": "#360f00",
+                        "gray-50": "#f9fafb",
+                        "gray-100": "#f3f4f6",
+                        "gray-300": "#d1d5db",
+                        "gray-500": "#6b7280",
+                        "gray-700": "#374151",
+                        "gray-900": "#111827",
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "xl": "32px",
+                        "lg": "24px",
+                        "sidebar-width": "260px",
+                        "xs": "4px",
+                        "md": "16px",
+                        "sm": "8px",
+                        "gutter": "16px",
+                        "base": "8px",
+                        "header-height": "64px"
+                    },
+                    fontFamily: {
+                        "h1": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"]
+                    },
+                    fontSize: {
+                        "h1": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "h2": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-base": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "h3": ["18px", { "lineHeight": "26px", "fontWeight": "600" }],
+                        "label": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "code": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-small": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "caption": ["11px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "body-medium": ["14px", { "lineHeight": "20px", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .waveform {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            height: 40px;
+        }
+        .waveform-bar {
+            width: 3px;
+            background-color: #f5691a;
+            border-radius: 999px;
+            animation: pulse 1s infinite ease-in-out alternate;
+        }
+        @keyframes pulse {
+            0% { height: 4px; }
+            100% { height: 100%; }
+        }
+        .waveform-bar:nth-child(1) { animation-delay: 0.1s; }
+        .waveform-bar:nth-child(2) { animation-delay: 0.3s; }
+        .waveform-bar:nth-child(3) { animation-delay: 0.2s; }
+        .waveform-bar:nth-child(4) { animation-delay: 0.5s; }
+        .waveform-bar:nth-child(5) { animation-delay: 0.4s; }
+        .waveform-bar:nth-child(6) { animation-delay: 0.2s; }
+        .waveform-bar:nth-child(7) { animation-delay: 0.6s; }
+        .waveform-bar:nth-child(8) { animation-delay: 0.3s; }
+        .waveform-bar:nth-child(9) { animation-delay: 0.1s; }
+        .waveform-bar:nth-child(10) { animation-delay: 0.4s; }
+        .waveform-bar:nth-child(11) { animation-delay: 0.5s; }
+        .waveform-bar:nth-child(12) { animation-delay: 0.2s; }
+        
+        .toast-enter {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+        .toast-enter-active {
+            transform: translateY(0);
+            opacity: 1;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .toast-exit {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .toast-exit-active {
+            transform: translateY(100%);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* Utility to style material icons safely */
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-gray-50 text-gray-900 font-body-base antialiased min-h-screen pb-[80px]">
+<!-- Content Canvas (Fluid Container) -->
+<main class="w-full max-w-3xl mx-auto p-md space-y-lg relative">
+<!-- Page Header -->
+<header class="flex items-center gap-sm mb-lg">
+<button aria-label="Quay lại" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+<span class="material-symbols-outlined text-gray-700">arrow_back</span>
+</button>
+<h1 class="font-h2 text-h2 text-gray-900 m-0">Luyện phát âm</h1>
+</header>
+<!-- Audio Mẫu Card -->
+<section class="bg-surface-container-lowest rounded-xl border border-gray-100 p-md space-y-md">
+<h2 class="font-h3 text-h3 text-gray-900">Audio Mẫu từ Giáo trình</h2>
+<p class="font-body-small text-body-small text-gray-500 mb-sm">Chọn một bài để nghe và luyện tập theo.</p>
+<div class="space-y-sm">
+<!-- Audio Item 1 -->
+<div class="flex items-center justify-between p-sm rounded-lg hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100 cursor-pointer group">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+<span class="material-symbols-outlined" data-icon="play_arrow">play_arrow</span>
+</div>
+<div>
+<p class="font-body-medium text-body-medium text-gray-900">Unit 1: Greetings - Bài 1</p>
+<p class="font-caption text-caption text-gray-500">00:45</p>
+</div>
+</div>
+<button class="text-primary font-body-medium text-body-medium px-md py-sm rounded-full hover:bg-surface-container-low transition-colors">
+                        Chọn
+                    </button>
+</div>
+<!-- Audio Item 2 (Active state simulation) -->
+<div class="flex items-center justify-between p-sm rounded-lg bg-surface-container-high border border-primary-container group">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white">
+<span class="material-symbols-outlined" data-icon="pause">pause</span>
+</div>
+<div>
+<p class="font-body-medium text-body-medium text-primary">Unit 1: Greetings - Bài 2</p>
+<p class="font-caption text-caption text-gray-500">01:12 • Đang chọn</p>
+</div>
+</div>
+<!-- Animated Waveform inside active audio -->
+<div class="waveform h-4 mr-2" style="transform: scale(0.5); transform-origin: right center;">
+<div class="waveform-bar" style="background-color: #a23f00;"></div>
+<div class="waveform-bar" style="background-color: #a23f00;"></div>
+<div class="waveform-bar" style="background-color: #a23f00;"></div>
+<div class="waveform-bar" style="background-color: #a23f00;"></div>
+</div>
+</div>
+<!-- Audio Item 3 -->
+<div class="flex items-center justify-between p-sm rounded-lg hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100 cursor-pointer group">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+<span class="material-symbols-outlined" data-icon="play_arrow">play_arrow</span>
+</div>
+<div>
+<p class="font-body-medium text-body-medium text-gray-900">Unit 2: Family - Bài 1</p>
+<p class="font-caption text-caption text-gray-500">00:58</p>
+</div>
+</div>
+<button class="text-primary font-body-medium text-body-medium px-md py-sm rounded-full hover:bg-surface-container-low transition-colors">
+                        Chọn
+                    </button>
+</div>
+</div>
+</section>
+<!-- Khối Ghi Âm (Active Recording State) -->
+<section class="bg-surface-container-lowest rounded-xl border border-gray-100 p-lg flex flex-col items-center justify-center text-center space-y-lg relative overflow-hidden">
+<!-- Background Decoration (Optional, keeping it clean for focus) -->
+<div class="absolute inset-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-container via-transparent to-transparent"></div>
+<div class="relative z-10 w-full space-y-md">
+<p class="font-body-medium text-body-medium text-gray-700">Đang luyện tập: <span class="font-semibold text-primary">Unit 1: Greetings - Bài 2</span></p>
+<!-- Timer -->
+<div class="font-code text-[32px] leading-none text-gray-900 tracking-wider">00:14</div>
+<!-- Waveform Display (visible when recording) -->
+<div class="waveform w-full max-w-[200px] mx-auto opacity-100 transition-opacity duration-300 h-[60px]" id="recording-waveform">
+<div class="waveform-bar h-[20%]"></div>
+<div class="waveform-bar h-[50%]"></div>
+<div class="waveform-bar h-[80%]"></div>
+<div class="waveform-bar h-[40%]"></div>
+<div class="waveform-bar h-[90%]"></div>
+<div class="waveform-bar h-[60%]"></div>
+<div class="waveform-bar h-[30%]"></div>
+<div class="waveform-bar h-[70%]"></div>
+<div class="waveform-bar h-[100%]"></div>
+<div class="waveform-bar h-[50%]"></div>
+<div class="waveform-bar h-[80%]"></div>
+<div class="waveform-bar h-[40%]"></div>
+</div>
+<!-- Record Button -->
+<div class="flex justify-center py-sm">
+<button aria-label="Dừng ghi âm" class="relative w-20 h-20 bg-primary-container rounded-full flex items-center justify-center text-white shadow-lg hover:bg-[#e0560b] transition-all transform hover:scale-105 active:scale-95 group focus:outline-none focus:ring-4 focus:ring-primary-fixed-dim">
+<!-- Pulsing ring effect when recording -->
+<div class="absolute inset-0 rounded-full border-2 border-primary-container animate-ping opacity-75"></div>
+<span class="material-symbols-outlined text-[32px]" data-icon="mic" data-weight="fill" style="font-variation-settings: 'FILL' 1;">mic</span>
+</button>
+</div>
+<p class="font-caption text-caption text-gray-500">Chạm để dừng ghi âm</p>
+<!-- Action Buttons (Submit) -->
+<div class="pt-sm w-full flex justify-center">
+<button class="w-full max-w-[240px] bg-primary-container hover:bg-[#e0560b] text-white font-body-medium text-body-medium py-3 px-6 rounded-lg transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-container" id="submit-audio-btn">
+                        Nộp bài ghi âm
+                    </button>
+</div>
+</div>
+</section>
+<!-- Lịch sử luyện tập -->
+<section class="bg-surface-container-lowest rounded-xl border border-gray-100 p-md space-y-md">
+<h2 class="font-h3 text-h3 text-gray-900">Lịch sử của bạn</h2>
+<div class="space-y-sm">
+<!-- History Item 1 -->
+<div class="flex items-center justify-between p-sm rounded-lg bg-surface hover:bg-gray-50 transition-colors border border-gray-100">
+<div>
+<p class="font-body-medium text-body-medium text-gray-900">Bản ghi Unit 1 - Bài 1</p>
+<div class="flex items-center gap-xs font-caption text-caption text-gray-500 mt-xs">
+<span class="material-symbols-outlined text-[14px]" data-icon="calendar_today">calendar_today</span>
+<span>Hôm nay, 10:30 AM</span>
+<span class="mx-1">•</span>
+<span class="material-symbols-outlined text-[14px]" data-icon="timer">timer</span>
+<span>00:42</span>
+</div>
+</div>
+<button aria-label="Nghe lại" class="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center text-primary hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined" data-icon="play_arrow">play_arrow</span>
+</button>
+</div>
+<!-- History Item 2 -->
+<div class="flex items-center justify-between p-sm rounded-lg bg-surface hover:bg-gray-50 transition-colors border border-gray-100">
+<div>
+<p class="font-body-medium text-body-medium text-gray-900">Bản ghi Unit 1 - Bài 1 (Lần 1)</p>
+<div class="flex items-center gap-xs font-caption text-caption text-gray-500 mt-xs">
+<span class="material-symbols-outlined text-[14px]" data-icon="calendar_today">calendar_today</span>
+<span>Hôm qua, 15:45 PM</span>
+<span class="mx-1">•</span>
+<span class="material-symbols-outlined text-[14px]" data-icon="timer">timer</span>
+<span>00:38</span>
+</div>
+</div>
+<button aria-label="Nghe lại" class="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center text-primary hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined" data-icon="play_arrow">play_arrow</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+<!-- Toast Notification (Hidden by default, triggered via JS for demo) -->
+<div class="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-surface-dim text-on-surface px-md py-sm rounded-lg shadow-lg flex items-center gap-sm z-50 transition-all duration-300 opacity-0 translate-y-10 pointer-events-none" id="toast-notification">
+<span class="material-symbols-outlined text-tertiary-container" data-icon="check_circle">check_circle</span>
+<span class="font-body-medium text-body-medium">Đã nộp bài thành công!</span>
+</div>
+<!-- Micro-interactions Script -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const submitBtn = document.getElementById('submit-audio-btn');
+            const toast = document.getElementById('toast-notification');
+            const waveform = document.getElementById('recording-waveform');
+            
+            // Simple toast demo
+            if(submitBtn && toast) {
+                submitBtn.addEventListener('click', () => {
+                    // Stop waveform animation visually
+                    const bars = waveform.querySelectorAll('.waveform-bar');
+                    bars.forEach(bar => {
+                        bar.style.animation = 'none';
+                        bar.style.height = '10%'; // reset height
+                    });
+                    
+                    submitBtn.innerHTML = '<span class="material-symbols-outlined animate-spin" data-icon="progress_activity">progress_activity</span>';
+                    submitBtn.classList.add('opacity-80', 'cursor-not-allowed');
+                    
+                    // Simulate network request
+                    setTimeout(() => {
+                        submitBtn.innerHTML = 'Nộp bài ghi âm';
+                        submitBtn.classList.remove('opacity-80', 'cursor-not-allowed');
+                        
+                        // Show toast
+                        toast.classList.remove('opacity-0', 'translate-y-10');
+                        toast.classList.add('opacity-100', 'translate-y-0');
+                        
+                        // Hide toast after 3s
+                        setTimeout(() => {
+                            toast.classList.remove('opacity-100', 'translate-y-0');
+                            toast.classList.add('opacity-0', 'translate-y-10');
+                        }, 3000);
+                    }, 1000);
+                });
+            }
+        });
+    </script>
+</body></html>

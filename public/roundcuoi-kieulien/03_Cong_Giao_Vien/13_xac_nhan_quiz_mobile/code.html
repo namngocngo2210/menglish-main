@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Xác nhận Quiz - MENGLISH</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-tertiary-fixed-variant": "#1a5200",
+                      "primary": "#a23f00",
+                      "surface-container-highest": "#dde2f3",
+                      "outline": "#8d7165",
+                      "surface-container-low": "#f1f3ff",
+                      "on-secondary-fixed-variant": "#002fc9",
+                      "on-surface": "#161c27",
+                      "surface-variant": "#dde2f3",
+                      "tertiary": "#256d00",
+                      "on-surface-variant": "#594137",
+                      "tertiary-container": "#46a917",
+                      "on-secondary": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "on-tertiary-fixed": "#062100",
+                      "on-primary": "#ffffff",
+                      "on-background": "#161c27",
+                      "primary-fixed": "#ffdbcd",
+                      "on-error-container": "#93000a",
+                      "primary-container": "#f5691a",
+                      "tertiary-fixed-dim": "#78de4b",
+                      "surface": "#f9f9ff",
+                      "on-primary-fixed-variant": "#7c2e00",
+                      "inverse-primary": "#ffb595",
+                      "primary-fixed-dim": "#ffb595",
+                      "on-secondary-fixed": "#00105b",
+                      "error": "#ba1a1a",
+                      "outline-variant": "#e1bfb2",
+                      "secondary-fixed": "#dee0ff",
+                      "secondary": "#1e43e7",
+                      "secondary-fixed-dim": "#bac3ff",
+                      "on-tertiary-container": "#0e3500",
+                      "on-primary-container": "#521c00",
+                      "secondary-container": "#4160ff",
+                      "surface-container-high": "#e3e8f9",
+                      "on-tertiary": "#ffffff",
+                      "background": "#f9f9ff",
+                      "inverse-surface": "#2a303d",
+                      "on-primary-fixed": "#360f00",
+                      "surface-tint": "#a23f00",
+                      "on-error": "#ffffff",
+                      "on-secondary-container": "#faf7ff",
+                      "surface-bright": "#f9f9ff",
+                      "surface-dim": "#d4daea",
+                      "tertiary-fixed": "#93fb65",
+                      "inverse-on-surface": "#ecf0ff",
+                      "surface-container": "#e8eeff",
+                      "error-container": "#ffdad6"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "sm": "8px",
+                      "xs": "4px",
+                      "md": "16px",
+                      "sidebar-width": "260px",
+                      "lg": "24px",
+                      "gutter": "16px",
+                      "xl": "32px",
+                      "header-height": "64px",
+                      "base": "8px"
+              },
+              "fontFamily": {
+                      "body-small": ["Be Vietnam Pro"],
+                      "h3": ["Be Vietnam Pro"],
+                      "h1": ["Be Vietnam Pro"],
+                      "caption": ["Be Vietnam Pro"],
+                      "h2": ["Be Vietnam Pro"],
+                      "code": ["JetBrains Mono"],
+                      "label": ["Be Vietnam Pro"],
+                      "body-medium": ["Be Vietnam Pro"],
+                      "body-base": ["Be Vietnam Pro"]
+              },
+              "fontSize": {
+                      "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                      "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                      "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                      "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                      "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                      "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+              }
+            },
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+        /* Toggle Switch Styles */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #F5691A;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #F5691A;
+        }
+        .toggle-checkbox:checked + .toggle-label:after {
+            transform: translateX(100%);
+            border-color: white;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body-base antialiased min-h-screen">
+<!-- Header Section -->
+<header class="bg-surface-container-lowest border-b border-surface-container-highest px-md py-sm sticky top-0 z-10 flex flex-col gap-sm">
+<div class="flex items-center gap-sm">
+<button aria-label="Quay lại" class="p-xs text-on-surface-variant rounded-full hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="font-h2 text-h2 text-on-surface flex-1 truncate">Xác nhận Quiz</h1>
+</div>
+<button class="w-full bg-primary-container text-on-primary font-body-medium text-body-medium rounded-lg py-md flex items-center justify-center gap-sm hover:bg-surface-tint hover:shadow-sm transition-all shadow-sm">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">assessment</span>
+            Mở bảng kết quả Quizizz
+        </button>
+</header>
+<!-- Main Content: Student List -->
+<main class="p-md flex flex-col gap-sm pb-xl">
+<!-- Filter/Info Bar -->
+<div class="flex justify-between items-center px-xs mb-xs">
+<span class="font-body-medium text-body-medium text-on-surface-variant">Lớp: IELTS Foundation A1</span>
+<span class="font-body-medium text-body-medium text-on-surface-variant">2/5 Đã nộp</span>
+</div>
+<!-- Student Card 1 (Confirmed) -->
+<div class="bg-surface-container-lowest rounded-lg border border-surface-container-highest p-md shadow-sm flex flex-col gap-sm relative overflow-hidden transition-all">
+<div class="flex items-center gap-md">
+<div class="relative">
+<img class="w-12 h-12 rounded-full object-cover border-2 border-surface-container-highest" data-alt="A professional headshot of a young vietnamese male student looking confident, brightly lit against a neutral grey background, high resolution, soft corporate lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDO0bLDKkT4yP4UCv7HvcBpD_PbAu5sCIWN_YrnBrJaqif2n9X_R6qSS3Bztpvitv2_J7ptff71f4IHEt2QwgqYvBhCIu7I8kvC8wXbsW3rWKTIA8ivbCiwYf_nA1VcbBrz5m874Eo-XsVVX8-MlzuK0I28Y4H6LtOoXUFDatWqXz3ohU0SHcmUjRYTYS1SElk-yGMNQ84h4nQhySIqcdNn0tIbcfu6GT_rSC7TFF_Ft3H5NS7Veawp"/>
+</div>
+<div class="flex-1 flex flex-col">
+<span class="font-h3 text-h3 text-on-surface truncate">Nguyễn Văn An</span>
+<!-- Confirmation Details (Visible when confirmed) -->
+<div class="flex items-center gap-xs mt-xs text-tertiary-container">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-caption text-caption">GV. Trần Linh • 10:45 AM</span>
+</div>
+</div>
+<!-- Toggle -->
+<div class="relative inline-block w-12 h-6 align-middle select-none">
+<input checked="" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-surface-container-highest appearance-none cursor-pointer z-10 transition-transform duration-200 ease-in-out focus:ring-0 checked:translate-x-full checked:border-primary-container" id="toggle1" name="toggle1" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-container-highest cursor-pointer transition-colors duration-200 ease-in-out" for="toggle1"></label>
+</div>
+</div>
+</div>
+<!-- Student Card 2 (Pending, Trial Student) -->
+<div class="bg-surface-container-lowest rounded-lg border border-surface-container-highest p-md shadow-sm flex flex-col gap-sm relative overflow-hidden transition-all">
+<div class="flex items-center gap-md">
+<div class="relative">
+<img class="w-12 h-12 rounded-full object-cover border-2 border-surface-container-highest" data-alt="A professional headshot of a young vietnamese female student smiling gently, brightly lit against a neutral grey background, high resolution, soft corporate lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZ3HIeQlqM5qkl0RZKYy6Dd4KCy9EphKcccaMWgKniKoADdUM4bPtluZWmZQ5kfLdeYS0wN5dUcZZfrE088m37xGoNtyMh02C_4rG2031mEqgCExdAiMmtn6MDBDU7-5EdyvWDkooi1hLH4clpwpi2wbrxWDTYElYy9A29ubXly5UyJTzrmIVasPNMcU5JsOHrHuor5_o_-mmxRgNDJF_1k-vteP8ySQ8TQw_v_Y1zhnlCBArnPp2h"/>
+<!-- Trial Badge -->
+<div class="absolute -bottom-1 -right-1 bg-[#F43F7E] bg-opacity-10 text-[#F43F7E] font-label text-[9px] px-1 rounded-sm border border-[#F43F7E] whitespace-nowrap">HỌC THỬ</div>
+</div>
+<div class="flex-1 flex flex-col">
+<span class="font-h3 text-h3 text-on-surface truncate">Trần Thị Bích</span>
+<!-- Confirmation Details (Hidden when pending) -->
+<div class="hidden items-center gap-xs mt-xs text-tertiary-container">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-caption text-caption"></span>
+</div>
+<span class="font-caption text-caption text-on-surface-variant mt-xs">Chưa nộp bài</span>
+</div>
+<!-- Toggle -->
+<div class="relative inline-block w-12 h-6 align-middle select-none">
+<input class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-surface-container-highest appearance-none cursor-pointer z-10 transition-transform duration-200 ease-in-out focus:ring-0" id="toggle2" name="toggle2" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-container-highest cursor-pointer transition-colors duration-200 ease-in-out" for="toggle2"></label>
+</div>
+</div>
+</div>
+<!-- Student Card 3 (Pending) -->
+<div class="bg-surface-container-lowest rounded-lg border border-surface-container-highest p-md shadow-sm flex flex-col gap-sm relative overflow-hidden transition-all">
+<div class="flex items-center gap-md">
+<div class="relative">
+<img class="w-12 h-12 rounded-full object-cover border-2 border-surface-container-highest" data-alt="A professional headshot of a young vietnamese male student with glasses looking attentive, brightly lit against a neutral grey background, high resolution, soft corporate lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCMeZlCWK4mnZSKMERRLXYCSDeVbLH9gRKbuw8Nr35JcdBRErt1WDnaVq6iPzyXh40qiSX52OfF4RNer1EAY1Bd2ih6UlWUgoSd50vmv7GlGtMbJOf_P5-_R1tDWo0wNANhBuwvfc0ZgVLOLgKvmZI-auZmM3kTDXtEnLQceiGaJCr5B_hdOx3FAnv3ma_1MCvqQxlI0mnQt69blU8RfIHqEGv_UE1M47bz_0kOG_77TjTGO1kCYJ4N"/>
+</div>
+<div class="flex-1 flex flex-col">
+<span class="font-h3 text-h3 text-on-surface truncate">Lê Hoàng Cường</span>
+<span class="font-caption text-caption text-on-surface-variant mt-xs">Chưa nộp bài</span>
+</div>
+<!-- Toggle -->
+<div class="relative inline-block w-12 h-6 align-middle select-none">
+<input class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-surface-container-highest appearance-none cursor-pointer z-10 transition-transform duration-200 ease-in-out focus:ring-0" id="toggle3" name="toggle3" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-container-highest cursor-pointer transition-colors duration-200 ease-in-out" for="toggle3"></label>
+</div>
+</div>
+</div>
+<!-- Student Card 4 (Confirmed) -->
+<div class="bg-surface-container-lowest rounded-lg border border-surface-container-highest p-md shadow-sm flex flex-col gap-sm relative overflow-hidden transition-all">
+<div class="flex items-center gap-md">
+<div class="relative">
+<img class="w-12 h-12 rounded-full object-cover border-2 border-surface-container-highest" data-alt="A professional headshot of a young vietnamese female student looking focused, brightly lit against a neutral grey background, high resolution, soft corporate lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD99AB_PRJR9oGEfaii6RL8n1lIEAqRUvGH-lCkrAro6V_hKEabn9PgpM7lX3YTYBG-quOfBBmi-OQIzGil3R-ZNIl3m-ON7xwlmzachuE5qzhGmQWfLy0xtn3-9Lizk9YB7sDZoBKstOdagkU8UYMVcPERNsqua5UoFA5IlkietwPKSegCRoFU8YP2lgd3q8TuyNSdoANBicjzenL2tuee05tYpZ0lWfQ7fZH9Y9zdy_8qEDREe7hU"/>
+</div>
+<div class="flex-1 flex flex-col">
+<span class="font-h3 text-h3 text-on-surface truncate">Phạm Thu Dung</span>
+<!-- Confirmation Details (Visible when confirmed) -->
+<div class="flex items-center gap-xs mt-xs text-tertiary-container">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-caption text-caption">GV. Trần Linh • 11:02 AM</span>
+</div>
+</div>
+<!-- Toggle -->
+<div class="relative inline-block w-12 h-6 align-middle select-none">
+<input checked="" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-surface-container-highest appearance-none cursor-pointer z-10 transition-transform duration-200 ease-in-out focus:ring-0 checked:translate-x-full checked:border-primary-container" id="toggle4" name="toggle4" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-container-highest cursor-pointer transition-colors duration-200 ease-in-out" for="toggle4"></label>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Simple script to toggle visual state of cards (simulating confirmation)
+        document.querySelectorAll('.toggle-checkbox').forEach(toggle => {
+            toggle.addEventListener('change', function() {
+                const card = this.closest('.bg-surface-container-lowest');
+                const flexCol = this.closest('.flex-1');
+                
+                // Remove existing status info
+                const existingStatus = flexCol.querySelectorAll('.status-info');
+                existingStatus.forEach(el => el.remove());
+
+                if (this.checked) {
+                    // Create confirmed status
+                    const confirmedHtml = `
+                        <div class="flex items-center gap-xs mt-xs text-tertiary-container status-info">
+                            <span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                            <span class="font-caption text-caption">GV. Bạn • Vừa xong</span>
+                        </div>
+                    `;
+                    // Remove "Chưa nộp bài" if it exists
+                    const pendingText = flexCol.querySelector('.text-on-surface-variant');
+                    if(pendingText) pendingText.classList.add('hidden');
+                    
+                    flexCol.insertAdjacentHTML('beforeend', confirmedHtml);
+                } else {
+                     // Create pending status
+                    const pendingText = flexCol.querySelector('.text-on-surface-variant');
+                    if(pendingText) {
+                        pendingText.classList.remove('hidden');
+                    } else {
+                        const pendingHtml = `<span class="font-caption text-caption text-on-surface-variant mt-xs status-info">Chưa nộp bài</span>`;
+                        flexCol.insertAdjacentHTML('beforeend', pendingHtml);
+                    }
+                }
+            });
+        });
+    </script>
+</body></html>

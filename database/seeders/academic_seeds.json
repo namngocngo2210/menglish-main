@@ -1,0 +1,1489 @@
+{
+  "SEED_ACADEMIC_CLASSES": [
+    {
+      "id": "#SEED-CLS-01",
+      "ma": "#IELTS-M01",
+      "ten": "# IELTS Masterclass M01",
+      "prog": "IELTS Intensive",
+      "gv": "#GV Nguyễn Minh Anh",
+      "si_so": "16/16",
+      "tien_do": 65,
+      "test": "15/09/2026",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-CLS-02",
+      "ma": "#CAM-F202",
+      "ten": "# Cambridge Flyer F202",
+      "prog": "Cambridge",
+      "gv": "#GV Trần Quốc Toản",
+      "si_so": "12/15",
+      "tien_do": 80,
+      "test": "18/09/2026",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-CLS-03",
+      "ma": "#TOE-T303",
+      "ten": "# TOEIC Foundation T303",
+      "prog": "TOEIC Cấp tốc",
+      "gv": "#GV Lê Thu Hương",
+      "si_so": "20/20",
+      "tien_do": 40,
+      "test": "20/09/2026",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-CLS-04",
+      "ma": "#KID-K401",
+      "ten": "# English Kids K401",
+      "prog": "Super Safari",
+      "gv": "#GV Phạm Văn Đức",
+      "si_so": "10/12",
+      "tien_do": 90,
+      "test": "22/09/2026",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-CLS-05",
+      "ma": "#IEL-I505",
+      "ten": "# IELTS Intensive I505",
+      "prog": "IELTS Intensive",
+      "gv": "#GV Hoàng Thị Mai",
+      "si_so": "8/10",
+      "tien_do": 25,
+      "test": "25/09/2026",
+      "isSeed": true
+    }
+  ],
+  "SEED_ACADEMIC_LOGS": [
+    {
+      "id": "#SEED-AL-01",
+      "ngay": "09/09/2026",
+      "gio": "14:30",
+      "nguoi_ghi": "#HV Nguyễn Thị Ánh Tuyết",
+      "vai_tro": "Học vụ Cầu Giấy",
+      "ma_kpi": "#KPI 1.2",
+      "noi_dung": "# Rà soát điểm danh lớp IELTS-M0124: 2 học sinh vắng không phép quá 2 buổi liên tiếp (Nguyễn Văn An, Đặng Quang Huy). Đã liên hệ phụ huynh xác nhận ốm.",
+      "loai": "diem_danh",
+      "muc_do": "can_xu_ly",
+      "trang_thai": "da_xac_nhan",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-AL-02",
+      "ngay": "09/09/2026",
+      "gio": "11:15",
+      "nguoi_ghi": "#HV Nguyễn Thị Ánh Tuyết",
+      "vai_tro": "Học vụ Cầu Giấy",
+      "ma_kpi": "#KPI 2.1",
+      "noi_dung": "# CẢNH BÁO LỖI NGHIÊM TRỌNG: Giáo viên Trần Quốc Toản nộp chậm kết quả Big Test lớp CAM-F202 quá SLA 48h. Cần nhắc nhở trừ điểm KPI.",
+      "loai": "big_test",
+      "muc_do": "khan_cap",
+      "trang_thai": "chua_xac_nhan",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-AL-03",
+      "ngay": "08/09/2026",
+      "gio": "16:45",
+      "nguoi_ghi": "#HV Vũ Minh Phương",
+      "vai_tro": "Học vụ Đống Đa",
+      "ma_kpi": "#KPI 1.4",
+      "noi_dung": "# Nhận cuộc gọi phản hồi phụ huynh em Lê Hoàng Nam (TOEIC): khen ngợi cô Thu Hương nhiệt tình hỗ trợ chấm bài tập sau giờ học.",
+      "loai": "phu_huynh",
+      "muc_do": "binh_thuong",
+      "trang_thai": "da_xac_nhan",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-AL-04",
+      "ngay": "08/09/2026",
+      "gio": "10:00",
+      "nguoi_ghi": "#HV Lê Hồng Nhung",
+      "vai_tro": "Học vụ Hà Đông",
+      "ma_kpi": "#KPI 3.2",
+      "noi_dung": "# Đôn đốc thu học phí đợt 2 lớp KID-K401: còn 3 phụ huynh hẹn chuyển khoản trước ngày 15/09.",
+      "loai": "hoc_phi",
+      "muc_do": "can_xu_ly",
+      "trang_thai": "da_xac_nhan",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-AL-05",
+      "ngay": "07/09/2026",
+      "gio": "18:30",
+      "nguoi_ghi": "#QA Hoàng Bích Thủy",
+      "vai_tro": "QA Vận hành",
+      "ma_kpi": "#KPI 4.1",
+      "noi_dung": "# Dự giờ đột xuất lớp IEL-I505: âm thanh máy chiếu phòng Lab B hoạt động tốt, giáo viên tuân thủ đúng 100% giáo án syllabus chặng 1.",
+      "loai": "qa",
+      "muc_do": "binh_thuong",
+      "trang_thai": "da_xac_nhan",
+      "isSeed": true
+    }
+  ],
+  "SEED_BIG_TEST_REQUESTS": [
+    {
+      "id": "#SEED-BT-01",
+      "ma_lop": "#IELTS-M0124",
+      "ten_lop": "# IELTS Masterclass M01",
+      "chang": "Chặng 2",
+      "giao_vien": "#GV Nguyễn Minh Anh",
+      "ngay_thi": "15/09/2026",
+      "so_luong_de": 16,
+      "sla_status": "canh_bao",
+      "trang_thai": "cho_duyet",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-BT-02",
+      "ma_lop": "#CAM-F202",
+      "ten_lop": "# Cambridge Flyer F202",
+      "chang": "Chặng cuối",
+      "giao_vien": "#GV Trần Quốc Toản",
+      "ngay_thi": "18/09/2026",
+      "so_luong_de": 12,
+      "sla_status": "dung_han",
+      "trang_thai": "cho_duyet",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-BT-03",
+      "ma_lop": "#TOE-T303",
+      "ten_lop": "# TOEIC Foundation T303",
+      "chang": "Chặng 1",
+      "giao_vien": "#GV Lê Thu Hương",
+      "ngay_thi": "20/09/2026",
+      "so_luong_de": 20,
+      "sla_status": "dung_han",
+      "trang_thai": "da_phan_phoi",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-BT-04",
+      "ma_lop": "#KID-K401",
+      "ten_lop": "# English Kids K401",
+      "chang": "Chặng 3",
+      "giao_vien": "#GV Phạm Văn Đức",
+      "ngay_thi": "22/09/2026",
+      "so_luong_de": 10,
+      "sla_status": "dung_han",
+      "trang_thai": "cho_duyet",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-BT-05",
+      "ma_lop": "#IEL-I505",
+      "ten_lop": "# IELTS Intensive I505",
+      "chang": "Chặng 1",
+      "giao_vien": "#GV Hoàng Thị Mai",
+      "ngay_thi": "25/09/2026",
+      "so_luong_de": 8,
+      "sla_status": "dung_han",
+      "trang_thai": "da_phan_phoi",
+      "isSeed": true
+    }
+  ],
+  "SEED_BIG_TEST_RESULTS": [
+    {
+      "id": "#SEED-BTR-01",
+      "hoc_vien": "#HV Nguyễn Minh Tuấn",
+      "ma_hv": "#MEN-2023-0852",
+      "lop_hoc": "# IELTS Masterclass M01",
+      "giao_vien": "#GV Sarah Miller",
+      "chang": "Big Test - Giữa kỳ",
+      "diem_phan_1": 8,
+      "diem_phan_2": 7.5,
+      "tong_diem": 7.8,
+      "video_url": "https://stream.meducation.vn/videos/bigtest-tuan-0852.mp4",
+      "nhan_xet": "# Phát âm chuẩn, ngữ điệu tự nhiên. Phần Speaking Part 2 triển khai ý mạch lạc, cần mở rộng vốn từ vựng học thuật trong Part 3.",
+      "ngay_cham": "08/09/2026",
+      "trang_thai": "cho_duyet",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-BTR-02",
+      "hoc_vien": "#HV Trần Bảo Ngọc",
+      "ma_hv": "#MEN-2023-0914",
+      "lop_hoc": "# Cambridge Flyer F202",
+      "giao_vien": "#GV John Davis",
+      "chang": "Big Test - Cuối kỳ",
+      "diem_phan_1": 9,
+      "diem_phan_2": 8.5,
+      "tong_diem": 8.8,
+      "video_url": "https://stream.meducation.vn/videos/bigtest-ngoc-0914.mp4",
+      "nhan_xet": "# Con nghe hiểu xuất sắc, phản xạ câu hỏi nhanh và chính xác. Đạt 15/15 khiên Cambridge Flyer.",
+      "ngay_cham": "07/09/2026",
+      "trang_thai": "cho_duyet",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-BTR-03",
+      "hoc_vien": "#HV Lê Hoàng Nam",
+      "ma_hv": "#MEN-2024-0105",
+      "lop_hoc": "# TOEIC Foundation T303",
+      "giao_vien": "#GV Lê Thu Hương",
+      "chang": "Big Test - Chặng 1",
+      "diem_phan_1": 380,
+      "diem_phan_2": 350,
+      "tong_diem": 730,
+      "video_url": "https://stream.meducation.vn/videos/bigtest-nam-0105.mp4",
+      "nhan_xet": "# Vượt mục tiêu 650 điểm ban đầu. Khả năng bắt keyword Listening rất tốt, tốc độ đọc hiểu cải thiện rõ rệt.",
+      "ngay_cham": "06/09/2026",
+      "trang_thai": "da_gui_phu_huynh",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-BTR-04",
+      "hoc_vien": "#HV Phạm Gia Hân",
+      "ma_hv": "#MEN-2024-0233",
+      "lop_hoc": "# English Kids K401",
+      "chang": "Big Test - Chặng 3",
+      "diem_phan_1": 9.5,
+      "diem_phan_2": 9,
+      "tong_diem": 9.3,
+      "video_url": "https://stream.meducation.vn/videos/bigtest-han-0233.mp4",
+      "nhan_xet": "# Tự tin trước ống kính, phát âm to rõ ràng, thuộc toàn bộ từ vựng chủ đề Animals & Food.",
+      "ngay_cham": "05/09/2026",
+      "trang_thai": "cho_duyet",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-BTR-05",
+      "hoc_vien": "#HV Đặng Quang Huy",
+      "ma_hv": "#MEN-2024-0341",
+      "lop_hoc": "# IELTS Intensive I505",
+      "chang": "Big Test - Giữa kỳ",
+      "diem_phan_1": 7,
+      "diem_phan_2": 6.5,
+      "tong_diem": 6.8,
+      "video_url": "https://stream.meducation.vn/videos/bigtest-huy-0341.mp4",
+      "nhan_xet": "# Tiến bộ vượt bậc so với đầu vào 5.0. Cần lưu ý quản lý thời gian phần Task 2 Writing.",
+      "ngay_cham": "04/09/2026",
+      "trang_thai": "da_gui_phu_huynh",
+      "isSeed": true
+    }
+  ],
+  "SEED_CLASS_STUDENTS": [
+    {
+      "id": "#SEED-HV-01",
+      "stt": 1,
+      "ho_ten": "#HV Nguyễn Văn An",
+      "ngay_sinh": "15/03/2010",
+      "truong_hoc": "THCS Nguyễn Du",
+      "dia_chi": "12 Phố Huế, Hai Bà Trưng, HN",
+      "ten_phu_huynh": "#PH Nguyễn Thị Bình",
+      "sdt_phu_huynh": "0912345678",
+      "ghi_chu": "—",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-HV-02",
+      "stt": 2,
+      "ho_ten": "#HV Trần Thị Bình",
+      "ngay_sinh": "22/07/2011",
+      "truong_hoc": "THCS Chu Văn An",
+      "dia_chi": "45 Lê Duẩn, Đống Đa, HN",
+      "ten_phu_huynh": "#PH Trần Văn Cường",
+      "sdt_phu_huynh": "0987654321",
+      "ghi_chu": "—",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-HV-03",
+      "stt": 3,
+      "ho_ten": "#HV Lê Văn Cường",
+      "ngay_sinh": "10/01/2010",
+      "truong_hoc": "THCS Trần Phú",
+      "dia_chi": "78 Giải Phóng, Thanh Xuân, HN",
+      "ten_phu_huynh": "#PH Lê Thị Dung",
+      "sdt_phu_huynh": "0923456789",
+      "ghi_chu": "Học sinh ưu tú",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-HV-04",
+      "stt": 4,
+      "ho_ten": "#HV Phạm Thị Dung",
+      "ngay_sinh": "05/09/2011",
+      "truong_hoc": "THCS Lý Thường Kiệt",
+      "dia_chi": "23 Nguyễn Trãi, Thanh Xuân, HN",
+      "ten_phu_huynh": "#PH Phạm Văn Em",
+      "sdt_phu_huynh": "0934567890",
+      "ghi_chu": "—",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-HV-05",
+      "stt": 5,
+      "ho_ten": "#HV Hoàng Văn Em",
+      "ngay_sinh": "18/11/2010",
+      "truong_hoc": "THCS Trưng Vương",
+      "dia_chi": "56 Láng Hạ, Đống Đa, HN",
+      "ten_phu_huynh": "#PH Hoàng Thị Giang",
+      "sdt_phu_huynh": "0945678901",
+      "ghi_chu": "Cần theo dõi thêm",
+      "isSeed": true
+    }
+  ],
+  "SEED_DAILY_REPORTS": [
+    {
+      "id": "#SEED-DR-01",
+      "ngay": "09/09/2026",
+      "chi_nhanh": "Cầu Giấy",
+      "so_lop_ke_hoach": 12,
+      "so_lop_thuc_te": 12,
+      "si_so_di_hoc": 142,
+      "tong_si_so": 150,
+      "ti_le_di_hoc": 94.7,
+      "so_gv_len_lop": 12,
+      "co_so_vat_chat_ok": true,
+      "hs_test_moi": 5,
+      "so_tien_thu_trong_ngay": 34500000,
+      "ghi_chu": "# Vận hành ca tối ổn định. Đã xử lý điều hòa phòng 202 bị rò rỉ nước.",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-DR-02",
+      "ngay": "08/09/2026",
+      "chi_nhanh": "Cầu Giấy",
+      "so_lop_ke_hoach": 10,
+      "so_lop_thuc_te": 10,
+      "si_so_di_hoc": 120,
+      "tong_si_so": 125,
+      "ti_le_di_hoc": 96,
+      "so_gv_len_lop": 10,
+      "co_so_vat_chat_ok": true,
+      "hs_test_moi": 3,
+      "so_tien_thu_trong_ngay": 21000000,
+      "ghi_chu": "# Tổ chức kiểm tra Big Test giữa kỳ lớp IELTS-M0124 đúng quy trình.",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-DR-03",
+      "ngay": "09/09/2026",
+      "chi_nhanh": "Đống Đa",
+      "so_lop_ke_hoach": 8,
+      "so_lop_thuc_te": 8,
+      "si_so_di_hoc": 96,
+      "tong_si_so": 102,
+      "ti_le_di_hoc": 94.1,
+      "so_gv_len_lop": 8,
+      "co_so_vat_chat_ok": true,
+      "hs_test_moi": 4,
+      "so_tien_thu_trong_ngay": 18000000,
+      "ghi_chu": "# Lớp TOE-T303 khai giảng tuần 2, học viên tiếp thu bài tốt.",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-DR-04",
+      "ngay": "08/09/2026",
+      "chi_nhanh": "Đống Đa",
+      "so_lop_ke_hoach": 7,
+      "so_lop_thuc_te": 7,
+      "si_so_di_hoc": 85,
+      "tong_si_so": 88,
+      "ti_le_di_hoc": 96.6,
+      "so_gv_len_lop": 7,
+      "co_so_vat_chat_ok": true,
+      "hs_test_moi": 2,
+      "so_tien_thu_trong_ngay": 12500000,
+      "ghi_chu": "# Tất cả phòng học sạch sẽ, thiết bị máy chiếu âm thanh hoạt động tốt.",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-DR-05",
+      "ngay": "09/09/2026",
+      "chi_nhanh": "Hà Đông",
+      "so_lop_ke_hoach": 6,
+      "so_lop_thuc_te": 6,
+      "si_so_di_hoc": 68,
+      "tong_si_so": 72,
+      "ti_le_di_hoc": 94.4,
+      "so_gv_len_lop": 6,
+      "co_so_vat_chat_ok": true,
+      "hs_test_moi": 3,
+      "so_tien_thu_trong_ngay": 15200000,
+      "ghi_chu": "# Lớp mầm non KID-K401 có 1 bé quấy khóc đầu giờ, trợ giảng đã dỗ dành ổn định.",
+      "isSeed": true
+    }
+  ],
+  "SEED_DOCUMENTS": [
+    {
+      "id": "#SEED-DOC-01",
+      "ten_tai_lieu": "# IELTS_Masterclass_Writing_Task2_Guide.pdf",
+      "giao_trinh": "# IELTS Masterclass",
+      "chang": "Chặng 2 (5.0 - 6.5)",
+      "dung_luong": "4.2 MB",
+      "dinh_dang": "PDF",
+      "doi_tuong": [
+        "Admin",
+        "Học vụ",
+        "Giáo viên"
+      ],
+      "co_the_tai": true,
+      "ngay_tao": "02/09/2026",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-DOC-02",
+      "ten_tai_lieu": "# Cambridge_Flyer_Unit4_Worksheet.docx",
+      "giao_trinh": "# Cambridge Flyer",
+      "chang": "Chặng 1 (Starter - Mover)",
+      "dung_luong": "1.8 MB",
+      "dinh_dang": "DOCX",
+      "doi_tuong": [
+        "Học vụ",
+        "Giáo viên"
+      ],
+      "co_the_tai": false,
+      "ngay_tao": "03/09/2026",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-DOC-03",
+      "ten_tai_lieu": "# TOEIC_Foundation_Listening_Part1_2.pptx",
+      "giao_trinh": "# TOEIC Foundation",
+      "chang": "Chặng 1 (0 - 450)",
+      "dung_luong": "12.5 MB",
+      "dinh_dang": "PPTX",
+      "doi_tuong": [
+        "Admin",
+        "Học vụ",
+        "Học thuật",
+        "Giáo viên"
+      ],
+      "co_the_tai": true,
+      "ngay_tao": "05/09/2026",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-DOC-04",
+      "ten_tai_lieu": "# English_Kids_Flashcards_Animals.pdf",
+      "giao_trinh": "# English for Kids",
+      "chang": "Chặng 3 (Super Safari)",
+      "dung_luong": "8.1 MB",
+      "dinh_dang": "PDF",
+      "doi_tuong": [
+        "Giáo viên"
+      ],
+      "co_the_tai": false,
+      "ngay_tao": "07/09/2026",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-DOC-05",
+      "ten_tai_lieu": "# Big_Test_Midterm_Evaluation_Rubric.xlsx",
+      "giao_trinh": "# IELTS Intensive",
+      "chang": "Chặng 2 (6.0 - 7.5)",
+      "dung_luong": "920 KB",
+      "dinh_dang": "XLSX",
+      "doi_tuong": [
+        "Admin",
+        "Học thuật"
+      ],
+      "co_the_tai": true,
+      "ngay_tao": "08/09/2026",
+      "isSeed": true
+    }
+  ],
+  "SEED_FINALIZE_PAYROLLS": [
+    {
+      "id": "#SEED-FP-01",
+      "giao_vien": "#GV Nguyễn Minh Anh",
+      "ma_gv": "#GV-001",
+      "chi_nhanh": "Cầu Giấy",
+      "so_buoi_day": 24,
+      "so_gio_day": 48,
+      "gio_chuan": 44,
+      "gio_day_thay": 4,
+      "ti_le_dung_gio": 98,
+      "tam_tinh_luong": 16800000,
+      "trang_thai": "cho_chot",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-FP-02",
+      "giao_vien": "#GV Trần Quốc Toản",
+      "ma_gv": "#GV-002",
+      "chi_nhanh": "Cầu Giấy",
+      "so_buoi_day": 20,
+      "so_gio_day": 40,
+      "gio_chuan": 40,
+      "gio_day_thay": 0,
+      "ti_le_dung_gio": 100,
+      "tam_tinh_luong": 14000000,
+      "trang_thai": "cho_chot",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-FP-03",
+      "giao_vien": "#GV Lê Thu Hương",
+      "ma_gv": "#GV-003",
+      "chi_nhanh": "Đống Đa",
+      "so_buoi_day": 28,
+      "so_gio_day": 56,
+      "gio_chuan": 50,
+      "gio_day_thay": 6,
+      "ti_le_dung_gio": 96,
+      "tam_tinh_luong": 19600000,
+      "trang_thai": "da_chot",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-FP-04",
+      "giao_vien": "#GV Phạm Văn Đức",
+      "ma_gv": "#GV-004",
+      "chi_nhanh": "Hà Đông",
+      "so_buoi_day": 18,
+      "so_gio_day": 36,
+      "gio_chuan": 36,
+      "gio_day_thay": 0,
+      "ti_le_dung_gio": 94,
+      "tam_tinh_luong": 12600000,
+      "trang_thai": "cho_chot",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-FP-05",
+      "giao_vien": "#GV Hoàng Thị Mai",
+      "ma_gv": "#GV-005",
+      "chi_nhanh": "Cầu Giấy",
+      "so_buoi_day": 22,
+      "so_gio_day": 44,
+      "gio_chuan": 40,
+      "gio_day_thay": 4,
+      "ti_le_dung_gio": 99,
+      "tam_tinh_luong": 15400000,
+      "trang_thai": "da_chot",
+      "isSeed": true
+    }
+  ],
+  "SEED_HOMEWORKS": [
+    {
+      "id": "#SEED-HW-01",
+      "tieu_de": "# Quay video bài nói: Topic Family & Hobbies",
+      "lop_hoc": "# IELTS Masterclass M01",
+      "buoi_hoc": "Buổi 12 - Speaking Part 1 Practice",
+      "han_nop": "12/09/2026 23:59",
+      "hang_muc": [
+        "Quay video",
+        "Viết từ vựng"
+      ],
+      "so_bai_da_nop": 14,
+      "si_so": 16,
+      "link_tai_lieu": "https://meducation.vn/hw/ielts-speaking-family.pdf",
+      "ghi_chu": "# Yêu cầu nói tối thiểu 2 phút, không nhìn giấy, sử dụng ít nhất 5 từ vựng mới.",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-HW-02",
+      "tieu_de": "# Làm bài tập Workbook Unit 4 trang 32-35",
+      "lop_hoc": "# Cambridge Flyer F202",
+      "buoi_hoc": "Buổi 8 - Grammar Past Simple",
+      "han_nop": "13/09/2026 18:00",
+      "hang_muc": [
+        "Workbook",
+        "Sách bổ trợ"
+      ],
+      "so_bai_da_nop": 12,
+      "si_so": 12,
+      "link_tai_lieu": "https://meducation.vn/hw/flyer-unit4.pdf",
+      "ghi_chu": "# Chụp ảnh rõ nét các trang bài làm gửi lên app trước giờ vào lớp.",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-HW-03",
+      "tieu_de": "# Quiz từ vựng Part 5 TOEIC Economy",
+      "lop_hoc": "# TOEIC Foundation T303",
+      "buoi_hoc": "Buổi 5 - Incomplete Sentences",
+      "han_nop": "14/09/2026 22:00",
+      "hang_muc": [
+        "Quiz online"
+      ],
+      "so_bai_da_nop": 18,
+      "si_so": 20,
+      "link_tai_lieu": "https://quizizz.com/join?gc=892312",
+      "ghi_chu": "# Mỗi học viên có tối đa 2 lần làm lại để cải thiện điểm số.",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-HW-04",
+      "tieu_de": "# Hát bài hát ABC Phonics và quay clip",
+      "lop_hoc": "# English Kids K401",
+      "buoi_hoc": "Buổi 10 - Letter G & H",
+      "han_nop": "15/09/2026 17:00",
+      "hang_muc": [
+        "Quay video"
+      ],
+      "so_bai_da_nop": 9,
+      "si_so": 10,
+      "link_tai_lieu": "https://youtube.com/watch?v=phonics-song",
+      "ghi_chu": "# Ba mẹ quay clip ngắn 45s con phát âm và hát theo điệu nhạc.",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-HW-05",
+      "tieu_de": "# Viết đoạn văn ngắn Task 1 biểu đồ Bar Chart",
+      "lop_hoc": "# IELTS Intensive I505",
+      "buoi_hoc": "Buổi 7 - Writing Task 1 Overview",
+      "han_nop": "16/09/2026 23:59",
+      "hang_muc": [
+        "Bài viết",
+        "Workbook"
+      ],
+      "so_bai_da_nop": 8,
+      "si_so": 8,
+      "link_tai_lieu": "https://meducation.vn/hw/ielts-task1-barchart.docx",
+      "ghi_chu": "# Độ dài từ 150-180 từ, tập trung so sánh các số liệu nổi bật.",
+      "isSeed": true
+    }
+  ],
+  "SEED_KPI_CRITERIA": [
+    {
+      "id": "#SEED-KPI-01",
+      "nhom": "Chuyên môn & Đào tạo",
+      "ten": "# 1.1 Đôn đốc học viên nộp bài tập về nhà",
+      "tien": "400.000đ",
+      "max": "Tỷ lệ nộp ≥ 85%",
+      "min": "Tỷ lệ nộp ≥ 70%",
+      "toggle": true,
+      "date": "01/01/2026",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-KPI-02",
+      "nhom": "Chuyên môn & Đào tạo",
+      "ten": "# 1.2 Nhập kết quả Big Test đúng hạn SLA",
+      "tien": "350.000đ",
+      "max": "100% đúng hạn trong 48h",
+      "min": "≥ 90% đúng hạn",
+      "toggle": true,
+      "date": "01/01/2026",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-KPI-03",
+      "nhom": "Chuyên môn & Đào tạo",
+      "ten": "# 1.3 Phối hợp tổ chức dự giờ QA",
+      "tien": "300.000đ",
+      "max": "Đạt ≥ 90 điểm QA",
+      "min": "Đạt ≥ 75 điểm QA",
+      "toggle": true,
+      "date": "01/01/2026",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-KPI-04",
+      "nhom": "Vận hành lớp & Chấm công",
+      "ten": "# 2.1 Điểm danh lớp học trong vòng 24h",
+      "tien": "500.000đ",
+      "max": "100% đúng 24h",
+      "min": "≥ 95% đúng 24h",
+      "toggle": true,
+      "date": "01/01/2026",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-KPI-05",
+      "nhom": "Vận hành lớp & Chấm công",
+      "ten": "# 2.2 Nộp báo cáo vận hành ngày",
+      "tien": "300.000đ",
+      "max": "Nộp trước 22:30 hàng ngày",
+      "min": "Nộp trước 23:00",
+      "toggle": true,
+      "date": "01/01/2026",
+      "isSeed": true
+    }
+  ],
+  "SEED_PARENT_NOTIFICATIONS": [
+    {
+      "id": "#SEED-PN-01",
+      "tieu_de": "# Kết quả bài kiểm tra Big Test giữa kỳ đã có!",
+      "loai": "ket_qua",
+      "noi_dung": "# Học viên Nguyễn Minh Tuấn đạt 7.8/9.0 điểm trong đợt Big Test vừa qua. Quý phụ huynh vui lòng bấm vào để xem chi tiết nhận xét của giáo viên.",
+      "thoi_gian": "10 phút trước",
+      "da_doc": false,
+      "action_url": "/parent-portal?tab=learning",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-PN-02",
+      "tieu_de": "# Thông báo hoàn tất đóng học phí đợt 1",
+      "loai": "hoc_phi",
+      "noi_dung": "# Trung tâm MENGLISH xác nhận đã nhận số tiền 15.000.000đ học phí khóa IELTS Starter. Phiếu thu điện tử mã PT12345 đã được tạo.",
+      "thoi_gian": "Hôm qua",
+      "da_doc": true,
+      "action_url": "/parent-portal?tab=home",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-PN-03",
+      "tieu_de": "# Nhắc nhở nộp bài tập về nhà Unit 4",
+      "loai": "lich_hoc",
+      "noi_dung": "# Hạn nộp bài tập quay video Speaking của lớp IELTS Masterclass là 23:59 ngày 12/09. Con còn 2 ngày để hoàn thành.",
+      "thoi_gian": "07/09/2026",
+      "da_doc": true,
+      "action_url": "/parent-portal?tab=learning",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-PN-04",
+      "tieu_de": "# Khảo sát chất lượng giảng dạy tháng 9",
+      "loai": "su_kien",
+      "noi_dung": "# MENGLISH kính mời Quý phụ huynh dành 2 phút đánh giá chất lượng phục vụ và giáo viên để trung tâm không ngừng nâng cao trải nghiệm.",
+      "thoi_gian": "05/09/2026",
+      "da_doc": false,
+      "action_url": "/parent-portal?tab=survey",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-PN-05",
+      "tieu_de": "# Thông báo lịch nghỉ bù Quốc khánh 02/09",
+      "loai": "lich_hoc",
+      "noi_dung": "# Lớp học sẽ học bù vào chiều thứ Bảy ngày 12/09 lúc 17:30. Quý phụ huynh vui lòng sắp xếp thời gian đưa đón con đúng giờ.",
+      "thoi_gian": "01/09/2026",
+      "da_doc": true,
+      "action_url": "/parent-portal?tab=home",
+      "isSeed": true
+    }
+  ],
+  "SEED_PARENT_RECEIPTS": [
+    {
+      "id": "#PT12345",
+      "title": "# Học phí khóa IELTS Starter (Đợt 1)",
+      "date": "01/08/2026",
+      "amount": "15.000.000đ",
+      "method": "Chuyển khoản Vietcombank",
+      "status": "Đã duyệt",
+      "isSeed": true
+    },
+    {
+      "id": "#PT11982",
+      "title": "# Phí giáo trình & tài liệu bổ trợ",
+      "date": "01/08/2026",
+      "amount": "1.200.000đ",
+      "method": "Tiền mặt tại quầy",
+      "status": "Đã duyệt",
+      "isSeed": true
+    },
+    {
+      "id": "#PT10543",
+      "title": "# Học phí khóa Dự bị tiếng Anh",
+      "date": "15/05/2026",
+      "amount": "8.500.000đ",
+      "method": "Chuyển khoản",
+      "status": "Đã duyệt",
+      "isSeed": true
+    },
+    {
+      "id": "#PT09821",
+      "title": "# Phí thi thử Mock Test Quốc tế",
+      "date": "10/04/2026",
+      "amount": "500.000đ",
+      "method": "Chuyển khoản",
+      "status": "Đã duyệt",
+      "isSeed": true
+    },
+    {
+      "id": "#PT08210",
+      "title": "# Học phí khóa Phát âm nền tảng",
+      "date": "20/01/2026",
+      "amount": "4.500.000đ",
+      "method": "Chuyển khoản Techcombank",
+      "status": "Đã duyệt",
+      "isSeed": true
+    }
+  ],
+  "SEED_PROGRESS_ADJUSTMENTS": [
+    {
+      "id": "#SEED-PA-01",
+      "giao_vien": "#GV Nguyễn Văn Tuấn",
+      "lop_hoc": "# IELTS Intensive - Chặng 2",
+      "chang": "Chặng 2",
+      "so_buoi_xin_them": 2,
+      "ly_do": "# Học viên yếu phần Speaking Part 3, cần thêm 2 buổi luyện mock test chuyên sâu để đảm bảo đầu ra.",
+      "ngay_gui": "05/09/2026",
+      "han_duyet": "10/09/2026",
+      "trang_thai": "cho_duyet",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-PA-02",
+      "giao_vien": "#GV Trần Minh Anh",
+      "lop_hoc": "# Cambridge Flyer - F202",
+      "chang": "Chặng 1",
+      "so_buoi_xin_them": 1,
+      "ly_do": "# Lớp bị trùng lịch nghỉ lễ 02/09, xin bù 1 buổi vào thứ Bảy tuần này.",
+      "ngay_gui": "06/09/2026",
+      "han_duyet": "11/09/2026",
+      "trang_thai": "cho_duyet",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-PA-03",
+      "giao_vien": "#GV Lê Thị Thu",
+      "lop_hoc": "# TOEIC Foundation - T303",
+      "chang": "Chặng 3",
+      "so_buoi_xin_them": 3,
+      "ly_do": "# Sĩ số đông (18 HV), cần thêm buổi sửa đề thi thử và giải thích chi tiết Part 7 Reading.",
+      "ngay_gui": "07/09/2026",
+      "han_duyet": "12/09/2026",
+      "trang_thai": "cho_duyet",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-PA-04",
+      "giao_vien": "#GV Hoàng Đức Nam",
+      "lop_hoc": "# English for Kids - K401",
+      "chang": "Chặng 2",
+      "so_buoi_xin_them": 1,
+      "ly_do": "# Ôn tập bài hát và đóng kịch tiếng Anh cuối kỳ cho học viên mầm non.",
+      "ngay_gui": "08/09/2026",
+      "han_duyet": "13/09/2026",
+      "trang_thai": "da_duyet",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-PA-05",
+      "giao_vien": "#GV Phạm Hải Đăng",
+      "lop_hoc": "# Business Communication - B101",
+      "chang": "Chặng 1",
+      "so_buoi_xin_them": 2,
+      "ly_do": "# Bổ sung kỹ năng thuyết trình đàm phán hợp đồng quốc tế theo nguyện vọng doanh nghiệp.",
+      "ngay_gui": "09/09/2026",
+      "han_duyet": "14/09/2026",
+      "trang_thai": "cho_duyet",
+      "isSeed": true
+    }
+  ],
+  "SEED_ROLLUP_TUITIONS": [
+    {
+      "stt": 1,
+      "ten": "#HV Nguyễn Văn An",
+      "dob": "15/03/2010",
+      "sch": "THCS Nguyễn Du",
+      "d1_tien": "6.500.000đ",
+      "d1_tt": "Đã hoàn tất",
+      "d1_ht": "Chuyển khoản",
+      "d1_hd": "#HD-2026-081",
+      "d2_tien": "6.500.000đ",
+      "d2_tt": "Đã hoàn tất",
+      "d2_ht": "Chuyển khoản",
+      "d2_hd": "#HD-2026-112",
+      "isSeed": true
+    },
+    {
+      "stt": 2,
+      "ten": "#HV Trần Thị Bình",
+      "dob": "22/07/2011",
+      "sch": "THCS Chu Văn An",
+      "d1_tien": "6.500.000đ",
+      "d1_tt": "Đã hoàn tất",
+      "d1_ht": "Chuyển khoản",
+      "d1_hd": "#HD-2026-082",
+      "d2_tien": "6.500.000đ",
+      "d2_tt": "Đã hoàn tất",
+      "d2_ht": "Tiền mặt",
+      "d2_hd": "#HD-2026-113",
+      "isSeed": true
+    },
+    {
+      "stt": 3,
+      "ten": "#HV Lê Văn Cường",
+      "dob": "10/01/2010",
+      "sch": "THCS Trần Phú",
+      "d1_tien": "6.500.000đ",
+      "d1_tt": "Đã hoàn tất",
+      "d1_ht": "POS quẹt thẻ",
+      "d1_hd": "#HD-2026-083",
+      "d2_tien": "6.500.000đ",
+      "d2_tt": "Chờ thanh toán",
+      "d2_ht": "—",
+      "d2_hd": "—",
+      "isSeed": true
+    },
+    {
+      "stt": 4,
+      "ten": "#HV Phạm Thị Dung",
+      "dob": "05/09/2011",
+      "sch": "THCS Lý Thường Kiệt",
+      "d1_tien": "6.500.000đ",
+      "d1_tt": "Đã hoàn tất",
+      "d1_ht": "Chuyển khoản",
+      "d1_hd": "#HD-2026-084",
+      "d2_tien": "6.500.000đ",
+      "d2_tt": "Đã hoàn tất",
+      "d2_ht": "Chuyển khoản",
+      "d2_hd": "#HD-2026-114",
+      "isSeed": true
+    },
+    {
+      "stt": 5,
+      "ten": "#HV Hoàng Văn Em",
+      "dob": "18/11/2010",
+      "sch": "THCS Trưng Vương",
+      "d1_tien": "6.500.000đ",
+      "d1_tt": "Đã hoàn tất",
+      "d1_ht": "Chuyển khoản",
+      "d1_hd": "#HD-2026-085",
+      "d2_tien": "6.500.000đ",
+      "d2_tt": "Chờ thanh toán",
+      "d2_ht": "—",
+      "d2_hd": "—",
+      "isSeed": true
+    }
+  ],
+  "SEED_SCHEDULE_ATTENDANCES": [
+    {
+      "id": "#SEED-SA-01",
+      "ten_lop": "# ENG-B1 · IELTS Căn Bản K26",
+      "gio_hoc": "17:30 - 19:30",
+      "phong": "Phòng P101 (Cầu Giấy)",
+      "giao_vien": "#GV Nguyễn Minh Anh",
+      "nguon_checkin": "teacher_mobile",
+      "thoi_gian_checkin": "17:25 (Đúng giờ)",
+      "da_duyet": false,
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-SA-02",
+      "ten_lop": "# CAM-F202 · Cambridge Flyer",
+      "gio_hoc": "18:00 - 19:30",
+      "phong": "Phòng P202 (Cầu Giấy)",
+      "giao_vien": "#GV Trần Quốc Toản",
+      "nguon_checkin": "confirmed",
+      "thoi_gian_checkin": "17:55 (Học vụ duyệt)",
+      "da_duyet": true,
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-SA-03",
+      "ten_lop": "# TOE-T303 · TOEIC Cấp Tốc",
+      "gio_hoc": "19:45 - 21:15",
+      "phong": "Phòng P301 (Đống Đa)",
+      "giao_vien": "#GV Lê Thu Hương",
+      "nguon_checkin": "auto",
+      "thoi_gian_checkin": "Hệ thống tự động pre-fill",
+      "da_duyet": false,
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-SA-04",
+      "ten_lop": "# KID-K401 · Super Safari 1",
+      "gio_hoc": "08:30 - 10:00",
+      "phong": "Phòng Kids A (Hà Đông)",
+      "giao_vien": "#GV Phạm Văn Đức",
+      "nguon_checkin": "teacher_mobile",
+      "thoi_gian_checkin": "08:20 (Đúng giờ)",
+      "da_duyet": true,
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-SA-05",
+      "ten_lop": "# IEL-I505 · IELTS Intensive",
+      "gio_hoc": "19:30 - 21:30",
+      "phong": "Phòng Lab B (Cầu Giấy)",
+      "giao_vien": "#GV Hoàng Thị Mai",
+      "nguon_checkin": "auto",
+      "thoi_gian_checkin": "Hệ thống tự động pre-fill",
+      "da_duyet": false,
+      "isSeed": true
+    }
+  ],
+  "SEED_STAGE_ASSIGNMENTS": [
+    {
+      "id": "#SEED-SA-01",
+      "lop": "# IELTS Masterclass M01",
+      "chang": "Chặng 1 (Nền tảng)",
+      "gv": "#GV Nguyễn Minh Anh",
+      "thoi_gian": "01/08 - 15/09/2026",
+      "trang_thai": "Đang dạy",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-SA-02",
+      "lop": "# IELTS Masterclass M01",
+      "chang": "Chặng 2 (Kỹ năng)",
+      "gv": "#GV Trần Quốc Toản",
+      "thoi_gian": "16/09 - 30/10/2026",
+      "trang_thai": "Chờ nhận",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-SA-03",
+      "lop": "# Cambridge Flyer F202",
+      "chang": "Chặng 1 (Flyer 1)",
+      "gv": "#GV Lê Thu Hương",
+      "thoi_gian": "10/08 - 25/09/2026",
+      "trang_thai": "Đang dạy",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-SA-04",
+      "lop": "# TOEIC Foundation T303",
+      "chang": "Chặng 1 (Nghe hiểu)",
+      "gv": "#GV Phạm Văn Đức",
+      "thoi_gian": "15/08 - 30/09/2026",
+      "trang_thai": "Đang dạy",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-SA-05",
+      "lop": "# English Kids K401",
+      "chang": "Chặng 3 (Super Safari)",
+      "gv": "#GV Hoàng Thị Mai",
+      "thoi_gian": "01/09 - 15/10/2026",
+      "trang_thai": "Đang dạy",
+      "isSeed": true
+    }
+  ],
+  "SEED_SUBSTITUTIONS": [
+    {
+      "id": "#SEED-SUB-01",
+      "lop_hoc": "# IELTS Masterclass M01",
+      "gv_chinh": "#GV Nguyễn Minh Anh",
+      "gv_day_thay": "#GV Trần Quốc Toản",
+      "ngay_day": "11/09/2026",
+      "ca_day": "17:30 - 19:30",
+      "ly_do": "# GV chính bị sốt xuất huyết nhập viện 3 ngày.",
+      "trang_thai": "cho_xac_nhan",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-SUB-02",
+      "lop_hoc": "# Cambridge Flyer F202",
+      "gv_chinh": "#GV Trần Quốc Toản",
+      "gv_day_thay": "#GV Lê Thu Hương",
+      "ngay_day": "12/09/2026",
+      "ca_day": "18:00 - 19:30",
+      "ly_do": "# Bận lịch thi chứng chỉ TESOL quốc tế.",
+      "trang_thai": "cho_xac_nhan",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-SUB-03",
+      "lop_hoc": "# TOEIC Foundation T303",
+      "gv_chinh": "#GV Lê Thu Hương",
+      "gv_day_thay": "#GV Hoàng Thị Mai",
+      "ngay_day": "14/09/2026",
+      "ca_day": "19:45 - 21:15",
+      "ly_do": "# Công tác đào tạo giáo trình tại TP.HCM.",
+      "trang_thai": "da_duyet",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-SUB-04",
+      "lop_hoc": "# English Kids K401",
+      "gv_chinh": "#GV Phạm Văn Đức",
+      "gv_day_thay": "#GV Nguyễn Minh Anh",
+      "ngay_day": "16/09/2026",
+      "ca_day": "08:30 - 10:00",
+      "ly_do": "# Việc gia đình đột xuất.",
+      "trang_thai": "cho_xac_nhan",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-SUB-05",
+      "lop_hoc": "# IELTS Intensive I505",
+      "gv_chinh": "#GV Hoàng Thị Mai",
+      "gv_day_thay": "#GV Phạm Văn Đức",
+      "ngay_day": "18/09/2026",
+      "ca_day": "19:30 - 21:30",
+      "ly_do": "# Trùng lịch họp hội đồng chuyên môn Sở GD.",
+      "trang_thai": "da_duyet",
+      "isSeed": true
+    }
+  ],
+  "SEED_SYLLABUS_EDIT_PROPOSALS": [
+    {
+      "id": "#SEED-PROP-01",
+      "buoi": "# Buổi 14: Writing Task 1 - Bar Chart & Line Graph",
+      "noi_dung_cu": [
+        "• Từ vựng: dramatic increase, plunge, fluctuate, remain steady.",
+        "• Ngữ pháp: Các cấu trúc mô tả xu hướng thì quá khứ đơn.",
+        "• Bài tập về nhà: 01 bài viết Task 1 từ sách Cambridge 16."
+      ],
+      "noi_dung_moi": [
+        "+ Bổ sung: Bảng số liệu năng lượng tái tạo mới nhất từ đề thi thật Q2/2026.",
+        "+ Bổ sung: Template so sánh phức hợp 2 trục tung (dual axes).",
+        "+ Cập nhật từ vựng band 8.0: witness a plateau, outstrip, surge noticeably."
+      ],
+      "ly_do": "Đề thi thật gần đây ra nhiều dạng mixed chart, học viên hay bị bỡ ngỡ.",
+      "nguoi_gui": "#GV Nguyễn Minh Anh",
+      "trang_thai": "Chờ Hội đồng duyệt",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-PROP-02",
+      "buoi": "# Buổi 08: Cambridge Flyer - Past Continuous",
+      "noi_dung_cu": [
+        "• Bài tập điền từ theo sách cũ Flyer 2022."
+      ],
+      "noi_dung_moi": [
+        "+ Thay thế bằng trò chơi tương tác Wordwall & Kahoot trực tuyến."
+      ],
+      "ly_do": "Tăng tương tác cho học sinh tiểu học, giảm sự nhàm chán.",
+      "nguoi_gui": "#GV Lê Thu Hương",
+      "trang_thai": "Đã duyệt",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-PROP-03",
+      "buoi": "# Buổi 20: Speaking Part 3 - Technology and Society",
+      "noi_dung_cu": [
+        "• Thảo luận chủ đề Smartphone & Internet truyền thống."
+      ],
+      "noi_dung_moi": [
+        "+ Bổ sung chủ đề Trí tuệ nhân tạo (AI), Tự động hóa và Deepfake."
+      ],
+      "ly_do": "Đề thi IELTS Speaking 2026 xuất hiện nhiều câu hỏi về Generative AI.",
+      "nguoi_gui": "#GV Trần Quốc Toản",
+      "trang_thai": "Chờ Hội đồng duyệt",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-PROP-04",
+      "buoi": "# Buổi 05: TOEIC Part 7 - Reading Comprehension Emails",
+      "noi_dung_cu": [
+        "• Đoạn văn mẫu email ngắn 100 từ."
+      ],
+      "noi_dung_moi": [
+        "+ Bổ sung chuỗi 3 đoạn email trao đổi công việc (Triple Passages)."
+      ],
+      "ly_do": "Rèn luyện tốc độ đọc hiểu văn bản dài cho học viên mục tiêu 750+.",
+      "nguoi_gui": "#GV Phạm Văn Đức",
+      "trang_thai": "Chờ Hội đồng duyệt",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-PROP-05",
+      "buoi": "# Buổi 12: Super Safari - Phonics Animals",
+      "noi_dung_cu": [
+        "• Tranh flashcard in đen trắng."
+      ],
+      "noi_dung_moi": [
+        "+ File âm thanh bài hát chuẩn giọng Anh-Anh và video mầm non."
+      ],
+      "ly_do": "Kích thích phản xạ âm thanh cho các bé mầm non 3-5 tuổi.",
+      "nguoi_gui": "#GV Hoàng Thị Mai",
+      "trang_thai": "Đã duyệt",
+      "isSeed": true
+    }
+  ],
+  "SEED_SYLLABUS_STAGES": [
+    {
+      "id": "#SEED-STG-01",
+      "ten_chang": "# Chặng 1: Nền tảng ngữ pháp & Nghe hiểu phản xạ",
+      "so_buoi": "Buổi 1 - 12",
+      "mo_ta": "Gồm 12 buổi học củng cố ngữ âm IPA và cấu trúc câu căn bản",
+      "active": false,
+      "danh_sach_buoi": [
+        {
+          "buoi": 1,
+          "tieu_de": "# Buổi 1: Ngữ âm căn bản & Trọng âm từ",
+          "muc_tieu": "Phát âm chuẩn 44 âm IPA",
+          "test": false
+        },
+        {
+          "buoi": 2,
+          "tieu_de": "# Buổi 2: Thì Hiện tại đơn & Tiếp diễn",
+          "muc_tieu": "Phân biệt cách dùng trong giao tiếp",
+          "test": false
+        }
+      ],
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-STG-02",
+      "ten_chang": "# Chặng 2: Kỹ năng Speaking Part 2 & Writing Task 1",
+      "so_buoi": "Buổi 13 - 24",
+      "mo_ta": "Gồm 12 buổi học + 1 buổi thi Big Test đánh giá chặng",
+      "active": true,
+      "danh_sach_buoi": [
+        {
+          "buoi": 13,
+          "tieu_de": "# Buổi 13: Writing Task 1: Overview of Graphs with a Trend",
+          "muc_tieu": "Bố cục 4 đoạn, cách viết Overview đạt band 7.0",
+          "test": false
+        },
+        {
+          "buoi": 14,
+          "tieu_de": "# Buổi 14: Speaking Part 2: Describing a Person / Experience",
+          "muc_tieu": "Sử dụng thì quá khứ đơn, từ vựng tính cách",
+          "test": false
+        },
+        {
+          "buoi": 15,
+          "tieu_de": "# Buổi 15: Writing Task 1: Comparative Graphs & Pie Charts",
+          "muc_tieu": "Kỹ thuật so sánh tỷ lệ phần trăm",
+          "test": false
+        },
+        {
+          "buoi": 24,
+          "tieu_de": "# Buổi 24: BIG TEST ĐÁNH GIÁ CHẶNG 2",
+          "muc_tieu": "Kiểm tra 2 kỹ năng Speaking 1-1 + Writing Task 1",
+          "test": true
+        }
+      ],
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-STG-03",
+      "ten_chang": "# Chặng 3: Chiến thuật Reading & Listening nâng cao",
+      "so_buoi": "Buổi 25 - 36",
+      "mo_ta": "Gồm 12 buổi luyện dạng bài Matching Headings, Multiple Choice",
+      "active": false,
+      "danh_sach_buoi": [
+        {
+          "buoi": 25,
+          "tieu_de": "# Buổi 25: Skimming & Scanning Speed Reading",
+          "muc_tieu": "Đọc lướt bắt ý chính trong 2 phút",
+          "test": false
+        }
+      ],
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-STG-04",
+      "ten_chang": "# Chặng 4: Luyện đề Mock Test chuyên sâu & Big Test tốt nghiệp",
+      "so_buoi": "Buổi 37 - 48",
+      "mo_ta": "Gồm 12 buổi thi thử áp lực phòng thi thật",
+      "active": false,
+      "danh_sach_buoi": [
+        {
+          "buoi": 48,
+          "tieu_de": "# Buổi 48: BIG TEST TỐT NGHIỆP TOÀN KHÓA",
+          "muc_tieu": "Thi 4 kỹ năng chuẩn đề thi IDP/BC",
+          "test": true
+        }
+      ],
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-STG-05",
+      "ten_chang": "# Chặng Bổ trợ: Workshop Phát âm & Ngữ pháp chuyên đề",
+      "so_buoi": "4 Buổi tăng cường",
+      "mo_ta": "Dành cho học sinh yếu hoặc cần củng cố kiến thức",
+      "active": false,
+      "danh_sach_buoi": [
+        {
+          "buoi": 1,
+          "tieu_de": "# Workshop 1: Phản xạ âm nối và ngữ điệu câu",
+          "muc_tieu": "Tự nhiên hóa câu trả lời",
+          "test": false
+        }
+      ],
+      "isSeed": true
+    }
+  ],
+  "SEED_TEACHER_ATTENDANCE_ROSTER": [
+    {
+      "id": "#SEED-ATT-01",
+      "name": "#HV Nguyễn Văn An",
+      "enName": "Alex",
+      "code": "#MEN-001",
+      "status": "dung_gio",
+      "note": "",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-ATT-02",
+      "name": "#HV Trần Thị Bình",
+      "enName": "Bella",
+      "code": "#MEN-002",
+      "status": "dung_gio",
+      "note": "",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-ATT-03",
+      "name": "#HV Lê Văn Cường",
+      "enName": "Chris",
+      "code": "#MEN-003",
+      "status": "muon",
+      "note": "# Đến muộn 15 phút do tắc đường",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-ATT-04",
+      "name": "#HV Phạm Thị Dung",
+      "enName": "Daisy",
+      "code": "#MEN-004",
+      "status": "nghi_co_phep",
+      "note": "# Gia đình xin phép đi khám bệnh",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-ATT-05",
+      "name": "#HV Hoàng Văn Em",
+      "enName": "Eric",
+      "code": "#MEN-005",
+      "status": "dung_gio",
+      "note": "",
+      "isSeed": true
+    }
+  ],
+  "SEED_TEACHER_MY_SESSIONS": [
+    {
+      "id": "#SEED-TMS-01",
+      "lop": "# IELTS Masterclass M01",
+      "gio": "17:30 - 19:30",
+      "phong": "P101 (Cầu Giấy)",
+      "role": "GV Chính",
+      "checkedIn": true,
+      "status": "Đúng giờ",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-TMS-02",
+      "lop": "# Cambridge Flyer F202",
+      "gio": "19:45 - 21:15",
+      "phong": "P202 (Cầu Giấy)",
+      "role": "GV Chính",
+      "checkedIn": false,
+      "status": "Chờ check-in",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-TMS-03",
+      "lop": "# TOEIC Foundation T303",
+      "gio": "17:30 - 19:30 (Thứ Sáu)",
+      "phong": "P301 (Đống Đa)",
+      "role": "Dạy thay",
+      "checkedIn": false,
+      "status": "Sắp diễn ra",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-TMS-04",
+      "lop": "# English Kids K401",
+      "gio": "08:30 - 10:00 (Thứ Bảy)",
+      "phong": "Kids A (Hà Đông)",
+      "role": "GV Chính",
+      "checkedIn": false,
+      "status": "Chưa đến giờ",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-TMS-05",
+      "lop": "# IELTS Intensive I505",
+      "gio": "19:30 - 21:30 (Chủ Nhật)",
+      "phong": "Lab B (Cầu Giấy)",
+      "role": "GV Chính",
+      "checkedIn": false,
+      "status": "Chưa đến giờ",
+      "isSeed": true
+    }
+  ],
+  "SEED_TEACHER_SUB_POOL": [
+    {
+      "id": "#SEED-SP-01",
+      "lop": "# English Kids K401",
+      "gio": "08:30 - 10:00 (Thứ Bảy)",
+      "gvNho": "#GV Phạm Văn Đức",
+      "lyDo": "# Việc gia đình đột xuất",
+      "phong": "Kids A (Hà Đông)",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-SP-02",
+      "lop": "# IELTS Intensive I505",
+      "gio": "19:30 - 21:30 (Chủ Nhật)",
+      "gvNho": "#GV Hoàng Thị Mai",
+      "lyDo": "# Họp hội đồng Sở GD",
+      "phong": "Lab B (Cầu Giấy)",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-SP-03",
+      "lop": "# TOEIC Foundation T303",
+      "gio": "17:30 - 19:30 (Thứ Hai)",
+      "gvNho": "#GV Lê Thu Hương",
+      "lyDo": "# Công tác tại chi nhánh",
+      "phong": "P301 (Đống Đa)",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-SP-04",
+      "lop": "# Cambridge Flyer F202",
+      "gio": "18:00 - 19:30 (Thứ Ba)",
+      "gvNho": "#GV Trần Quốc Toản",
+      "lyDo": "# Thi chứng chỉ TESOL",
+      "phong": "P202 (Cầu Giấy)",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-SP-05",
+      "lop": "# IELTS Masterclass M01",
+      "gio": "19:45 - 21:15 (Thứ Tư)",
+      "gvNho": "#GV Nguyễn Minh Anh",
+      "lyDo": "# Bị sốt cao",
+      "phong": "P101 (Cầu Giấy)",
+      "isSeed": true
+    }
+  ],
+  "SEED_TRIAL_BOOKINGS": [
+    {
+      "id": "#SEED-TB-01",
+      "ho_ten_khach": "#KH Nguyễn Vũ Linh Nhi",
+      "so_dien_thoai": "0982345678",
+      "email": "linhnhi.nguyen@gmail.com",
+      "lop_du_kien": "# IELTS Masterclass M01",
+      "ngay_hoc_thu": "12/09/2026 (17:30)",
+      "chi_nhanh": "Cầu Giấy",
+      "nguoi_tu_van": "#NV Trần Mai Phương (Sales Lead)",
+      "trang_thai": "cho_xep_lich",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-TB-02",
+      "ho_ten_khach": "#KH Trịnh Gia Bảo",
+      "so_dien_thoai": "0918765432",
+      "email": "baotrinh@yahoo.com",
+      "lop_du_kien": "# Cambridge Flyer F202",
+      "ngay_hoc_thu": "13/09/2026 (18:00)",
+      "chi_nhanh": "Cầu Giấy",
+      "nguoi_tu_van": "#NV Lê Thu Trang",
+      "trang_thai": "da_dat_lich",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-TB-03",
+      "ho_ten_khach": "#KH Vũ Đình Phong",
+      "so_dien_thoai": "0904567890",
+      "email": "phongvu@outlook.com",
+      "lop_du_kien": "# TOEIC Foundation T303",
+      "ngay_hoc_thu": "14/09/2026 (19:45)",
+      "chi_nhanh": "Đống Đa",
+      "nguoi_tu_van": "#NV Nguyễn Thùy Dung",
+      "trang_thai": "da_dat_lich",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-TB-04",
+      "ho_ten_khach": "#KH Lê Minh Khôi",
+      "so_dien_thoai": "0934123789",
+      "email": "khoile@gmail.com",
+      "lop_du_kien": "# English Kids K401",
+      "ngay_hoc_thu": "16/09/2026 (08:30)",
+      "chi_nhanh": "Hà Đông",
+      "nguoi_tu_van": "#NV Trần Mai Phương",
+      "trang_thai": "da_tham_gia",
+      "isSeed": true
+    },
+    {
+      "id": "#SEED-TB-05",
+      "ho_ten_khach": "#KH Hoàng Yến My",
+      "so_dien_thoai": "0976234891",
+      "email": "myhoang@gmail.com",
+      "lop_du_kien": "# IELTS Intensive I505",
+      "ngay_hoc_thu": "18/09/2026 (19:30)",
+      "chi_nhanh": "Cầu Giấy",
+      "nguoi_tu_van": "#NV Lê Thu Trang",
+      "trang_thai": "cho_xep_lich",
+      "isSeed": true
+    }
+  ]
+}

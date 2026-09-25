@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Cấu hình Trình độ &amp; Syllabus - MENGLISH</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed-dim": "#78de4b",
+                    "surface-bright": "#f9f9ff",
+                    "on-secondary-fixed-variant": "#002fc9",
+                    "on-secondary-container": "#faf7ff",
+                    "on-tertiary-fixed": "#062100",
+                    "on-primary-container": "#521c00",
+                    "outline-variant": "#e1bfb2",
+                    "inverse-on-surface": "#edf0ff",
+                    "primary-fixed": "#ffdbcd",
+                    "surface-container-high": "#e0e8ff",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#4160ff",
+                    "on-secondary-fixed": "#00105b",
+                    "on-error-container": "#93000a",
+                    "surface-container-low": "#f1f3ff",
+                    "error-container": "#ffdad6",
+                    "on-tertiary": "#ffffff",
+                    "background": "#f9f9ff",
+                    "primary": "#a23f00",
+                    "tertiary": "#256d00",
+                    "surface-container-highest": "#dae2fa",
+                    "on-background": "#131c2d",
+                    "surface": "#f9f9ff",
+                    "inverse-surface": "#283042",
+                    "primary-container": "#f5691a",
+                    "secondary": "#1e43e7",
+                    "surface-tint": "#a23f00",
+                    "on-secondary": "#ffffff",
+                    "on-surface-variant": "#594137",
+                    "on-tertiary-container": "#0e3500",
+                    "error": "#ba1a1a",
+                    "tertiary-fixed": "#93fb65",
+                    "secondary-fixed-dim": "#bac3ff",
+                    "inverse-primary": "#ffb595",
+                    "on-surface": "#131c2d",
+                    "tertiary-container": "#46a917",
+                    "on-tertiary-fixed-variant": "#1a5200",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container": "#e8edff",
+                    "secondary-fixed": "#dee0ff",
+                    "surface-dim": "#d1daf2",
+                    "primary-fixed-dim": "#ffb595",
+                    "surface-variant": "#dae2fa",
+                    "on-primary-fixed": "#360f00",
+                    "outline": "#8d7165",
+                    "on-primary-fixed-variant": "#7c2e00",
+                    "on-primary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gutter": "20px",
+                    "xs": "8px",
+                    "sm": "12px",
+                    "lg": "24px",
+                    "md": "16px",
+                    "xl": "32px",
+                    "sidebar_width": "260px",
+                    "base": "4px"
+            },
+            "fontFamily": {
+                    "label-caps": ["Be Vietnam Pro"],
+                    "h3-card": ["Be Vietnam Pro"],
+                    "caption-badge": ["Be Vietnam Pro"],
+                    "body-semibold": ["Be Vietnam Pro"],
+                    "body-main": ["Be Vietnam Pro"],
+                    "h2-desktop": ["Be Vietnam Pro"]
+            },
+            "fontSize": {
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "h3-card": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                    "caption-badge": ["11px", {"lineHeight": "14px", "fontWeight": "600"}],
+                    "body-semibold": ["14px", {"lineHeight": "20px", "fontWeight": "600"}],
+                    "body-main": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "h2-desktop": ["22px", {"lineHeight": "32px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; background-color: #F7F8FA; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+        .drag-handle { cursor: grab; }
+        .drag-handle:active { cursor: grabbing; }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .custom-shadow { box-shadow: 0px 4px 12px rgba(17, 26, 43, 0.05); }
+        .sidebar-space { width: 260px; }
+        .syllabus-tag { background: rgba(59, 91, 251, 0.1); color: #3B5BFB; }
+        .animate-slide-in { animation: slideIn 0.3s ease-out forwards; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .tooltip-box { display: none; }
+        .has-tooltip:hover .tooltip-box { display: block; }
+    </style>
+</head>
+<body class="text-on-surface">
+<main class="p-lg max-w-[1600px] mx-auto">
+<!-- Header Section -->
+<header class="flex justify-between items-end mb-xl">
+<div>
+<h1 class="font-h2-desktop text-h2-desktop text-on-surface mb-xs">Cấu hình Trình độ &amp; Syllabus</h1>
+<p class="font-body-main text-body-main text-on-surface-variant">Quản lý danh sách trình độ đào tạo và thiết lập giáo trình tương ứng.</p>
+</div>
+<button class="bg-primary-container hover:bg-primary transition-colors text-white px-lg py-md rounded-lg font-body-semibold flex items-center gap-xs custom-shadow" onclick="togglePanel(true)">
+<span class="material-symbols-outlined">add_circle</span>
+                Thêm trình độ mới
+            </button>
+</header>
+<!-- Main Content Area: Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-gutter">
+<!-- Statistics Row (Subtle Bento Style) -->
+<div class="col-span-12 md:col-span-4 bg-white p-lg rounded-xl custom-shadow border border-outline-variant/30 flex items-center gap-md">
+<div class="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">layers</span>
+</div>
+<div>
+<p class="text-caption-badge font-caption-badge uppercase text-on-surface-variant">Tổng số trình độ</p>
+<p class="text-h2-desktop font-h2-desktop text-on-surface">24</p>
+</div>
+</div>
+<div class="col-span-12 md:col-span-4 bg-white p-lg rounded-xl custom-shadow border border-outline-variant/30 flex items-center gap-md">
+<div class="w-12 h-12 bg-tertiary/10 rounded-full flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">auto_stories</span>
+</div>
+<div>
+<p class="text-caption-badge font-caption-badge uppercase text-on-surface-variant">Syllabus hoạt động</p>
+<p class="text-h2-desktop font-h2-desktop text-on-surface">18</p>
+</div>
+</div>
+<div class="col-span-12 md:col-span-4 bg-white p-lg rounded-xl custom-shadow border border-outline-variant/30 flex items-center gap-md">
+<div class="w-12 h-12 bg-secondary/10 rounded-full flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">groups</span>
+</div>
+<div>
+<p class="text-caption-badge font-caption-badge uppercase text-on-surface-variant">Nhóm đào tạo</p>
+<p class="text-h2-desktop font-h2-desktop text-on-surface">06</p>
+</div>
+</div>
+<!-- Table Container -->
+<div class="col-span-12 bg-white rounded-xl custom-shadow border border-outline-variant/30 overflow-hidden">
+<div class="p-md border-b border-outline-variant/30 flex justify-between items-center bg-surface-bright">
+<h3 class="font-h3-card text-h3-card px-xs">Danh sách trình độ đào tạo</h3>
+<div class="flex gap-sm">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="pl-10 pr-4 py-2 border border-outline-variant rounded-lg text-body-main focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none w-64" placeholder="Tìm kiếm trình độ..." type="text"/>
+</div>
+<button class="p-2 border border-outline-variant rounded-lg text-on-surface-variant hover:bg-surface-variant/10 transition-colors">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+</div>
+</div>
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low">
+<tr>
+<th class="px-md py-sm font-label-caps text-label-caps text-on-surface-variant uppercase w-12">STT</th>
+<th class="px-md py-sm font-label-caps text-label-caps text-on-surface-variant uppercase">Mã trình độ</th>
+<th class="px-md py-sm font-label-caps text-label-caps text-on-surface-variant uppercase">Tên trình độ</th>
+<th class="px-md py-sm font-label-caps text-label-caps text-on-surface-variant uppercase">Nhóm trình độ</th>
+<th class="px-md py-sm font-label-caps text-label-caps text-on-surface-variant uppercase">Syllabus gắn kèm</th>
+<th class="px-md py-sm font-label-caps text-label-caps text-on-surface-variant uppercase">Trạng thái</th>
+<th class="px-md py-sm font-label-caps text-label-caps text-on-surface-variant uppercase text-right">Hành động</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/30">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="px-md py-md">
+<span class="material-symbols-outlined drag-handle text-on-surface-variant/40 group-hover:text-on-surface-variant">drag_indicator</span>
+</td>
+<td class="px-md py-md font-body-semibold text-on-surface">KID-BEG-01</td>
+<td class="px-md py-md font-body-main text-on-surface">Kids Beginner 1</td>
+<td class="px-md py-md">
+<span class="bg-surface-container text-on-surface-variant px-2 py-1 rounded text-caption-badge font-caption-badge">KIDS</span>
+</td>
+<td class="px-md py-md">
+<div class="flex flex-wrap gap-1">
+<span class="syllabus-tag px-2 py-0.5 rounded-full text-[10px] font-bold">SYL-K1.V2</span>
+<span class="syllabus-tag px-2 py-0.5 rounded-full text-[10px] font-bold">SYL-K1.V1</span>
+</div>
+</td>
+<td class="px-md py-md">
+<span class="flex items-center gap-1.5 text-tertiary text-caption-badge font-caption-badge">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                                    Hoạt động
+                                </span>
+</td>
+<td class="px-md py-md text-right">
+<div class="flex justify-end gap-2">
+<button class="p-1.5 text-secondary hover:bg-secondary/10 rounded-md transition-colors" onclick="togglePanel(true)" title="Chỉnh sửa">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<div class="relative inline-block has-tooltip">
+<button class="p-1.5 text-error hover:bg-error/10 rounded-md transition-colors" title="Xóa">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+<!-- Tooltip/Warning Logic -->
+<div class="tooltip-box absolute right-full bottom-0 mr-2 w-64 p-3 bg-inverse-surface text-white text-xs rounded-lg shadow-xl z-50 animate-pulse">
+<p class="font-bold flex items-center gap-1 mb-1">
+<span class="material-symbols-outlined text-[16px]">warning</span> Không thể xóa
+                                            </p>
+<p class="opacity-80">Trình độ này đang có 12 lớp học và 145 học sinh tham chiếu. Vui lòng chuyển sang 'Ngừng hoạt động'.</p>
+<div class="absolute right-[-4px] bottom-3 w-2 h-2 bg-inverse-surface rotate-45"></div>
+</div>
+</div>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="px-md py-md">
+<span class="material-symbols-outlined drag-handle text-on-surface-variant/40 group-hover:text-on-surface-variant">drag_indicator</span>
+</td>
+<td class="px-md py-md font-body-semibold text-on-surface">TEEN-INT-02</td>
+<td class="px-md py-md font-body-main text-on-surface">Teens Intermediate 2</td>
+<td class="px-md py-md">
+<span class="bg-surface-container text-on-surface-variant px-2 py-1 rounded text-caption-badge font-caption-badge">TEENS</span>
+</td>
+<td class="px-md py-md">
+<div class="flex flex-wrap gap-1">
+<span class="syllabus-tag px-2 py-0.5 rounded-full text-[10px] font-bold">SYL-T2.V1</span>
+</div>
+</td>
+<td class="px-md py-md">
+<span class="flex items-center gap-1.5 text-tertiary text-caption-badge font-caption-badge">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                                    Hoạt động
+                                </span>
+</td>
+<td class="px-md py-md text-right">
+<div class="flex justify-end gap-2">
+<button class="p-1.5 text-secondary hover:bg-secondary/10 rounded-md transition-colors">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-1.5 text-error hover:bg-error/10 rounded-md transition-colors">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="px-md py-md">
+<span class="material-symbols-outlined drag-handle text-on-surface-variant/40 group-hover:text-on-surface-variant">drag_indicator</span>
+</td>
+<td class="px-md py-md font-body-semibold text-on-surface">IELT-FOU-00</td>
+<td class="px-md py-md font-body-main text-on-surface">IELTS Foundation</td>
+<td class="px-md py-md">
+<span class="bg-surface-container text-on-surface-variant px-2 py-1 rounded text-caption-badge font-caption-badge">IELTS</span>
+</td>
+<td class="px-md py-md">
+<span class="text-on-surface-variant/50 italic text-[11px]">Chưa gắn Syllabus</span>
+</td>
+<td class="px-md py-md">
+<span class="flex items-center gap-1.5 text-on-surface-variant/60 text-caption-badge font-caption-badge">
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant/30"></span>
+                                    Ngừng hoạt động
+                                </span>
+</td>
+<td class="px-md py-md text-right">
+<div class="flex justify-end gap-2">
+<button class="p-1.5 text-secondary hover:bg-secondary/10 rounded-md transition-colors">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-1.5 text-error hover:bg-error/10 rounded-md transition-colors">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="px-md py-md flex justify-between items-center bg-surface-bright border-t border-outline-variant/30">
+<p class="text-body-main text-on-surface-variant">Hiển thị 1 - 3 trong tổng số 24 trình độ</p>
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-variant/10 text-on-surface-variant border border-outline-variant/50"><span class="material-symbols-outlined text-[18px]">chevron_left</span></button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-primary text-white font-body-semibold">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-variant/10 text-on-surface-variant">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-variant/10 text-on-surface-variant">3</button>
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-variant/10 text-on-surface-variant border border-outline-variant/50"><span class="material-symbols-outlined text-[18px]">chevron_right</span></button>
+</div>
+</div>
+</div>
+</div>
+<!-- Detail Overlay Panel (Right Panel Form) -->
+<div class="fixed inset-0 z-50 hidden" id="form-panel">
+<!-- Backdrop -->
+<div class="absolute inset-0 bg-black/30 backdrop-blur-sm" onclick="togglePanel(false)"></div>
+<!-- Side Panel Content -->
+<div class="absolute right-0 top-0 h-full w-full max-w-[500px] bg-white shadow-2xl animate-slide-in flex flex-col">
+<div class="p-lg border-b border-outline-variant/30 flex justify-between items-center">
+<div>
+<h2 class="font-h3-card text-h3-card text-on-surface">Thêm/Sửa Trình độ đào tạo</h2>
+<p class="text-body-main text-on-surface-variant text-sm">Nhập thông tin chi tiết và thiết lập Syllabus.</p>
+</div>
+<button class="p-2 hover:bg-surface-variant/10 rounded-full transition-colors" onclick="togglePanel(false)">
+<span class="material-symbols-outlined text-on-surface-variant">close</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto p-lg space-y-lg">
+<!-- General Information -->
+<section class="space-y-md">
+<h3 class="font-body-semibold text-body-semibold flex items-center gap-2 text-primary border-l-4 border-primary pl-2">Thông tin chung</h3>
+<div class="grid grid-cols-2 gap-md">
+<div class="col-span-1">
+<label class="block text-caption-badge font-caption-badge text-on-surface-variant mb-1">Mã trình độ</label>
+<input class="w-full border border-outline-variant rounded-lg p-2 font-body-main focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none" type="text" value="KID-BEG-01"/>
+</div>
+<div class="col-span-1">
+<label class="block text-caption-badge font-caption-badge text-on-surface-variant mb-1">Nhóm trình độ</label>
+<select class="w-full border border-outline-variant rounded-lg p-2 font-body-main focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none">
+<option>Kids</option>
+<option>Teens</option>
+<option>IELTS</option>
+<option>Adults</option>
+</select>
+</div>
+</div>
+<div>
+<label class="block text-caption-badge font-caption-badge text-on-surface-variant mb-1">Tên trình độ <span class="text-error">*</span></label>
+<input class="w-full border border-outline-variant rounded-lg p-2 font-body-main focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none" placeholder="Nhập tên trình độ..." type="text"/>
+</div>
+<div>
+<label class="block text-caption-badge font-caption-badge text-on-surface-variant mb-1">Mô tả</label>
+<textarea class="w-full border border-outline-variant rounded-lg p-2 font-body-main focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none" placeholder="Mô tả tóm tắt về trình độ này..." rows="3"></textarea>
+</div>
+<div class="flex items-center justify-between p-md bg-surface-container-low rounded-lg">
+<div>
+<p class="font-body-semibold text-on-surface">Trạng thái hoạt động</p>
+<p class="text-[12px] text-on-surface-variant">Cho phép sử dụng trình độ này trong tuyển sinh.</p>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+</section>
+<!-- Syllabus Configuration -->
+<section class="space-y-md">
+<div class="flex justify-between items-center border-l-4 border-secondary pl-2">
+<h3 class="font-body-semibold text-body-semibold text-secondary">Thiết lập Syllabus</h3>
+<button class="text-secondary text-caption-badge font-bold flex items-center gap-1 hover:underline">
+<span class="material-symbols-outlined text-[16px]">add</span> Gắn Syllabus mới
+                            </button>
+</div>
+<!-- Syllabus List -->
+<div class="space-y-sm">
+<div class="p-sm border border-outline-variant rounded-lg flex items-center justify-between hover:border-secondary/30 transition-colors">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 bg-secondary/10 text-secondary flex items-center justify-center rounded-lg">
+<span class="material-symbols-outlined">menu_book</span>
+</div>
+<div>
+<p class="font-body-semibold text-sm">SYL-K1.V2 - Kids Early Start</p>
+<p class="text-[11px] text-on-surface-variant">Cập nhật: 12/10/2023 | Trạng thái: Hiện tại</p>
+</div>
+</div>
+<button class="p-1 hover:text-error transition-colors">
+<span class="material-symbols-outlined text-[18px]">link_off</span>
+</button>
+</div>
+<div class="p-sm border border-outline-variant rounded-lg flex items-center justify-between bg-surface-container-lowest opacity-60">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 bg-surface-variant text-on-surface-variant flex items-center justify-center rounded-lg">
+<span class="material-symbols-outlined">history</span>
+</div>
+<div>
+<p class="font-body-semibold text-sm">SYL-K1.V1 - Kids Basic</p>
+<p class="text-[11px] text-on-surface-variant">Cập nhật: 01/01/2023 | Trạng thái: Lưu trữ</p>
+</div>
+</div>
+<button class="p-1 hover:text-error transition-colors">
+<span class="material-symbols-outlined text-[18px]">link_off</span>
+</button>
+</div>
+</div>
+</section>
+</div>
+<div class="p-lg bg-surface-bright border-t border-outline-variant/30 flex gap-md">
+<button class="flex-1 py-2.5 border border-outline-variant rounded-lg font-body-semibold text-on-surface-variant hover:bg-surface-variant/10 transition-colors" onclick="togglePanel(false)">Hủy bỏ</button>
+<button class="flex-1 py-2.5 bg-primary-container text-white rounded-lg font-body-semibold hover:bg-primary transition-colors custom-shadow">Lưu thay đổi</button>
+</div>
+</div>
+</div>
+</main>
+<script>
+        function togglePanel(show) {
+            const panel = document.getElementById('form-panel');
+            if (show) {
+                panel.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            } else {
+                panel.classList.add('hidden');
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        // Mock dragging interaction visual feedback
+        document.querySelectorAll('.drag-handle').forEach(handle => {
+            handle.addEventListener('mousedown', () => {
+                handle.closest('tr').classList.add('bg-surface-container-highest', 'opacity-80', 'scale-[0.99]', 'transition-all');
+            });
+            handle.addEventListener('mouseup', () => {
+                handle.closest('tr').classList.remove('bg-surface-container-highest', 'opacity-80', 'scale-[0.99]');
+            });
+        });
+    </script>
+</body></html>

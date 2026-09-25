@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Gửi báo cáo chấm công - MENGLISH</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed": "#93fb65",
+                        "on-error": "#ffffff",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "primary": "#a23f00",
+                        "on-surface-variant": "#594137",
+                        "on-background": "#161c27",
+                        "on-error-container": "#93000a",
+                        "on-secondary-container": "#faf7ff",
+                        "secondary": "#1e43e7",
+                        "surface-container-highest": "#dde2f3",
+                        "on-tertiary-container": "#0e3500",
+                        "surface-bright": "#f9f9ff",
+                        "secondary-container": "#4160ff",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "background": "#f9f9ff",
+                        "surface-container-high": "#e3e8f9",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed": "#062100",
+                        "error-container": "#ffdad6",
+                        "surface": "#f9f9ff",
+                        "on-secondary-fixed": "#00105b",
+                        "on-primary-container": "#521c00",
+                        "tertiary": "#256d00",
+                        "inverse-primary": "#ffb595",
+                        "surface-tint": "#a23f00",
+                        "primary-container": "#f5691a",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "on-secondary": "#ffffff",
+                        "tertiary-container": "#46a917",
+                        "surface-dim": "#d4daea",
+                        "on-tertiary": "#ffffff",
+                        "outline": "#8d7165",
+                        "primary-fixed-dim": "#ffb595",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "surface-container-low": "#f1f3ff",
+                        "outline-variant": "#e1bfb2",
+                        "surface-container": "#e8eeff",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "inverse-on-surface": "#ecf0ff",
+                        "secondary-fixed": "#dee0ff",
+                        "surface-variant": "#dde2f3",
+                        "inverse-surface": "#2a303d",
+                        "on-primary-fixed": "#360f00",
+                        "primary-fixed": "#ffdbcd",
+                        "on-surface": "#161c27",
+                        "surface-container-lowest": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "xs": "4px",
+                        "sidebar-width": "260px",
+                        "base": "8px",
+                        "sm": "8px",
+                        "gutter": "16px",
+                        "header-height": "64px",
+                        "xl": "32px",
+                        "lg": "24px",
+                        "safe": "env(safe-area-inset-bottom)"
+                    },
+                    "fontFamily": {
+                        "h3": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "label": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "h3": ["18px", { "lineHeight": "26px", "fontWeight": "600" }],
+                        "code": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "label": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "body-medium": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "h2": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "caption": ["11px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "body-small": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-base": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "h1": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hide-scroll::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scroll {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body-base antialiased min-h-screen pb-24 relative overflow-x-hidden">
+<!-- Header Section -->
+<header class="px-gutter pt-lg pb-md sticky top-0 bg-surface z-10 border-b border-surface-variant shadow-sm">
+<h1 class="font-h1 text-h1 text-on-surface mb-sm">Gửi báo cáo chấm công</h1>
+<p class="font-body-small text-body-small text-on-surface-variant">Xác nhận và gửi báo cáo các ca dạy đã check-in.</p>
+</header>
+<!-- Main Content Container -->
+<main class="px-gutter py-md space-y-md">
+<!-- Tab Navigation -->
+<div class="flex p-1 bg-surface-container-high rounded-lg mb-md">
+<button class="flex-1 py-2 text-center rounded-md bg-surface shadow-sm font-label text-label text-primary transition-all duration-200">
+                Chưa gửi (3)
+            </button>
+<button class="flex-1 py-2 text-center rounded-md font-label text-label text-on-surface-variant hover:text-on-surface transition-all duration-200">
+                Đã gửi báo cáo
+            </button>
+</div>
+<!-- Warning / Info Banner -->
+<div class="bg-primary-fixed/20 border border-primary-fixed rounded-lg p-md flex items-start gap-sm">
+<span class="material-symbols-outlined text-primary-container text-[20px] mt-0.5">info</span>
+<div class="flex-1">
+<p class="font-body-small text-body-small text-on-surface">Vui lòng kiểm tra kỹ thời gian trước khi gửi. Báo cáo đã gửi sẽ chuyển sang trạng thái <strong>Chờ đối soát</strong> và không thể chỉnh sửa.</p>
+</div>
+</div>
+<!-- Class Cards List -->
+<div class="space-y-sm">
+<!-- Card 1 (Nháp) -->
+<article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md shadow-sm relative overflow-hidden">
+<!-- Status Badge -->
+<div class="absolute top-md right-md bg-surface-container text-on-surface font-caption text-caption px-2 py-1 rounded-full flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+                    Nháp
+                </div>
+<h3 class="font-h3 text-h3 text-on-surface mb-xs pr-20">IELTS Foundation - Lớp A</h3>
+<div class="space-y-2 mb-md mt-sm">
+<div class="flex items-center gap-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+<span class="font-body-small text-body-small">Thứ 3, 24/10/2023</span>
+</div>
+<div class="flex items-center gap-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">schedule</span>
+<span class="font-body-small text-body-small">18:00 - 20:00 (2h)</span>
+</div>
+<div class="flex items-center gap-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">location_on</span>
+<span class="font-body-small text-body-small">Cơ sở 1 - Phòng 302</span>
+</div>
+</div>
+<div class="flex justify-end border-t border-surface-variant pt-sm mt-sm">
+<button class="bg-primary-container text-on-primary-container font-body-medium text-body-medium px-md py-2 rounded-lg active:scale-95 transition-transform flex items-center gap-2">
+<span>Gửi báo cáo</span>
+<span class="material-symbols-outlined text-[18px]">send</span>
+</button>
+</div>
+</article>
+<!-- Card 2 (Nháp) -->
+<article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md shadow-sm relative overflow-hidden">
+<div class="absolute top-md right-md bg-surface-container text-on-surface font-caption text-caption px-2 py-1 rounded-full flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+                    Nháp
+                </div>
+<h3 class="font-h3 text-h3 text-on-surface mb-xs pr-20">TOEIC 500+ - Lớp B2</h3>
+<div class="space-y-2 mb-md mt-sm">
+<div class="flex items-center gap-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+<span class="font-body-small text-body-small">Thứ 4, 25/10/2023</span>
+</div>
+<div class="flex items-center gap-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">schedule</span>
+<span class="font-body-small text-body-small">19:30 - 21:00 (1.5h)</span>
+</div>
+<div class="flex items-center gap-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">laptop_mac</span>
+<span class="font-body-small text-body-small">Online - Zoom</span>
+</div>
+</div>
+<div class="flex justify-end border-t border-surface-variant pt-sm mt-sm">
+<button class="bg-primary-container text-on-primary-container font-body-medium text-body-medium px-md py-2 rounded-lg active:scale-95 transition-transform flex items-center gap-2">
+<span>Gửi báo cáo</span>
+<span class="material-symbols-outlined text-[18px]">send</span>
+</button>
+</div>
+</article>
+<!-- Card 3 (Chờ đối soát - Example for context, but hidden in "Chưa gửi" tab normally, showing state transition) -->
+<article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md shadow-sm relative overflow-hidden opacity-75">
+<div class="absolute top-md right-md bg-tertiary-fixed-dim/20 text-tertiary font-caption text-caption px-2 py-1 rounded-full flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-tertiary-container"></span>
+                    Chờ đối soát
+                </div>
+<h3 class="font-h3 text-h3 text-on-surface mb-xs pr-24">Giao tiếp Cơ bản - Lớp C1</h3>
+<div class="space-y-2 mb-sm mt-sm">
+<div class="flex items-center gap-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+<span class="font-body-small text-body-small">Thứ 2, 23/10/2023</span>
+</div>
+<div class="flex items-center gap-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">schedule</span>
+<span class="font-body-small text-body-small">17:30 - 19:30 (2h)</span>
+</div>
+</div>
+<!-- Action removed as it's submitted -->
+</article>
+</div>
+</main>
+<!-- Floating Action Button for "Gửi tất cả" -->
+<div class="fixed bottom-20 left-0 w-full px-gutter z-40 pb-safe">
+<button class="w-full bg-on-background text-surface-container-lowest font-body-medium text-body-medium h-[48px] rounded-xl shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[20px]">done_all</span>
+<span>Gửi tất cả (2) báo cáo</span>
+</button>
+</div>
+<!-- Bottom Nav Bar Component -->
+<nav class="fixed bottom-0 left-0 w-full z-50 rounded-t-xl bg-surface shadow-lg border-t border-outline-variant flex justify-around items-center px-4 py-2 pb-safe md:hidden">
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-2 scale-95 transition-transform active:bg-surface-variant rounded-xl">
+<span class="material-symbols-outlined" data-weight="fill">calendar_month</span>
+<span class="font-caption text-caption mt-1">Lịch dạy</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl p-2 scale-95 transition-transform">
+<span class="material-symbols-outlined" data-weight="fill">history_edu</span>
+<span class="font-caption text-caption mt-1">Bảng công</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-2 scale-95 transition-transform active:bg-surface-variant rounded-xl">
+<span class="material-symbols-outlined" data-weight="fill">notifications</span>
+<span class="font-caption text-caption mt-1">Thông báo</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-2 scale-95 transition-transform active:bg-surface-variant rounded-xl">
+<span class="material-symbols-outlined" data-weight="fill">account_circle</span>
+<span class="font-caption text-caption mt-1">Cá nhân</span>
+</button>
+</nav>
+<!-- Spacer for fixed bottom elements -->
+<div class="h-24 md:hidden"></div>
+</body></html>

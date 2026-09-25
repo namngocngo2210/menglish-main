@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Chi tiết Lịch sử Thu học phí | MENGLISH Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@100;300;400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@100;400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed": "#00105b",
+                        "error": "#ba1a1a",
+                        "primary-container": "#f5691a",
+                        "on-primary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "surface": "#f9f9ff",
+                        "secondary-fixed": "#dee0ff",
+                        "on-surface": "#161c27",
+                        "primary-fixed-dim": "#ffb595",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "on-tertiary-container": "#0e3500",
+                        "tertiary-fixed": "#93fb65",
+                        "surface-bright": "#f9f9ff",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "secondary-container": "#4160ff",
+                        "surface-container-highest": "#dde2f3",
+                        "on-background": "#161c27",
+                        "background": "#f9f9ff",
+                        "outline": "#8d7165",
+                        "tertiary-container": "#46a917",
+                        "surface-container-low": "#f1f3ff",
+                        "surface-container-high": "#e3e8f9",
+                        "secondary": "#1e43e7",
+                        "surface-variant": "#dde2f3",
+                        "inverse-surface": "#2a303d",
+                        "on-tertiary-fixed": "#062100",
+                        "on-error": "#ffffff",
+                        "inverse-primary": "#ffb595",
+                        "primary-fixed": "#ffdbcd",
+                        "on-secondary-container": "#faf7ff",
+                        "inverse-on-surface": "#ecf0ff",
+                        "surface-dim": "#d4daea",
+                        "on-primary-fixed": "#360f00",
+                        "on-secondary": "#ffffff",
+                        "on-surface-variant": "#594137",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "outline-variant": "#e1bfb2",
+                        "surface-tint": "#a23f00",
+                        "tertiary": "#256d00",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container": "#e8eeff",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-container": "#521c00",
+                        "primary": "#a23f00"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "md": "16px",
+                        "xl": "32px",
+                        "sidebar-width": "260px",
+                        "gutter": "16px",
+                        "lg": "24px",
+                        "sm": "8px",
+                        "header-height": "64px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "caption": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                        "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; background-color: #f9f9ff; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-panel { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(225, 191, 178, 0.3); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e1bfb2; border-radius: 10px; }
+    </style>
+</head>
+<body class="text-on-surface antialiased custom-scrollbar">
+<!-- Main Content Wrapper (Fluid Content model without SideNav/TopNav per request) -->
+<main class="min-h-screen p-lg lg:p-xl max-w-[1440px] mx-auto">
+<!-- Header Section -->
+<header class="mb-lg flex flex-col md:flex-row md:items-center justify-between gap-md">
+<div>
+<h1 class="font-h1 text-h1 text-primary mb-xs">Lịch sử Thu học phí</h1>
+<p class="font-body-base text-body-base text-on-surface-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">person</span>
+                    Học viên: <span class="font-bold text-on-surface">Nguyễn Văn An</span> • Mã HV: HV0923-001
+                </p>
+</div>
+<div class="flex items-center gap-sm">
+<button class="bg-surface-container-lowest border border-outline-variant px-md py-sm rounded-lg font-body-medium text-body-medium text-on-surface-variant hover:bg-surface-container transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined">print</span> In báo cáo
+                </button>
+<button class="bg-primary px-lg py-sm rounded-lg font-body-medium text-body-medium text-on-primary hover:opacity-90 transition-all flex items-center gap-2 shadow-sm">
+<span class="material-symbols-outlined">add</span> Tải lên biên lai mới
+                </button>
+</div>
+</header>
+<!-- 1. Banner Thông báo -->
+<section class="mb-lg">
+<div class="bg-secondary-fixed text-on-secondary-fixed p-md rounded-xl flex items-start gap-md border border-secondary-container/20">
+<span class="material-symbols-outlined text-secondary">info</span>
+<p class="font-body-base text-body-base leading-relaxed">
+                    Danh sách chỉ hiển thị các khoản thu tái tục — khoản phí đăng ký ban đầu xem tại hồ sơ CRM của học viên.
+                </p>
+</div>
+</section>
+<!-- 2. Bảng danh sách lịch sử (Bento Layout style card) -->
+<section class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="px-md py-md font-label text-label text-on-surface-variant uppercase tracking-wider">Mã phiếu</th>
+<th class="px-md py-md font-label text-label text-on-surface-variant uppercase tracking-wider">Khoản thu</th>
+<th class="px-md py-md font-label text-label text-on-surface-variant uppercase tracking-wider text-right">Số tiền</th>
+<th class="px-md py-md font-label text-label text-on-surface-variant uppercase tracking-wider">Hình thức</th>
+<th class="px-md py-md font-label text-label text-on-surface-variant uppercase tracking-wider">Trạng thái</th>
+<th class="px-md py-md font-label text-label text-on-surface-variant uppercase tracking-wider">Ngày thu</th>
+<th class="px-md py-md font-label text-label text-on-surface-variant uppercase tracking-wider">Đối soát</th>
+<th class="px-md py-md font-label text-label text-on-surface-variant uppercase tracking-wider text-center">Thao tác</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1: Active/Modal triggering row -->
+<tr class="hover:bg-surface transition-colors cursor-pointer" onclick="toggleModal('detail-modal')">
+<td class="px-md py-md font-code text-code text-primary font-bold">PT-0924-005</td>
+<td class="px-md py-md font-body-base text-body-base">Học phí IELTS Khóa A (Giai đoạn 2)</td>
+<td class="px-md py-md font-code text-body-medium text-right text-on-surface">15.000.000 VNĐ</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-xs font-body-small text-body-small text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">account_balance</span> Chuyển khoản
+                                </div>
+</td>
+<td class="px-md py-md">
+<span class="px-sm py-1 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-label text-[10px] uppercase">Đã duyệt</span>
+</td>
+<td class="px-md py-md font-body-small text-body-small text-on-surface-variant">15/09/2024</td>
+<td class="px-md py-md">
+<span class="px-sm py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed-variant font-label text-[10px] uppercase">Chính thức</span>
+</td>
+<td class="px-md py-md text-center">
+<button class="text-primary hover:bg-primary-fixed p-1 rounded-full transition-colors">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface transition-colors">
+<td class="px-md py-md font-code text-code text-primary font-bold">PT-0824-012</td>
+<td class="px-md py-md font-body-base text-body-base">Phí giáo trình nâng cao</td>
+<td class="px-md py-md font-code text-body-medium text-right text-on-surface">1.200.000 VNĐ</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-xs font-body-small text-body-small text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">payments</span> Tiền mặt
+                                </div>
+</td>
+<td class="px-md py-md">
+<span class="px-sm py-1 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-label text-[10px] uppercase">Đã duyệt</span>
+</td>
+<td class="px-md py-md font-body-small text-body-small text-on-surface-variant">22/08/2024</td>
+<td class="px-md py-md text-on-surface-variant/40">-</td>
+<td class="px-md py-md text-center">
+<button class="text-primary hover:bg-primary-fixed p-1 rounded-full transition-colors">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</td>
+</tr>
+<!-- Row 3: Pending -->
+<tr class="hover:bg-surface transition-colors">
+<td class="px-md py-md font-code text-code text-primary font-bold">PT-0824-001</td>
+<td class="px-md py-md font-body-base text-body-base">Học phí IELTS Khóa A (Giai đoạn 1)</td>
+<td class="px-md py-md font-code text-body-medium text-right text-on-surface">15.000.000 VNĐ</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-xs font-body-small text-body-small text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">account_balance</span> Chuyển khoản
+                                </div>
+</td>
+<td class="px-md py-md">
+<span class="px-sm py-1 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-label text-[10px] uppercase">Chờ duyệt</span>
+</td>
+<td class="px-md py-md font-body-small text-body-small text-on-surface-variant">01/08/2024</td>
+<td class="px-md py-md text-on-surface-variant/40">-</td>
+<td class="px-md py-md text-center">
+<button class="text-primary hover:bg-primary-fixed p-1 rounded-full transition-colors">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</td>
+</tr>
+<!-- Row 4: Draft/Temporary -->
+<tr class="hover:bg-surface transition-colors">
+<td class="px-md py-md font-code text-code text-primary font-bold">PT-0724-099</td>
+<td class="px-md py-md font-body-base text-body-base">Phí thi thử Mock Test</td>
+<td class="px-md py-md font-code text-body-medium text-right text-on-surface">500.000 VNĐ</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-xs font-body-small text-body-small text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">account_balance</span> Chuyển khoản
+                                </div>
+</td>
+<td class="px-md py-md">
+<span class="px-sm py-1 rounded-full bg-surface-container-highest text-on-surface-variant font-label text-[10px] uppercase">Nháp</span>
+</td>
+<td class="px-md py-md font-body-small text-body-small text-on-surface-variant">25/07/2024</td>
+<td class="px-md py-md text-on-surface-variant/40">-</td>
+<td class="px-md py-md text-center">
+<button class="text-primary hover:bg-primary-fixed p-1 rounded-full transition-colors">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination Mockup -->
+<div class="px-md py-md bg-surface-container-low flex items-center justify-between border-t border-outline-variant">
+<span class="font-body-small text-body-small text-on-surface-variant">Hiển thị 4 trên 4 khoản thu tái tục</span>
+<div class="flex items-center gap-xs">
+<button class="p-1 rounded opacity-30" disabled=""><span class="material-symbols-outlined">chevron_left</span></button>
+<button class="w-8 h-8 rounded-lg bg-primary text-on-primary font-body-medium">1</button>
+<button class="p-1 rounded opacity-30"><span class="material-symbols-outlined">chevron_right</span></button>
+</div>
+</div>
+</section>
+<!-- 3. Popup Chi tiết phiếu thu (Fixed Overlay) -->
+<div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-300" id="detail-modal">
+<div class="bg-white w-full max-w-5xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden transform scale-95 transition-transform duration-300" id="modal-content">
+<!-- Left Panel: Form Information -->
+<div class="flex-1 p-lg overflow-y-auto custom-scrollbar border-r border-outline-variant">
+<div class="flex items-center justify-between mb-lg">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary text-[32px]">receipt_long</span>
+<h2 class="font-h2 text-h2 text-on-surface">Chi tiết Phiếu thu</h2>
+</div>
+<button class="text-on-surface-variant hover:text-error transition-colors p-1" onclick="toggleModal('detail-modal')">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="grid grid-cols-2 gap-y-lg gap-x-md">
+<div class="space-y-1">
+<label class="font-label text-label text-on-surface-variant uppercase">Mã phiếu</label>
+<p class="font-body-base text-body-base font-bold text-primary">PT-0924-005</p>
+</div>
+<div class="space-y-1">
+<label class="font-label text-label text-on-surface-variant uppercase">Học viên</label>
+<p class="font-body-base text-body-base font-bold">Nguyễn Văn An</p>
+</div>
+<div class="col-span-2 space-y-1">
+<label class="font-label text-label text-on-surface-variant uppercase">Khoản thu</label>
+<p class="font-body-base text-body-base">Học phí IELTS Khóa A (Giai đoạn 2)</p>
+</div>
+<div class="space-y-1">
+<label class="font-label text-label text-on-surface-variant uppercase">Số tiền</label>
+<p class="font-h3 text-h3 text-primary">15.000.000 VNĐ</p>
+</div>
+<div class="space-y-1">
+<label class="font-label text-label text-on-surface-variant uppercase">Hình thức</label>
+<p class="font-body-base text-body-base">Chuyển khoản Ngân hàng</p>
+</div>
+<div class="space-y-1">
+<label class="font-label text-label text-on-surface-variant uppercase">Ngày lập</label>
+<p class="font-body-base text-body-base">15/09/2024 - 14:30</p>
+</div>
+<div class="space-y-1">
+<label class="font-label text-label text-on-surface-variant uppercase">Người lập</label>
+<p class="font-body-base text-body-base">Kế toán - Lê Thu Thủy</p>
+</div>
+<div class="col-span-2 p-md bg-surface-container-low rounded-lg border border-outline-variant/30 italic">
+<label class="font-label text-label text-on-surface-variant uppercase not-italic block mb-1">Ghi chú</label>
+<p class="font-body-small text-body-small text-on-surface-variant">Học viên thanh toán đúng hạn. Đã xác nhận tiền vào tài khoản Techcombank.</p>
+</div>
+</div>
+<div class="mt-xl flex gap-sm">
+<button class="flex-1 bg-primary text-on-primary py-md rounded-xl font-body-medium shadow-md hover:opacity-90 transition-opacity">
+                            Phê duyệt phiếu
+                        </button>
+<button class="flex-1 bg-surface-container-highest text-on-surface-variant py-md rounded-xl font-body-medium hover:bg-surface-dim transition-colors">
+                            Yêu cầu chỉnh sửa
+                        </button>
+</div>
+</div>
+<!-- Right Panel: Evidence Preview -->
+<div class="w-full md:w-[400px] bg-surface-container p-lg flex flex-col">
+<div class="flex items-center justify-between mb-md">
+<h3 class="font-h3 text-h3 text-on-surface flex items-center gap-xs">
+<span class="material-symbols-outlined">image</span> Minh chứng
+                        </h3>
+<button class="text-primary text-body-small font-medium hover:underline">Phóng to</button>
+</div>
+<div class="flex-1 bg-white rounded-xl border border-outline-variant overflow-hidden relative group">
+<img class="w-full h-full object-contain p-2" data-alt="A clean, high-resolution photo of a bank transfer receipt displayed on a smartphone screen against a neutral professional background. The receipt shows a transaction of 15,000,000 VNĐ with Vietnamese banking details visible. The overall aesthetic is professional, sharp, and corporate, reflecting a modern educational administration environment with soft studio lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBDfvocdwHBq2H0X-ljXMzi-hDxb88EGHtbmW2MCRln9QOy7mp6JKfI0IeRoZsPfeZCiPwGUF9VY0s98ei9v_zmt_ViU6Gw95tIqqcG6gFlqyKy908fkjKav33ZASZguu2FMg4e3QG3kHu480zYIQQ4Oi5oej-qMHElzBnsiOgIq__DvQSbftR6d0fklsUTRTRvDueUZRt72rtQxWSKX1BINOA6DN463vHfkgpKFNaYEvp8iF4IKd45"/>
+<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+<button class="bg-white p-2 rounded-full shadow-lg">
+<span class="material-symbols-outlined">zoom_in</span>
+</button>
+</div>
+</div>
+<div class="mt-md flex items-center justify-between font-caption text-caption text-on-surface-variant">
+<span>IMG_BILL_240915.jpg</span>
+<span>2.4 MB</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        function toggleModal(id) {
+            const modal = document.getElementById(id);
+            const content = document.getElementById('modal-content');
+            if (modal.classList.contains('opacity-0')) {
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            } else {
+                modal.classList.add('opacity-0', 'pointer-events-none');
+                content.classList.remove('scale-100');
+                content.classList.add('scale-95');
+            }
+        }
+
+        // Close modal when clicking backdrop
+        document.getElementById('detail-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                toggleModal('detail-modal');
+            }
+        });
+
+        // ESC key to close modal
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('detail-modal');
+                if (!modal.classList.contains('opacity-0')) {
+                    toggleModal('detail-modal');
+                }
+            }
+        });
+    </script>
+</body></html>

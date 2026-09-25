@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Danh sách Khách - MENGLISH Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d4daea;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #8d7165;
+        }
+    </style>
+<!-- Tailwind Config Verbatim from DESIGN_SYSTEM_1 -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary": "#256d00",
+                    "primary": "#a23f00",
+                    "secondary-container": "#4160ff",
+                    "on-primary": "#ffffff",
+                    "inverse-surface": "#2a303d",
+                    "on-secondary-container": "#faf7ff",
+                    "error": "#ba1a1a",
+                    "on-background": "#161c27",
+                    "surface-dim": "#d4daea",
+                    "error-container": "#ffdad6",
+                    "surface-container": "#e8eeff",
+                    "secondary-fixed-dim": "#bac3ff",
+                    "primary-container": "#f5691a",
+                    "on-secondary-fixed": "#00105b",
+                    "tertiary-fixed-dim": "#78de4b",
+                    "surface-tint": "#a23f00",
+                    "surface-container-low": "#f1f3ff",
+                    "on-surface": "#161c27",
+                    "on-tertiary-fixed": "#062100",
+                    "on-secondary-fixed-variant": "#002fc9",
+                    "on-error-container": "#93000a",
+                    "surface-container-highest": "#dde2f3",
+                    "on-primary-fixed-variant": "#7c2e00",
+                    "secondary-fixed": "#dee0ff",
+                    "on-secondary": "#ffffff",
+                    "secondary": "#1e43e7",
+                    "primary-fixed": "#ffdbcd",
+                    "on-tertiary": "#ffffff",
+                    "surface": "#f9f9ff",
+                    "on-primary-container": "#521c00",
+                    "background": "#f9f9ff",
+                    "on-surface-variant": "#594137",
+                    "surface-variant": "#dde2f3",
+                    "surface-container-lowest": "#ffffff",
+                    "tertiary-fixed": "#93fb65",
+                    "outline-variant": "#e1bfb2",
+                    "inverse-primary": "#ffb595",
+                    "on-tertiary-fixed-variant": "#1a5200",
+                    "on-tertiary-container": "#0e3500",
+                    "surface-container-high": "#e3e8f9",
+                    "primary-fixed-dim": "#ffb595",
+                    "outline": "#8d7165",
+                    "inverse-on-surface": "#ecf0ff",
+                    "tertiary-container": "#46a917",
+                    "on-primary-fixed": "#360f00",
+                    "surface-bright": "#f9f9ff",
+                    "on-error": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sm": "8px",
+                    "sidebar-width": "260px",
+                    "lg": "24px",
+                    "xs": "4px",
+                    "xl": "32px",
+                    "gutter": "16px",
+                    "md": "16px",
+                    "header-height": "64px",
+                    "base": "8px"
+            },
+            "fontFamily": {
+                    "h3": ["Be Vietnam Pro"],
+                    "body-small": ["Be Vietnam Pro"],
+                    "body-medium": ["Be Vietnam Pro"],
+                    "caption": ["Be Vietnam Pro"],
+                    "label": ["Be Vietnam Pro"],
+                    "h1": ["Be Vietnam Pro"],
+                    "body-base": ["Be Vietnam Pro"],
+                    "code": ["JetBrains Mono"],
+                    "h2": ["Be Vietnam Pro"]
+            },
+            "fontSize": {
+                    "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                    "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                    "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-base antialiased p-lg">
+<!-- Page Content (Standalone - No Chrome) -->
+<div class="max-w-[1600px] mx-auto flex flex-col gap-lg">
+<!-- Tab Switcher & Header Action -->
+<div class="flex items-center justify-between border-b border-surface-container-highest pb-sm">
+<nav class="flex items-center gap-md"><a class="text-on-surface-variant font-body-medium hover:text-primary transition-all py-xs px-2" href="#">Theo giai đoạn</a><a class="text-primary border-b-2 border-primary font-h3 py-xs px-2" href="#">Danh sách</a><a class="text-on-surface-variant font-body-medium hover:text-primary transition-all py-xs px-2" href="#">Báo cáo DS</a><a class="text-on-surface-variant font-body-medium hover:text-primary transition-all py-xs px-2" href="#">Khách không chốt</a></nav>
+<button class="flex items-center gap-xs px-md py-2 bg-primary-container text-white rounded-lg font-body-medium hover:opacity-90 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[20px]">add</span>
+                Tạo mới
+            </button>
+</div>
+<!-- Filters Section -->
+<section class="bg-surface-container-lowest border border-surface-container-highest rounded-xl p-md shadow-sm">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-md items-end">
+<!-- Search -->
+<div class="col-span-1 lg:col-span-1">
+<label class="block text-on-surface-variant font-body-small mb-xs ml-1">Từ khóa (Tên/SĐT)</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-surface-variant">search</span>
+<input class="w-full pl-10 pr-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all font-body-base" placeholder="Nhập tên hoặc SĐT..." type="text"/>
+</div>
+</div>
+<!-- Source Dropdown -->
+<div>
+<label class="block text-on-surface-variant font-body-small mb-xs ml-1">Nguồn</label>
+<select class="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all font-body-base appearance-none cursor-pointer">
+<option>Tất cả nguồn</option>
+<option>Marketing</option>
+<option>Facebook</option>
+<option>Tiktok</option>
+<option>Giới thiệu</option>
+</select>
+</div>
+<!-- PIC Dropdown -->
+<div>
+<label class="block text-on-surface-variant font-body-small mb-xs ml-1">Người phụ trách</label>
+<select class="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all font-body-base appearance-none cursor-pointer">
+<option>Tất cả</option>
+<option>Lê Văn Vũ</option>
+<option>Ngô Thúy</option>
+<option>Hải Đăng</option>
+</select>
+</div>
+<!-- Stage Dropdown (Strict Enum) -->
+<div>
+<label class="block text-on-surface-variant font-body-small mb-xs ml-1">Giai đoạn</label>
+<select class="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all font-body-base appearance-none cursor-pointer">
+<option>Tất cả giai đoạn</option>
+<option>Mới</option>
+<option>Đang tư vấn</option>
+<option>Hẹn test/chờ</option>
+<option>Test</option>
+<option>Đã test</option>
+<option>Gửi kết quả</option>
+<option>Chờ xếp lớp</option>
+<option>Đã chốt</option>
+</select>
+</div>
+<!-- Branch Dropdown -->
+<div>
+<label class="block text-on-surface-variant font-body-small mb-xs ml-1">Chi nhánh</label>
+<select class="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all font-body-base appearance-none cursor-pointer">
+<option>Tất cả chi nhánh</option>
+<option>Đội Cấn</option>
+<option>Ngọc Hà</option>
+<option>Hoàng Hoa Thám</option>
+</select>
+</div>
+<!-- Actions -->
+<div class="flex gap-sm">
+<button class="flex-1 px-md py-2 bg-secondary text-white rounded-lg font-body-medium hover:opacity-90 transition-all flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+                        Lọc dữ liệu
+                    </button>
+</div>
+</div>
+</section>
+<!-- Data Table Section -->
+<section class="bg-surface-container-lowest border border-surface-container-highest rounded-xl shadow-sm overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-surface-container-highest"><th class="p-md text-left w-8"><input class="rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"/></th>
+<th class="p-md text-left font-label text-surface-variant uppercase tracking-wider">Họ tên</th>
+<th class="p-md text-left font-label text-surface-variant uppercase tracking-wider">Số điện thoại</th>
+<th class="p-md text-left font-label text-surface-variant uppercase tracking-wider">Tên phụ huynh</th>
+<th class="p-md text-left font-label text-surface-variant uppercase tracking-wider">Giai đoạn</th>
+<th class="p-md text-left font-label text-surface-variant uppercase tracking-wider">Người phụ trách</th>
+<th class="p-md text-left font-label text-surface-variant uppercase tracking-wider">Chi nhánh</th>
+<th class="p-md text-left font-label text-surface-variant uppercase tracking-wider">Cập nhật gần nhất</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-highest">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-low transition-colors group"><td class="p-md w-8"><input class="rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"/></td>
+<td class="p-md font-body-medium text-on-background">Nguyễn Minh Anh</td>
+<td class="p-md font-code text-on-surface-variant">0987333123</td>
+<td class="p-md text-on-surface-variant">Trần Thu Hà</td>
+<td class="p-md">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-bold bg-[#F43F7E]/10 text-[#F43F7E]">
+                                    Mới
+                                </span>
+</td>
+<td class="p-md">
+<div class="flex items-center gap-xs">
+<div class="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">LV</div>
+<span class="text-on-surface-variant">Lê Văn Vũ</span>
+</div>
+</td>
+<td class="p-md text-on-surface-variant">Đội Cấn</td>
+<td class="p-md text-caption text-surface-variant">10:45, 24/10/2023</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-low transition-colors group"><td class="p-md w-8"><input class="rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"/></td>
+<td class="p-md font-body-medium text-on-background">Phạm Hoàng Nam</td>
+<td class="p-md font-code text-on-surface-variant">0345999000</td>
+<td class="p-md text-on-surface-variant">Phạm Văn Đồng</td>
+<td class="p-md">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-bold bg-secondary/10 text-secondary">
+                                    Đang tư vấn
+                                </span>
+</td>
+<td class="p-md">
+<div class="flex items-center gap-xs">
+<div class="w-6 h-6 rounded-full bg-tertiary/10 flex items-center justify-center text-[10px] font-bold text-tertiary">NT</div>
+<span class="text-on-surface-variant">Ngô Thúy</span>
+</div>
+</td>
+<td class="p-md text-on-surface-variant">Ngọc Hà</td>
+<td class="p-md text-caption text-surface-variant">09:12, 24/10/2023</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-low transition-colors group"><td class="p-md w-8"><input class="rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"/></td>
+<td class="p-md font-body-medium text-on-background">Lê Bảo Trâm</td>
+<td class="p-md font-code text-on-surface-variant">0912456789</td>
+<td class="p-md text-on-surface-variant">Lê Thị Mai</td>
+<td class="p-md">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-bold bg-tertiary/10 text-tertiary">
+                                    Hẹn test/chờ
+                                </span>
+</td>
+<td class="p-md">
+<div class="flex items-center gap-xs">
+<div class="w-6 h-6 rounded-full bg-primary-container/10 flex items-center justify-center text-[10px] font-bold text-primary-container">AD</div>
+<span class="text-on-surface-variant">Admin</span>
+</div>
+</td>
+<td class="p-md text-on-surface-variant">Hoàng Hoa Thám</td>
+<td class="p-md text-caption text-surface-variant">Hôm qua</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container-low transition-colors group"><td class="p-md w-8"><input class="rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox"/></td>
+<td class="p-md font-body-medium text-on-background">Đỗ Thành Trung</td>
+<td class="p-md font-code text-on-surface-variant">0977888999</td>
+<td class="p-md text-on-surface-variant">Đỗ Hùng Dũng</td>
+<td class="p-md">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-bold bg-error/10 text-error">
+                                    Đã chốt
+                                </span>
+</td>
+<td class="p-md">
+<div class="flex items-center gap-xs">
+<div class="w-6 h-6 rounded-full bg-secondary-fixed/50 flex items-center justify-center text-[10px] font-bold text-on-secondary-fixed">HD</div>
+<span class="text-on-surface-variant">Hải Đăng</span>
+</div>
+</td>
+<td class="p-md text-on-surface-variant">Đội Cấn</td>
+<td class="p-md text-caption text-surface-variant">3 ngày trước</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="px-lg py-md border-t border-surface-container-highest flex items-center justify-between bg-surface-container-low/30">
+<div class="text-body-small text-surface-variant">
+                    Hiển thị <span class="font-medium text-on-surface">1 - 10</span> trong tổng số <span class="font-medium text-on-surface">1,248</span> khách
+                </div>
+<div class="flex items-center gap-xs">
+<button class="w-8 h-8 rounded border border-outline-variant flex items-center justify-center text-surface-variant hover:bg-white hover:text-primary transition-all disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<button class="w-8 h-8 rounded bg-primary-container text-white flex items-center justify-center font-body-medium shadow-sm">1</button>
+<button class="w-8 h-8 rounded border border-outline-variant flex items-center justify-center text-on-surface-variant hover:bg-white hover:text-primary transition-all">2</button>
+<button class="w-8 h-8 rounded border border-outline-variant flex items-center justify-center text-on-surface-variant hover:bg-white hover:text-primary transition-all">3</button>
+<span class="px-1 text-surface-variant">...</span>
+<button class="w-8 h-8 rounded border border-outline-variant flex items-center justify-center text-on-surface-variant hover:bg-white hover:text-primary transition-all">125</button>
+<button class="w-8 h-8 rounded border border-outline-variant flex items-center justify-center text-on-surface-variant hover:bg-white hover:text-primary transition-all">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+<div class="flex items-center gap-sm">
+<span class="text-body-small text-surface-variant">Số dòng mỗi trang:</span>
+<select class="bg-transparent border-none text-body-small font-medium focus:ring-0 cursor-pointer">
+<option>10</option>
+<option>20</option>
+<option>50</option>
+</select>
+</div>
+</div>
+</section>
+</div>
+<script>
+        // Simple Micro-interaction for row focus
+        document.querySelectorAll('tbody tr').forEach(row => {
+            row.addEventListener('click', () => {
+                document.querySelectorAll('tbody tr').forEach(r => r.classList.remove('bg-surface-container-low'));
+                row.classList.add('bg-surface-container-low');
+            });
+        });
+
+        // Search highlight effect
+        const searchInput = document.querySelector('input[type="text"]');
+        if(searchInput) {
+            searchInput.addEventListener('focus', () => {
+                searchInput.parentElement.classList.add('ring-2', 'ring-secondary/20');
+            });
+            searchInput.addEventListener('blur', () => {
+                searchInput.parentElement.classList.remove('ring-2', 'ring-secondary/20');
+            });
+        }
+    </script>
+</body></html>

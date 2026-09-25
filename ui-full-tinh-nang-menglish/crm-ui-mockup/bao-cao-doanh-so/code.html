@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Báo cáo doanh số - MENGLISH</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface": "#f9f9ff",
+                        "surface-dim": "#d4daea",
+                        "error-container": "#ffdad6",
+                        "inverse-surface": "#2a303d",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "background": "#f9f9ff",
+                        "on-surface": "#161c27",
+                        "on-secondary-fixed": "#00105b",
+                        "on-primary-container": "#521c00",
+                        "on-primary": "#ffffff",
+                        "primary-container": "#f5691a",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "on-error": "#ffffff",
+                        "inverse-on-surface": "#ecf0ff",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed": "#93fb65",
+                        "tertiary-container": "#46a917",
+                        "secondary-fixed": "#dee0ff",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "surface-container": "#e8eeff",
+                        "surface-container-low": "#f1f3ff",
+                        "primary-fixed": "#ffdbcd",
+                        "tertiary": "#256d00",
+                        "surface-bright": "#f9f9ff",
+                        "on-tertiary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "surface-container-high": "#e3e8f9",
+                        "primary-fixed-dim": "#ffb595",
+                        "on-tertiary-container": "#0e3500",
+                        "on-primary-fixed": "#360f00",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "primary": "#a23f00",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-highest": "#dde2f3",
+                        "secondary": "#1e43e7",
+                        "surface-variant": "#dde2f3",
+                        "secondary-container": "#4160ff",
+                        "outline": "#8d7165",
+                        "on-tertiary-fixed": "#062100",
+                        "on-error-container": "#93000a",
+                        "on-background": "#161c27",
+                        "surface-tint": "#a23f00",
+                        "on-secondary-container": "#faf7ff",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "on-surface-variant": "#594137",
+                        "inverse-primary": "#ffb595",
+                        "outline-variant": "#e1bfb2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "sidebar-width": "260px",
+                        "base": "8px",
+                        "gutter": "16px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "header-height": "64px",
+                        "xl": "32px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "h3": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                        "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                        "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; background-color: #f9f9ff; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(8px); border: 1px solid #e1e8f9; }
+        .funnel-row { transition: all 0.2s ease; }
+        .funnel-row:hover { filter: brightness(0.95); transform: translateX(4px); }
+    </style>
+</head>
+<body class="bg-background text-on-surface">
+<div class="max-w-[1200px] mx-auto min-h-screen p-lg space-y-lg">
+<!-- Header -->
+<header class="flex items-center justify-between">
+<h1 class="font-h1 text-h1 text-on-surface">Báo cáo doanh số</h1>
+<span class="text-body-small text-on-surface-variant italic">Cập nhật: 5 phút trước</span>
+</header>
+<!-- Filters Section -->
+<section class="glass-card p-md rounded-xl shadow-sm flex flex-wrap items-end gap-md">
+<div class="flex flex-col gap-xs flex-1 min-w-[200px]">
+<label class="text-on-surface-variant font-label">KHOẢNG THỜI GIAN</label>
+<div class="flex items-center gap-sm">
+<input class="w-full border-surface-container-highest bg-white rounded-lg px-sm py-xs text-body-base focus:ring-primary-container" type="date" value="2023-10-01"/>
+<span class="text-on-surface-variant">đến</span>
+<input class="w-full border-surface-container-highest bg-white rounded-lg px-sm py-xs text-body-base focus:ring-primary-container" type="date" value="2023-10-31"/>
+</div>
+</div>
+<div class="flex flex-col gap-xs min-w-[300px]">
+<label class="text-on-surface-variant font-label">CHI NHÁNH</label>
+<select class="border-surface-container-highest bg-white rounded-lg px-sm py-xs text-body-base focus:ring-primary-container">
+<option>Tất cả</option>
+<option>Cơ sở Đội Cấn</option>
+<option>Cơ sở Ngọc Hà</option>
+<option>Cơ sở Hoàng Hoa Thám</option>
+</select>
+</div>
+<button class="bg-primary-container text-white px-xl py-xs h-[38px] rounded-lg font-body-medium hover:bg-primary transition-all flex items-center gap-xs">
+<span class="material-symbols-outlined text-[20px]">search</span>
+                Lọc dữ liệu
+            </button>
+</section>
+<!-- Conversion Funnel Section -->
+<section class="space-y-md">
+<h2 class="font-h2 text-h2 text-on-surface">Giai đoạn chuyển đổi</h2>
+<div class="space-y-1">
+<!-- Mới -->
+<div class="funnel-row flex items-center h-14 w-full">
+<div class="bg-primary-container text-white font-bold text-h3 w-32 h-full flex items-center justify-center rounded-l-lg border-r border-white/20">1,240</div>
+<div class="bg-primary-container/90 flex-1 h-full flex items-center px-lg text-white">
+<span class="font-body-medium uppercase tracking-wider">Mới</span>
+</div>
+<div class="bg-primary-container/90 w-12 h-full flex items-center justify-center rounded-r-lg">
+<span class="material-symbols-outlined">person_add</span>
+</div>
+</div>
+<!-- Đang tư vấn -->
+<div class="funnel-row flex items-center h-14 w-[95%] ml-auto">
+<div class="bg-primary-container/80 text-white font-bold text-h3 w-28 h-full flex items-center justify-center rounded-l-lg border-r border-white/20">982</div>
+<div class="bg-primary-container/70 flex-1 h-full flex items-center px-lg text-white">
+<span class="font-body-medium uppercase tracking-wider">Đang tư vấn</span>
+</div>
+<div class="bg-primary-container/70 w-12 h-full flex items-center justify-center rounded-r-lg">
+<span class="material-symbols-outlined">forum</span>
+</div>
+</div>
+<!-- Hẹn test/chờ -->
+<div class="funnel-row flex items-center h-14 w-[90%] ml-auto">
+<div class="bg-primary-container/60 text-white font-bold text-h3 w-28 h-full flex items-center justify-center rounded-l-lg border-r border-white/20">756</div>
+<div class="bg-primary-container/50 flex-1 h-full flex items-center px-lg text-white">
+<span class="font-body-medium uppercase tracking-wider">Hẹn test/chờ</span>
+</div>
+<div class="bg-primary-container/50 w-12 h-full flex items-center justify-center rounded-r-lg">
+<span class="material-symbols-outlined">calendar_today</span>
+</div>
+</div>
+<!-- Test -->
+<div class="funnel-row flex items-center h-14 w-[85%] ml-auto">
+<div class="bg-primary-container/40 text-on-surface font-bold text-h3 w-24 h-full flex items-center justify-center rounded-l-lg border-r border-on-surface/10">612</div>
+<div class="bg-primary-container/30 flex-1 h-full flex items-center px-lg text-on-surface">
+<span class="font-body-medium uppercase tracking-wider">Test</span>
+</div>
+<div class="bg-primary-container/30 w-12 h-full flex items-center justify-center rounded-r-lg">
+<span class="material-symbols-outlined">edit_note</span>
+</div>
+</div>
+<!-- Đã test -->
+<div class="funnel-row flex items-center h-14 w-[80%] ml-auto">
+<div class="bg-primary-container/30 text-on-surface font-bold text-h3 w-24 h-full flex items-center justify-center rounded-l-lg border-r border-on-surface/10">540</div>
+<div class="bg-primary-container/20 flex-1 h-full flex items-center px-lg text-on-surface">
+<span class="font-body-medium uppercase tracking-wider">Đã test</span>
+</div>
+<div class="bg-primary-container/20 w-12 h-full flex items-center justify-center rounded-r-lg">
+<span class="material-symbols-outlined">task_alt</span>
+</div>
+</div>
+<!-- Gửi kết quả -->
+<div class="funnel-row flex items-center h-14 w-[75%] ml-auto">
+<div class="bg-primary-container/20 text-on-surface font-bold text-h3 w-24 h-full flex items-center justify-center rounded-l-lg border-r border-on-surface/10">485</div>
+<div class="bg-primary-container/10 flex-1 h-full flex items-center px-lg text-on-surface">
+<span class="font-body-medium uppercase tracking-wider">Gửi kết quả</span>
+</div>
+<div class="bg-primary-container/10 w-12 h-full flex items-center justify-center rounded-r-lg">
+<span class="material-symbols-outlined">mail</span>
+</div>
+</div>
+<!-- Chờ xếp lớp -->
+<div class="funnel-row flex items-center h-14 w-[70%] ml-auto">
+<div class="bg-primary-container/10 text-on-surface font-bold text-h3 w-24 h-full flex items-center justify-center rounded-l-lg border-r border-on-surface/10">320</div>
+<div class="bg-primary-container/5 flex-1 h-full flex items-center px-lg text-on-surface">
+<span class="font-body-medium uppercase tracking-wider">Chờ xếp lớp</span>
+</div>
+<div class="bg-primary-container/5 w-12 h-full flex items-center justify-center rounded-r-lg">
+<span class="material-symbols-outlined">pending_actions</span>
+</div>
+</div>
+<!-- Đã chốt -->
+<div class="funnel-row flex items-center h-14 w-[65%] ml-auto">
+<div class="bg-tertiary-container text-white font-bold text-h3 w-24 h-full flex items-center justify-center rounded-l-lg border-r border-white/20">185</div>
+<div class="bg-tertiary-container/90 flex-1 h-full flex items-center px-lg text-white">
+<span class="font-body-medium uppercase tracking-wider font-bold">Đã chốt</span>
+</div>
+<div class="bg-tertiary-container/90 w-12 h-full flex items-center justify-center rounded-r-lg">
+<span class="material-symbols-outlined">verified</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Reasons for Unclosed Leads Section -->
+<section class="space-y-md pb-xl">
+<div class="space-y-1">
+<h2 class="font-h2 text-h2 text-on-surface">Lý do khách không chốt</h2>
+<p class="text-body-base text-on-surface-variant">Tổng cộng <span class="font-bold text-error">425</span> hồ sơ thất bại trong kỳ</p>
+</div>
+<div class="glass-card rounded-xl overflow-hidden shadow-sm">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container text-on-surface-variant font-label uppercase text-[11px] tracking-widest border-b border-surface-container-highest">
+<th class="px-lg py-md font-semibold">Khách hàng</th>
+<th class="px-lg py-md font-semibold">Thời điểm ghi nhận</th>
+<th class="px-lg py-md font-semibold">Nội dung lý do (Log chi tiết)</th>
+<th class="px-lg py-md font-semibold text-right">Nhân viên phụ trách</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-highest">
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-lg py-md font-body-medium text-on-surface">Trần Minh Đức</td>
+<td class="px-lg py-md text-body-small text-on-surface-variant">28/10/2023 14:20</td>
+<td class="px-lg py-md text-body-base">Học phí cao so với ngân sách dự kiến của gia đình (đang tìm gói rẻ hơn)</td>
+<td class="px-lg py-md text-right text-body-small">Nguyễn Văn An</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-lg py-md font-body-medium text-on-surface">Lê Anh Dũng</td>
+<td class="px-lg py-md text-body-small text-on-surface-variant">27/10/2023 09:15</td>
+<td class="px-lg py-md text-body-base">Vị trí xa nhà, phụ huynh không sắp xếp được người đưa đón buổi tối</td>
+<td class="px-lg py-md text-right text-body-small">Trần Thị Bình</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-lg py-md font-body-medium text-on-surface">Phạm Thanh Tâm</td>
+<td class="px-lg py-md text-body-small text-on-surface-variant">26/10/2023 16:45</td>
+<td class="px-lg py-md text-body-base">Lịch học bị trùng với lịch học thêm Toán ở trường, không đổi được ca</td>
+<td class="px-lg py-md text-right text-body-small">Nguyễn Văn An</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-lg py-md font-body-medium text-on-surface">Nguyễn Anh Quân</td>
+<td class="px-lg py-md text-body-small text-on-surface-variant">25/10/2023 11:30</td>
+<td class="px-lg py-md text-body-base">Đã đăng ký học tại trung tâm Anh ngữ đối thủ gần trường hơn</td>
+<td class="px-lg py-md text-right text-body-small">Lê Anh Dũng</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-lg py-md font-body-medium text-on-surface">Hoàng Bảo Anh</td>
+<td class="px-lg py-md text-body-small text-on-surface-variant">24/10/2023 15:10</td>
+<td class="px-lg py-md text-body-base">Phụ huynh muốn chờ chương trình khuyến mãi tháng sau mới đăng ký</td>
+<td class="px-lg py-md text-right text-body-small">Trần Thị Bình</td>
+</tr>
+</tbody>
+</table>
+<div class="px-lg py-md bg-surface-container-lowest border-t border-surface-container-highest flex justify-center">
+<button class="text-primary-container font-label uppercase flex items-center gap-xs hover:underline">
+<span class="material-symbols-outlined text-[18px]">expand_more</span>
+                        Xem thêm lý do không chốt
+                    </button>
+</div>
+</div>
+</section>
+<!-- Data Footer -->
+<footer class="bg-surface-container-low p-md rounded-xl border border-surface-container-highest">
+<div class="flex items-center gap-md">
+<div class="bg-primary-container/10 p-sm rounded-lg">
+<span class="material-symbols-outlined text-primary-container">info</span>
+</div>
+<div>
+<p class="font-body-medium text-on-surface">Ghi chú về nguồn dữ liệu</p>
+<p class="text-body-small text-on-surface-variant">Báo cáo được tổng hợp dựa trên số lượng hồ sơ thực tế. Các giai đoạn được sắp xếp theo quy trình vận hành chuẩn của MENGLISH.</p>
+</div>
+</div>
+</footer>
+</div>
+</body></html>

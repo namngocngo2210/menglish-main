@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MENGLISH - Tổng quan theo giai đoạn</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@100;300;400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-container": "#f5691a",
+                        "on-primary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "inverse-surface": "#2a303d",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "primary-fixed": "#ffdbcd",
+                        "on-secondary-container": "#faf7ff",
+                        "surface-container-low": "#f1f3ff",
+                        "surface-bright": "#f9f9ff",
+                        "tertiary-fixed": "#93fb65",
+                        "on-tertiary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "surface-variant": "#dde2f3",
+                        "surface-container-highest": "#dde2f3",
+                        "on-error": "#ffffff",
+                        "surface": "#f9f9ff",
+                        "on-surface": "#161c27",
+                        "tertiary-container": "#46a917",
+                        "surface-dim": "#d4daea",
+                        "inverse-on-surface": "#ecf0ff",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "on-primary-container": "#521c00",
+                        "inverse-primary": "#ffb595",
+                        "outline-variant": "#e1bfb2",
+                        "on-secondary": "#ffffff",
+                        "outline": "#8d7165",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "error-container": "#ffdad6",
+                        "secondary-container": "#4160ff",
+                        "on-primary-fixed": "#360f00",
+                        "primary": "#a23f00",
+                        "on-tertiary-fixed": "#062100",
+                        "tertiary": "#256d00",
+                        "primary-fixed-dim": "#ffb595",
+                        "on-secondary-fixed": "#00105b",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "on-tertiary-container": "#0e3500",
+                        "background": "#f9f9ff",
+                        "surface-container-high": "#e3e8f9",
+                        "secondary-fixed": "#dee0ff",
+                        "surface-container": "#e8eeff",
+                        "secondary": "#1e43e7",
+                        "on-surface-variant": "#594137",
+                        "surface-tint": "#a23f00",
+                        "on-background": "#161c27",
+                        "surface-container-lowest": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "gutter": "16px",
+                        "xl": "32px",
+                        "header-height": "64px",
+                        "base": "8px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "lg": "24px",
+                        "sidebar-width": "260px"
+                    },
+                    "fontFamily": {
+                        "h2": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "h3": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                        "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                        "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: #f9f9ff;
+        }
+        .stage-column {
+            min-width: 310px;
+            max-width: 310px;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f3ff;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #dde2f3;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #c0c6d8;
+        }
+        .card-shadow {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        }
+        .card-shadow:hover {
+            box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+        }
+    </style>
+</head>
+<body class="overflow-hidden bg-background h-screen flex flex-col p-lg">
+<!-- Filter Section -->
+<section class="bg-white p-md rounded-xl border border-surface-container-highest flex flex-wrap items-center gap-md mb-lg shadow-sm">
+<div class="flex-1 min-w-[280px] relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">search</span>
+<input class="w-full pl-10 pr-md py-sm rounded-lg border border-outline-variant focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container outline-none font-body-base" placeholder="Tìm họ tên, số điện thoại..." type="text"/>
+</div>
+<div class="flex items-center gap-sm">
+<span class="text-body-small text-on-surface-variant font-medium whitespace-nowrap">Nguồn:</span>
+<select class="pl-sm pr-lg py-sm rounded-lg border border-outline-variant bg-surface-container-lowest font-body-base focus:border-primary-container outline-none min-w-[150px]">
+<option>Tất cả nguồn</option>
+<option>Landing page</option>
+<option>Marketing</option>
+<option>Giới thiệu</option>
+<option>Vãng lai</option>
+<option>Tiktok</option>
+<option>Facebook</option>
+<option>Google Ads</option>
+<option>Chị Liên</option>
+</select>
+</div>
+<div class="flex items-center gap-sm">
+<span class="text-body-small text-on-surface-variant font-medium whitespace-nowrap">Người phụ trách:</span>
+<select class="pl-sm pr-lg py-sm rounded-lg border border-outline-variant bg-surface-container-lowest font-body-base focus:border-primary-container outline-none min-w-[150px]">
+<option>Tất cả nhân viên</option>
+<option>Nguyễn Văn A</option>
+<option>Trần Thị B</option>
+<option>Lê Minh C</option>
+</select>
+</div>
+<div class="flex items-center gap-sm">
+<span class="text-body-small text-on-surface-variant font-medium whitespace-nowrap">Chi nhánh:</span>
+<select class="pl-sm pr-lg py-sm rounded-lg border border-outline-variant bg-surface-container-lowest font-body-base focus:border-primary-container outline-none min-w-[180px]">
+<option>Cơ sở Đội Cấn</option>
+<option>Cơ sở Ngọc Hà</option>
+<option>Cơ sở Hoàng Hoa Thám</option>
+</select>
+</div>
+<button class="p-sm text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors ml-auto">
+<span class="material-symbols-outlined">tune</span>
+</button>
+</section>
+<!-- Kanban Layout (8 Columns) -->
+<div class="flex-1 overflow-x-auto overflow-y-hidden pb-md custom-scrollbar">
+<div class="flex gap-md h-full min-w-max">
+<!-- 1. MỚI -->
+<div class="stage-column flex flex-col gap-md h-full">
+<div class="flex items-center justify-between px-xs py-xs border-b border-secondary/20">
+<h3 class="font-label text-label text-secondary flex items-center gap-sm uppercase">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+                    MỚI (12)
+                </h3>
+</div>
+<div class="flex-1 overflow-y-auto pr-xs space-y-md custom-scrollbar py-xs">
+<!-- Card example: Overdue -->
+<div class="bg-white rounded-lg border border-outline-variant/30 card-shadow transition-all p-md space-y-md border-l-4 border-l-error relative group">
+<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<select class="text-[10px] bg-surface-container-low border-none rounded p-0 px-1 focus:ring-0 cursor-pointer" onchange="if(this.value==='fail') alert('Vui lòng nhập lý do thất bại'); else if(this.selectedIndex &lt; 0) alert('Xác nhận chuyển giai đoạn?');">
+<option disabled="" selected="" value="">Sửa giai đoạn</option>
+<option value="new">Mới</option>
+<option value="consult">Đang tư vấn</option>
+<option value="test">Hẹn test</option>
+<option value="fail">Thất bại</option>
+</select>
+</div>
+<div class="flex justify-between items-start pr-4">
+<div>
+<h4 class="font-h3 text-[14px] font-bold text-on-surface uppercase leading-tight">Nguyễn Văn An</h4>
+<p class="font-code text-body-small text-on-surface-variant mt-1">0987 654 321</p>
+</div>
+<span class="px-sm py-[2px] bg-secondary/10 text-secondary rounded font-caption font-bold text-[10px]">Facebook</span>
+</div>
+<div class="space-y-1.5 text-body-small">
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">person</span>
+                            Phụ huynh: Anh Bình
+                        </div>
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">account_circle</span>
+                            Phụ trách: Nguyễn Văn A
+                        </div>
+</div>
+<div class="pt-sm border-t border-surface-container-highest space-y-md">
+<div class="flex items-center justify-between">
+<span class="px-sm py-xs bg-error-container text-error rounded-full font-caption font-bold flex items-center gap-xs text-[10px]">
+<span class="material-symbols-outlined text-[14px]">alarm_on</span>
+                                Quá hạn
+                            </span>
+<div class="text-on-surface-variant text-caption font-medium">Hạn liên hệ: 10:30 Hôm nay</div>
+</div>
+<button class="w-full py-2 bg-primary-container text-white rounded-lg font-body-medium hover:brightness-110 transition-all shadow-sm">Sang bước tiếp theo</button>
+</div>
+</div>
+</div>
+</div>
+<!-- 2. ĐANG TƯ VẤN -->
+<div class="stage-column flex flex-col gap-md h-full">
+<div class="flex items-center justify-between px-xs py-xs border-b border-tertiary/20">
+<h3 class="font-label text-label text-tertiary flex items-center gap-sm uppercase">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+                    ĐANG TƯ VẤN (8)
+                </h3>
+</div>
+<div class="flex-1 overflow-y-auto pr-xs space-y-md custom-scrollbar py-xs">
+<!-- Card example: Nearing deadline -->
+<div class="bg-white rounded-lg border border-outline-variant/30 card-shadow transition-all p-md space-y-md border-l-4 border-l-[#f59e0b] relative group">
+<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<select class="text-[10px] bg-surface-container-low border-none rounded p-0 px-1 focus:ring-0 cursor-pointer">
+<option disabled="" selected="" value="">Sửa giai đoạn</option>
+<option>Mới</option>
+<option>Đang tư vấn</option>
+<option>Thất bại</option>
+</select>
+</div>
+<div class="flex justify-between items-start pr-4">
+<div>
+<h4 class="font-h3 text-[14px] font-bold text-on-surface uppercase leading-tight">Trần Thị Lan</h4>
+<p class="font-code text-body-small text-on-surface-variant mt-1">0912 345 678</p>
+</div>
+<span class="px-sm py-[2px] bg-tertiary/10 text-tertiary rounded font-caption font-bold text-[10px]">Landing Page</span>
+</div>
+<div class="space-y-1.5 text-body-small">
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">person</span>
+                            Phụ huynh: Chị Mai
+                        </div>
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">account_circle</span>
+                            Phụ trách: Trần Thị B
+                        </div>
+</div>
+<div class="pt-sm border-t border-surface-container-highest space-y-md">
+<div class="flex items-center justify-between">
+<span class="px-sm py-xs bg-orange-100 text-orange-600 rounded-full font-caption font-bold flex items-center gap-xs text-[10px]">
+<span class="material-symbols-outlined text-[14px]">priority_high</span>
+                                Sắp hết hạn
+                            </span>
+<div class="text-on-surface-variant text-caption font-medium">Hạn chăm sóc tiếp theo: 15:00 Hôm nay</div>
+</div>
+<button class="w-full py-2 bg-primary-container text-white rounded-lg font-body-medium hover:brightness-110 transition-all shadow-sm">Sang bước tiếp theo</button>
+</div>
+</div>
+</div>
+</div>
+<!-- 3. HẸN TEST/CHỜ -->
+<div class="stage-column flex flex-col gap-md h-full">
+<div class="flex items-center justify-between px-xs py-xs border-b border-primary/20">
+<h3 class="font-label text-label text-primary flex items-center gap-sm uppercase">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+                    HẸN TEST/CHỜ (5)
+                </h3>
+</div>
+<div class="flex-1 overflow-y-auto pr-xs space-y-md custom-scrollbar py-xs">
+<!-- Card example: On time -->
+<div class="bg-white rounded-lg border border-outline-variant/30 card-shadow transition-all p-md space-y-md border-l-4 border-l-tertiary relative group">
+<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<select class="text-[10px] bg-surface-container-low border-none rounded p-0 px-1 focus:ring-0 cursor-pointer">
+<option disabled="" selected="" value="">Sửa giai đoạn</option>
+<option>Test</option>
+<option>Đang tư vấn</option>
+</select>
+</div>
+<div class="flex justify-between items-start pr-4">
+<div>
+<h4 class="font-h3 text-[14px] font-bold text-on-surface uppercase leading-tight">Phạm Minh Quân</h4>
+<p class="font-code text-body-small text-on-surface-variant mt-1">0345 678 901</p>
+</div>
+<span class="px-sm py-[2px] bg-primary/10 text-primary rounded font-caption font-bold text-[10px]">Google Ads</span>
+</div>
+<div class="space-y-1.5 text-body-small">
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">person</span>
+                            Phụ huynh: Anh Quân
+                        </div>
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">account_circle</span>
+                            Phụ trách: Nguyễn Văn A
+                        </div>
+</div>
+<div class="pt-sm border-t border-surface-container-highest space-y-md">
+<div class="flex items-center justify-between">
+<span class="px-sm py-xs bg-green-100 text-green-600 rounded-full font-caption font-bold flex items-center gap-xs text-[10px]">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                                Còn hạn
+                            </span>
+<div class="text-on-surface-variant text-caption font-medium">Hạn chăm sóc tiếp theo: 09:00 Mai</div>
+</div>
+<button class="w-full py-2 bg-primary-container text-white rounded-lg font-body-medium hover:brightness-110 transition-all shadow-sm">Sang bước tiếp theo</button>
+</div>
+</div>
+</div>
+</div>
+<!-- 4. TEST -->
+<div class="stage-column flex flex-col gap-md h-full">
+<div class="flex items-center justify-between px-xs py-xs border-b border-blue-600/20">
+<h3 class="font-label text-label text-blue-600 flex items-center gap-sm uppercase">
+<span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                    TEST (3)
+                </h3>
+</div>
+<div class="flex-1 overflow-y-auto pr-xs space-y-md custom-scrollbar py-xs"></div>
+</div>
+<!-- 5. ĐÃ TEST -->
+<div class="stage-column flex flex-col gap-md h-full">
+<div class="flex items-center justify-between px-xs py-xs border-b border-purple-600/20">
+<h3 class="font-label text-label text-purple-600 flex items-center gap-sm uppercase">
+<span class="w-2 h-2 rounded-full bg-purple-600"></span>
+                    ĐÃ TEST (4)
+                </h3>
+</div>
+<div class="flex-1 overflow-y-auto pr-xs space-y-md custom-scrollbar py-xs"></div>
+</div>
+<!-- 6. GỬI KẾT QUẢ -->
+<div class="stage-column flex flex-col gap-md h-full">
+<div class="flex items-center justify-between px-xs py-xs border-b border-orange-500/20">
+<h3 class="font-label text-label text-orange-500 flex items-center gap-sm uppercase">
+<span class="w-2 h-2 rounded-full bg-orange-500"></span>
+                    GỬI KẾT QUẢ (2)
+                </h3>
+</div>
+<div class="flex-1 overflow-y-auto pr-xs space-y-md custom-scrollbar py-xs"></div>
+</div>
+<!-- 7. CHỜ XẾP LỚP -->
+<div class="stage-column flex flex-col gap-md h-full">
+<div class="flex items-center justify-between px-xs py-xs border-b border-indigo-600/20">
+<h3 class="font-label text-label text-indigo-600 flex items-center gap-sm uppercase">
+<span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+                    CHỜ XẾP LỚP (6)
+                </h3>
+</div>
+<div class="flex-1 overflow-y-auto pr-xs space-y-md custom-scrollbar py-xs"></div>
+</div>
+<!-- 8. ĐÃ CHỐT -->
+<div class="stage-column flex flex-col gap-md h-full">
+<div class="flex items-center justify-between px-xs py-xs border-b border-emerald-600/20">
+<h3 class="font-label text-label text-emerald-600 flex items-center gap-sm uppercase">
+<span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+                    ĐÃ CHỐT (15)
+                </h3>
+</div>
+<div class="flex-1 overflow-y-auto pr-xs space-y-md custom-scrollbar py-xs">
+<!-- Card example: Done (No Next Step button) -->
+<div class="bg-white rounded-lg border border-outline-variant/30 card-shadow transition-all p-md space-y-md border-l-4 border-l-emerald-600 relative group">
+<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<select class="text-[10px] bg-surface-container-low border-none rounded p-0 px-1 focus:ring-0 cursor-pointer">
+<option disabled="" selected="" value="">Sửa giai đoạn</option>
+<option>Hủy chốt</option>
+</select>
+</div>
+<div class="flex justify-between items-start pr-4">
+<div>
+<h4 class="font-h3 text-[14px] font-bold text-on-surface uppercase leading-tight">Hoàng Anh Khoa</h4>
+<p class="font-code text-body-small text-on-surface-variant mt-1">0900 123 456</p>
+</div>
+<span class="px-sm py-[2px] bg-emerald-100 text-emerald-700 rounded font-caption font-bold text-[10px]">Chị Liên</span>
+</div>
+<div class="space-y-1.5 text-body-small">
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">person</span>
+                            Phụ huynh: Chị Hương
+                        </div>
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">account_circle</span>
+                            Phụ trách: Lê Minh C
+                        </div>
+</div>
+<div class="pt-sm border-t border-surface-container-highest">
+<div class="flex items-center gap-xs text-emerald-600 font-medium text-body-small">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+                            Đã hoàn tất hồ sơ
+                        </div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+    // Horizontal scroll with mouse wheel
+    const container = document.querySelector('.overflow-x-auto');
+    container.addEventListener('wheel', (evt) => {
+        if (evt.deltaY !== 0) {
+            evt.preventDefault();
+            container.scrollLeft += evt.deltaY;
+        }
+    });
+</script>
+</body></html>

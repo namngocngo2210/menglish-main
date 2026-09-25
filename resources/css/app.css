@@ -1,0 +1,174 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+    }
+}
+
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    vertical-align: middle;
+}
+
+.material-symbols-outlined.fill {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Custom modern scrollbars */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.4);
+    border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(107, 114, 128, 0.6);
+}
+
+/* Smooth transitions */
+.transition-smooth {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+   Global Anti-Text-Drop & Multi-Device Responsive System
+   ========================================================================== */
+
+/* 1. Ensure table containers never overflow or break layout on any screen */
+.overflow-x-auto,
+div:has(> table:not(.info-table):not(.bank-table)) {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+}
+
+.overflow-x-auto::-webkit-scrollbar,
+div:has(> table)::-webkit-scrollbar {
+    height: 6px;
+}
+.overflow-x-auto::-webkit-scrollbar-track,
+div:has(> table)::-webkit-scrollbar-track {
+    background: rgba(241, 245, 249, 0.7);
+    border-radius: 9999px;
+}
+.overflow-x-auto::-webkit-scrollbar-thumb,
+div:has(> table)::-webkit-scrollbar-thumb {
+    background: rgba(203, 213, 225, 0.8);
+    border-radius: 9999px;
+}
+.overflow-x-auto::-webkit-scrollbar-thumb:hover,
+div:has(> table)::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 1);
+}
+
+/* 2. Global Anti-Text-Drop Rules for Table Headers */
+table thead th {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    letter-spacing: 0.025em;
+}
+
+/* 3. Global Anti-Wrapping for Badges, Phones, IDs, Action Buttons */
+table td [class*="font-mono"],
+table td .font-mono,
+table td [class*="rounded-full"],
+table td [class*="badge"],
+table td button,
+table td .btn,
+table td a.btn,
+table td a[class*="rounded"],
+table td.whitespace-nowrap,
+table th.whitespace-nowrap,
+.whitespace-nowrap,
+.no-drop {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    flex-shrink: 0;
+}
+
+/* 4. Action button groups stay aligned on one line */
+table td > div.flex {
+    flex-wrap: nowrap;
+}
+
+/* 5. Safe layout containment for mobile and small screens */
+main {
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+
+/* 6. Alignment and tabular numbers for financial and score columns */
+.font-mono,
+td[class*="text-right"],
+td[class*="text-center"] {
+    font-variant-numeric: tabular-nums;
+}
+
+/* 7. Named custom scrollbars & hide-scrollbar helpers */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(241, 245, 249, 0.7);
+    border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(203, 213, 225, 0.8);
+    border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 1);
+}
+
+.scrollbar-none::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-none,
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* 8. Modern UI Modal / Drawer Transitions */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes zoomIn95 {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+.animate-in {
+    animation-duration: 0.2s;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    animation-fill-mode: both;
+}
+.fade-in {
+    animation-name: fadeIn;
+}
+.zoom-in-95 {
+    animation-name: zoomIn95;
+}
+
+/* 9. Alpine.js Cloak Directive */
+[x-cloak] {
+    display: none !important;
+}
+
+/* 10. CSS Grid Safety: Prevent flex/grid items from blowing out tracks */
+[class*="grid-cols-"] > * {
+    min-width: 0;
+}

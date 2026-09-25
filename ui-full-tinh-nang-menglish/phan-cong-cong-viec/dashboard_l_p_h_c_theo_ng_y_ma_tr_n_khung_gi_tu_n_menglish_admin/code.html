@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Dashboard Lớp Học</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#93fb65",
+                        "on-tertiary-container": "#0e3500",
+                        "on-error": "#ffffff",
+                        "on-tertiary-fixed": "#062100",
+                        "primary-container": "#f5691a",
+                        "surface-tint": "#a23f00",
+                        "primary-fixed": "#ffdbcd",
+                        "on-secondary-container": "#faf7ff",
+                        "on-primary": "#ffffff",
+                        "surface-container-low": "#f1f3ff",
+                        "background": "#f9f9ff",
+                        "error": "#ba1a1a",
+                        "surface-container-highest": "#dde2f3",
+                        "primary-fixed-dim": "#ffb595",
+                        "tertiary-container": "#46a917",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "on-error-container": "#93000a",
+                        "on-surface-variant": "#594137",
+                        "surface-container-high": "#e3e8f9",
+                        "on-background": "#161c27",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "on-secondary-fixed": "#00105b",
+                        "secondary-container": "#4160ff",
+                        "inverse-on-surface": "#ecf0ff",
+                        "surface-variant": "#dde2f3",
+                        "on-primary-fixed": "#360f00",
+                        "on-surface": "#161c27",
+                        "inverse-primary": "#ffb595",
+                        "surface-dim": "#d4daea",
+                        "outline": "#8d7165",
+                        "outline-variant": "#e1bfb2",
+                        "surface-container-lowest": "#ffffff",
+                        "surface": "#f9f9ff",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "secondary-fixed": "#dee0ff",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "secondary": "#1e43e7",
+                        "tertiary": "#256d00",
+                        "primary": "#a23f00",
+                        "surface-container": "#e8eeff",
+                        "inverse-surface": "#2a303d",
+                        "on-primary-container": "#521c00",
+                        "surface-bright": "#f9f9ff",
+                        "on-tertiary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "8px",
+                        "md": "16px",
+                        "gutter": "16px",
+                        "xl": "32px",
+                        "sidebar-width": "260px",
+                        "sm": "8px",
+                        "lg": "24px",
+                        "header-height": "64px",
+                        "xs": "4px"
+                    },
+                    "fontFamily": {
+                        "code": ["JetBrains Mono"],
+                        "h1": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                        "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; background-color: #f9f9ff; color: #161c27; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
+        
+        /* Custom scrollbar for matrix */
+        .matrix-container::-webkit-scrollbar { width: 8px; height: 8px; }
+        .matrix-container::-webkit-scrollbar-track { background: #f1f3ff; border-radius: 4px; }
+        .matrix-container::-webkit-scrollbar-thumb { background: #dde2f3; border-radius: 4px; }
+        .matrix-container::-webkit-scrollbar-thumb:hover { background: #d4daea; }
+
+        /* Tooltip */
+        .tooltip-container { position: relative; display: inline-block; }
+        .tooltip-container .tooltip-text {
+            visibility: hidden; width: max-content; max-width: 200px; background-color: #161c27; color: #fff; 
+            text-align: center; border-radius: 4px; padding: 4px 8px; position: absolute; z-index: 10; 
+            bottom: 125%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.3s;
+            font-size: 11px; line-height: 16px; font-weight: 400; box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        .tooltip-container .tooltip-text::after {
+            content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px;
+            border-width: 5px; border-style: solid; border-color: #161c27 transparent transparent transparent;
+        }
+        .tooltip-container:hover .tooltip-text { visibility: visible; opacity: 1; }
+
+        /* Tabs logic (simple JS-free visual mock) */
+        .tab-content { display: none; }
+        #tab-day:checked ~ .tab-panels #panel-day { display: block; }
+        #tab-week:checked ~ .tab-panels #panel-week { display: block; }
+        
+        #tab-day:checked ~ .tab-labels label[for="tab-day"] { 
+            border-bottom: 2px solid #f5691a; color: #f5691a; font-weight: 600;
+        }
+        #tab-week:checked ~ .tab-labels label[for="tab-week"] { 
+            border-bottom: 2px solid #f5691a; color: #f5691a; font-weight: 600;
+        }
+    </style>
+</head>
+<body class="p-lg md:p-xl antialiased">
+<!-- Header Section -->
+<div class="mb-lg flex flex-col md:flex-row md:items-center justify-between gap-md">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface">Dashboard lớp học</h1>
+<p class="font-body-base text-body-base text-on-surface-variant mt-xs">Quản lý lịch học, điểm danh và chấm công giảng viên</p>
+</div>
+<div class="flex items-center gap-sm">
+<button class="bg-surface-container-lowest border border-outline-variant text-on-surface px-md py-sm rounded-lg font-body-medium text-body-medium hover:bg-surface-container-low transition-colors flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">download</span>
+                Xuất báo cáo
+            </button>
+<button class="bg-[#F5691A] text-white px-md py-sm rounded-lg font-body-medium text-body-medium hover:bg-[#d85a15] transition-colors shadow-sm flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                Thêm lớp học
+            </button>
+</div>
+</div>
+<!-- Alert for Unassigned Branch -->
+<div class="mb-lg p-md bg-[#ffdad6] text-[#93000a] rounded-lg flex items-center gap-sm font-body-medium text-body-medium hidden">
+<span class="material-symbols-outlined text-[#93000a]">warning</span>
+    Tài khoản chưa gán chi nhánh, liên hệ Quản trị viên.
+</div>
+<!-- Main Content Container -->
+<div class="bg-surface-container-lowest border border-surface-variant rounded-xl shadow-sm overflow-hidden flex flex-col">
+<!-- Tabs Setup -->
+<input checked="" class="hidden" id="tab-day" name="dashboard-tabs" type="radio"/>
+<input class="hidden" id="tab-week" name="dashboard-tabs" type="radio"/>
+<!-- Tab Headers -->
+<div class="tab-labels flex border-b border-surface-variant px-lg bg-surface-container-low/50">
+<label class="px-md py-md font-body-medium text-body-medium text-on-surface-variant cursor-pointer hover:text-on-surface transition-colors border-b-2 border-transparent" for="tab-day">
+                Theo ngày
+            </label>
+<label class="px-md py-md font-body-medium text-body-medium text-on-surface-variant cursor-pointer hover:text-on-surface transition-colors border-b-2 border-transparent" for="tab-week">
+                Theo tuần
+            </label>
+</div>
+<!-- Tab Panels -->
+<div class="tab-panels flex-1">
+<!-- PANEL: THEO NGÀY -->
+<div class="tab-content p-lg animate-fade-in" id="panel-day">
+<!-- Filters (Day) -->
+<div class="flex flex-col sm:flex-row gap-md mb-lg">
+<div class="flex-1 max-w-[240px]">
+<label class="block font-label text-label text-on-surface-variant mb-xs uppercase">Chi nhánh</label>
+<div class="relative">
+<select class="w-full bg-surface-container-lowest border border-surface-variant text-on-surface rounded-lg px-md py-sm font-body-base text-body-base appearance-none focus:outline-none focus:border-[#3B5BFB] focus:ring-1 focus:ring-[#3B5BFB]">
+<option>Tất cả chi nhánh</option>
+<option>Cơ sở 1 - Cầu Giấy</option>
+<option>Cơ sở 2 - Đống Đa</option>
+<option>Cơ sở 3 - Quận 1</option>
+</select>
+<span class="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</div>
+<div class="flex-1 max-w-[240px]">
+<label class="block font-label text-label text-on-surface-variant mb-xs uppercase">Chọn ngày</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border border-surface-variant text-on-surface rounded-lg px-md py-sm font-body-base text-body-base focus:outline-none focus:border-[#3B5BFB] focus:ring-1 focus:ring-[#3B5BFB]" type="date" value="2023-10-25"/>
+</div>
+</div>
+<div class="flex-none flex items-end">
+<button class="h-[38px] bg-surface-container-low border border-surface-variant text-on-surface px-md rounded-lg font-body-medium text-body-medium hover:bg-surface-variant transition-colors flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+                            Lọc thêm
+                        </button>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-lg">
+<!-- Main Table Area (3/4 width on large screens) -->
+<div class="lg:col-span-3">
+<div class="bg-surface-container-lowest border border-surface-variant rounded-lg overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-surface-variant">
+<th class="py-sm px-md font-label text-label text-on-surface-variant uppercase tracking-wider whitespace-nowrap">Tên lớp</th>
+<th class="py-sm px-md font-label text-label text-on-surface-variant uppercase tracking-wider whitespace-nowrap">Khung giờ</th>
+<th class="py-sm px-md font-label text-label text-on-surface-variant uppercase tracking-wider whitespace-nowrap">Phòng học</th>
+<th class="py-sm px-md font-label text-label text-on-surface-variant uppercase tracking-wider whitespace-nowrap">GV Chính</th>
+<th class="py-sm px-md font-label text-label text-on-surface-variant uppercase tracking-wider whitespace-nowrap">GVNN</th>
+<th class="py-sm px-md font-label text-label text-on-surface-variant uppercase tracking-wider text-center whitespace-nowrap">Sĩ số</th>
+<th class="py-sm px-md font-label text-label text-on-surface-variant uppercase tracking-wider text-center whitespace-nowrap">Điểm danh</th>
+<th class="py-sm px-md font-label text-label text-on-surface-variant uppercase tracking-wider text-right whitespace-nowrap">Thao tác</th>
+</tr>
+</thead>
+<tbody class="font-body-base text-body-base text-on-surface divide-y divide-surface-variant">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="py-md px-md font-body-medium text-body-medium">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-[#3B5BFB]"></span>
+                                                    IELTS Foundation 01
+                                                </div>
+</td>
+<td class="py-md px-md whitespace-nowrap">08:00 - 10:00</td>
+<td class="py-md px-md whitespace-nowrap">Phòng 101</td>
+<td class="py-md px-md whitespace-nowrap">Nguyễn Văn A</td>
+<td class="py-md px-md whitespace-nowrap">John Doe</td>
+<td class="py-md px-md text-center">15/20</td>
+<td class="py-md px-md text-center">
+<span class="inline-flex items-center px-2 py-1 rounded-full bg-[#10B981]/10 text-[#10B981] font-label text-label">
+                                                    Đã điểm danh
+                                                </span>
+</td>
+<td class="py-md px-md text-right whitespace-nowrap">
+<button class="bg-[#F5691A] text-white px-sm py-xs rounded font-body-medium text-body-small hover:bg-[#d85a15] transition-colors">
+                                                    Chấm công
+                                                </button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="py-md px-md font-body-medium text-body-medium">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-[#F5691A]"></span>
+                                                    TOEIC 500+ K22
+                                                </div>
+</td>
+<td class="py-md px-md whitespace-nowrap">14:00 - 16:00</td>
+<td class="py-md px-md whitespace-nowrap">Phòng 203</td>
+<td class="py-md px-md whitespace-nowrap">Trần Thị B</td>
+<td class="py-md px-md whitespace-nowrap text-on-surface-variant">-</td>
+<td class="py-md px-md text-center">22/25</td>
+<td class="py-md px-md text-center">
+<span class="inline-flex items-center px-2 py-1 rounded-full bg-[#EF4444]/10 text-[#EF4444] font-label text-label">
+                                                    Chưa điểm danh
+                                                </span>
+</td>
+<td class="py-md px-md text-right whitespace-nowrap">
+<div class="tooltip-container">
+<button class="bg-surface-variant text-on-surface-variant px-sm py-xs rounded font-body-medium text-body-small cursor-not-allowed opacity-70" disabled="">
+                                                        Chấm công
+                                                    </button>
+<span class="tooltip-text">Chỉ được chấm công trong vòng 24h sau giờ học</span>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="py-md px-md font-body-medium text-body-medium">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-[#10B981]"></span>
+                                                    Giao tiếp Cơ bản
+                                                </div>
+</td>
+<td class="py-md px-md whitespace-nowrap">18:00 - 20:00</td>
+<td class="py-md px-md whitespace-nowrap">Phòng 105</td>
+<td class="py-md px-md whitespace-nowrap">Lê Văn C</td>
+<td class="py-md px-md whitespace-nowrap">Sarah Smith</td>
+<td class="py-md px-md text-center">10/15</td>
+<td class="py-md px-md text-center">
+<span class="inline-flex items-center px-2 py-1 rounded-full bg-[#EF4444]/10 text-[#EF4444] font-label text-label">
+                                                    Chưa điểm danh
+                                                </span>
+</td>
+<td class="py-md px-md text-right whitespace-nowrap">
+<button class="bg-[#F5691A] text-white px-sm py-xs rounded font-body-medium text-body-small hover:bg-[#d85a15] transition-colors">
+                                                    Chấm công
+                                                </button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Pagination Summary -->
+<div class="mt-md flex justify-between items-center text-on-surface-variant font-body-small text-body-small">
+<span>Hiển thị 1-3 của 12 lớp học</span>
+<div class="flex gap-xs">
+<button class="p-xs rounded hover:bg-surface-variant transition-colors"><span class="material-symbols-outlined text-[18px]">chevron_left</span></button>
+<button class="p-xs rounded hover:bg-surface-variant transition-colors"><span class="material-symbols-outlined text-[18px]">chevron_right</span></button>
+</div>
+</div>
+</div>
+<!-- Sidebar Area (1/4 width on large screens) -->
+<div class="lg:col-span-1">
+<div class="bg-surface-container-low border border-surface-variant rounded-lg p-md h-full">
+<h3 class="font-h3 text-h3 text-on-surface mb-md flex items-center gap-sm border-b border-surface-variant pb-sm">
+<span class="material-symbols-outlined text-primary-container">support_agent</span>
+                                Trợ giảng làm việc hôm nay
+                            </h3>
+<ul class="space-y-sm">
+<li class="flex items-center gap-sm p-sm rounded-md bg-surface-container-lowest border border-surface-variant hover:border-outline-variant transition-colors">
+<div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center font-body-medium text-on-primary-fixed">T</div>
+<div>
+<p class="font-body-medium text-body-medium text-on-surface">Phạm Thị Thu</p>
+<p class="font-caption text-caption text-on-surface-variant">Ca sáng (08:00 - 12:00)</p>
+</div>
+</li>
+<li class="flex items-center gap-sm p-sm rounded-md bg-surface-container-lowest border border-surface-variant hover:border-outline-variant transition-colors">
+<div class="w-8 h-8 rounded-full bg-secondary-fixed flex items-center justify-center font-body-medium text-on-secondary-fixed">H</div>
+<div>
+<p class="font-body-medium text-body-medium text-on-surface">Hoàng Văn Hải</p>
+<p class="font-caption text-caption text-on-surface-variant">Ca chiều (13:30 - 17:30)</p>
+</div>
+</li>
+<li class="flex items-center gap-sm p-sm rounded-md bg-surface-container-lowest border border-surface-variant hover:border-outline-variant transition-colors">
+<div class="w-8 h-8 rounded-full bg-tertiary-fixed-dim flex items-center justify-center font-body-medium text-on-tertiary-fixed">L</div>
+<div>
+<p class="font-body-medium text-body-medium text-on-surface">Nguyễn Thu Linh</p>
+<p class="font-caption text-caption text-on-surface-variant">Ca tối (17:30 - 21:30)</p>
+</div>
+</li>
+</ul>
+<button class="w-full mt-md py-sm border border-outline-variant text-on-surface rounded-md font-body-small text-body-small hover:bg-surface-variant transition-colors">
+                                Xem tất cả trợ giảng
+                            </button>
+</div>
+</div>
+</div>
+</div>
+<!-- PANEL: THEO TUẦN -->
+<div class="tab-content p-lg animate-fade-in" id="panel-week">
+<!-- Filters (Week) -->
+<div class="flex flex-col sm:flex-row gap-md mb-lg">
+<div class="flex-1 max-w-[240px]">
+<label class="block font-label text-label text-on-surface-variant mb-xs uppercase">Chi nhánh</label>
+<div class="relative">
+<select class="w-full bg-surface-container-lowest border border-surface-variant text-on-surface rounded-lg px-md py-sm font-body-base text-body-base appearance-none focus:outline-none focus:border-[#3B5BFB] focus:ring-1 focus:ring-[#3B5BFB]">
+<option>Tất cả chi nhánh</option>
+<option>Cơ sở 1 - Cầu Giấy</option>
+<option>Cơ sở 2 - Đống Đa</option>
+</select>
+<span class="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</div>
+<div class="flex-1 max-w-[240px]">
+<label class="block font-label text-label text-on-surface-variant mb-xs uppercase">Chọn tuần</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border border-surface-variant text-on-surface rounded-lg px-md py-sm font-body-base text-body-base focus:outline-none focus:border-[#3B5BFB] focus:ring-1 focus:ring-[#3B5BFB]" type="week" value="2023-W43"/>
+</div>
+</div>
+<div class="flex-none flex items-end ml-auto">
+<div class="flex gap-sm">
+<div class="flex items-center gap-xs font-caption text-caption text-on-surface-variant">
+<span class="w-3 h-3 rounded bg-primary-fixed border border-primary-fixed-dim"></span> Lớp IELTS
+                            </div>
+<div class="flex items-center gap-xs font-caption text-caption text-on-surface-variant">
+<span class="w-3 h-3 rounded bg-secondary-fixed border border-secondary-fixed-dim"></span> Lớp Giao tiếp
+                            </div>
+</div>
+</div>
+</div>
+<!-- Matrix Table -->
+<div class="bg-surface-container-lowest border border-surface-variant rounded-lg overflow-hidden flex flex-col h-[500px]">
+<div class="overflow-auto matrix-container h-full">
+<table class="w-full text-left border-collapse min-w-[900px] table-fixed">
+<thead class="sticky top-0 z-10 bg-surface-container-low shadow-sm">
+<tr>
+<th class="w-[120px] py-sm px-md border-b border-r border-surface-variant font-label text-label text-on-surface-variant uppercase text-center bg-surface-container-high/50">Khung giờ</th>
+<th class="py-sm px-md border-b border-r border-surface-variant font-label text-label text-on-surface-variant uppercase text-center">Thứ 2<br/><span class="font-normal text-caption">23/10</span></th>
+<th class="py-sm px-md border-b border-r border-surface-variant font-label text-label text-on-surface-variant uppercase text-center">Thứ 3<br/><span class="font-normal text-caption">24/10</span></th>
+<th class="py-sm px-md border-b border-r border-surface-variant font-label text-label text-on-surface-variant uppercase text-center">Thứ 4<br/><span class="font-normal text-caption">25/10</span></th>
+<th class="py-sm px-md border-b border-r border-surface-variant font-label text-label text-on-surface-variant uppercase text-center">Thứ 5<br/><span class="font-normal text-caption">26/10</span></th>
+<th class="py-sm px-md border-b border-r border-surface-variant font-label text-label text-on-surface-variant uppercase text-center">Thứ 6<br/><span class="font-normal text-caption">27/10</span></th>
+<th class="py-sm px-md border-b border-r border-surface-variant font-label text-label text-on-surface-variant uppercase text-center bg-surface-container-low">Thứ 7<br/><span class="font-normal text-caption">28/10</span></th>
+<th class="py-sm px-md border-b border-surface-variant font-label text-label text-on-surface-variant uppercase text-center bg-surface-container-low">Chủ Nhật<br/><span class="font-normal text-caption">29/10</span></th>
+</tr>
+</thead>
+<tbody class="font-body-small text-body-small text-on-surface align-top">
+<!-- Row: 08:00 - 10:00 -->
+<tr>
+<td class="w-[120px] py-md px-sm border-b border-r border-surface-variant text-center font-body-medium text-on-surface-variant bg-surface-container-lowest sticky left-0 z-0">
+                                        08:00<br/><span class="text-caption">-</span><br/>10:00
+                                    </td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-lowest">
+<div class="flex flex-col gap-xs">
+<div class="bg-primary-fixed/30 border border-primary-fixed-dim rounded p-xs hover:shadow-md transition-shadow cursor-pointer">
+<p class="font-body-medium text-[#7c2e00] truncate">IELTS F. 01</p>
+<p class="font-caption text-[#a23f00]">P. 101</p>
+</div>
+</div>
+</td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-lowest/50"></td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-lowest">
+<div class="flex flex-col gap-xs">
+<div class="bg-primary-fixed/30 border border-primary-fixed-dim rounded p-xs hover:shadow-md transition-shadow cursor-pointer">
+<p class="font-body-medium text-[#7c2e00] truncate">IELTS F. 01</p>
+<p class="font-caption text-[#a23f00]">P. 101</p>
+</div>
+<div class="bg-secondary-fixed/30 border border-secondary-fixed-dim rounded p-xs hover:shadow-md transition-shadow cursor-pointer">
+<p class="font-body-medium text-[#00105b] truncate">Giao tiếp B2</p>
+<p class="font-caption text-[#002fc9]">P. 205</p>
+</div>
+</div>
+</td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-lowest/50"></td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-lowest">
+<div class="flex flex-col gap-xs">
+<div class="bg-primary-fixed/30 border border-primary-fixed-dim rounded p-xs hover:shadow-md transition-shadow cursor-pointer">
+<p class="font-body-medium text-[#7c2e00] truncate">IELTS F. 01</p>
+<p class="font-caption text-[#a23f00]">P. 101</p>
+</div>
+</div>
+</td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-low/30"></td>
+<td class="p-xs border-b border-surface-variant bg-surface-container-low/30"></td>
+</tr>
+<!-- Row: 10:00 - 12:00 -->
+<tr>
+<td class="w-[120px] py-md px-sm border-b border-r border-surface-variant text-center font-body-medium text-on-surface-variant bg-surface-container-lowest sticky left-0 z-0">
+                                        10:00<br/><span class="text-caption">-</span><br/>12:00
+                                    </td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-lowest/50"></td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-lowest/50"></td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-lowest/50"></td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-lowest/50"></td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-lowest/50"></td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-low/30">
+<div class="flex flex-col gap-xs">
+<div class="bg-[#F5691A]/10 border border-[#F5691A]/30 rounded p-xs hover:shadow-md transition-shadow cursor-pointer">
+<p class="font-body-medium text-[#a23f00] truncate">Thi thử IELTS</p>
+<p class="font-caption text-[#a23f00]">Hội trường</p>
+</div>
+</div>
+</td>
+<td class="p-xs border-b border-surface-variant bg-surface-container-low/30">
+<div class="flex flex-col gap-xs">
+<div class="bg-[#F5691A]/10 border border-[#F5691A]/30 rounded p-xs hover:shadow-md transition-shadow cursor-pointer">
+<p class="font-body-medium text-[#a23f00] truncate">Thi thử IELTS</p>
+<p class="font-caption text-[#a23f00]">Hội trường</p>
+</div>
+</div>
+</td>
+</tr>
+<!-- Row: 14:00 - 16:00 -->
+<tr>
+<td class="w-[120px] py-md px-sm border-b border-r border-surface-variant text-center font-body-medium text-on-surface-variant bg-surface-container-lowest sticky left-0 z-0">
+                                        14:00<br/><span class="text-caption">-</span><br/>16:00
+                                    </td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-lowest/50"></td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-lowest">
+<div class="flex flex-col gap-xs">
+<div class="bg-tertiary-fixed-dim/30 border border-tertiary-fixed-dim/50 rounded p-xs hover:shadow-md transition-shadow cursor-pointer">
+<p class="font-body-medium text-[#1a5200] truncate">TOEIC 500+</p>
+<p class="font-caption text-[#256d00]">P. 203</p>
+</div>
+</div>
+</td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-lowest/50"></td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-lowest">
+<div class="flex flex-col gap-xs">
+<div class="bg-tertiary-fixed-dim/30 border border-tertiary-fixed-dim/50 rounded p-xs hover:shadow-md transition-shadow cursor-pointer">
+<p class="font-body-medium text-[#1a5200] truncate">TOEIC 500+</p>
+<p class="font-caption text-[#256d00]">P. 203</p>
+</div>
+</div>
+</td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-lowest/50"></td>
+<td class="p-xs border-b border-r border-surface-variant bg-surface-container-low/30"></td>
+<td class="p-xs border-b border-surface-variant bg-surface-container-low/30"></td>
+</tr>
+<!-- Row: 18:00 - 20:00 -->
+<tr>
+<td class="w-[120px] py-md px-sm border-r border-surface-variant text-center font-body-medium text-on-surface-variant bg-surface-container-lowest sticky left-0 z-0">
+                                        18:00<br/><span class="text-caption">-</span><br/>20:00
+                                    </td>
+<td class="p-xs border-r border-surface-variant bg-surface-container-lowest">
+<div class="flex flex-col gap-xs">
+<div class="bg-secondary-fixed/30 border border-secondary-fixed-dim rounded p-xs hover:shadow-md transition-shadow cursor-pointer">
+<p class="font-body-medium text-[#00105b] truncate">Giao tiếp CB</p>
+<p class="font-caption text-[#002fc9]">P. 105</p>
+</div>
+</div>
+</td>
+<td class="p-xs border-r border-surface-variant bg-surface-container-lowest">
+<div class="flex flex-col gap-xs">
+<div class="bg-primary-fixed/30 border border-primary-fixed-dim rounded p-xs hover:shadow-md transition-shadow cursor-pointer">
+<p class="font-body-medium text-[#7c2e00] truncate">IELTS Int 02</p>
+<p class="font-caption text-[#a23f00]">P. 301</p>
+</div>
+</div>
+</td>
+<td class="p-xs border-r border-surface-variant bg-surface-container-lowest">
+<div class="flex flex-col gap-xs">
+<div class="bg-secondary-fixed/30 border border-secondary-fixed-dim rounded p-xs hover:shadow-md transition-shadow cursor-pointer">
+<p class="font-body-medium text-[#00105b] truncate">Giao tiếp CB</p>
+<p class="font-caption text-[#002fc9]">P. 105</p>
+</div>
+</div>
+</td>
+<td class="p-xs border-r border-surface-variant bg-surface-container-lowest">
+<div class="flex flex-col gap-xs">
+<div class="bg-primary-fixed/30 border border-primary-fixed-dim rounded p-xs hover:shadow-md transition-shadow cursor-pointer">
+<p class="font-body-medium text-[#7c2e00] truncate">IELTS Int 02</p>
+<p class="font-caption text-[#a23f00]">P. 301</p>
+</div>
+</div>
+</td>
+<td class="p-xs border-r border-surface-variant bg-surface-container-lowest">
+<div class="flex flex-col gap-xs">
+<div class="bg-secondary-fixed/30 border border-secondary-fixed-dim rounded p-xs hover:shadow-md transition-shadow cursor-pointer">
+<p class="font-body-medium text-[#00105b] truncate">Giao tiếp CB</p>
+<p class="font-caption text-[#002fc9]">P. 105</p>
+</div>
+</div>
+</td>
+<td class="p-xs border-r border-surface-variant bg-surface-container-low/30"></td>
+<td class="p-xs bg-surface-container-low/30"></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Danh sách vi phạm | MENGLISH Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@100;300;400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@100;400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-fixed": "#ffdbcd",
+                    "surface-variant": "#dde2f3",
+                    "primary": "#a23f00",
+                    "primary-fixed-dim": "#ffb595",
+                    "error-container": "#ffdad6",
+                    "on-primary-fixed": "#360f00",
+                    "on-error": "#ffffff",
+                    "surface-tint": "#a23f00",
+                    "surface-container": "#e8eeff",
+                    "surface-container-high": "#e3e8f9",
+                    "on-background": "#161c27",
+                    "on-secondary-container": "#faf7ff",
+                    "tertiary-fixed-dim": "#78de4b",
+                    "on-primary-container": "#521c00",
+                    "on-primary": "#ffffff",
+                    "surface-container-highest": "#dde2f3",
+                    "outline": "#8d7165",
+                    "on-surface": "#161c27",
+                    "primary-container": "#f5691a",
+                    "secondary-fixed": "#dee0ff",
+                    "surface-dim": "#d4daea",
+                    "background": "#f9f9ff",
+                    "surface-container-low": "#f1f3ff",
+                    "secondary-fixed-dim": "#bac3ff",
+                    "on-secondary": "#ffffff",
+                    "surface-container-lowest": "#ffffff",
+                    "secondary": "#1e43e7",
+                    "on-tertiary": "#ffffff",
+                    "on-surface-variant": "#594137",
+                    "on-error-container": "#93000a",
+                    "on-secondary-fixed-variant": "#002fc9",
+                    "inverse-primary": "#ffb595",
+                    "error": "#ba1a1a",
+                    "on-tertiary-fixed-variant": "#1a5200",
+                    "surface": "#f9f9ff",
+                    "secondary-container": "#4160ff",
+                    "on-primary-fixed-variant": "#7c2e00",
+                    "inverse-on-surface": "#ecf0ff",
+                    "tertiary": "#256d00",
+                    "surface-bright": "#f9f9ff",
+                    "on-tertiary-container": "#0e3500",
+                    "tertiary-container": "#46a917",
+                    "outline-variant": "#e1bfb2",
+                    "on-secondary-fixed": "#00105b",
+                    "inverse-surface": "#2a303d",
+                    "tertiary-fixed": "#93fb65"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sm": "8px",
+                    "sidebar-width": "260px",
+                    "lg": "24px",
+                    "base": "8px",
+                    "header-height": "64px",
+                    "gutter": "16px",
+                    "xs": "4px",
+                    "md": "16px",
+                    "xl": "32px"
+            },
+            "fontFamily": {
+                    "body-medium": ["Be Vietnam Pro"],
+                    "h2": ["Be Vietnam Pro"],
+                    "label": ["Be Vietnam Pro"],
+                    "caption": ["Be Vietnam Pro"],
+                    "body-base": ["Be Vietnam Pro"],
+                    "body-small": ["Be Vietnam Pro"],
+                    "h3": ["Be Vietnam Pro"],
+                    "h1": ["Be Vietnam Pro"],
+                    "code": ["JetBrains Mono"]
+            },
+            "fontSize": {
+                    "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                    "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                    "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: #f9f9ff;
+            color: #161c27;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="p-lg">
+<!-- Header Section -->
+<header class="flex justify-between items-center mb-xl">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface">Danh sách vi phạm</h1>
+<p class="font-body-base text-on-surface-variant mt-xs">Quản lý và theo dõi các bước xử lý vi phạm nhân sự tại MENGLISH.</p>
+</div>
+<button class="bg-primary-container text-white px-md py-sm rounded-lg font-h3 text-h3 flex items-center gap-sm hover:opacity-90 transition-all shadow-sm">
+<span class="material-symbols-outlined">add_circle</span>
+            Ghi nhận vi phạm mới
+        </button>
+</header>
+<!-- Warning Banner (Conditional) -->
+<div class="mb-lg bg-error-container border border-error/20 p-md rounded-xl flex items-start gap-md animate-pulse">
+<span class="material-symbols-outlined text-error mt-0.5">warning</span>
+<div class="flex-1">
+<p class="font-body-medium text-on-error-container">
+                Kỳ lương hiện tại của nhân viên <strong class="font-bold">Trần Hoàng Nam</strong> đã khóa. Không thể thực hiện chốt mức phạt.
+            </p>
+<p class="font-caption text-on-error-container opacity-80">Vui lòng liên hệ bộ phận Kế toán để được hỗ trợ mở khóa kỳ lương nếu cần thiết.</p>
+</div>
+<button class="text-on-error-container hover:bg-black/5 p-1 rounded-full">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Filters Section -->
+<section class="bg-white border border-outline-variant p-md rounded-xl shadow-sm mb-lg">
+<div class="flex flex-wrap items-end gap-md">
+<!-- Search -->
+<div class="flex-1 min-w-[300px]">
+<label class="block font-label text-label text-on-surface-variant mb-xs">TÌM KIẾM NHÂN VIÊN</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full pl-10 pr-md py-2 border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none transition-all font-body-base" placeholder="Nhập tên hoặc mã nhân viên..." type="text"/>
+</div>
+</div>
+<!-- Step Filter -->
+<div class="w-full lg:w-auto">
+<label class="block font-label text-label text-on-surface-variant mb-xs">LỌC THEO BƯỚC</label>
+<div class="flex flex-wrap gap-xs">
+<button class="px-md py-2 bg-surface-container-high text-on-surface font-body-medium rounded-lg border border-transparent hover:border-primary-container transition-all">Tất cả</button>
+<button class="px-md py-2 bg-white border border-outline-variant text-on-surface-variant font-body-medium rounded-lg hover:bg-surface-container-low transition-all">Ghi nhận</button>
+<button class="px-md py-2 bg-white border border-outline-variant text-on-surface-variant font-body-medium rounded-lg hover:bg-surface-container-low transition-all">Đã chốt lỗi</button>
+<button class="px-md py-2 bg-white border border-outline-variant text-on-surface-variant font-body-medium rounded-lg hover:bg-surface-container-low transition-all">Đã chốt phạt</button>
+<button class="px-md py-2 bg-white border border-outline-variant text-on-surface-variant font-body-medium rounded-lg hover:bg-surface-container-low transition-all">Đã nộp</button>
+<button class="px-md py-2 bg-white border border-outline-variant text-on-surface-variant font-body-medium rounded-lg hover:bg-surface-container-low transition-all">Đã khắc phục</button><button class="px-md py-2 bg-white border border-outline-variant text-on-surface-variant font-body-medium rounded-lg hover:bg-surface-container-low transition-all">Đã hủy</button>
+</div>
+</div>
+<!-- Actions -->
+<button class="flex items-center gap-xs px-md py-2 bg-white border border-outline text-on-surface-variant font-body-medium rounded-lg hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined text-[20px]">filter_list</span>
+                Bộ lọc nâng cao
+            </button>
+</div>
+</section>
+<!-- Data Table Container -->
+<main class="bg-white border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="px-lg py-md font-label text-label text-on-surface-variant uppercase tracking-wider">Nhân viên</th>
+<th class="px-lg py-md font-label text-label text-on-surface-variant uppercase tracking-wider">Ngày vi phạm</th>
+<th class="px-lg py-md font-label text-label text-on-surface-variant uppercase tracking-wider">Nguồn</th><th class="px-lg py-md font-label text-label text-on-surface-variant uppercase tracking-wider">Bước hiện tại</th>
+<th class="px-lg py-md font-label text-label text-on-surface-variant uppercase tracking-wider text-right">Số tiền phạt</th>
+<th class="px-lg py-md font-label text-label text-on-surface-variant uppercase tracking-wider">Trạng thái GV</th>
+<th class="px-lg py-md font-label text-label text-on-surface-variant uppercase tracking-wider text-center">Thao tác</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1: Ghi nhận -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full border border-outline-variant overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="A professional studio portrait of a Vietnamese employee for a corporate profile, clean lighting, friendly expression, wearing a business casual outfit, neutral office background with soft bokeh, high resolution, professional photography style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDUm_m2wb2SoXWATrcvv-BGD4hjCL4TAsy4NRa-zXS3lkXI5fetN7TPREgQNn_wGNb69iicpR5_JwPGMw7fTgEx2r20rICoYFCpGI9tMTWDogRL3Jrz7L3EDbZ3LWbQ8Kikpw9J7F62hx_TAmkJ-QwDEoUCU5PW0Sxd7kdXyAPT52H16O4S1XQYW8MBVb0za5BLOHme-K5B8HrSzEOCGL1AfjnKXPkx7LnV5MzzuBuKihpaET8TzoIY"/>
+</div>
+<div>
+<p class="font-body-medium text-on-surface">Nguyễn Văn An</p>
+<p class="font-caption text-on-surface-variant">ID: MGL-0492</p>
+</div>
+</div>
+</td>
+<td class="px-lg py-md font-body-base text-on-surface-variant">14/10/2023</td>
+<td class="px-lg py-md"><span class="status-badge bg-surface-container text-on-surface-variant">Thủ công</span></td><td class="px-lg py-md">
+<span class="status-badge bg-gray-100 text-gray-600">Ghi nhận</span>
+</td>
+<td class="px-lg py-md font-code text-body-base text-right font-medium">---</td>
+<td class="px-lg py-md">
+<span class="status-badge bg-amber-50 text-amber-700 border border-amber-200">Chờ xác nhận</span>
+</td>
+<td class="px-lg py-md text-center">
+<button class="bg-secondary text-white px-md py-1.5 rounded-lg font-body-medium hover:bg-secondary-container transition-all active:scale-95 shadow-sm">
+                                Chốt lỗi
+                            </button>
+</td>
+</tr>
+<!-- Row 2: Đã chốt lỗi -->
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full border border-outline-variant overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="A professional portrait of a female Vietnamese staff member, warm smiling face, professional lighting, corporate attire, modern office setting with light color palette of blues and whites, focused and trustworthy appearance." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwtDE9pNfbJXWN7-yB8GKtjh9WGrsGEHE9stlFbdPFmzCOlEsM5p0MDOxBwyKjn4ShJqFSTx2ZSudDoJVHaUHeQP_vf-sNBB4oC-QX8Vr3FcYkon1SjdIK0P6PhC-OuET6z0iRWzuhr9ZNJ8a_gEAFrcq2ndpMebw6lYmC8seNH8PCqsNCWxZITLQTKoNlwgWBll7SlNe2Y3pX6LPqngam6hCB2_spssspiTYd0dNWO_0togCcXhSD"/>
+</div>
+<div>
+<p class="font-body-medium text-on-surface">Lê Thị Mai</p>
+<p class="font-caption text-on-surface-variant">ID: MGL-0215</p>
+</div>
+</div>
+</td>
+<td class="px-lg py-md font-body-base text-on-surface-variant">12/10/2023</td>
+<td class="px-lg py-md"><span class="status-badge bg-secondary-fixed text-on-secondary-fixed-variant">Tự động</span></td><td class="px-lg py-md">
+<span class="status-badge bg-blue-50 text-blue-700">Đã chốt lỗi</span>
+</td>
+<td class="px-lg py-md font-code text-body-base text-right font-medium text-on-surface">---</td>
+<td class="px-lg py-md">
+<span class="status-badge bg-tertiary-fixed text-on-tertiary-fixed-variant">Đã xác nhận</span>
+</td>
+<td class="px-lg py-md text-center flex justify-center gap-xs"><div class="flex justify-center gap-xs"><button class="bg-primary-container text-white px-md py-1.5 rounded-lg font-body-medium hover:opacity-90 transition-all">Chốt mức phạt</button><button class="bg-surface-container text-on-surface-variant px-md py-1.5 rounded-lg font-body-medium hover:bg-surface-container-high transition-all">Đóng - không phạt</button><button class="bg-white border border-error text-error px-md py-1.5 rounded-lg font-body-medium hover:bg-error-container transition-all">Hủy vi phạm</button></div></td>
+</tr>
+<!-- Row 3: Đã chốt phạt -->
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full border border-outline-variant overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Close up of a professional Asian male employee, wearing glasses, high-end office lighting, modern executive appearance, background showing a blurred modern classroom or meeting room, high resolution, corporate lifestyle aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8kSrcg6crGj3oeLgclAKwRHR2qdBIMcqNZRjwvuWTZKziFC7I7W8OZTvxnqk_tY6UBebIRPKUkkGPSzl0uTwL6CBOTNjH-BFT9KTwEugixb0_c6MLjW_GxrY9XtiaCG4_rCMm7aXUV_mdPN1b282fzcoyN2kFe-zhWkf_XDFDXWNF5M56v5MzO-ZuAjilAEw6pWeIXvyvKst5vAreN4CkbqBBgN7cIU06sQD4a2mDEW3yp2Nmg_-e"/>
+</div>
+<div>
+<p class="font-body-medium text-on-surface">Trần Hoàng Nam</p>
+<p class="font-caption text-on-surface-variant">ID: MGL-0881</p>
+</div>
+</div>
+</td>
+<td class="px-lg py-md font-body-base text-on-surface-variant">10/10/2023</td>
+<td class="px-lg py-md"><span class="status-badge bg-surface-container text-on-surface-variant">Thủ công</span></td><td class="px-lg py-md">
+<span class="status-badge bg-amber-100 text-amber-800">Đã chốt phạt</span>
+</td>
+<td class="px-lg py-md font-code text-body-base text-right font-medium text-on-surface">200,000đ</td>
+<td class="px-lg py-md">
+<span class="status-badge bg-tertiary-fixed text-on-tertiary-fixed-variant">Đã xác nhận</span>
+</td>
+<td class="px-lg py-md text-center">
+<button class="bg-primary text-white px-md py-1.5 rounded-lg font-body-medium hover:bg-primary/90 transition-all">
+                                Đánh dấu đã nộp
+                            </button>
+</td>
+</tr>
+<!-- Row 4: Đã nộp -->
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full border border-outline-variant overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="A portrait of a young professional Vietnamese woman working as a teacher or admin, smiling warmly, professional indoor lighting, wearing a light colored blazer, background features blurred library shelves, clean and modern corporate aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuALFjHnWoNBdT8ZnRcVxVgob4PB6GJhw7xw6lacewUk89n_ky2ZANmIH2ymx7t2MLLTUbhuJDa1qANEcfg7StvYwaHuJfIoLqDSLo8dKEkkEDsbmrPOc4cFXBDr1If8emf_40_hgc2TwoLneQyI9yB5YcaXK_7qTbX-gIrtKUjU2NOfO2u0ftqUWjt3cazoCQmyspTEeK0ovojEMyOKGJYYhD6RqhEn3ggs48Kat2ORkUvhFWIgKxdk"/>
+</div>
+<div>
+<p class="font-body-medium text-on-surface">Phạm Thanh Thủy</p>
+<p class="font-caption text-on-surface-variant">ID: MGL-0112</p>
+</div>
+</div>
+</td>
+<td class="px-lg py-md font-body-base text-on-surface-variant">08/10/2023</td>
+<td class="px-lg py-md"><span class="status-badge bg-surface-container text-on-surface-variant">Thủ công</span></td><td class="px-lg py-md">
+<span class="status-badge bg-primary-fixed text-on-primary-fixed-variant">Đã nộp</span>
+</td>
+<td class="px-lg py-md font-code text-body-base text-right font-medium text-on-surface">500,000đ</td>
+<td class="px-lg py-md">
+<span class="status-badge bg-tertiary-fixed text-on-tertiary-fixed-variant">Đã xác nhận</span>
+</td>
+<td class="px-lg py-md text-center">
+<button class="bg-tertiary text-white px-md py-1.5 rounded-lg font-body-medium hover:bg-tertiary/90 transition-all">
+                                Ghi nhận khắc phục
+                            </button>
+</td>
+</tr>
+<!-- Row 5: Đã khắc phục -->
+<tr class="hover:bg-surface-container-lowest transition-colors bg-surface-container-low/20">
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full border border-outline-variant overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Professional profile photo of a male Vietnamese staff member, sharp business attire, neutral soft gray background, elegant lighting highlighting a friendly but serious expression, high-quality digital photography for corporate directory." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCeomG7xrEYHo3LUY_OaZD6CN1QqF-ydJJq0CXQ3ODr1CeSV7ln65YrYeNQKtT2jeZakg8plfUTAtKdGWPQZCn9YfOTT44g7s6W_rugRFNuf8fLsGZU1z0Zv4kGsGwkVZN_xpp0mj7d7CM5-9SDbkhs6uC3jrR_dPtwPoY8wfYbvFK_PYP82VvhGi5GW1bkjS_CcOv3LkG-adt9mKX9rNX4KloJW9myF6rB1NwPHdwZWJhzaZslPbt8"/>
+</div>
+<div>
+<p class="font-body-medium text-on-surface">Hoàng Minh Đức</p>
+<p class="font-caption text-on-surface-variant">ID: MGL-0544</p>
+</div>
+</div>
+</td>
+<td class="px-lg py-md font-body-base text-on-surface-variant">05/10/2023</td>
+<td class="px-lg py-md"><span class="status-badge bg-surface-container text-on-surface-variant">Thủ công</span></td><td class="px-lg py-md">
+<span class="status-badge bg-tertiary-container text-white">Đã khắc phục</span>
+</td>
+<td class="px-lg py-md font-code text-body-base text-right font-medium text-on-surface">100,000đ</td>
+<td class="px-lg py-md">
+<span class="status-badge bg-tertiary-fixed text-on-tertiary-fixed-variant">Đã xác nhận</span>
+</td>
+<td class="px-lg py-md text-center">
+<button class="text-on-surface-variant hover:bg-surface-container-high p-2 rounded-lg transition-all" title="Xem chi tiết">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</td>
+</tr>
+<!-- Row 6: Đóng - không phạt -->
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm opacity-60">
+<div class="w-10 h-10 rounded-full border border-outline-variant overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="A portrait of a male Vietnamese employee for an HR system, high resolution, realistic lighting, wearing a clean shirt, calm and neutral expression, corporate office blurred background, focused on the face." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZv0ACSJb5tmuu0yLX-bjVbBy0KT8-J_a-BVFzqIpzYr4n_e_VAevWAb6HTOgfLS6zY0Vbvu9Lesk1TwKYXmMOxcwj74yb9vN_Ab-MvHz0V_SlRwmIoULskuzhnuBgwIcG6LA8Ag-iGmOGBEvWEtg9IEXtResSI5daBpIi5Ogcl1xb6UaE949J7MPzfSdEer3o-_csAtNxGUtEmxIg8-uRlrbs2WdTFC1jBc3MIxHufhYA1ON9g1D1"/>
+</div>
+<div>
+<p class="font-body-medium text-on-surface">Đỗ Duy Mạnh</p>
+<p class="font-caption text-on-surface-variant">ID: MGL-0932</p>
+</div>
+</div>
+</td>
+<td class="px-lg py-md font-body-base text-on-surface-variant">01/10/2023</td>
+<td class="px-lg py-md"><span class="status-badge bg-surface-container text-on-surface-variant">Thủ công</span></td><td class="px-lg py-md">
+<span class="status-badge bg-error-container text-on-error-container">Đóng - không phạt</span>
+</td>
+<td class="px-lg py-md font-code text-body-base text-right font-medium text-on-surface">0đ</td>
+<td class="px-lg py-md">
+<span class="status-badge bg-surface-variant text-on-surface-variant">Bỏ qua</span>
+</td>
+<td class="px-lg py-md text-center">
+<span class="text-caption text-on-surface-variant italic">Đã kết thúc</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<footer class="px-lg py-md bg-surface-container-lowest border-t border-outline-variant flex justify-between items-center">
+<p class="font-body-small text-on-surface-variant">Hiển thị <strong>1 - 6</strong> trên tổng số <strong>42</strong> bản ghi</p>
+<div class="flex gap-xs">
+<button class="w-8 h-8 flex items-center justify-center rounded-md border border-outline-variant text-on-surface-variant hover:bg-surface-container-low disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined text-[20px]">chevron_left</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-md bg-primary-container text-white font-body-medium">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-md border border-outline-variant text-on-surface-variant hover:bg-surface-container-low font-body-medium">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-md border border-outline-variant text-on-surface-variant hover:bg-surface-container-low font-body-medium">3</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-md border border-outline-variant text-on-surface-variant hover:bg-surface-container-low font-body-medium">...</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-md border border-outline-variant text-on-surface-variant hover:bg-surface-container-low">
+<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+</button>
+</div>
+</footer>
+</main>
+<!-- Floating Micro-Interaction Scripts -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Filter Button Toggle Logic
+            const filterButtons = document.querySelectorAll('section button');
+            filterButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (btn.innerText.includes('Bộ lọc')) return;
+                    
+                    filterButtons.forEach(b => {
+                        b.classList.remove('bg-surface-container-high', 'text-on-surface');
+                        b.classList.add('bg-white', 'text-on-surface-variant');
+                    });
+                    btn.classList.add('bg-surface-container-high', 'text-on-surface');
+                    btn.classList.remove('bg-white', 'text-on-surface-variant');
+                });
+            });
+
+            // Action Buttons Hover State Effect
+            const actionButtons = document.querySelectorAll('table button');
+            actionButtons.forEach(btn => {
+                btn.addEventListener('mousedown', () => btn.classList.add('scale-95'));
+                btn.addEventListener('mouseup', () => btn.classList.remove('scale-95'));
+                btn.addEventListener('mouseleave', () => btn.classList.remove('scale-95'));
+            });
+        });
+    </script>
+</body></html>

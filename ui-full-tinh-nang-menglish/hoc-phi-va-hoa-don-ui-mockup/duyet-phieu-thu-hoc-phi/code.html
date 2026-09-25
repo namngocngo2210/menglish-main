@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Duyệt phiếu thu học phí - MENGLISH Admin</title>
+<!-- Font Be Vietnam Pro -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 with Forms Plugin -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Be Vietnam Pro"', 'sans-serif'],
+          },
+          colors: {
+            primary: {
+              DEFAULT: '#f5691a',
+              hover: '#dc550b',
+              light: '#fff5ef',
+              border: '#fed7aa',
+            },
+            navy: {
+              900: '#111a2b',
+              800: '#1a273e',
+              700: '#263852',
+            },
+            surface: {
+              subtle: '#f8fafc',
+              container: '#f1f3ff',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<!-- Custom Styles for Scrollbars and Interactivity -->
+<style data-purpose="custom-scrollbars">
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+<style data-purpose="modal-transitions">
+    .modal-backdrop {
+      background-color: rgba(17, 26, 43, 0.65);
+      backdrop-filter: blur(4px);
+    }
+  </style>
+</head>
+<body class="bg-[#f4f6fb] text-navy-900 font-sans antialiased min-h-screen p-4 lg:p-6 flex flex-col items-center">
+<!-- BEGIN: MainApprovalDashboardContainer -->
+<main class="w-full max-w-[1520px] flex flex-col gap-5" data-purpose="approval-dashboard-root">
+<!-- BEGIN: HeaderPanel -->
+<header class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 lg:p-6 flex flex-col gap-5" data-purpose="header-panel">
+<!-- Title & Summary Cards -->
+<div class="flex flex-col xl:flex-row xl:items-center justify-between gap-5">
+<div>
+<h1 class="text-2xl lg:text-[26px] font-bold text-navy-900 tracking-tight flex items-center gap-3">
+<span>Duyệt phiếu thu học phí</span>
+<span class="text-xs font-semibold px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200/80 rounded-full inline-flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+              4 phiếu chờ xử lý
+            </span>
+</h1>
+<p class="text-sm text-slate-500 mt-1">
+            Kiểm tra, đối chiếu chứng từ và phê duyệt các phiếu thu học phí &amp; phụ thu từ nhân viên tư vấn/học vụ
+          </p>
+</div>
+<!-- Metric Badges Group -->
+<div class="flex flex-wrap items-center gap-3">
+<!-- Pending Counter -->
+<div class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-amber-50/70 border border-amber-200/60 text-amber-900 shadow-sm">
+<div class="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 font-bold shrink-0">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<div>
+<div class="text-xs font-medium text-amber-700">Chờ duyệt</div>
+<div class="text-base font-bold leading-tight">4 phiếu <span class="text-xs font-semibold text-amber-800/80">(42.650.000 VNĐ)</span></div>
+</div>
+</div>
+<!-- Approved Today -->
+<div class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/60 text-emerald-900 shadow-sm">
+<div class="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold shrink-0">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<div>
+<div class="text-xs font-medium text-emerald-700">Đã duyệt hôm nay</div>
+<div class="text-base font-bold leading-tight text-emerald-800">12 phiếu</div>
+</div>
+</div>
+<!-- Rejected Today -->
+<div class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-rose-50/70 border border-rose-200/60 text-rose-900 shadow-sm">
+<div class="w-9 h-9 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600 font-bold shrink-0">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<div>
+<div class="text-xs font-medium text-rose-700">Đã từ chối hôm nay</div>
+<div class="text-base font-bold leading-tight text-rose-800">1 phiếu</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Quick Filters & Search Bar -->
+<div class="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+<div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+<!-- Branch Selector -->
+<div class="relative min-w-[170px]">
+<select class="w-full text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg py-2.5 pl-3 pr-8 focus:ring-2 focus:ring-primary/20 focus:border-primary transition cursor-pointer">
+<option value="all">Tất cả Cơ sở</option>
+<option selected="" value="caugiay">Cơ sở Cầu Giấy</option>
+<option value="dongda">Cơ sở Đống Đa</option>
+<option value="haibatrung">Cơ sở Hai Bà Trưng</option>
+</select>
+</div>
+<!-- Payment Method Filter -->
+<div class="relative min-w-[160px]">
+<select class="w-full text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg py-2.5 pl-3 pr-8 focus:ring-2 focus:ring-primary/20 focus:border-primary transition cursor-pointer">
+<option value="all">Hình thức: Tất cả</option>
+<option selected="" value="ck">Chuyển khoản</option>
+<option value="cash">Tiền mặt</option>
+</select>
+</div>
+<!-- Status Pill Selection -->
+<div class="inline-flex rounded-lg p-1 bg-slate-100 border border-slate-200/80 text-xs font-medium">
+<button class="px-3 py-1.5 rounded-md bg-white text-navy-900 font-semibold shadow-xs">Chờ duyệt (4)</button>
+<button class="px-3 py-1.5 rounded-md text-slate-600 hover:text-navy-900 transition">Đã duyệt</button>
+<button class="px-3 py-1.5 rounded-md text-slate-600 hover:text-navy-900 transition">Từ chối</button>
+</div>
+</div>
+<!-- Search Input -->
+<div class="relative w-full lg:w-80">
+<span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</span>
+<input class="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-2.5 focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition" placeholder="Tìm theo tên học viên, mã phiếu..." type="text" value="Nguyễn Văn A"/>
+</div>
+</div>
+</header>
+<!-- END: HeaderPanel -->
+<!-- BEGIN: MasterDetailGrid -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start" data-purpose="master-detail-split">
+<!-- BEGIN: LeftColumn_MasterQueue -->
+<section class="xl:col-span-5 bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col" data-purpose="pending-voucher-list">
+<!-- List Header -->
+<div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+<div class="flex items-center gap-2">
+<h2 class="text-sm font-bold text-navy-900 uppercase tracking-wider">Hàng đợi chờ duyệt</h2>
+<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">4 phiếu</span>
+</div>
+<span class="text-xs text-slate-400 flex items-center gap-1">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+            Tự động làm mới
+          </span>
+</div>
+<!-- Voucher Cards Scroll Area -->
+<div class="divide-y divide-slate-100 max-h-[820px] overflow-y-auto custom-scrollbar">
+<!-- Card 1 (Active Selected Item) -->
+<article class="p-4 bg-primary-light/50 border-l-4 border-primary transition relative cursor-pointer group" data-purpose="selected-voucher-item">
+<div class="flex items-start justify-between gap-3 mb-2">
+<div class="flex items-center gap-2">
+<span class="text-xs font-bold font-mono px-2 py-0.5 rounded bg-white text-navy-900 border border-primary-border shadow-xs">
+                  PT-20231024-001
+                </span>
+<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/70 flex items-center gap-1">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                  Chuyển khoản
+                </span>
+</div>
+<span class="text-xs text-slate-500 font-medium">15 phút trước</span>
+</div>
+<div class="flex items-center justify-between">
+<div>
+<h3 class="text-sm font-bold text-navy-900 group-hover:text-primary transition-colors flex items-center gap-1.5">
+                  Nguyễn Văn A
+                  <span class="text-xs font-medium text-slate-500 font-mono">(MS-24098)</span>
+</h3>
+<p class="text-xs text-slate-600 mt-1 flex items-center gap-1.5">
+<span>Học phí đợt 2 - IELTS Foundation</span>
+<span class="px-1.5 py-0.2 rounded text-[10px] font-medium bg-amber-100 text-amber-800">+ Phụ thu</span>
+</p>
+</div>
+<div class="text-right">
+<div class="text-base font-bold text-primary">13.500.000 đ</div>
+<div class="text-[11px] text-slate-400">CS Cầu Giấy</div>
+</div>
+</div>
+<div class="mt-3 pt-2.5 border-t border-orange-100/60 flex items-center justify-between text-xs text-slate-500">
+<span class="flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                Người tạo: <strong>Lê Thị Bích (CM)</strong>
+</span>
+<span class="text-primary text-[11px] font-semibold flex items-center gap-0.5">
+                Đang xem
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</span>
+</div>
+</article>
+<!-- Card 2 -->
+<article class="p-4 hover:bg-slate-50 border-l-4 border-transparent transition cursor-pointer group">
+<div class="flex items-start justify-between gap-3 mb-2">
+<div class="flex items-center gap-2">
+<span class="text-xs font-bold font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                  PT-20231024-002
+                </span>
+<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70 flex items-center gap-1">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                  Tiền mặt
+                </span>
+</div>
+<span class="text-xs text-slate-500 font-medium">32 phút trước</span>
+</div>
+<div class="flex items-center justify-between">
+<div>
+<h3 class="text-sm font-bold text-navy-900 group-hover:text-primary transition-colors flex items-center gap-1.5">
+                  Trần Minh Hoàng
+                  <span class="text-xs font-medium text-slate-500 font-mono">(MS-24102)</span>
+</h3>
+<p class="text-xs text-slate-600 mt-1">Học phí đợt 1 - IELTS Intensive</p>
+</div>
+<div class="text-right">
+<div class="text-base font-bold text-navy-900">8.200.000 đ</div>
+<div class="text-[11px] text-slate-400">CS Đống Đa</div>
+</div>
+</div>
+<div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+<span class="flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                Người tạo: <strong>Ngô Văn Tài (CM)</strong>
+</span>
+<span class="text-slate-400 text-xs">Biên lai thu số #889</span>
+</div>
+</article>
+<!-- Card 3 -->
+<article class="p-4 hover:bg-slate-50 border-l-4 border-transparent transition cursor-pointer group">
+<div class="flex items-start justify-between gap-3 mb-2">
+<div class="flex items-center gap-2">
+<span class="text-xs font-bold font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                  PT-20231024-003
+                </span>
+<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/70 flex items-center gap-1">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                  Chuyển khoản
+                </span>
+</div>
+<span class="text-xs text-slate-500 font-medium">1 giờ trước</span>
+</div>
+<div class="flex items-center justify-between">
+<div>
+<h3 class="text-sm font-bold text-navy-900 group-hover:text-primary transition-colors flex items-center gap-1.5">
+                  Vũ Thị Thu Thảo
+                  <span class="text-xs font-medium text-slate-500 font-mono">(MS-23981)</span>
+</h3>
+<p class="text-xs text-slate-600 mt-1">Trọn gói khóa Speaking Master</p>
+</div>
+<div class="text-right">
+<div class="text-base font-bold text-navy-900">14.800.000 đ</div>
+<div class="text-[11px] text-slate-400">CS Cầu Giấy</div>
+</div>
+</div>
+<div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+<span class="flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                Người tạo: <strong>Lê Thị Bích (CM)</strong>
+</span>
+<span class="text-slate-400 text-xs">UNC ACB</span>
+</div>
+</article>
+<!-- Card 4 -->
+<article class="p-4 hover:bg-slate-50 border-l-4 border-transparent transition cursor-pointer group">
+<div class="flex items-start justify-between gap-3 mb-2">
+<div class="flex items-center gap-2">
+<span class="text-xs font-bold font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                  PT-20231024-004
+                </span>
+<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/70 flex items-center gap-1">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                  Chuyển khoản
+                </span>
+</div>
+<span class="text-xs text-slate-500 font-medium">2 giờ trước</span>
+</div>
+<div class="flex items-center justify-between">
+<div>
+<h3 class="text-sm font-bold text-navy-900 group-hover:text-primary transition-colors flex items-center gap-1.5">
+                  Phạm Đức Long
+                  <span class="text-xs font-medium text-slate-500 font-mono">(MS-24219)</span>
+</h3>
+<p class="text-xs text-slate-600 mt-1">Phụ thu giáo trình &amp; lệ phí thi thử</p>
+</div>
+<div class="text-right">
+<div class="text-base font-bold text-navy-900">6.150.000 đ</div>
+<div class="text-[11px] text-slate-400">CS Hai Bà Trưng</div>
+</div>
+</div>
+<div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+<span class="flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                Người tạo: <strong>Đặng Hồng Hạnh (CM)</strong>
+</span>
+<span class="text-slate-400 text-xs">UNC Techcombank</span>
+</div>
+</article>
+</div>
+</section>
+<!-- END: LeftColumn_MasterQueue -->
+<!-- BEGIN: RightColumn_DetailReview -->
+<section class="xl:col-span-7 flex flex-col gap-5" data-purpose="voucher-detail-view">
+<!-- Detail Card Container -->
+<div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col">
+<!-- Detail Header -->
+<div class="p-5 lg:p-6 bg-slate-50/70 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
+<div>
+<div class="flex items-center gap-2.5">
+<h2 class="text-lg font-bold text-navy-900">Chi tiết phiếu thu: PT-20231024-001</h2>
+<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
+                  Chờ duyệt
+                </span>
+</div>
+<div class="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-y-1 gap-x-3">
+<span>Thời gian gửi: <strong>10:45 - 24/10/2023</strong></span>
+<span>•</span>
+<span>Người lập: <strong>Lê Thị Bích</strong> (Tư vấn viên / CM Cơ sở Cầu Giấy)</span>
+</div>
+</div>
+<button class="text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 px-3 py-2 rounded-lg inline-flex items-center gap-1.5 transition" type="button">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Xem trước mẫu in
+            </button>
+</div>
+<div class="p-5 lg:p-6 flex flex-col gap-6">
+<!-- KHỐI 1: Thông tin học viên & Lớp học -->
+<div class="rounded-xl border border-slate-200/90 bg-slate-50/40 p-4 lg:p-5" data-purpose="student-info-block">
+<div class="flex items-center gap-2 mb-3.5">
+<div class="w-7 h-7 rounded-lg bg-orange-100 text-primary flex items-center justify-center font-bold text-xs">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<h3 class="text-sm font-bold text-navy-900 uppercase tracking-wide">1. Thông tin học viên &amp; Phụ huynh</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<div class="bg-white p-3 rounded-lg border border-slate-200/70">
+<span class="text-xs text-slate-400 block mb-0.5">Học viên</span>
+<div class="text-sm font-bold text-navy-900">Nguyễn Văn A</div>
+<span class="text-xs font-mono font-semibold text-primary">MS-24098</span>
+</div>
+<div class="bg-white p-3 rounded-lg border border-slate-200/70">
+<span class="text-xs text-slate-400 block mb-0.5">Lớp học hiện tại</span>
+<div class="text-sm font-bold text-navy-900">IELTS Foundation 02</div>
+<span class="text-xs text-slate-500">Cơ sở Cầu Giấy (Phòng 302)</span>
+</div>
+<div class="bg-white p-3 rounded-lg border border-slate-200/70">
+<span class="text-xs text-slate-400 block mb-0.5">Người nộp tiền (Phụ huynh)</span>
+<div class="text-sm font-bold text-navy-900">Nguyễn Văn Tuấn</div>
+<span class="text-xs font-mono font-semibold text-slate-600">0987654321</span>
+</div>
+</div>
+</div>
+<!-- KHỐI 2: Chi tiết nguồn tiền & Bảng kê tài chính -->
+<div class="rounded-xl border border-slate-200/90 p-4 lg:p-5" data-purpose="financial-breakdown-block">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xs">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<h3 class="text-sm font-bold text-navy-900 uppercase tracking-wide">2. Bảng kê chi tiết các khoản thu</h3>
+</div>
+<span class="text-xs text-slate-500">Phương thức: <strong class="text-blue-600 font-semibold">Chuyển khoản Vietcombank</strong></span>
+</div>
+<!-- Financial Breakdown Table -->
+<div class="border border-slate-200 rounded-lg overflow-hidden text-xs">
+<table class="w-full text-left">
+<thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+<tr>
+<th class="py-2.5 px-3">Khoản mục</th>
+<th class="py-2.5 px-3">Nội dung diễn giải</th>
+<th class="py-2.5 px-3 text-right">Số tiền</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100">
+<tr>
+<td class="py-3 px-3 font-semibold text-navy-900">
+                        Học phí đợt 2 (Hạn 15/10/2023)
+                      </td>
+<td class="py-3 px-3 text-slate-600">
+                        Khóa IELTS Foundation (3 tháng) + Học liệu (Đã miễn giảm 0 đ)
+                      </td>
+<td class="py-3 px-3 font-bold text-navy-900 text-right">
+                        13.350.000 đ
+                      </td>
+</tr>
+<tr class="bg-amber-50/40">
+<td class="py-3 px-3 font-semibold text-amber-900 flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        Phụ thu phát sinh
+                      </td>
+<td class="py-3 px-3 text-amber-800">
+                        Phụ thu giáo trình in ấn bổ sung &amp; thẻ học viên
+                      </td>
+<td class="py-3 px-3 font-bold text-amber-900 text-right">
+                        + 150.000 đ
+                      </td>
+</tr>
+</tbody>
+<tfoot class="bg-orange-50/70 border-t border-orange-200 text-slate-800">
+<tr>
+<td class="py-3.5 px-3 text-sm font-bold text-navy-900" colspan="2">
+                        TỔNG SỐ TIỀN THỰC THU
+                      </td>
+<td class="py-3.5 px-3 text-right">
+<span class="text-xl font-bold text-primary tracking-tight">13.500.000 VNĐ</span>
+</td>
+</tr>
+</tfoot>
+</table>
+</div>
+<!-- Metadata Flags & CM Notes -->
+<div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+<div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+<span class="text-slate-500 font-semibold block mb-1">Trạng thái đối soát &amp; Hóa đơn VAT:</span>
+<div class="flex items-center gap-2 text-slate-700">
+<span class="inline-flex items-center text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      ✓ Đã khớp số dư tạm thu
+                    </span>
+<span class="inline-flex items-center text-slate-600 font-medium bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                      Không yêu cầu hóa đơn đỏ
+                    </span>
+</div>
+</div>
+<div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+<span class="text-slate-500 font-semibold block mb-1">Ghi chú từ nhân viên tạo phiếu (CM):</span>
+<p class="text-slate-700 italic">
+                    "Phụ huynh đã chuyển khoản đủ 13.500.000 VNĐ, đã kiểm tra đúng nội dung CK: MENGLISH MS24098."
+                  </p>
+</div>
+</div>
+</div>
+<!-- KHỐI 3: Minh chứng thanh toán (Xem trước trực tiếp) -->
+<div class="rounded-xl border border-slate-200/90 p-4 lg:p-5" data-purpose="proof-preview-block">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div>
+<h3 class="text-sm font-bold text-navy-900 uppercase tracking-wide">3. Minh chứng chuyển khoản (UNC)</h3>
+<span class="text-xs text-slate-500">Đối chiếu mã giao dịch và số tài khoản nhận</span>
+</div>
+</div>
+<!-- Proof Toolbar -->
+<div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200">
+<button class="p-1.5 rounded hover:bg-white text-slate-600 transition" title="Phóng to" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<button class="p-1.5 rounded hover:bg-white text-slate-600 transition" title="Xoay ảnh" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<a class="p-1.5 rounded hover:bg-white text-slate-600 transition" download="" href="#" title="Tải ảnh gốc">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</a>
+</div>
+</div>
+<!-- Interactive Proof Card Display -->
+<div class="bg-slate-900 rounded-xl p-4 flex flex-col md:flex-row items-center gap-5 border border-slate-800">
+<!-- Proof Image Frame -->
+<div class="relative w-full md:w-64 h-56 bg-slate-800 rounded-lg overflow-hidden border border-slate-700 flex items-center justify-center group shrink-0">
+<div class="w-full h-full p-2 bg-[#00172e] flex flex-col justify-between text-white text-[10px] font-mono">
+<div class="flex justify-between border-b border-emerald-500/40 pb-1 text-emerald-400 font-bold">
+<span>Vietcombank Digibank</span>
+<span>GD THÀNH CÔNG</span>
+</div>
+<div class="space-y-1.5 my-auto">
+<div class="text-center text-xs font-bold text-amber-400">13.500.000 VND</div>
+<div class="text-slate-300">Đến: TRUNG TAM ANH NGU MENGLISH</div>
+<div class="text-slate-300">STK: 1029384756</div>
+<div class="text-slate-400">ND: MENGLISH MS24098</div>
+<div class="text-emerald-400 font-semibold">Mã GD: FT232981354789</div>
+</div>
+<div class="text-[8px] text-slate-400 text-right border-t border-slate-700/60 pt-1">
+                      24/10/2023 10:38:12
+                    </div>
+</div>
+<!-- Overlay hover button -->
+<button class="absolute inset-0 bg-navy-900/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white font-medium text-xs gap-1.5" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                    Bấm để phóng to
+                  </button>
+</div>
+<!-- Proof Match Details -->
+<div class="flex-1 w-full space-y-2 text-xs">
+<div class="bg-slate-800/80 p-3 rounded-lg border border-slate-700 space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="text-slate-400">Mã tham chiếu:</span>
+<span class="font-mono font-bold text-amber-400">FT232981354789</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-slate-400">Tài khoản thụ hưởng:</span>
+<span class="font-medium text-slate-200">1029384756 (Vietcombank)</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-slate-400">Thời gian giao dịch:</span>
+<span class="text-slate-200">10:38 - 24/10/2023</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-slate-400">Trạng thái đối soát:</span>
+<span class="text-emerald-400 font-semibold flex items-center gap-1">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                        Khớp số tiền &amp; cú pháp
+                      </span>
+</div>
+</div>
+<div class="p-2.5 rounded-lg bg-emerald-900/20 border border-emerald-700/40 text-emerald-300 text-[11px] flex items-start gap-2">
+<svg class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Ủy nhiệm chi hợp lệ. Hệ thống ngân hàng đã xác nhận có biến động số dư đúng 13.500.000 đ vào tài khoản MENGLISH Cầu Giấy.</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- KHỐI 4: Thanh tác vụ phê duyệt cố định dưới cùng của Panel -->
+<footer class="p-4 lg:p-5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3" data-purpose="approval-actions-bar">
+<div class="text-xs text-slate-500 flex items-center gap-1.5">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Thao tác duyệt sẽ lập tức hạch toán số dư công nợ của học viên.
+            </div>
+<div class="flex items-center gap-3">
+<!-- Reject Button -> Triggers Reject Modal -->
+<button class="px-5 py-2.5 rounded-xl border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 font-semibold text-xs transition inline-flex items-center gap-2 shadow-xs cursor-pointer" onclick="document.getElementById('reject-dialog').classList.remove('hidden')" type="button">
+<svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                Từ chối phiếu thu
+              </button>
+<!-- Approve Button -> Triggers Confirm Modal -->
+<button class="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-xs transition shadow-sm inline-flex items-center gap-2 cursor-pointer" onclick="document.getElementById('approve-dialog').classList.remove('hidden')" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                Duyệt phiếu thu (13.500.000 VNĐ)
+              </button>
+</div>
+</footer>
+</div>
+</section>
+<!-- END: RightColumn_DetailReview -->
+</div>
+<!-- END: MasterDetailGrid -->
+</main>
+<!-- END: MainApprovalDashboardContainer -->
+<!-- ========================================== -->
+<!-- MODAL / DIALOG COMPONENT SAMPLES (OVERLAYS) -->
+<!-- ========================================== -->
+<!-- BEGIN: Modal_ApproveConfirm -->
+<div class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop" data-purpose="modal-approval-confirmation" id="approve-dialog">
+<div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 transform transition-all animate-in fade-in zoom-in-95 duration-150">
+<!-- Icon & Header -->
+<div class="flex items-center gap-3.5 mb-4">
+<div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div>
+<h4 class="text-base font-bold text-navy-900">Xác nhận duyệt phiếu thu</h4>
+<span class="text-xs text-slate-500 font-mono font-medium">Mã: PT-20231024-001</span>
+</div>
+</div>
+<!-- Warning & Details Body -->
+<div class="space-y-3 mb-6 text-xs text-slate-600 leading-relaxed">
+<p>
+          Bạn có chắc chắn muốn duyệt phiếu thu <strong class="text-navy-900">PT-20231024-001</strong> với tổng số tiền <strong class="text-primary font-bold text-sm">13.500.000 VNĐ</strong> cho học viên <strong class="text-navy-900">Nguyễn Văn A</strong>?
+        </p>
+<div class="p-3 bg-amber-50 rounded-xl border border-amber-200/80 text-amber-900 space-y-1">
+<div class="font-bold flex items-center gap-1.5 text-amber-800">
+<svg class="w-4 h-4 shrink-0 text-amber-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+            Lưu ý nghiệp vụ kế toán:
+          </div>
+<p class="text-[11px] text-amber-800/90">
+            Sau khi duyệt, số tiền sẽ được tự động ghi nhận vào sổ quỹ, trừ công nợ học phí của học viên và kích hoạt thông báo thanh toán thành công qua ứng dụng Cổng phụ huynh.
+          </p>
+</div>
+</div>
+<!-- Modal Actions -->
+<div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+<button class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 font-semibold text-xs transition" onclick="document.getElementById('approve-dialog').classList.add('hidden')" type="button">
+          Hủy bỏ
+        </button>
+<button class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-xs transition shadow-sm flex items-center gap-1.5" onclick="alert('Đã phê duyệt thành công phiếu thu PT-20231024-001!'); document.getElementById('approve-dialog').classList.add('hidden')" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+          Xác nhận phê duyệt
+        </button>
+</div>
+</div>
+</div>
+<!-- END: Modal_ApproveConfirm -->
+<!-- BEGIN: Modal_RejectPrompt -->
+<div class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop" data-purpose="modal-reject-reason" id="reject-dialog">
+<div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 transform transition-all animate-in fade-in zoom-in-95 duration-150">
+<!-- Icon & Header -->
+<div class="flex items-center gap-3.5 mb-4">
+<div class="w-12 h-12 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div>
+<h4 class="text-base font-bold text-navy-900">Từ chối duyệt phiếu thu</h4>
+<span class="text-xs text-slate-500 font-mono font-medium">Phiếu: PT-20231024-001 • Học viên: Nguyễn Văn A</span>
+</div>
+</div>
+<!-- Form Body -->
+<div class="space-y-4 mb-6 text-xs">
+<div>
+<label class="block font-semibold text-navy-900 mb-1.5" for="reject-reason">
+            Lý do từ chối duyệt <span class="text-rose-500">* (Bắt buộc)</span>
+</label>
+<textarea class="w-full text-xs rounded-xl border-slate-300 focus:border-rose-500 focus:ring-rose-500 p-3 leading-relaxed placeholder:text-slate-400" id="reject-reason" placeholder="Ví dụ: Ảnh chụp ủy nhiệm chi bị mất góc mã tham chiếu, số tiền chuyển khoản không khớp với phiếu..." rows="3"></textarea>
+</div>
+<div class="p-3 bg-rose-50 rounded-xl border border-rose-200 text-rose-800 text-[11px] leading-relaxed">
+<strong>Thông báo hệ thống:</strong> Phiếu thu này sẽ chuyển về trạng thái <strong>"Bản nháp"</strong> kèm thông báo lý do từ chối gửi trả lại nhân viên phụ trách <strong>Lê Thị Bích</strong> để chỉnh sửa minh chứng.
+        </div>
+</div>
+<!-- Modal Actions -->
+<div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+<button class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 font-semibold text-xs transition" onclick="document.getElementById('reject-dialog').classList.add('hidden')" type="button">
+          Quay lại
+        </button>
+<button class="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition shadow-sm flex items-center gap-1.5" onclick="alert('Đã từ chối phiếu thu và gửi phản hồi lại cho CM!'); document.getElementById('reject-dialog').classList.add('hidden')" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+          Xác nhận từ chối
+        </button>
+</div>
+</div>
+</div>
+<!-- END: Modal_RejectPrompt -->
+</body></html>

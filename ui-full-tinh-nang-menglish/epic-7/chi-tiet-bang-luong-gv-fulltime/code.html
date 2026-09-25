@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Chi tiết bảng lương GV Full-time - MENGLISH CRM</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-fixed": "#dee0ff",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-container": "#faf7ff",
+                        "surface-container": "#e8eeff",
+                        "on-surface-variant": "#594137",
+                        "surface-dim": "#d4daea",
+                        "surface-container-low": "#f1f3ff",
+                        "on-error": "#ffffff",
+                        "on-background": "#161c27",
+                        "primary-fixed": "#ffdbcd",
+                        "primary-container": "#f5691a",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "surface-container-highest": "#dde2f3",
+                        "inverse-surface": "#2a303d",
+                        "error-container": "#ffdad6",
+                        "tertiary-container": "#46a917",
+                        "background": "#f9f9ff",
+                        "surface-container-high": "#e3e8f9",
+                        "on-primary": "#ffffff",
+                        "surface-tint": "#a23f00",
+                        "tertiary": "#256d00",
+                        "surface-variant": "#dde2f3",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "on-surface": "#161c27",
+                        "surface": "#f9f9ff",
+                        "on-secondary-fixed": "#00105b",
+                        "surface-bright": "#f9f9ff",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "secondary-container": "#4160ff",
+                        "on-error-container": "#93000a",
+                        "secondary": "#1e43e7",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "tertiary-fixed": "#93fb65",
+                        "primary": "#a23f00",
+                        "on-secondary": "#ffffff",
+                        "outline": "#8d7165",
+                        "primary-fixed-dim": "#ffb595",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed": "#062100",
+                        "outline-variant": "#e1bfb2",
+                        "inverse-on-surface": "#ecf0ff",
+                        "on-primary-fixed": "#360f00",
+                        "on-tertiary-container": "#0e3500",
+                        "inverse-primary": "#ffb595",
+                        "on-primary-container": "#521c00"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sidebar-width": "260px",
+                        "base": "8px",
+                        "xl": "32px",
+                        "xs": "4px",
+                        "header-height": "64px",
+                        "md": "16px",
+                        "gutter": "16px",
+                        "lg": "24px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "body-medium": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "label": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "body-medium": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "h1": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-small": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "caption": ["11px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "h2": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-base": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "code": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "label": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "h3": ["18px", { "lineHeight": "26px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
+        
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #dde2f3; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #d4daea; }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen antialiased flex flex-col p-lg">
+<!-- Header Section -->
+<header class="flex flex-col gap-sm mb-lg">
+<div class="flex items-center gap-sm text-surface-tint">
+<span class="material-symbols-outlined cursor-pointer hover:opacity-80">arrow_back</span>
+<span class="font-body-medium text-body-medium cursor-pointer hover:underline">Quay lại danh sách</span>
+</div>
+<div class="flex items-center justify-between">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface">Chi tiết bảng lương GV Full-time</h1>
+<div class="flex items-center gap-md mt-xs font-body-base text-body-base text-on-surface-variant">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">person</span>
+<span class="font-medium text-on-surface">Nguyễn Văn A</span>
+</div>
+<div class="w-1 h-1 rounded-full bg-surface-variant"></div>
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">calendar_month</span>
+<span>Tháng 10/2026</span>
+</div>
+<div class="w-1 h-1 rounded-full bg-surface-variant"></div>
+<div class="inline-flex items-center px-2 py-1 rounded-full bg-primary-container/10 text-primary-container font-label text-label">
+                        Đang tính
+                    </div>
+</div>
+</div>
+<div class="flex gap-sm">
+<button class="px-md py-sm bg-surface-container-lowest border border-surface-variant rounded-lg text-on-surface font-body-medium text-body-medium hover:bg-surface-container-low transition-colors">
+                    Xuất PDF
+                </button>
+<button class="px-md py-sm bg-primary-container text-on-primary rounded-lg font-body-medium text-body-medium hover:opacity-90 transition-opacity flex items-center gap-xs shadow-sm">
+<span class="material-symbols-outlined text-[20px]">check_circle</span>
+                    Chốt bảng lương
+                </button>
+</div>
+</div>
+</header>
+<!-- Main Content Grid -->
+<main class="grid grid-cols-12 gap-lg flex-1">
+<!-- Left Column: Inputs -->
+<div class="col-span-8 flex flex-col gap-lg">
+<!-- Khối Thu nhập chính -->
+<section class="bg-surface-container-lowest rounded-xl border border-surface-variant p-lg shadow-sm">
+<div class="flex items-center justify-between mb-md border-b border-surface-variant pb-md">
+<h2 class="font-h2 text-h2 text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary-container">payments</span>
+                        Thu nhập chính
+                    </h2>
+<button class="px-md py-sm bg-surface-container-lowest text-primary-container rounded-lg font-body-medium text-body-medium hover:bg-surface-variant transition-colors border border-outline-variant">
+                        Lưu thay đổi
+                    </button>
+</div>
+<div class="grid grid-cols-3 gap-md">
+<div class="flex flex-col gap-xs">
+<label class="font-body-small text-body-small text-on-surface-variant">Lương cơ bản (VNĐ)</label>
+<div class="relative">
+<input class="w-full rounded-lg border-surface-variant bg-surface-container-lowest px-md py-sm font-code text-code text-on-surface focus:border-secondary focus:ring-1 focus:ring-secondary transition-shadow outline-none" type="text" value="15,000,000"/>
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-body-small text-body-small text-on-surface-variant">Lương KPI (VNĐ)</label>
+<div class="relative">
+<input class="w-full rounded-lg border-surface-variant bg-surface-container-lowest px-md py-sm font-code text-code text-on-surface focus:border-secondary focus:ring-1 focus:ring-secondary transition-shadow outline-none" type="text" value="3,500,000"/>
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-body-small text-body-small text-on-surface-variant">Thưởng khác (VNĐ)</label>
+<div class="relative">
+<input class="w-full rounded-lg border-surface-variant bg-surface-container-lowest px-md py-sm font-code text-code text-on-surface focus:border-secondary focus:ring-1 focus:ring-secondary transition-shadow outline-none" type="text" value="500,000"/>
+</div>
+</div>
+</div>
+</section>
+<!-- Khối Phụ cấp mở rộng -->
+<section class="bg-surface-container-lowest rounded-xl border border-surface-variant p-lg shadow-sm">
+<div class="flex items-center justify-between mb-md border-b border-surface-variant pb-md">
+<h2 class="font-h2 text-h2 text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-tertiary-container">add_circle</span>
+                        Phụ cấp mở rộng
+                    </h2>
+</div>
+<!-- Danh sách phụ cấp -->
+<div class="flex flex-col gap-sm mb-md">
+<!-- Item -->
+<div class="flex items-center justify-between p-sm rounded-lg hover:bg-surface-container-low border border-transparent hover:border-surface-variant transition-colors group">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">local_cafe</span>
+</div>
+<span class="font-body-medium text-body-medium text-on-surface">Phụ cấp ăn trưa</span>
+</div>
+<div class="flex items-center gap-md">
+<span class="font-code text-code text-on-surface">+730,000</span>
+<button class="text-on-surface-variant hover:text-error transition-colors opacity-0 group-hover:opacity-100 p-1">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</div>
+<!-- Item -->
+<div class="flex items-center justify-between p-sm rounded-lg hover:bg-surface-container-low border border-transparent hover:border-surface-variant transition-colors group">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">directions_car</span>
+</div>
+<span class="font-body-medium text-body-medium text-on-surface">Phụ cấp xăng xe</span>
+</div>
+<div class="flex items-center gap-md">
+<span class="font-code text-code text-on-surface">+300,000</span>
+<button class="text-on-surface-variant hover:text-error transition-colors opacity-0 group-hover:opacity-100 p-1">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Form thêm mới -->
+<div class="bg-surface-container-low p-md rounded-lg border border-surface-variant">
+<h3 class="font-body-medium text-body-medium text-on-surface mb-sm">Thêm phụ cấp mới</h3>
+<div class="flex items-end gap-sm">
+<div class="flex-1 flex flex-col gap-xs">
+<label class="font-body-small text-body-small text-on-surface-variant">Tên khoản</label>
+<input class="w-full rounded-lg border-surface-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface focus:border-secondary focus:ring-1 focus:ring-secondary transition-shadow outline-none" placeholder="VD: Phụ cấp trách nhiệm" type="text"/>
+</div>
+<div class="flex-1 flex flex-col gap-xs">
+<label class="font-body-small text-body-small text-on-surface-variant">Số tiền (VNĐ)</label>
+<input class="w-full rounded-lg border-surface-variant bg-surface-container-lowest px-md py-sm font-code text-code text-on-surface focus:border-secondary focus:ring-1 focus:ring-secondary transition-shadow outline-none" placeholder="0" type="text"/>
+</div>
+<button class="px-md py-sm bg-surface-container-lowest border border-surface-variant rounded-lg text-primary font-body-medium text-body-medium hover:bg-surface-variant transition-colors flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                            Thêm
+                        </button>
+</div>
+</div>
+</section>
+<!-- Khối Trừ vi phạm -->
+<section class="bg-surface-container-lowest rounded-xl border border-surface-variant p-lg shadow-sm">
+<div class="flex items-center justify-between mb-md border-b border-surface-variant pb-md">
+<h2 class="font-h2 text-h2 text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-error">gavel</span>
+                        Trừ vi phạm
+                    </h2>
+</div>
+<div class="flex flex-col gap-sm mb-md">
+<!-- Item -->
+<div class="flex items-center justify-between p-sm rounded-lg hover:bg-surface-container-low border border-transparent hover:border-surface-variant transition-colors group">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-error-container flex items-center justify-center text-on-error-container">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium text-on-surface">Đi muộn 15 phút</span>
+<span class="font-caption text-caption text-on-surface-variant">Ngày 12/10</span>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-tertiary-container/10 text-tertiary-container">Đã xác nhận</span>
+<span class="font-code text-code text-error">-50,000</span>
+<button class="text-on-surface-variant hover:text-error transition-colors opacity-0 group-hover:opacity-100 p-1">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</div>
+<!-- Item -->
+<div class="flex items-center justify-between p-sm rounded-lg hover:bg-surface-container-low border border-transparent hover:border-surface-variant transition-colors group">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-error-container flex items-center justify-center text-on-error-container">
+<span class="material-symbols-outlined text-[16px]">assignment_late</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium text-on-surface">Chấm điểm muộn deadline</span>
+<span class="font-caption text-caption text-on-surface-variant">Lớp IELTS-01</span>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-tertiary-container/10 text-tertiary-container">Đã xác nhận</span>
+<span class="font-code text-code text-error">-100,000</span>
+<button class="text-on-surface-variant hover:text-error transition-colors opacity-0 group-hover:opacity-100 p-1">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-low p-md rounded-lg border border-surface-variant">
+<h3 class="font-body-medium text-body-medium text-on-surface mb-sm">Thêm khoản trừ</h3>
+<div class="flex items-end gap-sm">
+<div class="flex-1 flex flex-col gap-xs">
+<label class="font-body-small text-body-small text-on-surface-variant">Lý do / Hạng mục</label>
+<input class="w-full rounded-lg border-surface-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface focus:border-secondary focus:ring-1 focus:ring-secondary transition-shadow outline-none" placeholder="VD: Vi phạm nội quy" type="text"/>
+</div>
+<div class="flex-1 flex flex-col gap-xs">
+<label class="font-body-small text-body-small text-on-surface-variant">Số tiền (VNĐ)</label>
+<input class="w-full rounded-lg border-surface-variant bg-surface-container-lowest px-md py-sm font-code text-code text-on-surface focus:border-secondary focus:ring-1 focus:ring-secondary transition-shadow outline-none" placeholder="0" type="text"/>
+</div>
+<button class="px-md py-sm bg-surface-container-lowest border border-surface-variant rounded-lg text-error font-body-medium text-body-medium hover:bg-error-container/20 transition-colors flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                            Thêm
+                        </button>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Column: Deductions & Summary -->
+<div class="col-span-4 flex flex-col gap-lg">
+<!-- Khối Khấu trừ bắt buộc -->
+<section class="bg-surface-container-lowest rounded-xl border border-surface-variant p-lg shadow-sm">
+<div class="flex items-center justify-between mb-md border-b border-surface-variant pb-md">
+<h2 class="font-h2 text-h2 text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-error">remove_circle</span>
+                        Khấu trừ bắt buộc
+                    </h2>
+</div>
+<div class="flex flex-col gap-md">
+<!-- Read-only BHXH -->
+<div class="flex flex-col gap-xs">
+<div class="flex justify-between items-center">
+<label class="font-body-small text-body-small text-on-surface-variant flex items-center gap-xs">
+                                BHXH (10.5% lương CB)
+                                <span class="material-symbols-outlined text-[14px] text-surface-dim cursor-help" title="Tự động tính từ Lương cơ bản">info</span>
+</label>
+<span class="font-code text-code text-error">-1,575,000</span>
+</div>
+<div class="w-full h-10 bg-surface-container-low rounded-lg border border-surface-variant flex items-center px-sm font-code text-code text-on-surface-variant select-none">
+                            1,575,000
+                        </div>
+</div>
+<!-- Read-only Công đoàn -->
+<div class="flex flex-col gap-xs">
+<div class="flex justify-between items-center">
+<label class="font-body-small text-body-small text-on-surface-variant flex items-center gap-xs">
+                                Phí Công đoàn (0.5% lương CB)
+                                <span class="material-symbols-outlined text-[14px] text-surface-dim cursor-help" title="Tự động tính từ Lương cơ bản">info</span>
+</label>
+<span class="font-code text-code text-error">-75,000</span>
+</div>
+<div class="w-full h-10 bg-surface-container-low rounded-lg border border-surface-variant flex items-center px-sm font-code text-code text-on-surface-variant select-none">
+                            75,000
+                        </div>
+</div>
+<!-- Input Thuế TNCN -->
+<div class="flex flex-col gap-xs">
+<label class="font-body-small text-body-small text-on-surface-variant">Thuế TNCN (VNĐ)</label>
+<div class="relative">
+<input class="w-full rounded-lg border-surface-variant bg-surface-container-lowest px-md py-sm font-code text-code text-error focus:border-error focus:ring-1 focus:ring-error transition-shadow outline-none" type="text" value="250,000"/>
+</div>
+</div>
+</div>
+</section>
+<!-- Tổng kết Bảng Lương (Glass/Accent Card) -->
+<section class="bg-gradient-to-br from-primary-container to-surface-tint rounded-xl p-lg shadow-md text-on-primary relative overflow-hidden">
+<!-- Decorative pattern -->
+<div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 16px 16px;"></div>
+<h2 class="font-h3 text-h3 mb-md relative z-10 flex items-center gap-sm">
+<span class="material-symbols-outlined">receipt_long</span>
+                    Tổng kết kỳ lương
+                </h2>
+<div class="flex flex-col gap-sm relative z-10 font-body-base text-body-base">
+<div class="flex justify-between items-center py-sm border-b border-on-primary/20">
+<span class="opacity-90">Tổng thu nhập</span>
+<span class="font-code text-code">20,030,000</span>
+</div>
+<div class="flex justify-between items-center py-sm border-b border-on-primary/20">
+<span class="opacity-90">Tổng khoản trừ</span>
+<span class="font-code text-code">-2,050,000</span>
+</div>
+<div class="mt-sm pt-sm flex flex-col gap-xs">
+<span class="font-label text-label uppercase tracking-wider opacity-80">Thực nhận</span>
+<div class="flex justify-between items-end">
+<span class="font-h1 text-[32px] leading-none font-bold tracking-tight">17,980,000</span>
+<span class="font-body-small text-body-small opacity-90 mb-1">VNĐ</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+</body></html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Nhập Báo cáo tuần — Học vụ</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-primary-container": "#521c00",
+                      "surface-container-high": "#e3e8f9",
+                      "on-tertiary-fixed-variant": "#1a5200",
+                      "inverse-surface": "#2a303d",
+                      "surface-container-highest": "#dde2f3",
+                      "secondary": "#1e43e7",
+                      "on-tertiary-fixed": "#062100",
+                      "on-background": "#161c27",
+                      "background": "#f9f9ff",
+                      "primary-fixed-dim": "#ffb595",
+                      "surface-variant": "#dde2f3",
+                      "surface-dim": "#d4daea",
+                      "on-error-container": "#93000a",
+                      "secondary-fixed-dim": "#bac3ff",
+                      "error-container": "#ffdad6",
+                      "on-tertiary-container": "#0e3500",
+                      "on-primary-fixed": "#360f00",
+                      "on-surface": "#161c27",
+                      "inverse-primary": "#ffb595",
+                      "on-secondary-fixed": "#00105b",
+                      "on-primary": "#ffffff",
+                      "on-error": "#ffffff",
+                      "on-secondary-fixed-variant": "#002fc9",
+                      "on-surface-variant": "#594137",
+                      "tertiary-fixed": "#93fb65",
+                      "secondary-fixed": "#dee0ff",
+                      "on-tertiary": "#ffffff",
+                      "surface-tint": "#a23f00",
+                      "primary": "#a23f00",
+                      "surface-bright": "#f9f9ff",
+                      "primary-container": "#f5691a",
+                      "surface-container-low": "#f1f3ff",
+                      "on-secondary-container": "#faf7ff",
+                      "tertiary": "#256d00",
+                      "on-primary-fixed-variant": "#7c2e00",
+                      "outline-variant": "#e1bfb2",
+                      "surface-container-lowest": "#ffffff",
+                      "secondary-container": "#4160ff",
+                      "primary-fixed": "#ffdbcd",
+                      "inverse-on-surface": "#ecf0ff",
+                      "error": "#ba1a1a",
+                      "surface": "#f9f9ff",
+                      "on-secondary": "#ffffff",
+                      "outline": "#8d7165",
+                      "tertiary-container": "#46a917",
+                      "tertiary-fixed-dim": "#78de4b",
+                      "surface-container": "#e8eeff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "sidebar-width": "260px",
+                      "lg": "24px",
+                      "base": "8px",
+                      "sm": "8px",
+                      "gutter": "16px",
+                      "xl": "32px",
+                      "header-height": "64px",
+                      "md": "16px",
+                      "xs": "4px"
+              },
+              "fontFamily": {
+                      "h2": [
+                              "Be Vietnam Pro"
+                      ],
+                      "h1": [
+                              "Be Vietnam Pro"
+                      ],
+                      "body-medium": [
+                              "Be Vietnam Pro"
+                      ],
+                      "caption": [
+                              "Be Vietnam Pro"
+                      ],
+                      "body-base": [
+                              "Be Vietnam Pro"
+                      ],
+                      "label": [
+                              "Be Vietnam Pro"
+                      ],
+                      "body-small": [
+                              "Be Vietnam Pro"
+                      ],
+                      "code": [
+                              "JetBrains Mono"
+                      ],
+                      "h3": [
+                              "Be Vietnam Pro"
+                      ]
+              },
+              "fontSize": {
+                      "h2": [
+                              "22px",
+                              {
+                                      "lineHeight": "30px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "h1": [
+                              "28px",
+                              {
+                                      "lineHeight": "36px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-medium": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "caption": [
+                              "11px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-base": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label": [
+                              "11px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-small": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "code": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "h3": [
+                              "18px",
+                              {
+                                      "lineHeight": "26px",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+            }
+          }
+        }
+    </script>
+<style type="text/tailwindcss">
+        @layer utilities {
+            .table-input {
+                @apply w-full h-8 px-2 py-1 text-right border-gray-100 rounded bg-white focus:outline-none focus:ring-1 focus:ring-secondary focus:border-secondary font-body-base text-body-base text-on-surface shadow-sm transition-shadow;
+            }
+            .card-panel {
+                @apply bg-surface-container-lowest border border-gray-100 rounded-xl overflow-hidden mb-lg;
+            }
+            .section-title {
+                @apply font-h3 text-h3 text-on-surface px-lg py-md border-b border-gray-100 bg-surface-bright flex items-center gap-2;
+            }
+            .table-header {
+                @apply bg-gray-50 font-label text-label text-gray-500 uppercase tracking-wider text-left py-2 px-lg;
+            }
+            .table-row-item {
+                @apply border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors py-2 px-lg;
+            }
+            .group-header {
+                @apply bg-surface-container-low text-on-surface font-body-medium text-body-medium py-1 px-lg border-b border-gray-100 italic text-opacity-80;
+            }
+        }
+    </style>
+</head>
+<body class="bg-background min-h-screen text-on-surface font-body-base text-body-base p-lg md:p-xl lg:px-[24px] lg:max-w-[1200px] mx-auto">
+<!-- Header Section -->
+<header class="mb-xl flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface mb-2">Nhập Báo cáo tuần</h1>
+<p class="font-body-small text-body-small text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">info</span>
+                Nhập số liệu thực tế phát sinh trong tuần học vụ tương ứng.
+            </p>
+</div>
+<div class="flex flex-col gap-1 w-full md:w-auto">
+<label class="font-label text-label text-gray-700" for="week-select">Tuần báo cáo</label>
+<div class="relative w-full md:w-64">
+<select class="w-full appearance-none bg-surface-container-lowest border border-gray-100 rounded-lg py-2 pl-3 pr-10 font-body-medium text-body-medium text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary focus:border-secondary shadow-sm cursor-pointer" id="week-select">
+<option selected="" value="2026-w35">2026-W35 (24/08 - 30/08)</option>
+<option value="2026-w34">2026-W34 (17/08 - 23/08)</option>
+<option value="2026-w33">2026-W33 (10/08 - 16/08)</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+<span class="material-symbols-outlined">expand_more</span>
+</div>
+</div>
+</div>
+</header>
+<main class="grid grid-cols-1 lg:grid-cols-12 gap-lg">
+<!-- Cột trái: Bảng 1 -->
+<div class="lg:col-span-8">
+<div class="card-panel shadow-sm hover:shadow-md transition-shadow duration-200">
+<div class="section-title">
+<span class="material-symbols-outlined text-primary-container">assignment_turned_in</span>
+                    Số lần phát sinh theo mục KPI
+                </div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr>
+<th class="table-header w-2/3">Hạng mục công việc</th>
+<th class="table-header w-1/3 text-right">Số lần phát sinh</th>
+</tr>
+</thead>
+<tbody class="font-body-base text-body-base">
+<!-- Nhóm Chăm sóc học viên -->
+<tr>
+<td class="group-header" colspan="2">Nhóm Chăm sóc học viên</td>
+</tr>
+<tr class="table-row-item">
+<td>Gọi điện nhắc phí</td>
+<td><input class="table-input" min="0" placeholder="0" type="number"/></td>
+</tr>
+<tr class="table-row-item">
+<td>Phản hồi học tập định kỳ</td>
+<td><input class="table-input" min="0" placeholder="0" type="number"/></td>
+</tr>
+<!-- Nhóm Chất lượng giảng dạy -->
+<tr>
+<td class="group-header" colspan="2">Nhóm Chất lượng giảng dạy</td>
+</tr>
+<tr class="table-row-item">
+<td>Dự giờ lớp học</td>
+<td><input class="table-input" min="0" placeholder="0" type="number"/></td>
+</tr>
+<tr class="table-row-item">
+<td>Kiểm tra giáo trình buổi</td>
+<td><input class="table-input" min="0" placeholder="0" type="number"/></td>
+</tr>
+<!-- Nhóm Vận hành lớp -->
+<tr>
+<td class="group-header" colspan="2">Nhóm Vận hành lớp</td>
+</tr>
+<tr class="table-row-item">
+<td>Xử lý sự vụ lớp</td>
+<td><input class="table-input" min="0" placeholder="0" type="number"/></td>
+</tr>
+<tr class="table-row-item">
+<td>Đặt lịch học thử</td>
+<td><input class="table-input" min="0" placeholder="0" type="number"/></td>
+</tr>
+<!-- Nhóm Quản lý Giáo viên -->
+<tr>
+<td class="group-header" colspan="2">Nhóm Quản lý Giáo viên</td>
+</tr>
+<tr class="table-row-item">
+<td>Chốt công GV</td>
+<td><input class="table-input" min="0" placeholder="0" type="number"/></td>
+</tr>
+<tr class="table-row-item">
+<td>Xử lý vi phạm GV</td>
+<td><input class="table-input" min="0" placeholder="0" type="number"/></td>
+</tr>
+<!-- Nhóm Phát triển Trung tâm -->
+<tr>
+<td class="group-header" colspan="2">Nhóm Phát triển Trung tâm</td>
+</tr>
+<tr class="table-row-item">
+<td>Tổ chức sự kiện tháng</td>
+<td><input class="table-input" min="0" placeholder="0" type="number"/></td>
+</tr>
+<tr class="table-row-item">
+<td>Thu thập Feedback HV</td>
+<td><input class="table-input" min="0" placeholder="0" type="number"/></td>
+</tr>
+<!-- Nhóm Chuyên môn khác -->
+<tr>
+<td class="group-header" colspan="2">Nhóm Chuyên môn khác</td>
+</tr>
+<tr class="table-row-item">
+<td>Soạn Syllabus bổ sung</td>
+<td><input class="table-input" min="0" placeholder="0" type="number"/></td>
+</tr>
+<tr class="table-row-item border-b-0">
+<td>Kiểm tra Big Test tập trung</td>
+<td><input class="table-input" min="0" placeholder="0" type="number"/></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Cột phải: Bảng 2 -->
+<div class="lg:col-span-4">
+<div class="card-panel shadow-sm hover:shadow-md transition-shadow duration-200 sticky top-lg">
+<div class="section-title bg-surface-container-low">
+<span class="material-symbols-outlined text-secondary">monitoring</span>
+                    Thông tin theo dõi
+                </div>
+<div class="p-lg pt-sm">
+<div class="text-caption font-caption text-gray-500 mb-md">(Chỉ số quy mô, không tính KPI)</div>
+<div class="space-y-3">
+<div class="flex items-center justify-between border-b border-gray-50 pb-2">
+<label class="font-body-medium text-body-medium text-on-surface">Số lớp đang chạy</label>
+<input class="table-input w-24 bg-gray-50 border-transparent focus:bg-white" min="0" placeholder="0" type="number"/>
+</div>
+<div class="flex items-center justify-between border-b border-gray-50 pb-2">
+<label class="font-body-medium text-body-medium text-on-surface">Số học sinh</label>
+<input class="table-input w-24 bg-gray-50 border-transparent focus:bg-white" min="0" placeholder="0" type="number"/>
+</div>
+<div class="flex items-center justify-between border-b border-gray-50 pb-2">
+<label class="font-body-medium text-body-medium text-on-surface">Số GV phụ trách</label>
+<input class="table-input w-24 bg-gray-50 border-transparent focus:bg-white" min="0" placeholder="0" type="number"/>
+</div>
+<div class="flex items-center justify-between border-b border-gray-50 pb-2">
+<label class="font-body-medium text-body-medium text-on-surface">Data mới nhận</label>
+<input class="table-input w-24 bg-gray-50 border-transparent focus:bg-white" min="0" placeholder="0" type="number"/>
+</div>
+<div class="flex items-center justify-between border-b border-gray-50 pb-2">
+<label class="font-body-medium text-body-medium text-on-surface">HV mới chốt</label>
+<input class="table-input w-24 bg-gray-50 border-transparent focus:bg-white" min="0" placeholder="0" type="number"/>
+</div>
+<div class="flex items-center justify-between border-b border-gray-50 pb-2">
+<label class="font-body-medium text-body-medium text-on-surface">HV chuyển lớp</label>
+<input class="table-input w-24 bg-gray-50 border-transparent focus:bg-white" min="0" placeholder="0" type="number"/>
+</div>
+<div class="flex items-center justify-between border-b border-gray-50 pb-2">
+<label class="font-body-medium text-body-medium text-on-surface">HV học bù</label>
+<input class="table-input w-24 bg-gray-50 border-transparent focus:bg-white" min="0" placeholder="0" type="number"/>
+</div>
+<div class="flex items-center justify-between border-b border-gray-50 pb-2">
+<label class="font-body-medium text-body-medium text-on-surface">Lớp đến hạn chăm sóc</label>
+<input class="table-input w-24 bg-gray-50 border-transparent focus:bg-white" min="0" placeholder="0" type="number"/>
+</div>
+<div class="flex items-center justify-between pb-1">
+<label class="font-body-medium text-body-medium text-on-surface">Số lớp sắp lịch test</label>
+<input class="table-input w-24 bg-gray-50 border-transparent focus:bg-white" min="0" placeholder="0" type="number"/>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer Actions -->
+<footer class="mt-xl pt-lg border-t border-gray-200 flex justify-end items-center gap-4">
+<button class="px-6 py-2 rounded-lg bg-surface-container-lowest border border-gray-300 font-body-medium text-body-medium text-gray-900 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-200" type="button">
+            Hủy bỏ
+        </button>
+<button class="px-6 py-2 rounded-lg bg-[#F5691A] font-body-medium text-body-medium text-white shadow-sm hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary-container focus:ring-offset-2 flex items-center gap-2" type="button">
+<span class="material-symbols-outlined text-[18px]">save</span>
+            Lưu báo cáo tuần
+        </button>
+</footer>
+</body></html>

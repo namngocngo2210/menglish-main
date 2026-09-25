@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Khách hàng đã chốt thành công - MENGLISH</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@100;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: #f9f9ff;
+            color: #161c27;
+        }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-pending { background-color: rgba(245, 105, 26, 0.1); color: #f5691a; }
+        .badge-trial { background-color: rgba(65, 96, 255, 0.1); color: #1e43e7; }
+        .badge-active { background-color: rgba(37, 109, 0, 0.1); color: #256d00; }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(8px);
+            border: 1px solid #e8eeff;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#a23f00",
+                        "primary-container": "#f5691a",
+                        "on-primary-container": "#521c00",
+                        "secondary": "#1e43e7",
+                        "surface": "#f9f9ff",
+                        "surface-container": "#e8eeff",
+                        "outline": "#8d7165",
+                        "outline-variant": "#e1bfb2",
+                        "on-surface": "#161c27",
+                        "on-surface-variant": "#594137"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "gutter": "16px",
+                        "xs": "4px",
+                        "base": "8px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "lg": "24px",
+                        "xl": "32px"
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="p-lg">
+<!-- Header Section -->
+<header class="mb-xl">
+<h1 class="font-h1 text-h1 text-on-surface flex items-center gap-sm">
+            Khách hàng đã chốt thành công
+            <span class="bg-primary-container/10 text-primary-container px-3 py-1 rounded-full text-body-small font-bold">128 học viên</span>
+</h1>
+<p class="text-on-surface-variant font-body-base mt-xs">Quản lý danh sách học viên sau khi hoàn tất thủ tục đăng ký và phân bổ lớp học.</p>
+</header>
+<!-- 1. KHU VỰC NỔI BẬT: CHỜ XẾP LỚP (R31) -->
+<section class="mb-xl">
+<div class="flex items-center justify-between mb-md">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-primary-container" style="font-variation-settings: 'FILL' 1;">warning</span>
+<h2 class="font-h2 text-h2 text-primary-container">Chờ xếp lớp (Cần xử lý gấp)</h2>
+<span class="ml-2 px-2 py-0.5 bg-primary-container text-white rounded text-label">04</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md">
+<!-- Card 1 -->
+<div class="glass-card p-md rounded-xl shadow-sm border-l-4 border-primary-container hover:shadow-md transition-shadow">
+<div class="flex items-center gap-md mb-md">
+<div class="w-12 h-12 rounded-full bg-primary-fixed flex items-center justify-center text-primary font-bold text-h3">NH</div>
+<div>
+<h3 class="font-body-medium text-on-surface font-bold">Nguyễn Hoàng Anh</h3>
+<p class="text-caption text-on-surface-variant">0901 234 567</p>
+</div>
+</div>
+<div class="space-y-2 mb-md">
+<div class="flex items-center justify-between text-body-small">
+<span class="text-on-surface-variant">Chi nhánh:</span>
+<span class="font-medium text-on-surface">Quận 7 (Phú Mỹ Hưng)</span>
+</div>
+<div class="flex items-center justify-between text-body-small">
+<span class="text-on-surface-variant">Ngày chốt:</span>
+<span class="font-medium text-on-surface">14/10/2023 14:30</span>
+</div>
+</div>
+<button class="w-full py-2 bg-primary-container text-white rounded-lg font-body-medium hover:bg-primary transition-colors flex items-center justify-center gap-xs" onclick="openClassPicker()">
+<span class="material-symbols-outlined text-[20px]">group_add</span>
+                    Gán lớp
+                </button>
+</div>
+<!-- Card 2 -->
+<div class="glass-card p-md rounded-xl shadow-sm border-l-4 border-primary-container hover:shadow-md transition-shadow">
+<div class="flex items-center gap-md mb-md">
+<div class="w-12 h-12 rounded-full bg-tertiary-fixed flex items-center justify-center text-tertiary font-bold text-h3">PT</div>
+<div>
+<h3 class="font-body-medium text-on-surface font-bold">Phạm Thu Thảo</h3>
+<p class="text-caption text-on-surface-variant">0912 345 678</p>
+</div>
+</div>
+<div class="space-y-2 mb-md">
+<div class="flex items-center justify-between text-body-small">
+<span class="text-on-surface-variant">Chi nhánh:</span>
+<span class="font-medium text-on-surface">Quận 1 (Lê Lợi)</span>
+</div>
+<div class="flex items-center justify-between text-body-small">
+<span class="text-on-surface-variant">Ngày chốt:</span>
+<span class="font-medium text-on-surface">14/10/2023 16:15</span>
+</div>
+</div>
+<button class="w-full py-2 bg-primary-container text-white rounded-lg font-body-medium hover:bg-primary transition-colors flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-[20px]">group_add</span>
+                    Gán lớp
+                </button>
+</div>
+<!-- Card 3 -->
+<div class="glass-card p-md rounded-xl shadow-sm border-l-4 border-primary-container hover:shadow-md transition-shadow">
+<div class="flex items-center gap-md mb-md">
+<div class="w-12 h-12 rounded-full bg-secondary-fixed flex items-center justify-center text-secondary font-bold text-h3">LD</div>
+<div>
+<h3 class="font-body-medium text-on-surface font-bold">Lê Duy Nam</h3>
+<p class="text-caption text-on-surface-variant">0988 777 999</p>
+</div>
+</div>
+<div class="space-y-2 mb-md">
+<div class="flex items-center justify-between text-body-small">
+<span class="text-on-surface-variant">Chi nhánh:</span>
+<span class="font-medium text-on-surface">Tân Bình</span>
+</div>
+<div class="flex items-center justify-between text-body-small">
+<span class="text-on-surface-variant">Ngày chốt:</span>
+<span class="font-medium text-on-surface">15/10/2023 09:00</span>
+</div>
+</div>
+<button class="w-full py-2 bg-primary-container text-white rounded-lg font-body-medium hover:bg-primary transition-colors flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-[20px]">group_add</span>
+                    Gán lớp
+                </button>
+</div>
+<!-- Card 4 -->
+<div class="glass-card p-md rounded-xl shadow-sm border-l-4 border-primary-container hover:shadow-md transition-shadow">
+<div class="flex items-center gap-md mb-md">
+<div class="w-12 h-12 rounded-full bg-primary-fixed-dim flex items-center justify-center text-on-primary-fixed-variant font-bold text-h3">TM</div>
+<div>
+<h3 class="font-body-medium text-on-surface font-bold">Trần Minh Tâm</h3>
+<p class="text-caption text-on-surface-variant">0933 112 233</p>
+</div>
+</div>
+<div class="space-y-2 mb-md">
+<div class="flex items-center justify-between text-body-small">
+<span class="text-on-surface-variant">Chi nhánh:</span>
+<span class="font-medium text-on-surface">Quận 7 (Phú Mỹ Hưng)</span>
+</div>
+<div class="flex items-center justify-between text-body-small">
+<span class="text-on-surface-variant">Ngày chốt:</span>
+<span class="font-medium text-on-surface">15/10/2023 10:45</span>
+</div>
+</div>
+<button class="w-full py-2 bg-primary-container text-white rounded-lg font-body-medium hover:bg-primary transition-colors flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-[20px]">group_add</span>
+                    Gán lớp
+                </button>
+</div>
+</div>
+</section>
+<!-- 2. KHU VỰC CHÍNH: KHÁCH ĐÃ CÓ LỚP -->
+<section class="bg-white rounded-xl border border-surface-container shadow-sm overflow-hidden">
+<!-- Bộ lọc -->
+<div class="p-lg bg-surface-container-low border-b border-surface-container flex flex-wrap items-center gap-md">
+<div class="flex flex-col gap-1">
+<label class="text-caption text-on-surface-variant font-medium uppercase tracking-wider">Chi nhánh</label>
+<select class="rounded-lg border-outline-variant bg-white text-body-medium px-md py-2 focus:ring-secondary focus:border-secondary min-w-[200px]">
+<option value="">Tất cả chi nhánh</option>
+<option value="q7">Quận 7 (Phú Mỹ Hưng)</option>
+<option value="q1">Quận 1 (Lê Lợi)</option>
+<option value="tb">Tân Bình</option>
+</select>
+</div>
+<div class="flex flex-col gap-1">
+<label class="text-caption text-on-surface-variant font-medium uppercase tracking-wider">Lớp học</label>
+<select class="rounded-lg border-outline-variant bg-white text-body-medium px-md py-2 focus:ring-secondary focus:border-secondary min-w-[200px]">
+<option value="">Tất cả lớp học</option>
+<option value="ielts1">IELTS Foundation - Lớp A</option>
+<option value="ielts2">IELTS Intensive - Lớp B</option>
+<option value="toeic">TOEIC 550+ - Lớp C</option>
+</select>
+</div>
+<div class="ml-auto">
+<div class="relative">
+<input class="pl-10 pr-md py-2 border-outline-variant rounded-lg focus:ring-secondary focus:border-secondary text-body-medium w-[280px]" placeholder="Tìm kiếm học viên..." type="text"/>
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+</div>
+</div>
+</div>
+<!-- Bảng dữ liệu -->
+<div class="p-0 overflow-x-auto">
+<div class="flex items-center justify-between px-lg py-md border-b border-surface-container">
+<h2 class="font-h3 text-h3 text-on-surface">Khách đã có lớp <span class="text-on-surface-variant font-normal">(124)</span></h2>
+</div>
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low text-on-surface-variant text-label uppercase">
+<tr>
+<th class="px-lg py-md font-bold">Họ tên</th>
+<th class="px-md py-md font-bold">Số điện thoại</th>
+<th class="px-md py-md font-bold">Chi nhánh</th>
+<th class="px-md py-md font-bold">Lớp học</th>
+<th class="px-md py-md font-bold">Ngày chốt</th>
+<th class="px-md py-md font-bold text-center">Trạng thái</th>
+<th class="px-lg py-md font-bold text-right">Thao tác</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container">
+<!-- Row 1: Chờ khai giảng -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-secondary-container/20 text-secondary flex items-center justify-center font-bold text-caption">PV</div>
+<span class="font-body-medium text-on-surface">Phan Văn Trị</span>
+</div>
+</td>
+<td class="px-md py-md text-body-base text-on-surface-variant font-code">0944 555 666</td>
+<td class="px-md py-md text-body-base">Quận 7 (Phú Mỹ Hưng)</td>
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-medium text-on-surface">IELTS Foundation</span>
+<span class="text-caption text-on-surface-variant italic">Lớp ID: IF-202310</span>
+</div>
+</td>
+<td class="px-md py-md text-body-base text-on-surface-variant">12/10/2023</td>
+<td class="px-md py-md text-center">
+<span class="status-badge badge-pending">Chờ khai giảng</span>
+</td>
+<td class="px-lg py-md text-right">
+<button class="text-secondary font-body-medium hover:underline flex items-center justify-end gap-1 ml-auto" onclick="confirmOfficial('Phan Văn Trị')">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+                                Xác nhận chính thức
+                            </button>
+</td>
+</tr>
+<!-- Row 2: Học thử -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-tertiary-container/20 text-tertiary flex items-center justify-center font-bold text-caption">BT</div>
+<span class="font-body-medium text-on-surface">Bùi Thanh Tùng</span>
+</div>
+</td>
+<td class="px-md py-md text-body-base text-on-surface-variant font-code">0922 111 000</td>
+<td class="px-md py-md text-body-base">Tân Bình</td>
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-medium text-on-surface">TOEIC 550+</span>
+<span class="text-caption text-on-surface-variant italic">Lớp ID: TO-550-A</span>
+</div>
+</td>
+<td class="px-md py-md text-body-base text-on-surface-variant">10/10/2023</td>
+<td class="px-md py-md text-center">
+<span class="status-badge badge-trial">Học thử</span>
+</td>
+<td class="px-lg py-md text-right">
+<button class="text-secondary font-body-medium hover:underline flex items-center justify-end gap-1 ml-auto" onclick="confirmOfficial('Bùi Thanh Tùng')">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+                                Xác nhận chính thức
+                            </button>
+</td>
+</tr>
+<!-- Row 3: Đang học -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-on-surface-variant/20 text-on-surface flex items-center justify-center font-bold text-caption">LT</div>
+<span class="font-body-medium text-on-surface">Lâm Thu Trang</span>
+</div>
+</td>
+<td class="px-md py-md text-body-base text-on-surface-variant font-code">0977 888 222</td>
+<td class="px-md py-md text-body-base">Quận 1 (Lê Lợi)</td>
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-medium text-on-surface">IELTS Intensive</span>
+<span class="text-caption text-on-surface-variant italic">Lớp ID: II-2023B</span>
+</div>
+</td>
+<td class="px-md py-md text-body-base text-on-surface-variant">08/10/2023</td>
+<td class="px-md py-md text-center">
+<span class="status-badge badge-active">Đang học</span>
+</td>
+<td class="px-lg py-md text-right">
+<div class="text-on-surface-variant text-caption flex items-center justify-end gap-1 cursor-default opacity-50">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+                                Đã là học viên
+                            </div>
+</td>
+</tr>
+<!-- Row 4: Đang học -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-primary-fixed/30 text-primary flex items-center justify-center font-bold text-caption">NM</div>
+<span class="font-body-medium text-on-surface">Nguyễn Minh Huy</span>
+</div>
+</td>
+<td class="px-md py-md text-body-base text-on-surface-variant font-code">0938 123 456</td>
+<td class="px-md py-md text-body-base">Quận 7 (Phú Mỹ Hưng)</td>
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-medium text-on-surface">Giao tiếp Business</span>
+<span class="text-caption text-on-surface-variant italic">Lớp ID: GB-102</span>
+</div>
+</td>
+<td class="px-md py-md text-body-base text-on-surface-variant">05/10/2023</td>
+<td class="px-md py-md text-center">
+<span class="status-badge badge-active">Đang học</span>
+</td>
+<td class="px-lg py-md text-right">
+<div class="text-on-surface-variant text-caption flex items-center justify-end gap-1 cursor-default opacity-50">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+                                Đã là học viên
+                            </div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination (Optional but good for UI) -->
+<div class="p-lg border-t border-surface-container flex items-center justify-between">
+<span class="text-body-small text-on-surface-variant">Hiển thị 1 - 4 trong tổng số 124 học viên</span>
+<div class="flex items-center gap-xs">
+<button class="p-2 rounded-lg hover:bg-surface-container text-on-surface-variant"><span class="material-symbols-outlined">chevron_left</span></button>
+<button class="w-8 h-8 rounded-lg bg-primary-container text-white text-caption font-bold">1</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container text-on-surface-variant text-caption">2</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container text-on-surface-variant text-caption">3</button>
+<button class="p-2 rounded-lg hover:bg-surface-container text-on-surface-variant"><span class="material-symbols-outlined">chevron_right</span></button>
+</div>
+</div>
+</section>
+<!-- Popup Confirmation (Hidden by default) -->
+<div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300" id="confirmPopup">
+<div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-lg transform scale-95 transition-transform duration-300">
+<div class="flex items-center gap-md mb-lg">
+<div class="w-12 h-12 rounded-full bg-secondary/10 text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-[32px]">info</span>
+</div>
+<div>
+<h3 class="font-h3 text-h3 text-on-surface">Xác nhận học viên</h3>
+<p class="text-body-base text-on-surface-variant" id="confirmName">Xác nhận học viên đã chính thức bắt đầu học?</p>
+</div>
+</div>
+<div class="flex items-center justify-end gap-md">
+<button class="px-lg py-2 border border-outline-variant rounded-lg text-on-surface-variant font-body-medium hover:bg-surface-container-low transition-colors" onclick="closeConfirm()">
+                    Hủy
+                </button>
+<button class="px-lg py-2 bg-secondary text-white rounded-lg font-body-medium hover:bg-blue-700 transition-colors shadow-lg shadow-secondary/20" onclick="handleConfirm()">
+                    Xác nhận chính thức
+                </button>
+</div>
+</div>
+</div>
+<!-- Script for interactions -->
+<script>
+        function openClassPicker() {
+            // Placeholder logic for the Gán lớp action
+            alert("Đang mở luồng chọn lớp cho học viên...");
+        }
+
+        function confirmOfficial(name) {
+            const popup = document.getElementById('confirmPopup');
+            const nameSpan = document.getElementById('confirmName');
+            nameSpan.innerText = `Xác nhận học viên ${name} đã chính thức bắt đầu học?`;
+            
+            popup.classList.remove('hidden');
+            setTimeout(() => {
+                popup.classList.add('opacity-100');
+                popup.querySelector('div').classList.remove('scale-95');
+                popup.querySelector('div').classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeConfirm() {
+            const popup = document.getElementById('confirmPopup');
+            popup.classList.remove('opacity-100');
+            popup.querySelector('div').classList.remove('scale-100');
+            popup.querySelector('div').classList.add('scale-95');
+            setTimeout(() => {
+                popup.classList.add('hidden');
+            }, 300);
+        }
+
+        function handleConfirm() {
+            // Logic for success
+            alert("Học viên đã được cập nhật trạng thái 'Đang học' thành công!");
+            closeConfirm();
+        }
+
+        // Close popup when clicking outside
+        window.onclick = function(event) {
+            const popup = document.getElementById('confirmPopup');
+            if (event.target == popup) {
+                closeConfirm();
+            }
+        }
+    </script>
+</body></html>

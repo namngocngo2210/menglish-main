@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MENGLISH - Xem tài liệu giáo trình</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#ffb595",
+                        "primary-fixed": "#ffdbcd",
+                        "on-secondary-container": "#faf7ff",
+                        "tertiary-container": "#46a917",
+                        "surface-container-lowest": "#ffffff",
+                        "on-background": "#161c27",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "on-error-container": "#93000a",
+                        "on-primary": "#ffffff",
+                        "surface-container-low": "#f1f3ff",
+                        "secondary-fixed": "#dee0ff",
+                        "background": "#f9f9ff",
+                        "inverse-surface": "#2a303d",
+                        "error-container": "#ffdad6",
+                        "on-error": "#ffffff",
+                        "on-primary-container": "#521c00",
+                        "surface-container-high": "#e3e8f9",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "on-tertiary-fixed": "#062100",
+                        "surface-bright": "#f9f9ff",
+                        "surface-variant": "#dde2f3",
+                        "surface-dim": "#d4daea",
+                        "secondary-container": "#4160ff",
+                        "secondary": "#1e43e7",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "outline-variant": "#e1bfb2",
+                        "on-tertiary-container": "#0e3500",
+                        "surface-container": "#e8eeff",
+                        "primary-container": "#f5691a",
+                        "primary": "#a23f00",
+                        "error": "#ba1a1a",
+                        "on-secondary": "#ffffff",
+                        "surface-container-highest": "#dde2f3",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "tertiary-fixed": "#93fb65",
+                        "outline": "#8d7165",
+                        "on-surface-variant": "#594137",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed": "#360f00",
+                        "surface": "#f9f9ff",
+                        "surface-tint": "#a23f00",
+                        "on-secondary-fixed": "#00105b",
+                        "inverse-on-surface": "#ecf0ff",
+                        "on-surface": "#161c27",
+                        "inverse-primary": "#ffb595",
+                        "tertiary": "#256d00",
+                        "on-primary-fixed-variant": "#7c2e00"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "header-height": "64px",
+                        "base": "8px",
+                        "sm": "8px",
+                        "gutter": "16px",
+                        "xs": "4px",
+                        "sidebar-width": "260px",
+                        "lg": "24px",
+                        "xl": "32px"
+                    },
+                    "fontFamily": {
+                        "body-base": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "h2": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "body-base": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-medium": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "label": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "h1": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "h3": ["18px", { "lineHeight": "26px", "fontWeight": "600" }],
+                        "code": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "h2": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-small": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "caption": ["11px", { "lineHeight": "16px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-surface text-on-surface font-body-base min-h-screen">
+<!-- Main Content Area -->
+<main class="w-full max-w-[1400px] mx-auto p-lg lg:p-xl space-y-lg">
+<!-- Header -->
+<header class="flex flex-col gap-base border-b border-surface-variant pb-md">
+<div class="flex items-center gap-xs text-on-surface-variant font-body-small">
+<span class="material-symbols-outlined text-[18px]">menu_book</span>
+<span>Giáo trình &amp; Tài liệu</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span class="text-on-surface font-body-medium">Khóa học Starter</span>
+</div>
+<div class="flex items-center justify-between">
+<h1 class="font-h1 text-h1 text-on-surface">Xem tài liệu giáo trình</h1>
+<div class="flex gap-sm">
+<div class="bg-surface-container-high px-md py-sm rounded-lg flex items-center gap-sm">
+<span class="material-symbols-outlined text-on-surface-variant">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-base p-0 w-48 text-on-surface placeholder:text-on-surface-variant" placeholder="Tìm kiếm tài liệu..." type="text"/>
+</div>
+<button class="bg-surface-container-lowest border border-outline-variant text-on-surface px-md py-sm rounded-lg font-body-medium flex items-center gap-xs hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined">filter_list</span>
+                        Lọc
+                    </button>
+</div>
+</div>
+<!-- Tabs -->
+<div class="flex gap-lg border-b border-surface-variant mt-sm">
+<button class="pb-sm border-b-2 border-primary text-primary font-body-medium">Tài liệu</button>
+<button class="pb-sm border-b-2 border-transparent text-on-surface-variant hover:text-on-surface font-body-medium transition-colors">Tổng quan syllabus</button>
+<button class="pb-sm border-b-2 border-transparent text-on-surface-variant hover:text-on-surface font-body-medium transition-colors">Nội dung buổi học</button>
+</div>
+</header>
+<!-- Tab Content: Tài liệu -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-lg h-[calc(100vh-250px)] min-h-[700px]">
+<!-- Section 1: Danh sách tài liệu (Bento Grid Style) -->
+<section class="lg:col-span-4 bg-surface-container-lowest rounded-xl border border-surface-variant shadow-sm overflow-hidden flex flex-col">
+<div class="p-md border-b border-surface-variant bg-surface-container-lowest flex justify-between items-center sticky top-0 z-10">
+<h2 class="font-h3 text-h3 text-on-surface">Danh sách tài liệu</h2>
+<div class="bg-primary-container/10 text-primary-container px-sm py-xs rounded font-label text-label uppercase">Khóa Starter</div>
+</div>
+<div class="overflow-y-auto p-md space-y-md flex-1 custom-scrollbar">
+<!-- Chặng 1 Group -->
+<div class="space-y-sm">
+<h3 class="font-label text-label text-on-surface-variant uppercase tracking-wider pl-xs">Chặng 1: Nền tảng</h3>
+<!-- Item 1 (Selected) -->
+<div class="bg-secondary-fixed text-on-secondary-fixed p-md rounded-lg border border-secondary cursor-pointer transition-all hover:shadow-md relative overflow-hidden group">
+<div class="absolute inset-0 bg-gradient-to-r from-secondary-fixed/50 to-transparent pointer-events-none"></div>
+<div class="flex items-start gap-md relative z-10">
+<div class="bg-surface-container-lowest p-sm rounded text-error shadow-sm">
+<span class="material-symbols-outlined">picture_as_pdf</span>
+</div>
+<div class="flex-1">
+<h4 class="font-body-medium text-body-medium text-on-secondary-fixed mb-xs">Giáo trình Starter - Bài 1 &amp; 2</h4>
+<div class="flex items-center gap-md text-on-secondary-fixed-variant font-caption text-caption">
+<span class="flex items-center gap-[2px]"><span class="material-symbols-outlined text-[14px]">description</span> PDF</span>
+<span class="flex items-center gap-[2px]"><span class="material-symbols-outlined text-[14px]">lock</span> Không tải về</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="bg-surface-container-lowest hover:bg-surface-variant p-md rounded-lg border border-surface-variant cursor-pointer transition-all group">
+<div class="flex items-start gap-md">
+<div class="bg-surface-container-low group-hover:bg-surface p-sm rounded text-tertiary shadow-sm">
+<span class="material-symbols-outlined">co_present</span>
+</div>
+<div class="flex-1">
+<h4 class="font-body-medium text-body-medium text-on-surface mb-xs">Slide Bài giảng Bài 1 &amp; 2</h4>
+<div class="flex items-center gap-md text-on-surface-variant font-caption text-caption">
+<span class="flex items-center gap-[2px]"><span class="material-symbols-outlined text-[14px]">smart_display</span> Slide</span>
+<span class="flex items-center gap-[2px]"><span class="material-symbols-outlined text-[14px]">download</span> Có thể tải</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Chặng 2 Group -->
+<div class="space-y-sm mt-lg">
+<h3 class="font-label text-label text-on-surface-variant uppercase tracking-wider pl-xs">Chặng 2: Giao tiếp cơ bản</h3>
+<!-- Item 3 -->
+<div class="bg-surface-container-lowest hover:bg-surface-variant p-md rounded-lg border border-surface-variant cursor-pointer transition-all group">
+<div class="flex items-start gap-md">
+<div class="bg-surface-container-low group-hover:bg-surface p-sm rounded text-error shadow-sm">
+<span class="material-symbols-outlined">picture_as_pdf</span>
+</div>
+<div class="flex-1">
+<h4 class="font-body-medium text-body-medium text-on-surface mb-xs">Giáo trình Starter - Bài 3 &amp; 4</h4>
+<div class="flex items-center gap-md text-on-surface-variant font-caption text-caption">
+<span class="flex items-center gap-[2px]"><span class="material-symbols-outlined text-[14px]">description</span> PDF</span>
+<span class="flex items-center gap-[2px]"><span class="material-symbols-outlined text-[14px]">lock</span> Không tải về</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Item 4 -->
+<div class="bg-surface-container-lowest hover:bg-surface-variant p-md rounded-lg border border-surface-variant cursor-pointer transition-all group opacity-75">
+<div class="flex items-start gap-md">
+<div class="bg-surface-container-low group-hover:bg-surface p-sm rounded text-secondary shadow-sm">
+<span class="material-symbols-outlined">movie</span>
+</div>
+<div class="flex-1">
+<h4 class="font-body-medium text-body-medium text-on-surface mb-xs">Video tình huống giao tiếp</h4>
+<div class="flex items-center gap-md text-on-surface-variant font-caption text-caption">
+<span class="flex items-center gap-[2px]"><span class="material-symbols-outlined text-[14px]">smart_display</span> Video</span>
+<span class="flex items-center gap-[2px] text-error"><span class="material-symbols-outlined text-[14px]">lock</span> Chỉ xem</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 2: Khung xem trực tuyến (Embed Preview) -->
+<section class="lg:col-span-8 bg-surface-container-lowest rounded-xl border border-surface-variant shadow-sm flex flex-col overflow-hidden relative">
+<!-- Preview Header -->
+<div class="p-md border-b border-surface-variant flex justify-between items-center bg-surface-container-lowest z-10">
+<div class="flex items-center gap-md">
+<div class="bg-error/10 p-sm rounded text-error">
+<span class="material-symbols-outlined">picture_as_pdf</span>
+</div>
+<div>
+<h2 class="font-h3 text-h3 text-on-surface">Giáo trình Starter - Bài 1 &amp; 2</h2>
+<p class="font-body-small text-body-small text-on-surface-variant">Chặng 1: Nền tảng • 24 trang</p>
+</div>
+</div>
+<div class="flex items-center gap-sm">
+<!-- Security Notice -->
+<div class="hidden md:flex items-center gap-xs bg-surface-variant text-on-surface-variant px-sm py-xs rounded font-caption text-caption mr-sm">
+<span class="material-symbols-outlined text-[14px]">shield</span>
+                            Bảo mật nội dung
+                        </div>
+<!-- Toolbar actions (Zoom, Fullscreen) -->
+<button class="w-10 h-10 rounded hover:bg-surface-variant flex items-center justify-center text-on-surface transition-colors" title="Thu nhỏ">
+<span class="material-symbols-outlined">zoom_out</span>
+</button>
+<span class="font-body-small text-body-small text-on-surface-variant w-12 text-center">100%</span>
+<button class="w-10 h-10 rounded hover:bg-surface-variant flex items-center justify-center text-on-surface transition-colors" title="Phóng to">
+<span class="material-symbols-outlined">zoom_in</span>
+</button>
+<div class="w-px h-6 bg-surface-variant mx-xs"></div>
+<button class="w-10 h-10 rounded hover:bg-surface-variant flex items-center justify-center text-on-surface transition-colors" title="Toàn màn hình">
+<span class="material-symbols-outlined">fullscreen</span>
+</button>
+<!-- CRITICAL SECURITY CONSTRAINT: No Download Button here because khoa_download = true -->
+</div>
+</div>
+<!-- Preview Canvas -->
+<div class="flex-1 bg-surface-variant overflow-y-auto flex justify-center p-lg relative custom-scrollbar">
+<!-- Watermark Overlay (Security feature) -->
+<div class="absolute inset-0 pointer-events-none z-20 flex flex-col items-center justify-center opacity-[0.03] rotate-[-45deg] gap-24">
+<p class="font-h1 text-[60px] text-on-surface font-bold uppercase tracking-widest whitespace-nowrap">MENGLISH INTERNAL ONLY</p>
+<p class="font-h1 text-[60px] text-on-surface font-bold uppercase tracking-widest whitespace-nowrap">GIANGVIEN@MENGLISH.EDU.VN</p>
+<p class="font-h1 text-[60px] text-on-surface font-bold uppercase tracking-widest whitespace-nowrap">MENGLISH INTERNAL ONLY</p>
+</div>
+<!-- PDF Page Mockup 1 -->
+<div class="bg-surface-container-lowest w-full max-w-[800px] h-[1050px] shadow-sm mb-lg relative z-10 flex flex-col p-xl">
+<div class="border-b-2 border-primary pb-sm mb-lg flex justify-between items-end">
+<h1 class="font-h1 text-h1 text-primary">STARTER UNIT 1</h1>
+<span class="font-body-small text-body-small text-on-surface-variant">Page 1</span>
+</div>
+<div class="space-y-lg flex-1">
+<div>
+<h2 class="font-h2 text-h2 text-on-surface mb-sm">A. Vocabulary: Greetings</h2>
+<div class="grid grid-cols-2 gap-md">
+<div class="bg-surface-container-low p-md rounded-lg border border-surface-variant">
+<p class="font-body-medium text-body-medium text-on-surface">Hello / Hi</p>
+<p class="font-caption text-caption text-on-surface-variant">Xin chào</p>
+</div>
+<div class="bg-surface-container-low p-md rounded-lg border border-surface-variant">
+<p class="font-body-medium text-body-medium text-on-surface">Good morning</p>
+<p class="font-caption text-caption text-on-surface-variant">Chào buổi sáng</p>
+</div>
+<div class="bg-surface-container-low p-md rounded-lg border border-surface-variant">
+<p class="font-body-medium text-body-medium text-on-surface">How are you?</p>
+<p class="font-caption text-caption text-on-surface-variant">Bạn khỏe không?</p>
+</div>
+<div class="bg-surface-container-low p-md rounded-lg border border-surface-variant">
+<p class="font-body-medium text-body-medium text-on-surface">I'm fine, thank you</p>
+<p class="font-caption text-caption text-on-surface-variant">Tôi khỏe, cảm ơn</p>
+</div>
+</div>
+</div>
+<div class="w-full h-64 bg-cover bg-center rounded-lg border border-surface-variant" data-alt="A clean, modern illustration of two diverse professionals shaking hands in a bright, well-lit office setting. The style is flat vector art, utilizing the primary orange (#F5691A) and neutral grays from the global color palette. The scene depicts a friendly greeting, reinforcing the English lesson vocabulary. The lighting suggests a daytime corporate environment." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC_6JmG-hHMh-zYrdWmmUeLakmLuK-G9-Fcod3NUinXBANGrWYimSHyUUtg-dduRuJOKKO0xRZ42HY1UXrG8o67LE47UIsb08MqPZ0F9y-MmfsBdJ-E-wVMpAs25s_5y_OegK8A3ORMLMzXSq1FKPwefyp6spdGmhZ-y_7I0M3Z7DWnSruYRGRbkQoTP9OSJXeEibeDY5ItLvpp34Ap_kzh2XY_OAmzAC_9GkmBadcokHkNhOu27-ia')"></div>
+<div>
+<h2 class="font-h2 text-h2 text-on-surface mb-sm">B. Grammar: Verb To Be (Present)</h2>
+<table class="w-full text-left border-collapse border border-surface-variant">
+<thead>
+<tr class="bg-surface-container-low">
+<th class="p-sm font-label text-label text-on-surface-variant border border-surface-variant uppercase">Subject</th>
+<th class="p-sm font-label text-label text-on-surface-variant border border-surface-variant uppercase">Verb (To Be)</th>
+<th class="p-sm font-label text-label text-on-surface-variant border border-surface-variant uppercase">Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="p-sm border border-surface-variant font-body-base text-on-surface">I</td>
+<td class="p-sm border border-surface-variant font-body-base text-on-surface font-medium">am</td>
+<td class="p-sm border border-surface-variant font-body-base text-on-surface">I am a student.</td>
+</tr>
+<tr>
+<td class="p-sm border border-surface-variant font-body-base text-on-surface">He / She / It</td>
+<td class="p-sm border border-surface-variant font-body-base text-on-surface font-medium">is</td>
+<td class="p-sm border border-surface-variant font-body-base text-on-surface">She is a teacher.</td>
+</tr>
+<tr>
+<td class="p-sm border border-surface-variant font-body-base text-on-surface">We / You / They</td>
+<td class="p-sm border border-surface-variant font-body-base text-on-surface font-medium">are</td>
+<td class="p-sm border border-surface-variant font-body-base text-on-surface">They are from Vietnam.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Pagination / Controls Overlay -->
+<div class="fixed bottom-lg right-[calc(24px+(33.333%)+16px)] left-auto lg:right-auto lg:left-1/2 lg:-translate-x-1/2 bg-inverse-surface text-inverse-on-surface px-md py-sm rounded-full shadow-lg flex items-center gap-md z-30 opacity-90 hover:opacity-100 transition-opacity">
+<button class="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-[20px]">chevron_left</span>
+</button>
+<span class="font-body-small text-body-small">Trang 1 / 24</span>
+<button class="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Footer Security Bar -->
+<div class="bg-surface p-sm border-t border-surface-variant flex items-center justify-between z-10">
+<p class="font-caption text-caption text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">info</span>
+                        Tài liệu này không hỗ trợ tải về để bảo mật nội dung theo chính sách của MENGLISH.
+                    </p>
+<button class="bg-primary-container text-on-primary-container hover:bg-primary-container/90 px-md py-sm rounded font-label text-label uppercase transition-colors">
+                        Đánh dấu đã xem
+                    </button>
+</div>
+</section>
+</div>
+<!-- Tab Content: Tổng quan syllabus (Hidden by default, shown for structure) -->
+<div class="hidden flex-col gap-lg">
+<div class="w-full h-64 bg-cover bg-center rounded-xl border border-surface-variant flex items-center justify-center bg-surface-container-low" data-alt="Hero image representing the full year syllabus roadmap">
+<h2 class="font-h1 text-h1 text-on-surface text-center">Lộ trình tổng quát cả năm</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
+<!-- Stage Card 1 -->
+<div class="bg-surface-container-lowest border border-surface-variant rounded-xl p-md flex flex-col gap-sm shadow-sm">
+<h3 class="font-h3 text-h3 text-on-surface">Chặng 1: Nền tảng</h3>
+<p class="font-body-small text-body-small text-on-surface-variant flex-1">Xây dựng kiến thức cơ bản về từ vựng và ngữ pháp.</p>
+<button class="text-primary hover:text-primary-container font-body-medium flex items-center gap-xs self-start mt-sm transition-colors">
+                Xem mục lục chặng <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+<!-- Stage Card 2 -->
+<div class="bg-surface-container-lowest border border-surface-variant rounded-xl p-md flex flex-col gap-sm shadow-sm">
+<h3 class="font-h3 text-h3 text-on-surface">Chặng 2: Giao tiếp cơ bản</h3>
+<p class="font-body-small text-body-small text-on-surface-variant flex-1">Thực hành giao tiếp trong các tình huống hàng ngày.</p>
+<button class="text-primary hover:text-primary-container font-body-medium flex items-center gap-xs self-start mt-sm transition-colors">
+                Xem mục lục chặng <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+<!-- Stage Card 3 -->
+<div class="bg-surface-container-lowest border border-surface-variant rounded-xl p-md flex flex-col gap-sm shadow-sm">
+<h3 class="font-h3 text-h3 text-on-surface">Chặng 3: Mở rộng</h3>
+<p class="font-body-small text-body-small text-on-surface-variant flex-1">Mở rộng vốn từ và nâng cao kỹ năng nghe nói.</p>
+<button class="text-primary hover:text-primary-container font-body-medium flex items-center gap-xs self-start mt-sm transition-colors">
+                Xem mục lục chặng <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Tab Content: Nội dung buổi học (Hidden by default, shown for structure) -->
+<div class="hidden flex-col gap-lg bg-surface-container-lowest rounded-xl border border-surface-variant shadow-sm p-lg">
+<div class="space-y-md">
+<h2 class="font-h2 text-h2 text-on-surface border-b border-surface-variant pb-sm">Chặng 1: Nền tảng</h2>
+<!-- Unit Group -->
+<div class="space-y-sm">
+<h3 class="font-h3 text-h3 text-on-surface-variant mt-md">Unit 1: Greetings</h3>
+<!-- Lesson Item Expanded -->
+<div class="border border-surface-variant rounded-lg overflow-hidden">
+<div class="bg-surface-container-low p-md flex justify-between items-center cursor-pointer">
+<span class="font-body-medium text-body-medium text-on-surface">Buổi 1: Giới thiệu bản thân cơ bản</span>
+<span class="material-symbols-outlined text-on-surface-variant">expand_less</span>
+</div>
+<div class="p-md bg-surface-container-lowest text-on-surface font-body-small space-y-2 border-t border-surface-variant">
+<p><strong>Mục tiêu:</strong> Học viên có thể tự giới thiệu tên, tuổi và quê quán.</p>
+<p><strong>Từ vựng:</strong> Hello, Hi, Name, Age, From...</p>
+<p><strong>Ngữ pháp:</strong> Động từ To Be (I am, He/She is).</p>
+<p><strong>Hoạt động:</strong> Thực hành theo cặp đóng vai người mới quen.</p>
+</div>
+</div>
+<!-- Lesson Item Collapsed -->
+<div class="border border-surface-variant rounded-lg overflow-hidden">
+<div class="bg-surface-container-lowest hover:bg-surface-container-low p-md flex justify-between items-center cursor-pointer transition-colors">
+<span class="font-body-medium text-body-medium text-on-surface">Buổi 2: Chào hỏi theo thời gian trong ngày</span>
+<span class="material-symbols-outlined text-on-surface-variant">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Unit Group -->
+<div class="space-y-sm">
+<h3 class="font-h3 text-h3 text-on-surface-variant mt-md">Unit 2: Family</h3>
+<!-- Lesson Item Collapsed -->
+<div class="border border-surface-variant rounded-lg overflow-hidden">
+<div class="bg-surface-container-lowest hover:bg-surface-container-low p-md flex justify-between items-center cursor-pointer transition-colors">
+<span class="font-body-medium text-body-medium text-on-surface">Buổi 3: Từ vựng về gia đình</span>
+<span class="material-symbols-outlined text-on-surface-variant">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Empty State Example (Commented out) -->
+<!--
+        <div class="flex flex-col items-center justify-center py-xl text-on-surface-variant">
+            <span class="material-symbols-outlined text-[48px] mb-sm opacity-50">description</span>
+            <p class="font-body-medium text-body-medium">Học thuật chưa soạn nội dung cho chặng này</p>
+        </div>
+        -->
+</div>
+</div>
+</main>
+<style>
+        /* Custom Scrollbar for better UI inside the viewer */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #d4daea; /* surface-dim */
+            border-radius: 20px;
+        }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+            background-color: #dde2f3; /* surface-variant */
+        }
+    </style>
+</body></html>

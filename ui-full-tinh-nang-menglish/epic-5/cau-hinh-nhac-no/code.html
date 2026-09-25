@@ -1,0 +1,266 @@
+<!DOCTYPE html><html class="light" lang="vi"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Cấu hình Nhắc nợ | MENGLISH Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline-variant": "#e1bfb2",
+                        "on-secondary-fixed": "#00105b",
+                        "surface-container-low": "#f1f3ff",
+                        "on-tertiary-container": "#0e3500",
+                        "primary-container": "#f5691a",
+                        "on-primary": "#ffffff",
+                        "secondary": "#1e43e7",
+                        "surface-container-highest": "#dde2f3",
+                        "background": "#f9f9ff",
+                        "secondary-fixed": "#dee0ff",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "error": "#ba1a1a",
+                        "surface": "#f9f9ff",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "surface-variant": "#dde2f3",
+                        "on-tertiary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "surface-container": "#e8eeff",
+                        "secondary-container": "#4160ff",
+                        "tertiary-container": "#46a917",
+                        "primary-fixed-dim": "#ffb595",
+                        "primary": "#a23f00",
+                        "on-surface": "#161c27",
+                        "inverse-surface": "#2a303d",
+                        "surface-container-high": "#e3e8f9",
+                        "tertiary-fixed": "#93fb65",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "on-secondary-container": "#faf7ff",
+                        "on-primary-container": "#521c00",
+                        "outline": "#8d7165",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "surface-dim": "#d4daea",
+                        "surface-tint": "#a23f00",
+                        "on-background": "#161c27",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "primary-fixed": "#ffdbcd",
+                        "on-surface-variant": "#594137",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed": "#062100",
+                        "on-primary-fixed": "#360f00",
+                        "inverse-primary": "#ffb595",
+                        "surface-bright": "#f9f9ff",
+                        "tertiary": "#256d00",
+                        "inverse-on-surface": "#ecf0ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "lg": "24px",
+                        "xl": "32px",
+                        "base": "8px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "header-height": "64px",
+                        "gutter": "16px",
+                        "sidebar-width": "260px"
+                    },
+                    "fontFamily": {
+                        "code": ["JetBrains Mono"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                        "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: #f9f9ff;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .input-focus-ring:focus {
+            outline: none;
+            border-color: #3B5BFB;
+            box-shadow: 0 0 0 2px rgba(59, 91, 251, 0.2);
+        }
+        .custom-shadow {
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="text-on-surface antialiased p-lg md:p-xl">
+<main class="max-w-4xl mx-auto">
+<!-- Header Section -->
+<header class="mb-xl">
+<h1 class="font-h1 text-h1 text-primary mb-xs">Cấu hình Nhắc nợ</h1>
+<p class="font-body-base text-body-base text-on-surface-variant max-w-2xl">
+                Tối ưu hóa thời gian và tần suất gửi thông báo nhắc học phí cho phụ huynh, giúp cải thiện tỷ lệ thanh toán đúng hạn và duy trì sự chuyên nghiệp trong khâu vận hành.
+            </p>
+</header>
+<!-- Configuration Form Card -->
+<div class="bg-surface-container-lowest border border-surface-container-high rounded-xl p-lg custom-shadow">
+<form class="space-y-xl" id="reminder-config-form">
+<!-- Section 1: Mốc nhắc nợ trước hạn -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-md items-start">
+<div class="md:col-span-5">
+<label class="font-body-medium text-body-medium text-on-surface-variant block mb-xs" for="pre_due_days">
+                            Mốc nhắc nợ trước hạn
+                        </label>
+<p class="font-caption text-caption text-on-surface-variant">Số ngày trước ngày đáo hạn để hệ thống gửi thông báo nhắc nhở đầu tiên.</p>
+</div>
+<div class="md:col-span-7">
+<div class="relative max-w-[200px]">
+<input class="w-full bg-surface border border-surface-container-highest rounded-lg px-md py-sm font-body-base text-body-base input-focus-ring" id="pre_due_days" placeholder="7" type="number" value="7">
+<span class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant font-body-small">Ngày</span>
+</div>
+</div>
+</div>
+<hr class="border-surface-container-high">
+<!-- Section 2: Mốc nhắc lại (with Validation Example) -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-md items-start">
+<div class="md:col-span-5">
+<label class="font-body-medium text-body-medium text-on-surface-variant block mb-xs" for="repeat_reminder_days">
+                            Mốc nhắc lại
+                        </label>
+<p class="font-caption text-caption text-on-surface-variant">Gửi thông báo lần 2 sát ngày đáo hạn để tăng độ nhận diện.</p>
+</div>
+<div class="md:col-span-7 space-y-sm">
+<div class="relative max-w-[200px]">
+<input class="w-full bg-surface border border-error rounded-lg px-md py-sm font-body-base text-body-base focus:outline-none ring-1 ring-error" id="repeat_reminder_days" max="3" min="1" type="number" value="4">
+<span class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant font-body-small">Ngày</span>
+</div>
+<div class="flex items-center gap-xs text-error font-caption">
+<span class="material-symbols-outlined text-[16px]">error</span>
+<span>Giá trị không hợp lệ. Vui lòng nhập trong khoảng từ 1-3 ngày.</span>
+</div>
+<div class="flex items-center gap-xs text-secondary font-caption bg-secondary-container/10 p-xs px-sm rounded w-fit">
+<span class="material-symbols-outlined text-[14px]">info</span>
+<span>Mốc nhắc lại bắt buộc phải nằm trong khoảng từ 1 đến 3 ngày trước hạn.</span>
+</div>
+</div>
+</div>
+<hr class="border-surface-container-high">
+<!-- Section 3: Mốc quá hạn bắt buộc liên hệ -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-md items-start">
+<div class="md:col-span-5">
+<label class="font-body-medium text-body-medium text-on-surface-variant block mb-xs" for="overdue_contact_days">
+                            Mốc quá hạn bắt buộc liên hệ
+                        </label>
+<p class="font-caption text-caption text-on-surface-variant">Tạo yêu cầu liên hệ trực tiếp (gọi điện) nếu quá hạn thanh toán.</p>
+</div>
+<div class="md:col-span-7">
+<div class="relative max-w-[200px]">
+<input class="w-full bg-surface border border-surface-container-highest rounded-lg px-md py-sm font-body-base text-body-base input-focus-ring" id="overdue_contact_days" placeholder="7" type="number" value="7">
+<span class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant font-body-small">Ngày</span>
+</div>
+</div>
+</div>
+<hr class="border-surface-container-high">
+<!-- Section 4: Kênh thông báo (Read-only) -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-md items-start">
+<div class="md:col-span-5">
+<span class="font-body-medium text-body-medium text-on-surface-variant block mb-xs">Kênh thông báo</span>
+<p class="font-caption text-caption text-on-surface-variant">Phương thức gửi thông báo được áp dụng đồng bộ trên hệ thống.</p>
+</div>
+<div class="md:col-span-7">
+<div class="flex items-center gap-md p-md bg-surface border border-surface-container-high rounded-lg">
+<div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">notifications</span>
+</div>
+<div>
+<h4 class="font-body-medium text-body-medium text-on-surface">Chuông thông báo in-app</h4>
+<p class="font-caption text-caption text-on-surface-variant">Thông báo đẩy trực tiếp tới ứng dụng phụ huynh MENGLISH.</p>
+</div>
+<div class="ml-auto">
+<span class="bg-tertiary/10 text-tertiary px-sm py-xs rounded-full font-label text-label uppercase">Hoạt động</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Button Footer -->
+<div class="pt-lg flex justify-end gap-md">
+<button class="px-lg py-sm rounded-lg border border-outline text-on-surface-variant font-body-medium hover:bg-surface-container transition-colors" type="button">
+                        Hủy
+                    </button>
+<button class="px-xl py-sm rounded-lg bg-primary-container text-on-primary font-body-medium shadow-lg hover:opacity-90 active:scale-[0.98] transition-all flex items-center gap-xs" type="submit">
+<span class="material-symbols-outlined text-[20px]">save</span>
+                        Lưu cấu hình
+                    </button>
+</div>
+</form>
+</div>
+<!-- System Status Tip -->
+<div class="mt-lg p-md bg-surface-container-low border border-surface-container-high rounded-lg flex items-start gap-md">
+<span class="material-symbols-outlined text-secondary">verified_user</span>
+<div class="space-y-xs">
+<span class="font-body-medium text-body-medium text-on-secondary-fixed-variant block">Thông tin vận hành</span>
+<p class="font-body-small text-body-small text-on-surface-variant">
+                    Các cấu hình mới sẽ có hiệu lực ngay lập tức cho các đợt quét nhắc nợ từ ngày mai. Hệ thống tự động gửi thông báo vào lúc 08:30 sáng hàng ngày theo giờ Việt Nam (GMT+7).
+                </p>
+</div>
+</div>
+</main>
+<script>
+        // Simple micro-interaction for the submit button
+        document.getElementById('reminder-config-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalContent = btn.innerHTML;
+            
+            btn.innerHTML = `
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Đang lưu...
+            `;
+            btn.disabled = true;
+
+            setTimeout(() => {
+                btn.innerHTML = `<span class="material-symbols-outlined text-[20px]">check_circle</span> Đã lưu thành công`;
+                btn.classList.remove('bg-primary-container');
+                btn.classList.add('bg-tertiary-container');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalContent;
+                    btn.classList.add('bg-primary-container');
+                    btn.classList.remove('bg-tertiary-container');
+                    btn.disabled = false;
+                }, 2000);
+            }, 1000);
+        });
+    </script>
+</body></html>

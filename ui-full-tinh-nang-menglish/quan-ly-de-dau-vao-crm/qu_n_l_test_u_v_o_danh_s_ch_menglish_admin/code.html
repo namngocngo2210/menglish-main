@@ -1,0 +1,387 @@
+<!DOCTYPE html><html class="light" lang="vi"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Quản lý đề test đầu vào - MENGLISH Admin</title>
+<!-- Fonts & Icons -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&amp;family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface": "#f9f9ff",
+                        "secondary": "#1e43e7",
+                        "outline": "#8d7165",
+                        "surface-dim": "#d4daea",
+                        "error": "#ba1a1a",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "background": "#f9f9ff",
+                        "surface-container-highest": "#dde2f3",
+                        "secondary-fixed": "#dee0ff",
+                        "surface-variant": "#dde2f3",
+                        "on-surface": "#161c27",
+                        "surface-tint": "#a23f00",
+                        "on-error": "#ffffff",
+                        "inverse-primary": "#ffb595",
+                        "on-primary-container": "#521c00",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "on-primary": "#ffffff",
+                        "inverse-on-surface": "#ecf0ff",
+                        "surface-container": "#e8eeff",
+                        "secondary-container": "#4160ff",
+                        "on-secondary": "#ffffff",
+                        "inverse-surface": "#2a303d",
+                        "tertiary-fixed": "#93fb65",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "surface-container-low": "#f1f3ff",
+                        "surface-container-high": "#e3e8f9",
+                        "outline-variant": "#e1bfb2",
+                        "on-surface-variant": "#594137",
+                        "on-tertiary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-container": "#0e3500",
+                        "on-secondary-container": "#faf7ff",
+                        "tertiary-container": "#46a917",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "primary-container": "#f5691a",
+                        "primary": "#a23f00",
+                        "primary-fixed": "#ffdbcd",
+                        "tertiary": "#256d00",
+                        "on-background": "#161c27",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "on-primary-fixed": "#360f00",
+                        "primary-fixed-dim": "#ffb595",
+                        "on-secondary-fixed": "#00105b",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed": "#062100",
+                        "surface-bright": "#f9f9ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "lg": "24px",
+                        "header-height": "64px",
+                        "sidebar-width": "260px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "gutter": "16px",
+                        "base": "8px",
+                        "xl": "32px"
+                    },
+                    "fontFamily": {
+                        "body-base": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "caption": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                        "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #f9f9ff;
+            color: #161c27;
+            font-family: 'Be Vietnam Pro', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f3ff;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d4daea;
+            border-radius: 10px;
+        }
+        /* Custom Input & Select Focus Glow */
+        .input-focus:focus {
+            outline: none;
+            border-color: #3B5BFB;
+            box-shadow: 0 0 0 2px rgba(59, 91, 251, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+<main class="max-w-[1440px] mx-auto px-lg py-xl">
+<!-- Header Section -->
+<header class="flex flex-col md:flex-row md:items-center justify-between gap-md mb-xl">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface">Quản lý đề test đầu vào</h1>
+<p class="font-body-base text-body-base text-on-surface-variant mt-xs">Quản lý và cập nhật các bộ đề đánh giá năng lực học sinh.</p>
+</div>
+<button class="inline-flex items-center justify-center gap-sm px-md py-sm bg-primary-container text-white font-body-medium text-body-medium rounded-lg hover:opacity-90 active:scale-95 transition-all shadow-sm">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+                Tạo đề mới
+            </button>
+</header>
+<!-- Filters Section -->
+<section class="bg-surface-container-lowest border border-surface-variant rounded-xl p-md mb-lg shadow-sm">
+<div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-md items-end">
+<!-- Filter Cấp độ -->
+<div class="col-span-1 md:col-span-1 lg:col-span-1">
+<label class="block font-label text-label text-on-surface-variant mb-xs uppercase tracking-wider">Cấp độ</label>
+<div class="relative">
+<select class="w-full h-10 px-md pr-10 bg-white border border-surface-variant rounded-lg font-body-base text-body-base text-on-surface appearance-none input-focus transition-all">
+<option value="">Tất cả cấp độ</option>
+<option value="1-2">Lớp 1-2</option>
+<option value="3-4">Lớp 3-4</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
+</div>
+</div>
+<!-- Filter Trạng thái -->
+<div class="col-span-1 md:col-span-1 lg:col-span-1">
+<label class="block font-label text-label text-on-surface-variant mb-xs uppercase tracking-wider">Trạng thái</label>
+<div class="relative">
+<select class="w-full h-10 px-md pr-10 bg-white border border-surface-variant rounded-lg font-body-base text-body-base text-on-surface appearance-none input-focus transition-all">
+<option value="">Tất cả trạng thái</option>
+<option value="active">Hoạt động</option>
+<option value="hidden">Ẩn</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
+</div>
+</div>
+<!-- Search (Bonus but vital for admin) -->
+<div class="col-span-1 md:col-span-2 lg:col-span-3">
+<label class="block font-label text-label text-on-surface-variant mb-xs uppercase tracking-wider">Tìm kiếm tên đề</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full h-10 pl-10 pr-md bg-white border border-surface-variant rounded-lg font-body-base text-body-base text-on-surface input-focus transition-all" placeholder="Nhập tên đề cần tìm..." type="text">
+</div>
+</div>
+<!-- Reset Filters -->
+<div class="col-span-1 flex items-end">
+<button class="h-10 px-md text-on-surface-variant font-body-medium text-body-medium hover:text-primary transition-colors flex items-center gap-xs">
+<span class="material-symbols-outlined text-md">refresh</span>
+                        Làm mới
+                    </button>
+</div>
+</div>
+</section>
+<!-- Data Table Section -->
+<section class="bg-surface-container-lowest border border-surface-variant rounded-xl overflow-hidden shadow-sm">
+<div class="overflow-x-auto custom-scrollbar">
+<table class="w-full border-collapse">
+<thead class="bg-surface-container-low border-b border-surface-variant">
+<tr>
+<th class="px-md py-md text-left font-label text-label text-on-surface-variant uppercase tracking-widest">Tên đề test</th>
+<th class="px-md py-md text-left font-label text-label text-on-surface-variant uppercase tracking-widest">Loại đề</th>
+<th class="px-md py-md text-left font-label text-label text-on-surface-variant uppercase tracking-widest">Cấp độ</th>
+<th class="px-md py-md text-left font-label text-label text-on-surface-variant uppercase tracking-widest">Thời gian</th>
+<th class="px-md py-md text-left font-label text-label text-on-surface-variant uppercase tracking-widest">Trạng thái</th>
+<th class="px-md py-md text-right font-label text-label text-on-surface-variant uppercase tracking-widest">Hành động</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-variant">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-md py-md">
+<span class="font-body-medium text-body-medium text-on-surface block truncate max-w-xs">Đề khảo sát đầu vào số 1</span>
+<span class="font-caption text-caption text-on-surface-variant">ID: TEST-001-2024</span>
+</td>
+<td class="px-md py-md">
+<code class="font-code text-code bg-surface-container text-on-surface-variant px-xs rounded">placement_test</code>
+</td>
+<td class="px-md py-md">
+<span class="font-body-base text-body-base text-on-surface">Lớp 1-2</span>
+</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-xs font-body-base text-body-base text-on-surface">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">schedule</span>
+                                    35 phút
+                                </div>
+</td>
+<td class="px-md py-md">
+<span class="inline-flex items-center px-sm py-xs rounded-full bg-tertiary-container/10 text-tertiary-container font-label text-label font-bold uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary-container mr-1.5"></span>
+                                    Hoạt động
+                                </span>
+</td>
+<td class="px-md py-md text-right">
+<div class="flex justify-end gap-xs">
+<button class="p-sm text-on-surface-variant hover:text-secondary hover:bg-secondary/10 rounded-lg transition-all" title="Chỉnh sửa">
+<span class="material-symbols-outlined">edit</span>
+</button>
+<button class="p-sm text-on-surface-variant hover:text-error hover:bg-error/10 rounded-lg transition-all" title="Ẩn/Xóa">
+<span class="material-symbols-outlined">visibility_off</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-md py-md">
+<span class="font-body-medium text-body-medium text-on-surface block truncate max-w-xs">Đề khảo sát đầu vào số 2</span>
+<span class="font-caption text-caption text-on-surface-variant">ID: TEST-002-2024</span>
+</td>
+<td class="px-md py-md">
+<code class="font-code text-code bg-surface-container text-on-surface-variant px-xs rounded">placement_test</code>
+</td>
+<td class="px-md py-md">
+<span class="font-body-base text-body-base text-on-surface">Lớp 3-4</span>
+</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-xs font-body-base text-body-base text-on-surface">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">schedule</span>
+                                    45 phút
+                                </div>
+</td>
+<td class="px-md py-md">
+<span class="inline-flex items-center px-sm py-xs rounded-full bg-on-surface-variant/10 text-on-surface-variant font-label text-label font-bold uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant mr-1.5"></span>
+                                    Ẩn
+                                </span>
+</td>
+<td class="px-md py-md text-right">
+<div class="flex justify-end gap-xs">
+<button class="p-sm text-on-surface-variant hover:text-secondary hover:bg-secondary/10 rounded-lg transition-all" title="Chỉnh sửa">
+<span class="material-symbols-outlined">edit</span>
+</button>
+<button class="p-sm text-on-surface-variant hover:text-tertiary hover:bg-tertiary/10 rounded-lg transition-all" title="Kích hoạt">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-md py-md">
+<span class="font-body-medium text-body-medium text-on-surface block truncate max-w-xs">Bài kiểm tra phân lớp nâng cao</span>
+<span class="font-caption text-caption text-on-surface-variant">ID: TEST-003-2024</span>
+</td>
+<td class="px-md py-md">
+<code class="font-code text-code bg-surface-container text-on-surface-variant px-xs rounded">placement_test</code>
+</td>
+<td class="px-md py-md">
+<span class="font-body-base text-body-base text-on-surface">Lớp 3-4</span>
+</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-xs font-body-base text-body-base text-on-surface">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">schedule</span>
+                                    40 phút
+                                </div>
+</td>
+<td class="px-md py-md">
+<span class="inline-flex items-center px-sm py-xs rounded-full bg-tertiary-container/10 text-tertiary-container font-label text-label font-bold uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary-container mr-1.5"></span>
+                                    Hoạt động
+                                </span>
+</td>
+<td class="px-md py-md text-right">
+<div class="flex justify-end gap-xs">
+<button class="p-sm text-on-surface-variant hover:text-secondary hover:bg-secondary/10 rounded-lg transition-all" title="Chỉnh sửa">
+<span class="material-symbols-outlined">edit</span>
+</button>
+<button class="p-sm text-on-surface-variant hover:text-error hover:bg-error/10 rounded-lg transition-all" title="Ẩn/Xóa">
+<span class="material-symbols-outlined">visibility_off</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-md py-md">
+<span class="font-body-medium text-body-medium text-on-surface block truncate max-w-xs">Kiểm tra đầu vào cơ bản Lớp 1</span>
+<span class="font-caption text-caption text-on-surface-variant">ID: TEST-004-2024</span>
+</td>
+<td class="px-md py-md">
+<code class="font-code text-code bg-surface-container text-on-surface-variant px-xs rounded">placement_test</code>
+</td>
+<td class="px-md py-md">
+<span class="font-body-base text-body-base text-on-surface">Lớp 1-2</span>
+</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-xs font-body-base text-body-base text-on-surface">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">schedule</span>
+                                    30 phút
+                                </div>
+</td>
+<td class="px-md py-md">
+<span class="inline-flex items-center px-sm py-xs rounded-full bg-tertiary-container/10 text-tertiary-container font-label text-label font-bold uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary-container mr-1.5"></span>
+                                    Hoạt động
+                                </span>
+</td>
+<td class="px-md py-md text-right">
+<div class="flex justify-end gap-xs">
+<button class="p-sm text-on-surface-variant hover:text-secondary hover:bg-secondary/10 rounded-lg transition-all" title="Chỉnh sửa">
+<span class="material-symbols-outlined">edit</span>
+</button>
+<button class="p-sm text-on-surface-variant hover:text-error hover:bg-error/10 rounded-lg transition-all" title="Ẩn/Xóa">
+<span class="material-symbols-outlined">visibility_off</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination (Implicit part of high-quality data tables) -->
+<div class="px-md py-sm bg-surface-container-low border-t border-surface-variant flex items-center justify-between">
+<p class="font-body-small text-body-small text-on-surface-variant">Hiển thị 1 - 4 trong tổng số 24 đề test</p>
+<div class="flex items-center gap-xs">
+<button class="w-8 h-8 flex items-center justify-center rounded border border-surface-variant text-on-surface-variant hover:bg-white transition-all disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined text-sm">chevron_left</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-primary-container text-white font-body-small">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-surface-variant text-on-surface-variant hover:bg-white transition-all font-body-small">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-surface-variant text-on-surface-variant hover:bg-white transition-all font-body-small">3</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-surface-variant text-on-surface-variant hover:bg-white transition-all">
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+<!-- Simple Micro-interactions for hover states -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(btn => {
+                btn.addEventListener('mousedown', () => {
+                    btn.classList.add('scale-95');
+                });
+                btn.addEventListener('mouseup', () => {
+                    btn.classList.remove('scale-95');
+                });
+                btn.addEventListener('mouseleave', () => {
+                    btn.classList.remove('scale-95');
+                });
+            });
+        });
+    </script>
+</body></html>

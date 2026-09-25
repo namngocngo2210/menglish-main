@@ -1,0 +1,293 @@
+<!DOCTYPE html><html class="light" lang="vi"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>MENGLISH - Quản lý tuyển sinh</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@100;200;300;400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@100..800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "outline": "#8d7165",
+                    "inverse-primary": "#ffb595",
+                    "on-secondary-fixed-variant": "#002fc9",
+                    "tertiary-fixed-dim": "#78de4b",
+                    "primary-container": "#f5691a",
+                    "background": "#f7f8fa",
+                    "on-primary-fixed-variant": "#7c2e00",
+                    "surface-dim": "#d4daea",
+                    "secondary-container": "#4160ff",
+                    "on-secondary-container": "#faf7ff",
+                    "surface-container-highest": "#dde2f3",
+                    "tertiary-fixed": "#93fb65",
+                    "on-error-container": "#93000a",
+                    "on-surface": "#161c27",
+                    "on-tertiary-fixed-variant": "#1a5200",
+                    "on-background": "#161c27",
+                    "inverse-on-surface": "#ecf0ff",
+                    "surface-variant": "#dde2f3",
+                    "on-tertiary": "#ffffff",
+                    "secondary": "#1e43e7",
+                    "error-container": "#ffdad6",
+                    "inverse-surface": "#111a2b",
+                    "on-secondary": "#ffffff",
+                    "tertiary": "#256d00",
+                    "surface-container-high": "#e3e8f9",
+                    "primary-fixed-dim": "#ffb595",
+                    "primary": "#a23f00",
+                    "on-primary-container": "#521c00",
+                    "surface-tint": "#a23f00",
+                    "surface-container-low": "#f1f3ff",
+                    "tertiary-container": "#46a917",
+                    "on-primary": "#ffffff",
+                    "error": "#ba1a1a",
+                    "surface-container": "#e8eeff",
+                    "primary-fixed": "#ffdbcd",
+                    "outline-variant": "#e1bfb2",
+                    "on-tertiary-fixed": "#062100",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-bright": "#f9f9ff",
+                    "on-primary-fixed": "#360f00",
+                    "secondary-fixed-dim": "#bac3ff",
+                    "on-secondary-fixed": "#00105b",
+                    "secondary-fixed": "#dee0ff",
+                    "on-tertiary-container": "#0e3500",
+                    "on-surface-variant": "#594137",
+                    "on-error": "#ffffff",
+                    "surface": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gutter": "16px",
+                    "sidebar-width": "240px",
+                    "lg": "24px",
+                    "md": "16px",
+                    "xs": "4px",
+                    "header-height": "64px",
+                    "sm": "8px",
+                    "xl": "32px",
+                    "base": "8px"
+            },
+            "fontFamily": {
+                    "h3": ["Be Vietnam Pro"],
+                    "body-medium": ["Be Vietnam Pro"],
+                    "body-small": ["Be Vietnam Pro"],
+                    "body-base": ["Be Vietnam Pro"],
+                    "h2": ["Be Vietnam Pro"],
+                    "code": ["JetBrains Mono"],
+                    "caption": ["Be Vietnam Pro"],
+                    "label": ["Be Vietnam Pro"],
+                    "h1": ["Be Vietnam Pro"]
+            },
+            "fontSize": {
+                    "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                    "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                    "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for sidebar */
+        .sidebar-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar-scroll::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .sidebar-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface">
+<!-- App Shell Container -->
+<div class="flex min-h-screen">
+<!-- Sidebar Navigation -->
+<aside class="fixed left-0 top-0 h-full w-[240px] bg-inverse-surface flex flex-col py-md gap-xs border-r border-outline-variant z-50">
+<!-- Brand Header -->
+<div class="px-md mb-lg flex items-center gap-sm">
+<div class="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional circular minimalist logo for an English learning center named MENGLISH, featuring a bold 'M' integrated with an open book icon. The color palette uses a vibrant orange #F5691A against a clean white background, reflecting an energetic and academic brand identity for an administrative management system." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHwR7xDWQ-XAKtb576rb3rMDmHs6zJ4AIjgl7XGF-liueyB9kAoAJNczIhc8ck_4JSrfafdLc2YsU5QGZUTOrRAQGh-sxPBh_d4KEckIFvqGmGFVPxuaD-Nrbne76BI7d_9oSEpGd_jQTux7-qVuLWewCf0_A0-tC8N4QqCNZuPDr02YNTHbr1YmrqyMZ90iIoPbvdBwU16M3G9UDUgyXSScr3i-7g4Yd7R_7tujzOnlimBUKPrTuNlhmP0rbN1XvPb6ikJNTknRI">
+</div>
+<div class="flex flex-col">
+<span class="font-h2 text-h2 text-primary-container tracking-tight leading-none">MENGLISH</span>
+<span class="text-[10px] text-surface-variant/60 uppercase tracking-widest font-semibold">Hệ thống quản trị</span>
+</div>
+</div>
+<!-- Main Menu Items -->
+<nav class="flex-1 overflow-y-auto sidebar-scroll flex flex-col gap-xs px-2">
+<!-- Dashboard -->
+<a class="flex items-center gap-md px-md py-sm text-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg font-body-medium text-body-medium active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Tổng quan</span>
+</a>
+<!-- Admissions (ACTIVE) -->
+<a class="flex items-center gap-md px-md py-sm bg-primary-container text-on-primary-container rounded-lg font-body-medium text-body-medium active:scale-95 duration-150 shadow-lg shadow-primary-container/20" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person_search</span>
+<span>Quản lý tuyển sinh</span>
+</a>
+<!-- Other Links -->
+<a class="flex items-center gap-md px-md py-sm text-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg font-body-medium text-body-medium active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined">calendar_today</span>
+<span>Lịch hẹn</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg font-body-medium text-body-medium active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined">description</span>
+<span>Hợp đồng</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg font-body-medium text-body-medium active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined">school</span>
+<span>Học viên</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg font-body-medium text-body-medium active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined">groups</span>
+<span>Lớp học</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg font-body-medium text-body-medium active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span>Tài chính</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg font-body-medium text-body-medium active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined">badge</span>
+<span>Nhân sự</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg font-body-medium text-body-medium active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span>Báo cáo</span>
+</a>
+<div class="my-sm border-t border-surface-variant/10 mx-md"></div>
+<a class="flex items-center gap-md px-md py-sm text-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg font-body-medium text-body-medium active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Cấu hình hệ thống</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg font-body-medium text-body-medium active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined">notifications</span>
+<span>Thông báo</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg font-body-medium text-body-medium active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined">help</span>
+<span>Hỗ trợ</span>
+</a>
+</nav>
+<!-- Bottom Action: Add Student -->
+<div class="px-md mt-auto pt-sm">
+<button class="w-full flex items-center justify-center gap-sm bg-primary-container text-white font-body-medium py-3 rounded-xl shadow-lg shadow-primary-container/10 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[20px]">add_circle</span>
+<span>Thêm học viên mới</span>
+</button>
+</div>
+<!-- User Logout -->
+<div class="px-md mt-sm">
+<a class="flex items-center gap-md px-md py-sm text-error/80 hover:text-error hover:bg-error/10 transition-colors rounded-lg font-body-medium text-body-medium" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span>Đăng xuất</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 ml-[240px] flex flex-col min-h-screen">
+<!-- Top Header Bar -->
+<header class="h-header-height bg-surface flex items-center justify-between px-lg border-b border-surface-container-highest sticky top-0 z-40">
+<div class="flex items-center gap-lg">
+<h1 class="font-h3 text-h3 text-on-surface">Quản lý tuyển sinh</h1>
+<!-- Search Bar -->
+<div class="relative w-[300px]">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">search</span>
+<input class="w-full bg-surface-container-low border-none rounded-full pl-10 pr-4 py-2 text-body-small focus:ring-2 focus:ring-primary-container/20 placeholder:text-on-surface-variant/50" placeholder="Tìm kiếm Lead, SĐT..." type="text">
+</div>
+</div>
+<!-- Navigation Tabs (Pill Style) -->
+<div class="flex bg-surface-container-low p-1 rounded-full border border-surface-container-highest">
+<button class="px-lg py-1.5 rounded-full font-h3 text-body-medium bg-primary-container text-on-primary-container shadow-sm">Theo giai đoạn</button>
+<button class="px-lg py-1.5 rounded-full font-body-medium text-body-medium text-on-surface-variant hover:text-primary transition-all">Danh sách</button>
+<button class="px-lg py-1.5 rounded-full font-body-medium text-body-medium text-on-surface-variant hover:text-primary transition-all">Báo cáo DS</button>
+<button class="px-lg py-1.5 rounded-full font-body-medium text-body-medium text-on-surface-variant hover:text-primary transition-all">Khách không chốt</button>
+</div>
+<div class="flex items-center gap-md">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="bg-primary-container text-white px-md py-2 rounded-lg font-body-medium shadow-md shadow-primary-container/20 active:opacity-80">
+                        Tạo mới
+                    </button>
+<div class="flex items-center gap-sm pl-md ml-md border-l border-surface-container-highest">
+<div class="text-right">
+<p class="font-body-medium text-body-medium text-on-surface leading-tight">Admin Hệ thống</p>
+<p class="text-caption text-on-surface-variant">Quản lý cấp cao</p>
+</div>
+<div class="w-10 h-10 rounded-full border-2 border-primary-container/20 p-0.5 overflow-hidden">
+<img class="w-full h-full object-cover rounded-full" data-alt="A professional headshot of a senior administrator in a modern office environment. The person is dressed in smart business casual attire, with a warm and authoritative expression. The lighting is bright and airy, consistent with a modern light-mode UI aesthetic, and the background shows a blurred, high-tech educational workspace." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAEWwtUbZVfLk95yiAUqONk3wJN9fqlPIMmtYRmyCBT6lHQ5hX0Ns_M971Vk72U1nECB5mifrSXARY5OJ81_cx1rKdZ_DOU0iiWFMQJyJ2AKX6oflmcDv_dkBSnqW_jIXYGgJle9gHPj1-rLfjxRfXdek5gBZ3ZMEh6TONJjLRtW3LuSf01NzAzqAsdE-MLwxGg3d0gou3f6S_cWgpZuA9qh_ID1PbFNYkm8IQOjrmDTqzAZqsL62m7MJ_tDcN3-5lRL9EQwnfBDq8">
+</div>
+</div>
+</div>
+</header>
+<!-- Content Canvas -->
+<section class="p-lg flex-1 overflow-auto">
+<div class="h-full w-full rounded-2xl border-2 border-dashed border-surface-container-highest flex flex-col items-center justify-center text-on-surface-variant/40 space-y-4">
+<span class="material-symbols-outlined text-[64px] font-thin">grid_view</span>
+<p class="font-h3 text-h3 opacity-50">Vùng nội dung quản lý tuyển sinh</p>
+<p class="text-body-medium opacity-40">Dữ liệu sẽ được hiển thị tại đây theo giai đoạn tuyển sinh</p>
+<!-- Decorative Background Element -->
+<div class="absolute bottom-10 right-10 opacity-5 pointer-events-none">
+<svg fill="none" height="400" viewBox="0 0 400 400" width="400" xmlns="http://www.w3.org/2000/svg">
+<circle cx="200" cy="200" r="150" stroke="currentColor" stroke-width="2"></circle>
+<circle cx="200" cy="200" r="100" stroke="currentColor" stroke-dasharray="8 8" stroke-width="2"></circle>
+<path d="M200 50V350M50 200H350" stroke="currentColor" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+</section>
+</main>
+</div>
+<!-- Micro-interaction Script -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const navItems = document.querySelectorAll('aside nav a');
+            navItems.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    if (!item.classList.contains('bg-primary-container')) {
+                        // Normally handle navigation here
+                        // For demo, we just prevent standard behavior if it's a dead link
+                    }
+                });
+            });
+
+            const tabButtons = document.querySelectorAll('header .bg-surface-container-low button');
+            tabButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    tabButtons.forEach(b => {
+                        b.classList.remove('bg-primary-container', 'text-on-primary-container', 'shadow-sm');
+                        b.classList.add('text-on-surface-variant');
+                    });
+                    btn.classList.add('bg-primary-container', 'text-on-primary-container', 'shadow-sm');
+                    btn.classList.remove('text-on-surface-variant');
+                });
+            });
+        });
+    </script>
+</body></html>

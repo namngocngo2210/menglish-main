@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Check-in của tôi - MENGLISH</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-dim": "#d4daea",
+                        "on-secondary-container": "#faf7ff",
+                        "primary-container": "#f5691a",
+                        "surface-bright": "#f9f9ff",
+                        "secondary": "#1e43e7",
+                        "tertiary": "#256d00",
+                        "on-tertiary-fixed": "#062100",
+                        "on-primary-container": "#521c00",
+                        "on-surface": "#161c27",
+                        "on-secondary-fixed": "#00105b",
+                        "surface-container": "#e8eeff",
+                        "inverse-primary": "#ffb595",
+                        "inverse-on-surface": "#ecf0ff",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "on-tertiary": "#ffffff",
+                        "surface-tint": "#a23f00",
+                        "surface-variant": "#dde2f3",
+                        "error-container": "#ffdad6",
+                        "on-error": "#ffffff",
+                        "on-tertiary-container": "#0e3500",
+                        "primary": "#a23f00",
+                        "background": "#f9f9ff",
+                        "on-secondary": "#ffffff",
+                        "outline-variant": "#e1bfb2",
+                        "inverse-surface": "#2a303d",
+                        "primary-fixed": "#ffdbcd",
+                        "tertiary-container": "#46a917",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "surface-container-low": "#f1f3ff",
+                        "error": "#ba1a1a",
+                        "secondary-fixed": "#dee0ff",
+                        "surface-container-highest": "#dde2f3",
+                        "tertiary-fixed": "#93fb65",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "surface-container-high": "#e3e8f9",
+                        "surface": "#f9f9ff",
+                        "outline": "#8d7165",
+                        "on-error-container": "#93000a",
+                        "secondary-container": "#4160ff",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "on-primary": "#ffffff",
+                        "on-surface-variant": "#594137",
+                        "primary-fixed-dim": "#ffb595",
+                        "on-primary-fixed": "#360f00",
+                        "surface-container-lowest": "#ffffff",
+                        "on-background": "#161c27",
+                        "on-tertiary-fixed-variant": "#1a5200"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "lg": "24px",
+                        "header-height": "64px",
+                        "md": "16px",
+                        "xl": "32px",
+                        "sidebar-width": "260px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "base": "8px",
+                        "gutter": "16px"
+                    },
+                    fontFamily: {
+                        "body-small": ["Be Vietnam Pro", "sans-serif"],
+                        "code": ["JetBrains Mono", "monospace"],
+                        "body-medium": ["Be Vietnam Pro", "sans-serif"],
+                        "h1": ["Be Vietnam Pro", "sans-serif"],
+                        "label": ["Be Vietnam Pro", "sans-serif"],
+                        "h3": ["Be Vietnam Pro", "sans-serif"],
+                        "caption": ["Be Vietnam Pro", "sans-serif"],
+                        "h2": ["Be Vietnam Pro", "sans-serif"],
+                        "body-base": ["Be Vietnam Pro", "sans-serif"]
+                    },
+                    fontSize: {
+                        "body-small": ["13px", { lineHeight: "18px", fontWeight: "400" }],
+                        "code": ["13px", { lineHeight: "18px", fontWeight: "400" }],
+                        "body-medium": ["14px", { lineHeight: "20px", fontWeight: "500" }],
+                        "h1": ["28px", { lineHeight: "36px", letterSpacing: "-0.02em", fontWeight: "700" }],
+                        "label": ["11px", { lineHeight: "16px", letterSpacing: "0.05em", fontWeight: "600" }],
+                        "h3": ["18px", { lineHeight: "26px", fontWeight: "600" }],
+                        "caption": ["11px", { lineHeight: "16px", fontWeight: "400" }],
+                        "h2": ["22px", { lineHeight: "30px", letterSpacing: "-0.01em", fontWeight: "600" }],
+                        "body-base": ["14px", { lineHeight: "20px", fontWeight: "400" }]
+                    },
+                    boxShadow: {
+                        'level-1': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+                        'level-2': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        'level-3': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen">
+<main class="w-full max-w-3xl mx-auto px-4 md:px-6 py-6 md:py-8 flex flex-col gap-6 md:gap-8">
+<!-- Header -->
+<header class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-surface-variant gap-3">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<a href="../01_app_shell_cong_giao_vien/code.html" onclick="if(window.parent && window.parent.location.hash.includes('flow-3')){window.parent.location.hash='#view=viewer&flow=flow-3&step=2'; return false;}" class="inline-flex items-center text-xs font-semibold text-primary hover:underline gap-1">
+<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+Về Cổng Giáo viên
+</a>
+<span class="text-slate-300">|</span>
+<a href="../02_diem_danh_lop_giao_vien/code.html" onclick="if(window.parent && window.parent.location.hash.includes('flow-3')){window.parent.location.hash='#view=viewer&flow=flow-3&step=3'; return false;}" class="inline-flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded hover:bg-emerald-100 gap-1">
+<span class="material-symbols-outlined text-[16px]">fact_check</span>
+Điểm danh lớp học
+</a>
+</div>
+<h1 class="font-h1 text-h1 text-primary-container">Check-in của tôi</h1>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container" style="font-variation-settings: 'FILL' 1;">calendar_today</span>
+<span class="font-body-medium text-body-medium text-on-surface-variant">Hôm nay, 15 Tháng 5, 2024</span>
+</div>
+</header>
+
+<!-- Alert banner / Hướng dẫn -->
+<div id="checkin-notification" class="hidden p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-sm flex items-center justify-between">
+    <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-emerald-600">check_circle</span>
+        <span id="checkin-message">Đã check-in thành công!</span>
+    </div>
+    <a href="../02_diem_danh_lop_giao_vien/code.html" onclick="if(window.parent && window.parent.location.hash.includes('flow-3')){window.parent.location.hash='#view=viewer&flow=flow-3&step=3'; return false;}" class="font-bold underline text-emerald-900 text-xs">Điểm danh lớp ngay &rarr;</a>
+</div>
+
+<!-- Section 1: Buổi của tôi hôm nay -->
+<section class="flex flex-col gap-4">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-container-low p-3.5 rounded-xl border border-surface-variant">
+<div class="flex items-center gap-3">
+    <input type="checkbox" id="select-all-shifts" class="w-4 h-4 text-primary rounded border-outline focus:ring-primary">
+    <label for="select-all-shifts" class="font-body-medium font-semibold text-on-background cursor-pointer select-none">
+        Chọn tất cả ca hôm nay
+    </label>
+    <span class="bg-primary-container/10 text-primary-container font-label text-label px-2 py-0.5 rounded-full">3 BUỔI KHẢ DỤNG</span>
+</div>
+<div class="flex items-center gap-2">
+    <button id="btn-batch-checkin" onclick="batchCheckIn()" disabled class="bg-primary-container disabled:opacity-50 disabled:cursor-not-allowed text-white font-body-medium text-body-medium py-2 px-4 rounded-lg hover:bg-primary transition-all flex items-center gap-2 shadow-sm">
+        <span class="material-symbols-outlined text-[18px]">how_to_reg</span>
+        <span id="batch-btn-text">Check-in ca đã chọn (0)</span>
+    </button>
+</div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Card 1: GV Chính - Trạng thái bình thường -->
+<div id="card-shift-1" class="bg-surface-container-lowest border border-surface-variant rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-level-2 transition-all">
+<div class="flex justify-between items-start gap-2">
+    <div class="flex items-start gap-2">
+        <input type="checkbox" name="shift-select" value="shift-1" onchange="updateBatchState()" class="shift-checkbox mt-1 w-4 h-4 text-primary rounded border-outline focus:ring-primary">
+        <div>
+            <h3 class="font-h3 text-h3 text-on-background mb-0.5">IELTS Starter - M01</h3>
+            <div class="flex items-center gap-1 text-on-surface-variant">
+                <span class="material-symbols-outlined text-[16px]">schedule</span>
+                <span class="font-body-small text-body-small font-medium">18:00 - 19:30</span>
+            </div>
+        </div>
+    </div>
+    <span class="bg-secondary-container/10 text-secondary-container font-label text-label px-2 py-1 rounded-full whitespace-nowrap">GV CHÍNH</span>
+</div>
+<div class="flex items-center justify-between pt-2 border-t border-surface-variant/50 text-xs text-on-surface-variant">
+    <span class="flex items-center gap-1">
+        <span class="material-symbols-outlined text-[16px]">location_on</span>
+        Phòng 201 - Cơ sở 1
+    </span>
+    <span id="badge-status-1" class="text-amber-600 bg-amber-50 px-2 py-0.5 rounded font-medium">Chưa check-in</span>
+</div>
+<div class="flex flex-col sm:flex-row gap-2 mt-1">
+    <button id="btn-checkin-1" onclick="checkInSingle(1, 'IELTS Starter - M01')" class="flex-1 bg-primary-container text-white font-body-medium text-body-medium py-2 px-3 rounded-lg hover:bg-primary transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+        <span class="material-symbols-outlined text-[18px]">how_to_reg</span>
+        Check-in
+    </button>
+    <a href="../02_diem_danh_lop_giao_vien/code.html" onclick="if(window.parent && window.parent.location.hash.includes('flow-3')){window.parent.location.hash='#view=viewer&flow=flow-3&step=3'; return false;}" class="flex-1 bg-emerald-50 text-emerald-700 border border-emerald-300 font-body-medium text-body-medium py-2 px-3 rounded-lg hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1.5">
+        <span class="material-symbols-outlined text-[18px]">fact_check</span>
+        Điểm danh
+    </a>
+</div>
+</div>
+
+<!-- Card 2: Dạy thay - Đã bắt đầu -->
+<div id="card-shift-2" class="bg-surface-container-lowest border border-surface-variant rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-level-2 transition-all">
+<div class="flex justify-between items-start gap-2">
+    <div class="flex items-start gap-2">
+        <input type="checkbox" name="shift-select" value="shift-2" onchange="updateBatchState()" class="shift-checkbox mt-1 w-4 h-4 text-primary rounded border-outline focus:ring-primary">
+        <div>
+            <h3 class="font-h3 text-h3 text-on-background mb-0.5">TOEIC 500 - T02</h3>
+            <div class="flex items-center gap-1 text-on-surface-variant">
+                <span class="material-symbols-outlined text-[16px]">schedule</span>
+                <span class="font-body-small text-body-small font-medium">19:45 - 21:15</span>
+            </div>
+        </div>
+    </div>
+    <span class="bg-tertiary-container/10 text-tertiary-container font-label text-label px-2 py-1 rounded-full whitespace-nowrap">DẠY THAY</span>
+</div>
+<div class="flex items-center justify-between pt-2 border-t border-surface-variant/50 text-xs text-on-surface-variant">
+    <span class="flex items-center gap-1">
+        <span class="material-symbols-outlined text-[16px]">location_on</span>
+        Phòng 305 - Cơ sở 2
+    </span>
+    <span id="badge-status-2" class="text-amber-600 bg-amber-50 px-2 py-0.5 rounded font-medium">Chưa check-in</span>
+</div>
+<div class="flex flex-col sm:flex-row gap-2 mt-1">
+    <button id="btn-checkin-2" onclick="checkInSingle(2, 'TOEIC 500 - T02')" class="flex-1 bg-primary-container text-white font-body-medium text-body-medium py-2 px-3 rounded-lg hover:bg-primary transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+        <span class="material-symbols-outlined text-[18px]">how_to_reg</span>
+        Check-in
+    </button>
+    <a href="../02_diem_danh_lop_giao_vien/code.html" onclick="if(window.parent && window.parent.location.hash.includes('flow-3')){window.parent.location.hash='#view=viewer&flow=flow-3&step=3'; return false;}" class="flex-1 bg-emerald-50 text-emerald-700 border border-emerald-300 font-body-medium text-body-medium py-2 px-3 rounded-lg hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1.5">
+        <span class="material-symbols-outlined text-[18px]">fact_check</span>
+        Điểm danh
+    </a>
+</div>
+</div>
+
+<!-- Card 3: GV Chính - Đã báo dạy thay nhưng chưa ai nhận -->
+<div id="card-shift-3" class="bg-surface-container-lowest border border-surface-variant rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-level-2 transition-all">
+<div class="flex justify-between items-start gap-2">
+    <div class="flex items-start gap-2">
+        <input type="checkbox" name="shift-select" value="shift-3" onchange="updateBatchState()" class="shift-checkbox mt-1 w-4 h-4 text-primary rounded border-outline focus:ring-primary">
+        <div>
+            <h3 class="font-h3 text-h3 text-on-background mb-0.5">Giao tiếp CB - G03</h3>
+            <div class="flex items-center gap-1 text-on-surface-variant">
+                <span class="material-symbols-outlined text-[16px]">schedule</span>
+                <span class="font-body-small text-body-small font-medium">14:00 - 15:30</span>
+            </div>
+        </div>
+    </div>
+    <span class="bg-secondary-container/10 text-secondary-container font-label text-label px-2 py-1 rounded-full whitespace-nowrap">GV CHÍNH</span>
+</div>
+<div class="flex items-center justify-between pt-2 border-t border-surface-variant/50 text-xs text-on-surface-variant">
+    <span class="flex items-center gap-1">
+        <span class="material-symbols-outlined text-[16px]">location_on</span>
+        Phòng 102 - Cơ sở 1
+    </span>
+    <span id="badge-status-3" class="text-amber-600 bg-amber-50 px-2 py-0.5 rounded font-medium">Chờ nhận thay / Check-in</span>
+</div>
+<div class="flex flex-col sm:flex-row gap-2 mt-1">
+    <button id="btn-checkin-3" onclick="checkInSingle(3, 'Giao tiếp CB - G03')" class="flex-1 bg-primary-container text-white font-body-medium text-body-medium py-2 px-3 rounded-lg hover:bg-primary transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+        <span class="material-symbols-outlined text-[18px]">how_to_reg</span>
+        Check-in
+    </button>
+    <a href="../02_diem_danh_lop_giao_vien/code.html" onclick="if(window.parent && window.parent.location.hash.includes('flow-3')){window.parent.location.hash='#view=viewer&flow=flow-3&step=3'; return false;}" class="flex-1 bg-emerald-50 text-emerald-700 border border-emerald-300 font-body-medium text-body-medium py-2 px-3 rounded-lg hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1.5">
+        <span class="material-symbols-outlined text-[18px]">fact_check</span>
+        Điểm danh
+    </a>
+</div>
+</div>
+
+<!-- Card 4: Quá hạn check-in -->
+<div class="bg-surface-container-low border border-surface-variant/50 opacity-75 rounded-xl p-4 flex flex-col gap-4 shadow-sm">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-h3 text-h3 text-on-background mb-1">IELTS Master - M05</h3>
+<div class="flex items-center gap-1 text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+<span class="font-body-small text-body-small">08:00 - 09:30</span>
+</div>
+</div>
+<span class="bg-secondary-container/10 text-secondary-container font-label text-label px-2 py-1 rounded-full">GV CHÍNH</span>
+</div>
+<div class="flex items-center gap-2 pt-2 border-t border-surface-variant/50">
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]">location_on</span>
+<span class="font-body-small text-body-small text-on-surface-variant">Phòng 401 - Cơ sở 1</span>
+</div>
+<div class="flex flex-col gap-2 mt-2 items-center">
+<button class="w-full bg-surface-variant text-on-surface-variant cursor-not-allowed font-body-medium text-body-medium py-2 px-4 rounded-lg flex items-center justify-center gap-2" disabled="">
+<span class="material-symbols-outlined text-[18px]">how_to_reg</span>
+                            Check-in
+                        </button>
+<span class="font-caption text-caption text-error">Đã quá hạn, liên hệ Học vụ</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 2: Buổi cần người dạy thay -->
+<section class="flex flex-col gap-4 mt-4">
+<div class="flex items-center justify-between border-b border-surface-variant pb-2">
+<h2 class="font-h2 text-h2 text-on-background">Buổi cần người dạy thay</h2>
+<span class="bg-surface-variant text-on-surface-variant font-label text-label px-2 py-1 rounded-full">2 YÊU CẦU</span>
+</div>
+<div class="flex flex-col gap-3">
+<!-- Substitute Request Card 1 -->
+<div class="bg-surface-container-lowest border border-surface-variant rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-surface-container-low transition-colors">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2 mb-1">
+<h3 class="font-h3 text-h3 text-on-background">TOEIC Foundation - TF01</h3>
+<span class="bg-error-container text-on-error-container font-label text-label px-2 py-0.5 rounded-full text-[10px]">CẦN DẠY THAY</span>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant font-body-small text-body-small">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+                                16/05/2024
+                            </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+                                17:30 - 19:00
+                            </span>
+</div>
+</div>
+<button onclick="alert('Đã gửi yêu cầu nhận dạy thay lớp TOEIC Foundation - TF01 thành công!')" class="w-full sm:w-auto bg-tertiary-container text-on-tertiary-container font-body-medium text-body-medium py-2 px-6 rounded-lg hover:bg-tertiary hover:text-on-tertiary transition-colors whitespace-nowrap">
+                        Đăng ký nhận
+                    </button>
+</div>
+<!-- Substitute Request Card 2 -->
+<div class="bg-surface-container-lowest border border-surface-variant rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-surface-container-low transition-colors">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2 mb-1">
+<h3 class="font-h3 text-h3 text-on-background">IELTS Intensive - M08</h3>
+<span class="bg-error-container text-on-error-container font-label text-label px-2 py-0.5 rounded-full text-[10px]">CẦN DẠY THAY</span>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant font-body-small text-body-small">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+                                17/05/2024
+                            </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+                                19:45 - 21:15
+                            </span>
+</div>
+</div>
+<button onclick="alert('Đã gửi yêu cầu nhận dạy thay lớp IELTS Intensive - M08 thành công!')" class="w-full sm:w-auto bg-tertiary-container text-on-tertiary-container font-body-medium text-body-medium py-2 px-6 rounded-lg hover:bg-tertiary hover:text-on-tertiary transition-colors whitespace-nowrap">
+                        Đăng ký nhận
+                    </button>
+</div>
+</div>
+</section>
+</main>
+
+<script>
+    const selectAllCheckbox = document.getElementById('select-all-shifts');
+    const shiftCheckboxes = document.querySelectorAll('.shift-checkbox');
+    const batchBtn = document.getElementById('btn-batch-checkin');
+    const batchBtnText = document.getElementById('batch-btn-text');
+    const notification = document.getElementById('checkin-notification');
+    const notifMsg = document.getElementById('checkin-message');
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            shiftCheckboxes.forEach(cb => {
+                if (!cb.disabled) {
+                    cb.checked = selectAllCheckbox.checked;
+                }
+            });
+            updateBatchState();
+        });
+    }
+
+    function updateBatchState() {
+        const checkedCount = document.querySelectorAll('.shift-checkbox:checked').length;
+        if (checkedCount > 0) {
+            batchBtn.disabled = false;
+            batchBtnText.innerText = `Check-in ca đã chọn (${checkedCount})`;
+        } else {
+            batchBtn.disabled = true;
+            batchBtnText.innerText = `Check-in ca đã chọn (0)`;
+        }
+    }
+
+    function checkInSingle(id, className) {
+        const card = document.getElementById(`card-shift-${id}`);
+        const badge = document.getElementById(`badge-status-${id}`);
+        const btn = document.getElementById(`btn-checkin-${id}`);
+        const cb = card.querySelector('.shift-checkbox');
+
+        if (badge) {
+            badge.className = 'text-emerald-700 bg-emerald-100 font-bold px-2 py-0.5 rounded flex items-center gap-1';
+            badge.innerHTML = '<span class="material-symbols-outlined text-[14px]">done</span> Đã check-in lúc ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+        if (btn) {
+            btn.disabled = true;
+            btn.className = 'flex-1 bg-slate-100 text-slate-500 font-body-medium text-body-medium py-2 px-3 rounded-lg cursor-default flex items-center justify-center gap-1.5';
+            btn.innerHTML = '<span class="material-symbols-outlined text-[18px] text-emerald-600">check_circle</span> Đã vào ca';
+        }
+        if (cb) {
+            cb.checked = false;
+            cb.disabled = true;
+        }
+
+        notification.classList.remove('hidden');
+        notifMsg.innerHTML = `Đã check-in thành công ca <strong>${className}</strong>! Bạn có thể chuyển sang điểm danh lớp học ngay bây giờ.`;
+        updateBatchState();
+    }
+
+    function batchCheckIn() {
+        const selected = document.querySelectorAll('.shift-checkbox:checked');
+        if (selected.length === 0) return;
+
+        let count = 0;
+        selected.forEach(cb => {
+            const id = cb.value.replace('shift-', '');
+            checkInSingle(id, 'Ca đã chọn');
+            count++;
+        });
+
+        if (selectAllCheckbox) selectAllCheckbox.checked = false;
+        notification.classList.remove('hidden');
+        notifMsg.innerHTML = `Đã hoàn thành check-in hàng loạt cho <strong>${count} ca dạy</strong>! Chúc bạn có buổi giảng dạy hiệu quả.`;
+        updateBatchState();
+    }
+</script>
+</body></html>

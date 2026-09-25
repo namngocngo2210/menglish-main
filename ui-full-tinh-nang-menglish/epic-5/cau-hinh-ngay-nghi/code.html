@@ -1,0 +1,378 @@
+<!DOCTYPE html><html lang="vi"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Cấu hình Ngày nghỉ | MENGLISH Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-background": "#161c27",
+                    "on-tertiary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "on-secondary-fixed-variant": "#002fc9",
+                    "surface-bright": "#f9f9ff",
+                    "primary-fixed-dim": "#ffb595",
+                    "on-error-container": "#93000a",
+                    "surface-dim": "#d4daea",
+                    "surface-container-high": "#e3e8f9",
+                    "error-container": "#ffdad6",
+                    "on-secondary": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "surface-container-highest": "#dde2f3",
+                    "on-tertiary-fixed": "#062100",
+                    "on-tertiary-container": "#0e3500",
+                    "surface-variant": "#dde2f3",
+                    "inverse-primary": "#ffb595",
+                    "background": "#f9f9ff",
+                    "secondary-fixed": "#dee0ff",
+                    "secondary": "#1e43e7",
+                    "inverse-surface": "#2a303d",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed-variant": "#1a5200",
+                    "surface-tint": "#a23f00",
+                    "secondary-container": "#4160ff",
+                    "on-primary-container": "#521c00",
+                    "primary": "#a23f00",
+                    "on-secondary-fixed": "#00105b",
+                    "inverse-on-surface": "#ecf0ff",
+                    "surface-container-low": "#f1f3ff",
+                    "surface": "#f9f9ff",
+                    "tertiary": "#256d00",
+                    "surface-container": "#e8eeff",
+                    "tertiary-fixed-dim": "#78de4b",
+                    "on-secondary-container": "#faf7ff",
+                    "outline-variant": "#e1bfb2",
+                    "error": "#ba1a1a",
+                    "primary-container": "#f5691a",
+                    "tertiary-fixed": "#93fb65",
+                    "on-primary-fixed": "#360f00",
+                    "tertiary-container": "#46a917",
+                    "primary-fixed": "#ffdbcd",
+                    "secondary-fixed-dim": "#bac3ff",
+                    "outline": "#8d7165",
+                    "on-surface-variant": "#594137",
+                    "on-primary-fixed-variant": "#7c2e00",
+                    "on-surface": "#161c27"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "md": "16px",
+                    "xl": "32px",
+                    "gutter": "16px",
+                    "sm": "8px",
+                    "lg": "24px",
+                    "header-height": "64px",
+                    "base": "8px",
+                    "xs": "4px",
+                    "sidebar-width": "260px"
+            },
+            "fontFamily": {
+                    "h1": ["Be Vietnam Pro"],
+                    "body-medium": ["Be Vietnam Pro"],
+                    "label": ["Be Vietnam Pro"],
+                    "h3": ["Be Vietnam Pro"],
+                    "h2": ["Be Vietnam Pro"],
+                    "body-small": ["Be Vietnam Pro"],
+                    "code": ["JetBrains Mono"],
+                    "caption": ["Be Vietnam Pro"],
+                    "body-base": ["Be Vietnam Pro"]
+            },
+            "fontSize": {
+                    "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                    "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                    "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: #f9f9ff;
+            color: #161c27;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f3ff;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d4daea;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+<!-- Header Section -->
+<header class="h-header-height bg-surface-container-lowest border-b border-outline-variant flex items-center justify-between px-lg sticky top-0 z-50">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center text-white">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">calendar_month</span>
+</div>
+<div>
+<h1 class="font-h2 text-h2 text-on-surface">Cấu hình Ngày nghỉ</h1>
+<p class="font-caption text-caption text-on-surface-variant">MENGLISH Admin • Quản lý lịch vận hành</p>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="flex items-center gap-xs px-md py-sm bg-primary-container text-white rounded-lg font-body-medium hover:opacity-90 active:scale-95 transition-all shadow-sm">
+<span class="material-symbols-outlined text-[20px]">add</span>
+                Thêm ngày nghỉ mới
+            </button>
+</div>
+</header>
+<main class="p-lg max-w-[1600px] mx-auto">
+<!-- Business Alert Banner -->
+<div class="mb-lg p-md bg-secondary-fixed/30 border-l-4 border-secondary rounded-r-lg flex items-start gap-md">
+<span class="material-symbols-outlined text-secondary mt-0.5">info</span>
+<div>
+<p class="font-body-medium text-secondary font-bold">Lưu ý nghiệp vụ</p>
+<p class="font-body-small text-on-surface-variant">Hệ thống hiện tại chỉ hỗ trợ cấu hình ngày nghỉ theo Chi nhánh hoặc Toàn hệ thống. Tính năng cấu hình riêng cho từng lớp cụ thể đang được phát triển.</p>
+</div>
+</div>
+<!-- Layout Grid: Table & Form Side-by-Side -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-lg items-start">
+<!-- Left Side: Data Table (Col 8) -->
+<section class="xl:col-span-8 space-y-md">
+<div class="bg-white rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+<div class="p-md border-b border-outline-variant bg-surface-container-low flex justify-between items-center">
+<h2 class="font-h3 text-h3">Danh sách ngày nghỉ</h2>
+<div class="flex gap-sm">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">search</span>
+<input class="pl-9 pr-4 py-1.5 rounded-lg border border-outline-variant text-body-small focus:ring-1 focus:ring-secondary focus:border-secondary w-64 outline-none" placeholder="Tìm kiếm ngày nghỉ..." type="text">
+</div>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container text-on-surface-variant uppercase font-label text-label tracking-wider">
+<th class="px-md py-3 font-semibold">Tên ngày nghỉ</th>
+<th class="px-md py-3 font-semibold">Thời gian</th>
+<th class="px-md py-3 font-semibold">Phạm vi áp dụng</th>
+<th class="px-md py-3 font-semibold text-center">Thao tác</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-md py-md">
+<div class="font-body-medium text-on-surface font-bold">Tết Nguyên Đán 2024</div>
+<div class="text-caption text-on-surface-variant">Mã: HOL-2024-001</div>
+</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-sm font-body-small">
+<span class="px-2 py-0.5 bg-surface-container-highest rounded text-on-surface">08/02/2024</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+<span class="px-2 py-0.5 bg-surface-container-highest rounded text-on-surface">14/02/2024</span>
+</div>
+</td>
+<td class="px-md py-md">
+<span class="px-3 py-1 bg-primary/10 text-primary rounded-full font-label uppercase text-[10px] border border-primary/20">Toàn hệ thống</span>
+</td>
+<td class="px-md py-md">
+<div class="flex justify-center items-center gap-sm">
+<button class="p-2 text-on-surface-variant hover:text-secondary hover:bg-secondary/10 rounded-lg transition-all" title="Sửa">
+<span class="material-symbols-outlined">edit</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-error hover:bg-error/10 rounded-lg transition-all" title="Xóa">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-md py-md">
+<div class="font-body-medium text-on-surface font-bold">Ngày Giỗ Tổ Hùng Vương</div>
+<div class="text-caption text-on-surface-variant">Mã: HOL-2024-002</div>
+</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-sm font-body-small">
+<span class="px-2 py-0.5 bg-surface-container-highest rounded text-on-surface">18/04/2024</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+<span class="px-2 py-0.5 bg-surface-container-highest rounded text-on-surface">18/04/2024</span>
+</div>
+</td>
+<td class="px-md py-md">
+<div class="flex flex-col gap-1">
+<span class="px-3 py-1 bg-tertiary/10 text-tertiary rounded-full font-label uppercase text-[10px] border border-tertiary/20 w-fit">Chi nhánh Quận 1</span>
+<span class="px-3 py-1 bg-tertiary/10 text-tertiary rounded-full font-label uppercase text-[10px] border border-tertiary/20 w-fit">Chi nhánh Quận 7</span>
+</div>
+</td>
+<td class="px-md py-md">
+<div class="flex justify-center items-center gap-sm">
+<button class="p-2 text-on-surface-variant hover:text-secondary hover:bg-secondary/10 rounded-lg transition-all" title="Sửa">
+<span class="material-symbols-outlined">edit</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-error hover:bg-error/10 rounded-lg transition-all" title="Xóa">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-md py-md">
+<div class="font-body-medium text-on-surface font-bold">Ngày Giải phóng miền Nam</div>
+<div class="text-caption text-on-surface-variant">Mã: HOL-2024-003</div>
+</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-sm font-body-small">
+<span class="px-2 py-0.5 bg-surface-container-highest rounded text-on-surface">30/04/2024</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+<span class="px-2 py-0.5 bg-surface-container-highest rounded text-on-surface">01/05/2024</span>
+</div>
+</td>
+<td class="px-md py-md">
+<span class="px-3 py-1 bg-primary/10 text-primary rounded-full font-label uppercase text-[10px] border border-primary/20">Toàn hệ thống</span>
+</td>
+<td class="px-md py-md">
+<div class="flex justify-center items-center gap-sm">
+<button class="p-2 text-on-surface-variant hover:text-secondary hover:bg-secondary/10 rounded-lg transition-all" title="Sửa">
+<span class="material-symbols-outlined">edit</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-error hover:bg-error/10 rounded-lg transition-all" title="Xóa">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-md bg-surface-container-lowest border-t border-outline-variant flex items-center justify-between">
+<span class="font-caption text-on-surface-variant">Hiển thị 3 trên 24 ngày nghỉ</span>
+<div class="flex gap-2">
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-container transition-colors disabled:opacity-50">
+<span class="material-symbols-outlined text-[20px]">chevron_left</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-primary-container text-white font-body-small">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-container transition-colors font-body-small">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-container transition-colors font-body-small">3</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Side: Form Add/Edit (Col 4) -->
+<aside class="xl:col-span-4">
+<div class="bg-white rounded-xl border border-outline-variant shadow-sm sticky top-[100px]">
+<div class="p-md border-b border-outline-variant bg-surface-container-low">
+<h2 class="font-h3 text-h3 flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">edit_note</span>
+                            Thông tin ngày nghỉ
+                        </h2>
+</div>
+<form class="p-lg space-y-lg">
+<!-- Name Field -->
+<div class="space-y-xs">
+<label class="font-body-small text-on-surface-variant font-semibold" for="holiday-name">Tên ngày nghỉ</label>
+<input class="w-full px-md py-sm rounded-lg border border-outline-variant bg-white text-body-base focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none transition-all" id="holiday-name" placeholder="Ví dụ: Tết Trung Thu" type="text">
+</div>
+<!-- Date Range -->
+<div class="grid grid-cols-2 gap-md">
+<div class="space-y-xs">
+<label class="font-body-small text-on-surface-variant font-semibold" for="start-date">Từ ngày</label>
+<div class="relative">
+<input class="w-full pl-md pr-sm py-sm rounded-lg border border-outline-variant bg-white text-body-base focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none appearance-none" id="start-date" type="date">
+</div>
+</div>
+<div class="space-y-xs">
+<label class="font-body-small text-on-surface-variant font-semibold" for="end-date">Đến ngày</label>
+<div class="relative">
+<input class="w-full pl-md pr-sm py-sm rounded-lg border border-outline-variant bg-white text-body-base focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none appearance-none" id="end-date" type="date">
+</div>
+</div>
+</div>
+<!-- Scope Selector -->
+<div class="space-y-xs">
+<label class="font-body-small text-on-surface-variant font-semibold" for="scope-select">Phạm vi áp dụng</label>
+<div class="relative">
+<select class="w-full px-md py-sm rounded-lg border border-outline-variant bg-white text-body-base focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none appearance-none" id="scope-select">
+<option value="">Toàn hệ thống (Mặc định)</option>
+<option value="br1">Chi nhánh Quận 1</option>
+<option value="br2">Chi nhánh Quận 3</option>
+<option value="br3">Chi nhánh Quận 7</option>
+<option value="br4">Chi nhánh Thủ Đức</option>
+<option value="br5">Chi nhánh Bình Thạnh</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">keyboard_arrow_down</span>
+</div>
+<p class="text-caption text-on-surface-variant mt-1 italic">* Để trống nếu muốn áp dụng cho tất cả chi nhánh.</p>
+</div>
+<!-- Info Graphic / Visual Guide -->
+<div class="bg-surface-container-low p-md rounded-lg border border-dashed border-outline-variant text-center">
+<div class="w-12 h-12 bg-white rounded-full mx-auto flex items-center justify-center mb-sm shadow-sm">
+<span class="material-symbols-outlined text-secondary">verified</span>
+</div>
+<p class="font-caption text-on-surface-variant">Lịch nghỉ sẽ tự động cập nhật vào danh sách điểm danh và tiến độ học tập của các lớp liên quan.</p>
+</div>
+<!-- Action Buttons -->
+<div class="pt-md border-t border-outline-variant flex items-center gap-md">
+<button class="flex-1 py-md bg-white border border-outline-variant rounded-lg font-body-medium text-on-surface-variant hover:bg-surface-container-low transition-colors" type="button">Hủy bỏ</button>
+<button class="flex-1 py-md bg-primary-container text-white rounded-lg font-body-medium hover:opacity-90 active:scale-95 transition-all shadow-md" type="submit">Lưu thông tin</button>
+</div>
+</form>
+</div>
+</aside>
+</div>
+</main>
+<!-- Simple Notification Toast (Hidden by default) -->
+<div class="fixed bottom-lg right-lg p-md bg-inverse-surface text-inverse-on-surface rounded-xl shadow-xl flex items-center gap-md translate-y-20 opacity-0 transition-all duration-300" id="toast">
+<span class="material-symbols-outlined text-tertiary-fixed">check_circle</span>
+<span class="font-body-medium">Dữ liệu đã được cập nhật thành công!</span>
+</div>
+<script>
+        // Micro-interactions and UI Logic
+        const form = document.querySelector('form');
+        const toast = document.getElementById('toast');
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            // Show toast animation
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }, 3000);
+        });
+
+        // Highlight active row interaction
+        const tableRows = document.querySelectorAll('tbody tr');
+        tableRows.forEach(row => {
+            row.addEventListener('click', () => {
+                tableRows.forEach(r => r.classList.remove('bg-primary/5'));
+                row.classList.add('bg-primary/5');
+            });
+        });
+    </script>
+</body></html>

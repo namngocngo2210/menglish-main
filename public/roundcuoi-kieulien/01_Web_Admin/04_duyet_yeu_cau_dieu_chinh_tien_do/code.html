@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Duyệt yêu cầu xin điều chỉnh tiến độ</title>
+<!-- Google Fonts: Be Vietnam Pro -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed": "#93fb65",
+                    "tertiary-fixed-dim": "#78de4b",
+                    "surface-bright": "#f9f9ff",
+                    "primary-fixed-dim": "#ffb595",
+                    "on-primary-fixed": "#360f00",
+                    "surface-container-high": "#e3e8f9",
+                    "outline": "#8d7165",
+                    "on-primary-container": "#521c00",
+                    "secondary-container": "#4160ff",
+                    "primary-fixed": "#ffdbcd",
+                    "surface-container": "#e8eeff",
+                    "secondary-fixed": "#dee0ff",
+                    "on-error-container": "#93000a",
+                    "on-surface": "#161c27",
+                    "secondary-fixed-dim": "#bac3ff",
+                    "on-surface-variant": "#594137",
+                    "tertiary": "#256d00",
+                    "surface-variant": "#dde2f3",
+                    "on-error": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "inverse-surface": "#2a303d",
+                    "on-primary-fixed-variant": "#7c2e00",
+                    "error-container": "#ffdad6",
+                    "inverse-primary": "#ffb595",
+                    "background": "#f9f9ff",
+                    "secondary": "#1e43e7",
+                    "on-tertiary-fixed": "#062100",
+                    "on-secondary-container": "#faf7ff",
+                    "surface-container-lowest": "#ffffff",
+                    "tertiary-container": "#46a917",
+                    "surface-container-low": "#f1f3ff",
+                    "surface": "#f9f9ff",
+                    "primary-container": "#f5691a",
+                    "surface-tint": "#a23f00",
+                    "inverse-on-surface": "#ecf0ff",
+                    "surface-container-highest": "#dde2f3",
+                    "on-tertiary-fixed-variant": "#1a5200",
+                    "error": "#ba1a1a",
+                    "on-primary": "#ffffff",
+                    "on-secondary-fixed": "#00105b",
+                    "surface-dim": "#d4daea",
+                    "primary": "#a23f00",
+                    "on-background": "#161c27",
+                    "on-tertiary-container": "#0e3500",
+                    "outline-variant": "#e1bfb2",
+                    "on-secondary-fixed-variant": "#002fc9",
+                    "on-tertiary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "8px",
+                    "md": "16px",
+                    "sm": "8px",
+                    "sidebar-width": "260px",
+                    "header-height": "64px",
+                    "gutter": "16px",
+                    "xl": "32px",
+                    "lg": "24px",
+                    "xs": "4px"
+            },
+            "fontFamily": {
+                    "body-medium": ["Be Vietnam Pro"],
+                    "h3": ["Be Vietnam Pro"],
+                    "body-small": ["Be Vietnam Pro"],
+                    "h1": ["Be Vietnam Pro"],
+                    "code": ["JetBrains Mono"],
+                    "caption": ["Be Vietnam Pro"],
+                    "h2": ["Be Vietnam Pro"],
+                    "body-base": ["Be Vietnam Pro"],
+                    "label": ["Be Vietnam Pro"]
+            },
+            "fontSize": {
+                    "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                    "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                    "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-fill {
+            font-variation-settings: 'FILL' 1;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: rgba(141, 113, 101, 0.2);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-surface font-body-base text-on-surface antialiased min-h-screen p-lg">
+<!-- Main Content Container -->
+<div class="max-w-7xl mx-auto flex flex-col h-[calc(100vh-48px)]">
+<!-- Header -->
+<header class="mb-lg flex justify-between items-end flex-shrink-0">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface">Duyệt yêu cầu xin điều chỉnh tiến độ</h1>
+<p class="font-body-medium text-body-medium text-on-surface-variant mt-xs">Quản lý các yêu cầu giãn tiến độ từ giáo viên</p>
+</div>
+<!-- Filter/Sort (Decorative for this scope) -->
+<div class="flex gap-sm">
+<button class="flex items-center gap-xs px-md py-sm bg-surface-container-lowest border border-outline-variant rounded-lg hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+<span class="font-body-medium text-body-medium text-on-surface">Lọc</span>
+</button>
+</div>
+</header>
+<!-- Master-Detail Layout -->
+<div class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-lg min-h-0">
+<!-- Left Pane: List of Requests (Cards) -->
+<div class="lg:col-span-7 flex flex-col overflow-hidden bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm">
+<!-- List Header -->
+<div class="px-lg py-md border-b border-outline-variant bg-surface-container-low flex justify-between items-center">
+<span class="font-h3 text-h3 text-on-surface">Danh sách chờ duyệt</span>
+<span class="font-label text-label bg-surface-variant text-on-surface-variant px-2 py-1 rounded-full">3 Yêu cầu</span>
+</div>
+<!-- Scrollable List -->
+<div class="flex-1 overflow-y-auto p-md space-y-sm" id="request-list">
+<!-- Card 1 (Active/Selected State) -->
+<div class="group request-card cursor-pointer border-2 border-primary rounded-xl p-md bg-surface-container-low transition-all relative overflow-hidden" onclick="selectRequest(1, this)">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+<div class="flex justify-between items-start mb-sm">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-h3 text-h3">
+                                    N
+                                </div>
+<div>
+<h3 class="font-h3 text-h3 text-on-surface">Nguyễn Văn A</h3>
+<p class="font-caption text-caption text-on-surface-variant">Giáo viên</p>
+</div>
+</div>
+<!-- SLA Badge: Còn hạn -->
+<span class="font-label text-label px-2 py-1 rounded bg-tertiary/10 text-tertiary">Còn hạn</span>
+</div>
+<div class="grid grid-cols-2 gap-sm mb-sm font-body-small text-body-small">
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">school</span>
+<span>IELTS Intensive - Chặng 2</span>
+</div>
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+<span>Gửi: 24/10/2023</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-sm flex items-start gap-sm">
+<span class="material-symbols-outlined text-[18px] text-primary mt-xs">add_circle</span>
+<div>
+<p class="font-body-medium text-body-medium text-on-surface">Xin thêm: <span class="font-h3 text-h3 text-primary mx-1">2</span> buổi</p>
+<p class="font-body-small text-body-small text-on-surface-variant truncate w-full max-w-[300px]">Học viên yếu phần Speaking, cần thêm thời gian luyện tập thực tế...</p>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="group request-card cursor-pointer border border-outline-variant rounded-xl p-md bg-surface-container-lowest hover:border-outline hover:shadow-sm transition-all relative overflow-hidden" onclick="selectRequest(2, this)">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-transparent group-hover:bg-outline-variant transition-colors"></div>
+<div class="flex justify-between items-start mb-sm">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center font-h3 text-h3">
+                                    T
+                                </div>
+<div>
+<h3 class="font-h3 text-h3 text-on-surface">Trần Thị B</h3>
+<p class="font-caption text-caption text-on-surface-variant">Giáo viên</p>
+</div>
+</div>
+<!-- SLA Badge: Quá hạn -->
+<span class="font-label text-label px-2 py-1 rounded bg-error/10 text-error">Quá hạn</span>
+</div>
+<div class="grid grid-cols-2 gap-sm mb-sm font-body-small text-body-small">
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">school</span>
+<span>TOEIC 600+ - Chặng 1</span>
+</div>
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+<span>Gửi: 20/10/2023</span>
+</div>
+</div>
+<div class="bg-surface-container-low border border-transparent group-hover:border-outline-variant rounded p-sm flex items-start gap-sm transition-colors">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant mt-xs">add_circle</span>
+<div>
+<p class="font-body-medium text-body-medium text-on-surface">Xin thêm: <span class="font-h3 text-h3 text-on-surface mx-1">1</span> buổi</p>
+<p class="font-body-small text-body-small text-on-surface-variant truncate w-full max-w-[300px]">Lớp nghỉ lễ, cần học bù kiến thức trọng tâm.</p>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="group request-card cursor-pointer border border-outline-variant rounded-xl p-md bg-surface-container-lowest hover:border-outline hover:shadow-sm transition-all relative overflow-hidden" onclick="selectRequest(3, this)">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-transparent group-hover:bg-outline-variant transition-colors"></div>
+<div class="flex justify-between items-start mb-sm">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center font-h3 text-h3">
+                                    L
+                                </div>
+<div>
+<h3 class="font-h3 text-h3 text-on-surface">Lê Hoàng C</h3>
+<p class="font-caption text-caption text-on-surface-variant">Giáo viên</p>
+</div>
+</div>
+<!-- SLA Badge: Còn hạn -->
+<span class="font-label text-label px-2 py-1 rounded bg-tertiary/10 text-tertiary">Còn hạn</span>
+</div>
+<div class="grid grid-cols-2 gap-sm mb-sm font-body-small text-body-small">
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">school</span>
+<span>Giao tiếp Cơ bản - Chặng 3</span>
+</div>
+<div class="flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+<span>Gửi: 25/10/2023</span>
+</div>
+</div>
+<div class="bg-surface-container-low border border-transparent group-hover:border-outline-variant rounded p-sm flex items-start gap-sm transition-colors">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant mt-xs">add_circle</span>
+<div>
+<p class="font-body-medium text-body-medium text-on-surface">Xin thêm: <span class="font-h3 text-h3 text-on-surface mx-1">2</span> buổi</p>
+<p class="font-body-small text-body-small text-on-surface-variant truncate w-full max-w-[300px]">Đường truyền mạng của trung tâm lỗi 2 hôm, cần dạy bù.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Pane: Detail & Processing Area -->
+<div class="lg:col-span-5 flex flex-col bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm h-full overflow-hidden">
+<!-- Detail Header -->
+<div class="px-lg py-md border-b border-outline-variant flex items-center gap-sm bg-surface-container-low">
+<span class="material-symbols-outlined text-primary">assignment</span>
+<span class="font-h3 text-h3 text-on-surface">Chi tiết yêu cầu</span>
+</div>
+<!-- Detail Content (Scrollable) -->
+<div class="flex-1 overflow-y-auto p-lg">
+<!-- Meta Info Block -->
+<div class="flex items-center gap-md mb-lg">
+<div class="w-12 h-12 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-h2 text-h2 shadow-sm">
+                            N
+                        </div>
+<div>
+<h2 class="font-h2 text-h2 text-on-surface">Nguyễn Văn A</h2>
+<p class="font-body-medium text-body-medium text-on-surface-variant">GV-2023-0451</p>
+</div>
+<div class="ml-auto">
+<span class="font-label text-label px-3 py-1.5 rounded-full bg-tertiary/10 text-tertiary border border-tertiary/20">Còn hạn xử lý</span>
+</div>
+</div>
+<!-- Details Grid -->
+<div class="grid grid-cols-1 gap-md mb-lg bg-surface-container-low p-md rounded-lg border border-outline-variant">
+<div>
+<span class="font-caption text-caption text-on-surface-variant uppercase tracking-wider block mb-xs">Lớp / Chặng học</span>
+<div class="flex items-center gap-xs font-body-medium text-body-medium text-on-surface">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">school</span>
+                                IELTS Intensive - Chặng 2
+                            </div>
+</div>
+<div class="grid grid-cols-2 gap-md">
+<div>
+<span class="font-caption text-caption text-on-surface-variant uppercase tracking-wider block mb-xs">Ngày gửi yêu cầu</span>
+<div class="flex items-center gap-xs font-body-medium text-body-medium text-on-surface">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">calendar_today</span>
+                                    24/10/2023
+                                </div>
+</div>
+<div>
+<span class="font-caption text-caption text-on-surface-variant uppercase tracking-wider block mb-xs">Số buổi xin thêm</span>
+<div class="flex items-center gap-xs font-h3 text-h3 text-primary">
+<span class="material-symbols-outlined text-[20px]">add_circle</span>
+                                    +2 buổi
+                                </div>
+</div>
+</div>
+</div>
+<!-- Reason Block -->
+<div class="mb-lg">
+<span class="font-h3 text-h3 text-on-surface block mb-sm">Lý do xin giãn tiến độ</span>
+<div class="bg-surface-bright border border-outline-variant rounded-lg p-md font-body-base text-body-base text-on-surface leading-relaxed relative">
+<span class="material-symbols-outlined absolute top-md left-md text-outline-variant opacity-50 text-[32px] -mt-1 -ml-1">format_quote</span>
+<p class="relative z-10 pl-xl">
+                                Học viên trong lớp đa số phản hồi phần Speaking part 2 và 3 còn yếu, cần thêm thời gian luyện tập thực tế trên lớp. Tôi xin đề xuất kéo dài thêm 2 buổi để tổ chức các buổi Mock Test nhỏ tại lớp giúp các em làm quen với áp lực phòng thi. Mong phòng đào tạo xem xét.
+                            </p>
+</div>
+</div>
+<!-- Reject Form (Hidden by default) -->
+<div class="hidden mb-lg bg-error/5 border border-error/20 rounded-lg p-md transition-all" id="reject-form">
+<label class="font-body-medium text-body-medium text-error block mb-sm flex items-center gap-xs" for="reject-reason">
+<span class="material-symbols-outlined text-[18px]">warning</span>
+                            Lý do từ chối (Bắt buộc)
+                        </label>
+<textarea class="w-full bg-surface-container-lowest border border-error/50 rounded-md p-sm font-body-base text-body-base text-on-surface focus:ring-1 focus:ring-error focus:border-error placeholder:text-on-surface-variant/50" id="reject-reason" placeholder="Nhập lý do chi tiết để phản hồi lại giáo viên..." rows="3"></textarea>
+</div>
+</div>
+<!-- Action Footer -->
+<div class="p-lg border-t border-outline-variant bg-surface-container-lowest flex justify-end gap-md">
+<!-- Default Actions -->
+<div class="flex gap-md w-full justify-end" id="default-actions">
+<button class="px-xl py-sm rounded-lg bg-surface-container-lowest border border-outline text-on-surface font-h3 text-h3 hover:bg-surface-variant transition-colors flex items-center gap-xs" onclick="toggleRejectMode(true)">
+<span class="material-symbols-outlined text-[20px]">cancel</span>
+                            Từ chối
+                        </button>
+<button class="px-xl py-sm rounded-lg bg-[#F5691A] text-white font-h3 text-h3 hover:opacity-90 transition-opacity flex items-center gap-xs shadow-sm">
+<span class="material-symbols-outlined text-[20px] icon-fill">check_circle</span>
+                            Phê duyệt
+                        </button>
+</div>
+<!-- Confirm Reject Actions (Hidden by default) -->
+<div class="hidden flex gap-md w-full justify-end" id="confirm-reject-actions">
+<button class="px-xl py-sm rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-variant transition-colors" onclick="toggleRejectMode(false)">
+                            Hủy
+                        </button>
+<button class="px-xl py-sm rounded-lg bg-error text-on-error font-h3 text-h3 hover:opacity-90 transition-opacity flex items-center gap-xs shadow-sm" onclick="submitReject()">
+                            Xác nhận từ chối
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Interactive Script -->
+<script>
+        // Simple state management for UI demonstration
+        function selectRequest(id, element) {
+            // Reset all cards
+            const cards = document.querySelectorAll('.request-card');
+            cards.forEach(card => {
+                card.classList.remove('border-primary', 'bg-surface-container-low');
+                card.classList.add('border-outline-variant', 'bg-surface-container-lowest');
+                // reset indicator line
+                card.children[0].classList.remove('bg-primary');
+                card.children[0].classList.add('bg-transparent');
+                
+                // reset text colors slightly
+                const addIcon = card.querySelector('.material-symbols-outlined:last-child');
+                if(addIcon) {
+                    addIcon.classList.remove('text-primary');
+                    addIcon.classList.add('text-on-surface-variant');
+                }
+                const numText = card.querySelector('.font-h3.mx-1');
+                if(numText) {
+                    numText.classList.remove('text-primary');
+                    numText.classList.add('text-on-surface');
+                }
+            });
+
+            // Highlight selected card
+            element.classList.remove('border-outline-variant', 'bg-surface-container-lowest');
+            element.classList.add('border-primary', 'bg-surface-container-low');
+            element.children[0].classList.remove('bg-transparent');
+            element.children[0].classList.add('bg-primary');
+            
+            const selAddIcon = element.querySelector('.material-symbols-outlined:last-child');
+            if(selAddIcon) {
+                selAddIcon.classList.remove('text-on-surface-variant');
+                selAddIcon.classList.add('text-primary');
+            }
+            const selNumText = element.querySelector('.font-h3.mx-1');
+            if(selNumText) {
+                selNumText.classList.remove('text-on-surface');
+                selNumText.classList.add('text-primary');
+            }
+
+            // In a real app, this would fetch data and update the Right Pane.
+            // For this design, we just reset the reject form state to simulate a fresh load.
+            toggleRejectMode(false);
+            document.getElementById('reject-reason').value = '';
+        }
+
+        function toggleRejectMode(show) {
+            const form = document.getElementById('reject-form');
+            const defaultActions = document.getElementById('default-actions');
+            const confirmActions = document.getElementById('confirm-reject-actions');
+            const textarea = document.getElementById('reject-reason');
+
+            if (show) {
+                form.classList.remove('hidden');
+                defaultActions.classList.add('hidden');
+                confirmActions.classList.remove('hidden');
+                textarea.focus();
+            } else {
+                form.classList.add('hidden');
+                defaultActions.classList.remove('hidden');
+                confirmActions.classList.add('hidden');
+            }
+        }
+
+        function submitReject() {
+            const reason = document.getElementById('reject-reason').value.trim();
+            if (!reason) {
+                alert('Vui lòng nhập lý do từ chối!');
+                document.getElementById('reject-reason').focus();
+                return;
+            }
+            alert('Đã từ chối yêu cầu với lý do: ' + reason);
+            // reset UI
+            toggleRejectMode(false);
+            document.getElementById('reject-reason').value = '';
+        }
+    </script>
+</body></html>

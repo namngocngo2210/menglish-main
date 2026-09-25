@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Giao việc mới - MENGLISH Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "on-surface": "#161c27",
+                        "surface-container-high": "#e3e8f9",
+                        "background": "#f9f9ff",
+                        "surface-dim": "#d4daea",
+                        "error": "#ba1a1a",
+                        "on-error": "#ffffff",
+                        "primary": "#a23f00",
+                        "primary-fixed-dim": "#ffb595",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "on-tertiary-container": "#0e3500",
+                        "surface-container-highest": "#dde2f3",
+                        "on-secondary-fixed": "#00105b",
+                        "on-secondary-container": "#faf7ff",
+                        "tertiary": "#256d00",
+                        "surface": "#f9f9ff",
+                        "surface-bright": "#f9f9ff",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "primary-fixed": "#ffdbcd",
+                        "tertiary-container": "#46a917",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed": "#93fb65",
+                        "inverse-surface": "#2a303d",
+                        "secondary": "#1e43e7",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "on-primary-fixed": "#360f00",
+                        "on-surface-variant": "#594137",
+                        "surface-container": "#e8eeff",
+                        "surface-tint": "#a23f00",
+                        "on-primary-container": "#521c00",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed": "#dee0ff",
+                        "on-background": "#161c27",
+                        "outline-variant": "#e1bfb2",
+                        "surface-container-low": "#f1f3ff",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-container": "#4160ff",
+                        "inverse-primary": "#ffb595",
+                        "on-tertiary-fixed": "#062100",
+                        "surface-variant": "#dde2f3",
+                        "inverse-on-surface": "#ecf0ff",
+                        "error-container": "#ffdad6",
+                        "outline": "#8d7165",
+                        "primary-container": "#f5691a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "32px",
+                        "header-height": "64px",
+                        "md": "16px",
+                        "sm": "8px",
+                        "gutter": "16px",
+                        "xs": "4px",
+                        "base": "8px",
+                        "sidebar-width": "260px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "code": ["JetBrains Mono"],
+                        "label": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                        "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Modal Overlay */
+        .modal-overlay {
+            background-color: rgba(22, 28, 39, 0.5); /* on-surface with opacity */
+            backdrop-filter: blur(4px);
+        }
+
+        /* Form Controls Focus States */
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
+            border-color: #3B5BFB; /* Secondary-Default */
+            box-shadow: 0 0 0 2px rgba(59, 91, 251, 0.2);
+            outline: none;
+        }
+
+        .form-radio:checked {
+            background-color: #F5691A; /* primary-container */
+            border-color: #F5691A;
+        }
+        
+        .form-radio:focus {
+            box-shadow: 0 0 0 2px rgba(245, 105, 26, 0.2);
+        }
+
+        /* Datepicker custom styling (simplified for generic input type date) */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            opacity: 0.6;
+            transition: 0.2s;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-background font-body-base text-on-surface antialiased min-h-screen flex items-center justify-center p-md">
+<!-- Modal Container -->
+<div class="modal-overlay fixed inset-0 z-40 flex items-center justify-center p-md sm:p-lg">
+<!-- Modal Content (Card) -->
+<div aria-labelledby="modal-title" aria-modal="true" class="bg-surface rounded-xl shadow-[0px_8px_24px_rgba(0,0,0,0.12)] w-full max-w-[600px] flex flex-col z-50 overflow-hidden" role="dialog">
+<!-- Modal Header -->
+<div class="px-lg py-md border-b border-surface-variant flex justify-between items-center bg-surface-lowest">
+<h2 class="font-h2 text-h2 text-on-surface" id="modal-title">Giao việc mới</h2>
+<button aria-label="Đóng" class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-full p-2 transition-colors focus:outline-none focus:ring-2 focus:ring-secondary-container" type="button">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<!-- Modal Body (Form) -->
+<form class="p-lg overflow-y-auto max-h-[calc(100vh-200px)] flex flex-col gap-lg" id="createTaskForm">
+<!-- Tiêu đề công việc -->
+<div class="flex flex-col gap-xs">
+<label class="font-body-small text-body-small text-on-surface-variant" for="taskTitle">Tiêu đề công việc <span class="text-error">*</span></label>
+<input class="form-input w-full rounded border border-outline px-md py-[10px] bg-surface-lowest text-body-base placeholder:text-outline-variant transition-shadow duration-200" id="taskTitle" name="taskTitle" placeholder="Nhập tiêu đề công việc..." required="" type="text"/>
+</div>
+<!-- Mô tả chi tiết -->
+<div class="flex flex-col gap-xs">
+<label class="font-body-small text-body-small text-on-surface-variant" for="taskDescription">Mô tả chi tiết</label>
+<textarea class="form-textarea w-full rounded border border-outline px-md py-[10px] bg-surface-lowest text-body-base placeholder:text-outline-variant transition-shadow duration-200 resize-y min-h-[100px]" id="taskDescription" name="taskDescription" placeholder="Mô tả nội dung công việc chi tiết..." rows="4"></textarea>
+</div>
+<!-- Dòng chia đôi cho Người nhận & Hạn hoàn thành -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-lg">
+<!-- Người nhận -->
+<div class="flex flex-col gap-xs">
+<label class="font-body-small text-body-small text-on-surface-variant" for="assignee">Người nhận <span class="text-error">*</span></label>
+<div class="relative">
+<select class="form-select w-full rounded border border-outline pl-md pr-xl py-[10px] bg-surface-lowest text-body-base appearance-none transition-shadow duration-200 cursor-pointer" id="assignee" name="assignee" required="">
+<option disabled="" hidden="" selected="" value="">Chọn nhân sự...</option>
+<option value="1">Trần Anh (Admin)</option>
+<option value="2">Nguyễn Văn A (Học thuật)</option>
+<option value="3">Lê Thị B (Kế toán)</option>
+<option value="4">Phạm Văn C (Sales)</option>
+</select>
+<span class="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</div>
+<!-- Hạn hoàn thành -->
+<div class="flex flex-col gap-xs relative">
+<label class="font-body-small text-body-small text-on-surface-variant" for="dueDate">Hạn hoàn thành <span class="text-error">*</span></label>
+<input class="form-input w-full rounded border border-outline px-md py-[10px] bg-surface-lowest text-body-base transition-shadow duration-200" id="dueDate" name="dueDate" required="" type="date"/>
+<!-- Error Message Container (Hidden by default) -->
+<p class="hidden text-error font-caption text-caption mt-1 flex items-center gap-1" id="dueDateError">
+<span class="material-symbols-outlined text-[14px]">error</span>
+                            Vui lòng chọn hạn hoàn thành.
+                        </p>
+</div>
+</div>
+<!-- Loại công việc & Tần suất -->
+<div class="bg-surface-container-lowest border border-surface-variant rounded-lg p-md flex flex-col gap-md">
+<!-- Loại công việc -->
+<div class="flex flex-col gap-sm">
+<span class="font-body-small text-body-small text-on-surface-variant">Loại công việc</span>
+<div class="flex flex-wrap gap-lg">
+<label class="flex items-center gap-2 cursor-pointer group">
+<input checked="" class="form-radio w-4 h-4 text-primary-container border-outline focus:ring-primary-container" name="taskType" type="radio" value="one-time"/>
+<span class="font-body-base text-body-base text-on-surface group-hover:text-primary-container transition-colors">Phát sinh</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer group">
+<input class="form-radio w-4 h-4 text-primary-container border-outline focus:ring-primary-container" id="recurringTypeRadio" name="taskType" type="radio" value="recurring"/>
+<span class="font-body-base text-body-base text-on-surface group-hover:text-primary-container transition-colors">Lặp đi lặp lại</span>
+</label>
+</div>
+</div>
+<!-- Tần suất (Hidden initially via JS/CSS logic) -->
+<div class="flex flex-col gap-xs transition-all duration-300 opacity-50 max-h-0 overflow-hidden" id="frequencyContainer">
+<label class="font-body-small text-body-small text-on-surface-variant" for="frequency">Tần suất</label>
+<div class="relative w-full sm:w-1/2">
+<select class="form-select w-full rounded border border-outline pl-md pr-xl py-[10px] bg-surface-lowest text-body-base appearance-none transition-shadow duration-200 cursor-pointer disabled:bg-surface-dim disabled:cursor-not-allowed disabled:text-on-surface-variant" disabled="" id="frequency" name="frequency">
+<option value="daily">Hàng ngày</option>
+<option selected="" value="weekly">Hàng tuần</option>
+<option value="monthly">Hàng tháng</option>
+</select>
+<span class="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+</form>
+<!-- Modal Footer (Actions) -->
+<div class="px-lg py-md border-t border-surface-variant bg-surface-lowest flex justify-end gap-sm sm:gap-md">
+<button class="px-lg py-[10px] rounded border border-[#D1D5DB] bg-white text-[#111827] font-body-medium text-body-medium hover:bg-surface-container transition-colors focus:outline-none focus:ring-2 focus:ring-secondary-container" type="button">
+                    Hủy
+                </button>
+<button class="px-lg py-[10px] rounded border border-transparent bg-primary-container text-white font-body-medium text-body-medium shadow-sm hover:opacity-90 hover:shadow-md transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary-container focus:ring-offset-1 flex items-center gap-2" form="createTaskForm" type="submit">
+<span class="material-symbols-outlined text-[18px]">send</span>
+                    Lưu và Giao việc
+                </button>
+</div>
+</div>
+</div>
+<!-- Minimal Script for Logic -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const radioOneTime = document.querySelector('input[value="one-time"]');
+            const radioRecurring = document.querySelector('input[value="recurring"]');
+            const frequencyContainer = document.getElementById('frequencyContainer');
+            const frequencySelect = document.getElementById('frequency');
+            const form = document.getElementById('createTaskForm');
+            const dueDateInput = document.getElementById('dueDate');
+            const dueDateError = document.getElementById('dueDateError');
+
+            // Logic: Show/Hide Frequency based on Task Type
+            function toggleFrequency() {
+                if (radioRecurring.checked) {
+                    frequencyContainer.classList.remove('opacity-50', 'max-h-0');
+                    frequencyContainer.classList.add('opacity-100', 'max-h-[100px]', 'mt-2');
+                    frequencySelect.disabled = false;
+                } else {
+                    frequencyContainer.classList.add('opacity-50', 'max-h-0');
+                    frequencyContainer.classList.remove('opacity-100', 'max-h-[100px]', 'mt-2');
+                    frequencySelect.disabled = true;
+                }
+            }
+
+            // Event Listeners for Radio Buttons
+            radioOneTime.addEventListener('change', toggleFrequency);
+            radioRecurring.addEventListener('change', toggleFrequency);
+
+            // Form Validation Logic (Example)
+            form.addEventListener('submit', (e) => {
+                e.preventDefault(); // Prevent actual submission for demo
+                
+                let isValid = true;
+
+                // Simple check for due date
+                if (!dueDateInput.value) {
+                    dueDateInput.classList.add('border-error', 'focus:border-error', 'focus:ring-error');
+                    dueDateInput.classList.remove('border-outline', 'focus:border-secondary');
+                    dueDateError.classList.remove('hidden');
+                    isValid = false;
+                } else {
+                    dueDateInput.classList.remove('border-error', 'focus:border-error', 'focus:ring-error');
+                    dueDateInput.classList.add('border-outline', 'focus:border-secondary');
+                    dueDateError.classList.add('hidden');
+                }
+
+                if (isValid) {
+                    // Collect data and submit
+                    console.log('Form submitted successfully!');
+                    // Optionally close modal here
+                }
+            });
+
+            // Clear error on input
+            dueDateInput.addEventListener('change', () => {
+                 if (dueDateInput.value) {
+                    dueDateInput.classList.remove('border-error', 'focus:border-error', 'focus:ring-error');
+                    dueDateInput.classList.add('border-outline', 'focus:border-secondary');
+                    dueDateError.classList.add('hidden');
+                 }
+            });
+        });
+    </script>
+</body></html>

@@ -1,0 +1,473 @@
+<!DOCTYPE html><html lang="vi"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Tạo đề thi mới | MENGLISH Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@100;300;400;500;600;700;800;900&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface": "#f9f9ff",
+                    "secondary": "#1e43e7",
+                    "outline": "#8d7165",
+                    "surface-dim": "#d4daea",
+                    "error": "#ba1a1a",
+                    "secondary-fixed-dim": "#bac3ff",
+                    "background": "#f9f9ff",
+                    "surface-container-highest": "#dde2f3",
+                    "secondary-fixed": "#dee0ff",
+                    "surface-variant": "#dde2f3",
+                    "on-surface": "#161c27",
+                    "surface-tint": "#a23f00",
+                    "on-error": "#ffffff",
+                    "inverse-primary": "#ffb595",
+                    "on-primary-container": "#521c00",
+                    "on-tertiary-fixed-variant": "#1a5200",
+                    "on-primary": "#ffffff",
+                    "inverse-on-surface": "#ecf0ff",
+                    "surface-container": "#e8eeff",
+                    "secondary-container": "#4160ff",
+                    "on-secondary": "#ffffff",
+                    "inverse-surface": "#2a303d",
+                    "tertiary-fixed": "#93fb65",
+                    "tertiary-fixed-dim": "#78de4b",
+                    "surface-container-low": "#f1f3ff",
+                    "surface-container-high": "#e3e8f9",
+                    "outline-variant": "#e1bfb2",
+                    "on-surface-variant": "#594137",
+                    "on-tertiary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-tertiary-container": "#0e3500",
+                    "on-secondary-container": "#faf7ff",
+                    "tertiary-container": "#46a917",
+                    "error-container": "#ffdad6",
+                    "on-secondary-fixed-variant": "#002fc9",
+                    "primary-container": "#f5691a",
+                    "primary": "#a23f00",
+                    "primary-fixed": "#ffdbcd",
+                    "tertiary": "#256d00",
+                    "on-background": "#161c27",
+                    "on-primary-fixed-variant": "#7c2e00",
+                    "on-primary-fixed": "#360f00",
+                    "primary-fixed-dim": "#ffb595",
+                    "on-secondary-fixed": "#00105b",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed": "#062100",
+                    "surface-bright": "#f9f9ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "lg": "24px",
+                    "header-height": "64px",
+                    "sidebar-width": "260px",
+                    "xs": "4px",
+                    "sm": "8px",
+                    "md": "16px",
+                    "gutter": "16px",
+                    "base": "8px",
+                    "xl": "32px"
+            },
+            "fontFamily": {
+                    "body-base": ["Be Vietnam Pro"],
+                    "h3": ["Be Vietnam Pro"],
+                    "h2": ["Be Vietnam Pro"],
+                    "body-small": ["Be Vietnam Pro"],
+                    "label": ["Be Vietnam Pro"],
+                    "h1": ["Be Vietnam Pro"],
+                    "body-medium": ["Be Vietnam Pro"],
+                    "code": ["JetBrains Mono"],
+                    "caption": ["Be Vietnam Pro"]
+            },
+            "fontSize": {
+                    "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                    "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: #f9f9ff;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d4daea;
+            border-radius: 10px;
+        }
+        .primary-action-btn {
+            background-color: #f5691a;
+            color: white;
+            transition: all 0.2s;
+        }
+        .primary-action-btn:hover {
+            background-color: #a23f00;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface">
+<div class="min-h-screen flex flex-col">
+<!-- Floating Header for Create Flow -->
+<header class="h-header-height px-lg bg-surface-container-lowest border-b border-surface-variant flex items-center justify-between sticky top-0 z-50">
+<div class="flex items-center gap-md">
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant">arrow_back</span>
+</button>
+<h1 class="font-h2 text-h2 text-primary">Tạo đề thi mới</h1>
+</div>
+<div class="flex items-center gap-sm">
+<button class="px-md py-sm rounded-lg border border-outline-variant text-on-surface-variant font-body-medium hover:bg-surface-container-high transition-colors">Hủy</button>
+<button class="px-md py-sm rounded-lg primary-action-btn font-body-medium shadow-sm flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">save</span>
+                    Lưu đề thi
+                </button>
+</div>
+</header>
+<main class="flex-1 flex flex-col md:flex-row h-[calc(100vh-64px)] overflow-hidden">
+<!-- Left Panel: Question List & General Info -->
+<aside class="w-full md:w-[320px] lg:w-[400px] border-r border-surface-variant flex flex-col bg-surface-container-low overflow-y-auto custom-scrollbar">
+<!-- General Info Section -->
+<div class="p-md border-b border-surface-variant space-y-md">
+<h3 class="font-label text-label text-outline uppercase tracking-wider">Thông tin chung</h3>
+<div class="space-y-sm">
+<div>
+<label class="block text-caption font-medium text-on-surface-variant mb-1">Tên đề thi</label>
+<input class="w-full px-md py-sm bg-surface-container-lowest border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all outline-none" placeholder="VD: Midterm Exam - Semester 1" type="text">
+</div>
+<div class="grid grid-cols-2 gap-sm">
+<div>
+<label class="block text-caption font-medium text-on-surface-variant mb-1">Cấp độ</label>
+<select class="w-full px-md py-sm bg-surface-container-lowest border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary outline-none appearance-none">
+<option>Lớp 1-2</option>
+<option>Lớp 3-4</option>
+</select>
+</div>
+<div>
+<label class="block text-caption font-medium text-on-surface-variant mb-1">Thời gian (phút)</label>
+<input class="w-full px-md py-sm bg-surface-container-lowest border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary outline-none" type="number" value="45">
+</div>
+</div>
+</div>
+</div>
+<!-- Question List Navigation -->
+<div class="flex-1 p-md space-y-sm">
+<div class="flex items-center justify-between mb-md">
+<h3 class="font-label text-label text-outline uppercase tracking-wider">Danh sách câu hỏi</h3>
+<span class="text-caption bg-surface-container-highest px-2 py-0.5 rounded-full text-on-surface-variant">12 Câu</span>
+</div>
+<!-- Question Cards -->
+<div class="space-y-sm">
+<!-- Active Item -->
+<div class="p-md bg-primary-container text-white rounded-xl shadow-sm cursor-pointer border-l-4 border-primary ring-2 ring-primary/20">
+<div class="flex justify-between items-start mb-xs">
+<span class="font-h3 text-h3">Câu 01</span>
+<span class="text-[10px] uppercase font-bold bg-white/20 px-1.5 py-0.5 rounded">Trắc nghiệm</span>
+</div>
+<p class="text-body-small opacity-90 line-clamp-1">Listen and choose the correct answer for the question...</p>
+<div class="mt-sm flex justify-between items-center border-t border-white/20 pt-sm">
+<span class="text-caption font-medium">Listening</span>
+<span class="font-bold text-body-base">0.5đ</span>
+</div>
+</div>
+<!-- Inactive Item -->
+<div class="p-md bg-white border border-outline-variant rounded-xl hover:border-primary/40 hover:bg-surface-container transition-all cursor-pointer group">
+<div class="flex justify-between items-start mb-xs">
+<span class="font-h3 text-h3 text-on-surface">Câu 02</span>
+<span class="text-[10px] uppercase font-bold bg-surface-container-high text-on-surface-variant px-1.5 py-0.5 rounded">Điền từ</span>
+</div>
+<p class="text-body-small text-on-surface-variant line-clamp-1">The dog is ____ the table.</p>
+<div class="mt-sm flex justify-between items-center border-t border-surface-variant pt-sm">
+<span class="text-caption text-on-surface-variant">Writing</span>
+<span class="font-bold text-body-base text-on-surface">0.5đ</span>
+</div>
+</div>
+<!-- Inactive Item -->
+<div class="p-md bg-white border border-outline-variant rounded-xl hover:border-primary/40 hover:bg-surface-container transition-all cursor-pointer group">
+<div class="flex justify-between items-start mb-xs">
+<span class="font-h3 text-h3 text-on-surface">Câu 03</span>
+<span class="text-[10px] uppercase font-bold bg-surface-container-high text-on-surface-variant px-1.5 py-0.5 rounded">Nói</span>
+</div>
+<p class="text-body-small text-on-surface-variant line-clamp-1">Introduce yourself to your teacher.</p>
+<div class="mt-sm flex justify-between items-center border-t border-surface-variant pt-sm">
+<span class="text-caption text-on-surface-variant">Speaking</span>
+<span class="font-bold text-body-base text-on-surface">1.0đ</span>
+</div>
+</div>
+</div>
+<button class="w-full mt-md py-md border-2 border-dashed border-outline-variant rounded-xl text-on-surface-variant font-body-medium hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-sm">
+<span class="material-symbols-outlined">add_circle</span>
+                        Thêm câu hỏi mới
+                    </button>
+</div>
+</aside>
+<!-- Right Panel: Question Detail (Form Content) -->
+<section class="flex-1 overflow-y-auto custom-scrollbar bg-white">
+<div class="max-w-4xl mx-auto p-xl space-y-xl">
+<!-- Detail Header -->
+<div class="flex justify-between items-center">
+<h2 class="font-h1 text-h1 text-on-surface">Chi tiết câu hỏi <span class="text-primary">#01</span></h2>
+<button class="text-error hover:bg-error-container/20 p-2 rounded-lg transition-colors flex items-center gap-xs">
+<span class="material-symbols-outlined">delete</span>
+                            Xóa câu
+                        </button>
+</div>
+<!-- Main Form Grid -->
+<div class="grid grid-cols-12 gap-lg">
+<!-- Section Group -->
+<div class="col-span-12 md:col-span-8">
+<label class="block text-body-medium font-bold text-on-surface mb-2">Phần thi (Section)</label>
+<input class="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none font-body-base" type="text" value="A. LISTENING - Exercise 1">
+</div>
+<!-- Points Group -->
+<div class="col-span-12 md:col-span-4">
+<label class="block text-body-medium font-bold text-on-surface mb-2">Điểm số</label>
+<div class="relative">
+<input class="w-full pl-md pr-xl py-md bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none font-body-base" step="0.25" type="number" value="0.5">
+<span class="absolute right-md top-1/2 -translate-y-1/2 text-on-surface-variant">đ</span>
+</div>
+</div>
+<!-- Question Type Selector -->
+<div class="col-span-12">
+<label class="block text-body-medium font-bold text-on-surface mb-2">Loại câu hỏi</label>
+<div class="flex gap-md overflow-x-auto pb-2">
+<button class="flex-shrink-0 flex items-center gap-sm px-lg py-md border-2 border-primary bg-primary-fixed text-on-primary-fixed rounded-xl transition-all" onclick="selectType('mc')">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">list_alt</span>
+<span class="font-body-medium">Trắc nghiệm</span>
+</button>
+<button class="flex-shrink-0 flex items-center gap-sm px-lg py-md border border-outline-variant text-on-surface-variant rounded-xl hover:bg-surface-container-high transition-all" onclick="selectType('fib')">
+<span class="material-symbols-outlined">edit_square</span>
+<span class="font-body-medium">Điền vào chỗ trống</span>
+</button>
+<button class="flex-shrink-0 flex items-center gap-sm px-lg py-md border border-outline-variant text-on-surface-variant rounded-xl hover:bg-surface-container-high transition-all" onclick="selectType('spk')">
+<span class="material-symbols-outlined">record_voice_over</span>
+<span class="font-body-medium">Kỹ năng Nói</span>
+</button>
+</div>
+</div>
+<!-- Question Text Content -->
+<div class="col-span-12">
+<label class="block text-body-medium font-bold text-on-surface mb-2">Nội dung câu hỏi</label>
+<textarea class="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none font-body-base" placeholder="Nhập nội dung câu hỏi tại đây..." rows="4">Listen and choose the correct answer for the question: "What does the boy want to eat?"</textarea>
+</div>
+<!-- Audio Control (Only for Listening Section) -->
+<div class="col-span-12 p-lg bg-secondary-fixed/30 border border-secondary-fixed rounded-2xl flex flex-col md:flex-row items-center gap-lg">
+<div class="w-full md:w-auto">
+<button class="w-full px-lg py-md bg-secondary text-white rounded-xl flex items-center justify-center gap-sm hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined">upload_file</span>
+                                    Tải file nghe (.mp3)
+                                </button>
+</div>
+<div class="flex-1 w-full bg-white rounded-xl p-sm flex items-center gap-md border border-outline-variant">
+<button class="w-10 h-10 flex items-center justify-center bg-secondary-container text-on-secondary-container rounded-full">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<div class="flex-1 h-2 bg-surface-variant rounded-full relative overflow-hidden">
+<div class="absolute inset-y-0 left-0 bg-secondary w-1/3"></div>
+</div>
+<span class="text-caption font-code text-on-surface-variant">0:12 / 0:45</span>
+</div>
+</div>
+<!-- Content Controls Based on Type (Dynamic Area) -->
+<div class="col-span-12 space-y-lg pt-lg border-t border-surface-variant" id="type-controls">
+<!-- Multiple Choice Specifics -->
+<div class="space-y-md">
+<h4 class="font-h3 text-h3 text-on-surface flex items-center gap-sm">
+                                    Các phương án trả lời
+                                    <span class="text-caption font-normal text-on-surface-variant">(Chọn radio cho đáp án đúng)</span>
+</h4>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+<!-- Option 1 -->
+<div class="p-md bg-surface-container-low border border-outline-variant rounded-2xl flex flex-col gap-sm">
+<div class="flex items-center gap-md">
+<input checked="" class="w-5 h-5 text-primary focus:ring-primary" name="correct_ans" type="radio">
+<span class="font-bold text-primary">A.</span>
+<input class="flex-1 bg-transparent border-none focus:ring-0 p-0 font-body-medium" type="text" value="An apple">
+</div>
+<div class="flex gap-sm">
+<button class="flex-1 py-sm border border-dashed border-outline-variant rounded-lg text-caption flex items-center justify-center gap-xs hover:bg-white hover:text-primary transition-all">
+<span class="material-symbols-outlined text-[16px]">add_photo_alternate</span>
+                                                Tải ảnh lên
+                                            </button>
+<div class="w-10 h-10 bg-surface-container-high rounded-lg overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A clean studio photo of a fresh red apple with a leaf on a white background, high contrast, academic material style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMvizDpE31O8xbOAdWJfU056Vg_jRqwn1o6OSKTDxzvB-2pLK3QxtfNyC3VKEw2y4pQZUPHdQVJr7ttJ_hl2a3ZqaR3cx2OSiM4xIXIfki2eGwa6LBpa8AImzZTz0KpQ4rvwyp3ztBRZpv0UdHgHQxeLRKhzAEO_Sp0J6tYf7Pu4Jc1CXv4N5qR4MzI6n6_ye5C68zdUDcmq4t2NsV_GteKqPpvlLf0OQf-kTOUvWASPyrpLDLd1DRugL8U88FUQhGL8ncmhkFyxY">
+</div>
+</div>
+</div>
+<!-- Option 2 -->
+<div class="p-md bg-surface-container-low border border-outline-variant rounded-2xl flex flex-col gap-sm">
+<div class="flex items-center gap-md">
+<input class="w-5 h-5 text-primary focus:ring-primary" name="correct_ans" type="radio">
+<span class="font-bold text-on-surface-variant">B.</span>
+<input class="flex-1 bg-transparent border-none focus:ring-0 p-0 font-body-medium" type="text" value="A banana">
+</div>
+<div class="flex gap-sm">
+<button class="flex-1 py-sm border border-dashed border-outline-variant rounded-lg text-caption flex items-center justify-center gap-xs hover:bg-white hover:text-primary transition-all">
+<span class="material-symbols-outlined text-[16px]">add_photo_alternate</span>
+                                                Tải ảnh lên
+                                            </button>
+</div>
+</div>
+<!-- Option 3 -->
+<div class="p-md bg-surface-container-low border border-outline-variant rounded-2xl flex flex-col gap-sm">
+<div class="flex items-center gap-md">
+<input class="w-5 h-5 text-primary focus:ring-primary" name="correct_ans" type="radio">
+<span class="font-bold text-on-surface-variant">C.</span>
+<input class="flex-1 bg-transparent border-none focus:ring-0 p-0 font-body-medium" type="text" value="A sandwich">
+</div>
+<div class="flex gap-sm">
+<button class="flex-1 py-sm border border-dashed border-outline-variant rounded-lg text-caption flex items-center justify-center gap-xs hover:bg-white hover:text-primary transition-all">
+<span class="material-symbols-outlined text-[16px]">add_photo_alternate</span>
+                                                Tải ảnh lên
+                                            </button>
+</div>
+</div>
+<!-- Option 4 -->
+<div class="p-md bg-surface-container-low border border-outline-variant rounded-2xl flex flex-col gap-sm">
+<div class="flex items-center gap-md">
+<input class="w-5 h-5 text-primary focus:ring-primary" name="correct_ans" type="radio">
+<span class="font-bold text-on-surface-variant">D.</span>
+<input class="flex-1 bg-transparent border-none focus:ring-0 p-0 font-body-medium" type="text" value="An orange">
+</div>
+<div class="flex gap-sm">
+<button class="flex-1 py-sm border border-dashed border-outline-variant rounded-lg text-caption flex items-center justify-center gap-xs hover:bg-white hover:text-primary transition-all">
+<span class="material-symbols-outlined text-[16px]">add_photo_alternate</span>
+                                                Tải ảnh lên
+                                            </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Common Settings Toggle Example -->
+<div class="col-span-12 mt-lg p-lg bg-surface-container-low border-2 border-dashed border-outline-variant rounded-3xl">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-md">
+<div class="p-md bg-primary/10 text-primary rounded-xl">
+<span class="material-symbols-outlined">settings_suggest</span>
+</div>
+<div>
+<h4 class="font-body-medium font-bold text-on-surface">Hướng dẫn chấm bài (Teacher's Note)</h4>
+<p class="text-caption text-on-surface-variant">Ghi chú quan trọng cho giáo viên khi chấm điểm phần này.</p>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox" value="">
+<div class="w-11 h-6 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div class="mt-md">
+<textarea class="w-full px-md py-sm bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none" placeholder="Nhập ghi chú hướng dẫn chấm điểm..." rows="2"></textarea>
+</div>
+</div>
+</div>
+<!-- Form Action Footer -->
+<div class="pt-xl border-t border-surface-variant flex justify-end gap-md">
+<button class="px-xl py-md rounded-xl border border-outline-variant text-on-surface-variant font-body-medium hover:bg-surface-container-high transition-colors">Lưu nháp</button>
+<button class="px-xl py-md rounded-xl primary-action-btn font-body-medium shadow-md flex items-center gap-sm group">
+                            Lưu và Tiếp theo
+                            <span class="material-symbols-outlined transition-transform group-hover:translate-x-1">arrow_forward</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+</div>
+<script>
+        // Simple Micro-interaction script
+        function selectType(type) {
+            const controls = document.getElementById('type-controls');
+            let content = '';
+            
+            if (type === 'mc') {
+                content = `
+                    <div class="space-y-md animate-fadeIn">
+                        <h4 class="font-h3 text-h3 text-on-surface flex items-center gap-sm">
+                            Các phương án trả lời
+                            <span class="text-caption font-normal text-on-surface-variant">(Chọn radio cho đáp án đúng)</span>
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+                            ${[1, 2, 3, 4].map(i => `
+                                <div class="p-md bg-surface-container-low border border-outline-variant rounded-2xl flex flex-col gap-sm">
+                                    <div class="flex items-center gap-md">
+                                        <input type="radio" name="correct_ans" ${i===1 ? 'checked' : ''} class="w-5 h-5 text-primary focus:ring-primary">
+                                        <span class="font-bold ${i===1 ? 'text-primary' : 'text-on-surface-variant'}">${String.fromCharCode(64+i)}.</span>
+                                        <input type="text" placeholder="Nhập nội dung phương án..." class="flex-1 bg-transparent border-none focus:ring-0 p-0 font-body-medium">
+                                    </div>
+                                    <button class="w-full py-sm border border-dashed border-outline-variant rounded-lg text-caption flex items-center justify-center gap-xs hover:bg-white hover:text-primary transition-all">
+                                        <span class="material-symbols-outlined text-[16px]">add_photo_alternate</span>
+                                        Tải ảnh lên
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else if (type === 'fib') {
+                content = `
+                    <div class="space-y-md animate-fadeIn">
+                        <h4 class="font-h3 text-h3 text-on-surface">Thiết lập Đáp án đúng</h4>
+                        <div class="p-lg bg-surface-container-low border border-outline-variant rounded-2xl">
+                            <label class="block text-body-medium font-bold text-on-surface mb-2">Từ/Cụm từ đáp án</label>
+                            <input type="text" placeholder="VD: apple, play, is jumping..." class="w-full px-md py-md bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none">
+                            <p class="mt-sm text-caption text-on-surface-variant italic">* Hệ thống sẽ tự động đối soát đáp án này khi học sinh hoàn thành bài thi.</p>
+                        </div>
+                    </div>
+                `;
+            } else if (type === 'spk') {
+                content = `
+                    <div class="space-y-md animate-fadeIn">
+                        <h4 class="font-h3 text-h3 text-on-surface">Kỹ năng Nói (Speaking)</h4>
+                        <div class="p-lg bg-surface-container-low border border-outline-variant rounded-2xl space-y-md">
+                            <div>
+                                <label class="block text-body-medium font-bold text-on-surface mb-2">Hướng dẫn chi tiết cho học sinh</label>
+                                <textarea rows="3" class="w-full px-md py-md bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none" placeholder="VD: Nhìn vào bức tranh và mô tả 3 đồ vật bạn thấy..."></textarea>
+                            </div>
+                            <div class="p-md bg-primary-fixed/20 border border-primary-fixed rounded-xl flex items-center gap-md">
+                                <span class="material-symbols-outlined text-primary">info</span>
+                                <span class="text-caption text-on-primary-fixed-variant">Phần thi này sẽ không được tự động chấm điểm. Giáo viên cần chấm thủ công dựa trên bản ghi âm của học sinh.</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            controls.innerHTML = content;
+        }
+    </script>
+<style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+    </style>
+</body></html>

@@ -1,0 +1,281 @@
+<!DOCTYPE html><html lang="vi"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Bảng xếp hạng KPI &amp; Hoa hồng - MENGLISH Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-fixed": "#062100",
+                        "on-surface": "#161c27",
+                        "surface-tint": "#a23f00",
+                        "background": "#f9f9ff",
+                        "on-secondary-fixed": "#00105b",
+                        "primary-fixed": "#ffdbcd",
+                        "secondary": "#1e43e7",
+                        "tertiary-fixed": "#93fb65",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "secondary-container": "#4160ff",
+                        "surface-bright": "#f9f9ff",
+                        "surface-container-highest": "#dde2f3",
+                        "tertiary": "#256d00",
+                        "inverse-on-surface": "#ecf0ff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface-variant": "#594137",
+                        "on-primary": "#ffffff",
+                        "outline-variant": "#e1bfb2",
+                        "outline": "#8d7165",
+                        "primary-container": "#f5691a",
+                        "on-tertiary": "#ffffff",
+                        "primary": "#a23f00",
+                        "on-tertiary-container": "#0e3500",
+                        "on-error-container": "#93000a",
+                        "primary-fixed-dim": "#ffb595",
+                        "secondary-fixed": "#dee0ff",
+                        "error": "#ba1a1a",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "surface-container-high": "#e3e8f9",
+                        "on-secondary": "#ffffff",
+                        "surface-variant": "#dde2f3",
+                        "surface": "#f9f9ff",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "on-secondary-container": "#faf7ff",
+                        "inverse-surface": "#2a303d",
+                        "surface-container-low": "#f1f3ff",
+                        "on-error": "#ffffff",
+                        "inverse-primary": "#ffb595",
+                        "error-container": "#ffdad6",
+                        "surface-dim": "#d4daea",
+                        "on-primary-fixed": "#360f00",
+                        "on-background": "#161c27",
+                        "tertiary-container": "#46a917",
+                        "on-primary-container": "#521c00",
+                        "surface-container": "#e8eeff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "32px",
+                        "xs": "4px",
+                        "sidebar-width": "260px",
+                        "header-height": "64px",
+                        "md": "16px",
+                        "sm": "8px",
+                        "gutter": "16px",
+                        "lg": "24px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "h1": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "h2": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "h1": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-medium": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "label": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "code": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "h2": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "h3": ["18px", { "lineHeight": "26px", "fontWeight": "600" }],
+                        "body-small": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-base": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "caption": ["11px", { "lineHeight": "16px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen">
+<main class="w-full max-w-7xl mx-auto px-lg py-xl">
+<!-- Header Section -->
+<div class="mb-lg flex flex-col gap-sm">
+<h1 class="font-h1 text-h1 text-on-surface">Bảng xếp hạng KPI &amp; Hoa hồng</h1>
+<p class="font-body-base text-body-base text-on-surface-variant max-w-3xl">Dữ liệu công khai nhằm mục đích thi đua khen thưởng. Thông tin không bao gồm lương cơ bản, các khoản khấu trừ và thực nhận cá nhân.</p>
+</div>
+<!-- Filters Section -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md mb-lg flex flex-col sm:flex-row gap-md items-center">
+<div class="flex flex-col gap-xs w-full sm:w-auto">
+<label class="font-label text-label text-on-surface-variant uppercase">Kỳ lương</label>
+<div class="relative">
+<select class="w-full sm:w-48 appearance-none bg-surface border border-outline-variant rounded-lg px-md py-sm font-body-base text-body-base text-on-surface focus:outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20 transition-all">
+<option>Tháng 10/2023</option>
+<option>Tháng 09/2023</option>
+<option>Tháng 08/2023</option>
+</select>
+<span class="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
+</div>
+</div>
+<div class="flex flex-col gap-xs w-full sm:w-auto">
+<label class="font-label text-label text-on-surface-variant uppercase">Chi nhánh</label>
+<div class="relative">
+<select class="w-full sm:w-48 appearance-none bg-surface border border-outline-variant rounded-lg px-md py-sm font-body-base text-body-base text-on-surface focus:outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20 transition-all">
+<option>Tất cả</option>
+<option>Hà Nội</option>
+<option>TP.HCM</option>
+<option>Đà Nẵng</option>
+</select>
+<span class="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Leaderboard Table -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low border-b border-outline-variant">
+<tr>
+<th class="py-md px-md font-label text-label text-on-surface-variant uppercase tracking-wider w-20 text-center">Hạng</th>
+<th class="py-md px-md font-label text-label text-on-surface-variant uppercase tracking-wider">Nhân viên</th>
+<th class="py-md px-md font-label text-label text-on-surface-variant uppercase tracking-wider hidden sm:table-cell">Chi nhánh</th>
+<th class="py-md px-md font-label text-label text-on-surface-variant uppercase tracking-wider text-right">Số HS Giữ</th>
+<th class="py-md px-md font-label text-label text-on-surface-variant uppercase tracking-wider text-right hidden md:table-cell">Đơn giá (VNĐ/hs)</th>
+<th class="py-md px-md font-label text-label text-on-surface-variant uppercase tracking-wider text-right">Tổng KPI / Hoa hồng (VNĐ)</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Top 1 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-md px-md text-center">
+<div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#FFD700]/20 text-[#D4AF37] font-bold">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">emoji_events</span>
+</div>
+</td>
+<td class="py-md px-md">
+<div class="flex items-center gap-sm">
+<img class="w-10 h-10 rounded-full object-cover border-2 border-[#FFD700]" data-alt="A professional headshot of a smiling young Asian woman in business casual attire, well-lit studio lighting, isolated against a soft gray background, corporate style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZwCLXgpOscSSvTjmDt_pyy9Y4TZrdOYHyaCOuq5TKK_nEsgYK7bPcnpNURFImHSbyBmLwJkezAqVL6n_23ZT57qhtYQ5OE-6CGFDjoThWnrHkoSxSDQ0u0syq7CIqHNA37NueyyjXyhv0s-jPzg5WgVktfdWsXE2TLh4-q77YX11WHb_19i-PyJuWP8zVVuyxPeBJPWMkbNI-I6S9yWoicONT8PUryGQRNzQoQBp3cD4vVmhBLHNM">
+<div>
+<p class="font-body-medium text-body-medium text-on-surface">Nguyễn Thị Mai</p>
+<p class="font-caption text-caption text-on-surface-variant sm:hidden">Hà Nội</p>
+</div>
+</div>
+</td>
+<td class="py-md px-md font-body-base text-body-base text-on-surface-variant hidden sm:table-cell">Hà Nội</td>
+<td class="py-md px-md font-body-medium text-body-medium text-on-surface text-right">1,250</td>
+<td class="py-md px-md font-code text-code text-on-surface-variant text-right hidden md:table-cell">15,000</td>
+<td class="py-md px-md font-h3 text-h3 text-primary-container text-right">18,750,000</td>
+</tr>
+<!-- Top 2 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-md px-md text-center">
+<div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#C0C0C0]/20 text-[#A0A0A0] font-bold">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">emoji_events</span>
+</div>
+</td>
+<td class="py-md px-md">
+<div class="flex items-center gap-sm">
+<img class="w-10 h-10 rounded-full object-cover border-2 border-[#C0C0C0]" data-alt="A professional headshot of a young Asian man in a blue button-down shirt, soft natural lighting, light neutral background, modern corporate portrait." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8tYoLvSolESiBuusXrzj2pQ5-Ho4MpnIc9MEXHrqcGlbfRr95z1JHHM_KHyO_5Ypxsfl0K34jHPGa6ogUI6P-sGH1q5npLS59ToEXsPKidYyKIGwTKlo-zpkEA239UobtaNIs_gQcKSTqInw5XLJiqc-4Cm2oYAouCAspU5NtgjnY-kfxmAd7Xyz-GTMmCdCvCL3jN4T5xgtjaS4l6S-T8i4qh9cIZWyQ_LqnSxX9yl4siwUxCEDX">
+<div>
+<p class="font-body-medium text-body-medium text-on-surface">Trần Văn Nam</p>
+<p class="font-caption text-caption text-on-surface-variant sm:hidden">TP.HCM</p>
+</div>
+</div>
+</td>
+<td class="py-md px-md font-body-base text-body-base text-on-surface-variant hidden sm:table-cell">TP.HCM</td>
+<td class="py-md px-md font-body-medium text-body-medium text-on-surface text-right">1,100</td>
+<td class="py-md px-md font-code text-code text-on-surface-variant text-right hidden md:table-cell">15,000</td>
+<td class="py-md px-md font-h3 text-h3 text-primary-container text-right">16,500,000</td>
+</tr>
+<!-- Top 3 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-md px-md text-center">
+<div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#CD7F32]/20 text-[#B87333] font-bold">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">emoji_events</span>
+</div>
+</td>
+<td class="py-md px-md">
+<div class="flex items-center gap-sm">
+<img class="w-10 h-10 rounded-full object-cover border-2 border-[#CD7F32]" data-alt="A professional headshot of a confident Asian woman with glasses, wearing a white blouse, clean modern lighting, professional corporate environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA46_hy4qXdrVR8Oqjbc_mY3MM_zFAT7FaAMmtS7L1lJtNjBmTNgd2gby-iQywji8dlWNtqpzslKZ5tE73JMZXxmZoBWE_5T2tZE6hCTrBiVF5qLr_UXcrxjJFm8aNXR2NjOLFv1SIPCROVQOlmoUEC-rbDL1YCCrEhMHCaQRsawY0kY_2OJ6d5rsN9w5EhI9MoHxGzVvy1J-qvmOx3iVzbhw__7vD4PHvZQ5aUDBDJCCZEyZDXMbQv">
+<div>
+<p class="font-body-medium text-body-medium text-on-surface">Lê Thị Hương</p>
+<p class="font-caption text-caption text-on-surface-variant sm:hidden">Đà Nẵng</p>
+</div>
+</div>
+</td>
+<td class="py-md px-md font-body-base text-body-base text-on-surface-variant hidden sm:table-cell">Đà Nẵng</td>
+<td class="py-md px-md font-body-medium text-body-medium text-on-surface text-right">980</td>
+<td class="py-md px-md font-code text-code text-on-surface-variant text-right hidden md:table-cell">15,000</td>
+<td class="py-md px-md font-h3 text-h3 text-primary-container text-right">14,700,000</td>
+</tr>
+<!-- Rank 4 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-md px-md text-center font-body-medium text-body-medium text-on-surface-variant">4</td>
+<td class="py-md px-md">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center font-body-medium text-body-medium text-on-surface">
+                                        PH
+                                    </div>
+<div>
+<p class="font-body-medium text-body-medium text-on-surface">Phạm Hoàng</p>
+<p class="font-caption text-caption text-on-surface-variant sm:hidden">Hà Nội</p>
+</div>
+</div>
+</td>
+<td class="py-md px-md font-body-base text-body-base text-on-surface-variant hidden sm:table-cell">Hà Nội</td>
+<td class="py-md px-md font-body-medium text-body-medium text-on-surface text-right">850</td>
+<td class="py-md px-md font-code text-code text-on-surface-variant text-right hidden md:table-cell">12,000</td>
+<td class="py-md px-md font-h3 text-h3 text-primary text-right">10,200,000</td>
+</tr>
+<!-- Rank 5 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-md px-md text-center font-body-medium text-body-medium text-on-surface-variant">5</td>
+<td class="py-md px-md">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center font-body-medium text-body-medium text-on-surface">
+                                        BT
+                                    </div>
+<div>
+<p class="font-body-medium text-body-medium text-on-surface">Bùi Tiến</p>
+<p class="font-caption text-caption text-on-surface-variant sm:hidden">TP.HCM</p>
+</div>
+</div>
+</td>
+<td class="py-md px-md font-body-base text-body-base text-on-surface-variant hidden sm:table-cell">TP.HCM</td>
+<td class="py-md px-md font-body-medium text-body-medium text-on-surface text-right">720</td>
+<td class="py-md px-md font-code text-code text-on-surface-variant text-right hidden md:table-cell">12,000</td>
+<td class="py-md px-md font-h3 text-h3 text-primary text-right">8,640,000</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination / Footer -->
+<div class="p-md border-t border-outline-variant bg-surface flex items-center justify-between">
+<span class="font-body-small text-body-small text-on-surface-variant">Hiển thị 1 - 5 của 120 nhân viên</span>
+<div class="flex gap-xs">
+<button class="p-sm rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container-high transition-colors disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="p-sm rounded-lg border border-outline-variant text-on-surface hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+
+
+</body></html>

@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Lịch sử đồng bộ chấm công - MENGLISH Admin</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Be Vietnam Pro & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&amp;family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration (Provided) -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary-container": "#faf7ff",
+                    "on-tertiary-fixed-variant": "#1a5200",
+                    "outline-variant": "#e1bfb2",
+                    "inverse-surface": "#2a303d",
+                    "tertiary-container": "#46a917",
+                    "surface-container": "#e8eeff",
+                    "tertiary-fixed-dim": "#78de4b",
+                    "secondary-fixed": "#dee0ff",
+                    "on-secondary-fixed-variant": "#002fc9",
+                    "surface-container-high": "#e3e8f9",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-bright": "#f9f9ff",
+                    "surface-dim": "#d4daea",
+                    "primary": "#a23f00",
+                    "secondary": "#1e43e7",
+                    "surface-tint": "#a23f00",
+                    "tertiary-fixed": "#93fb65",
+                    "on-primary-fixed": "#360f00",
+                    "surface": "#f9f9ff",
+                    "on-primary-fixed-variant": "#7c2e00",
+                    "secondary-container": "#4160ff",
+                    "primary-container": "#f5691a",
+                    "on-surface": "#161c27",
+                    "inverse-primary": "#ffb595",
+                    "on-tertiary": "#ffffff",
+                    "error": "#ba1a1a",
+                    "on-tertiary-container": "#0e3500",
+                    "on-secondary-fixed": "#00105b",
+                    "inverse-on-surface": "#ecf0ff",
+                    "primary-fixed": "#ffdbcd",
+                    "outline": "#8d7165",
+                    "on-error-container": "#93000a",
+                    "on-secondary": "#ffffff",
+                    "surface-container-low": "#f1f3ff",
+                    "on-tertiary-fixed": "#062100",
+                    "on-surface-variant": "#594137",
+                    "secondary-fixed-dim": "#bac3ff",
+                    "surface-container-highest": "#dde2f3",
+                    "on-primary": "#ffffff",
+                    "primary-fixed-dim": "#ffb595",
+                    "on-primary-container": "#521c00",
+                    "surface-variant": "#dde2f3",
+                    "error-container": "#ffdad6",
+                    "on-background": "#161c27",
+                    "background": "#f9f9ff",
+                    "tertiary": "#256d00",
+                    "on-error": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "8px",
+                    "sidebar-width": "260px",
+                    "lg": "24px",
+                    "gutter": "16px",
+                    "md": "16px",
+                    "xs": "4px",
+                    "header-height": "64px",
+                    "sm": "8px",
+                    "xl": "32px"
+            },
+            "fontFamily": {
+                    "body-small": [
+                            "Be Vietnam Pro"
+                    ],
+                    "label": [
+                            "Be Vietnam Pro"
+                    ],
+                    "caption": [
+                            "Be Vietnam Pro"
+                    ],
+                    "body-base": [
+                            "Be Vietnam Pro"
+                    ],
+                    "body-medium": [
+                            "Be Vietnam Pro"
+                    ],
+                    "h2": [
+                            "Be Vietnam Pro"
+                    ],
+                    "h3": [
+                            "Be Vietnam Pro"
+                    ],
+                    "h1": [
+                            "Be Vietnam Pro"
+                    ],
+                    "code": [
+                            "JetBrains Mono"
+                    ]
+            },
+            "fontSize": {
+                    "body-small": [
+                            "13px",
+                            {
+                                    "lineHeight": "18px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "label": [
+                            "11px",
+                            {
+                                    "lineHeight": "16px",
+                                    "letterSpacing": "0.05em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "caption": [
+                            "11px",
+                            {
+                                    "lineHeight": "16px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "body-base": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "body-medium": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "fontWeight": "500"
+                            }
+                    ],
+                    "h2": [
+                            "22px",
+                            {
+                                    "lineHeight": "30px",
+                                    "letterSpacing": "-0.01em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "h3": [
+                            "18px",
+                            {
+                                    "lineHeight": "26px",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "h1": [
+                            "28px",
+                            {
+                                    "lineHeight": "36px",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "code": [
+                            "13px",
+                            {
+                                    "lineHeight": "18px",
+                                    "fontWeight": "400"
+                            }
+                    ]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .tooltip-container:hover .tooltip-content {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Custom scrollbar for tables */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f3ff;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d4daea;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #bac3ff;
+        }
+    </style>
+</head>
+<body class="bg-background font-body-base text-on-surface antialiased min-h-screen p-lg flex justify-center items-start">
+<!-- Main Panel Container -->
+<main class="w-full max-w-7xl bg-surface-container-lowest border border-outline-variant rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] overflow-hidden flex flex-col">
+<!-- Header Section -->
+<header class="p-lg border-b border-outline-variant bg-surface-bright flex flex-col md:flex-row md:justify-between md:items-center gap-md">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface">Lịch sử đồng bộ chấm công</h1>
+<p class="font-body-small text-body-small text-on-surface-variant mt-sm">Theo dõi các đợt đồng bộ dữ liệu tự động từ AppSheet.</p>
+</div>
+<div class="flex items-center gap-base">
+<button class="bg-white border border-outline-variant text-on-surface hover:bg-surface-container-low transition-colors px-md py-sm rounded-lg flex items-center gap-xs font-body-medium text-body-medium">
+<span class="material-symbols-outlined text-[18px]">refresh</span>
+                    Làm mới
+                </button>
+<button class="bg-primary-container text-white hover:bg-primary transition-colors px-md py-sm rounded-lg flex items-center gap-xs font-body-medium text-body-medium shadow-sm">
+<span class="material-symbols-outlined text-[18px]">sync</span>
+                    Đồng bộ ngay
+                </button>
+</div>
+</header>
+<!-- Filters Section -->
+<section class="p-md border-b border-outline-variant bg-white flex flex-wrap gap-md items-end">
+<div class="flex flex-col gap-xs">
+<label class="font-label text-label text-on-surface-variant uppercase">Từ ngày</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">calendar_today</span>
+<input class="pl-xl pr-md py-sm border border-outline-variant rounded-lg bg-white text-on-surface font-body-base text-body-base focus:border-secondary focus:ring-2 focus:ring-secondary/20 transition-all outline-none" type="date" value="2023-10-01"/>
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label text-label text-on-surface-variant uppercase">Đến ngày</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">calendar_today</span>
+<input class="pl-xl pr-md py-sm border border-outline-variant rounded-lg bg-white text-on-surface font-body-base text-body-base focus:border-secondary focus:ring-2 focus:ring-secondary/20 transition-all outline-none" type="date" value="2023-10-15"/>
+</div>
+</div>
+<div class="flex flex-col gap-xs min-w-[200px]">
+<label class="font-label text-label text-on-surface-variant uppercase">Trạng thái</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">filter_list</span>
+<select class="pl-xl pr-md py-sm border border-outline-variant rounded-lg bg-white text-on-surface font-body-base text-body-base focus:border-secondary focus:ring-2 focus:ring-secondary/20 transition-all outline-none appearance-none w-full cursor-pointer">
+<option value="all">Tất cả trạng thái</option>
+<option value="success">Thành công</option>
+<option value="partial">Lỗi một phần</option>
+<option value="error">Lỗi toàn bộ</option>
+</select>
+<span class="material-symbols-outlined absolute right-sm top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px] pointer-events-none">expand_more</span>
+</div>
+</div>
+<button class="bg-surface-container-low border border-outline-variant text-on-surface hover:bg-surface-container-high transition-colors px-md py-sm rounded-lg flex items-center gap-xs font-body-medium text-body-medium ml-auto">
+<span class="material-symbols-outlined text-[18px]">search</span>
+                Lọc dữ liệu
+            </button>
+</section>
+<!-- Main Data Table -->
+<section class="overflow-x-auto bg-white flex-1 min-h-[400px]">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-bright border-b border-outline-variant sticky top-0 z-10">
+<tr>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase whitespace-nowrap">Thời điểm chạy</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase whitespace-nowrap text-right">Tổng số dòng</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase whitespace-nowrap text-right">Thành công</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase whitespace-nowrap text-right">Lỗi</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase whitespace-nowrap text-right tooltip-container relative cursor-help">
+<div class="flex items-center justify-end gap-xs">
+                                Bỏ qua
+                                <span class="material-symbols-outlined text-[14px]">info</span>
+</div>
+<!-- Tooltip Content -->
+<div class="tooltip-content invisible opacity-0 absolute bottom-full right-0 mb-sm w-48 bg-inverse-surface text-inverse-on-surface p-sm rounded shadow-lg text-xs font-body-small transition-all duration-200 z-50 normal-case text-left">
+                                Hệ thống bỏ qua không ghi đè dữ liệu của các nhân sự đã chốt kỳ lương.
+                                <div class="absolute top-full right-md -mt-[1px] border-[5px] border-transparent border-t-inverse-surface"></div>
+</div>
+</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase whitespace-nowrap">Trạng thái</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase whitespace-nowrap text-right">Thao tác</th>
+</tr>
+</thead>
+<tbody class="font-body-base text-body-base">
+<!-- Row 1: Success -->
+<tr class="border-b border-outline-variant hover:bg-surface-bright transition-colors group">
+<td class="px-md py-sm whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-body-medium">10:30</span>
+<span class="font-caption text-caption text-on-surface-variant">15/10/2023</span>
+</div>
+</td>
+<td class="px-md py-sm text-right font-code text-code">150</td>
+<td class="px-md py-sm text-right font-code text-code text-tertiary">145</td>
+<td class="px-md py-sm text-right font-code text-code">0</td>
+<td class="px-md py-sm text-right font-code text-code text-on-surface-variant">5</td>
+<td class="px-md py-sm whitespace-nowrap">
+<div class="inline-flex items-center gap-xs bg-tertiary/10 text-tertiary px-sm py-[2px] rounded-full font-label text-label">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                                Thành công
+                            </div>
+</td>
+<td class="px-md py-sm text-right whitespace-nowrap">
+<button class="text-secondary hover:text-secondary-container font-body-medium transition-colors">Xem chi tiết</button>
+</td>
+</tr>
+<!-- Row 2: Partial Error -->
+<tr class="border-b border-outline-variant hover:bg-surface-bright transition-colors bg-surface-container-low/50">
+<td class="px-md py-sm whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-body-medium">09:15</span>
+<span class="font-caption text-caption text-on-surface-variant">14/10/2023</span>
+</div>
+</td>
+<td class="px-md py-sm text-right font-code text-code">200</td>
+<td class="px-md py-sm text-right font-code text-code text-tertiary">180</td>
+<td class="px-md py-sm text-right font-code text-code text-[#d97706] font-medium">10</td>
+<td class="px-md py-sm text-right font-code text-code text-on-surface-variant">10</td>
+<td class="px-md py-sm whitespace-nowrap">
+<div class="inline-flex items-center gap-xs bg-[#f59e0b]/10 text-[#d97706] px-sm py-[2px] rounded-full font-label text-label">
+<span class="material-symbols-outlined text-[14px]">warning</span>
+                                Lỗi một phần
+                            </div>
+<div class="text-caption font-caption text-on-surface-variant mt-xs">10 dòng lỗi</div>
+</td>
+<td class="px-md py-sm text-right whitespace-nowrap">
+<button class="text-primary-container hover:text-primary font-body-medium transition-colors flex items-center justify-end gap-xs w-full" onclick="const details = document.getElementById('details-row-2'); details.classList.toggle('hidden'); const icon = this.querySelector('.toggle-icon'); icon.textContent = details.classList.contains('hidden') ? 'expand_more' : 'expand_less';">
+                                Xem chi tiết lỗi
+                                <span class="material-symbols-outlined text-[18px] toggle-icon">expand_less</span>
+</button>
+</td>
+</tr>
+<!-- Expanded Details Row 2 -->
+<tr class="bg-surface-container-lowest border-b border-outline-variant" id="details-row-2">
+<td class="p-0" colspan="7">
+<div class="p-md bg-[#f59e0b]/5 border-l-2 border-[#d97706] m-md rounded-r-lg">
+<h4 class="font-h3 text-h3 text-on-surface mb-md flex items-center gap-xs"><span class="material-symbols-outlined text-[#d97706] text-[20px]">warning</span> Chi tiết 10 dòng lỗi</h4>
+<div class="overflow-x-auto border border-outline-variant rounded-lg bg-white">
+<table class="w-full text-left text-sm">
+<thead class="bg-surface-bright border-b border-outline-variant">
+<tr>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase">Mã NV</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase">Tên nhân viên</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase">Mã lỗi</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase">Nội dung chi tiết (AppSheet)</th>
+</tr>
+</thead>
+<tbody class="font-body-small text-body-small">
+<tr class="border-b border-outline-variant hover:bg-surface-bright">
+<td class="px-md py-sm font-code">NV0125</td>
+<td class="px-md py-sm font-body-medium">Nguyễn Văn A</td>
+<td class="px-md py-sm font-code text-on-surface-variant">DATA_MISMATCH</td>
+<td class="px-md py-sm text-error">Thiếu dữ liệu chi nhánh cho buổi học IELTS_T3_K45</td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-surface-bright">
+<td class="px-md py-sm font-code">NV0231</td>
+<td class="px-md py-sm font-body-medium">Trần Thị B</td>
+<td class="px-md py-sm font-code text-on-surface-variant">RECORD_NOT_FOUND</td>
+<td class="px-md py-sm text-error">Mã buổi học TOEIC_UNKNOWN không tồn tại trên hệ thống</td>
+</tr>
+<tr class="hover:bg-surface-bright">
+<td class="px-md py-sm font-code">NV0089</td>
+<td class="px-md py-sm font-body-medium">Lê Hoàng C</td>
+<td class="px-md py-sm font-code text-on-surface-variant">INVALID_FORMAT</td>
+<td class="px-md py-sm text-error">Định dạng thời gian checkout không hợp lệ (NULL)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="mt-md text-right">
+<button class="bg-white border border-outline-variant text-on-surface hover:bg-surface-container-low px-md py-sm rounded-lg font-body-medium text-body-medium inline-flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">download</span>
+                                Xuất file Excel lỗi
+                            </button>
+</div>
+</div>
+</td>
+</tr>
+<!-- Row 3: Total Error -->
+<tr class="border-b border-outline-variant hover:bg-surface-bright transition-colors">
+<td class="px-md py-sm whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-body-medium">08:00</span>
+<span class="font-caption text-caption text-on-surface-variant">13/10/2023</span>
+</div>
+</td>
+<td class="px-md py-sm text-right font-code text-code">100</td>
+<td class="px-md py-sm text-right font-code text-code text-tertiary">0</td>
+<td class="px-md py-sm text-right font-code text-code text-error font-medium">100</td>
+<td class="px-md py-sm text-right font-code text-code text-on-surface-variant">0</td>
+<td class="px-md py-sm whitespace-nowrap">
+<div class="inline-flex items-center gap-xs bg-error/10 text-error px-sm py-[2px] rounded-full font-label text-label">
+<span class="material-symbols-outlined text-[14px]">error</span>
+                                Lỗi toàn bộ
+                            </div>
+<div class="text-caption font-caption text-error mt-xs">API Timeout</div>
+</td>
+<td class="px-md py-sm text-right whitespace-nowrap">
+<button class="text-primary-container hover:text-primary font-body-medium transition-colors flex items-center justify-end gap-xs w-full" onclick="const details = document.getElementById('details-row-3'); details.classList.toggle('hidden'); const icon = this.querySelector('.toggle-icon'); icon.textContent = details.classList.contains('hidden') ? 'expand_more' : 'expand_less';">
+                                Xem chi tiết lỗi
+                                <span class="material-symbols-outlined text-[18px] toggle-icon">expand_more</span>
+</button>
+</td>
+</tr>
+<!-- Expanded Details Row 3 (Initially hidden) -->
+<tr class="bg-surface-container-lowest border-b border-outline-variant hidden" id="details-row-3">
+<td class="p-0" colspan="7">
+<div class="p-md bg-error/5 border-l-2 border-error m-md rounded-r-lg">
+<h4 class="font-h3 text-h3 text-on-surface mb-md flex items-center gap-xs"><span class="material-symbols-outlined text-error text-[20px]">error</span> Chi tiết lỗi hệ thống</h4>
+<div class="bg-white border border-outline-variant rounded-lg p-md">
+<p class="font-body-medium text-body-medium mb-xs"><span class="font-code text-on-surface-variant">API_TIMEOUT</span> - Lỗi kết nối đến AppSheet API</p>
+<p class="font-body-small text-body-small text-error">Không thể kết nối đến máy chủ AppSheet sau 30 giây. Vui lòng kiểm tra lại cấu hình API key hoặc trạng thái của AppSheet.</p>
+</div>
+</div>
+</td>
+</tr>
+<!-- Empty State / More Rows filler -->
+<tr>
+<td class="px-md py-xl text-center text-on-surface-variant" colspan="7">
+<div class="flex flex-col items-center justify-center opacity-60">
+<span class="material-symbols-outlined text-[48px] mb-sm">history</span>
+<p class="font-body-medium text-body-medium">Không còn dữ liệu hiển thị</p>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<!-- Pagination (Simulated) -->
+<footer class="p-md border-t border-outline-variant bg-surface-bright flex justify-between items-center text-caption font-caption text-on-surface-variant">
+<div>Hiển thị 1-3 trong số 45 bản ghi</div>
+<div class="flex items-center gap-xs">
+<button class="p-xs rounded hover:bg-surface-container-high disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<button class="w-6 h-6 flex items-center justify-center rounded bg-primary-container text-white font-body-medium">1</button>
+<button class="w-6 h-6 flex items-center justify-center rounded hover:bg-surface-container-high font-body-medium">2</button>
+<button class="w-6 h-6 flex items-center justify-center rounded hover:bg-surface-container-high font-body-medium">3</button>
+<button class="p-xs rounded hover:bg-surface-container-high">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</footer>
+</main>
+</body></html>

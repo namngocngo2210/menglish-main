@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Điểm danh — Kindy 5, 03/09/2026 - MENGLISH Cổng Giáo viên</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              DEFAULT: '#F5691A',
+              hover: '#DE560D',
+              light: '#FFF4ED',
+              50: '#FFF9F5'
+            },
+            status: {
+              present: '#16A34A',
+              presentBg: '#DCFCE7',
+              late: '#CA8A04',
+              lateBg: '#FEF9C3',
+              excused: '#2563EB',
+              excusedBg: '#DBEAFE',
+              unexcused: '#DC2626',
+              unexcusedBg: '#FEE2E2'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-[#F8FAFC] text-slate-800 antialiased min-h-screen p-4 sm:p-6 lg:p-8">
+
+  <!-- Component Container: Điểm ảnh đầu tiên bắt đầu từ tiêu đề buổi học -->
+  <div class="max-w-6xl mx-auto space-y-6">
+
+    <!-- Header Section: Tiêu đề buổi học + metadata thanh trạng thái & cửa sổ thời gian -->
+    <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <!-- First pixel / Title -->
+          <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
+            <span>Điểm danh — Kindy 5, 03/09/2026</span>
+          </h1>
+          <div class="flex flex-wrap items-center gap-y-2 gap-x-4 mt-2 text-sm text-slate-600">
+            <span class="inline-flex items-center gap-1.5 font-medium text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md">
+              <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              Khung giờ: 17:30 – 19:00
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-slate-600">
+              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+              </svg>
+              Phòng 204 · CN Quận 1 (Trụ sở chính)
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-slate-600">
+              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+              </svg>
+              Sĩ số lớp: <strong class="text-slate-800 font-semibold">12 học sinh</strong>
+            </span>
+          </div>
+        </div>
+
+        <!-- Cửa sổ thời gian & Chế độ mô phỏng -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200/80">
+          <div class="flex items-center gap-2">
+            <span class="relative flex h-3 w-3">
+              <span id="windowPulse" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span id="windowIndicator" class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </span>
+            <div class="text-xs">
+              <div class="font-semibold text-slate-800" id="windowText">Đang trong cửa sổ điểm danh</div>
+              <div class="text-slate-500">Quy định: Buổi học ±24 giờ</div>
+            </div>
+          </div>
+          <!-- Toggle thử nghiệm trạng thái ngoài cửa sổ 24h -->
+          <div class="pl-3 sm:border-l border-slate-200 flex items-center gap-2">
+            <label class="text-xs text-slate-500 select-none cursor-pointer flex items-center gap-1.5">
+              <input type="checkbox" id="toggleWindow" class="rounded border-slate-300 text-brand focus:ring-brand h-3.5 w-3.5" onchange="toggleLockState(this.checked)">
+              <span>Thử ngoài cửa sổ 24h</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Thống kê tóm tắt nhanh thời gian thực -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-slate-100">
+        <div class="bg-emerald-50/70 border border-emerald-100 rounded-lg p-3">
+          <div class="text-xs text-emerald-700 font-medium">Đúng giờ</div>
+          <div class="text-xl font-bold text-emerald-800 mt-0.5" id="countPresent">9</div>
+        </div>
+        <div class="bg-amber-50/70 border border-amber-100 rounded-lg p-3">
+          <div class="text-xs text-amber-700 font-medium">Đi muộn</div>
+          <div class="text-xl font-bold text-amber-800 mt-0.5" id="countLate">1</div>
+        </div>
+        <div class="bg-blue-50/70 border border-blue-100 rounded-lg p-3">
+          <div class="text-xs text-blue-700 font-medium">Nghỉ có phép</div>
+          <div class="text-xl font-bold text-blue-800 mt-0.5" id="countExcused">1</div>
+        </div>
+        <div class="bg-rose-50/70 border border-rose-100 rounded-lg p-3">
+          <div class="text-xs text-rose-700 font-medium">Nghỉ không phép</div>
+          <div class="text-xl font-bold text-rose-800 mt-0.5" id="countUnexcused">1</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Thông báo hướng dẫn nghiệp vụ -->
+    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-xl text-sm text-blue-900 flex items-start gap-3">
+      <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      </svg>
+      <div>
+        <p class="font-medium text-blue-950">Quy tắc nghiệp vụ điểm danh dành cho Giáo viên:</p>
+        <ul class="list-disc list-inside mt-1 text-xs text-blue-800 space-y-0.5">
+          <li>Người điểm danh được ghi nhận tự động theo tài khoản đang đăng nhập (GV chính/GVNN/Trợ giảng).</li>
+          <li>Khi chọn <strong class="text-blue-950">"Nghỉ có phép"</strong> hoặc <strong class="text-blue-950">"Nghỉ không phép"</strong>, ô <strong>Ghi chú là bắt buộc</strong> để lưu trữ lý do vắng học của học viên.</li>
+          <li>Trong cửa sổ ±24h, giáo viên có thể cập nhật lại nhiều lần nếu có điều chỉnh mà không bị tính lỗi rà soát.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Roster Table / Danh sách điểm danh -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
+        <div>
+          <h2 class="text-base font-semibold text-slate-900">Danh sách học sinh trong lớp (Roster)</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Dữ liệu nguồn xếp lớp chính thức · Vui lòng kiểm tra và xác nhận đúng từng học sinh</p>
+        </div>
+        <div class="flex items-center gap-2 text-xs text-slate-500">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span> 12/12 học sinh đã gán trạng thái
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead>
+            <tr class="bg-slate-50/80 text-slate-600 text-xs uppercase tracking-wider font-semibold border-b border-slate-200">
+              <th class="py-3.5 px-4 w-12 text-center">STT</th>
+              <th class="py-3.5 px-4 min-w-[200px]">Học sinh</th>
+              <th class="py-3.5 px-4 w-[220px]">Trạng thái điểm danh <span class="text-rose-500">*</span></th>
+              <th class="py-3.5 px-4 min-w-[280px]">Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200/80" id="rosterTbody">
+            <!-- Row 1: Đúng giờ -->
+            <tr class="hover:bg-slate-50/60 transition-colors" data-index="1">
+              <td class="py-3 px-4 text-center text-xs font-medium text-slate-400">01</td>
+              <td class="py-3 px-4">
+                <div class="font-medium text-slate-900">Nguyễn Minh Quân</div>
+                <div class="text-xs text-slate-400">Lucas · HS-2026-091</div>
+              </td>
+              <td class="py-3 px-4">
+                <select class="status-select w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-brand focus:border-brand transition-all" onchange="handleStatusChange(this)">
+                  <option value="dung_gio" selected>🟢 Đúng giờ</option>
+                  <option value="muon">🟡 Muộn</option>
+                  <option value="nghi_co_phep">🔵 Nghỉ có phép</option>
+                  <option value="nghi_khong_phep">🔴 Nghỉ không phép</option>
+                </select>
+              </td>
+              <td class="py-3 px-4">
+                <div class="relative">
+                  <input type="text" placeholder="Ghi chú thêm (tùy chọn)..." class="note-input w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-brand focus:border-brand transition-all" value="Hăng hái phát biểu">
+                  <span class="required-asterisk hidden text-rose-500 font-bold ml-1 text-xs">* Bắt buộc</span>
+                </div>
+                <div class="error-msg hidden text-[11px] text-rose-600 font-medium mt-1">Cần ghi rõ lý do khi đánh dấu nghỉ</div>
+              </td>
+            </tr>
+
+            <!-- Row 2: Đúng giờ -->
+            <tr class="hover:bg-slate-50/60 transition-colors" data-index="2">
+              <td class="py-3 px-4 text-center text-xs font-medium text-slate-400">02</td>
+              <td class="py-3 px-4">
+                <div class="font-medium text-slate-900">Lê Hoàng Bảo Ngọc</div>
+                <div class="text-xs text-slate-400">Jenny · HS-2026-094</div>
+              </td>
+              <td class="py-3 px-4">
+                <select class="status-select w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-brand focus:border-brand transition-all" onchange="handleStatusChange(this)">
+                  <option value="dung_gio" selected>🟢 Đúng giờ</option>
+                  <option value="muon">🟡 Muộn</option>
+                  <option value="nghi_co_phep">🔵 Nghỉ có phép</option>
+                  <option value="nghi_khong_phep">🔴 Nghỉ không phép</option>
+                </select>
+              </td>
+              <td class="py-3 px-4">
+                <div class="relative">
+                  <input type="text" placeholder="Ghi chú thêm (tùy chọn)..." class="note-input w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-brand focus:border-brand transition-all" value="">
+                </div>
+                <div class="error-msg hidden text-[11px] text-rose-600 font-medium mt-1">Cần ghi rõ lý do khi đánh dấu nghỉ</div>
+              </td>
+            </tr>
+
+            <!-- Row 3: Muộn -->
+            <tr class="hover:bg-slate-50/60 transition-colors bg-amber-50/20" data-index="3">
+              <td class="py-3 px-4 text-center text-xs font-medium text-slate-400">03</td>
+              <td class="py-3 px-4">
+                <div class="font-medium text-slate-900">Phạm Gia Hưng</div>
+                <div class="text-xs text-slate-400">Ben · HS-2026-102</div>
+              </td>
+              <td class="py-3 px-4">
+                <select class="status-select w-full bg-amber-50/60 border border-amber-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-brand focus:border-brand transition-all" onchange="handleStatusChange(this)">
+                  <option value="dung_gio">🟢 Đúng giờ</option>
+                  <option value="muon" selected>🟡 Muộn</option>
+                  <option value="nghi_co_phep">🔵 Nghỉ có phép</option>
+                  <option value="nghi_khong_phep">🔴 Nghỉ không phép</option>
+                </select>
+              </td>
+              <td class="py-3 px-4">
+                <div class="relative">
+                  <input type="text" placeholder="Ghi chú thêm (tùy chọn)..." class="note-input w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-brand focus:border-brand transition-all" value="Vào lớp trễ 15 phút do kẹt xe">
+                </div>
+                <div class="error-msg hidden text-[11px] text-rose-600 font-medium mt-1">Cần ghi rõ lý do khi đánh dấu nghỉ</div>
+              </td>
+            </tr>
+
+            <!-- Row 4: Nghỉ có phép (Bắt buộc ghi chú lý do) -->
+            <tr class="hover:bg-slate-50/60 transition-colors bg-blue-50/20" data-index="4">
+              <td class="py-3 px-4 text-center text-xs font-medium text-slate-400">04</td>
+              <td class="py-3 px-4">
+                <div class="font-medium text-slate-900">Đỗ Tuệ Nhi</div>
+                <div class="text-xs text-slate-400">Chloe · HS-2026-118</div>
+              </td>
+              <td class="py-3 px-4">
+                <select class="status-select w-full bg-blue-50/60 border border-blue-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-brand focus:border-brand transition-all" onchange="handleStatusChange(this)">
+                  <option value="dung_gio">🟢 Đúng giờ</option>
+                  <option value="muon">🟡 Muộn</option>
+                  <option value="nghi_co_phep" selected>🔵 Nghỉ có phép</option>
+                  <option value="nghi_khong_phep">🔴 Nghỉ không phép</option>
+                </select>
+              </td>
+              <td class="py-3 px-4">
+                <div class="relative flex items-center gap-1">
+                  <input type="text" placeholder="Nhập lý do nghỉ học... *" class="note-input w-full bg-white border border-blue-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-brand focus:border-brand transition-all" value="Phụ huynh xin nghỉ do bị sốt siêu vi">
+                  <span class="required-asterisk text-rose-500 font-bold text-sm" title="Bắt buộc">*</span>
+                </div>
+                <div class="error-msg hidden text-[11px] text-rose-600 font-medium mt-1">Cần ghi rõ lý do khi đánh dấu nghỉ</div>
+              </td>
+            </tr>
+
+            <!-- Row 5: Nghỉ không phép (Bắt buộc ghi chú lý do) -->
+            <tr class="hover:bg-slate-50/60 transition-colors bg-rose-50/20" data-index="5">
+              <td class="py-3 px-4 text-center text-xs font-medium text-slate-400">05</td>
+              <td class="py-3 px-4">
+                <div class="font-medium text-slate-900">Trần Quốc Nam</div>
+                <div class="text-xs text-slate-400">Leo · HS-2026-125</div>
+              </td>
+              <td class="py-3 px-4">
+                <select class="status-select w-full bg-rose-50/60 border border-rose-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-brand focus:border-brand transition-all" onchange="handleStatusChange(this)">
+                  <option value="dung_gio">🟢 Đúng giờ</option>
+                  <option value="muon">🟡 Muộn</option>
+                  <option value="nghi_co_phep">🔵 Nghỉ có phép</option>
+                  <option value="nghi_khong_phep" selected>🔴 Nghỉ không phép</option>
+                </select>
+              </td>
+              <td class="py-3 px-4">
+                <div class="relative flex items-center gap-1">
+                  <input type="text" placeholder="Nhập lý do nghỉ học... *" class="note-input w-full bg-white border border-rose-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-brand focus:border-brand transition-all" value="Gọi phụ huynh không liên lạc được lúc 17:40">
+                  <span class="required-asterisk text-rose-500 font-bold text-sm" title="Bắt buộc">*</span>
+                </div>
+                <div class="error-msg hidden text-[11px] text-rose-600 font-medium mt-1">Cần ghi rõ lý do khi đánh dấu nghỉ</div>
+              </td>
+            </tr>
+
+            <!-- Row 6: Đúng giờ -->
+            <tr class="hover:bg-slate-50/60 transition-colors" data-index="6">
+              <td class="py-3 px-4 text-center text-xs font-medium text-slate-400">06</td>
+              <td class="py-3 px-4">
+                <div class="font-medium text-slate-900">Vũ Hoàng Nam</div>
+                <div class="text-xs text-slate-400">Alex · HS-2026-130</div>
+              </td>
+              <td class="py-3 px-4">
+                <select class="status-select w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-brand focus:border-brand transition-all" onchange="handleStatusChange(this)">
+                  <option value="dung_gio" selected>🟢 Đúng giờ</option>
+                  <option value="muon">🟡 Muộn</option>
+                  <option value="nghi_co_phep">🔵 Nghỉ có phép</option>
+                  <option value="nghi_khong_phep">🔴 Nghỉ không phép</option>
+                </select>
+              </td>
+              <td class="py-3 px-4">
+                <div class="relative">
+                  <input type="text" placeholder="Ghi chú thêm (tùy chọn)..." class="note-input w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-brand focus:border-brand transition-all" value="">
+                </div>
+                <div class="error-msg hidden text-[11px] text-rose-600 font-medium mt-1">Cần ghi rõ lý do khi đánh dấu nghỉ</div>
+              </td>
+            </tr>
+
+            <!-- Row 7: Đúng giờ -->
+            <tr class="hover:bg-slate-50/60 transition-colors" data-index="7">
+              <td class="py-3 px-4 text-center text-xs font-medium text-slate-400">07</td>
+              <td class="py-3 px-4">
+                <div class="font-medium text-slate-900">Nguyễn Thảo Nguyên</div>
+                <div class="text-xs text-slate-400">Mia · HS-2026-141</div>
+              </td>
+              <td class="py-3 px-4">
+                <select class="status-select w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-brand focus:border-brand transition-all" onchange="handleStatusChange(this)">
+                  <option value="dung_gio" selected>🟢 Đúng giờ</option>
+                  <option value="muon">🟡 Muộn</option>
+                  <option value="nghi_co_phep">🔵 Nghỉ có phép</option>
+                  <option value="nghi_khong_phep">🔴 Nghỉ không phép</option>
+                </select>
+              </td>
+              <td class="py-3 px-4">
+                <div class="relative">
+                  <input type="text" placeholder="Ghi chú thêm (tùy chọn)..." class="note-input w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-brand focus:border-brand transition-all" value="">
+                </div>
+                <div class="error-msg hidden text-[11px] text-rose-600 font-medium mt-1">Cần ghi rõ lý do khi đánh dấu nghỉ</div>
+              </td>
+            </tr>
+
+            <!-- Row 8: Đúng giờ -->
+            <tr class="hover:bg-slate-50/60 transition-colors" data-index="8">
+              <td class="py-3 px-4 text-center text-xs font-medium text-slate-400">08</td>
+              <td class="py-3 px-4">
+                <div class="font-medium text-slate-900">Bùi Minh Khang</div>
+                <div class="text-xs text-slate-400">Ken · HS-2026-155</div>
+              </td>
+              <td class="py-3 px-4">
+                <select class="status-select w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-brand focus:border-brand transition-all" onchange="handleStatusChange(this)">
+                  <option value="dung_gio" selected>🟢 Đúng giờ</option>
+                  <option value="muon">🟡 Muộn</option>
+                  <option value="nghi_co_phep">🔵 Nghỉ có phép</option>
+                  <option value="nghi_khong_phep">🔴 Nghỉ không phép</option>
+                </select>
+              </td>
+              <td class="py-3 px-4">
+                <div class="relative">
+                  <input type="text" placeholder="Ghi chú thêm (tùy chọn)..." class="note-input w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-brand focus:border-brand transition-all" value="Mang đầy đủ tập vẽ">
+                </div>
+                <div class="error-msg hidden text-[11px] text-rose-600 font-medium mt-1">Cần ghi rõ lý do khi đánh dấu nghỉ</div>
+              </td>
+            </tr>
+
+            <!-- Row 9: Đúng giờ -->
+            <tr class="hover:bg-slate-50/60 transition-colors" data-index="9">
+              <td class="py-3 px-4 text-center text-xs font-medium text-slate-400">09</td>
+              <td class="py-3 px-4">
+                <div class="font-medium text-slate-900">Trịnh Mai Chi</div>
+                <div class="text-xs text-slate-400">Daisy · HS-2026-160</div>
+              </td>
+              <td class="py-3 px-4">
+                <select class="status-select w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-brand focus:border-brand transition-all" onchange="handleStatusChange(this)">
+                  <option value="dung_gio" selected>🟢 Đúng giờ</option>
+                  <option value="muon">🟡 Muộn</option>
+                  <option value="nghi_co_phep">🔵 Nghỉ có phép</option>
+                  <option value="nghi_khong_phep">🔴 Nghỉ không phép</option>
+                </select>
+              </td>
+              <td class="py-3 px-4">
+                <div class="relative">
+                  <input type="text" placeholder="Ghi chú thêm (tùy chọn)..." class="note-input w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-brand focus:border-brand transition-all" value="">
+                </div>
+                <div class="error-msg hidden text-[11px] text-rose-600 font-medium mt-1">Cần ghi rõ lý do khi đánh dấu nghỉ</div>
+              </td>
+            </tr>
+
+            <!-- Row 10: Đúng giờ -->
+            <tr class="hover:bg-slate-50/60 transition-colors" data-index="10">
+              <td class="py-3 px-4 text-center text-xs font-medium text-slate-400">10</td>
+              <td class="py-3 px-4">
+                <div class="font-medium text-slate-900">Hoàng Gia Bảo</div>
+                <div class="text-xs text-slate-400">Tony · HS-2026-172</div>
+              </td>
+              <td class="py-3 px-4">
+                <select class="status-select w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-brand focus:border-brand transition-all" onchange="handleStatusChange(this)">
+                  <option value="dung_gio" selected>🟢 Đúng giờ</option>
+                  <option value="muon">🟡 Muộn</option>
+                  <option value="nghi_co_phep">🔵 Nghỉ có phép</option>
+                  <option value="nghi_khong_phep">🔴 Nghỉ không phép</option>
+                </select>
+              </td>
+              <td class="py-3 px-4">
+                <div class="relative">
+                  <input type="text" placeholder="Ghi chú thêm (tùy chọn)..." class="note-input w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-brand focus:border-brand transition-all" value="">
+                </div>
+                <div class="error-msg hidden text-[11px] text-rose-600 font-medium mt-1">Cần ghi rõ lý do khi đánh dấu nghỉ</div>
+              </td>
+            </tr>
+
+            <!-- Row 11: Đúng giờ -->
+            <tr class="hover:bg-slate-50/60 transition-colors" data-index="11">
+              <td class="py-3 px-4 text-center text-xs font-medium text-slate-400">11</td>
+              <td class="py-3 px-4">
+                <div class="font-medium text-slate-900">Phan Ngọc Diệp</div>
+                <div class="text-xs text-slate-400">Emma · HS-2026-180</div>
+              </td>
+              <td class="py-3 px-4">
+                <select class="status-select w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-brand focus:border-brand transition-all" onchange="handleStatusChange(this)">
+                  <option value="dung_gio" selected>🟢 Đúng giờ</option>
+                  <option value="muon">🟡 Muộn</option>
+                  <option value="nghi_co_phep">🔵 Nghỉ có phép</option>
+                  <option value="nghi_khong_phep">🔴 Nghỉ không phép</option>
+                </select>
+              </td>
+              <td class="py-3 px-4">
+                <div class="relative">
+                  <input type="text" placeholder="Ghi chú thêm (tùy chọn)..." class="note-input w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-brand focus:border-brand transition-all" value="">
+                </div>
+                <div class="error-msg hidden text-[11px] text-rose-600 font-medium mt-1">Cần ghi rõ lý do khi đánh dấu nghỉ</div>
+              </td>
+            </tr>
+
+            <!-- Row 12: Đúng giờ -->
+            <tr class="hover:bg-slate-50/60 transition-colors" data-index="12">
+              <td class="py-3 px-4 text-center text-xs font-medium text-slate-400">12</td>
+              <td class="py-3 px-4">
+                <div class="font-medium text-slate-900">Đặng Khánh Linh</div>
+                <div class="text-xs text-slate-400">Lily · HS-2026-193</div>
+              </td>
+              <td class="py-3 px-4">
+                <select class="status-select w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-brand focus:border-brand transition-all" onchange="handleStatusChange(this)">
+                  <option value="dung_gio" selected>🟢 Đúng giờ</option>
+                  <option value="muon">🟡 Muộn</option>
+                  <option value="nghi_co_phep">🔵 Nghỉ có phép</option>
+                  <option value="nghi_khong_phep">🔴 Nghỉ không phép</option>
+                </select>
+              </td>
+              <td class="py-3 px-4">
+                <div class="relative">
+                  <input type="text" placeholder="Ghi chú thêm (tùy chọn)..." class="note-input w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-brand focus:border-brand transition-all" value="">
+                </div>
+                <div class="error-msg hidden text-[11px] text-rose-600 font-medium mt-1">Cần ghi rõ lý do khi đánh dấu nghỉ</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Action Footer: Nút lưu điểm danh + thông báo xác nhận -->
+      <div class="p-4 sm:p-6 bg-slate-50/70 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="text-xs text-slate-500 flex items-center gap-2">
+          <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+          </svg>
+          <span>Phiếu điểm danh sẽ được ghi đè (upsert) cập nhật trực tiếp cho buổi học này.</span>
+        </div>
+
+        <div class="relative group" id="btnWrapper">
+          <button id="btnSubmit" onclick="submitAttendance()" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-[#F5691A] hover:bg-[#DE560D] active:bg-[#C94C0A] text-white font-medium text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-brand/40">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <span>Lưu điểm danh</span>
+          </button>
+          
+          <!-- Tooltip khi disabled (ngoài cửa sổ 24h) -->
+          <div id="lockTooltip" class="hidden absolute bottom-full mb-2 right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 w-64 bg-slate-900 text-white text-xs rounded-md p-2 shadow-lg text-center pointer-events-none z-20">
+            Ngoài cửa sổ 24h cho phép điểm danh (Buổi học đã đóng)
+            <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert thông báo kết quả lưu thành công -->
+    <div id="successToast" class="hidden fixed bottom-6 right-6 max-w-md bg-emerald-600 text-white p-4 rounded-xl shadow-xl flex items-start gap-3 z-50 transition-all">
+      <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      </svg>
+      <div>
+        <h4 class="font-semibold text-sm">Điểm danh thành công!</h4>
+        <p class="text-xs text-emerald-100 mt-0.5">Dữ liệu điểm danh cho 12 học sinh đã được cập nhật vào hệ thống.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Logic cập nhật giao diện khi đổi trạng thái điểm danh
+    function handleStatusChange(selectElem) {
+      const row = selectElem.closest('tr');
+      const val = selectElem.value;
+      const noteInput = row.querySelector('.note-input');
+      const asterisk = row.querySelector('.required-asterisk');
+      const errorMsg = row.querySelector('.error-msg');
+
+      // Reset row background & select style
+      row.classList.remove('bg-amber-50/20', 'bg-blue-50/20', 'bg-rose-50/20');
+      selectElem.classList.remove('bg-amber-50/60', 'border-amber-300', 'bg-blue-50/60', 'border-blue-300', 'bg-rose-50/60', 'border-rose-300');
+      
+      if (val === 'nghi_co_phep' || val === 'nghi_khong_phep') {
+        if (val === 'nghi_co_phep') {
+          row.classList.add('bg-blue-50/20');
+          selectElem.classList.add('bg-blue-50/60', 'border-blue-300');
+        } else {
+          row.classList.add('bg-rose-50/20');
+          selectElem.classList.add('bg-rose-50/60', 'border-rose-300');
+        }
+        noteInput.placeholder = 'Nhập lý do nghỉ học... *';
+        if (asterisk) asterisk.classList.remove('hidden');
+      } else {
+        if (val === 'muon') {
+          row.classList.add('bg-amber-50/20');
+          selectElem.classList.add('bg-amber-50/60', 'border-amber-300');
+        }
+        noteInput.placeholder = 'Ghi chú thêm (tùy chọn)...';
+        if (asterisk) asterisk.classList.add('hidden');
+        if (errorMsg) errorMsg.classList.add('hidden');
+        noteInput.classList.remove('border-rose-500');
+      }
+
+      updateSummaryCounts();
+    }
+
+    // Cập nhật thống kê nhanh số lượng
+    function updateSummaryCounts() {
+      let present = 0, late = 0, excused = 0, unexcused = 0;
+      document.querySelectorAll('.status-select').forEach(sel => {
+        if (sel.value === 'dung_gio') present++;
+        else if (sel.value === 'muon') late++;
+        else if (sel.value === 'nghi_co_phep') excused++;
+        else if (sel.value === 'nghi_khong_phep') unexcused++;
+      });
+      document.getElementById('countPresent').innerText = present;
+      document.getElementById('countLate').innerText = late;
+      document.getElementById('countExcused').innerText = excused;
+      document.getElementById('countUnexcused').innerText = unexcused;
+    }
+
+    // Toggle ngoài cửa sổ 24h để kiểm tra UI/UX
+    function toggleLockState(isLocked) {
+      const btn = document.getElementById('btnSubmit');
+      const tooltip = document.getElementById('lockTooltip');
+      const windowText = document.getElementById('windowText');
+      const windowIndicator = document.getElementById('windowIndicator');
+      const windowPulse = document.getElementById('windowPulse');
+      const allSelects = document.querySelectorAll('.status-select');
+      const allNotes = document.querySelectorAll('.note-input');
+
+      if (isLocked) {
+        btn.disabled = true;
+        btn.className = "w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-slate-300 text-slate-500 font-medium text-sm cursor-not-allowed shadow-none";
+        tooltip.classList.remove('hidden');
+        windowText.innerText = "Ngoài cửa sổ 24h (Đã khóa)";
+        windowIndicator.className = "relative inline-flex rounded-full h-3 w-3 bg-rose-500";
+        windowPulse.className = "hidden";
+        allSelects.forEach(s => s.disabled = true);
+        allNotes.forEach(n => n.disabled = true);
+      } else {
+        btn.disabled = false;
+        btn.className = "w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-[#F5691A] hover:bg-[#DE560D] active:bg-[#C94C0A] text-white font-medium text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-brand/40 cursor-pointer";
+        tooltip.classList.add('hidden');
+        windowText.innerText = "Đang trong cửa sổ điểm danh";
+        windowIndicator.className = "relative inline-flex rounded-full h-3 w-3 bg-emerald-500";
+        windowPulse.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
+        allSelects.forEach(s => s.disabled = false);
+        allNotes.forEach(n => n.disabled = false);
+      }
+    }
+
+    // Validation và submit điểm danh
+    function submitAttendance() {
+      let hasError = false;
+      const rows = document.querySelectorAll('#rosterTbody tr');
+
+      rows.forEach(row => {
+        const select = row.querySelector('.status-select');
+        const note = row.querySelector('.note-input');
+        const error = row.querySelector('.error-msg');
+        const val = select.value;
+
+        if (val === 'nghi_co_phep' || val === 'nghi_khong_phep') {
+          if (!note.value.trim()) {
+            hasError = true;
+            error.classList.remove('hidden');
+            note.classList.add('border-rose-500');
+          } else {
+            error.classList.add('hidden');
+            note.classList.remove('border-rose-500');
+          }
+        } else {
+          error.classList.add('hidden');
+          note.classList.remove('border-rose-500');
+        }
+      });
+
+      if (hasError) {
+        alert('Vui lòng điền rõ lý do ghi chú cho các học sinh được đánh dấu "Nghỉ"!');
+        return;
+      }
+
+      // Mô phỏng hiển thị Toast thành công
+      const toast = document.getElementById('successToast');
+      toast.classList.remove('hidden');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 3500);
+    }
+  </script>
+</body>
+</html>

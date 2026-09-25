@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Danh sách công việc</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                            "surface": "#f9f9ff",
+                            "surface-bright": "#f9f9ff",
+                            "secondary-fixed": "#dee0ff",
+                            "inverse-primary": "#ffb595",
+                            "tertiary-container": "#46a917",
+                            "error-container": "#ffdad6",
+                            "tertiary": "#256d00",
+                            "primary-fixed-dim": "#ffb595",
+                            "on-error": "#ffffff",
+                            "on-secondary": "#ffffff",
+                            "on-surface-variant": "#594137",
+                            "surface-container-high": "#e3e8f9",
+                            "on-primary-fixed": "#360f00",
+                            "inverse-on-surface": "#ecf0ff",
+                            "secondary-fixed-dim": "#bac3ff",
+                            "on-surface": "#161c27",
+                            "surface-container-highest": "#dde2f3",
+                            "tertiary-fixed-dim": "#78de4b",
+                            "error": "#ba1a1a",
+                            "on-secondary-fixed": "#00105b",
+                            "surface-container": "#e8eeff",
+                            "on-tertiary-fixed": "#062100",
+                            "on-primary-fixed-variant": "#7c2e00",
+                            "on-primary-container": "#521c00",
+                            "secondary-container": "#4160ff",
+                            "inverse-surface": "#2a303d",
+                            "primary-container": "#f5691a",
+                            "tertiary-fixed": "#93fb65",
+                            "on-secondary-container": "#faf7ff",
+                            "surface-container-lowest": "#ffffff",
+                            "on-tertiary": "#ffffff",
+                            "surface-tint": "#a23f00",
+                            "on-error-container": "#93000a",
+                            "on-background": "#161c27",
+                            "primary": "#a23f00",
+                            "on-tertiary-container": "#0e3500",
+                            "surface-dim": "#d4daea",
+                            "surface-variant": "#dde2f3",
+                            "outline": "#8d7165",
+                            "outline-variant": "#e1bfb2",
+                            "background": "#f9f9ff",
+                            "on-tertiary-fixed-variant": "#1a5200",
+                            "surface-container-low": "#f1f3ff",
+                            "secondary": "#1e43e7",
+                            "on-primary": "#ffffff",
+                            "primary-fixed": "#ffdbcd",
+                            "on-secondary-fixed-variant": "#002fc9",
+                            "status-new": "#9ca3af",
+                            "status-progress": "#facc15",
+                            "status-pending": "#fb923c",
+                            "status-blocked": "#ea580c",
+                            "status-done": "#22c55e",
+                            "status-overdue": "#ef4444",
+                            "status-canceled": "#6b7280"
+                    },
+                    "borderRadius": {
+                            "DEFAULT": "0.25rem",
+                            "lg": "0.5rem",
+                            "xl": "0.75rem",
+                            "full": "9999px"
+                    },
+                    "spacing": {
+                            "header-height": "64px",
+                            "sm": "8px",
+                            "gutter": "16px",
+                            "base": "8px",
+                            "xs": "4px",
+                            "lg": "24px",
+                            "md": "16px",
+                            "xl": "32px",
+                            "sidebar-width": "260px"
+                    },
+                    "fontFamily": {
+                            "h3": ["Be Vietnam Pro"],
+                            "body-medium": ["Be Vietnam Pro"],
+                            "body-base": ["Be Vietnam Pro"],
+                            "h2": ["Be Vietnam Pro"],
+                            "code": ["JetBrains Mono"],
+                            "label": ["Be Vietnam Pro"],
+                            "body-small": ["Be Vietnam Pro"],
+                            "h1": ["Be Vietnam Pro"],
+                            "caption": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                            "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                            "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                            "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                            "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                            "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                            "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                            "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                            "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                            "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-base min-h-screen">
+<div class="p-lg lg:p-xl mx-auto w-full max-w-7xl">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row md:items-center justify-between mb-lg gap-md">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface">Danh sách công việc</h1>
+</div>
+<div class="flex items-center gap-md">
+<!-- Notifications -->
+<button class="relative p-2 rounded-full hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+<span class="absolute top-1 right-1 bg-error text-on-error font-label text-label flex items-center justify-center w-4 h-4 rounded-full">3</span>
+</button>
+<!-- Primary Action -->
+<button class="bg-primary-container text-on-primary-container hover:bg-surface-tint hover:text-white transition-colors px-4 py-2 rounded-lg font-body-medium flex items-center gap-2 shadow-sm">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">add</span>
+                    Giao việc
+                </button>
+</div>
+</div>
+<!-- Tab Bar -->
+<div class="border-b border-outline-variant mb-lg flex gap-xl overflow-x-auto">
+<button class="pb-3 font-body-medium text-body-medium text-on-surface-variant hover:text-primary transition-colors border-b-2 border-transparent">Của tôi</button>
+<button class="pb-3 font-body-medium text-body-medium text-on-surface-variant hover:text-primary transition-colors border-b-2 border-transparent">Tôi giao</button>
+<button class="pb-3 font-body-medium text-body-medium text-primary border-b-2 border-primary font-bold">Tất cả</button>
+</div>
+<!-- Data Table Container -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low text-on-surface-variant font-label text-label uppercase">
+<tr>
+<th class="p-md font-semibold whitespace-nowrap">Tiêu đề</th>
+<th class="p-md font-semibold whitespace-nowrap">Loại</th>
+<th class="p-md font-semibold whitespace-nowrap">Người nhận</th>
+<th class="p-md font-semibold whitespace-nowrap">Hạn hoàn thành</th>
+<th class="p-md font-semibold whitespace-nowrap">Trạng thái</th>
+<th class="p-md font-semibold text-right whitespace-nowrap">Thao tác</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1: Quá hạn (Stays on top) -->
+<tr class="hover:bg-surface-container-low transition-colors bg-error-container/20">
+<td class="p-md">
+<p class="font-body-medium text-body-medium text-on-surface">Cập nhật báo cáo tài chính Q3</p>
+<p class="font-caption text-caption text-on-surface-variant mt-1">Dự án Alpha</p>
+</td>
+<td class="p-md">
+<span class="inline-flex items-center px-2 py-1 rounded bg-secondary-fixed/50 text-on-secondary-fixed font-caption text-caption border border-secondary-fixed-dim">Phát sinh</span>
+</td>
+<td class="p-md">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed font-label text-[10px]">TA</div>
+<span class="font-body-base text-body-base text-on-surface">Trần Anh</span>
+</div>
+</td>
+<td class="p-md font-code text-code text-error font-medium">10/10/2023</td>
+<td class="p-md">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-status-overdue/10 text-status-overdue font-label text-label font-bold border border-status-overdue/20">Quá hạn</span>
+</td>
+<td class="p-md text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-1 rounded-full hover:bg-surface-variant">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 2: Bị chặn -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="p-md">
+<p class="font-body-medium text-body-medium text-on-surface">Tích hợp API thanh toán</p>
+</td>
+<td class="p-md">
+<span class="inline-flex items-center px-2 py-1 rounded bg-tertiary-fixed/30 text-on-tertiary-fixed-variant font-caption text-caption border border-tertiary-fixed-dim">Phát sinh</span>
+</td>
+<td class="p-md">
+<div class="flex items-center gap-2">
+<img class="w-6 h-6 rounded-full object-cover border border-outline-variant" data-alt="A small circular avatar placeholder image showing a subtle gradient or generic user silhouette on a light background. Soft lighting, minimalist UI design context." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDd1AJ-HRCWD92rkfOSFGeBhbHoJEDGvRjplyFpJVQOBhWOxuoHkAyzWGl1aT3s-rqrBbVx3Pij9K_ZfPK55n_wPOH53bvEh3bQ1uXVTveOXbk8_q0T6YH_JkxDLNutpdVlWd0L7BEodwX5Pbg5mQqjJJV43lI3SzHZfzte5WoBDUm4PYzcldvCszYqLmZJTQcvfFRA4g4NfLJo4k_FiZmLz2c_rek5RNsCrmJJ2TmNVbNeYL4h0K0c"/>
+<span class="font-body-base text-body-base text-on-surface">Lê Bình</span>
+</div>
+</td>
+<td class="p-md font-code text-code text-on-surface-variant">25/10/2023</td>
+<td class="p-md">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-status-blocked/10 text-status-blocked font-label text-label font-bold border border-status-blocked/20">Bị chặn</span>
+</td>
+<td class="p-md text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-1 rounded-full hover:bg-surface-variant">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 3: Đang thực hiện -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="p-md">
+<p class="font-body-medium text-body-medium text-on-surface">Thiết kế landing page chiến dịch Thu</p>
+</td>
+<td class="p-md">
+<span class="inline-flex items-center px-2 py-1 rounded bg-secondary-fixed/50 text-on-secondary-fixed font-caption text-caption border border-secondary-fixed-dim">Phát sinh</span>
+</td>
+<td class="p-md">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-tertiary-container flex items-center justify-center text-on-tertiary-container font-label text-[10px]">MD</div>
+<span class="font-body-base text-body-base text-on-surface">Mai Dung</span>
+</div>
+</td>
+<td class="p-md font-code text-code text-on-surface-variant">28/10/2023</td>
+<td class="p-md">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-status-progress/20 text-yellow-700 dark:text-yellow-400 font-label text-label font-bold border border-status-progress/30">Đang thực hiện</span>
+</td>
+<td class="p-md text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-1 rounded-full hover:bg-surface-variant">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 4: Mới -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="p-md">
+<p class="font-body-medium text-body-medium text-on-surface font-bold">Kiểm kê kho bãi tháng 10</p>
+</td>
+<td class="p-md">
+<span class="inline-flex items-center px-2 py-1 rounded bg-surface-variant text-on-surface-variant font-caption text-caption border border-outline-variant">Lặp đi lặp lại</span>
+</td>
+<td class="p-md">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center text-on-surface-variant font-label text-[10px]">HT</div>
+<span class="font-body-base text-body-base text-on-surface">Hoàng Tuấn</span>
+</div>
+</td>
+<td class="p-md font-code text-code text-on-surface-variant">31/10/2023</td>
+<td class="p-md">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-status-new/10 text-status-new font-label text-label font-bold border border-status-new/20">Mới</span>
+</td>
+<td class="p-md text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-1 rounded-full hover:bg-surface-variant">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 5: Hoàn thành -->
+<tr class="hover:bg-surface-container-low transition-colors bg-surface/50 opacity-70">
+<td class="p-md">
+<p class="font-body-medium text-body-medium text-on-surface">Gửi email thông báo nội bộ</p>
+</td>
+<td class="p-md">
+<span class="inline-flex items-center px-2 py-1 rounded bg-surface-variant text-on-surface-variant font-caption text-caption border border-outline-variant">Lặp đi lặp lại</span>
+</td>
+<td class="p-md">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed font-label text-[10px]">TA</div>
+<span class="font-body-base text-body-base text-on-surface">Trần Anh</span>
+</div>
+</td>
+<td class="p-md font-code text-code text-on-surface-variant">15/10/2023</td>
+<td class="p-md">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-status-done/10 text-status-done font-label text-label font-bold border border-status-done/20">Hoàn thành</span>
+</td>
+<td class="p-md text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-1 rounded-full hover:bg-surface-variant">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 6: Đã hủy -->
+<tr class="hover:bg-surface-container-low transition-colors bg-surface-container-lowest/50 opacity-50">
+<td class="p-md">
+<p class="font-body-medium text-body-medium text-on-surface-variant line-through">Lên lịch họp hội đồng quản trị</p>
+</td>
+<td class="p-md">
+<span class="inline-flex items-center px-2 py-1 rounded bg-secondary-fixed/50 text-on-secondary-fixed font-caption text-caption border border-secondary-fixed-dim line-through">Phát sinh</span>
+</td>
+<td class="p-md">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-error-container flex items-center justify-center text-on-error-container font-label text-[10px]">NV</div>
+<span class="font-body-base text-body-base text-on-surface-variant">Nguyễn Vũ</span>
+</div>
+</td>
+<td class="p-md font-code text-code text-on-surface-variant line-through">20/10/2023</td>
+<td class="p-md">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-status-canceled/10 text-status-canceled font-label text-label font-bold border border-status-canceled/20">Đã hủy</span>
+</td>
+<td class="p-md text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-1 rounded-full hover:bg-surface-variant" disabled="">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination / Footer -->
+<div class="p-md border-t border-outline-variant flex items-center justify-between bg-surface-container-low">
+<span class="font-body-small text-body-small text-on-surface-variant">Hiển thị 1 - 6 của 24 công việc</span>
+<div class="flex items-center gap-2">
+<button class="p-1 rounded hover:bg-surface-variant text-on-surface-variant transition-colors disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">chevron_left</span>
+</button>
+<button class="p-1 rounded hover:bg-surface-variant text-on-surface-variant transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Modal Backdrop & Modal (Minh họa) -->
+<div class="fixed inset-0 bg-on-surface/50 z-50 flex items-center justify-center p-md" style="backdrop-filter: blur(2px);">
+<div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-md border border-outline-variant overflow-hidden flex flex-col">
+<div class="p-lg border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+<h2 class="font-h3 text-h3 text-on-surface">Thay đổi trạng thái</h2>
+<button class="text-on-surface-variant hover:text-error transition-colors p-1 rounded-full hover:bg-surface-variant">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">close</span>
+</button>
+</div>
+<div class="p-lg flex flex-col gap-md">
+<div>
+<label class="block font-label text-label text-on-surface-variant mb-2 uppercase">Trạng thái mới</label>
+<div class="px-3 py-2 bg-status-blocked/10 text-status-blocked rounded border border-status-blocked/20 font-body-medium inline-block w-full">
+<span class="material-symbols-outlined align-middle mr-2 text-[18px]">block</span>
+                        Bị chặn
+                    </div>
+</div>
+<div>
+<label class="block font-label text-label text-on-surface-variant mb-2 uppercase" for="reason">Ghi chú lý do <span class="text-error">*</span></label>
+<textarea class="w-full bg-surface border border-outline-variant rounded-lg p-3 font-body-base text-body-base text-on-surface focus:border-secondary focus:ring-1 focus:ring-secondary focus:outline-none transition-shadow resize-none" id="reason" placeholder="Nhập lý do chi tiết khiến công việc bị chặn..." rows="4"></textarea>
+</div>
+</div>
+<div class="p-lg border-t border-outline-variant flex justify-end gap-md bg-surface-container-low">
+<button class="px-4 py-2 bg-surface-container-lowest text-on-surface border border-outline-variant rounded-lg font-body-medium hover:bg-surface-container-high transition-colors">Hủy</button>
+<button class="px-4 py-2 bg-primary-container text-on-primary-container hover:bg-surface-tint hover:text-white transition-colors rounded-lg font-body-medium shadow-sm">Xác nhận</button>
+</div>
+</div>
+</div>
+</body></html>

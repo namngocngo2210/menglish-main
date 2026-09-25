@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERP — Sơ đồ Database MEnglish Admin</title>
+<style>
+:root{--primary:#1e3a5f;--accent:#2563eb;--success:#16a34a;--purple:#7c3aed;--bg:#f1f5f9;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text)}
+.hero{background:linear-gradient(135deg,#1e3a5f,#2563eb,#0ea5e9);color:#fff;padding:48px 40px 36px}
+.hero h1{font-size:2rem;font-weight:800}
+.hero p{opacity:.85;margin-top:8px}
+.hero-stats{display:flex;gap:32px;margin-top:24px;flex-wrap:wrap}
+.hero-stat .num{font-size:2rem;font-weight:800}
+.hero-stat .lbl{font-size:.75rem;opacity:.8;text-transform:uppercase;letter-spacing:1px}
+.toc{background:var(--primary);padding:16px 40px;display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:100}
+.toc a{color:rgba(255,255,255,.8);text-decoration:none;font-size:.78rem;padding:5px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.2);transition:all .2s;white-space:nowrap}
+.toc a:hover{background:rgba(255,255,255,.15);color:#fff}
+main{max-width:1400px;margin:0 auto;padding:40px}
+.module{margin-bottom:56px}
+.module-header{display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid var(--border)}
+.module-badge{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0}
+.module-title h2{font-size:1.35rem;font-weight:700;color:var(--primary)}
+.module-title p{color:var(--muted);font-size:.875rem;margin-top:2px}
+.tables-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(600px,1fr));gap:20px}
+.table-card{background:var(--card);border-radius:12px;border:1px solid var(--border);overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.table-card-header{padding:14px 20px;display:flex;align-items:flex-start;justify-content:space-between}
+.table-name{font-weight:700;font-size:1rem;font-family:'Courier New',monospace;color:#fff}
+.table-desc{font-size:.78rem;color:rgba(255,255,255,.85);margin-top:2px}
+.table-badge{background:rgba(255,255,255,.2);color:#fff;font-size:.7rem;padding:2px 8px;border-radius:10px;white-space:nowrap;flex-shrink:0;margin-left:8px}
+.col-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.col-table thead th{background:#f8fafc;padding:8px 14px;text-align:left;font-weight:600;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+.col-table tbody td{padding:7px 14px;border-bottom:1px solid #f1f5f9;vertical-align:top}
+.col-table tbody tr:last-child td{border-bottom:none}
+.col-table tbody tr:hover{background:#f8fafc}
+.col-name{font-family:'Courier New',monospace;font-weight:600;color:var(--accent)}
+.col-type{color:var(--purple);font-size:.75rem;white-space:nowrap}
+.col-note{color:var(--muted);font-size:.78rem}
+.badge-pk{background:#fef3c7;color:#92400e;font-size:.65rem;padding:1px 6px;border-radius:4px;font-weight:700}
+.badge-fk{background:#dbeafe;color:#1e40af;font-size:.65rem;padding:1px 6px;border-radius:4px;font-weight:700}
+.badge-uk{background:#f0fdf4;color:#166534;font-size:.65rem;padding:1px 6px;border-radius:4px;font-weight:700}
+.badge-null{background:#fff7ed;color:#c2410c;font-size:.65rem;padding:1px 5px;border-radius:4px}
+.relations-box{margin:0 20px 16px;padding:10px 14px;background:#f8fafc;border-radius:8px;border:1px solid var(--border);font-size:.78rem;color:var(--muted)}
+.relations-box strong{color:var(--primary);display:block;margin-bottom:4px}
+.m1 .table-card-header{background:linear-gradient(135deg,#1e3a5f,#2563eb)}
+.m1 .module-badge{background:#dbeafe}
+.m2 .table-card-header{background:linear-gradient(135deg,#064e3b,#059669)}
+.m2 .module-badge{background:#d1fae5}
+.m3 .table-card-header{background:linear-gradient(135deg,#7c2d12,#ea580c)}
+.m3 .module-badge{background:#ffedd5}
+.m4 .table-card-header{background:linear-gradient(135deg,#4c1d95,#7c3aed)}
+.m4 .module-badge{background:#ede9fe}
+.m5 .table-card-header{background:linear-gradient(135deg,#831843,#db2777)}
+.m5 .module-badge{background:#fce7f3}
+.m6 .table-card-header{background:linear-gradient(135deg,#134e4a,#0d9488)}
+.m6 .module-badge{background:#ccfbf1}
+.m7 .table-card-header{background:linear-gradient(135deg,#78350f,#d97706)}
+.m7 .module-badge{background:#fef3c7}
+.m8 .table-card-header{background:linear-gradient(135deg,#1e3a5f,#0ea5e9)}
+.m8 .module-badge{background:#e0f2fe}
+.m9 .table-card-header{background:linear-gradient(135deg,#4a044e,#a21caf)}
+.m9 .module-badge{background:#fae8ff}
+.legend{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:20px 24px;margin-bottom:32px;display:flex;gap:24px;flex-wrap:wrap;align-items:center}
+footer{text-align:center;padding:32px;color:var(--muted);font-size:.8rem;border-top:1px solid var(--border);margin-top:40px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>🗄️ ERP — Sơ đồ Database MEnglish Admin</h1>
+  <p>Toàn bộ cấu trúc bảng dữ liệu, quan hệ và chức năng nghiệp vụ — Hệ thống quản lý trung tâm Anh ngữ MEnglish</p>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="num">47+</div><div class="lbl">Tables</div></div>
+    <div class="hero-stat"><div class="num">9</div><div class="lbl">Modules</div></div>
+    <div class="hero-stat"><div class="num">42</div><div class="lbl">Models</div></div>
+    <div class="hero-stat"><div class="num">31</div><div class="lbl">Migrations</div></div>
+    <div class="hero-stat"><div class="num">12</div><div class="lbl">Seeders</div></div>
+  </div>
+</div>
+<nav class="toc">
+  <a href="#m1">🔐 Hệ thống &amp; Phân quyền</a>
+  <a href="#m2">📋 CRM &amp; Tuyển sinh</a>
+  <a href="#m3">🎓 Học vụ &amp; Học viên</a>
+  <a href="#m4">💰 Học phí &amp; Hóa đơn</a>
+  <a href="#m5">💼 Lương &amp; Chấm công</a>
+  <a href="#m6">📝 Test đầu vào</a>
+  <a href="#m7">📚 Giáo trình &amp; Big Test</a>
+  <a href="#m8">📌 Công việc &amp; Trợ giảng</a>
+  <a href="#m9">🎫 Hỗ trợ &amp; Thông báo</a>
+</nav>
+<main>
+<div class="legend">
+  <strong>Chú thích:</strong>
+  <span><span class="badge-pk">PK</span> Primary Key</span>
+  <span><span class="badge-fk">FK</span> Foreign Key</span>
+  <span><span class="badge-uk">UK</span> Unique</span>
+  <span><span class="badge-null">N</span> Nullable</span>
+</div>
+
+<!-- MODULE 1 -->
+<section class="module m1" id="m1">
+  <div class="module-header">
+    <div class="module-badge">🔐</div>
+    <div class="module-title">
+      <h2>Module 1 — Hệ thống &amp; Phân quyền</h2>
+      <p>Tài khoản nhân viên, chi nhánh, phân quyền RBAC (Spatie) + override cá nhân, danh mục hệ thống, ngày nghỉ lễ, audit log</p>
+    </div>
+  </div>
+  <div class="tables-grid">
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">users</div><div class="table-desc">Tài khoản nhân sự — admin, GV, học vụ, kế toán, tư vấn, học viên</div></div><span class="table-badge">SoftDeletes</span></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Ràng buộc</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">id</td><td class="col-type">bigint</td><td><span class="badge-pk">PK</span></td><td class="col-note">Auto increment</td></tr>
+        <tr><td class="col-name">employee_code</td><td class="col-type">string(50)</td><td><span class="badge-uk">UK</span> <span class="badge-null">N</span></td><td class="col-note">Mã nhân viên ME-0001</td></tr>
+        <tr><td class="col-name">branch_id</td><td class="col-type">bigint</td><td><span class="badge-fk">FK</span> <span class="badge-null">N</span></td><td class="col-note">→ branches (chi nhánh chính)</td></tr>
+        <tr><td class="col-name">base_salary</td><td class="col-type">decimal(15,2)</td><td></td><td class="col-note">Lương cứng định mức</td></tr>
+        <tr><td class="col-name">hourly_rate</td><td class="col-type">decimal(15,2)</td><td></td><td class="col-note">Đơn giá giờ dạy mặc định</td></tr>
+        <tr><td class="col-name">department</td><td class="col-type">string(50)</td><td></td><td class="col-note">fulltime / academic / parttime / operations</td></tr>
+        <tr><td class="col-name">teacher_rate_id</td><td class="col-type">bigint</td><td><span class="badge-null">N</span></td><td class="col-note">→ teacher_rates (rank đơn giá)</td></tr>
+        <tr><td class="col-name">name</td><td class="col-type">string(255)</td><td>required</td><td class="col-note">Họ tên đầy đủ</td></tr>
+        <tr><td class="col-name">email</td><td class="col-type">string(255)</td><td><span class="badge-uk">UK</span></td><td class="col-note">Email đăng nhập</td></tr>
+        <tr><td class="col-name">phone</td><td class="col-type">string(20)</td><td><span class="badge-null">N</span></td><td class="col-note">Số điện thoại</td></tr>
+        <tr><td class="col-name">password</td><td class="col-type">string</td><td></td><td class="col-note">Bcrypt hash (cast: hashed)</td></tr>
+        <tr><td class="col-name">is_active</td><td class="col-type">boolean</td><td>default true</td><td class="col-note">Trạng thái kích hoạt</td></tr>
+        <tr><td class="col-name">locked_at</td><td class="col-type">timestamp</td><td><span class="badge-null">N</span></td><td class="col-note">Thời điểm bị khóa tài khoản</td></tr>
+        <tr><td class="col-name">last_login_at</td><td class="col-type">timestamp</td><td><span class="badge-null">N</span></td><td class="col-note">Lần đăng nhập gần nhất</td></tr>
+        <tr><td class="col-name">deleted_at</td><td class="col-type">timestamp</td><td><span class="badge-null">N</span></td><td class="col-note">SoftDeletes</td></tr>
+      </tbody></table>
+      <div class="relations-box"><strong>Roles (8):</strong> admin · manager · accountant · academic_staff · sales_consultant · teacher · assistant · student<br><strong>Logic isLocked():</strong> !is_active OR locked_at !== null → EnsureAccountIsActive middleware logout ngay</div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">branches</div><div class="table-desc">Chi nhánh trung tâm — seed mẫu: CG, BD, DD</div></div><span class="table-badge">SoftDeletes</span></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Ràng buộc</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">id</td><td class="col-type">bigint</td><td><span class="badge-pk">PK</span></td><td></td></tr>
+        <tr><td class="col-name">code</td><td class="col-type">string</td><td><span class="badge-uk">UK</span></td><td class="col-note">CG, BD, DD</td></tr>
+        <tr><td class="col-name">name</td><td class="col-type">string(255)</td><td></td><td class="col-note">Cầu Giấy, Ba Đình, Đống Đa</td></tr>
+        <tr><td class="col-name">address / phone</td><td class="col-type">string</td><td><span class="badge-null">N</span></td><td></td></tr>
+        <tr><td class="col-name">is_active</td><td class="col-type">boolean</td><td>default true</td><td></td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">user_permission_overrides</div><div class="table-desc">Override phân quyền chi tiết cá nhân — mở rộng / thu hẹp quyền vượt role</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Ràng buộc</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">user_id</td><td class="col-type">bigint</td><td><span class="badge-fk">FK</span></td><td class="col-note">→ users (cascade)</td></tr>
+        <tr><td class="col-name">module</td><td class="col-type">string(100)</td><td></td><td class="col-note">crm, tuition, payroll...</td></tr>
+        <tr><td class="col-name">action</td><td class="col-type">string(100)</td><td></td><td class="col-note">view, create, update, delete...</td></tr>
+        <tr><td class="col-name">allow</td><td class="col-type">boolean</td><td>default true</td><td class="col-note">true=cấp quyền / false=thu hồi</td></tr>
+        <tr><td class="col-name">scope_type</td><td class="col-type">enum</td><td></td><td class="col-note">all / branch / class</td></tr>
+        <tr><td class="col-name">scope_id</td><td class="col-type">bigint</td><td><span class="badge-null">N</span></td><td class="col-note">ID chi nhánh hoặc lớp</td></tr>
+        <tr><td class="col-name">created_by</td><td class="col-type">bigint</td><td><span class="badge-fk">FK</span> <span class="badge-null">N</span></td><td class="col-note">→ users (admin tạo override)</td></tr>
+      </tbody></table>
+      <div class="relations-box"><strong>Ưu tiên:</strong> Override scoped cụ thể &gt; Override all &gt; Role permission<br>UI 3 giá trị: allow | deny | inherit (inherit = xóa override, fallback về role)</div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">Spatie Tables (SYSTEM)</div><div class="table-desc">permissions · roles · model_has_permissions · model_has_roles · role_has_permissions</div></div></div>
+      <table class="col-table"><thead><tr><th>Bảng</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">permissions</td><td class="col-note">Format module.action (regex: /^[a-z_]+\.[a-z_]+$/). ~100+ permissions, 28 modules</td></tr>
+        <tr><td class="col-name">roles</td><td class="col-note">8 roles: admin, manager, accountant, academic_staff, sales_consultant, teacher, assistant, student</td></tr>
+        <tr><td class="col-name">model_has_roles</td><td class="col-note">Gán role cho user (polymorphic)</td></tr>
+        <tr><td class="col-name">role_has_permissions</td><td class="col-note">Role ↔ Permission N:N</td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">system_categories</div><div class="table-desc">Danh mục dùng chung — nguồn lead, lý do lost, chức vụ, mức phạt</div></div><span class="table-badge">SoftDeletes</span></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">type</td><td class="col-type">string(50)</td><td class="col-note">lead_source / lost_reason / position / fine_level</td></tr>
+        <tr><td class="col-name">code</td><td class="col-type">string(50)</td><td class="col-note">SRC_01, LOST_02...</td></tr>
+        <tr><td class="col-name">name</td><td class="col-type">string(255)</td><td class="col-note">Facebook Ads, Không có nhu cầu...</td></tr>
+        <tr><td class="col-name">sort_order</td><td class="col-type">int</td><td class="col-note">default 0</td></tr>
+        <tr><td class="col-name">is_active</td><td class="col-type">boolean</td><td></td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">holidays + holiday_branches</div><div class="table-desc">Ngày nghỉ lễ — toàn hệ thống hoặc theo chi nhánh</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">code</td><td class="col-type">string</td><td class="col-note"><span class="badge-uk">UK</span></td></tr>
+        <tr><td class="col-name">name</td><td class="col-type">string</td><td class="col-note">Tết Nguyên Đán 2026</td></tr>
+        <tr><td class="col-name">start_date / end_date</td><td class="col-type">date</td><td class="col-note">end_date >= start_date (validation)</td></tr>
+        <tr><td class="col-name">is_system_wide</td><td class="col-type">boolean</td><td class="col-note">Nếu false → liên kết qua holiday_branches</td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">activity_log (SYSTEM)</div><div class="table-desc">Audit log toàn hệ thống — Spatie Activitylog · AuditOperationMiddleware ghi mọi POST/PUT/DELETE</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">log_name</td><td class="col-note">Module (user, crm, tuition...)</td></tr>
+        <tr><td class="col-name">description</td><td class="col-note">Mô tả hành động (Tạo tài khoản nhân viên mới)</td></tr>
+        <tr><td class="col-name">subject_type/id</td><td class="col-note">Đối tượng bị tác động (polymorphic)</td></tr>
+        <tr><td class="col-name">causer_type/id</td><td class="col-note">Người thực hiện</td></tr>
+        <tr><td class="col-name">properties</td><td class="col-note">JSON before/after changes</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</section>
+
+<!-- MODULE 2: CRM -->
+<section class="module m2" id="m2">
+  <div class="module-header">
+    <div class="module-badge">📋</div>
+    <div class="module-title">
+      <h2>Module 2 — CRM &amp; Tuyển sinh</h2>
+      <p>Phễu CRM 6 stage: new → consulting → test_scheduled → tested → closing → won/lost. Kanban drag-drop, lịch sử tương tác, Closing Wizard tự động tạo học viên.</p>
+    </div>
+  </div>
+  <div class="tables-grid">
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">crm_customers</div><div class="table-desc">Khách hàng tiềm năng / Lead — pipeline từ new đến won/lost</div></div><span class="table-badge">SoftDeletes</span></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Ràng buộc</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">code</td><td class="col-type">string</td><td><span class="badge-uk">UK</span></td><td class="col-note">KH-00281 (auto-generate)</td></tr>
+        <tr><td class="col-name">name</td><td class="col-type">string</td><td>required</td><td class="col-note">Tên học viên / phụ huynh</td></tr>
+        <tr><td class="col-name">parent_name</td><td class="col-type">string</td><td><span class="badge-null">N</span></td><td class="col-note">Tên phụ huynh nếu HS nhỏ</td></tr>
+        <tr><td class="col-name">phone</td><td class="col-type">string</td><td>required</td><td class="col-note">Số điện thoại chính</td></tr>
+        <tr><td class="col-name">email</td><td class="col-type">string</td><td><span class="badge-null">N</span></td><td></td></tr>
+        <tr><td class="col-name">branch_id</td><td class="col-type">bigint</td><td><span class="badge-fk">FK</span> <span class="badge-null">N</span></td><td class="col-note">→ branches</td></tr>
+        <tr><td class="col-name">source</td><td class="col-type">string</td><td><span class="badge-null">N</span></td><td class="col-note">Facebook Ads, TikTok, Giới thiệu...</td></tr>
+        <tr><td class="col-name">course_interest</td><td class="col-type">string</td><td><span class="badge-null">N</span></td><td class="col-note">Khóa học quan tâm</td></tr>
+        <tr><td class="col-name">assigned_user_id</td><td class="col-type">bigint</td><td><span class="badge-fk">FK</span> <span class="badge-null">N</span></td><td class="col-note">→ users (tư vấn viên phụ trách)</td></tr>
+        <tr><td class="col-name">stage</td><td class="col-type">string(50)</td><td>default 'new'</td><td class="col-note">new(0)→consulting(1)→test_scheduled(2)→tested(3)→closing(4)→won(5)/lost</td></tr>
+        <tr><td class="col-name">deal_value</td><td class="col-type">decimal(15,2)</td><td>≥0</td><td class="col-note">Giá trị hợp đồng dự kiến</td></tr>
+        <tr><td class="col-name">appointment_at</td><td class="col-type">datetime</td><td><span class="badge-null">N</span></td><td class="col-note">Lịch hẹn test</td></tr>
+        <tr><td class="col-name">appointment_type</td><td class="col-type">string</td><td><span class="badge-null">N</span></td><td class="col-note">online / offline</td></tr>
+        <tr><td class="col-name">assigned_test_id</td><td class="col-type">bigint</td><td><span class="badge-null">N</span></td><td class="col-note">→ placement_tests</td></tr>
+        <tr><td class="col-name">examiner_id</td><td class="col-type">bigint</td><td><span class="badge-null">N</span></td><td class="col-note">→ users (người chấm test)</td></tr>
+        <tr><td class="col-name">test_score</td><td class="col-type">string</td><td><span class="badge-null">N</span></td><td class="col-note">Điểm tổng hợp sau test</td></tr>
+        <tr><td class="col-name">lost_reason</td><td class="col-type">string</td><td><span class="badge-null">N</span></td><td class="col-note">Lý do thất bại</td></tr>
+      </tbody></table>
+      <div class="relations-box">
+        <strong>Stage Machine — CHỈ tiến tới, KHÔNG kéo lùi</strong>
+        <strong>Closing Wizard (won):</strong> Auto tạo Student (HV-) + User (student role) + ClassEnrollment + StudentTuition + TuitionReceipt (C26MEN- HĐGT)
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">crm_customer_histories</div><div class="table-desc">Lịch sử tương tác CRM — gọi điện, nhắn tin, gặp mặt, chuyển stage</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">customer_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span> → crm_customers (cascade)</td></tr>
+        <tr><td class="col-name">user_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span> <span class="badge-null">N</span> → users</td></tr>
+        <tr><td class="col-name">type</td><td class="col-type">string(50)</td><td class="col-note">call / message / meet / test / system / stage_change</td></tr>
+        <tr><td class="col-name">content</td><td class="col-type">text</td><td class="col-note">Nội dung tương tác</td></tr>
+      </tbody></table>
+      <div class="relations-box"><strong>Auto-log:</strong> Tạo lead → type=system · Chuyển stage → type=stage_change · Nhân viên ghi chú → type=call/meet/...</div>
+    </div>
+  </div>
+</section>
+
+<!-- MODULE 3: HỌC VỤ -->
+<section class="module m3" id="m3">
+  <div class="module-header">
+    <div class="module-badge">🎓</div>
+    <div class="module-title">
+      <h2>Module 3 — Học vụ &amp; Học viên</h2>
+      <p>Khung chương trình (course_levels → courses → classes), hồ sơ học viên (students), xếp lớp (class_enrollments). Cầu nối CRM → Học vụ.</p>
+    </div>
+  </div>
+  <div class="tables-grid">
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">course_levels</div><div class="table-desc">Khung trình độ CEFR/IELTS (A1, A2, B1, B2, C1, C2)</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">code</td><td class="col-type">string</td><td class="col-note"><span class="badge-uk">UK</span> A1, A2, B1, B2, C1</td></tr>
+        <tr><td class="col-name">name</td><td class="col-type">string</td><td class="col-note">Beginner, Elementary...</td></tr>
+        <tr><td class="col-name">target</td><td class="col-type">string</td><td class="col-note">CEFR A1 / IELTS 3.0→4.5</td></tr>
+        <tr><td class="col-name">lessons_count</td><td class="col-type">int</td><td class="col-note">default 24</td></tr>
+        <tr><td class="col-name">is_active</td><td class="col-type">boolean</td><td></td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">courses</div><div class="table-desc">Danh mục khóa học — IELTS 6.5/7.0, Giao tiếp B1/B2, Mất gốc Starter</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">code</td><td class="col-type">string</td><td class="col-note"><span class="badge-uk">UK</span> IE-65, IE-70, GT-B1...</td></tr>
+        <tr><td class="col-name">name</td><td class="col-type">string</td><td></td></tr>
+        <tr><td class="col-name">course_level_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span> → course_levels</td></tr>
+        <tr><td class="col-name">tuition_fee</td><td class="col-type">decimal(15,2)</td><td class="col-note">6.9tr–16.5tr</td></tr>
+        <tr><td class="col-name">total_lessons</td><td class="col-type">int</td><td class="col-note">default 24</td></tr>
+        <tr><td class="col-name">is_active</td><td class="col-type">boolean</td><td></td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">classes</div><div class="table-desc">Lớp học — mã lớp, GV, lịch học, sĩ số, trạng thái</div></div><span class="table-badge">SoftDeletes</span></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">code</td><td class="col-type">string</td><td class="col-note"><span class="badge-uk">UK</span> IE-2408</td></tr>
+        <tr><td class="col-name">course_id / branch_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span></td></tr>
+        <tr><td class="col-name">teacher_id / assistant_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span> → users</td></tr>
+        <tr><td class="col-name">schedule_text</td><td class="col-type">string</td><td class="col-note"><span class="badge-null">N</span> "Tối T2-4-6 (19:30-21:30)"</td></tr>
+        <tr><td class="col-name">start_date / end_date</td><td class="col-type">date</td><td class="col-note"><span class="badge-null">N</span></td></tr>
+        <tr><td class="col-name">max_capacity</td><td class="col-type">int</td><td class="col-note">default 15</td></tr>
+        <tr><td class="col-name">status</td><td class="col-type">string(50)</td><td class="col-note">active / upcoming / completed / cancelled</td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">students</div><div class="table-desc">Hồ sơ học viên — mã HV, điểm số, trạng thái học tập</div></div><span class="table-badge">SoftDeletes</span></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">code</td><td class="col-type">string</td><td class="col-note"><span class="badge-uk">UK</span> HV-00109 (auto)</td></tr>
+        <tr><td class="col-name">name / phone / email</td><td class="col-type">string</td><td></td></tr>
+        <tr><td class="col-name">branch_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span> → branches</td></tr>
+        <tr><td class="col-name">current_class_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span> <span class="badge-null">N</span> → classes</td></tr>
+        <tr><td class="col-name">entrance / midterm / final_score</td><td class="col-type">string</td><td class="col-note"><span class="badge-null">N</span> Điểm đầu vào/giữa/cuối kỳ</td></tr>
+        <tr><td class="col-name">attended_lessons / total_lessons</td><td class="col-type">int</td><td class="col-note">Tỷ lệ chuyên cần</td></tr>
+        <tr><td class="col-name">homework_rate</td><td class="col-type">decimal(5,2)</td><td class="col-note">default 95.0%</td></tr>
+        <tr><td class="col-name">status</td><td class="col-type">string(50)</td><td class="col-note">studying / graduated / deferred / dropped</td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">class_enrollments</div><div class="table-desc">Xác nhận nhập học — cầu nối CRM lead → Học vụ học viên</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">student_id / class_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span> (cascade)</td></tr>
+        <tr><td class="col-name">customer_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span> <span class="badge-null">N</span> → crm_customers (lead gốc)</td></tr>
+        <tr><td class="col-name">enrolled_at</td><td class="col-type">date</td><td class="col-note"><span class="badge-null">N</span></td></tr>
+        <tr><td class="col-name">curriculum_delivered</td><td class="col-type">boolean</td><td class="col-note">Đã giao giáo trình</td></tr>
+        <tr><td class="col-name">zalo_group_added</td><td class="col-type">boolean</td><td class="col-note">Đã thêm Zalo nhóm lớp</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</section>
+
+<!-- MODULE 4: HỌC PHÍ -->
+<section class="module m4" id="m4">
+  <div class="module-header">
+    <div class="module-badge">💰</div>
+    <div class="module-title">
+      <h2>Module 4 — Học phí &amp; Hóa đơn điện tử</h2>
+      <p>Sổ cái học phí (student_tuitions), phiếu thu PT-, HĐGT VNPT C26MEN-, hủy hóa đơn, hoàn tiền/gia hạn/chuyển nhượng học phí.</p>
+    </div>
+  </div>
+  <div class="tables-grid">
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">student_tuitions</div><div class="table-desc">Sổ cái học phí — tự động tính công nợ sau mỗi phiếu thu được duyệt</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">student_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span> → students (cascade)</td></tr>
+        <tr><td class="col-name">class_id / branch_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span> <span class="badge-null">N</span></td></tr>
+        <tr><td class="col-name">total_amount / discount_amount / final_amount</td><td class="col-type">decimal(15,2)</td><td class="col-note">final = total - discount</td></tr>
+        <tr><td class="col-name">paid_amount</td><td class="col-type">decimal(15,2)</td><td class="col-note">SUM(approved receipts) — pending không tính</td></tr>
+        <tr><td class="col-name">debt_amount</td><td class="col-type">decimal(15,2)</td><td class="col-note">MAX(0, final - paid)</td></tr>
+        <tr><td class="col-name">due_date</td><td class="col-type">date</td><td class="col-note"><span class="badge-null">N</span> Hạn nộp</td></tr>
+        <tr><td class="col-name">status</td><td class="col-type">string(50)</td><td class="col-note">paid / partial / unpaid / overdue</td></tr>
+      </tbody></table>
+      <div class="relations-box"><strong>recalculateDebt():</strong> debt=0→paid · paid&gt;0 &amp; debt&gt;0→partial · paid=0 &amp; due&lt;now→overdue · else→unpaid</div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">tuition_receipts</div><div class="table-desc">Phiếu thu PT- — phải approved mới cập nhật công nợ</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">receipt_number</td><td class="col-type">string</td><td class="col-note"><span class="badge-uk">UK</span> PT-2026-0889 (auto)</td></tr>
+        <tr><td class="col-name">invoice_number</td><td class="col-type">string</td><td class="col-note"><span class="badge-null">N</span> HD-2026-0042 (HĐGT VNPT)</td></tr>
+        <tr><td class="col-name">student_tuition_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span></td></tr>
+        <tr><td class="col-name">amount</td><td class="col-type">decimal(15,2)</td><td class="col-note">≥ 1,000đ (validation)</td></tr>
+        <tr><td class="col-name">payment_method</td><td class="col-type">string(50)</td><td class="col-note">transfer / cash / pos</td></tr>
+        <tr><td class="col-name">transaction_code</td><td class="col-type">string</td><td class="col-note"><span class="badge-null">N</span> Mã GD ngân hàng</td></tr>
+        <tr><td class="col-name">creator_id / approver_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span> → users</td></tr>
+        <tr><td class="col-name">status</td><td class="col-type">string(50)</td><td class="col-note">pending / approved / rejected</td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">tuition_refund_requests</div><div class="table-desc">Hoàn phí / Gia hạn bảo lưu / Chuyển nhượng học phí</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">student_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span> → students</td></tr>
+        <tr><td class="col-name">type</td><td class="col-type">string(50)</td><td class="col-note">refund / extension / transfer</td></tr>
+        <tr><td class="col-name">total_paid / attended_lessons</td><td class="col-type">decimal/int</td><td></td></tr>
+        <tr><td class="col-name">admin_fee / refund_amount</td><td class="col-type">decimal(15,2)</td><td></td></tr>
+        <tr><td class="col-name">target_student_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span> <span class="badge-null">N</span> → students (đích transfer)</td></tr>
+        <tr><td class="col-name">status</td><td class="col-type">string(50)</td><td class="col-note">pending / approved / rejected</td></tr>
+      </tbody></table>
+      <div class="relations-box"><strong>Approve:</strong> refund→receipt âm · transfer→receipt âm nguồn + dương đích · extension→ghi nhận</div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">invoice_cancellations + invoice_configurations</div><div class="table-desc">Hủy hóa đơn điện tử + Cấu hình dải số HĐGT VNPT</div></div></div>
+      <table class="col-table"><thead><tr><th>Bảng / Cột</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">invoice_cancellations.status</td><td class="col-note">pending / approved / rejected — cần kế toán duyệt</td></tr>
+        <tr><td class="col-name">invoice_configurations.series_code</td><td class="col-note">C26MEN — ký hiệu HĐGT VNPT</td></tr>
+        <tr><td class="col-name">invoice_configurations.current_number</td><td class="col-note">Tăng tự động mỗi lần phát hành HĐGT (consumeNextInvoiceNumber)</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</section>
+
+<!-- MODULE 5: LƯƠNG -->
+<section class="module m5" id="m5">
+  <div class="module-header">
+    <div class="module-badge">💼</div>
+    <div class="module-title">
+      <h2>Module 5 — Lương, Chấm công &amp; KPI</h2>
+      <p>Bảng lương tháng PR- (auto-calculate), chấm công ca dạy, đồng bộ FaceID, biên bản kỷ luật BB-, cấu hình đơn giá dạy &amp; hoa hồng tuyển sinh.</p>
+    </div>
+  </div>
+  <div class="tables-grid">
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">payroll_periods</div><div class="table-desc">Kỳ tính lương tháng — calculatePayrollForPeriod() tự động tính cho toàn bộ nhân sự</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">code</td><td class="col-type">string</td><td class="col-note"><span class="badge-uk">UK</span> PR-2026-08</td></tr>
+        <tr><td class="col-name">month / year</td><td class="col-type">int</td><td></td></tr>
+        <tr><td class="col-name">status</td><td class="col-type">string(50)</td><td class="col-note">draft → reviewing → approved → paid</td></tr>
+        <tr><td class="col-name">total_staff / total_hours / total_amount</td><td class="col-type">aggregates</td><td class="col-note">Tổng kết kỳ</td></tr>
+      </tbody></table>
+      <div class="relations-box"><strong>Công thức:</strong> net = MAX(0, base + teaching + KPI_bonus + allowance + commission - penalty_confirmed - BHXH(10.5%) - tax)<br>KPI bonus = +1,000,000đ nếu actual_hours ≥ 40 · Allowance = +500,000đ nếu base_salary &gt; 0</div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">payroll_records</div><div class="table-desc">Chi tiết bảng lương từng nhân viên trong kỳ</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">payroll_period_id / user_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span></td></tr>
+        <tr><td class="col-name">base_salary</td><td class="col-type">decimal</td><td class="col-note">Lương cứng</td></tr>
+        <tr><td class="col-name">teaching_salary</td><td class="col-type">decimal</td><td class="col-note">Σ(hours × rate)</td></tr>
+        <tr><td class="col-name">kpi_bonus / renew_bonus / allowance</td><td class="col-type">decimal</td><td class="col-note">Thưởng + phụ cấp</td></tr>
+        <tr><td class="col-name">insurance_deduction / penalty_deduction</td><td class="col-type">decimal</td><td class="col-note">Các khoản trừ</td></tr>
+        <tr><td class="col-name">net_salary</td><td class="col-type">decimal</td><td class="col-note">Thực lĩnh</td></tr>
+        <tr><td class="col-name">status</td><td class="col-type">string</td><td class="col-note">pending / confirmed / paid</td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">teacher_timesheets</div><div class="table-desc">Chấm công ca giảng dạy — căn cứ tính lương GV</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">user_id / class_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span></td></tr>
+        <tr><td class="col-name">teaching_date</td><td class="col-type">date</td><td></td></tr>
+        <tr><td class="col-name">hours</td><td class="col-type">decimal(5,2)</td><td class="col-note">≥ 0.5 (validation)</td></tr>
+        <tr><td class="col-name">hourly_rate</td><td class="col-type">decimal(15,2)</td><td class="col-note">≥ 1,000đ · Fallback: ts.rate → user.rate → 250,000đ</td></tr>
+        <tr><td class="col-name">type</td><td class="col-type">string(50)</td><td class="col-note">regular / sub / 1on1 / grading / workshop</td></tr>
+        <tr><td class="col-name">status</td><td class="col-type">string(50)</td><td class="col-note">valid / invalid / pending_review</td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">penalties</div><div class="table-desc">Biên bản kỷ luật BB- — tự động trừ lương khi confirmed</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Kiểu</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">code</td><td class="col-type">string</td><td class="col-note"><span class="badge-uk">UK</span> BB-2026-014 (auto)</td></tr>
+        <tr><td class="col-name">user_id / reporter_id</td><td class="col-type">bigint</td><td class="col-note"><span class="badge-fk">FK</span> → users</td></tr>
+        <tr><td class="col-name">violation_type / violation_date</td><td class="col-type">string/date</td><td></td></tr>
+        <tr><td class="col-name">amount</td><td class="col-type">decimal(15,2)</td><td class="col-note">Số tiền phạt</td></tr>
+        <tr><td class="col-name">status</td><td class="col-type">string(50)</td><td class="col-note">pending → confirmed → deducted / cancelled</td></tr>
+      </tbody></table>
+      <div class="relations-box"><strong>⚠️ Chỉ status=confirmed mới tính vào payroll_deduction</strong> (pending/cancelled bỏ qua)</div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">teacher_rates + commission_tiers</div><div class="table-desc">Cấu hình đơn giá dạy theo rank + Bậc hoa hồng tuyển sinh</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">teacher_rates.rank_title</td><td class="col-note">Junior / Senior / Native Teacher</td></tr>
+        <tr><td class="col-name">teacher_rates.communication_rate</td><td class="col-note">default 180,000đ/h</td></tr>
+        <tr><td class="col-name">teacher_rates.ielts_rate</td><td class="col-note">default 220,000đ/h</td></tr>
+        <tr><td class="col-name">commission_tiers.min_revenue / max_revenue</td><td class="col-note">Ngưỡng doanh số deals won</td></tr>
+        <tr><td class="col-name">commission_tiers.new_sale_percent</td><td class="col-note">default 3.0% hoa hồng sale mới</td></tr>
+        <tr><td class="col-name">commission_tiers.renew_percent</td><td class="col-note">default 5.0% thưởng tái tục</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</section>
+
+<!-- MODULE 6 -->
+<section class="module m6" id="m6">
+  <div class="module-header">
+    <div class="module-badge">📝</div>
+    <div class="module-title">
+      <h2>Module 6 — Test đầu vào (Placement Test)</h2>
+      <p>Quản lý đề test, portal công khai nộp bài, auto-grading 4 kỹ năng (PlacementRubricService), auto-link CRM lead theo phone.</p>
+    </div>
+  </div>
+  <div class="tables-grid">
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">placement_tests</div><div class="table-desc">Đề test xếp lớp — preset cố định (khóa sửa/xóa) hoặc bản sao editable</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">code</td><td class="col-note"><span class="badge-uk">UK</span> TEST-01</td></tr>
+        <tr><td class="col-name">title</td><td class="col-note">Đề Test 4 Kỹ Năng - Standard 2026</td></tr>
+        <tr><td class="col-name">duration_minutes</td><td class="col-note">default 45</td></tr>
+        <tr><td class="col-name">questions</td><td class="col-note">JSON: danh sách câu hỏi + đáp án</td></tr>
+        <tr><td class="col-name">is_preset</td><td class="col-note">true = khóa sửa/xóa, chỉ nhân bản (duplicateTest)</td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">placement_test_submissions</div><div class="table-desc">Kết quả test — auto-grade L+R, manual W+S, overall = ROUND(avg 4KN, 1)</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">placement_test_id / customer_id / student_id</td><td class="col-note">FK, student/customer nullable (auto-link theo phone)</td></tr>
+        <tr><td class="col-name">L/R/W/S scores + overall_score</td><td class="col-note">decimal(4,1) · overall = ROUND((L+R+W+S)/4, 1)</td></tr>
+        <tr><td class="col-name">cefr_level</td><td class="col-note">A1, A2, B1, B2, C1 — auto-detect</td></tr>
+        <tr><td class="col-name">recommended_course</td><td class="col-note">Khóa học đề xuất (PlacementRubricService)</td></tr>
+        <tr><td class="col-name">teacher_comments</td><td class="col-note">Nhận xét GV — auto-generate nếu thiếu</td></tr>
+        <tr><td class="col-name">status</td><td class="col-note">pending / submitted / graded</td></tr>
+      </tbody></table>
+      <div class="relations-box"><strong>Public portal:</strong> GET /portal/placement-test/{code} — không cần auth · Auto-link CRM lead nếu khớp phone khi submit</div>
+    </div>
+  </div>
+</section>
+
+<!-- MODULE 7 -->
+<section class="module m7" id="m7">
+  <div class="module-header">
+    <div class="module-badge">📚</div>
+    <div class="module-title">
+      <h2>Module 7 — Giáo trình &amp; Big Test</h2>
+      <p>Giáo trình (curriculum + units), phân công biên soạn, yêu cầu điều chỉnh tiến độ, thi giữa/cuối kỳ + gửi điểm Zalo ZNS phụ huynh.</p>
+    </div>
+  </div>
+  <div class="tables-grid">
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">syllabus_curriculums + syllabus_units</div><div class="table-desc">Giáo trình khóa học + từng Unit (mục tiêu, vocab, grammar, bài tập)</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">curriculums.code</td><td class="col-note"><span class="badge-uk">UK</span> CUR-IE65</td></tr>
+        <tr><td class="col-name">curriculums.course_id</td><td class="col-note">FK → courses</td></tr>
+        <tr><td class="col-name">curriculums.version</td><td class="col-note">default v3.2</td></tr>
+        <tr><td class="col-name">units.unit_number / title</td><td class="col-note">Unit 04: Environment &amp; Climate Change</td></tr>
+        <tr><td class="col-name">units.objectives / vocabulary / grammar / homework</td><td class="col-note">Nội dung chi tiết từng buổi học</td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">syllabus_assignments + syllabus_adjustment_requests</div><div class="table-desc">Phân công biên soạn giáo trình + Yêu cầu điều chỉnh tiến độ lớp</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">assignments.user_id / curriculum_id</td><td class="col-note">FK — GV được giao biên soạn</td></tr>
+        <tr><td class="col-name">assignments.assigned_chapters</td><td class="col-note">Unit 5 - 8</td></tr>
+        <tr><td class="col-name">assignments.status</td><td class="col-note">in_progress / completed / overdue</td></tr>
+        <tr><td class="col-name">adjustment_requests.class_id / user_id</td><td class="col-note">FK — lớp + GV yêu cầu</td></tr>
+        <tr><td class="col-name">adjustment_requests.status</td><td class="col-note">pending / approved / rejected</td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">big_tests + big_test_results</div><div class="table-desc">Kỳ thi giữa/cuối kỳ + Điểm thi + Gửi Zalo ZNS phụ huynh (bulk)</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">big_tests.code</td><td class="col-note"><span class="badge-uk">UK</span> BT-2026-08</td></tr>
+        <tr><td class="col-name">big_tests.test_type</td><td class="col-note">midterm / final</td></tr>
+        <tr><td class="col-name">big_tests.scheduled_at / room / proctor_id</td><td class="col-note">Lịch thi, phòng thi, giám thị</td></tr>
+        <tr><td class="col-name">big_tests.is_distributed</td><td class="col-note">Đã phân phối đề thi chưa</td></tr>
+        <tr><td class="col-name">results.L/R/W/S/overall_score</td><td class="col-note">Điểm 4 kỹ năng</td></tr>
+        <tr><td class="col-name">results.parent_notified / notified_at</td><td class="col-note">Đã gửi Zalo ZNS cho phụ huynh</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</section>
+
+<!-- MODULE 8 -->
+<section class="module m8" id="m8">
+  <div class="module-header">
+    <div class="module-badge">📌</div>
+    <div class="module-title">
+      <h2>Module 8 — Công việc &amp; Trợ giảng</h2>
+      <p>Task phân công (before/during/after ca học), báo cáo trực lớp, ảnh minh chứng, duyệt hoàn thành, lịch học chi tiết, nhu cầu nhân sự.</p>
+    </div>
+  </div>
+  <div class="tables-grid">
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">work_tasks</div><div class="table-desc">Công việc phân công nhân viên / trợ giảng — one_time hoặc recurring</div></div><span class="table-badge">SoftDeletes</span></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">creator_id / assignee_id / confirmed_by</td><td class="col-note">FK → users</td></tr>
+        <tr><td class="col-name">branch_id / class_id</td><td class="col-note">FK, nullable</td></tr>
+        <tr><td class="col-name">time_slot_category</td><td class="col-note">before / during / after (ca học). Auto due_time: 14:00/18:00/21:30</td></tr>
+        <tr><td class="col-name">task_type / frequency</td><td class="col-note">one_time / recurring · daily/weekly/monthly</td></tr>
+        <tr><td class="col-name">status</td><td class="col-note">new→in_progress→pending_confirmation→completed / blocked / canceled / overdue</td></tr>
+        <tr><td class="col-name">completion_proof_image</td><td class="col-note">Ảnh minh chứng hoàn thành task</td></tr>
+      </tbody></table>
+      <div class="relations-box"><strong>Logic hoàn thành:</strong> Có ảnh → completed ngay · Không ảnh → pending_confirmation · Admin approve → completed + confirmed_by</div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">class_reports + class_report_student_supports</div><div class="table-desc">Báo cáo trực lớp + danh sách HV cần bổ trợ</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">class_id / reporter_id</td><td class="col-note">FK → classes, users</td></tr>
+        <tr><td class="col-name">topics_learned</td><td class="col-note">required — Nội dung học hôm nay</td></tr>
+        <tr><td class="col-name">board_image</td><td class="col-note">URL ảnh bảng/lớp học</td></tr>
+        <tr><td class="col-name">status</td><td class="col-note">pending_approval / approved</td></tr>
+        <tr><td class="col-name">student_supports.student_id</td><td class="col-note">FK → students</td></tr>
+        <tr><td class="col-name">student_supports.reason / action_plan</td><td class="col-note">Lý do + kế hoạch bổ trợ</td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">class_schedule_configs + hr_daily_demands</div><div class="table-desc">Lịch học chi tiết 2 ca + Nhu cầu nhân sự hàng ngày</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">schedule_configs.slot1_day / start / end</td><td class="col-note">Thứ 5 / 18:00 / 19:30</td></tr>
+        <tr><td class="col-name">schedule_configs.slot2_day / start / end</td><td class="col-note">Thứ 7 / 18:00 / 19:30</td></tr>
+        <tr><td class="col-name">hr_demands.branch_id / report_date</td><td class="col-note">Nhu cầu theo ngày + chi nhánh</td></tr>
+        <tr><td class="col-name">hr_demands.shift_count / staff_needed</td><td class="col-note">Số ca + nhân sự cần</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</section>
+
+<!-- MODULE 9 -->
+<section class="module m9" id="m9">
+  <div class="module-header">
+    <div class="module-badge">🎫</div>
+    <div class="module-title">
+      <h2>Module 9 — Hỗ trợ nội bộ &amp; Thông báo</h2>
+      <p>Helpdesk ticket TK- (4 category, 4 priority), thông báo admin, auto-scan CRM lead sót &gt;24h, cấu hình ngân hàng VietQR.</p>
+    </div>
+  </div>
+  <div class="tables-grid">
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">support_tickets + ticket_messages</div><div class="table-desc">Helpdesk nội bộ — ticket TK-, 4 priority levels, đính kèm file + paste clipboard</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">tickets.code</td><td class="col-note"><span class="badge-uk">UK</span> TK-2026-0001 (auto)</td></tr>
+        <tr><td class="col-name">tickets.category</td><td class="col-note">technical_issue / curriculum / tuition / customer_complaint / other</td></tr>
+        <tr><td class="col-name">tickets.priority</td><td class="col-note">low / medium / high / urgent</td></tr>
+        <tr><td class="col-name">tickets.status</td><td class="col-note">open → in_progress → resolved → closed</td></tr>
+        <tr><td class="col-name">tickets.creator_id / assignee_id</td><td class="col-note">FK → users</td></tr>
+        <tr><td class="col-name">messages.is_internal_note</td><td class="col-note">Ghi chú nội bộ ẩn với creator</td></tr>
+        <tr><td class="col-name">messages.attachment_path</td><td class="col-note">uploads/YYYY/MM/DD/ — JSON array nếu nhiều file</td></tr>
+      </tbody></table>
+      <div class="relations-box"><strong>Auto status:</strong> Reply → open→in_progress · NotificationService: notifyCreated, notifyMessage, notifyStatus, notifyAssigned</div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">admin_notifications</div><div class="table-desc">Thông báo admin — auto-scan lead sót, phiếu thu chờ duyệt, ticket mới</div></div></div>
+      <table class="col-table"><thead><tr><th>Cột</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">user_id</td><td class="col-note">FK <span class="badge-null">N</span> — NULL = toàn cục (admin/manager)</td></tr>
+        <tr><td class="col-name">type</td><td class="col-note">stale_lead_24h / receipt_pending / test_today / urgent_ticket / ticket_new / ticket_assigned / ticket_message / ticket_status_changed</td></tr>
+        <tr><td class="col-name">data</td><td class="col-note">JSON metadata</td></tr>
+        <tr><td class="col-name">is_read / read_at</td><td class="col-note">Trạng thái đã đọc</td></tr>
+      </tbody></table>
+      <div class="relations-box"><strong>scanAndSyncStaleLeads():</strong> Auto chạy khi admin/manager vào trang notifications — tìm leads CRM &gt;24h chưa chăm sóc</div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div><div class="table-name">Laravel System Tables</div><div class="table-desc">Cache · Queue · Session · Password Reset</div></div></div>
+      <table class="col-table"><thead><tr><th>Bảng</th><th>Mô tả</th></tr></thead><tbody>
+        <tr><td class="col-name">cache / cache_locks</td><td class="col-note">Cache hệ thống · Spatie permission cache 24h (key: spatie.permission.cache)</td></tr>
+        <tr><td class="col-name">jobs / job_batches / failed_jobs</td><td class="col-note">Queue jobs (hiện không dùng async — tính lương/ZNS chạy sync)</td></tr>
+        <tr><td class="col-name">sessions</td><td class="col-note">Session người dùng (driver: database)</td></tr>
+        <tr><td class="col-name">password_reset_tokens</td><td class="col-note">Token đặt lại mật khẩu (Breeze)</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</section>
+
+</main>
+<footer>
+  <p>📊 MEnglish Admin — ERP Database Schema v1.0 · 2026-08-19 · Laravel 11.55 · MySQL · ~47+ tables · 9 modules</p>
+  <p style="margin-top:4px">Spatie Permission v6 · Spatie Activitylog v4 · PHP 8.4 · Seeds: 3 branches · 8 roles · 5 courses</p>
+</footer>
+</body>
+</html>

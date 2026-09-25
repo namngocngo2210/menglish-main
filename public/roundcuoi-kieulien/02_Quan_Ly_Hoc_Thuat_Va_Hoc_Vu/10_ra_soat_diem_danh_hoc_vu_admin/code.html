@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Rà soát điểm danh - Học vụ / Admin</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .modal-backdrop {
+      background-color: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(2px);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased p-4 sm:p-6 max-w-6xl mx-auto min-h-screen">
+<!-- ==========================================
+       TIÊU ĐỀ BẮT BUỘC Ở ĐIỂM ẢNH ĐẦU TIÊN
+       Không topbar/sidebar/logo
+  ========================================== -->
+<header class="mb-4"><div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200"><div class="flex-1"><div class="flex items-center gap-2.5"><h1 class="text-2xl font-bold text-slate-900 tracking-tight">Rà soát điểm danh</h1><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200"><i class="fa-solid fa-shield-halved mr-1 text-[11px]"></i> Học vụ / Admin</span></div><p class="text-xs text-slate-500 mt-1 flex items-center gap-2"><span>SYL-25 · Can thiệp &amp; đối soát điểm danh (không giới hạn 24h)</span><span class="w-1 h-1 rounded-full bg-slate-300"></span><span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>Chế độ quyền can thiệp nâng cao</span></p></div><div class="flex items-center gap-2.5 bg-white border border-slate-300 rounded-xl p-1.5 shadow-sm self-start sm:self-auto"><span class="text-xs font-semibold text-slate-600 pl-2 flex items-center gap-1.5"><i class="fa-solid fa-user-gear text-blue-600"></i><span class="hidden sm:inline">Mô phỏng vai trò:</span></span><select class="text-xs bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-2.5 py-1.5 font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none" id="roleSelector" onchange="handleRoleChange(this.value)"><option value="hoc_vu">Học vụ - Đã gán chi nhánh (CN Quận 1)</option><option value="admin">Admin - Toàn quyền hệ thống</option><option value="blocked">Học vụ - Chưa gán chi nhánh (NULL)</option></select></div></div></header>
+<!-- =========================================================
+       SECTION 1: MÀN CHẶN TRUY CẬP (Khi chi_nhanh IS NULL)
+       Mặc định ẩn, bật lên khi chọn option role "blocked"
+  ========================================================= -->
+<section class="hidden bg-white border border-rose-200 rounded-2xl p-6 text-center shadow-sm my-6" id="blockedAccessView"><div class="max-w-md mx-auto py-8 text-center"><div class="w-20 h-20 bg-rose-50 border-2 border-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl shadow-sm"><i class="fa-solid fa-lock"></i></div><h2 class="text-lg font-bold text-slate-900 mb-2">Tài khoản chưa gán chi nhánh</h2><p class="text-xs text-slate-600 leading-relaxed mb-6">Tài khoản chưa gán chi nhánh, liên hệ Admin để được phân quyền chi nhánh làm việc theo quy định đối soát điểm danh (AC-R10/AC-S06).</p><div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left text-xs text-slate-600 mb-6 space-y-2.5 shadow-inner"><div class="flex items-center justify-between"><span class="font-medium text-slate-500">Mã định danh tài khoản:</span><span class="font-mono font-bold text-slate-800">HV-9021</span></div><div class="flex items-center justify-between"><span class="font-medium text-slate-500">Chi nhánh làm việc:</span><span class="font-mono text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded border border-rose-200">NULL (Chưa xác định)</span></div><div class="flex items-center justify-between"><span class="font-medium text-slate-500">Chính sách bảo mật:</span><span class="text-slate-700 font-medium">AC-R10 / AC-S06 Strict</span></div></div><div class="flex items-center justify-center gap-3"><button class="py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition flex items-center gap-2" onclick="alert('Đã gửi yêu cầu cấp chi nhánh tới ban Quản trị viên!')"><i class="fa-solid fa-envelope"></i> Gửi yêu cầu hỗ trợ Admin</button><button class="py-2.5 px-4 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-sm transition flex items-center gap-2" onclick="document.getElementById('roleSelector').value='hoc_vu';handleRoleChange('hoc_vu')"><i class="fa-solid fa-arrow-rotate-left"></i> Quay lại bản demo Q.1</button></div></div></section>
+<!-- =========================================================
+       MAIN WORKFLOW CONTAINER (Bao gồm Filter + Danh sách + Modal)
+  ========================================================= -->
+<div class="space-y-4" id="mainContentContainer"><!-- SECTION BỘ LỌC CHUẨN ADMIN MENGLISH --><section class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm"><div class="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-600"></span><span class="text-xs font-bold text-slate-800 uppercase tracking-wider">Bộ lọc tra cứu buổi học</span></div><span class="text-xs text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded font-medium flex items-center gap-1.5" id="badgeBranchRule"><i class="fa-solid fa-lock text-[10px] text-slate-400" id="branchLockBadgeIcon"></i><span>Học vụ: Khóa cố định CN Quận 1</span></span></div><div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs items-end"><div><label class="block font-semibold text-slate-700 mb-1">Chi nhánh áp dụng</label><div class="relative"><select class="w-full bg-slate-100 border border-slate-300 rounded-lg p-2.5 text-slate-700 text-xs font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none" disabled="" id="filterBranch"><option selected="" value="CN1">CN Quận 1 (Cố định theo phân quyền)</option><option value="CN2">CN Bình Thạnh</option><option value="CN3">CN Quận 7</option><option value="ALL">Toàn hệ thống (Admin)</option></select><span class="absolute right-3 top-3 text-slate-400 text-xs pointer-events-none" id="branchLockIcon"><i class="fa-solid fa-lock"></i></span></div></div><div><label class="block font-semibold text-slate-700 mb-1">Lớp học</label><select class="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium" id="filterClass"><option value="ALL">Tất cả các lớp</option><option selected="" value="ENG-B1">ENG-B1 · IELTS Cơ Bản</option><option value="ENG-B2">ENG-B2 · IELTS 6.5+</option><option value="MATH-10">MATH-10 · Toán Nâng Cao</option></select></div><div><label class="block font-semibold text-slate-700 mb-1">Khoảng ngày đối soát</label><div class="relative"><input class="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium pr-8" readonly="" type="text" value="01/08/2026 - 31/08/2026"/><i class="fa-regular fa-calendar absolute right-3 top-3 text-slate-400 text-xs pointer-events-none"></i></div></div><div><button class="w-full py-2.5 px-4 text-white rounded-lg font-bold text-xs shadow-sm flex items-center justify-center gap-2 transition hover:opacity-90" onclick="showToast('Đã áp dụng bộ lọc: Tìm thấy 3 buổi học phù hợp')" style="background-color: #3B5BFB;" type="button"><i class="fa-solid fa-filter"></i><span>Áp dụng lọc</span></button></div></div></section><!-- SECTION BẢNG DATA TABLE DANH SÁCH BUỔI HỌC --><section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden"><div class="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/50"><div><h2 class="text-sm font-bold text-slate-900 flex items-center gap-2"><i class="fa-solid fa-calendar-check text-blue-600"></i><span>Danh sách buổi học cần rà soát</span><span class="text-xs font-medium text-slate-500 font-normal">(3 buổi hiển thị)</span></h2><p class="text-xs text-slate-500 mt-0.5">Nhấp trực tiếp hoặc bấm nút "Mở sửa roster" để điều chỉnh sĩ số và điểm danh của buổi học</p></div><div class="flex items-center gap-2"><span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full flex items-center gap-1.5"><i class="fa-solid fa-check-double text-[11px]"></i> Quyền can thiệp: Không giới hạn 24h</span></div></div><!-- Bảng Data Table --><div class="overflow-x-auto"><table class="w-full text-left text-xs text-slate-700"><thead class="bg-slate-100 text-slate-700 uppercase text-[11px] font-bold border-b border-slate-200"><tr><th class="p-3.5">Buổi / Lớp học</th><th class="p-3.5">Ngày &amp; Giờ học</th><th class="p-3.5">Phòng học</th><th class="p-3.5">Giáo viên</th><th class="p-3.5">Trạng thái phiếu</th><th class="p-3.5">Người điểm danh</th><th class="p-3.5">Lịch sử sửa</th><th class="p-3.5 text-right">Thao tác</th></tr></thead><tbody class="divide-y divide-slate-200"><!-- Dòng 1 --><tr class="hover:bg-blue-50/40 transition"><td class="p-3.5"><div class="font-bold text-slate-900">ENG-B1 · IELTS Cơ Bản</div><div class="text-[11px] text-slate-500">Buổi 14 (Chương 3 - Speaking Part 2)</div></td><td class="p-3.5"><div class="font-semibold text-slate-800">08/08/2026</div><div class="text-[11px] text-slate-500">18:00 - 20:00</div></td><td class="p-3.5"><span class="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono font-medium text-slate-700">P.302</span><div class="text-[11px] text-slate-400 mt-0.5">CN Q.1</div></td><td class="p-3.5 font-medium text-slate-800">Trần Hoàng Long</td><td class="p-3.5"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Đã điểm danh</span></td><td class="p-3.5 text-slate-600">GV: Trần Hoàng Long</td><td class="p-3.5"><button class="font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 transition" onclick="openAuditModal('ENG-B1 · IELTS Cơ Bản - Buổi 14')"><i class="fa-solid fa-clock-rotate-left text-[11px]"></i> Xem lịch sử sửa (1)</button></td><td class="p-3.5 text-right"><button class="px-3 py-1.5 bg-white hover:bg-blue-50 text-blue-600 border border-blue-300 font-semibold text-xs rounded-lg shadow-sm transition inline-flex items-center gap-1.5" onclick="openRosterModal('ENG-B1 · IELTS Cơ Bản', 'Buổi 14 (08/08/2026)', 'Trần Hoàng Long', 'CN Quận 1')"><i class="fa-solid fa-pen-to-square text-[11px]"></i> Mở sửa roster</button></td></tr><!-- Dòng 2 --><tr class="hover:bg-blue-50/40 transition"><td class="p-3.5"><div class="font-bold text-slate-900">ENG-B1 · IELTS Cơ Bản</div><div class="text-[11px] text-slate-500">Buổi 15 (Chương 3 - Listening Mock)</div></td><td class="p-3.5"><div class="font-semibold text-slate-800">12/08/2026</div><div class="text-[11px] text-slate-500">18:00 - 20:00</div></td><td class="p-3.5"><span class="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono font-medium text-slate-700">P.302</span><div class="text-[11px] text-slate-400 mt-0.5">CN Q.1</div></td><td class="p-3.5 font-medium text-slate-800">Trần Hoàng Long</td><td class="p-3.5"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Đã điểm danh</span></td><td class="p-3.5 text-slate-600">GV: Trần Hoàng Long</td><td class="p-3.5 text-slate-400 italic">-</td><td class="p-3.5 text-right"><button class="px-3 py-1.5 bg-white hover:bg-blue-50 text-blue-600 border border-blue-300 font-semibold text-xs rounded-lg shadow-sm transition inline-flex items-center gap-1.5" onclick="openRosterModal('ENG-B1 · IELTS Cơ Bản', 'Buổi 15 (12/08/2026)', 'Trần Hoàng Long', 'CN Quận 1')"><i class="fa-solid fa-pen-to-square text-[11px]"></i> Mở sửa roster</button></td></tr><!-- Dòng 3 --><tr class="hover:bg-amber-50/30 transition bg-amber-50/10"><td class="p-3.5"><div class="font-bold text-slate-900">MATH-10 · Toán Nâng Cao</div><div class="text-[11px] text-slate-500">Buổi 8 (Hình học không gian)</div></td><td class="p-3.5"><div class="font-semibold text-slate-800">15/08/2026</div><div class="text-[11px] text-slate-500">19:30 - 21:00</div></td><td class="p-3.5"><span class="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono font-medium text-slate-700">P.105</span><div class="text-[11px] text-slate-400 mt-0.5">CN Q.1</div></td><td class="p-3.5 font-medium text-slate-800">Nguyễn Minh Tuấn</td><td class="p-3.5"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-300"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Chưa điểm danh</span></td><td class="p-3.5 text-slate-400 italic">Chưa nộp phiếu</td><td class="p-3.5 text-slate-400 italic">-</td><td class="p-3.5 text-right"><button class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-lg shadow-sm transition inline-flex items-center gap-1.5" onclick="openRosterModal('MATH-10 · Toán Nâng Cao', 'Buổi 8 (15/08/2026)', 'Nguyễn Minh Tuấn', 'CN Quận 1')"><i class="fa-solid fa-plus-circle text-[11px]"></i> Nhập bù điểm danh</button></td></tr></tbody></table></div><div class="p-3.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 flex items-center justify-between"><span>Hiển thị 3 / 3 buổi học trong tháng 08/2026</span><span class="italic">Học vụ / Admin có thể click trực tiếp vào nút sửa của bất kỳ buổi nào</span></div></section></div>
+<!-- =========================================================
+       MODAL 1: CHI TIẾT ROSTER SỬA ĐƯỢC (SECTION 4 & 5)
+       - Không disable theo 24h
+       - Select trạng thái + Input ghi chú
+       - Rule bắt buộc: Nghỉ có phép / không phép BẮT BUỘC có ghi chú
+       - Nút Lưu thay đổi: Ghi đè chi_tiet_diem_danh + Ghi audit log
+  ========================================================= -->
+<div class="hidden fixed inset-0 z-50 overflow-y-auto p-2 sm:p-4 modal-backdrop flex items-center justify-center" id="rosterModal"><div class="bg-white rounded-2xl w-full max-w-4xl shadow-2xl border border-slate-200 flex flex-col max-h-[92vh] overflow-hidden my-auto"><!-- Header --><div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center text-base"><i class="fa-solid fa-pen-to-square"></i></div><div><div class="flex items-center gap-2"><h3 class="text-sm font-bold text-slate-900" id="rosterModalTitle">ENG-B1 · IELTS Cơ Bản - Buổi 14</h3><span class="text-[10px] font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200"><i class="fa-solid fa-unlock mr-1"></i> Không khóa 24h</span></div><p class="text-xs text-slate-500 mt-0.5" id="rosterModalSub">CN Quận 1 · GV: Trần Hoàng Long (18:00 - 20:00)</p></div></div><button class="w-8 h-8 rounded-full bg-white hover:bg-slate-200 text-slate-500 flex items-center justify-center border border-slate-200 transition" onclick="closeRosterModal()"><i class="fa-solid fa-xmark text-sm"></i></button></div><!-- Banner cảnh báo nghiệp vụ AC-R06 --><div class="bg-amber-50 border-b border-amber-200 p-3 text-xs text-amber-900 flex items-start gap-2.5"><i class="fa-solid fa-circle-info text-amber-600 mt-0.5 text-sm flex-shrink-0"></i><div><strong>Lưu ý quyền can thiệp:</strong> Học vụ/Admin có thể điều chỉnh mọi buổi học (kể cả quá hạn 24h). Ghi chú là <span class="text-rose-600 font-bold uppercase underline">Bắt buộc</span> khi chuyển trạng thái sang "Nghỉ có phép" hoặc "Nghỉ không phép" (AC-R06).</div></div><!-- Body: Bảng Roster học viên --><div class="p-4 overflow-y-auto flex-1"><div class="border border-slate-200 rounded-xl overflow-hidden"><table class="w-full text-left text-xs"><thead class="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold border-b border-slate-200"><tr><th class="p-3 text-center w-12">STT</th><th class="p-3 w-24">Mã HV</th><th class="p-3">Họ và tên học viên</th><th class="p-3 w-56">Trạng thái điểm danh</th><th class="p-3">Ghi chú / Lý do vắng</th><th class="p-3 w-40 text-right">Thời gian GV điểm danh</th></tr></thead><tbody class="divide-y divide-slate-200"><!-- HV 1 --><tr class="student-row hover:bg-slate-50 transition" data-student-id="HS001"><td class="p-3 text-center font-semibold text-slate-500">1</td><td class="p-3 font-mono font-bold text-slate-700">HS001</td><td class="p-3 font-bold text-slate-900">Nguyễn Gia Hân</td><td class="p-3"><select class="status-select w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-1.5 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none" onchange="handleStatusChange('HS001', this.value)"><option selected="" value="co_mat">🟢 Có mặt</option><option value="di_muon">🟡 Đi muộn</option><option value="nghi_co_phep">🟠 Nghỉ có phép (Cần ghi chú)</option><option value="nghi_khong_phep">🔴 Nghỉ không phép (Cần ghi chú)</option></select></td><td class="p-3"><input class="note-input w-full text-xs bg-white border border-slate-300 rounded-lg p-1.5 text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Nhập ghi chú (không bắt buộc khi có mặt)..." type="text" value=""/><p class="error-msg text-[10px] text-rose-600 font-semibold mt-1 hidden"><i class="fa-solid fa-circle-exclamation mr-1"></i>Bắt buộc nhập lý do khi chọn Nghỉ học!</p></td><td class="p-3 text-right text-[11px] text-slate-500 font-mono">08/08/2026 18:05</td></tr><!-- HV 2 --><tr class="student-row bg-amber-50/20 hover:bg-amber-50/40 transition" data-student-id="HS002"><td class="p-3 text-center font-semibold text-slate-500">2</td><td class="p-3 font-mono font-bold text-slate-700">HS002</td><td class="p-3"><div class="font-bold text-slate-900">Lê Hoàng Nam</div><span class="inline-block text-[10px] text-blue-700 bg-blue-50 border border-blue-200 px-1.5 rounded mt-0.5 font-medium">Đã sửa bởi Admin (10/08)</span></td><td class="p-3"><select class="status-select w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-1.5 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none" onchange="handleStatusChange('HS002', this.value)"><option value="co_mat">🟢 Có mặt</option><option value="di_muon">🟡 Đi muộn</option><option selected="" value="nghi_co_phep">🟠 Nghỉ có phép (Cần ghi chú)</option><option value="nghi_khong_phep">🔴 Nghỉ không phép (Cần ghi chú)</option></select></td><td class="p-3"><div class="text-[10px] text-rose-600 font-bold mb-0.5">(Bắt buộc nhập lý do)</div><input class="note-input w-full text-xs bg-white border border-amber-300 rounded-lg p-1.5 text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Bắt buộc nhập lý do..." type="text" value="PH gọi xin phép sốt xuất huyết nhập viện"/><p class="error-msg text-[10px] text-rose-600 font-semibold mt-1 hidden"><i class="fa-solid fa-circle-exclamation mr-1"></i>Bắt buộc nhập lý do khi chọn Nghỉ học!</p></td><td class="p-3 text-right text-[11px] text-slate-500 font-mono">08/08/2026 18:05</td></tr><!-- HV 3 --><tr class="student-row hover:bg-slate-50 transition" data-student-id="HS003"><td class="p-3 text-center font-semibold text-slate-500">3</td><td class="p-3 font-mono font-bold text-slate-700">HS003</td><td class="p-3 font-bold text-slate-900">Phạm Quốc Tuấn</td><td class="p-3"><select class="status-select w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-1.5 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none" onchange="handleStatusChange('HS003', this.value)"><option value="co_mat">🟢 Có mặt</option><option value="di_muon">🟡 Đi muộn</option><option value="nghi_co_phep">🟠 Nghỉ có phép (Cần ghi chú)</option><option selected="" value="nghi_khong_phep">🔴 Nghỉ không phép (Cần ghi chú)</option></select></td><td class="p-3"><div class="text-[10px] text-rose-600 font-bold mb-0.5">(Bắt buộc nhập lý do)</div><input class="note-input w-full text-xs bg-white border border-slate-300 rounded-lg p-1.5 text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Bắt buộc nhập lý do..." type="text" value="Không liên lạc được với phụ huynh"/><p class="error-msg text-[10px] text-rose-600 font-semibold mt-1 hidden"><i class="fa-solid fa-circle-exclamation mr-1"></i>Bắt buộc nhập lý do khi chọn Nghỉ học!</p></td><td class="p-3 text-right text-[11px] text-slate-500 font-mono">08/08/2026 18:05</td></tr></tbody></table></div></div><!-- Footer --><div class="p-4 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div class="text-xs text-slate-500 flex items-center gap-1.5"><i class="fa-solid fa-database text-blue-600"></i><span>Hệ thống tự động ghi đè chi tiết điểm danh và ghi 1 bản ghi vào lịch sử sửa</span></div><div class="flex items-center justify-end gap-2.5"><button class="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg shadow-sm transition" onclick="closeRosterModal()" type="button">Hủy / Đóng</button><button class="px-5 py-2 text-white text-xs font-bold rounded-lg shadow-sm flex items-center gap-2 transition hover:opacity-90" onclick="saveRosterChanges()" style="background-color: #F5691A;" type="button"><i class="fa-solid fa-floppy-disk"></i><span>Lưu thay đổi</span></button></div></div></div></div>
+<!-- =========================================================
+       MODAL 2: XEM LỊCH SỬ SỬA (AUDIT LOG POPUP - SECTION 6)
+       - Mở từ link "Xem lịch sử sửa" ở mỗi dòng đã sửa
+       - Hiển thị ai sửa, lúc nào, giá trị cũ -> giá trị mới
+  ========================================================= -->
+<div class="hidden fixed inset-0 z-50 overflow-y-auto p-3 modal-backdrop flex items-center justify-center" id="auditModal"><div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 flex flex-col max-h-[85vh] overflow-hidden my-auto"><!-- Header --><div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50"><div class="flex items-center gap-2.5"><div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-sm"><i class="fa-solid fa-clock-rotate-left"></i></div><div><h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Lịch sử can thiệp điểm danh</h3><p class="text-xs text-slate-500 font-medium mt-0.5" id="auditModalSubtitle">Bảng: diem_danh_audit_log</p></div></div><button class="w-8 h-8 rounded-full bg-white hover:bg-slate-200 text-slate-500 flex items-center justify-center border border-slate-200 transition" onclick="closeAuditModal()"><i class="fa-solid fa-xmark text-sm"></i></button></div><!-- Content Timeline --><div class="p-4 overflow-y-auto space-y-4"><div class="border-l-2 border-blue-500 pl-4 relative space-y-4"><!-- Entry 1 --><div class="relative"><div class="absolute -left-[23px] top-1 w-3 h-3 rounded-full bg-blue-600 border-2 border-white shadow-sm"></div><div class="flex items-center justify-between text-xs mb-1.5"><div class="flex items-center gap-1.5 font-bold text-slate-800"><span class="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-mono">AD</span><span>Admin: Lê Minh Quân (ADMIN-01)</span></div><span class="text-slate-400 text-[11px] font-mono">10/08/2026 09:14</span></div><div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-1.5 shadow-sm"><div class="font-semibold text-slate-800 flex items-center justify-between"><span>Học viên: <strong class="text-slate-900">Lê Hoàng Nam</strong></span><span class="font-mono text-slate-400 text-[11px]">#HS002</span></div><div class="text-xs text-slate-600 flex items-center gap-2 pt-1 border-t border-slate-200/60"><span class="line-through text-rose-500 font-medium">Nghỉ không phép</span><i class="fa-solid fa-arrow-right text-[10px] text-slate-400"></i><span class="font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">Nghỉ có phép</span></div><div class="text-xs text-slate-600 bg-white p-2 rounded-lg border border-slate-200 mt-1"><span class="font-semibold text-slate-700">Lý do can thiệp:</span> PH gọi xin phép bổ sung sốt xuất huyết nhập viện.</div></div></div><!-- Entry 2 --><div class="relative opacity-80"><div class="absolute -left-[23px] top-1 w-3 h-3 rounded-full bg-slate-400 border-2 border-white shadow-sm"></div><div class="flex items-center justify-between text-xs mb-1.5"><div class="flex items-center gap-1.5 font-bold text-slate-700"><span class="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-mono">HV</span><span>Học vụ: Nguyễn Thanh Thảo (HV-Q1)</span></div><span class="text-slate-400 text-[11px] font-mono">09/08/2026 14:22</span></div><div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-1.5 shadow-sm"><div class="font-semibold text-slate-800 flex items-center justify-between"><span>Học viên: <strong class="text-slate-900">Trần Đức Anh</strong></span><span class="font-mono text-slate-400 text-[11px]">#HS005</span></div><div class="text-xs text-slate-600 flex items-center gap-2 pt-1 border-t border-slate-200/60"><span class="line-through text-amber-600 font-medium">Đi muộn (15p)</span><i class="fa-solid fa-arrow-right text-[10px] text-slate-400"></i><span class="font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">Có mặt</span></div><div class="text-xs text-slate-600 bg-white p-2 rounded-lg border border-slate-200 mt-1"><span class="font-semibold text-slate-700">Lý do can thiệp:</span> Học viên có mặt đúng giờ nhưng giáo viên điểm danh nhầm vị trí bàn.</div></div></div></div></div><!-- Footer --><div class="p-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between"><span class="text-[11px] text-slate-400 italic">Lưu trữ vĩnh viễn theo AC-R11</span><button class="px-4 py-2 bg-slate-900 text-white text-xs font-semibold rounded-lg hover:bg-slate-800 transition" onclick="closeAuditModal()">Đóng</button></div></div></div>
+<!-- Toast thông báo tương tác -->
+<div class="hidden fixed bottom-4 right-4 left-4 sm:left-auto sm:w-80 bg-slate-900 text-white px-3.5 py-2.5 rounded-xl shadow-xl z-50 text-xs flex items-center gap-2 border border-slate-700" id="toastNotification">
+<i class="fa-solid fa-circle-check text-emerald-400 text-sm" id="toastIcon"></i>
+<span class="font-medium" id="toastMsg">Thực hiện thành công</span>
+</div>
+<!-- JavaScript xử lý tương tác -->
+<script>
+    // 1. Chuyển đổi vai trò để kiểm tra Section 1 (Màn chặn) và Quyền chi nhánh
+    function handleRoleChange(role) {
+      const blockedView = document.getElementById('blockedAccessView');
+      const mainContainer = document.getElementById('mainContentContainer');
+      const branchSelect = document.getElementById('filterBranch');
+      const branchBadge = document.getElementById('badgeBranchRule');
+      const lockIcon = document.getElementById('branchLockIcon');
+
+      if (role === 'blocked') {
+        blockedView.classList.remove('hidden');
+        mainContainer.classList.add('hidden');
+      } else {
+        blockedView.classList.add('hidden');
+        mainContainer.classList.remove('hidden');
+
+        if (role === 'admin') {
+          branchSelect.disabled = false;
+          branchSelect.classList.remove('bg-slate-100');
+          branchSelect.classList.add('bg-white');
+          branchSelect.value = 'ALL';
+          branchBadge.innerText = 'Admin: Toàn quyền mọi chi nhánh';
+          branchBadge.className = 'text-[10px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded font-medium border border-purple-200';
+          lockIcon.classList.add('hidden');
+          showToast('Chuyển sang vai trò Admin: Mở khóa chọn chi nhánh');
+        } else {
+          branchSelect.disabled = true;
+          branchSelect.classList.add('bg-slate-100');
+          branchSelect.classList.remove('bg-white');
+          branchSelect.value = 'CN1';
+          branchBadge.innerText = 'Học vụ: Khóa chi nhánh Q.1';
+          branchBadge.className = 'text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded font-medium';
+          lockIcon.classList.remove('hidden');
+          showToast('Chuyển vai trò Học vụ: Giới hạn đúng chi nhánh Q.1');
+        }
+      }
+    }
+
+    // 2. Mở / Đóng Modal Roster sửa điểm danh
+    function openRosterModal(className, lessonName, teacher, branch) {
+      document.getElementById('rosterModalTitle').innerText = `${className} · ${lessonName}`;
+      document.getElementById('rosterModalSub').innerText = `${branch} · GV: ${teacher}`;
+      
+      // Reset validation states
+      document.querySelectorAll('.error-msg').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.note-input').forEach(el => {
+        el.classList.remove('border-rose-500', 'bg-rose-50');
+      });
+
+      document.getElementById('rosterModal').classList.remove('hidden');
+    }
+
+    function closeRosterModal() {
+      document.getElementById('rosterModal').classList.add('hidden');
+    }
+
+    // 3. Xử lý khi trạng thái chuyển sang Nghỉ
+    function handleStatusChange(studentId, statusValue) {
+      const row = document.querySelector(`[data-student-id="${studentId}"]`);
+      if (!row) return;
+      const noteInput = row.querySelector('.note-input');
+      const errorMsg = row.querySelector('.error-msg');
+
+      if (statusValue === 'nghi_co_phep' || statusValue === 'nghi_khong_phep') {
+        noteInput.setAttribute('placeholder', 'Bắt buộc nhập lý do nghỉ (AC-R06)...');
+        noteInput.focus();
+      } else {
+        noteInput.setAttribute('placeholder', 'Nhập lý do hoặc nhận xét...');
+        errorMsg.classList.add('hidden');
+        noteInput.classList.remove('border-rose-500', 'bg-rose-50');
+      }
+    }
+
+    // 4. Lưu thay đổi Roster + Validate bắt buộc ghi chú khi nghỉ (AC-R06)
+    function saveRosterChanges() {
+      let hasError = false;
+      const rows = document.querySelectorAll('.student-row');
+
+      rows.forEach(row => {
+        const status = row.querySelector('.status-select').value;
+        const noteInput = row.querySelector('.note-input');
+        const noteVal = noteInput.value.trim();
+        const errorMsg = row.querySelector('.error-msg');
+
+        if ((status === 'nghi_co_phep' || status === 'nghi_khong_phep') && !noteVal) {
+          hasError = true;
+          errorMsg.classList.remove('hidden');
+          noteInput.classList.add('border-rose-500', 'bg-rose-50');
+          noteInput.focus();
+        } else {
+          errorMsg.classList.add('hidden');
+          noteInput.classList.remove('border-rose-500', 'bg-rose-50');
+        }
+      });
+
+      if (hasError) {
+        showToast('Chặn lưu: Bắt buộc nhập ghi chú cho học sinh nghỉ!', 'error');
+        return;
+      }
+
+      // Mô phỏng ghi đè chi_tiet_diem_danh + ghi diem_danh_audit_log
+      closeRosterModal();
+      showToast('Đã lưu thay đổi & ghi 1 bản ghi vào `diem_danh_audit_log`!');
+    }
+
+    // 5. Mở / Đóng Modal Audit Log
+    function openAuditModal(title) {
+      document.getElementById('auditModalSubtitle').innerText = `${title} · Bảng: diem_danh_audit_log`;
+      document.getElementById('auditModal').classList.remove('hidden');
+    }
+
+    function closeAuditModal() {
+      document.getElementById('auditModal').classList.add('hidden');
+    }
+
+    // 6. Toast Notification Helper
+    function showToast(msg, type = 'success') {
+      const toast = document.getElementById('toastNotification');
+      const toastMsg = document.getElementById('toastMsg');
+      const toastIcon = document.getElementById('toastIcon');
+
+      toastMsg.innerText = msg;
+      if (type === 'error') {
+        toastIcon.className = 'fa-solid fa-circle-xmark text-rose-400 text-sm';
+      } else {
+        toastIcon.className = 'fa-solid fa-circle-check text-emerald-400 text-sm';
+      }
+
+      toast.classList.remove('hidden');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 3500);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Nhật ký Học vụ - MENGLISH Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "outline-variant": "#e1bfb2",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-primary": "#ffffff",
+                        "primary": "#a23f00",
+                        "primary-fixed-dim": "#ffb595",
+                        "surface-container-low": "#f1f3ff",
+                        "surface": "#f9f9ff",
+                        "outline": "#8d7165",
+                        "on-error": "#ffffff",
+                        "tertiary-container": "#46a917",
+                        "background": "#f9f9ff",
+                        "inverse-on-surface": "#ecf0ff",
+                        "tertiary": "#256d00",
+                        "on-secondary-fixed": "#00105b",
+                        "on-tertiary": "#ffffff",
+                        "primary-container": "#f5691a",
+                        "on-background": "#161c27",
+                        "surface-container-high": "#e3e8f9",
+                        "error": "#ba1a1a",
+                        "on-secondary-container": "#faf7ff",
+                        "surface-tint": "#a23f00",
+                        "on-tertiary-fixed": "#062100",
+                        "secondary-fixed": "#dee0ff",
+                        "surface-bright": "#f9f9ff",
+                        "on-surface": "#161c27",
+                        "on-secondary": "#ffffff",
+                        "secondary-container": "#4160ff",
+                        "secondary": "#1e43e7",
+                        "on-surface-variant": "#594137",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "error-container": "#ffdad6",
+                        "surface-dim": "#d4daea",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "primary-fixed": "#ffdbcd",
+                        "on-primary-fixed": "#360f00",
+                        "surface-container": "#e8eeff",
+                        "on-primary-container": "#521c00",
+                        "surface-variant": "#dde2f3",
+                        "inverse-primary": "#ffb595",
+                        "on-tertiary-container": "#0e3500",
+                        "inverse-surface": "#2a303d",
+                        "tertiary-fixed": "#93fb65",
+                        "surface-container-highest": "#dde2f3"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "8px",
+                        "gutter": "16px",
+                        "sidebar-width": "260px",
+                        "header-height": "64px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "lg": "24px",
+                        "xl": "32px",
+                        "xs": "4px"
+                    },
+                    "fontFamily": {
+                        "caption": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "label": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "caption": ["11px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "h2": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "code": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "label": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "h1": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "h3": ["18px", { "lineHeight": "26px", "fontWeight": "600" }],
+                        "body-medium": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "body-small": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-base": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: #f9f9ff;
+        }
+        
+        /* Custom Switch Styling */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #ba1a1a; /* Error color for serious issues */
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #ba1a1a;
+        }
+        
+        /* Role Toggle Switch */
+        .role-switch:checked {
+            right: 0;
+            border-color: #f5691a;
+        }
+        .role-switch:checked + .role-label {
+            background-color: #f5691a;
+        }
+
+        /* Input Focus Glow */
+        textarea:focus, select:focus {
+            outline: none;
+            border-color: #4160ff; /* Secondary Container color */
+            box-shadow: 0 0 0 2px rgba(65, 96, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen p-lg">
+<div class="max-w-5xl mx-auto space-y-xl">
+<!-- Header & Role Selector -->
+<div class="flex justify-between items-end pb-sm border-b border-surface-variant">
+<div>
+<h1 class="font-h1 text-h1 text-on-background">Nhật ký Học vụ</h1>
+<p class="font-body-medium text-body-medium text-on-surface-variant mt-xs">Ghi nhận và theo dõi các sự việc liên quan đến học vụ.</p>
+</div>
+<!-- Demo Role Toggle (Admin vs Học vụ) -->
+<div class="flex items-center gap-sm bg-surface-container-low p-sm rounded-lg border border-outline-variant">
+<span class="font-label text-label text-on-surface-variant uppercase">Vai trò Demo:</span>
+<span class="font-body-small text-body-small font-medium text-on-surface" id="roleText">Học vụ</span>
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input class="role-switch toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-2 border-outline appearance-none cursor-pointer transition-all duration-300" id="roleToggle" name="toggle" onchange="toggleRole()" type="checkbox"/>
+<label class="role-label toggle-label block overflow-hidden h-5 rounded-full bg-surface-dim cursor-pointer transition-colors duration-300" for="roleToggle"></label>
+</div>
+<span class="font-body-small text-body-small font-medium text-primary-container hidden" id="adminRoleText">Admin</span>
+</div>
+</div>
+<!-- Input Section -->
+<div class="bg-surface-container-lowest rounded-xl p-lg border border-surface-variant shadow-sm transition-all duration-300 hover:shadow-md">
+<h2 class="font-h3 text-h3 mb-md text-on-surface">Thêm nhật ký mới</h2>
+<div class="space-y-md">
+<div class="flex flex-col md:flex-row gap-md">
+<div class="md:w-1/3">
+<label class="block font-label text-label text-on-surface-variant mb-xs" for="kpi">GẮN MÃ KPI (TÙY CHỌN)</label>
+<select class="w-full bg-surface-container-lowest border border-surface-variant rounded-lg p-sm font-body-base text-body-base text-on-surface" id="kpi">
+<option value="">-- Không chọn --</option>
+<option value="1.1">KPI 1.1</option>
+<option value="1.2">KPI 1.2</option>
+<option value="3.1">KPI 3.1</option>
+</select>
+</div>
+<div class="md:w-2/3">
+<label class="block font-label text-label text-on-surface-variant mb-xs" for="noidung">NỘI DUNG SỰ VIỆC</label>
+<textarea class="w-full bg-surface-container-lowest border border-surface-variant rounded-lg p-sm font-body-base text-body-base text-on-surface resize-y" id="noidung" placeholder="Nhập chi tiết sự việc..." rows="3"></textarea>
+</div>
+</div>
+<div class="flex justify-end">
+<button class="bg-primary-container text-on-primary font-body-medium text-body-medium px-md py-sm rounded-lg hover:opacity-90 transition-opacity flex items-center gap-xs">
+<span class="material-symbols-outlined text-[20px]">add_circle</span>
+                        Thêm nhật ký
+                    </button>
+</div>
+</div>
+</div>
+<!-- Timeline / Data List -->
+<div class="space-y-lg relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-surface-variant before:to-transparent">
+<!-- Item 1: Normal Issue -->
+<div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+<!-- Icon -->
+<div class="flex items-center justify-center w-10 h-10 rounded-full border border-surface-container-highest bg-surface-container-lowest shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">edit_note</span>
+</div>
+<!-- Card -->
+<div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-md rounded-xl border border-surface-variant bg-surface-container-lowest shadow-sm hover:shadow-md transition-shadow">
+<div class="flex justify-between items-start mb-sm">
+<div>
+<div class="font-body-small text-body-small text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+                                10/10/2023 14:30
+                            </div>
+<div class="font-label text-label text-primary mt-xs uppercase">Người ghi: Nguyễn Thị A (Học vụ)</div>
+</div>
+<!-- Status Toggle / Badge -->
+<div class="flex items-center gap-xs">
+<div class="admin-control hidden items-center gap-xs" title="Chỉ Admin mới có quyền đánh dấu lỗi nghiêm trọng">
+<span class="font-label text-label text-on-surface-variant">Lỗi nghiêm trọng</span>
+<div class="relative inline-block w-8 mr-2 align-middle select-none">
+<input class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-2 border-outline appearance-none cursor-pointer" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-4 rounded-full bg-surface-dim cursor-pointer"></label>
+</div>
+</div>
+<div class="hocvu-badge flex items-center gap-xs">
+<span class="bg-surface-variant text-on-surface-variant font-label text-label px-xs py-[2px] rounded">Chưa xác nhận</span>
+</div>
+</div>
+</div>
+<div class="mb-xs">
+<span class="bg-surface-variant text-on-surface-variant font-label text-[10px] px-2 py-[2px] rounded-md border border-outline-variant">KPI: 1.2</span>
+</div>
+<p class="font-body-base text-body-base text-on-surface">
+                        Học viên Trần Văn B thắc mắc về điểm danh buổi học ngày 08/10. Đã kiểm tra lại hệ thống và xác nhận học viên có mặt nhưng giáo viên quên điểm danh. Đã cập nhật lại hệ thống.
+                    </p>
+</div>
+</div>
+<!-- Item 2: Serious Issue (Confirmed) -->
+<div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+<!-- Icon -->
+<div class="flex items-center justify-center w-10 h-10 rounded-full border border-error-container bg-error-container shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+<span class="material-symbols-outlined text-error text-[20px]">warning</span>
+</div>
+<!-- Card -->
+<div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-md rounded-xl border border-error-container bg-[#fff5f5] shadow-sm hover:shadow-md transition-shadow">
+<div class="flex justify-between items-start mb-sm">
+<div>
+<div class="font-body-small text-body-small text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+                                09/10/2023 09:15
+                            </div>
+<div class="font-label text-label text-primary mt-xs uppercase">Người ghi: Lê Văn C (Học vụ)</div>
+</div>
+<!-- Status Toggle / Badge -->
+<div class="flex flex-col items-end gap-xs">
+<div class="admin-control hidden items-center gap-xs">
+<span class="font-label text-label text-error">Lỗi nghiêm trọng</span>
+<div class="relative inline-block w-8 mr-2 align-middle select-none">
+<input checked="" class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-2 border-error appearance-none cursor-pointer" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-4 rounded-full bg-error cursor-pointer"></label>
+</div>
+</div>
+<div class="hocvu-badge flex items-center gap-xs">
+<span class="bg-error text-on-error font-label text-label px-xs py-[2px] rounded flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">warning</span> Lỗi nghiêm trọng
+</span>
+</div>
+<!-- Admin Confirmation Badge -->
+<div class="bg-error-container text-on-error-container font-label text-label px-xs py-[2px] rounded flex items-center gap-xs border border-error/20 mt-xs">
+<span class="material-symbols-outlined text-[12px]">verified_user</span>
+                                Xác nhận bởi: Admin Liên
+                            </div>
+</div>
+</div>
+<div class="mb-xs">
+<span class="bg-surface-variant text-on-surface-variant font-label text-[10px] px-2 py-[2px] rounded-md border border-outline-variant">KPI: 3.1</span>
+</div>
+<p class="font-body-base text-body-base text-on-surface font-medium">
+                        Giáo viên lớp IELTS_01 nghỉ báo gấp sát giờ học. Không kịp sắp xếp giáo viên dạy thay, phải thông báo hủy lớp cho học viên. Phụ huynh học viên D phàn nàn gay gắt.
+                    </p>
+</div>
+</div>
+<!-- Item 3: Neutral Issue -->
+<div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+<!-- Icon -->
+<div class="flex items-center justify-center w-10 h-10 rounded-full border border-surface-container-highest bg-surface-container-lowest shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">edit_note</span>
+</div>
+<!-- Card -->
+<div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-md rounded-xl border border-surface-variant bg-surface-container-lowest shadow-sm hover:shadow-md transition-shadow">
+<div class="flex justify-between items-start mb-sm">
+<div>
+<div class="font-body-small text-body-small text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+                                05/10/2023 16:45
+                            </div>
+<div class="font-label text-label text-primary mt-xs uppercase">Người ghi: Nguyễn Thị A (Học vụ)</div>
+</div>
+<!-- Status Toggle / Badge -->
+<div class="flex items-center gap-xs">
+<div class="admin-control hidden items-center gap-xs">
+<span class="font-label text-label text-on-surface-variant">Lỗi nghiêm trọng</span>
+<div class="relative inline-block w-8 mr-2 align-middle select-none">
+<input class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-2 border-outline appearance-none cursor-pointer" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-4 rounded-full bg-surface-dim cursor-pointer"></label>
+</div>
+</div>
+<div class="hocvu-badge flex items-center gap-xs">
+<span class="bg-surface-variant text-on-surface-variant font-label text-label px-xs py-[2px] rounded">Chưa xác nhận</span>
+</div>
+</div>
+</div>
+<p class="font-body-base text-body-base text-on-surface">
+                        Kiểm tra định kỳ trang thiết bị phòng học số 3. Báo bộ phận kỹ thuật sửa máy chiếu bị mờ.
+                    </p>
+</div>
+</div>
+</div>
+</div>
+<script>
+        function toggleRole() {
+            const isChecked = document.getElementById('roleToggle').checked;
+            const adminControls = document.querySelectorAll('.admin-control');
+            const hocvuBadges = document.querySelectorAll('.hocvu-badge');
+            const roleText = document.getElementById('roleText');
+            const adminRoleText = document.getElementById('adminRoleText');
+            
+            if(isChecked) {
+                // Admin Mode
+                roleText.classList.add('hidden');
+                adminRoleText.classList.remove('hidden');
+                
+                adminControls.forEach(ctrl => {
+                    ctrl.classList.remove('hidden');
+                    ctrl.classList.add('flex');
+                });
+                hocvuBadges.forEach(badge => {
+                    badge.classList.add('hidden');
+                    badge.classList.remove('flex');
+                });
+            } else {
+                // Học vụ Mode
+                roleText.classList.remove('hidden');
+                adminRoleText.classList.add('hidden');
+                
+                adminControls.forEach(ctrl => {
+                    ctrl.classList.add('hidden');
+                    ctrl.classList.remove('flex');
+                });
+                hocvuBadges.forEach(badge => {
+                    badge.classList.remove('hidden');
+                    badge.classList.add('flex');
+                });
+            }
+        }
+    </script>
+</body></html>

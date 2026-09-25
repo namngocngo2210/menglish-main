@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Trang chủ - MENGLISH</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-container": "#faf7ff",
+                        "surface-dim": "#d4daea",
+                        "on-secondary": "#ffffff",
+                        "primary-fixed": "#ffdbcd",
+                        "surface-container-low": "#f1f3ff",
+                        "surface": "#f9f9ff",
+                        "on-tertiary": "#ffffff",
+                        "secondary": "#1e43e7",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "surface-container": "#e8eeff",
+                        "outline-variant": "#e1bfb2",
+                        "on-error-container": "#93000a",
+                        "on-surface-variant": "#594137",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed": "#062100",
+                        "inverse-on-surface": "#ecf0ff",
+                        "tertiary-container": "#46a917",
+                        "tertiary": "#256d00",
+                        "surface-container-highest": "#dde2f3",
+                        "surface-variant": "#dde2f3",
+                        "on-primary-fixed": "#360f00",
+                        "on-tertiary-container": "#0e3500",
+                        "outline": "#8d7165",
+                        "inverse-surface": "#2a303d",
+                        "on-error": "#ffffff",
+                        "background": "#f9f9ff",
+                        "secondary-container": "#4160ff",
+                        "primary-fixed-dim": "#ffb595",
+                        "tertiary-fixed": "#93fb65",
+                        "inverse-primary": "#ffb595",
+                        "secondary-fixed": "#dee0ff",
+                        "surface-tint": "#a23f00",
+                        "on-secondary-fixed": "#00105b",
+                        "error": "#ba1a1a",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "surface-bright": "#f9f9ff",
+                        "on-primary": "#ffffff",
+                        "primary": "#a23f00",
+                        "on-background": "#161c27",
+                        "on-primary-container": "#521c00",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "primary-container": "#f5691a",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "on-surface": "#161c27",
+                        "surface-container-high": "#e3e8f9"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "8px",
+                        "xl": "32px",
+                        "xs": "4px",
+                        "sidebar-width": "260px",
+                        "gutter": "16px",
+                        "base": "8px",
+                        "md": "16px",
+                        "header-height": "64px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "caption": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "caption": ["11px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "h3": ["18px", { "lineHeight": "26px", "fontWeight": "600" }],
+                        "body-base": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "h1": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "code": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-small": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "h2": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-medium": ["14px", { "lineHeight": "20px", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-filled {
+            font-variation-settings: 'FILL' 1;
+        }
+        
+        /* Custom scrollbar for bottom sheet */
+        .bottom-sheet-content::-webkit-scrollbar {
+            width: 4px;
+        }
+        .bottom-sheet-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .bottom-sheet-content::-webkit-scrollbar-thumb {
+            background: #dde2f3;
+            border-radius: 4px;
+        }
+        
+        /* Animations */
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .animate-slide-up {
+            animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.2s ease-out forwards;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-base antialiased w-full h-screen overflow-x-hidden flex flex-col relative pb-20"> <!-- Added padding bottom for nav bar simulation -->
+<!-- Main Content Area -->
+<main class="flex-1 w-full max-w-md mx-auto p-md flex flex-col gap-lg">
+<!-- Header Welcome -->
+<div class="flex flex-col gap-xs pt-sm">
+<h1 class="font-h1 text-h1 text-on-background">Xin chào,</h1>
+<p class="font-h2 text-h2 text-primary-container">Nguyễn Văn A</p>
+</div>
+<!-- Student Info Card (Bento style) -->
+<div class="bg-surface-container-lowest rounded-xl border border-surface-container-highest p-md flex flex-col gap-md shadow-sm relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-primary-container opacity-5 rounded-bl-full pointer-events-none"></div>
+<div class="flex items-center justify-between border-b border-surface-container-highest pb-sm">
+<h2 class="font-h3 text-h3 flex items-center gap-xs">
+<span class="material-symbols-outlined text-primary-container icon-filled">person</span>
+                    Thông tin học sinh
+                </h2>
+<div class="px-2 py-1 bg-tertiary-container/10 text-tertiary rounded-full font-label text-label">
+                    Đang học
+                </div>
+</div>
+<div class="grid grid-cols-2 gap-y-md gap-x-sm">
+<div class="flex flex-col gap-xs">
+<span class="font-caption text-caption text-on-surface-variant uppercase tracking-wider">Ngày sinh</span>
+<span class="font-body-medium text-body-medium">15/06/2015</span>
+</div>
+<div class="flex flex-col gap-xs">
+<span class="font-caption text-caption text-on-surface-variant uppercase tracking-wider">Lớp đang học</span>
+<span class="font-body-medium text-body-medium text-secondary-container">IELTS Starter - M01</span>
+</div>
+<div class="flex flex-col gap-xs">
+<span class="font-caption text-caption text-on-surface-variant uppercase tracking-wider">Giáo viên chính</span>
+<span class="font-body-medium text-body-medium flex items-center gap-xs">
+                        Cô Huyền
+                    </span>
+</div>
+<div class="flex flex-col gap-xs">
+<span class="font-caption text-caption text-on-surface-variant uppercase tracking-wider">Số điện thoại</span>
+<span class="font-body-medium text-body-medium font-code">0987654321</span>
+</div>
+<div class="col-span-2 flex flex-col gap-xs">
+<span class="font-caption text-caption text-on-surface-variant uppercase tracking-wider">Địa chỉ</span>
+<span class="font-body-base text-body-base text-on-surface-variant">123 Đường ABC, Quận Cầu Giấy, Hà Nội</span>
+</div>
+</div>
+</div>
+<!-- Tuition Info Card (Glassmorphism inspired) -->
+<div class="bg-gradient-to-br from-primary-container to-primary text-on-primary rounded-xl p-md flex flex-col gap-md shadow-lg relative overflow-hidden">
+<!-- Decorative background elements -->
+<div class="absolute top-[-20%] right-[-10%] w-32 h-32 bg-white/20 rounded-full blur-2xl"></div>
+<div class="absolute bottom-[-20%] left-[-10%] w-24 h-24 bg-black/10 rounded-full blur-xl"></div>
+<div class="flex items-center justify-between relative z-10">
+<h2 class="font-h3 text-h3 flex items-center gap-xs">
+<span class="material-symbols-outlined icon-filled">account_balance_wallet</span>
+                    Thông tin học phí
+                </h2>
+<button class="text-on-primary bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full font-label text-label flex items-center gap-xs backdrop-blur-sm active:scale-95" onclick="openHistorySheet()">
+                    Xem lịch sử <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+<div class="grid grid-cols-2 gap-sm relative z-10 bg-black/10 p-sm rounded-lg backdrop-blur-md border border-white/10">
+<div class="flex flex-col gap-xs">
+<span class="font-caption text-caption text-on-primary/80 uppercase">Tổng đã đóng</span>
+<span class="font-h2 text-h2 font-code">15.000.000đ</span>
+</div>
+<div class="flex flex-col gap-xs pl-sm border-l border-white/20">
+<span class="font-caption text-caption text-on-primary/80 uppercase">Còn nợ</span>
+<span class="font-h3 text-h3 font-code text-[#ffdad6]">2.500.000đ</span>
+</div>
+</div>
+<div class="flex items-center justify-between relative z-10 bg-white/10 px-sm py-2 rounded-lg">
+<span class="font-body-small text-body-small text-on-primary/90">Dự kiến khóa tới:</span>
+<span class="font-body-medium text-body-medium font-code">5.000.000đ</span>
+</div>
+</div>
+</main>
+<!-- Bottom Sheet: Lịch sử thu học phí -->
+<div class="fixed inset-0 bg-on-background/40 z-[100] hidden backdrop-blur-sm transition-opacity duration-200" id="historySheetBackdrop" onclick="closeHistorySheet()">
+<div class="absolute bottom-0 left-0 right-0 bg-surface rounded-t-[24px] shadow-2xl flex flex-col max-h-[751px] translate-y-full transition-transform duration-300 ease-out" id="historySheet" onclick="event.stopPropagation()">
+<!-- Drag Handle & Header -->
+<div class="flex flex-col items-center pt-xs pb-sm border-b border-surface-container-highest px-md sticky top-0 bg-surface rounded-t-[24px] z-10">
+<div class="w-12 h-1.5 bg-surface-container-highest rounded-full mb-sm" onclick="closeHistorySheet()"></div>
+<div class="w-full flex justify-between items-center">
+<h3 class="font-h2 text-h2 text-on-surface">Lịch sử thu học phí</h3>
+<button class="p-1 rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors" onclick="closeHistorySheet()">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+</div>
+<!-- List Content -->
+<div class="bottom-sheet-content overflow-y-auto p-md flex flex-col gap-sm pb-[100px]"> <!-- Extra padding for bottom nav -->
+<!-- Filter Info (Implicitly applied) -->
+<div class="text-caption font-caption text-on-surface-variant mb-xs flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">filter_list</span> Chỉ hiển thị phiếu "Đã duyệt"
+                </div>
+<!-- Receipt Item 1 -->
+<div class="bg-surface-container-lowest border border-surface-container-highest rounded-lg p-sm flex flex-col gap-sm">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<span class="font-label text-label text-primary-container font-code">PT12345</span>
+<span class="font-body-medium text-body-medium">Học phí khóa IELTS Starter</span>
+</div>
+<div class="px-2 py-0.5 bg-tertiary-container/10 text-tertiary rounded font-caption text-caption flex items-center gap-1 border border-tertiary/20">
+<span class="material-symbols-outlined text-[12px]">check_circle</span> Đã duyệt
+                        </div>
+</div>
+<div class="flex justify-between items-end border-t border-surface-container-highest pt-xs mt-xs">
+<div class="flex flex-col gap-1">
+<span class="font-caption text-caption text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span> 10/08/2026
+                            </span>
+<span class="font-caption text-caption text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">payments</span> Chuyển khoản
+                            </span>
+</div>
+<span class="font-h3 text-h3 font-code text-on-surface">5.000.000đ</span>
+</div>
+</div>
+<!-- Receipt Item 2 (Mock for demonstration of scroll) -->
+<div class="bg-surface-container-lowest border border-surface-container-highest rounded-lg p-sm flex flex-col gap-sm">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<span class="font-label text-label text-primary-container font-code">PT12300</span>
+<span class="font-body-medium text-body-medium">Giáo trình IELTS Starter</span>
+</div>
+<div class="px-2 py-0.5 bg-tertiary-container/10 text-tertiary rounded font-caption text-caption flex items-center gap-1 border border-tertiary/20">
+<span class="material-symbols-outlined text-[12px]">check_circle</span> Đã duyệt
+                        </div>
+</div>
+<div class="flex justify-between items-end border-t border-surface-container-highest pt-xs mt-xs">
+<div class="flex flex-col gap-1">
+<span class="font-caption text-caption text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span> 01/08/2026
+                            </span>
+<span class="font-caption text-caption text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">payments</span> Tiền mặt
+                            </span>
+</div>
+<span class="font-h3 text-h3 font-code text-on-surface">500.000đ</span>
+</div>
+</div>
+<!-- Receipt Item 3 (Mock for demonstration of scroll) -->
+<div class="bg-surface-container-lowest border border-surface-container-highest rounded-lg p-sm flex flex-col gap-sm">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<span class="font-label text-label text-primary-container font-code">PT12210</span>
+<span class="font-body-medium text-body-medium">Học phí khóa Pre-IELTS</span>
+</div>
+<div class="px-2 py-0.5 bg-tertiary-container/10 text-tertiary rounded font-caption text-caption flex items-center gap-1 border border-tertiary/20">
+<span class="material-symbols-outlined text-[12px]">check_circle</span> Đã duyệt
+                        </div>
+</div>
+<div class="flex justify-between items-end border-t border-surface-container-highest pt-xs mt-xs">
+<div class="flex flex-col gap-1">
+<span class="font-caption text-caption text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span> 15/03/2026
+                            </span>
+<span class="font-caption text-caption text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">payments</span> Chuyển khoản
+                            </span>
+</div>
+<span class="font-h3 text-h3 font-code text-on-surface">4.500.000đ</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+        const sheetBackdrop = document.getElementById('historySheetBackdrop');
+        const sheet = document.getElementById('historySheet');
+
+        function openHistorySheet() {
+            sheetBackdrop.classList.remove('hidden');
+            // Small delay to allow display:block to apply before animation
+            setTimeout(() => {
+                sheetBackdrop.classList.add('animate-fade-in');
+                sheet.classList.remove('translate-y-full');
+            }, 10);
+            
+            // Prevent body scrolling
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeHistorySheet() {
+            sheet.classList.add('translate-y-full');
+            
+            // Wait for slide down animation to finish
+            setTimeout(() => {
+                sheetBackdrop.classList.add('hidden');
+                sheetBackdrop.classList.remove('animate-fade-in');
+                document.body.style.overflow = '';
+            }, 300);
+        }
+    </script>
+</body></html>

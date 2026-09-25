@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Xác nhận Quiz - MENGLISH Cổng Giáo viên</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-tertiary-fixed-variant": "#1a5200",
+                      "primary": "#a23f00",
+                      "surface-container-highest": "#dde2f3",
+                      "outline": "#8d7165",
+                      "surface-container-low": "#f1f3ff",
+                      "on-secondary-fixed-variant": "#002fc9",
+                      "on-surface": "#161c27",
+                      "surface-variant": "#dde2f3",
+                      "tertiary": "#256d00",
+                      "on-surface-variant": "#594137",
+                      "tertiary-container": "#46a917",
+                      "on-secondary": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "on-tertiary-fixed": "#062100",
+                      "on-primary": "#ffffff",
+                      "on-background": "#161c27",
+                      "primary-fixed": "#ffdbcd",
+                      "on-error-container": "#93000a",
+                      "primary-container": "#f5691a",
+                      "tertiary-fixed-dim": "#78de4b",
+                      "surface": "#f9f9ff",
+                      "on-primary-fixed-variant": "#7c2e00",
+                      "inverse-primary": "#ffb595",
+                      "primary-fixed-dim": "#ffb595",
+                      "on-secondary-fixed": "#00105b",
+                      "error": "#ba1a1a",
+                      "outline-variant": "#e1bfb2",
+                      "secondary-fixed": "#dee0ff",
+                      "secondary": "#1e43e7",
+                      "secondary-fixed-dim": "#bac3ff",
+                      "on-tertiary-container": "#0e3500",
+                      "on-primary-container": "#521c00",
+                      "secondary-container": "#4160ff",
+                      "surface-container-high": "#e3e8f9",
+                      "on-tertiary": "#ffffff",
+                      "background": "#f9f9ff",
+                      "inverse-surface": "#2a303d",
+                      "on-primary-fixed": "#360f00",
+                      "surface-tint": "#a23f00",
+                      "on-error": "#ffffff",
+                      "on-secondary-container": "#faf7ff",
+                      "surface-bright": "#f9f9ff",
+                      "surface-dim": "#d4daea",
+                      "tertiary-fixed": "#93fb65",
+                      "inverse-on-surface": "#ecf0ff",
+                      "surface-container": "#e8eeff",
+                      "error-container": "#ffdad6"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "sm": "8px",
+                      "xs": "4px",
+                      "md": "16px",
+                      "sidebar-width": "260px",
+                      "lg": "24px",
+                      "gutter": "16px",
+                      "xl": "32px",
+                      "header-height": "64px",
+                      "base": "8px"
+              },
+              "fontFamily": {
+                      "body-small": ["Be Vietnam Pro"],
+                      "h3": ["Be Vietnam Pro"],
+                      "h1": ["Be Vietnam Pro"],
+                      "caption": ["Be Vietnam Pro"],
+                      "h2": ["Be Vietnam Pro"],
+                      "code": ["JetBrains Mono"],
+                      "label": ["Be Vietnam Pro"],
+                      "body-medium": ["Be Vietnam Pro"],
+                      "body-base": ["Be Vietnam Pro"]
+              },
+              "fontSize": {
+                      "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                      "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                      "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                      "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                      "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                      "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        /* Custom toggle styles */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #F5691A;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #F5691A;
+        }
+        .toggle-checkbox {
+            right: 0;
+            z-index: 1;
+            border-color: #e2e8f0;
+            transition: all 0.3s;
+        }
+        .toggle-label {
+            width: 3rem;
+            height: 1.5rem;
+            background-color: #cbd5e1;
+            border-radius: 9999px;
+            transition: all 0.3s;
+        }
+        .toggle-dot {
+            top: 0.125rem;
+            left: 0.125rem;
+            width: 1.25rem;
+            height: 1.25rem;
+            background-color: white;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+        .toggle-checkbox:checked ~ .toggle-dot {
+            transform: translateX(100%);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-base antialiased min-h-screen flex items-center justify-center p-md">
+<!-- Main Content Panel -->
+<main class="w-full max-w-4xl bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-[0_4px_12px_rgba(0,0,0,0.05)] overflow-hidden">
+<!-- Header Section -->
+<header class="p-lg border-b border-outline-variant/30 bg-surface-container-low/50">
+<div class="flex flex-col md:flex-row md:items-start justify-between gap-md">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface mb-xs">Xác nhận Quiz</h1>
+<p class="font-body-small text-body-small text-on-surface-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">info</span>
+                        Vui lòng đối chiếu kết quả từ công cụ bên ngoài trước khi xác nhận thủ công cho học sinh.
+                    </p>
+</div>
+<div class="flex flex-col sm:flex-row gap-sm">
+<a class="inline-flex items-center justify-center px-4 py-2 bg-white border border-outline-variant rounded-lg font-body-medium text-body-medium text-on-surface hover:bg-surface-container-low transition-colors shadow-sm" href="#">
+<span class="material-symbols-outlined mr-2 text-[18px]">open_in_new</span>
+                        Mở bảng kết quả Quizizz
+                    </a>
+</div>
+</div>
+</header>
+<!-- Roster List -->
+<div class="p-0">
+<!-- Table Header (Desktop) -->
+<div class="hidden md:grid grid-cols-12 gap-4 px-lg py-sm bg-surface-container-low/30 border-b border-outline-variant/30 font-label text-label text-on-surface-variant uppercase tracking-wider">
+<div class="col-span-5">Thông tin học sinh</div>
+<div class="col-span-4">Trạng thái nộp bài</div>
+<div class="col-span-3 text-right">Xác nhận</div>
+</div>
+<!-- Student 1 -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-4 p-md md:px-lg md:py-md border-b border-outline-variant/30 items-center hover:bg-surface-container-low/20 transition-colors group">
+<!-- Info -->
+<div class="col-span-1 md:col-span-5 flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-primary-container/20 flex items-center justify-center text-primary-container font-h3 shrink-0">
+                        A
+                    </div>
+<div>
+<p class="font-h3 text-h3 text-on-surface">Nguyễn Văn A</p>
+<!-- Confirmation Details -->
+<p class="font-caption text-caption text-on-surface-variant mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                            Xác nhận bởi: Trần Thị B - 10:30 22/08/2026
+                        </p>
+</div>
+</div>
+<!-- Status -->
+<div class="col-span-1 md:col-span-4 flex items-center">
+<span class="inline-flex items-center px-2 py-1 rounded-full bg-tertiary-container/10 text-tertiary-container font-label text-label">
+                        Đã hoàn thành
+                    </span>
+</div>
+<!-- Action -->
+<div class="col-span-1 md:col-span-3 flex md:justify-end items-center">
+<label class="relative inline-block w-12 h-6 cursor-pointer" onclick="handleToggleClick(event, 'Nguyễn Văn A', true)">
+<input checked="" class="sr-only peer toggle-checkbox" type="checkbox"/>
+<div class="toggle-label peer-checked:bg-primary-container"></div>
+<div class="absolute toggle-dot peer-checked:translate-x-6"></div>
+</label>
+</div>
+</div>
+<!-- Student 2 -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-4 p-md md:px-lg md:py-md border-b border-outline-variant/30 items-center hover:bg-surface-container-low/20 transition-colors group">
+<!-- Info -->
+<div class="col-span-1 md:col-span-5 flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center text-on-surface-variant font-h3 shrink-0">
+                        C
+                    </div>
+<div>
+<div class="flex items-center gap-2">
+<p class="font-h3 text-h3 text-on-surface">Lê Thị C</p>
+<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-surface-variant text-on-surface-variant">Học thử</span>
+</div>
+</div>
+</div>
+<!-- Status -->
+<div class="col-span-1 md:col-span-4 flex items-center">
+<span class="inline-flex items-center px-2 py-1 rounded-full bg-surface-variant/50 text-on-surface-variant font-label text-label">
+                        Chưa nộp
+                    </span>
+</div>
+<!-- Action -->
+<div class="col-span-1 md:col-span-3 flex md:justify-end items-center">
+<label class="relative inline-block w-12 h-6 cursor-pointer">
+<input class="sr-only peer toggle-checkbox" type="checkbox"/>
+<div class="toggle-label peer-checked:bg-primary-container"></div>
+<div class="absolute toggle-dot peer-checked:translate-x-6"></div>
+</label>
+</div>
+</div>
+<!-- Student 3 -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-4 p-md md:px-lg md:py-md border-b border-outline-variant/30 items-center hover:bg-surface-container-low/20 transition-colors group">
+<!-- Info -->
+<div class="col-span-1 md:col-span-5 flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-primary-container/20 flex items-center justify-center text-primary-container font-h3 shrink-0">
+                        D
+                    </div>
+<div>
+<p class="font-h3 text-h3 text-on-surface">Phạm Văn D</p>
+<!-- Confirmation Details -->
+<p class="font-caption text-caption text-on-surface-variant mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                            Xác nhận bởi: Trần Thị B - 11:00 22/08/2026
+                        </p>
+</div>
+</div>
+<!-- Status -->
+<div class="col-span-1 md:col-span-4 flex items-center">
+<span class="inline-flex items-center px-2 py-1 rounded-full bg-tertiary-container/10 text-tertiary-container font-label text-label">
+                        Đã hoàn thành
+                    </span>
+</div>
+<!-- Action -->
+<div class="col-span-1 md:col-span-3 flex md:justify-end items-center">
+<label class="relative inline-block w-12 h-6 cursor-pointer" onclick="handleToggleClick(event, 'Phạm Văn D', true)">
+<input checked="" class="sr-only peer toggle-checkbox" type="checkbox"/>
+<div class="toggle-label peer-checked:bg-primary-container"></div>
+<div class="absolute toggle-dot peer-checked:translate-x-6"></div>
+</label>
+</div>
+</div>
+</div>
+<!-- Footer Actions -->
+<div class="p-lg bg-surface-container-low/30 flex justify-end gap-sm">
+<button class="px-6 py-2 bg-white border border-outline-variant text-on-surface font-body-medium rounded-lg hover:bg-surface-container-low transition-colors">
+                Quay lại
+            </button>
+<button class="px-6 py-2 bg-primary-container text-white font-body-medium rounded-lg hover:bg-primary transition-colors shadow-[0_4px_12px_rgba(245,105,26,0.2)]">
+                Lưu thay đổi
+            </button>
+</div>
+</main>
+<!-- Modal/Popover Template (Hidden by default) -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/50 opacity-0 pointer-events-none transition-opacity duration-200" id="confirmModal">
+<div class="bg-surface-container-lowest rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-lg max-w-sm w-full mx-md transform scale-95 transition-transform duration-200" id="modalContent">
+<div class="flex items-start gap-md">
+<div class="w-10 h-10 rounded-full bg-error-container/20 flex items-center justify-center text-error shrink-0">
+<span class="material-symbols-outlined">warning</span>
+</div>
+<div>
+<h3 class="font-h3 text-h3 text-on-surface mb-2">Hủy xác nhận</h3>
+<p class="font-body-small text-body-small text-on-surface-variant mb-6" id="modalText">
+                        Bạn có chắc muốn hủy xác nhận nộp bài cho học sinh [Tên HS] không?
+                    </p>
+<div class="flex justify-end gap-sm">
+<button class="px-4 py-2 bg-white border border-outline-variant text-on-surface font-body-medium rounded-lg hover:bg-surface-container-low transition-colors" onclick="closeModal(false)">
+                            Không
+                        </button>
+<button class="px-4 py-2 bg-primary-container text-white font-body-medium rounded-lg hover:bg-primary transition-colors" onclick="closeModal(true)">
+                            Có, hủy xác nhận
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+        let currentToggleTarget = null;
+        let currentToggleCheckbox = null;
+
+        function handleToggleClick(event, studentName, isCurrentlyChecked) {
+            // Only intercept if we are unchecking
+            const checkbox = event.currentTarget.querySelector('input');
+            
+            if (checkbox.checked) {
+                // If it's about to be unchecked (browser hasn't flipped state yet during click event on label)
+                event.preventDefault();
+                currentToggleTarget = studentName;
+                currentToggleCheckbox = checkbox;
+                showModal(studentName);
+            }
+        }
+
+        function showModal(studentName) {
+            const modal = document.getElementById('confirmModal');
+            const content = document.getElementById('modalContent');
+            const text = document.getElementById('modalText');
+            
+            text.textContent = `Bạn có chắc muốn hủy xác nhận nộp bài cho học sinh ${studentName} không?`;
+            
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            content.classList.remove('scale-95');
+            content.classList.add('scale-100');
+        }
+
+        function closeModal(confirm) {
+            const modal = document.getElementById('confirmModal');
+            const content = document.getElementById('modalContent');
+            
+            if (confirm && currentToggleCheckbox) {
+                currentToggleCheckbox.checked = false;
+                // In a real app, you'd also hide the 'Confirmed by' text and change the badge status here
+            }
+            
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            
+            currentToggleTarget = null;
+            currentToggleCheckbox = null;
+        }
+    </script>
+</body></html>

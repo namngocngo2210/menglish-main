@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Chi tiết bảng lương Học thuật - MENGLISH Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-fixed": "#dee0ff",
+                        "on-secondary-fixed": "#00105b",
+                        "primary-container": "#f5691a",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "on-tertiary-container": "#0e3500",
+                        "on-primary-container": "#521c00",
+                        "inverse-on-surface": "#ecf0ff",
+                        "outline": "#8d7165",
+                        "error-container": "#ffdad6",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "on-background": "#161c27",
+                        "surface-container-low": "#f1f3ff",
+                        "primary": "#a23f00",
+                        "tertiary": "#256d00",
+                        "background": "#f9f9ff",
+                        "surface-bright": "#f9f9ff",
+                        "on-tertiary-fixed": "#062100",
+                        "surface-container-lowest": "#ffffff",
+                        "surface": "#f9f9ff",
+                        "on-primary-fixed": "#360f00",
+                        "surface-dim": "#d4daea",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "inverse-surface": "#2a303d",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "surface-container-highest": "#dde2f3",
+                        "primary-fixed-dim": "#ffb595",
+                        "surface-container": "#e8eeff",
+                        "tertiary-fixed": "#93fb65",
+                        "inverse-primary": "#ffb595",
+                        "primary-fixed": "#ffdbcd",
+                        "surface-variant": "#dde2f3",
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "surface-tint": "#a23f00",
+                        "on-secondary": "#ffffff",
+                        "outline-variant": "#e1bfb2",
+                        "surface-container-high": "#e3e8f9",
+                        "tertiary-container": "#46a917",
+                        "on-tertiary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "on-error": "#ffffff",
+                        "on-secondary-container": "#faf7ff",
+                        "secondary-container": "#4160ff",
+                        "on-surface": "#161c27",
+                        "secondary": "#1e43e7",
+                        "on-surface-variant": "#594137",
+                        "on-primary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "xs": "4px",
+                        "md": "16px",
+                        "header-height": "64px",
+                        "base": "8px",
+                        "sidebar-width": "260px",
+                        "lg": "24px",
+                        "xl": "32px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "h2": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "h2": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "caption": ["11px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "label": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "h3": ["18px", { "lineHeight": "26px", "fontWeight": "600" }],
+                        "body-base": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-small": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-medium": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "h1": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "code": ["13px", { "lineHeight": "18px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; background-color: #f9f9ff; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .input-focus-ring:focus { outline: none; border-color: #3B5BFB; box-shadow: 0 0 0 2px rgba(59, 91, 251, 0.2); }
+    </style>
+</head>
+<body class="bg-background text-on-surface antialiased p-lg">
+<div class="max-w-7xl mx-auto space-y-lg">
+<!-- Header -->
+<header class="flex items-start justify-between border-b border-surface-container-high pb-md">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface">Chi tiết bảng lương Học thuật</h1>
+<div class="flex items-center gap-2 mt-xs text-on-surface-variant font-body-base">
+<span class="font-medium text-on-surface">Nguyễn Thị Ánh Tuyết</span>
+<span>•</span>
+<span>Tháng 10/2026</span>
+</div>
+</div>
+<button class="flex items-center gap-sm px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 font-body-medium hover:bg-gray-50 transition-colors shadow-sm">
+<span class="material-symbols-outlined text-base">arrow_back</span>
+                Quay lại
+            </button>
+</header>
+<!-- Main Content Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-lg">
+<!-- Left Column: Inputs & Tables -->
+<div class="lg:col-span-2 space-y-lg">
+<!-- Card 1: Thành phần Học thuật -->
+<section class="bg-surface-container-lowest border border-gray-100 rounded-xl p-lg shadow-sm hover:shadow-md transition-shadow">
+<div class="flex items-center justify-between mb-md border-b border-surface-container-highest pb-sm">
+<h2 class="font-h2 text-h2 text-on-surface">Thành phần Học thuật</h2>
+</div>
+<form class="space-y-md">
+<!-- Lương cứng -->
+<div>
+<label class="block font-label text-label text-gray-700 mb-1 uppercase tracking-wider">Lương cứng (VNĐ)</label>
+<input class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-on-surface font-body-base input-focus-ring placeholder-gray-400" placeholder="Nhập số tiền..." type="text" value="15,000,000"/>
+</div>
+<!-- Chế độ Lương giảng dạy -->
+<div>
+<label class="block font-label text-label text-gray-700 mb-2 uppercase tracking-wider">Chế độ Lương giảng dạy</label>
+<div class="flex items-center gap-lg">
+<label class="flex items-center gap-2 cursor-pointer group">
+<input checked="" class="w-4 h-4 text-primary-container border-gray-300 focus:ring-primary-container" name="luong_giang_day_mode" type="radio" value="ca"/>
+<span class="font-body-medium text-on-surface group-hover:text-primary-container transition-colors">Theo ca</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer group">
+<input class="w-4 h-4 text-primary-container border-gray-300 focus:ring-primary-container" name="luong_giang_day_mode" type="radio" value="doanh_thu"/>
+<span class="font-body-medium text-on-surface group-hover:text-primary-container transition-colors">Theo % doanh thu</span>
+</label>
+</div>
+</div>
+<!-- Control Lương giảng dạy (Theo ca) -->
+<div class="bg-surface-container-low p-md rounded-lg border border-surface-container-high" id="luong_giang_day_ca">
+<label class="block font-label text-label text-gray-700 mb-1 uppercase tracking-wider">Lương giảng dạy (VNĐ) - Nhập tay</label>
+<input class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-on-surface font-body-base input-focus-ring" type="text" value="8,500,000"/>
+</div>
+<!-- Control Lương giảng dạy (Theo % doanh thu) - Initially hidden via script or CSS in a real app, shown here for structure if toggled -->
+<div class="bg-surface-container-low p-md rounded-lg border border-surface-container-high hidden" id="luong_giang_day_doanh_thu">
+<label class="block font-label text-label text-gray-700 mb-1 uppercase tracking-wider">Lương giảng dạy (VNĐ)</label>
+<div class="font-h3 text-h3 text-on-surface mb-1">12,450,000</div>
+<div class="flex items-center gap-1 text-on-surface-variant font-caption">
+<span class="material-symbols-outlined text-[14px]">info</span>
+<span>Chưa xác nhận nguồn dữ liệu</span>
+</div>
+</div>
+<!-- KPI & Hỗ trợ -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+<div>
+<label class="block font-label text-label text-gray-700 mb-1 uppercase tracking-wider">KPI (VNĐ)</label>
+<input class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-on-surface font-body-base input-focus-ring" type="text" value="2,000,000"/>
+</div>
+<div>
+<label class="block font-label text-label text-gray-700 mb-1 uppercase tracking-wider">Hỗ trợ (VNĐ)</label>
+<input class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-on-surface font-body-base input-focus-ring" type="text" value="500,000"/>
+</div>
+</div>
+<div class="pt-sm flex justify-end">
+<button class="px-6 py-2 bg-primary-container text-white rounded-lg font-body-medium hover:bg-opacity-90 transition-colors shadow-sm" type="button">
+                                Lưu thành phần
+                            </button>
+</div>
+</form>
+</section>
+<!-- Card 2: Trừ vi phạm -->
+<section class="bg-surface-container-lowest border border-gray-100 rounded-xl p-lg shadow-sm hover:shadow-md transition-shadow">
+<div class="flex items-center justify-between mb-md border-b border-surface-container-highest pb-sm">
+<h2 class="font-h2 text-h2 text-on-surface">Trừ vi phạm</h2>
+<button class="flex items-center gap-1 px-3 py-1.5 bg-surface-container-high text-primary rounded-lg font-label text-label hover:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined text-[16px]">add</span>
+                            Thêm khoản trừ
+                        </button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-gray-50 border-b border-gray-200">
+<th class="py-2 px-3 font-label text-label text-gray-500 uppercase tracking-wider w-1/2">Lý do / Hạng mục</th>
+<th class="py-2 px-3 font-label text-label text-gray-500 uppercase tracking-wider text-right">Số tiền (VNĐ)</th>
+<th class="py-2 px-3 font-label text-label text-gray-500 uppercase tracking-wider text-center">Trạng thái</th>
+<th class="py-2 px-3 w-10"></th>
+</tr>
+</thead>
+<tbody class="font-body-base text-on-surface">
+<tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+<td class="py-3 px-3">Đi muộn &gt; 15 phút (Ngày 12/10)</td>
+<td class="py-3 px-3 text-right font-medium text-error">50,000</td>
+<td class="py-3 px-3 text-center">
+<span class="inline-block px-2 py-1 bg-tertiary-fixed-dim bg-opacity-20 text-tertiary-container rounded text-[11px] font-semibold">Đã xác nhận</span>
+</td>
+<td class="py-3 px-3 text-center">
+<button class="text-gray-400 hover:text-error transition-colors"><span class="material-symbols-outlined text-[18px]">delete</span></button>
+</td>
+</tr>
+<tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+<td class="py-3 px-3">Không nộp báo cáo tuần 2</td>
+<td class="py-3 px-3 text-right font-medium text-error">100,000</td>
+<td class="py-3 px-3 text-center">
+<span class="inline-block px-2 py-1 bg-tertiary-fixed-dim bg-opacity-20 text-tertiary-container rounded text-[11px] font-semibold">Đã xác nhận</span>
+</td>
+<td class="py-3 px-3 text-center">
+<button class="text-gray-400 hover:text-error transition-colors"><span class="material-symbols-outlined text-[18px]">delete</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Card 3: Khấu trừ bắt buộc -->
+<section class="bg-surface-container-lowest border border-gray-100 rounded-xl p-lg shadow-sm hover:shadow-md transition-shadow">
+<div class="flex items-center justify-between mb-md border-b border-surface-container-highest pb-sm">
+<h2 class="font-h2 text-h2 text-on-surface">Khấu trừ bắt buộc</h2>
+</div>
+<div class="space-y-4">
+<!-- BHXH -->
+<div class="flex items-center justify-between p-3 bg-surface-container-low rounded-lg border border-surface-container-high">
+<div>
+<div class="font-body-medium text-on-surface">BHXH (Người lao động)</div>
+<div class="font-caption text-on-surface-variant">Tự động tính 10.5% lương cơ bản</div>
+</div>
+<div class="font-h3 text-h3 text-on-surface">1,575,000</div>
+</div>
+<!-- Công đoàn -->
+<div class="flex items-center justify-between p-3 bg-surface-container-low rounded-lg border border-surface-container-high">
+<div>
+<div class="font-body-medium text-on-surface">Phí Công đoàn</div>
+<div class="font-caption text-on-surface-variant">Tự động tính 0.5% lương cơ bản</div>
+</div>
+<div class="font-h3 text-h3 text-on-surface">75,000</div>
+</div>
+<!-- Thuế TNCN -->
+<div class="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+<div>
+<label class="block font-body-medium text-on-surface mb-1" for="thue_tncn">Thuế TNCN (VNĐ)</label>
+<div class="font-caption text-on-surface-variant">Admin nhập thủ công</div>
+</div>
+<div class="w-48">
+<input class="w-full px-3 py-2 text-right bg-white border border-gray-200 rounded-lg text-on-surface font-body-base input-focus-ring" id="thue_tncn" type="text" value="450,000"/>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Column: Summary Panel -->
+<div class="lg:col-span-1">
+<div class="bg-surface-container-lowest border border-gray-100 rounded-xl shadow-md sticky top-lg">
+<div class="bg-primary-container text-white p-md rounded-t-xl">
+<h2 class="font-h2 text-h2 flex items-center gap-2">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+                            Tổng kết tài chính
+                        </h2>
+</div>
+<div class="p-lg space-y-md">
+<!-- Thu nhập -->
+<div>
+<div class="flex justify-between items-center mb-2">
+<span class="font-body-medium text-on-surface">Tổng thu nhập</span>
+<span class="font-h3 text-h3 text-on-surface">26,000,000</span>
+</div>
+<div class="space-y-1 pl-2 border-l-2 border-gray-200">
+<div class="flex justify-between text-sm text-on-surface-variant font-body-small">
+<span>Lương cứng</span><span>15,000,000</span>
+</div>
+<div class="flex justify-between text-sm text-on-surface-variant font-body-small">
+<span>Lương giảng dạy</span><span>8,500,000</span>
+</div>
+<div class="flex justify-between text-sm text-on-surface-variant font-body-small">
+<span>KPI</span><span>2,000,000</span>
+</div>
+<div class="flex justify-between text-sm text-on-surface-variant font-body-small">
+<span>Hỗ trợ</span><span>500,000</span>
+</div>
+</div>
+</div>
+<hr class="border-gray-200 border-dashed"/>
+<!-- Khoản trừ -->
+<div>
+<div class="flex justify-between items-center mb-2">
+<span class="font-body-medium text-on-surface">Tổng khoản trừ</span>
+<span class="font-h3 text-h3 text-error">-2,250,000</span>
+</div>
+<div class="space-y-1 pl-2 border-l-2 border-gray-200">
+<div class="flex justify-between text-sm text-on-surface-variant font-body-small">
+<span>Vi phạm</span><span>150,000</span>
+</div>
+<div class="flex justify-between text-sm text-on-surface-variant font-body-small">
+<span>BHXH</span><span>1,575,000</span>
+</div>
+<div class="flex justify-between text-sm text-on-surface-variant font-body-small">
+<span>Công đoàn</span><span>75,000</span>
+</div>
+<div class="flex justify-between text-sm text-on-surface-variant font-body-small">
+<span>Thuế TNCN</span><span>450,000</span>
+</div>
+</div>
+</div>
+<div class="pt-md mt-md border-t-2 border-gray-800">
+<div class="flex flex-col">
+<span class="font-label text-label text-gray-500 uppercase tracking-widest mb-1">Thực nhận</span>
+<span class="font-h1 text-[32px] leading-tight font-bold text-primary-container">23,750,000 <span class="text-h3 font-medium text-gray-500">đ</span></span>
+</div>
+</div>
+<button class="w-full mt-lg py-3 bg-primary-container text-white rounded-lg font-h3 text-h3 hover:bg-opacity-90 transition-colors shadow-lg hover:shadow-xl active:scale-95 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">check_circle</span>
+                            Phê duyệt bảng lương
+                        </button>
+<p class="text-center mt-2 font-caption text-gray-400">Bảng lương đã được lưu tự động lần cuối: 10:45 AM</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+        // Simple script to handle radio toggle logic just for demonstration
+        const radios = document.querySelectorAll('input[name="luong_giang_day_mode"]');
+        const sectionCa = document.getElementById('luong_giang_day_ca');
+        const sectionDoanhThu = document.getElementById('luong_giang_day_doanh_thu');
+
+        radios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.value === 'ca') {
+                    sectionCa.classList.remove('hidden');
+                    sectionDoanhThu.classList.add('hidden');
+                } else {
+                    sectionCa.classList.add('hidden');
+                    sectionDoanhThu.classList.remove('hidden');
+                }
+            });
+        });
+    </script>
+</body></html>

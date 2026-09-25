@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Bài nộp của lớp - MENGLISH LMS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-on-surface": "#ecf0ff",
+                      "outline": "#8d7165",
+                      "on-secondary-fixed": "#00105b",
+                      "tertiary-container": "#46a917",
+                      "on-primary-container": "#521c00",
+                      "on-background": "#161c27",
+                      "secondary-container": "#4160ff",
+                      "on-secondary": "#ffffff",
+                      "primary-container": "#f5691a",
+                      "primary-fixed": "#ffdbcd",
+                      "tertiary-fixed-dim": "#78de4b",
+                      "surface-container-high": "#e3e8f9",
+                      "tertiary": "#256d00",
+                      "on-tertiary": "#ffffff",
+                      "on-error": "#ffffff",
+                      "surface-container-low": "#f1f3ff",
+                      "secondary": "#1e43e7",
+                      "surface-variant": "#dde2f3",
+                      "on-primary": "#ffffff",
+                      "error-container": "#ffdad6",
+                      "background": "#f9f9ff",
+                      "on-tertiary-container": "#0e3500",
+                      "on-error-container": "#93000a",
+                      "surface-tint": "#a23f00",
+                      "secondary-fixed-dim": "#bac3ff",
+                      "on-secondary-fixed-variant": "#002fc9",
+                      "primary": "#a23f00",
+                      "surface-container-lowest": "#ffffff",
+                      "on-surface": "#161c27",
+                      "on-tertiary-fixed-variant": "#1a5200",
+                      "primary-fixed-dim": "#ffb595",
+                      "inverse-surface": "#2a303d",
+                      "surface": "#f9f9ff",
+                      "surface-container": "#e8eeff",
+                      "outline-variant": "#e1bfb2",
+                      "surface-dim": "#d4daea",
+                      "surface-container-highest": "#dde2f3",
+                      "inverse-primary": "#ffb595",
+                      "on-secondary-container": "#faf7ff",
+                      "surface-bright": "#f9f9ff",
+                      "on-primary-fixed-variant": "#7c2e00",
+                      "on-primary-fixed": "#360f00",
+                      "on-surface-variant": "#594137",
+                      "error": "#ba1a1a",
+                      "on-tertiary-fixed": "#062100",
+                      "secondary-fixed": "#dee0ff",
+                      "tertiary-fixed": "#93fb65"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "xl": "32px",
+                      "base": "8px",
+                      "md": "16px",
+                      "sidebar-width": "260px",
+                      "xs": "4px",
+                      "lg": "24px",
+                      "gutter": "16px",
+                      "sm": "8px",
+                      "header-height": "64px"
+              },
+              "fontFamily": {
+                      "h2": [
+                              "Be Vietnam Pro"
+                      ],
+                      "label": [
+                              "Be Vietnam Pro"
+                      ],
+                      "h3": [
+                              "Be Vietnam Pro"
+                      ],
+                      "body-base": [
+                              "Be Vietnam Pro"
+                      ],
+                      "h1": [
+                              "Be Vietnam Pro"
+                      ],
+                      "caption": [
+                              "Be Vietnam Pro"
+                      ],
+                      "body-small": [
+                              "Be Vietnam Pro"
+                      ],
+                      "code": [
+                              "JetBrains Mono"
+                      ],
+                      "body-medium": [
+                              "Be Vietnam Pro"
+                      ]
+              },
+              "fontSize": {
+                      "h2": [
+                              "22px",
+                              {
+                                      "lineHeight": "30px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label": [
+                              "11px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "h3": [
+                              "18px",
+                              {
+                                      "lineHeight": "26px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-base": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "h1": [
+                              "28px",
+                              {
+                                      "lineHeight": "36px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "caption": [
+                              "11px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-small": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "code": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-medium": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "500"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        body { background-color: #f9f9ff; color: #161c27; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+      </style>
+</head>
+<body class="bg-background text-on-background min-h-screen font-body-base p-lg antialiased">
+<!-- Header Section -->
+<div class="mb-lg">
+<h1 class="font-h1 text-h1 text-on-surface mb-sm">Bài nộp của lớp</h1>
+<p class="font-body-base text-body-base text-on-surface-variant">Lớp Starters 1A - Tuần 4</p>
+</div>
+<!-- Filters (Tabs/Chips) -->
+<div class="flex flex-wrap gap-sm mb-lg">
+<button class="px-md py-sm bg-primary-container text-on-primary-container rounded-full font-body-medium text-body-medium shadow-sm transition-colors hover:opacity-90">
+            Quay video
+        </button>
+<button class="px-md py-sm bg-surface-container-high text-on-surface-variant rounded-full font-body-medium text-body-medium hover:bg-surface-variant transition-colors border border-outline-variant">
+            Viết từ vựng
+        </button>
+<button class="px-md py-sm bg-surface-container-high text-on-surface-variant rounded-full font-body-medium text-body-medium hover:bg-surface-variant transition-colors border border-outline-variant">
+            Workbook
+        </button>
+<button class="px-md py-sm bg-surface-container-high text-on-surface-variant rounded-full font-body-medium text-body-medium hover:bg-surface-variant transition-colors border border-outline-variant">
+            Sách bổ trợ
+        </button>
+<button class="px-md py-sm bg-surface-container-high text-on-surface-variant rounded-full font-body-medium text-body-medium hover:bg-surface-variant transition-colors border border-outline-variant">
+            Sách bộ giáo dục
+        </button>
+</div>
+<!-- Submitted Section -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm mb-xl">
+<div class="px-md py-md border-b border-outline-variant bg-surface-container-low rounded-t-xl">
+<h2 class="font-h3 text-h3 text-on-surface flex items-center gap-xs">
+<span class="material-symbols-outlined text-primary-container">check_circle</span>
+                Đã nộp (3)
+            </h2>
+</div>
+<div class="divide-y divide-outline-variant">
+<!-- Student 1 (Submitted) -->
+<div class="p-md flex flex-col md:flex-row md:items-center justify-between gap-md hover:bg-surface-container-lowest/50 transition-colors">
+<div class="flex items-center gap-md flex-1">
+<img class="w-12 h-12 rounded-full object-cover border border-outline-variant" data-alt="A smiling young vietnamese elementary school boy with short dark hair, wearing a casual light blue polo shirt, shot in a bright indoor classroom setting with soft natural light. He looks happy and attentive. The image represents a student avatar in an educational dashboard." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCKkPvd-B7zr2s1up_8Ueg1qhYHQE4pkcikc4oYRJHOBB06yDov2GyLq-FY1kL-HamT5HSgHMwlNIhIbODdHaXK2edvP7TiN0DScAmBJvMfOmIPGU6c_WEkH6QlxNdUMHUugDeMkkma6ZcWIucC2sOEgLzWMXJx9KaS4dr1HElmjxw-WdA2aQrhRnDgAmQQZ3CsBP-jIAdPedxci25tU7XyvtvMoRBQepcgxwoSiqmfbYRa-bbSwgQX"/>
+<div>
+<h3 class="font-body-medium text-body-medium text-on-surface">Nguyễn Văn A</h3>
+<p class="font-caption text-caption text-on-surface-variant flex items-center gap-xs mt-1">
+<span class="material-symbols-outlined" style="font-size: 14px;">schedule</span>
+                            nộp lúc 14:30, Hôm nay
+                        </p>
+</div>
+</div>
+<div class="flex-1 flex items-center gap-md">
+<div class="w-16 h-12 bg-surface-variant rounded flex items-center justify-center overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A thumbnail image showing a frame from a video of a young student practicing English pronunciation. The video frame shows the child looking directly at the camera, with a bright, welcoming background typical of a home study area, well-lit and colorful." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCyCAturnmAzx5t65wbtJZJSQvTFTsCTYFAZefE-zleG8Q9L8_x8trFuf1WRgm-q5xZ8X7v6iY6oMf2x4812-glKilGerKXfl56tgA6-TUfl2X8nSqjD--Wc3ZTT5dZxq_fRse-N8ys3ggrpZSUxAy62s8ZWsHVphv3-niptQXgDhf90ZzVEnPpPC4BMRzFTKaSeso2EvroZutFFw7TWJpeeDk5SDclHywjl924lBQ1ZNifFHcmDOZ8"/>
+<div class="absolute bg-black/30 rounded-full w-6 h-6 flex items-center justify-center">
+<span class="material-symbols-outlined text-white" style="font-size: 16px;">play_arrow</span>
+</div>
+</div>
+<span class="font-body-small text-body-small text-on-surface truncate max-w-[150px]">video_bai_tap_1.mp4</span>
+</div>
+<div class="flex flex-col sm:flex-row items-start sm:items-center gap-md w-full md:w-auto md:justify-end">
+<span class="inline-flex items-center px-2 py-1 rounded bg-secondary/10 text-secondary font-label text-label">
+                        Đã nộp
+                    </span>
+<button class="bg-surface-container-lowest border border-outline-variant text-on-surface font-body-medium text-body-medium px-md py-sm rounded hover:bg-surface-variant transition-colors flex items-center gap-xs">
+<span class="material-symbols-outlined" style="font-size: 18px;">visibility</span>
+                        Đánh dấu đã xem
+                    </button>
+</div>
+</div>
+<!-- Student 2 (Viewed) -->
+<div class="p-md flex flex-col md:flex-row md:items-center justify-between gap-md hover:bg-surface-container-lowest/50 transition-colors bg-surface/30">
+<div class="flex items-center gap-md flex-1">
+<img class="w-12 h-12 rounded-full object-cover border border-outline-variant" data-alt="A portrait of a young vietnamese girl student with pigtails, wearing a white blouse, smiling softly against a blurred neutral background. Soft, diffused lighting highlights her features. Suitable for a student profile picture." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBoVEk-ag_D9LuNJgJlwLfhr1io81L__T5i5VX9b14znAWuM8rz0u7UK_eD7Wz0QQIZEpKqdtmHpMRON80LSfQFOdBDZg7OfX4Nbcg-eGnPq9HQbXQZIUBXbwM0OJDQkFWhRXw3AsNAT8ith8pt-qWHTz23dsjjN5JkK7y_8xdHHY9A3CG2WcjiJgr66PcPqTQOyxM2uIAa3VwxDOQcEeOjTYUYaYX1NisS0HJ9TXeHNo8T6fiukWnI"/>
+<div>
+<h3 class="font-body-medium text-body-medium text-on-surface">Trần Thị B</h3>
+<p class="font-caption text-caption text-on-surface-variant flex items-center gap-xs mt-1">
+<span class="material-symbols-outlined" style="font-size: 14px;">schedule</span>
+                            nộp lúc 09:15, Hôm qua
+                        </p>
+</div>
+</div>
+<div class="flex-1 flex items-center gap-md">
+<div class="w-16 h-12 bg-surface-variant rounded flex items-center justify-center border border-outline-variant text-on-surface-variant">
+<span class="material-symbols-outlined" style="font-size: 24px;">picture_as_pdf</span>
+</div>
+<span class="font-body-small text-body-small text-on-surface truncate max-w-[150px]">bai_viet_tu_vung.pdf</span>
+</div>
+<div class="flex flex-col sm:flex-row items-start sm:items-center gap-md w-full md:w-auto md:justify-end">
+<span class="inline-flex items-center px-2 py-1 rounded bg-tertiary-container/20 text-tertiary font-label text-label">
+                        Đã xem
+                    </span>
+</div>
+</div>
+<!-- Student 3 (Submitted) -->
+<div class="p-md flex flex-col md:flex-row md:items-center justify-between gap-md hover:bg-surface-container-lowest/50 transition-colors">
+<div class="flex items-center gap-md flex-1">
+<img class="w-12 h-12 rounded-full object-cover border border-outline-variant" data-alt="A cheerful vietnamese boy with glasses, wearing a yellow t-shirt, looking directly at the camera with a bright smile. The lighting is crisp and even, suitable for an educational platform avatar." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDAo4LLvDD8mXg4gWovUmJVrIiTowDrTnnT3rW5Af6XpFdNBtq8IyHhsSv8Za8BvkdaTR-1yb9l5P-LLUqI2gxT-TfcNuR6eD3KY8IBWNYqVjPdrbE14QuvGy3s5TlyhOMEq5V2LQ8I3LF3E-MeflpBlNwuKYpYybfd8mIjvhmrok9-DdGsR4cJ21fy_7aenkV87aBf5Ixg2u_StxEl7NWdGvahq7nWRjsuOBMTXYyTAoRHr41_U8TJ"/>
+<div>
+<h3 class="font-body-medium text-body-medium text-on-surface">Lê Văn C</h3>
+<p class="font-caption text-caption text-on-surface-variant flex items-center gap-xs mt-1">
+<span class="material-symbols-outlined" style="font-size: 14px;">schedule</span>
+                            nộp lúc 20:00, 2 ngày trước
+                        </p>
+</div>
+</div>
+<div class="flex-1 flex items-center gap-md">
+<div class="w-16 h-12 bg-surface-variant rounded flex items-center justify-center overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A photo showing a handwritten English vocabulary assignment on lined notebook paper, clearly illuminated by a desk lamp, showing neat handwriting in blue ink." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCN90_khLv4boURoj8Wn8MomXwRlUEAB7MZAAH_p3FEKs9yjr_HR7rJ_q_j1CA7ZasxPtS2Xo0qRLAmsearMal3H8hnfVujmaGVekXkvx4-8KjyMD2QrJ8EmSfwCSuZW1nFLsGFod2OUnaA7UIyqUxV5wxg5mPyK1xPIlLG1LYaN_8rXfHCdPwWDPdkxnlBwvk_Fvp4QPr-S1fis64m9istB-29M1pE0vzP1MrOi-jI1nBtaafu5UOA"/>
+</div>
+<span class="font-body-small text-body-small text-on-surface truncate max-w-[150px]">IMG_20231024_1.jpg</span>
+</div>
+<div class="flex flex-col sm:flex-row items-start sm:items-center gap-md w-full md:w-auto md:justify-end">
+<span class="inline-flex items-center px-2 py-1 rounded bg-secondary/10 text-secondary font-label text-label">
+                        Đã nộp
+                    </span>
+<button class="bg-surface-container-lowest border border-outline-variant text-on-surface font-body-medium text-body-medium px-md py-sm rounded hover:bg-surface-variant transition-colors flex items-center gap-xs">
+<span class="material-symbols-outlined" style="font-size: 18px;">visibility</span>
+                        Đánh dấu đã xem
+                    </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Not Submitted Section -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant border-dashed shadow-sm opacity-80">
+<div class="px-md py-md border-b border-outline-variant border-dashed bg-surface-container-low/50 rounded-t-xl">
+<h2 class="font-h3 text-h3 text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined text-outline">pending_actions</span>
+                Chưa nộp (2)
+            </h2>
+</div>
+<div class="divide-y divide-outline-variant/50">
+<!-- Student 4 (Not Submitted) -->
+<div class="p-md flex items-center justify-between gap-md opacity-60 grayscale-[20%]">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-full bg-surface-variant flex items-center justify-center text-on-surface-variant font-h3">
+                        P
+                    </div>
+<div>
+<h3 class="font-body-medium text-body-medium text-on-surface">Phạm Thị D</h3>
+<p class="font-caption text-caption text-on-surface-variant mt-1">Chưa có dữ liệu</p>
+</div>
+</div>
+</div>
+<!-- Student 5 (Not Submitted) -->
+<div class="p-md flex items-center justify-between gap-md opacity-60 grayscale-[20%]">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-full bg-surface-variant flex items-center justify-center text-on-surface-variant font-h3">
+                        H
+                    </div>
+<div>
+<h3 class="font-body-medium text-body-medium text-on-surface">Hoàng Văn E</h3>
+<p class="font-caption text-caption text-on-surface-variant mt-1">Chưa có dữ liệu</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body></html>

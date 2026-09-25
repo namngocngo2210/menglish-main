@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Xin điều chỉnh tiến độ</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-on-surface": "#ecf0ff",
+                        "on-tertiary": "#ffffff",
+                        "surface-container": "#e8eeff",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "background": "#f9f9ff",
+                        "error-container": "#ffdad6",
+                        "primary": "#a23f00",
+                        "primary-fixed-dim": "#ffb595",
+                        "on-primary-fixed": "#360f00",
+                        "on-tertiary-fixed": "#062100",
+                        "on-error": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-primary-container": "#521c00",
+                        "surface-tint": "#a23f00",
+                        "primary-fixed": "#ffdbcd",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-fixed": "#dee0ff",
+                        "inverse-primary": "#ffb595",
+                        "outline-variant": "#e1bfb2",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "on-surface": "#161c27",
+                        "surface-dim": "#d4daea",
+                        "error": "#ba1a1a",
+                        "on-primary": "#ffffff",
+                        "on-background": "#161c27",
+                        "tertiary-container": "#46a917",
+                        "on-secondary-container": "#faf7ff",
+                        "outline": "#8d7165",
+                        "surface-container-high": "#e3e8f9",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "on-error-container": "#93000a",
+                        "on-surface-variant": "#594137",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "tertiary": "#256d00",
+                        "surface-bright": "#f9f9ff",
+                        "surface-variant": "#dde2f3",
+                        "surface-container-highest": "#dde2f3",
+                        "on-secondary-fixed": "#00105b",
+                        "on-tertiary-container": "#0e3500",
+                        "secondary-container": "#4160ff",
+                        "surface": "#f9f9ff",
+                        "surface-container-low": "#f1f3ff",
+                        "inverse-surface": "#2a303d",
+                        "tertiary-fixed": "#93fb65",
+                        "secondary": "#1e43e7",
+                        "primary-container": "#f5691a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "8px",
+                        "xl": "32px",
+                        "sidebar-width": "260px",
+                        "header-height": "64px",
+                        "gutter": "16px",
+                        "lg": "24px",
+                        "md": "16px",
+                        "sm": "8px",
+                        "xs": "4px"
+                    },
+                    "fontFamily": {
+                        "caption": [
+                            "Be Vietnam Pro"
+                        ],
+                        "code": [
+                            "JetBrains Mono"
+                        ],
+                        "h2": [
+                            "Be Vietnam Pro"
+                        ],
+                        "body-base": [
+                            "Be Vietnam Pro"
+                        ],
+                        "body-small": [
+                            "Be Vietnam Pro"
+                        ],
+                        "h3": [
+                            "Be Vietnam Pro"
+                        ],
+                        "h1": [
+                            "Be Vietnam Pro"
+                        ],
+                        "label": [
+                            "Be Vietnam Pro"
+                        ],
+                        "body-medium": [
+                            "Be Vietnam Pro"
+                        ]
+                    },
+                    "fontSize": {
+                        "caption": [
+                            "11px",
+                            {
+                                "lineHeight": "16px",
+                                "fontWeight": "400"
+                            }
+                        ],
+                        "code": [
+                            "13px",
+                            {
+                                "lineHeight": "18px",
+                                "fontWeight": "400"
+                            }
+                        ],
+                        "h2": [
+                            "22px",
+                            {
+                                "lineHeight": "30px",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "600"
+                            }
+                        ],
+                        "body-base": [
+                            "14px",
+                            {
+                                "lineHeight": "20px",
+                                "fontWeight": "400"
+                            }
+                        ],
+                        "body-small": [
+                            "13px",
+                            {
+                                "lineHeight": "18px",
+                                "fontWeight": "400"
+                            }
+                        ],
+                        "h3": [
+                            "18px",
+                            {
+                                "lineHeight": "26px",
+                                "fontWeight": "600"
+                            }
+                        ],
+                        "h1": [
+                            "28px",
+                            {
+                                "lineHeight": "36px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "700"
+                            }
+                        ],
+                        "label": [
+                            "11px",
+                            {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "600"
+                            }
+                        ],
+                        "body-medium": [
+                            "14px",
+                            {
+                                "lineHeight": "20px",
+                                "fontWeight": "500"
+                            }
+                        ]
+                    }
+                },
+            }
+        }
+    </script>
+</head>
+<body class="bg-background font-body-base text-on-surface antialiased p-lg">
+<div class="max-w-4xl mx-auto space-y-xl">
+<!-- Header -->
+<header>
+<h1 class="font-h1 text-h1 text-on-surface mb-xs">Xin điều chỉnh tiến độ</h1>
+<p class="font-body-medium text-body-medium text-on-surface-variant">Gửi yêu cầu điều chỉnh thời gian cho các lớp hoặc chặng học hiện tại.</p>
+</header>
+<!-- Form Section -->
+<section class="bg-surface-container-lowest border border-surface-variant rounded-xl p-lg shadow-sm">
+<h2 class="font-h2 text-h2 text-on-surface mb-md">Gửi yêu cầu</h2>
+<form action="#" class="space-y-lg" method="POST">
+<!-- Select Class/Stage -->
+<div>
+<label class="block font-label text-label text-on-surface-variant mb-xs" for="class-stage">Lớp học / Chặng học</label>
+<div class="relative">
+<select class="block w-full rounded-lg border-surface-variant bg-surface-container-lowest text-on-surface font-body-base py-3 pl-4 pr-10 focus:border-secondary-container focus:ring-2 focus:ring-secondary-container/20 transition-all appearance-none outline-none" id="class-stage" name="class-stage">
+<option disabled="" selected="" value="">Chọn lớp/chặng cần xin giãn</option>
+<option value="class-1">IELTS Foundation - Chặng 2 (K32)</option>
+<option value="class-2">TOEIC 500+ - Chặng 1 (K15)</option>
+<option value="class-3">Giao tiếp Cơ bản - Chặng 3 (K09)</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-on-surface-variant">
+<span class="material-symbols-outlined text-xl">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Reason -->
+<div>
+<label class="block font-label text-label text-on-surface-variant mb-xs" for="reason">Lý do xin điều chỉnh</label>
+<textarea class="block w-full rounded-lg border-surface-variant bg-surface-container-lowest text-on-surface font-body-base p-4 focus:border-secondary-container focus:ring-2 focus:ring-secondary-container/20 transition-all outline-none resize-none" id="reason" name="reason" placeholder="Vui lòng ghi rõ lý do (VD: Học sinh chưa nắm vững kiến thức, cháy giáo án do mất điện...)" rows="4"></textarea>
+</div>
+<!-- Number of Sessions -->
+<div>
+<label class="block font-label text-label text-on-surface-variant mb-sm">Số buổi cần thêm</label>
+<div class="flex gap-md">
+<label class="relative flex cursor-pointer items-center rounded-lg border border-surface-variant bg-surface-container-lowest px-4 py-3 shadow-sm focus-within:border-primary-container focus-within:ring-1 focus-within:ring-primary-container hover:bg-surface-container-low transition-colors w-full sm:w-auto">
+<input class="sr-only" name="sessions" type="radio" value="1"/>
+<span class="font-body-medium text-body-medium text-on-surface mr-3">1 buổi</span>
+<span class="material-symbols-outlined ml-auto text-primary-container opacity-0 transition-opacity">check_circle</span>
+</label>
+<label class="relative flex cursor-pointer items-center rounded-lg border border-surface-variant bg-surface-container-lowest px-4 py-3 shadow-sm focus-within:border-primary-container focus-within:ring-1 focus-within:ring-primary-container hover:bg-surface-container-low transition-colors w-full sm:w-auto">
+<input class="sr-only" name="sessions" type="radio" value="2"/>
+<span class="font-body-medium text-body-medium text-on-surface mr-3">2 buổi</span>
+<span class="material-symbols-outlined ml-auto text-primary-container opacity-0 transition-opacity">check_circle</span>
+</label>
+</div>
+</div>
+<!-- Submit Button -->
+<div class="pt-sm">
+<button class="w-full sm:w-auto inline-flex justify-center items-center gap-2 rounded-lg bg-primary-container px-6 py-3 font-body-medium text-body-medium text-on-primary shadow-sm hover:bg-primary-container/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-container transition-all" type="submit">
+<span class="material-symbols-outlined text-lg">send</span>
+                        Gửi yêu cầu
+                    </button>
+</div>
+</form>
+</section>
+<!-- Empty State Example (Hidden by default, can be toggled via JS if needed) -->
+<!--
+        <section class="bg-surface-container-lowest border border-surface-variant rounded-xl p-xl shadow-sm text-center">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-surface-container mb-md">
+                <span class="material-symbols-outlined text-3xl text-on-surface-variant">info</span>
+            </div>
+            <h3 class="font-h3 text-h3 text-on-surface mb-2">Không có chặng học nào đang mở</h3>
+            <p class="font-body-medium text-body-medium text-on-surface-variant">Bạn hiện không có chặng học nào đang mở để gửi yêu cầu.</p>
+        </section>
+        -->
+<!-- History Section -->
+<section class="bg-surface-container-lowest border border-surface-variant rounded-xl shadow-sm overflow-hidden">
+<div class="p-lg border-b border-surface-variant bg-surface-bright">
+<h2 class="font-h2 text-h2 text-on-surface">Danh sách yêu cầu đã gửi</h2>
+</div>
+<div class="overflow-x-auto">
+<table class="min-w-full divide-y divide-surface-variant">
+<thead class="bg-surface-container-low">
+<tr>
+<th class="py-3 pl-4 pr-3 text-left font-label text-label text-on-surface-variant uppercase tracking-wider sm:pl-6" scope="col">Ngày gửi</th>
+<th class="px-3 py-3 text-left font-label text-label text-on-surface-variant uppercase tracking-wider" scope="col">Lớp / Chặng</th>
+<th class="px-3 py-3 text-left font-label text-label text-on-surface-variant uppercase tracking-wider hidden md:table-cell" scope="col">Lý do</th>
+<th class="px-3 py-3 text-center font-label text-label text-on-surface-variant uppercase tracking-wider" scope="col">Số buổi thêm</th>
+<th class="px-3 py-3 text-left font-label text-label text-on-surface-variant uppercase tracking-wider" scope="col">Trạng thái</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-variant bg-surface-container-lowest font-body-base">
+<tr class="hover:bg-surface-container-lowest/50 transition-colors">
+<td class="whitespace-nowrap py-4 pl-4 pr-3 text-on-surface sm:pl-6">12/10/2023</td>
+<td class="whitespace-nowrap px-3 py-4 text-on-surface font-medium">IELTS Foundation - Chặng 1</td>
+<td class="px-3 py-4 text-on-surface-variant hidden md:table-cell max-w-xs truncate" title="Học sinh cần thêm thời gian ôn tập Speaking">Học sinh cần thêm thời gian ôn tập...</td>
+<td class="whitespace-nowrap px-3 py-4 text-on-surface text-center">1</td>
+<td class="whitespace-nowrap px-3 py-4">
+<span class="inline-flex items-center rounded-full bg-secondary-container/20 px-2.5 py-0.5 font-label text-label text-secondary-container">
+                                    Chờ duyệt
+                                </span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest/50 transition-colors bg-surface-bright/30">
+<td class="whitespace-nowrap py-4 pl-4 pr-3 text-on-surface sm:pl-6">05/09/2023</td>
+<td class="whitespace-nowrap px-3 py-4 text-on-surface font-medium">TOEIC 500+ - Chặng 2</td>
+<td class="px-3 py-4 text-on-surface-variant hidden md:table-cell max-w-xs truncate" title="Mất điện khu vực, không thể dạy online">Mất điện khu vực, không thể dạy onli...</td>
+<td class="whitespace-nowrap px-3 py-4 text-on-surface text-center">2</td>
+<td class="whitespace-nowrap px-3 py-4">
+<span class="inline-flex items-center rounded-full bg-tertiary-container/10 px-2.5 py-0.5 font-label text-label text-tertiary">
+                                    Đã duyệt
+                                </span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest/50 transition-colors">
+<td class="whitespace-nowrap py-4 pl-4 pr-3 text-on-surface sm:pl-6">20/08/2023</td>
+<td class="whitespace-nowrap px-3 py-4 text-on-surface font-medium">Giao tiếp Cơ bản - Chặng 1</td>
+<td class="px-3 py-4 text-on-surface-variant hidden md:table-cell max-w-xs truncate" title="Lý do cá nhân không chính đáng">Lý do cá nhân không chính đáng</td>
+<td class="whitespace-nowrap px-3 py-4 text-on-surface text-center">1</td>
+<td class="whitespace-nowrap px-3 py-4">
+<span class="inline-flex items-center rounded-full bg-error-container/50 px-2.5 py-0.5 font-label text-label text-error">
+                                    Từ chối
+                                </span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+<script>
+        // Simple script to handle radio button visual selection
+        document.addEventListener('DOMContentLoaded', () => {
+            const radioLabels = document.querySelectorAll('input[type="radio"][name="sessions"]');
+            
+            radioLabels.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    // Reset all
+                    document.querySelectorAll('input[type="radio"][name="sessions"]').forEach(r => {
+                        const label = r.closest('label');
+                        const icon = label.querySelector('.material-symbols-outlined');
+                        label.classList.remove('border-primary-container', 'ring-1', 'ring-primary-container', 'bg-surface-container-low');
+                        icon.classList.remove('opacity-100');
+                        icon.classList.add('opacity-0');
+                    });
+                    
+                    // Set active
+                    if(e.target.checked) {
+                        const activeLabel = e.target.closest('label');
+                        const activeIcon = activeLabel.querySelector('.material-symbols-outlined');
+                        activeLabel.classList.add('border-primary-container', 'ring-1', 'ring-primary-container', 'bg-surface-container-low');
+                        activeIcon.classList.remove('opacity-0');
+                        activeIcon.classList.add('opacity-100');
+                    }
+                });
+            });
+        });
+    </script>
+</body></html>

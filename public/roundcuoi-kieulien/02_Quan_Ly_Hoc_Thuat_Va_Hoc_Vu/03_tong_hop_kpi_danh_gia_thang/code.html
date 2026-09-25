@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MENGLISH Admin - Tổng hợp KPI &amp; Đánh giá tháng</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-fixed": "#dee0ff",
+                        "on-tertiary-container": "#0e3500",
+                        "secondary-container": "#4160ff",
+                        "inverse-primary": "#ffb595",
+                        "primary": "#a23f00",
+                        "on-error-container": "#93000a",
+                        "tertiary": "#256d00",
+                        "outline": "#8d7165",
+                        "outline-variant": "#e1bfb2",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-highest": "#dde2f3",
+                        "on-surface": "#161c27",
+                        "surface-container-low": "#f1f3ff",
+                        "secondary": "#1e43e7",
+                        "on-secondary": "#ffffff",
+                        "on-surface-variant": "#594137",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "primary-fixed": "#ffdbcd",
+                        "on-primary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "on-tertiary": "#ffffff",
+                        "surface": "#f9f9ff",
+                        "primary-container": "#f5691a",
+                        "on-background": "#161c27",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "on-secondary-container": "#faf7ff",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "on-primary-container": "#521c00",
+                        "surface-tint": "#a23f00",
+                        "tertiary-container": "#46a917",
+                        "surface-bright": "#f9f9ff",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "inverse-surface": "#2a303d",
+                        "error-container": "#ffdad6",
+                        "on-error": "#ffffff",
+                        "surface-container-high": "#e3e8f9",
+                        "tertiary-fixed": "#93fb65",
+                        "inverse-on-surface": "#ecf0ff",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "surface-container": "#e8eeff",
+                        "primary-fixed-dim": "#ffb595",
+                        "surface-variant": "#dde2f3",
+                        "on-primary-fixed": "#360f00",
+                        "surface-dim": "#d4daea",
+                        "background": "#f9f9ff",
+                        "on-tertiary-fixed": "#062100",
+                        "on-secondary-fixed": "#00105b"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "base": "8px",
+                        "sidebar-width": "260px",
+                        "lg": "24px",
+                        "header-height": "64px",
+                        "xl": "32px",
+                        "sm": "8px",
+                        "gutter": "16px",
+                        "xs": "4px"
+                    },
+                    "fontFamily": {
+                        "code": ["JetBrains Mono"],
+                        "caption": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "code": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "caption": ["11px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "body-medium": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "h1": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "h2": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-base": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "h3": ["18px", { "lineHeight": "26px", "fontWeight": "600" }],
+                        "label": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "body-small": ["13px", { "lineHeight": "18px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-base min-h-screen">
+<!-- Top Navigation Placeholder (Hidden for this scope) -->
+<div class="flex h-screen overflow-hidden">
+<!-- Sidebar Navigation Placeholder (Hidden for this scope) -->
+<!-- Main Content Area -->
+<main class="flex-1 overflow-y-auto p-lg lg:p-xl scroll-smooth">
+<div class="max-w-6xl mx-auto space-y-lg">
+<!-- 1. Tiêu đề & Bộ lọc -->
+<header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-md pb-md border-b border-surface-variant">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface">Tổng hợp KPI &amp; Đánh giá tháng</h1>
+<p class="font-body-medium text-body-medium text-on-surface-variant mt-sm">Học vụ: Nguyễn Thị Phượng — Báo cáo hiệu suất công việc</p>
+</div>
+<div class="flex gap-sm w-full md:w-auto">
+<select class="w-full md:w-48 bg-surface-container-lowest border-surface-variant text-on-surface font-body-medium rounded-DEFAULT focus:ring-secondary focus:border-secondary shadow-sm">
+<option value="">Nhân sự: Nguyễn Thị Phượng</option>
+<option value="1">Trần Văn Nam</option>
+<option value="2">Lê Thị Hoa</option>
+</select>
+<select class="w-full md:w-32 bg-surface-container-lowest border-surface-variant text-on-surface font-body-medium rounded-DEFAULT focus:ring-secondary focus:border-secondary shadow-sm">
+<option value="10">Tháng 10/2023</option>
+<option value="9">Tháng 09/2023</option>
+<option value="8">Tháng 08/2023</option>
+</select>
+</div>
+</header>
+<!-- Grid Layout for Main Content -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-lg">
+<!-- Left Column (Bảng Tổng hợp & Nhận xét) -->
+<div class="lg:col-span-2 space-y-lg">
+<!-- 2. Bảng Tổng hợp theo Nhóm -->
+<section class="bg-surface-container-lowest rounded-lg border border-surface-variant shadow-sm overflow-hidden">
+<div class="px-md py-md bg-surface-container-low border-b border-surface-variant">
+<h2 class="font-h3 text-h3 text-on-surface">Chi tiết điểm KPI theo nhóm</h2>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-lowest border-b border-surface-variant">
+<th class="py-sm px-md font-label text-label text-on-surface-variant uppercase tracking-wider">Nhóm KPI</th>
+<th class="py-sm px-md font-label text-label text-on-surface-variant uppercase tracking-wider text-center">Số tiêu chí</th>
+<th class="py-sm px-md font-label text-label text-on-surface-variant uppercase tracking-wider text-right">Quỹ KPI (VNĐ)</th>
+<th class="py-sm px-md font-label text-label text-on-surface-variant uppercase tracking-wider text-right">Tiền đạt (VNĐ)</th>
+<th class="py-sm px-md font-label text-label text-on-surface-variant uppercase tracking-wider text-right">% Đạt</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-variant font-body-medium text-body-medium">
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="py-sm px-md font-medium text-on-surface">Chăm sóc học viên</td>
+<td class="py-sm px-md text-center">5</td>
+<td class="py-sm px-md text-right text-on-surface-variant">1,500,000</td>
+<td class="py-sm px-md text-right font-semibold text-primary">1,425,000</td>
+<td class="py-sm px-md text-right text-tertiary-container font-semibold">95%</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="py-sm px-md font-medium text-on-surface">Chất lượng giảng dạy</td>
+<td class="py-sm px-md text-center">4</td>
+<td class="py-sm px-md text-right text-on-surface-variant">2,000,000</td>
+<td class="py-sm px-md text-right font-semibold text-primary">1,700,000</td>
+<td class="py-sm px-md text-right text-tertiary-container font-semibold">85%</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="py-sm px-md font-medium text-on-surface">Vận hành lớp</td>
+<td class="py-sm px-md text-center">3</td>
+<td class="py-sm px-md text-right text-on-surface-variant">1,000,000</td>
+<td class="py-sm px-md text-right font-semibold text-primary">950,000</td>
+<td class="py-sm px-md text-right text-tertiary-container font-semibold">95%</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="py-sm px-md font-medium text-on-surface">Quản lý Giáo viên</td>
+<td class="py-sm px-md text-center">2</td>
+<td class="py-sm px-md text-right text-on-surface-variant">800,000</td>
+<td class="py-sm px-md text-right font-semibold text-primary">720,000</td>
+<td class="py-sm px-md text-right text-tertiary-container font-semibold">90%</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="py-sm px-md font-medium text-on-surface">Phát triển Trung tâm</td>
+<td class="py-sm px-md text-center">2</td>
+<td class="py-sm px-md text-right text-on-surface-variant">500,000</td>
+<td class="py-sm px-md text-right font-semibold text-primary">400,000</td>
+<td class="py-sm px-md text-right text-tertiary-container font-semibold">80%</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="py-sm px-md font-medium text-on-surface">Chuyên môn khác</td>
+<td class="py-sm px-md text-center">1</td>
+<td class="py-sm px-md text-right text-on-surface-variant">200,000</td>
+<td class="py-sm px-md text-right font-semibold text-primary">200,000</td>
+<td class="py-sm px-md text-right text-tertiary-container font-semibold">100%</td>
+</tr>
+</tbody>
+<tfoot class="bg-surface-container-low border-t-2 border-surface-variant font-h3 text-h3">
+<tr>
+<td class="py-md px-md text-on-surface" colspan="2">Tổng cộng</td>
+<td class="py-md px-md text-right text-on-surface-variant">6,000,000</td>
+<td class="py-md px-md text-right font-bold text-primary-container">5,395,000</td>
+<td class="py-md px-md text-right text-primary-container">89.9%</td>
+</tr>
+</tfoot>
+</table>
+</div>
+</section>
+<!-- 4. Khu vực Nhận xét của Quản lý -->
+<section class="bg-surface-container-lowest rounded-lg border border-surface-variant shadow-sm p-md space-y-md">
+<h2 class="font-h3 text-h3 text-on-surface mb-sm">Đánh giá &amp; Nhận xét từ Quản lý</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+<div>
+<label class="block font-body-small text-body-small text-on-surface-variant mb-xs">Điểm tốt</label>
+<textarea class="w-full bg-surface border-surface-variant rounded-DEFAULT focus:ring-secondary focus:border-secondary font-body-medium text-on-surface resize-none p-sm" placeholder="Nhập các điểm tích cực..." rows="3"></textarea>
+</div>
+<div>
+<label class="block font-body-small text-body-small text-on-surface-variant mb-xs">Điểm cần cải thiện</label>
+<textarea class="w-full bg-surface border-surface-variant rounded-DEFAULT focus:ring-secondary focus:border-secondary font-body-medium text-on-surface resize-none p-sm" placeholder="Nhập các điểm cần khắc phục..." rows="3"></textarea>
+</div>
+</div>
+<div>
+<label class="block font-body-small text-body-small text-on-surface-variant mb-xs">Hành động tháng sau</label>
+<textarea class="w-full bg-surface border-surface-variant rounded-DEFAULT focus:ring-secondary focus:border-secondary font-body-medium text-on-surface resize-none p-sm" placeholder="Mục tiêu hoặc kế hoạch cụ thể cho tháng tới..." rows="2"></textarea>
+</div>
+<div class="flex justify-end pt-sm border-t border-surface-variant mt-md">
+<button class="bg-primary-container text-on-primary-container font-h3 text-h3 py-sm px-xl rounded-DEFAULT hover:opacity-90 transition-opacity shadow-sm flex items-center gap-xs">
+<span class="material-symbols-outlined text-[20px]">save</span>
+                                    Lưu nhận xét
+                                </button>
+</div>
+</section>
+</div>
+<!-- Right Column (Khối Xếp loại & Chỉ số Cảnh báo) -->
+<div class="lg:col-span-1 space-y-lg">
+<!-- 3. Khối Xếp loại -->
+<section class="bg-surface-container-lowest rounded-lg border border-surface-variant shadow-sm p-lg flex flex-col items-center justify-center text-center relative overflow-hidden">
+<!-- Subtle background accent -->
+<div class="absolute inset-0 bg-gradient-to-br from-primary-fixed/20 to-transparent pointer-events-none"></div>
+<h2 class="font-h3 text-h3 text-on-surface-variant mb-md relative z-10">Xếp loại tháng</h2>
+<div class="w-32 h-32 rounded-full border-4 border-primary-container flex flex-col items-center justify-center bg-surface-container-lowest shadow-sm mb-md relative z-10">
+<span class="text-[64px] font-bold text-primary-container leading-none">B</span>
+</div>
+<p class="font-h2 text-h2 text-on-surface mb-xs relative z-10">Khá</p>
+<p class="font-body-small text-body-small text-on-surface-variant relative z-10">Tổng KPI đạt: 89.9%</p>
+<div class="w-full bg-surface-variant h-2 rounded-full mt-md overflow-hidden relative z-10">
+<div class="bg-primary-container h-full rounded-full" style="width: 89.9%;"></div>
+</div>
+<div class="w-full flex justify-between font-caption text-caption text-on-surface-variant mt-xs relative z-10">
+<span>0%</span>
+<span>Tiêu chuẩn Khá: 85-94%</span>
+<span>100%</span>
+</div>
+</section>
+<!-- Chỉ số Cảnh báo -->
+<section class="bg-surface-container-lowest rounded-lg border border-surface-variant shadow-sm p-md space-y-md">
+<h3 class="font-h3 text-h3 text-on-surface flex items-center gap-sm pb-sm border-b border-surface-variant">
+<span class="material-symbols-outlined text-error">warning</span>
+                                Cảnh báo hiệu suất
+                            </h3>
+<div class="flex items-center justify-between p-sm rounded-DEFAULT bg-surface-container-highest/50 border border-surface-variant">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-inverse-primary/30 text-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined">trending_down</span>
+</div>
+<div>
+<p class="font-body-medium text-body-medium text-on-surface">Mức cảnh báo (≤50%)</p>
+<p class="font-caption text-caption text-on-surface-variant">Tiêu chí cần chú ý</p>
+</div>
+</div>
+<div class="font-h2 text-h2 text-primary-container">
+                                    2
+                                </div>
+</div>
+<div class="flex items-center justify-between p-sm rounded-DEFAULT bg-error-container/20 border border-error/20">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-error-container text-error flex items-center justify-center">
+<span class="material-symbols-outlined">cancel</span>
+</div>
+<div>
+<p class="font-body-medium text-body-medium text-on-surface">Không đạt (0%)</p>
+<p class="font-caption text-caption text-on-surface-variant">Tiêu chí bỏ lỡ</p>
+</div>
+</div>
+<div class="font-h2 text-h2 text-error">
+                                    0
+                                </div>
+</div>
+</section>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

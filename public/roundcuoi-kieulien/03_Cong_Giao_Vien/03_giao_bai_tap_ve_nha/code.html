@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Giao bài tập về nhà - MENGLISH</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface": "#f9f9ff",
+                    "on-surface": "#161c27",
+                    "primary-fixed-dim": "#ffb595",
+                    "error-container": "#ffdad6",
+                    "tertiary": "#256d00",
+                    "on-surface-variant": "#594137",
+                    "inverse-primary": "#ffb595",
+                    "surface-container": "#e8eeff",
+                    "on-primary-fixed-variant": "#7c2e00",
+                    "on-background": "#161c27",
+                    "surface-variant": "#dde2f3",
+                    "secondary-fixed": "#dee0ff",
+                    "inverse-surface": "#2a303d",
+                    "outline": "#8d7165",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "secondary-container": "#4160ff",
+                    "surface-dim": "#d4daea",
+                    "on-error-container": "#93000a",
+                    "on-tertiary-fixed-variant": "#1a5200",
+                    "on-primary-fixed": "#360f00",
+                    "surface-tint": "#a23f00",
+                    "error": "#ba1a1a",
+                    "on-tertiary-container": "#0e3500",
+                    "outline-variant": "#e1bfb2",
+                    "tertiary-fixed-dim": "#78de4b",
+                    "primary-container": "#f5691a",
+                    "surface-container-high": "#e3e8f9",
+                    "secondary": "#1e43e7",
+                    "on-primary-container": "#521c00",
+                    "surface-bright": "#f9f9ff",
+                    "on-secondary-fixed": "#00105b",
+                    "on-tertiary-fixed": "#062100",
+                    "background": "#f9f9ff",
+                    "primary": "#a23f00",
+                    "on-secondary-fixed-variant": "#002fc9",
+                    "secondary-fixed-dim": "#bac3ff",
+                    "on-error": "#ffffff",
+                    "on-secondary-container": "#faf7ff",
+                    "tertiary-container": "#46a917",
+                    "inverse-on-surface": "#ecf0ff",
+                    "surface-container-highest": "#dde2f3",
+                    "surface-container-lowest": "#ffffff",
+                    "tertiary-fixed": "#93fb65",
+                    "on-primary": "#ffffff",
+                    "primary-fixed": "#ffdbcd",
+                    "surface-container-low": "#f1f3ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sidebar-width": "260px",
+                    "sm": "8px",
+                    "lg": "24px",
+                    "xl": "32px",
+                    "gutter": "16px",
+                    "md": "16px",
+                    "xs": "4px",
+                    "header-height": "64px",
+                    "base": "8px"
+            },
+            "fontFamily": {
+                    "body-small": [
+                            "Be Vietnam Pro"
+                    ],
+                    "body-medium": [
+                            "Be Vietnam Pro"
+                    ],
+                    "caption": [
+                            "Be Vietnam Pro"
+                    ],
+                    "h1": [
+                            "Be Vietnam Pro"
+                    ],
+                    "code": [
+                            "JetBrains Mono"
+                    ],
+                    "h2": [
+                            "Be Vietnam Pro"
+                    ],
+                    "label": [
+                            "Be Vietnam Pro"
+                    ],
+                    "body-base": [
+                            "Be Vietnam Pro"
+                    ],
+                    "h3": [
+                            "Be Vietnam Pro"
+                    ]
+            },
+            "fontSize": {
+                    "body-small": [
+                            "13px",
+                            {
+                                    "lineHeight": "18px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "body-medium": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "fontWeight": "500"
+                            }
+                    ],
+                    "caption": [
+                            "11px",
+                            {
+                                    "lineHeight": "16px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "h1": [
+                            "28px",
+                            {
+                                    "lineHeight": "36px",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "code": [
+                            "13px",
+                            {
+                                    "lineHeight": "18px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "h2": [
+                            "22px",
+                            {
+                                    "lineHeight": "30px",
+                                    "letterSpacing": "-0.01em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "label": [
+                            "11px",
+                            {
+                                    "lineHeight": "16px",
+                                    "letterSpacing": "0.05em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "body-base": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "h3": [
+                            "18px",
+                            {
+                                    "lineHeight": "26px",
+                                    "fontWeight": "600"
+                            }
+                    ]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f3ff;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #dde2f3;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #d4daea;
+        }
+        
+        .homework-card {
+            transition: all 0.2s ease-in-out;
+        }
+        .homework-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        .homework-card.active {
+            border-color: #F5691A;
+            background-color: #fff9f6;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-base custom-scrollbar min-h-screen antialiased">
+<main class="w-full max-w-5xl mx-auto p-lg md:p-xl space-y-xl">
+<!-- Title -->
+<header class="flex items-center justify-between border-b border-surface-variant pb-md">
+<h1 class="font-h1 text-h1 text-on-surface">Giao bài tập về nhà</h1>
+<div class="flex items-center space-x-sm text-on-surface-variant">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">info</span>
+<span class="font-body-small text-body-small">Lớp Tiếng Anh Giao Tiếp - K42</span>
+</div>
+</header>
+<!-- Section 1: General Info -->
+<section class="bg-surface-container-lowest border border-surface-variant rounded-lg p-lg shadow-sm">
+<h2 class="font-h3 text-h3 text-on-surface mb-lg flex items-center">
+<span class="material-symbols-outlined mr-sm text-primary-container">info</span>
+            Thông tin chung
+        </h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg">
+<!-- Buổi học -->
+<div class="flex flex-col space-y-xs">
+<label class="font-body-medium text-body-medium text-on-surface-variant" for="session">Buổi học <span class="text-error">*</span></label>
+<div class="relative">
+<select class="w-full bg-surface-container-lowest border border-surface-variant rounded-DEFAULT py-sm pl-sm pr-xl focus:border-secondary-container focus:ring-2 focus:ring-secondary-fixed-dim transition-colors appearance-none font-body-base text-on-surface" id="session">
+<option disabled="" selected="" value="">Chọn buổi học...</option>
+<option value="1">Buổi 1: Giới thiệu bản thân</option>
+<option value="2">Buổi 2: Thì hiện tại đơn</option>
+<option value="3">Buổi 3: Từ vựng mua sắm</option>
+</select>
+<span class="material-symbols-outlined absolute right-sm top-1/2 transform -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</div>
+<!-- Hạn nộp -->
+<div class="flex flex-col space-y-xs">
+<label class="font-body-medium text-body-medium text-on-surface-variant" for="deadline">Hạn nộp <span class="text-error">*</span></label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border border-surface-variant rounded-DEFAULT p-sm focus:border-secondary-container focus:ring-2 focus:ring-secondary-fixed-dim transition-colors font-body-base text-on-surface" id="deadline" type="datetime-local"/>
+</div>
+</div>
+<!-- Ghi chú nhắc nhở cả lớp -->
+<div class="flex flex-col space-y-xs md:col-span-2">
+<label class="font-body-medium text-body-medium text-on-surface-variant" for="class-note">Ghi chú nhắc nhở cả lớp (Không bắt buộc)</label>
+<textarea class="w-full bg-surface-container-lowest border border-surface-variant rounded-DEFAULT p-sm focus:border-secondary-container focus:ring-2 focus:ring-secondary-fixed-dim transition-colors font-body-base text-on-surface resize-y min-h-[80px]" id="class-note" placeholder="Ví dụ: Các em nhớ làm bài tập trước 12h trưa chủ nhật nhé..."></textarea>
+</div>
+<!-- Optional Fields -->
+<div class="flex flex-col space-y-xs md:col-span-2 mt-md pt-md border-t border-surface-variant border-dashed">
+<p class="font-label text-label text-on-surface-variant uppercase tracking-wider mb-sm">Tài liệu tham khảo (Không bắt buộc)</p>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-md">
+<div class="flex flex-col space-y-xs">
+<label class="font-body-small text-body-small text-on-surface-variant" for="youtube">Link YouTube nghe mẫu</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-sm text-on-surface-variant text-[18px]">smart_display</span>
+<input class="w-full bg-surface-container-lowest border border-surface-variant rounded-DEFAULT py-sm pl-xl pr-sm focus:border-secondary-container focus:ring-2 focus:ring-secondary-fixed-dim transition-colors font-body-small text-body-small text-on-surface" id="youtube" placeholder="https://youtube.com/..." type="url"/>
+</div>
+</div>
+<div class="flex flex-col space-y-xs">
+<label class="font-body-small text-body-small text-on-surface-variant" for="audio">File nghe đính kèm</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-sm text-on-surface-variant text-[18px]">audio_file</span>
+<input accept="audio/*" class="w-full bg-surface-container-lowest border border-surface-variant rounded-DEFAULT py-[5px] pl-xl pr-sm focus:border-secondary-container focus:ring-2 focus:ring-secondary-fixed-dim transition-colors font-body-small text-body-small text-on-surface file:mr-sm file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-surface-container-low file:text-primary-container hover:file:bg-surface-container-high cursor-pointer" id="audio" type="file"/>
+</div>
+</div>
+<div class="flex flex-col space-y-xs">
+<label class="font-body-small text-body-small text-on-surface-variant" for="quizizz">Link Quizizz luyện thêm</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-sm text-on-surface-variant text-[18px]">quiz</span>
+<input class="w-full bg-surface-container-lowest border border-surface-variant rounded-DEFAULT py-sm pl-xl pr-sm focus:border-secondary-container focus:ring-2 focus:ring-secondary-fixed-dim transition-colors font-body-small text-body-small text-on-surface" id="quizizz" placeholder="https://quizizz.com/..." type="url"/>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 2: Homework Categories -->
+<section class="bg-surface-container-lowest border border-surface-variant rounded-lg p-lg shadow-sm">
+<div class="flex items-center justify-between mb-lg border-b border-surface-variant pb-sm">
+<h2 class="font-h3 text-h3 text-on-surface flex items-center">
+<span class="material-symbols-outlined mr-sm text-primary-container">assignment_add</span>
+                Hạng mục bài tập <span class="text-error ml-xs">*</span>
+</h2>
+<span class="font-caption text-caption text-on-surface-variant bg-surface-container-low px-sm py-xs rounded-full">Chọn ít nhất 1 hạng mục</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md" id="category-grid">
+<!-- Category 1: Quay video -->
+<div class="homework-card bg-surface-container-lowest border border-surface-variant rounded-DEFAULT p-md cursor-pointer flex flex-col justify-between" onclick="toggleCategory(this, 'content-video')">
+<div class="flex items-start justify-between">
+<div class="flex items-center space-x-sm">
+<input class="form-checkbox h-4 w-4 text-primary-container border-outline rounded-sm focus:ring-primary-container pointer-events-none" id="cat-video" type="checkbox"/>
+<label class="font-body-medium text-body-medium text-on-surface pointer-events-none">Quay video</label>
+</div>
+<span class="material-symbols-outlined text-outline-variant text-[20px]">videocam</span>
+</div>
+</div>
+<!-- Category 2: Viết từ vựng -->
+<div class="homework-card bg-surface-container-lowest border border-surface-variant rounded-DEFAULT p-md cursor-pointer flex flex-col justify-between" onclick="toggleCategory(this, 'content-vocab')">
+<div class="flex items-start justify-between">
+<div class="flex items-center space-x-sm">
+<input class="form-checkbox h-4 w-4 text-primary-container border-outline rounded-sm focus:ring-primary-container pointer-events-none" id="cat-vocab" type="checkbox"/>
+<label class="font-body-medium text-body-medium text-on-surface pointer-events-none">Viết từ vựng</label>
+</div>
+<span class="material-symbols-outlined text-outline-variant text-[20px]">edit_document</span>
+</div>
+</div>
+<!-- Category 3: Workbook -->
+<div class="homework-card bg-surface-container-lowest border border-surface-variant rounded-DEFAULT p-md cursor-pointer flex flex-col justify-between" onclick="toggleCategory(this, 'content-workbook')">
+<div class="flex items-start justify-between">
+<div class="flex items-center space-x-sm">
+<input class="form-checkbox h-4 w-4 text-primary-container border-outline rounded-sm focus:ring-primary-container pointer-events-none" id="cat-workbook" type="checkbox"/>
+<label class="font-body-medium text-body-medium text-on-surface pointer-events-none">Workbook</label>
+</div>
+<span class="material-symbols-outlined text-outline-variant text-[20px]">menu_book</span>
+</div>
+</div>
+<!-- Category 4: Sách bổ trợ -->
+<div class="homework-card bg-surface-container-lowest border border-surface-variant rounded-DEFAULT p-md cursor-pointer flex flex-col justify-between" onclick="toggleCategory(this, 'content-supp')">
+<div class="flex items-start justify-between">
+<div class="flex items-center space-x-sm">
+<input class="form-checkbox h-4 w-4 text-primary-container border-outline rounded-sm focus:ring-primary-container pointer-events-none" id="cat-supp" type="checkbox"/>
+<label class="font-body-medium text-body-medium text-on-surface pointer-events-none">Sách bổ trợ</label>
+</div>
+<span class="material-symbols-outlined text-outline-variant text-[20px]">library_books</span>
+</div>
+</div>
+<!-- Category 5: Quiz -->
+<div class="homework-card bg-surface-container-lowest border border-surface-variant rounded-DEFAULT p-md cursor-pointer flex flex-col justify-between" onclick="toggleCategory(this, 'content-quiz')">
+<div class="flex items-start justify-between">
+<div class="flex items-center space-x-sm">
+<input class="form-checkbox h-4 w-4 text-primary-container border-outline rounded-sm focus:ring-primary-container pointer-events-none" id="cat-quiz" type="checkbox"/>
+<label class="font-body-medium text-body-medium text-on-surface pointer-events-none">Quiz</label>
+</div>
+<span class="material-symbols-outlined text-outline-variant text-[20px]">psychology_alt</span>
+</div>
+</div>
+<!-- Category 6: Sách bộ giáo dục (Locked example - has submissions) -->
+<div class="homework-card bg-surface-container-low border border-surface-variant rounded-DEFAULT p-md opacity-70 cursor-not-allowed flex flex-col justify-between relative" title="Hạng mục này đã có học sinh nộp bài, không thể chỉnh sửa phân loại.">
+<div class="flex items-start justify-between">
+<div class="flex items-center space-x-sm">
+<input checked="" class="form-checkbox h-4 w-4 text-on-surface-variant border-surface-variant rounded-sm cursor-not-allowed" disabled="" id="cat-moet" type="checkbox"/>
+<label class="font-body-medium text-body-medium text-on-surface-variant cursor-not-allowed">Sách bộ giáo dục</label>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]">lock</span>
+</div>
+<div class="mt-xs text-left">
+<span class="font-caption text-caption text-error">Đã có học sinh nộp</span>
+</div>
+</div>
+</div>
+<!-- Dynamic Content Areas for Selected Categories -->
+<div class="mt-lg space-y-md" id="dynamic-content-area">
+<!-- Video Content -->
+<div class="hidden bg-surface border border-primary-fixed-dim rounded-lg p-md" id="content-video">
+<div class="flex justify-between items-center mb-sm">
+<h4 class="font-body-medium text-body-medium text-on-surface flex items-center">
+<span class="material-symbols-outlined text-[18px] mr-xs text-primary-container">videocam</span> Yêu cầu: Quay video
+                    </h4>
+<button class="text-on-surface-variant hover:text-error transition-colors" onclick="uncheckCategory('cat-video', 'content-video', this.closest('.homework-card'))" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<textarea class="w-full bg-surface-container-lowest border border-surface-variant rounded-DEFAULT p-sm focus:border-secondary-container focus:ring-2 focus:ring-secondary-fixed-dim transition-colors font-body-base text-on-surface resize-y min-h-[80px]" placeholder="Nhập chi tiết yêu cầu bài tập (bắt buộc)..." required=""></textarea>
+</div>
+<!-- Vocab Content -->
+<div class="hidden bg-surface border border-primary-fixed-dim rounded-lg p-md" id="content-vocab">
+<div class="flex justify-between items-center mb-sm">
+<h4 class="font-body-medium text-body-medium text-on-surface flex items-center">
+<span class="material-symbols-outlined text-[18px] mr-xs text-primary-container">edit_document</span> Yêu cầu: Viết từ vựng
+                    </h4>
+<button class="text-on-surface-variant hover:text-error transition-colors" onclick="uncheckCategory('cat-vocab', 'content-vocab')" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<textarea class="w-full bg-surface-container-lowest border border-surface-variant rounded-DEFAULT p-sm focus:border-secondary-container focus:ring-2 focus:ring-secondary-fixed-dim transition-colors font-body-base text-on-surface resize-y min-h-[80px]" placeholder="Nhập danh sách từ vựng cần viết, số lần chép phạt (bắt buộc)..." required=""></textarea>
+</div>
+<!-- Workbook Content -->
+<div class="hidden bg-surface border border-primary-fixed-dim rounded-lg p-md" id="content-workbook">
+<div class="flex justify-between items-center mb-sm">
+<h4 class="font-body-medium text-body-medium text-on-surface flex items-center">
+<span class="material-symbols-outlined text-[18px] mr-xs text-primary-container">menu_book</span> Yêu cầu: Workbook
+                    </h4>
+<button class="text-on-surface-variant hover:text-error transition-colors" onclick="uncheckCategory('cat-workbook', 'content-workbook')" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<textarea class="w-full bg-surface-container-lowest border border-surface-variant rounded-DEFAULT p-sm focus:border-secondary-container focus:ring-2 focus:ring-secondary-fixed-dim transition-colors font-body-base text-on-surface resize-y min-h-[80px]" placeholder="Nhập số trang, bài tập cụ thể trong Workbook (bắt buộc)..." required=""></textarea>
+</div>
+<!-- Supp Book Content -->
+<div class="hidden bg-surface border border-primary-fixed-dim rounded-lg p-md" id="content-supp">
+<div class="flex justify-between items-center mb-sm">
+<h4 class="font-body-medium text-body-medium text-on-surface flex items-center">
+<span class="material-symbols-outlined text-[18px] mr-xs text-primary-container">library_books</span> Yêu cầu: Sách bổ trợ
+                    </h4>
+<button class="text-on-surface-variant hover:text-error transition-colors" onclick="uncheckCategory('cat-supp', 'content-supp')" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<textarea class="w-full bg-surface-container-lowest border border-surface-variant rounded-DEFAULT p-sm focus:border-secondary-container focus:ring-2 focus:ring-secondary-fixed-dim transition-colors font-body-base text-on-surface resize-y min-h-[80px]" placeholder="Nhập tên sách và bài tập cần làm (bắt buộc)..." required=""></textarea>
+</div>
+<!-- Quiz Content -->
+<div class="hidden bg-surface border border-primary-fixed-dim rounded-lg p-md" id="content-quiz">
+<div class="flex justify-between items-center mb-sm">
+<h4 class="font-body-medium text-body-medium text-on-surface flex items-center">
+<span class="material-symbols-outlined text-[18px] mr-xs text-primary-container">psychology_alt</span> Yêu cầu: Quiz
+                    </h4>
+<button class="text-on-surface-variant hover:text-error transition-colors" onclick="uncheckCategory('cat-quiz', 'content-quiz')" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<textarea class="w-full bg-surface-container-lowest border border-surface-variant rounded-DEFAULT p-sm focus:border-secondary-container focus:ring-2 focus:ring-secondary-fixed-dim transition-colors font-body-base text-on-surface resize-y min-h-[80px]" placeholder="Nhập chủ đề Quiz hoặc link bài tập (bắt buộc)..." required=""></textarea>
+</div>
+<!-- MOET Content (Always visible since it's checked and locked) -->
+<div class="bg-surface border border-primary-fixed-dim rounded-lg p-md" id="content-moet">
+<div class="flex justify-between items-center mb-sm">
+<h4 class="font-body-medium text-body-medium text-on-surface flex items-center">
+<span class="material-symbols-outlined text-[18px] mr-xs text-primary-container">school</span> Yêu cầu: Sách bộ giáo dục
+                    </h4>
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]" title="Không thể xóa do đã có người nộp">lock</span>
+</div>
+<textarea class="w-full bg-surface-container-lowest border border-surface-variant rounded-DEFAULT p-sm focus:border-secondary-container focus:ring-2 focus:ring-secondary-fixed-dim transition-colors font-body-base text-on-surface resize-y min-h-[80px]" placeholder="Nhập chi tiết bài tập sách giáo khoa..." required="">Làm bài 1, 2 trang 45 sách giáo khoa.</textarea>
+</div>
+</div>
+<div class="hidden mt-md bg-error-container text-on-error-container p-sm rounded-DEFAULT flex items-center font-body-small text-body-small" id="validation-hint">
+<span class="material-symbols-outlined mr-xs text-[18px]">error</span>
+            Cần giao ít nhất 1 hạng mục.
+        </div>
+</section>
+<!-- Footer Actions -->
+<footer class="flex justify-end space-x-md pt-md border-t border-surface-variant">
+<button class="bg-surface-container-lowest border border-outline text-on-surface px-lg py-sm rounded-DEFAULT font-body-medium text-body-medium hover:bg-surface-container-low transition-colors" type="button">
+            Hủy
+        </button>
+<button class="bg-primary-container text-on-primary px-lg py-sm rounded-DEFAULT font-body-medium text-body-medium hover:bg-surface-tint hover:shadow-sm transition-all flex items-center" onclick="validateAndSave()" type="button">
+<span class="material-symbols-outlined mr-xs text-[18px]">save</span>
+            Lưu bài tập
+        </button>
+</footer>
+</main>
+<script>
+    function toggleCategory(cardElement, contentId) {
+        if(cardElement.classList.contains('cursor-not-allowed')) return; // locked
+
+        const checkbox = cardElement.querySelector('input[type="checkbox"]');
+        const contentArea = document.getElementById(contentId);
+        
+        checkbox.checked = !checkbox.checked;
+        
+        if (checkbox.checked) {
+            cardElement.classList.add('active');
+            contentArea.classList.remove('hidden');
+        } else {
+            cardElement.classList.remove('active');
+            contentArea.classList.add('hidden');
+        }
+        
+        checkValidation();
+    }
+
+    function uncheckCategory(checkboxId, contentId) {
+        const checkbox = document.getElementById(checkboxId);
+        const contentArea = document.getElementById(contentId);
+        const cardElement = checkbox.closest('.homework-card');
+        
+        checkbox.checked = false;
+        cardElement.classList.remove('active');
+        contentArea.classList.add('hidden');
+        
+        checkValidation();
+    }
+
+    function checkValidation() {
+        const checkboxes = document.querySelectorAll('#category-grid input[type="checkbox"]:not(:disabled)');
+        const hasChecked = Array.from(checkboxes).some(cb => cb.checked);
+        const hint = document.getElementById('validation-hint');
+        
+        if (!hasChecked) {
+            // hint.classList.remove('hidden'); // Only show on save attempt for better UX, or show always if 0. Let's show on save.
+        } else {
+            hint.classList.add('hidden');
+        }
+        return hasChecked;
+    }
+
+    function validateAndSave() {
+        // Simplified validation check
+        const hasCategories = checkValidation();
+        const hint = document.getElementById('validation-hint');
+        
+        // Example checking moets which is disabled but checked
+        const moietChecked = document.getElementById('cat-moet').checked;
+
+        if (!hasCategories && !moietChecked) {
+            hint.classList.remove('hidden');
+            // Scroll to categories
+            document.getElementById('category-grid').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            hint.classList.add('hidden');
+            alert('Lưu bài tập thành công (Mô phỏng)');
+        }
+    }
+</script>
+</body></html>

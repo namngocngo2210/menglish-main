@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Nhắc lịch Big Test</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary": "#1e43e7",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "on-primary-fixed": "#360f00",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "inverse-on-surface": "#ecf0ff",
+                        "inverse-surface": "#2a303d",
+                        "on-secondary-fixed": "#00105b",
+                        "surface-dim": "#d4daea",
+                        "surface-container-lowest": "#ffffff",
+                        "primary-fixed-dim": "#ffb595",
+                        "outline-variant": "#e1bfb2",
+                        "inverse-primary": "#ffb595",
+                        "on-primary": "#ffffff",
+                        "tertiary": "#256d00",
+                        "background": "#f9f9ff",
+                        "on-surface-variant": "#594137",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "surface-container-highest": "#dde2f3",
+                        "surface-container-high": "#e3e8f9",
+                        "outline": "#8d7165",
+                        "on-tertiary-container": "#0e3500",
+                        "on-tertiary": "#ffffff",
+                        "primary": "#a23f00",
+                        "on-background": "#161c27",
+                        "on-error": "#ffffff",
+                        "on-primary-container": "#521c00",
+                        "on-tertiary-fixed": "#062100",
+                        "primary-container": "#f5691a",
+                        "secondary-container": "#4160ff",
+                        "on-secondary": "#ffffff",
+                        "surface-bright": "#f9f9ff",
+                        "tertiary-container": "#46a917",
+                        "surface-tint": "#a23f00",
+                        "on-secondary-container": "#faf7ff",
+                        "primary-fixed": "#ffdbcd",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed": "#93fb65",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "surface": "#f9f9ff",
+                        "error-container": "#ffdad6",
+                        "surface-container-low": "#f1f3ff",
+                        "on-surface": "#161c27",
+                        "surface-container": "#e8eeff",
+                        "surface-variant": "#dde2f3",
+                        "secondary-fixed": "#dee0ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sidebar-width": "260px",
+                        "xl": "32px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "header-height": "64px",
+                        "base": "8px",
+                        "gutter": "16px",
+                        "lg": "24px",
+                        "md": "16px"
+                    },
+                    "fontFamily": {
+                        "body-base": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "h2": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "body-base": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "h1": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "caption": ["11px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "body-medium": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "label": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "body-small": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "code": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "h2": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "h3": ["18px", { "lineHeight": "26px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-surface text-on-surface font-body-base antialiased p-lg">
+<div class="max-w-7xl mx-auto space-y-lg">
+<!-- Header Section -->
+<header class="flex flex-col gap-sm border-b border-surface-variant pb-lg">
+<h1 class="font-h1 text-h1 text-on-surface">Nhắc lịch Big Test</h1>
+<p class="font-body-base text-body-base text-on-surface-variant max-w-3xl">
+                Danh sách các chặng học sắp đến hạn thi Big Test (trong vòng 7 ngày) chưa được duyệt đề thi.
+            </p>
+</header>
+<!-- Status Overview Cards (Optional enhancement for admin dashboard feel) -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-md">
+<div class="bg-surface-container-lowest rounded-lg border border-surface-variant p-md flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
+<div>
+<p class="font-label text-label text-on-surface-variant uppercase tracking-wider mb-xs">Tổng số chặng</p>
+<p class="font-h1 text-h1 text-on-surface">12</p>
+</div>
+<div class="bg-surface-container-low rounded-full p-sm text-primary-container">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">assignment</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-lg border border-surface-variant p-md flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
+<div>
+<p class="font-label text-label text-on-surface-variant uppercase tracking-wider mb-xs">Khẩn cấp (1-2 ngày)</p>
+<p class="font-h1 text-h1 text-error">3</p>
+</div>
+<div class="bg-error-container rounded-full p-sm text-error">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+</div>
+</div>
+<!-- Data Table / Bento Grid Approach for List -->
+<div class="bg-surface-container-lowest rounded-xl border border-surface-variant shadow-sm overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low border-b border-surface-variant">
+<tr>
+<th class="py-md px-lg font-label text-label text-on-surface-variant uppercase tracking-wider w-[20%]">Mã chặng</th>
+<th class="py-md px-lg font-label text-label text-on-surface-variant uppercase tracking-wider w-[25%]">Ngày thi dự kiến</th>
+<th class="py-md px-lg font-label text-label text-on-surface-variant uppercase tracking-wider w-[25%]">Trạng thái đề</th>
+<th class="py-md px-lg font-label text-label text-on-surface-variant uppercase tracking-wider text-right w-[30%]">Số ngày còn lại</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-variant">
+<!-- Row 1: Urgent (1 day) -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-md px-lg">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary-container text-[20px]">local_library</span>
+<span class="font-code text-code text-on-surface font-semibold">CH-2026-001</span>
+</div>
+</td>
+<td class="py-md px-lg font-body-base text-body-base text-on-surface">25/10/2026</td>
+<td class="py-md px-lg">
+<span class="inline-flex items-center px-2 py-1 rounded-full bg-error/10 text-error font-label text-label">
+                                    Chưa duyệt đề
+                                </span>
+</td>
+<td class="py-md px-lg text-right">
+<div class="inline-flex items-center gap-xs justify-end text-error">
+<span class="font-h1 text-h1 font-bold">1</span>
+<span class="font-label text-label uppercase mt-1">ngày</span>
+</div>
+</td>
+</tr>
+<!-- Row 2: Urgent (2 days) -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-md px-lg">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary-container text-[20px]">local_library</span>
+<span class="font-code text-code text-on-surface font-semibold">CH-2026-042</span>
+</div>
+</td>
+<td class="py-md px-lg font-body-base text-body-base text-on-surface">26/10/2026</td>
+<td class="py-md px-lg">
+<span class="inline-flex items-center px-2 py-1 rounded-full bg-error/10 text-error font-label text-label">
+                                    Chưa duyệt đề
+                                </span>
+</td>
+<td class="py-md px-lg text-right">
+<div class="inline-flex items-center gap-xs justify-end text-error">
+<span class="font-h2 text-h2 font-bold">2</span>
+<span class="font-label text-label uppercase mt-1">ngày</span>
+</div>
+</td>
+</tr>
+<!-- Row 3: Warning (3 days) -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-md px-lg">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">local_library</span>
+<span class="font-code text-code text-on-surface">CH-2026-015</span>
+</div>
+</td>
+<td class="py-md px-lg font-body-base text-body-base text-on-surface">27/10/2026</td>
+<td class="py-md px-lg">
+<span class="inline-flex items-center px-2 py-1 rounded-full bg-primary-container/10 text-primary-container font-label text-label">
+                                    Chưa duyệt đề
+                                </span>
+</td>
+<td class="py-md px-lg text-right">
+<div class="inline-flex items-center gap-xs justify-end text-primary-container">
+<span class="font-h2 text-h2 font-semibold">3</span>
+<span class="font-label text-label uppercase mt-1">ngày</span>
+</div>
+</td>
+</tr>
+<!-- Row 4: Normal (5 days) -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-md px-lg">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">local_library</span>
+<span class="font-code text-code text-on-surface">CH-2026-088</span>
+</div>
+</td>
+<td class="py-md px-lg font-body-base text-body-base text-on-surface">29/10/2026</td>
+<td class="py-md px-lg">
+<span class="inline-flex items-center px-2 py-1 rounded-full bg-surface-variant text-on-surface-variant font-label text-label">
+                                    Chưa duyệt đề
+                                </span>
+</td>
+<td class="py-md px-lg text-right">
+<div class="inline-flex items-center gap-xs justify-end text-on-surface">
+<span class="font-h3 text-h3 font-medium">5</span>
+<span class="font-label text-label text-on-surface-variant uppercase mt-1">ngày</span>
+</div>
+</td>
+</tr>
+<!-- Row 5: Normal (7 days) -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-md px-lg">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">local_library</span>
+<span class="font-code text-code text-on-surface">CH-2026-102</span>
+</div>
+</td>
+<td class="py-md px-lg font-body-base text-body-base text-on-surface">31/10/2026</td>
+<td class="py-md px-lg">
+<span class="inline-flex items-center px-2 py-1 rounded-full bg-surface-variant text-on-surface-variant font-label text-label">
+                                    Chưa duyệt đề
+                                </span>
+</td>
+<td class="py-md px-lg text-right">
+<div class="inline-flex items-center gap-xs justify-end text-on-surface-variant">
+<span class="font-body-base text-body-base">7</span>
+<span class="font-label text-label uppercase mt-1">ngày</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Empty State Handle (Hidden by default, useful for complete UI spec) -->
+<!--
+            <div class="py-xl flex flex-col items-center justify-center text-center px-lg">
+                <div class="bg-surface-container-low rounded-full p-lg mb-md">
+                    <span class="material-symbols-outlined text-[48px] text-surface-variant">task_alt</span>
+                </div>
+                <h3 class="font-h3 text-h3 text-on-surface mb-xs">Tất cả đều ổn!</h3>
+                <p class="font-body-base text-body-base text-on-surface-variant">Không có chặng học nào sắp tới hạn chưa duyệt đề.</p>
+            </div>
+            -->
+</div>
+</div>
+</body></html>

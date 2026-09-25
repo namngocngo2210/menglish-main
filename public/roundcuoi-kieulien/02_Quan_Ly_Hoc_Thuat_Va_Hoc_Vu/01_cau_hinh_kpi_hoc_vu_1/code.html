@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Cấu hình KPI Học vụ</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@100..900&display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS with custom config -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+              "surface-container-lowest": "#ffffff",
+              "on-primary": "#ffffff",
+              "background": "#f9f9ff",
+              "on-tertiary": "#ffffff",
+              "surface-container-high": "#e3e8f9",
+              "on-secondary-fixed-variant": "#002fc9",
+              "tertiary-fixed": "#93fb65",
+              "surface-dim": "#d4daea",
+              "secondary": "#1e43e7",
+              "on-primary-fixed": "#360f00",
+              "surface-bright": "#f9f9ff",
+              "outline-variant": "#e1bfb2",
+              "on-error-container": "#93000a",
+              "inverse-surface": "#2a303d",
+              "on-primary-container": "#521c00",
+              "surface-tint": "#a23f00",
+              "primary-container": "#f5691a",
+              "surface-container-highest": "#dde2f3",
+              "error-container": "#ffdad6",
+              "on-secondary-container": "#faf7ff",
+              "tertiary-container": "#46a917",
+              "secondary-fixed": "#dee0ff",
+              "on-secondary": "#ffffff",
+              "on-primary-fixed-variant": "#7c2e00",
+              "tertiary": "#256d00",
+              "on-error": "#ffffff",
+              "on-tertiary-fixed-variant": "#1a5200",
+              "inverse-primary": "#ffb595",
+              "surface": "#f9f9ff",
+              "primary-fixed-dim": "#ffb595",
+              "primary-fixed": "#ffdbcd",
+              "surface-variant": "#dde2f3",
+              "surface-container": "#e8eeff",
+              "inverse-on-surface": "#ecf0ff",
+              "secondary-fixed-dim": "#bac3ff",
+              "on-tertiary-fixed": "#062100",
+              "on-background": "#161c27",
+              "on-surface-variant": "#594137",
+              "on-surface": "#161c27",
+              "outline": "#8d7165",
+              "surface-container-low": "#f1f3ff",
+              "tertiary-fixed-dim": "#78de4b",
+              "on-tertiary-container": "#0e3500",
+              "secondary-container": "#4160ff",
+              "on-secondary-fixed": "#00105b",
+              "error": "#ba1a1a",
+              "primary": "#a23f00"
+            },
+            "borderRadius": {
+              "DEFAULT": "0.25rem",
+              "lg": "0.5rem",
+              "xl": "0.75rem",
+              "full": "9999px"
+            },
+            "spacing": {
+              "gutter": "16px",
+              "lg": "24px",
+              "base": "8px",
+              "sm": "8px",
+              "xs": "4px",
+              "xl": "32px",
+              "sidebar-width": "260px",
+              "md": "16px",
+              "header-height": "64px"
+            },
+            "fontFamily": {
+              "code": ["JetBrains Mono"],
+              "caption": ["Be Vietnam Pro"],
+              "body-medium": ["Be Vietnam Pro"],
+              "label": ["Be Vietnam Pro"],
+              "body-small": ["Be Vietnam Pro"],
+              "h1": ["Be Vietnam Pro"],
+              "body-base": ["Be Vietnam Pro"],
+              "h2": ["Be Vietnam Pro"],
+              "h3": ["Be Vietnam Pro"]
+            },
+            "fontSize": {
+              "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+              "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+              "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+              "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+              "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+              "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+              "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+              "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+              "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        /* Custom Toggle Switch Styles to match design system without arbitrary classes */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #f5691a;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #f5691a;
+        }
+        .toggle-checkbox:focus + .toggle-label {
+            box-shadow: 0 0 0 2px rgba(245, 105, 26, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-base min-h-screen">
+<!-- Main Content Canvas -->
+<main class="max-w-screen-2xl mx-auto p-lg pt-xl relative w-full overflow-x-hidden">
+<!-- 1 & 3: Header and Action Button -->
+<header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-lg gap-md">
+<h1 class="font-h1 text-h1 text-on-surface">Cấu hình KPI Học vụ</h1>
+<button class="bg-primary-container text-white px-md py-sm rounded-lg font-body-medium text-body-medium flex items-center gap-xs hover:bg-primary-container/90 transition-all shadow-sm active:scale-95 whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                Thêm mục mới
+            </button>
+</header>
+<!-- 2: Warning Banner -->
+<div class="bg-primary-fixed text-on-primary-fixed-variant p-md rounded-lg flex items-start gap-md mb-xl border border-primary-fixed-dim/50 shadow-sm relative overflow-hidden">
+<!-- Decorative accent line -->
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary-container"></div>
+<span class="material-symbols-outlined text-primary-container mt-xs" style="font-variation-settings: 'FILL' 1;">warning</span>
+<div class="flex-1">
+<h3 class="font-h3 text-h3 font-bold mb-xs text-on-surface">Tổng trọng số hiện tại: 1.850.000đ / Quỹ KPI: 2.000.000đ</h3>
+<p class="font-body-base text-body-base text-on-surface-variant">Tổng trọng số của các mục đang áp dụng chưa khớp với Quỹ KPI hiện tại. Vui lòng kiểm tra lại để đảm bảo tính chính xác khi tính lương.</p>
+</div>
+</div>
+<!-- 4: KPI Table -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 overflow-hidden mb-xl">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant/30">
+<th class="py-sm px-md font-label text-label uppercase text-on-surface-variant tracking-wider w-1/4">Tên mục KPI</th>
+<th class="py-sm px-md font-label text-label uppercase text-on-surface-variant tracking-wider text-right">Trọng số (VNĐ)</th>
+<th class="py-sm px-md font-label text-label uppercase text-on-surface-variant tracking-wider text-right">Ngưỡng đạt 100%</th>
+<th class="py-sm px-md font-label text-label uppercase text-on-surface-variant tracking-wider text-right">Ngưỡng đạt 50%</th>
+<th class="py-sm px-md font-label text-label uppercase text-on-surface-variant tracking-wider text-center">Đang áp dụng</th>
+<th class="py-sm px-md font-label text-label uppercase text-on-surface-variant tracking-wider">Hiệu lực từ</th>
+<th class="py-sm px-md font-label text-label uppercase text-on-surface-variant tracking-wider text-center w-16">Thao tác</th>
+</tr>
+</thead>
+<tbody class="font-body-small text-body-small text-on-surface">
+<!-- Group 1 -->
+<tr class="bg-surface-container/50 border-b border-outline-variant/20">
+<td class="py-sm px-md font-h3 text-h3 text-primary" colspan="7">Chuyên môn & Đào tạo</td>
+</tr>
+<tr class="border-b border-outline-variant/10 hover:bg-surface-container-lowest/50 transition-colors">
+<td class="py-sm px-md font-body-medium">Chấm bài tập về nhà</td>
+<td class="py-sm px-md text-right font-code text-code">200.000</td>
+<td class="py-sm px-md text-right">> 95%</td>
+<td class="py-sm px-md text-right">80% - 94%</td>
+<td class="py-sm px-md text-center">
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-surface-variant top-[2px]" id="toggle1" name="toggle1" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-variant cursor-pointer" for="toggle1"></label>
+</div>
+</td>
+<td class="py-sm px-md text-on-surface-variant">01/10/2023</td>
+<td class="py-sm px-md text-center">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-xs rounded-full hover:bg-surface-container-low"><span class="material-symbols-outlined text-[18px]">edit</span></button>
+</td>
+</tr>
+<tr class="border-b border-outline-variant/10 hover:bg-surface-container-lowest/50 transition-colors">
+<td class="py-sm px-md font-body-medium">Soạn giáo án đúng hạn</td>
+<td class="py-sm px-md text-right font-code text-code">150.000</td>
+<td class="py-sm px-md text-right">100%</td>
+<td class="py-sm px-md text-right">N/A</td>
+<td class="py-sm px-md text-center">
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-surface-variant top-[2px]" id="toggle2" name="toggle2" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-variant cursor-pointer" for="toggle2"></label>
+</div>
+</td>
+<td class="py-sm px-md text-on-surface-variant">01/10/2023</td>
+<td class="py-sm px-md text-center">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-xs rounded-full hover:bg-surface-container-low"><span class="material-symbols-outlined text-[18px]">edit</span></button>
+</td>
+</tr>
+<tr class="border-b border-outline-variant/10 hover:bg-surface-container-lowest/50 transition-colors">
+<td class="py-sm px-md font-body-medium">Điểm đánh giá dự giờ</td>
+<td class="py-sm px-md text-right font-code text-code">250.000</td>
+<td class="py-sm px-md text-right">Giỏi</td>
+<td class="py-sm px-md text-right">Khá</td>
+<td class="py-sm px-md text-center">
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-surface-variant top-[2px]" id="toggle3" name="toggle3" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-variant cursor-pointer" for="toggle3"></label>
+</div>
+</td>
+<td class="py-sm px-md text-on-surface-variant">15/09/2023</td>
+<td class="py-sm px-md text-center">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-xs rounded-full hover:bg-surface-container-low"><span class="material-symbols-outlined text-[18px]">edit</span></button>
+</td>
+</tr>
+<!-- Group 2 -->
+<tr class="bg-surface-container/50 border-b border-outline-variant/20">
+<td class="py-sm px-md font-h3 text-h3 text-primary" colspan="7">Vận hành lớp & Chấm công</td>
+</tr>
+<tr class="border-b border-outline-variant/10 hover:bg-surface-container-lowest/50 transition-colors">
+<td class="py-sm px-md font-body-medium">Lên lớp đúng giờ</td>
+<td class="py-sm px-md text-right font-code text-code">100.000</td>
+<td class="py-sm px-md text-right">0 phút trễ</td>
+<td class="py-sm px-md text-right">< 15 phút</td>
+<td class="py-sm px-md text-center">
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-surface-variant top-[2px]" id="toggle4" name="toggle4" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-variant cursor-pointer" for="toggle4"></label>
+</div>
+</td>
+<td class="py-sm px-md text-on-surface-variant">01/01/2023</td>
+<td class="py-sm px-md text-center">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-xs rounded-full hover:bg-surface-container-low"><span class="material-symbols-outlined text-[18px]">edit</span></button>
+</td>
+</tr>
+<tr class="border-b border-outline-variant/10 hover:bg-surface-container-lowest/50 transition-colors">
+<td class="py-sm px-md font-body-medium">Điểm danh học viên đầy đủ</td>
+<td class="py-sm px-md text-right font-code text-code">100.000</td>
+<td class="py-sm px-md text-right">100%</td>
+<td class="py-sm px-md text-right">N/A</td>
+<td class="py-sm px-md text-center">
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-surface-variant top-[2px]" id="toggle5" name="toggle5" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-variant cursor-pointer" for="toggle5"></label>
+</div>
+</td>
+<td class="py-sm px-md text-on-surface-variant">01/01/2023</td>
+<td class="py-sm px-md text-center">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-xs rounded-full hover:bg-surface-container-low"><span class="material-symbols-outlined text-[18px]">edit</span></button>
+</td>
+</tr>
+<tr class="border-b border-outline-variant/10 hover:bg-surface-container-lowest/50 transition-colors">
+<td class="py-sm px-md font-body-medium">Báo cáo buổi học (Daily report)</td>
+<td class="py-sm px-md text-right font-code text-code">150.000</td>
+<td class="py-sm px-md text-right">Trước 22:00</td>
+<td class="py-sm px-md text-right">Trước 24:00</td>
+<td class="py-sm px-md text-center">
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-surface-variant top-[2px]" id="toggle6" name="toggle6" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-variant cursor-pointer" for="toggle6"></label>
+</div>
+</td>
+<td class="py-sm px-md text-on-surface-variant">01/05/2023</td>
+<td class="py-sm px-md text-center">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-xs rounded-full hover:bg-surface-container-low"><span class="material-symbols-outlined text-[18px]">edit</span></button>
+</td>
+</tr>
+<!-- Add a few more skeleton rows for visual completeness up to 15 -->
+<tr class="bg-surface-container/50 border-b border-outline-variant/20">
+<td class="py-sm px-md font-h3 text-h3 text-primary" colspan="7">Chăm sóc khách hàng (CRM)</td>
+</tr>
+<tr class="border-b border-outline-variant/10 hover:bg-surface-container-lowest/50 transition-colors">
+<td class="py-sm px-md font-body-medium">Gọi điện cập nhật tình hình (định kỳ)</td>
+<td class="py-sm px-md text-right font-code text-code">200.000</td>
+<td class="py-sm px-md text-right">100% PH</td>
+<td class="py-sm px-md text-right">80% PH</td>
+<td class="py-sm px-md text-center">
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-surface-variant top-[2px]" id="toggle7" name="toggle7" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-variant cursor-pointer" for="toggle7"></label>
+</div>
+</td>
+<td class="py-sm px-md text-on-surface-variant">01/11/2023</td>
+<td class="py-sm px-md text-center">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-xs rounded-full hover:bg-surface-container-low"><span class="material-symbols-outlined text-[18px]">edit</span></button>
+</td>
+</tr>
+<tr class="border-b border-outline-variant/10 hover:bg-surface-container-lowest/50 transition-colors">
+<td class="py-sm px-md font-body-medium">Xử lý phản hồi phụ huynh</td>
+<td class="py-sm px-md text-right font-code text-code">150.000</td>
+<td class="py-sm px-md text-right">< 2 giờ</td>
+<td class="py-sm px-md text-right">< 4 giờ</td>
+<td class="py-sm px-md text-center">
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-surface-variant top-[2px]" id="toggle8" name="toggle8" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-variant cursor-pointer" for="toggle8"></label>
+</div>
+</td>
+<td class="py-sm px-md text-on-surface-variant">01/11/2023</td>
+<td class="py-sm px-md text-center">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-xs rounded-full hover:bg-surface-container-low"><span class="material-symbols-outlined text-[18px]">edit</span></button>
+</td>
+</tr>
+<!-- Skipping the rest of 15 rows for brevity but structure is identical -->
+<tr class="bg-surface-container/50 border-b border-outline-variant/20">
+<td class="py-sm px-md font-h3 text-h3 text-primary text-center italic opacity-60" colspan="7">... 7 mục KPI khác ...</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer/Pagination space -->
+<div class="px-md py-sm bg-surface border-t border-outline-variant/30 flex justify-between items-center text-on-surface-variant font-caption text-caption">
+<span>Hiển thị 15/15 mục KPI</span>
+</div>
+</div>
+</main>
+<!-- 5: Slide-over / Modal for Adding/Editing KPI (Currently in Open State) -->
+<!-- Backdrop -->
+<div class="fixed inset-0 bg-on-background/40 backdrop-blur-[2px] z-40 transition-opacity"></div>
+<!-- Panel -->
+<aside class="fixed inset-y-0 right-0 w-[440px] bg-surface-container-lowest shadow-2xl z-50 flex flex-col transform transition-transform translate-x-0 border-l border-outline-variant/20">
+<!-- Header -->
+<div class="flex items-center justify-between px-lg py-md border-b border-outline-variant/30 bg-surface">
+<h2 class="font-h2 text-h2 text-on-surface">Thêm mục KPI mới</h2>
+<button class="text-on-surface-variant hover:text-error transition-colors p-xs rounded-full hover:bg-error-container/20">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Body / Form -->
+<div class="flex-1 overflow-y-auto p-lg space-y-md">
+<!-- Important Note -->
+<div class="bg-surface-container-low border-l-4 border-primary p-sm rounded-r flex gap-sm items-start text-on-surface-variant mb-md">
+<span class="material-symbols-outlined text-primary text-[20px] mt-[2px]">info</span>
+<p class="font-caption text-caption">Kỳ hiện tại/đã chốt giữ nguyên số cũ, thay đổi chỉ áp dụng từ kỳ sau — không hồi tố.</p>
+</div>
+<!-- Fields -->
+<div class="space-y-sm">
+<label class="block font-label text-label text-on-surface-variant uppercase tracking-wider">Nhóm KPI <span class="text-error">*</span></label>
+<div class="relative">
+<select class="w-full bg-surface border border-outline-variant/50 rounded-lg px-md py-sm font-body-base text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none outline-none transition-all">
+<option>Chọn nhóm...</option>
+<option>Chuyên môn & Đào tạo</option>
+<option>Vận hành lớp & Chấm công</option>
+<option>Chăm sóc khách hàng (CRM)</option>
+<option>Quản lý học viên</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</div>
+<div class="space-y-sm">
+<label class="block font-label text-label text-on-surface-variant uppercase tracking-wider">Tên mục KPI <span class="text-error">*</span></label>
+<input class="w-full bg-surface border border-outline-variant/50 rounded-lg px-md py-sm font-body-base text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-outline" placeholder="Nhập tên mục KPI..." type="text"/>
+</div>
+<div class="space-y-sm">
+<label class="block font-label text-label text-on-surface-variant uppercase tracking-wider">Trọng số (VNĐ) <span class="text-error">*</span></label>
+<div class="relative">
+<input class="w-full bg-surface border border-outline-variant/50 rounded-lg pl-md pr-[50px] py-sm font-body-base text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-outline font-code" placeholder="0" type="number"/>
+<span class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant font-label text-label">VNĐ</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-md">
+<div class="space-y-sm">
+<label class="block font-label text-label text-on-surface-variant uppercase tracking-wider">Ngưỡng đạt 100%</label>
+<input class="w-full bg-surface border border-outline-variant/50 rounded-lg px-md py-sm font-body-base text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-outline" placeholder="Ví dụ: > 95%" type="text"/>
+</div>
+<div class="space-y-sm">
+<label class="block font-label text-label text-on-surface-variant uppercase tracking-wider">Ngưỡng đạt 50%</label>
+<input class="w-full bg-surface border border-outline-variant/50 rounded-lg px-md py-sm font-body-base text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-outline" placeholder="Ví dụ: 80% - 94%" type="text"/>
+</div>
+</div>
+<div class="space-y-sm">
+<label class="block font-label text-label text-on-surface-variant uppercase tracking-wider">Hiệu lực từ ngày <span class="text-error">*</span></label>
+<div class="relative">
+<input class="w-full bg-surface border border-outline-variant/50 rounded-lg px-md py-sm font-body-base text-on-surface focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" type="date"/>
+</div>
+</div>
+<div class="pt-sm">
+<label class="flex items-center gap-sm cursor-pointer">
+<input checked="" class="w-4 h-4 text-primary bg-surface border-outline-variant rounded focus:ring-primary/20 focus:ring-2 cursor-pointer accent-primary" type="checkbox"/>
+<span class="font-body-medium text-body-medium text-on-surface">Áp dụng ngay</span>
+</label>
+</div>
+</div>
+<!-- Footer Actions -->
+<div class="p-md border-t border-outline-variant/30 bg-surface flex justify-end gap-sm">
+<button class="px-md py-sm rounded-lg font-body-medium text-body-medium text-on-surface bg-surface-container-lowest border border-outline-variant/50 hover:bg-surface-container-low hover:text-on-surface-variant transition-colors active:scale-95">
+                Hủy
+            </button>
+<button class="px-md py-sm rounded-lg font-body-medium text-body-medium text-white bg-primary-container hover:bg-primary-container/90 transition-colors shadow-sm active:scale-95 flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">save</span>
+                Lưu cấu hình
+            </button>
+</div>
+</aside>
+</body></html>

@@ -1,0 +1,378 @@
+<!DOCTYPE html><html lang="vi"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Quản lý Danh mục hệ thống - MENGLISH Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#ffb595",
+                        "surface-dim": "#d4daea",
+                        "on-secondary": "#ffffff",
+                        "background": "#f9f9ff",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "on-tertiary": "#ffffff",
+                        "secondary-container": "#4160ff",
+                        "inverse-on-surface": "#ecf0ff",
+                        "on-primary": "#ffffff",
+                        "tertiary": "#256d00",
+                        "on-secondary-fixed": "#00105b",
+                        "surface-variant": "#dde2f3",
+                        "primary": "#a23f00",
+                        "on-primary-container": "#521c00",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "error": "#ba1a1a",
+                        "outline": "#8d7165",
+                        "surface-bright": "#f9f9ff",
+                        "on-surface": "#161c27",
+                        "surface-container-low": "#f1f3ff",
+                        "on-surface-variant": "#594137",
+                        "primary-fixed": "#ffdbcd",
+                        "surface-container": "#e8eeff",
+                        "secondary-fixed": "#dee0ff",
+                        "primary-container": "#f5691a",
+                        "on-primary-fixed": "#360f00",
+                        "on-tertiary-fixed": "#062100",
+                        "inverse-primary": "#ffb595",
+                        "surface-tint": "#a23f00",
+                        "on-secondary-container": "#faf7ff",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "on-error-container": "#93000a",
+                        "inverse-surface": "#2a303d",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-container": "#0e3500",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "on-error": "#ffffff",
+                        "surface-container-highest": "#dde2f3",
+                        "tertiary-fixed": "#93fb65",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary-container": "#46a917",
+                        "surface": "#f9f9ff",
+                        "secondary": "#1e43e7",
+                        "outline-variant": "#e1bfb2",
+                        "surface-container-high": "#e3e8f9",
+                        "on-background": "#161c27",
+                        "on-tertiary-fixed-variant": "#1a5200"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "sidebar-width": "260px",
+                        "xl": "32px",
+                        "header-height": "64px",
+                        "md": "16px",
+                        "lg": "24px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "label": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "caption": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                        "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                        "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .status-active {
+            background-color: rgba(70, 169, 23, 0.1);
+            color: #256d00;
+        }
+        .status-inactive {
+            background-color: rgba(186, 26, 26, 0.1);
+            color: #ba1a1a;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e1bfb2;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-background font-body-base text-on-background min-h-screen">
+<main class="max-w-[1440px] mx-auto p-lg lg:p-xl space-y-lg">
+<!-- Header Section -->
+<header class="flex flex-col md:flex-row md:items-center justify-between gap-md border-b border-outline-variant pb-lg">
+<div>
+<h1 class="font-h1 text-h1 text-primary">Quản lý Danh mục hệ thống</h1>
+<p class="text-on-surface-variant font-body-base mt-xs">Cấu hình các tham số nền tảng của hệ thống MENGLISH.</p>
+</div>
+<div class="flex items-center gap-sm">
+<button class="bg-surface-container-lowest border border-outline-variant text-on-surface px-md py-sm rounded-lg font-body-medium hover:bg-surface-container transition-colors flex items-center gap-xs">
+<span class="material-symbols-outlined">refresh</span>
+                    Làm mới
+                </button>
+<button class="bg-primary-container text-white px-lg py-sm rounded-lg font-body-medium shadow-sm hover:opacity-90 transition-all flex items-center gap-xs" onclick="togglePanel(true)"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">add_circle</span>Thêm danh mục mới</button>
+</div>
+</header>
+<!-- Main Content Grid -->
+<div class="grid grid-cols-12 gap-lg items-start">
+<!-- Left Navigation & Content Area -->
+<div class="col-span-12 lg:col-span-12 xl:col-span-9 space-y-md">
+<!-- Category Tabs -->
+<div class="flex flex-wrap gap-xs p-xs bg-surface-container rounded-xl"><button class="px-md py-sm rounded-lg font-body-medium transition-all bg-white text-primary shadow-sm ring-1 ring-black/5" id="tab-source">Nguồn khách hàng</button><button class="px-md py-sm rounded-lg font-body-medium transition-all text-on-surface-variant hover:bg-white/50">Lý do không chốt</button><button class="px-md py-sm rounded-lg font-body-medium transition-all text-on-surface-variant hover:bg-white/50">Chức vụ</button><button class="px-md py-sm rounded-lg font-body-medium transition-all text-on-surface-variant hover:bg-white/50">Mức phạt</button></div>
+<!-- Data Table Card -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full border-collapse">
+<thead class="bg-surface-container-low text-on-surface-variant border-b border-outline-variant" data-verified="true"><tr><th class="px-md py-md text-left font-label text-label uppercase tracking-wider w-24">Mã</th><th class="px-md py-md text-left font-label text-label uppercase tracking-wider">Tên danh mục</th><th class="px-md py-md text-center font-label text-label uppercase tracking-wider w-32">Thứ tự</th><th class="px-md py-md text-left font-label text-label uppercase tracking-wider w-40">Trạng thái</th><th class="px-md py-md text-right font-label text-label uppercase tracking-wider w-40">Thao tác</th></tr></thead>
+<tbody class="divide-y divide-outline-variant" data-verified="true">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="px-md py-md font-code text-code text-on-surface">SRC_01</td>
+<td class="px-md py-md font-body-medium text-on-surface">Facebook Ads</td>
+<td class="px-md py-md text-center font-body-base text-on-surface-variant">1</td>
+<td class="px-md py-md">
+<span class="status-active px-sm py-xs rounded-full text-caption font-label flex items-center w-fit gap-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                                            Đang dùng
+                                        </span>
+</td>
+<td class="px-md py-md text-right whitespace-nowrap">
+<div class="flex justify-end gap-xs">
+<button class="p-xs text-secondary hover:bg-secondary-container/10 rounded transition-colors" onclick="togglePanel(true, 'SRC_01', 'Facebook Ads', 1)" title="Sửa">
+<span class="material-symbols-outlined">edit</span>
+</button>
+<button class="p-xs text-error hover:bg-error-container/10 rounded transition-colors" title="Ngừng dùng"><span class="material-symbols-outlined">block</span></button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="px-md py-md font-code text-code text-on-surface">SRC_02</td>
+<td class="px-md py-md font-body-medium text-on-surface">TikTok Organic</td>
+<td class="px-md py-md text-center font-body-base text-on-surface-variant">2</td>
+<td class="px-md py-md">
+<span class="status-active px-sm py-xs rounded-full text-caption font-label flex items-center w-fit gap-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                                            Đang dùng
+                                        </span>
+</td>
+<td class="px-md py-md text-right">
+<div class="flex justify-end gap-xs">
+<button class="p-xs text-secondary hover:bg-secondary-container/10 rounded transition-colors">
+<span class="material-symbols-outlined">edit</span>
+</button>
+<button class="p-xs text-error hover:bg-error-container/10 rounded transition-colors"><span class="material-symbols-outlined">block</span></button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="px-md py-md font-code text-code text-on-surface">SRC_03</td>
+<td class="px-md py-md font-body-medium text-on-surface">Giới thiệu (Referral)</td>
+<td class="px-md py-md text-center font-body-base text-on-surface-variant">3</td>
+<td class="px-md py-md">
+<span class="status-inactive px-sm py-xs rounded-full text-caption font-label flex items-center w-fit gap-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+                                            Đã ngừng
+                                        </span>
+</td>
+<td class="px-md py-md text-right">
+<div class="flex justify-end gap-xs">
+<button class="p-xs text-secondary hover:bg-secondary-container/10 rounded transition-colors">
+<span class="material-symbols-outlined">edit</span>
+</button>
+<button class="p-xs text-tertiary hover:bg-tertiary-container/10 rounded transition-colors" title="Kích hoạt lại"><span class="material-symbols-outlined">settings_backup_restore</span></button>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="px-md py-md font-code text-code text-on-surface">SRC_04</td>
+<td class="px-md py-md font-body-medium text-on-surface">Google Search</td>
+<td class="px-md py-md text-center font-body-base text-on-surface-variant">4</td>
+<td class="px-md py-md">
+<span class="status-active px-sm py-xs rounded-full text-caption font-label flex items-center w-fit gap-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                                            Đang dùng
+                                        </span>
+</td>
+<td class="px-md py-md text-right">
+<div class="flex justify-end gap-xs">
+<button class="p-xs text-secondary hover:bg-secondary-container/10 rounded transition-colors">
+<span class="material-symbols-outlined">edit</span>
+</button>
+<button class="p-xs text-error hover:bg-error-container/10 rounded transition-colors"><span class="material-symbols-outlined">block</span></button>
+</div>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="px-md py-md font-code text-code text-on-surface">SRC_05</td>
+<td class="px-md py-md font-body-medium text-on-surface">Youtube Review</td>
+<td class="px-md py-md text-center font-body-base text-on-surface-variant">5</td>
+<td class="px-md py-md">
+<span class="status-active px-sm py-xs rounded-full text-caption font-label flex items-center w-fit gap-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                                            Đang dùng
+                                        </span>
+</td>
+<td class="px-md py-md text-right">
+<div class="flex justify-end gap-xs">
+<button class="p-xs text-secondary hover:bg-secondary-container/10 rounded transition-colors">
+<span class="material-symbols-outlined">edit</span>
+</button>
+<button class="p-xs text-error hover:bg-error-container/10 rounded transition-colors"><span class="material-symbols-outlined">block</span></button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination Placeholder -->
+<div class="px-md py-sm bg-surface-container-lowest border-t border-outline-variant flex items-center justify-between text-caption text-on-surface-variant font-body-base">
+<span class="">Hiển thị 5 trên 24 kết quả</span>
+<div class="flex gap-xs">
+<button class="p-xs rounded hover:bg-surface-container transition-colors disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="w-8 h-8 rounded bg-primary text-white font-label">1</button>
+<button class="w-8 h-8 rounded hover:bg-surface-container font-label">2</button>
+<button class="w-8 h-8 rounded hover:bg-surface-container font-label">3</button>
+<button class="p-xs rounded hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Side Editor Panel (Hidden by default on mobile, can be toggled) -->
+<aside class="xl:block col-span-12 xl:col-span-3 sticky top-xl" id="editorPanel">
+<div class="bg-white rounded-xl border border-outline-variant shadow-lg p-lg space-y-lg">
+<div class="flex items-center justify-between">
+<h2 class="font-h3 text-h3 text-on-surface" id="panelTitle" data-verified="true">Thêm giá trị mới</h2>
+<button class="xl:hidden p-xs text-on-surface-variant hover:text-on-surface" onclick="togglePanel(false)">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<form class="space-y-md" onsubmit="event.preventDefault();">
+<div class="space-y-xs">
+<label class="block text-on-surface-variant font-body-medium text-body-small" for="code">Mã danh mục</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none transition-all font-code" id="code" placeholder="Vd: SRC_06" type="text">
+</div>
+<div class="space-y-xs">
+<label class="block text-on-surface-variant font-body-medium text-body-small" for="name">Tên danh mục</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none transition-all" id="name" placeholder="Nhập tên..." type="text">
+</div>
+<div class="space-y-xs">
+<label class="block text-on-surface-variant font-body-medium text-body-small" for="order">Thứ tự hiển thị</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none transition-all" id="order" placeholder="4" type="number">
+</div>
+<div class="pt-md space-y-sm">
+<button class="w-full bg-primary-container text-white py-md rounded-lg font-body-medium hover:opacity-90 transition-all flex justify-center items-center gap-xs">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">save</span>
+                                Lưu thông tin
+                            </button>
+<button class="w-full bg-white border border-outline-variant text-on-surface-variant py-md rounded-lg font-body-medium hover:bg-surface-container transition-all" onclick="resetForm()">
+                                Hủy bỏ
+                            </button>
+</div>
+</form>
+<div class="pt-lg border-t border-outline-variant">
+<div class="bg-primary/5 rounded-lg p-md flex gap-md">
+<span class="material-symbols-outlined text-primary">info</span>
+<p class="text-caption text-on-surface-variant leading-relaxed">
+                                Thứ tự hiển thị giúp sắp xếp danh mục trong các menu chọn tại màn hình quản lý Lead và Tài chính.
+                            </p>
+</div>
+</div>
+</div>
+</aside>
+</div>
+<!-- Overlay for Mobile Editor -->
+<div class="fixed inset-0 bg-black/50 z-40 hidden backdrop-blur-sm" id="mobileOverlay" onclick="togglePanel(false)"></div>
+</main>
+<!-- Contextual FAB (Only for Mobile) -->
+<button class="xl:hidden fixed bottom-md right-md bg-primary-container text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center z-50 hover:scale-105 active:scale-95 transition-all" onclick="togglePanel(true)">
+<span class="material-symbols-outlined text-h2" style="font-variation-settings: 'FILL' 1;">add</span>
+</button>
+<script>
+        function togglePanel(show, code = '', name = '', order = '') {
+            const panel = document.getElementById('editorPanel');
+            const overlay = document.getElementById('mobileOverlay');
+            const panelTitle = document.getElementById('panelTitle');
+            
+            if (show) {
+                panel.classList.remove('hidden');
+                // Mobile layout logic
+                if (window.innerWidth < 1280) {
+                    panel.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'z-50', 'translate-y-0');
+                    overlay.classList.remove('hidden');
+                }
+                
+                // Edit mode check
+                if (code) {
+                    panelTitle.innerText = "Chỉnh sửa danh mục";
+                    document.getElementById('code').value = code;
+                    document.getElementById('name').value = name;
+                    document.getElementById('order').value = order;
+                } else {
+                    resetForm();
+                }
+            } else {
+                panel.classList.add('hidden');
+                overlay.classList.add('hidden');
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('panelTitle').innerText = "Thêm giá trị mới";
+            document.getElementById('code').value = '';
+            document.getElementById('name').value = '';
+            document.getElementById('order').value = '';
+        }
+
+        // Handle Responsive Resize
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 1280) {
+                const panel = document.getElementById('editorPanel');
+                const overlay = document.getElementById('mobileOverlay');
+                panel.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'z-50');
+                overlay.classList.add('hidden');
+                panel.classList.remove('hidden');
+            }
+        });
+    </script>
+
+
+</body></html>

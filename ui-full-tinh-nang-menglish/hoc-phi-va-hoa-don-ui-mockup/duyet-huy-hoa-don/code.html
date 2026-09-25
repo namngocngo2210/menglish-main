@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Duyệt hủy hóa đơn - MENGLISH Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#fff7ed',
+              100: '#ffedd5',
+              500: '#f5691a',
+              600: '#ea580c',
+              700: '#c2410c',
+            },
+            navy: {
+              900: '#111A2B',
+              800: '#1E293B',
+              700: '#334155',
+            },
+            surface: {
+              DEFAULT: '#f9f9ff',
+              container: '#ffffff',
+              subtle: '#f1f5f9',
+            }
+          },
+          fontFamily: {
+            sans: ['"Be Vietnam Pro"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Be Vietnam Pro', sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      vertical-align: middle;
+    }
+    .fill-icon {
+      font-variation-settings: 'FILL' 1;
+    }
+  </style>
+</head>
+<body class="p-6 md:p-8">
+
+  <!-- Vùng nội dung màn hình chính (Panel độc lập không chứa Shell ngoài) -->
+  <div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- Header & Báo cáo nhanh thống kê -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+      <div>
+        <div class="flex items-center gap-3">
+          <h1 class="text-2xl font-bold text-slate-900">Duyệt hủy hóa đơn</h1>
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 animate-pulse"></span>
+            3 yêu cầu chờ xử lý
+          </span>
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+            Chỉ Admin phê duyệt
+          </span>
+        </div>
+        <p class="text-sm text-slate-500 mt-1">
+          Kiểm soát và phê duyệt các yêu cầu hủy hóa đơn thu học phí & phụ thu từ Học vụ / CM. Chống thất thoát và nhảy số hóa đơn tự ý.
+        </p>
+      </div>
+
+      <!-- Thẻ tóm tắt chỉ số -->
+      <div class="flex items-center gap-3">
+        <div class="bg-amber-50/80 border border-amber-200/80 px-4 py-2.5 rounded-xl text-right">
+          <div class="text-xs font-medium text-amber-800">Chờ duyệt hủy</div>
+          <div class="text-xl font-bold text-amber-900">3 <span class="text-xs font-normal text-amber-700">hóa đơn</span></div>
+        </div>
+        <div class="bg-emerald-50/80 border border-emerald-200/80 px-4 py-2.5 rounded-xl text-right">
+          <div class="text-xs font-medium text-emerald-800">Đã duyệt hủy (Tháng này)</div>
+          <div class="text-xl font-bold text-emerald-900">7 <span class="text-xs font-normal text-emerald-700">hóa đơn</span></div>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl text-right">
+          <div class="text-xs font-medium text-slate-600">Đã từ chối</div>
+          <div class="text-xl font-bold text-slate-800">2 <span class="text-xs font-normal text-slate-500">yêu cầu</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Banner cảnh báo nghiệp vụ quan trọng -->
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+      <span class="material-symbols-outlined text-blue-600 mt-0.5 text-xl">info</span>
+      <div class="text-sm text-blue-900 space-y-1">
+        <div class="font-semibold text-blue-950">Quy tắc nghiệp vụ kiểm soát số hóa đơn & hoàn tác công nợ (Cập nhật 11/09/2026):</div>
+        <div class="grid md:grid-cols-2 gap-x-6 gap-y-1 text-xs text-blue-800">
+          <p>• <strong>Bảo toàn dải số:</strong> Số hóa đơn giấy đã hủy vẫn tính là <em>đã sử dụng</em> trong dải số, tuyệt đối không được cấp phát hay tái sử dụng lại.</p>
+          <p>• <strong>Tự động hoàn tác công nợ:</strong> Khi duyệt hủy phiếu từng ở trạng thái <em>"Đã duyệt"</em>, hệ thống sẽ tự động trừ lùi số tiền đã thu và hoàn trả công nợ còn lại của học viên.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Thanh lọc & tìm kiếm -->
+    <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200">
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-lg">search</span>
+          <input type="text" placeholder="Tìm theo mã phiếu, số hóa đơn, tên học viên..." value="PT-20231024-001" class="pl-9 pr-4 py-2 text-xs md:text-sm border border-slate-200 rounded-lg w-72 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+        </div>
+
+        <select class="text-xs md:text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:border-brand-500">
+          <option>Tất cả cơ sở</option>
+          <option selected>Cơ sở Cầu Giấy</option>
+          <option>Cơ sở Đống Đa</option>
+          <option>Cơ sở Hai Bà Trưng</option>
+        </select>
+
+        <select class="text-xs md:text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:border-brand-500">
+          <option selected>Trạng thái: Chờ duyệt hủy (3)</option>
+          <option>Đã duyệt hủy</option>
+          <option>Đã từ chối hủy</option>
+          <option>Tất cả</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+          <span class="material-symbols-outlined text-base">refresh</span> Làm mới
+        </button>
+        <button class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors">
+          <span class="material-symbols-outlined text-base">download</span> Xuất danh sách
+        </button>
+      </div>
+    </div>
+
+    <!-- Bố cục Master - Detail: Danh sách chờ duyệt & Chi tiết đối soát xử lý -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <!-- CỘT TRÁI (5 Cột): Danh sách yêu cầu chờ duyệt -->
+      <div class="lg:col-span-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+            <span>Danh sách yêu cầu chờ duyệt</span>
+            <span class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full font-semibold">3</span>
+          </h2>
+          <span class="text-xs text-slate-500">Xếp theo thời gian gửi gần nhất</span>
+        </div>
+
+        <!-- Thẻ 1 (ĐANG CHỌN) -->
+        <div class="bg-white border-2 border-brand-500 rounded-2xl p-4.5 shadow-sm relative cursor-pointer transition-all">
+          <div class="absolute -left-1 top-6 bottom-6 w-1 bg-brand-500 rounded-r"></div>
+          
+          <div class="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-900 text-sm">HĐ-0824/PTM-042</span>
+                <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                  Hóa đơn giấy
+                </span>
+              </div>
+              <div class="text-xs text-slate-500 mt-0.5">Mã phiếu thu: <strong class="text-slate-700">PT-20231024-001</strong></div>
+            </div>
+            <div class="text-right">
+              <span class="text-xs font-semibold text-brand-600 bg-brand-50 px-2.5 py-1 rounded-full border border-brand-100">
+                Đang xem
+              </span>
+            </div>
+          </div>
+
+          <div class="py-3 space-y-2 text-xs">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-500">Học viên:</span>
+              <span class="font-semibold text-slate-900">Nguyễn Văn A <span class="text-slate-400 font-normal">(MS-24098)</span></span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-500">Số tiền trên hóa đơn:</span>
+              <span class="font-bold text-sm text-slate-900">13.500.000 VNĐ</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-500">Người yêu cầu hủy:</span>
+              <span class="font-medium text-slate-700">Lê Thị Bích (Học vụ - CS Cầu Giấy)</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-500">Thời điểm gửi yêu cầu:</span>
+              <span class="text-slate-600 font-medium">10:45 - 24/10/2026 (25 phút trước)</span>
+            </div>
+          </div>
+
+          <div class="mt-2 p-2.5 bg-rose-50/70 border border-rose-100 rounded-xl">
+            <div class="text-[11px] font-semibold text-rose-800 flex items-center gap-1 mb-1">
+              <span class="material-symbols-outlined text-sm">error</span> Lý do hủy từ Học vụ:
+            </div>
+            <p class="text-xs text-rose-900 line-clamp-2">
+              "Viết sai thông tin tên phụ huynh người nộp tiền (Nguyễn Văn Tuấn thành Nguyễn Văn Tùng) và bị rách cuống liên đỏ khi xé hóa đơn."
+            </p>
+          </div>
+        </div>
+
+        <!-- Thẻ 2 -->
+        <div class="bg-white border border-slate-200 hover:border-slate-300 rounded-2xl p-4.5 shadow-sm cursor-pointer transition-all">
+          <div class="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-800 text-sm">HĐ-0824/PTM-039</span>
+                <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                  Hóa đơn giấy
+                </span>
+              </div>
+              <div class="text-xs text-slate-500 mt-0.5">Mã phiếu thu: <strong class="text-slate-700">PT-20231024-002</strong></div>
+            </div>
+            <div class="text-right">
+              <span class="text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                Chờ duyệt
+              </span>
+            </div>
+          </div>
+
+          <div class="py-3 space-y-2 text-xs">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-500">Học viên:</span>
+              <span class="font-semibold text-slate-800">Trần Minh Hoàng <span class="text-slate-400 font-normal">(MS-24102)</span></span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-500">Số tiền:</span>
+              <span class="font-bold text-slate-900">8.200.000 VNĐ</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-500">Người yêu cầu hủy:</span>
+              <span class="text-slate-700 font-medium">Ngô Văn Tài (CM - CS Đống Đa)</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-500">Thời điểm gửi:</span>
+              <span class="text-slate-600">09:15 - 24/10/2026 (2 giờ trước)</span>
+            </div>
+          </div>
+
+          <div class="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+            <div class="text-[11px] font-semibold text-slate-700 flex items-center gap-1 mb-1">
+              <span class="material-symbols-outlined text-sm text-slate-500">notes</span> Lý do hủy:
+            </div>
+            <p class="text-xs text-slate-700">
+              "Khách hàng đổi ý chuyển khoản thay vì nộp tiền mặt sau khi đã viết hóa đơn số 039."
+            </p>
+          </div>
+        </div>
+
+        <!-- Thẻ 3 -->
+        <div class="bg-white border border-slate-200 hover:border-slate-300 rounded-2xl p-4.5 shadow-sm cursor-pointer transition-all">
+          <div class="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-800 text-sm">BL-2026/088</span>
+                <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                  Biên lai điện tử
+                </span>
+              </div>
+              <div class="text-xs text-slate-500 mt-0.5">Mã phiếu thu: <strong class="text-slate-700">PT-20231023-015</strong></div>
+            </div>
+            <div class="text-right">
+              <span class="text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                Chờ duyệt
+              </span>
+            </div>
+          </div>
+
+          <div class="py-3 space-y-2 text-xs">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-500">Học viên:</span>
+              <span class="font-semibold text-slate-800">Lê Thu Trang <span class="text-slate-400 font-normal">(MS-23910)</span></span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-500">Số tiền:</span>
+              <span class="font-bold text-slate-900">450.000 VNĐ <span class="text-[10px] font-normal text-slate-500">(Thuần phụ thu)</span></span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-500">Người yêu cầu:</span>
+              <span class="text-slate-700 font-medium">Đặng Hồng Hạnh (Học vụ Cầu Giấy)</span>
+            </div>
+          </div>
+
+          <div class="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+            <div class="text-[11px] font-semibold text-slate-700 flex items-center gap-1 mb-1">
+              <span class="material-symbols-outlined text-sm text-slate-500">notes</span> Lý do hủy:
+            </div>
+            <p class="text-xs text-slate-700">
+              "Thu nhầm số lượng giáo trình bổ sung (thu 3 bộ thay vì 1 bộ theo yêu cầu)."
+            </p>
+          </div>
+        </div>
+
+        <!-- Lưu ý chống tạo 2 yêu cầu trùng lặp -->
+        <div class="p-3 bg-amber-50/60 border border-amber-200/60 rounded-xl text-xs text-amber-800 flex items-center gap-2">
+          <span class="material-symbols-outlined text-amber-600 text-sm">lock</span>
+          <span>Hệ thống tự động khóa không cho tạo yêu cầu thứ 2 đối với phiếu đang có yêu cầu chờ duyệt.</span>
+        </div>
+      </div>
+
+      <!-- CỘT PHẢI (7 Cột): Chi tiết phiếu thu & Thao tác phê duyệt của Admin -->
+      <div class="lg:col-span-7 space-y-5">
+
+        <!-- Card Chi tiết hồ sơ phiếu thu cần duyệt hủy -->
+        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-6">
+
+          <!-- Tiêu đề chi tiết & Trạng thái kép -->
+          <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-200">
+            <div>
+              <div class="flex items-center gap-2.5">
+                <span class="text-lg font-bold text-slate-900">Chi tiết yêu cầu hủy: HĐ-0824/PTM-042</span>
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200">
+                  Đang yêu cầu hủy
+                </span>
+              </div>
+              <p class="text-xs text-slate-500 mt-1">
+                Gắn với phiếu thu: <strong class="text-slate-800">PT-20231024-001</strong> • Tạo ngày 24/10/2026 bởi <span class="font-medium text-slate-700">Lê Thị Bích (Học vụ)</span>
+              </p>
+            </div>
+
+            <!-- Trạng thái kép rõ ràng -->
+            <div class="flex flex-col items-end gap-1">
+              <div class="flex items-center gap-2 text-xs">
+                <span class="text-slate-500">Trạng thái phiếu thu:</span>
+                <span class="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  Đã duyệt (MH3)
+                </span>
+              </div>
+              <div class="flex items-center gap-2 text-xs">
+                <span class="text-slate-500">Trạng thái hóa đơn:</span>
+                <span class="font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                  Chờ duyệt hủy
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Khối 1: Lý do yêu cầu hủy (Nổi bật nhất) -->
+          <div class="p-4 bg-rose-50 border border-rose-200 rounded-xl space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-rose-900 font-bold text-sm">
+                <span class="material-symbols-outlined text-rose-600">report_problem</span>
+                Thông tin yêu cầu hủy hóa đơn
+              </div>
+              <span class="text-xs text-rose-700 font-medium">Bắt buộc xem xét kỹ</span>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">
+              <div>
+                <span class="text-rose-700">Người gửi yêu cầu:</span>
+                <div class="font-semibold text-slate-900 mt-0.5">Lê Thị Bích (Nhân viên Học vụ CS Cầu Giấy)</div>
+              </div>
+              <div>
+                <span class="text-rose-700">Thời gian gửi:</span>
+                <div class="font-semibold text-slate-900 mt-0.5">10:45:20 - 24/10/2026</div>
+              </div>
+            </div>
+
+            <div class="pt-2 border-t border-rose-200/60">
+              <span class="text-xs font-semibold text-rose-900 block mb-1">Nội dung giải trình lý do hủy (*):</span>
+              <p class="text-xs text-slate-800 bg-white p-3 rounded-lg border border-rose-200 leading-relaxed">
+                "Viết sai thông tin tên phụ huynh người nộp tiền (ghi nhầm Nguyễn Văn Tuấn thành Nguyễn Văn Tùng) và bị rách cuống liên đỏ khi xé hóa đơn giao khách. Xin phép Admin duyệt hủy để lập lại hóa đơn mới đúng dải số cho khách hàng."
+              </p>
+            </div>
+          </div>
+
+          <!-- Khối 2: Tác động tài chính & Hoàn tác công nợ tự động (R-11) -->
+          <div class="p-4 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2">
+            <div class="flex items-center gap-2 text-amber-950 font-bold text-xs">
+              <span class="material-symbols-outlined text-amber-600 text-sm">sync_alt</span>
+              Hệ thống sẽ tự động thực hiện khi Admin bấm "Duyệt hủy hóa đơn":
+            </div>
+            <ul class="text-xs text-amber-900 space-y-1.5 pl-5 list-disc">
+              <li>
+                <strong>Trừ lùi công nợ (Revert):</strong> Vì phiếu <code>PT-20231024-001</code> trước đó đã ở trạng thái <em>"Đã duyệt"</em>, hệ thống sẽ tự động trừ <strong>13.500.000 VNĐ</strong> khỏi <code>tong_da_thu</code> và cộng ngược <strong>13.500.000 VNĐ</strong> vào <code>tong_con_lai</code> của học viên Nguyễn Văn A.
+              </li>
+              <li>
+                <strong>Khóa số hóa đơn:</strong> Số hóa đơn <code>HĐ-0824/PTM-042</code> chuyển thành <em>"Đã hủy"</em>, giữ nguyên lịch sử kiểm toán trong dải số và <strong>không được tái sử dụng</strong>.
+              </li>
+              <li>
+                <strong>Ghi nhật ký hệ thống:</strong> Lưu vết người duyệt là <em>Chị Liên (Admin)</em> cùng thời điểm thực thi.
+              </li>
+            </ul>
+          </div>
+
+          <!-- Khối 3: Thông tin chi tiết phiếu thu gốc bị hủy -->
+          <div class="space-y-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Thông tin phiếu thu gốc</h3>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+              <div>
+                <span class="text-slate-500 block">Học viên:</span>
+                <span class="font-semibold text-slate-900 text-sm">Nguyễn Văn A</span>
+                <span class="text-[11px] text-slate-500 block">Mã: MS-24098</span>
+              </div>
+              <div>
+                <span class="text-slate-500 block">Lớp học hiện tại:</span>
+                <span class="font-semibold text-slate-800">IELTS Foundation 02</span>
+                <span class="text-[11px] text-slate-500 block">Cơ sở Cầu Giấy</span>
+              </div>
+              <div>
+                <span class="text-slate-500 block">Người nộp (Ghi nhầm):</span>
+                <span class="font-semibold text-rose-700">Nguyễn Văn Tùng</span>
+                <span class="text-[11px] text-slate-500 block">SĐT: 0987654321</span>
+              </div>
+              <div>
+                <span class="text-slate-500 block">Hình thức thu:</span>
+                <span class="font-semibold text-slate-900 flex items-center gap-1 mt-0.5">
+                  <span class="material-symbols-outlined text-sm text-slate-600">payments</span>
+                  Tiền mặt
+                </span>
+              </div>
+              <div>
+                <span class="text-slate-500 block">Số hóa đơn giấy:</span>
+                <span class="font-bold text-rose-700 font-mono text-sm">HĐ-0824/PTM-042</span>
+              </div>
+              <div>
+                <span class="text-slate-500 block">Hóa đơn đỏ (VAT):</span>
+                <span class="font-medium text-slate-600">Không yêu cầu</span>
+              </div>
+            </div>
+
+            <!-- Bảng kê các khoản tiền trên hóa đơn -->
+            <div class="border border-slate-200 rounded-xl overflow-hidden text-xs">
+              <table class="w-full text-left">
+                <thead class="bg-slate-100/80 text-slate-700 border-b border-slate-200 font-semibold">
+                  <tr>
+                    <th class="py-2.5 px-3">Khoản mục</th>
+                    <th class="py-2.5 px-3">Nội dung chi tiết</th>
+                    <th class="py-2.5 px-3 text-right">Số tiền</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  <tr>
+                    <td class="py-2.5 px-3 font-medium text-slate-800">Học phí đợt 2 (Hạn 15/10/2026)</td>
+                    <td class="py-2.5 px-3 text-slate-600">Khóa IELTS Foundation (3 tháng) + Giáo trình</td>
+                    <td class="py-2.5 px-3 text-right font-medium text-slate-900">13.350.000 VNĐ</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2.5 px-3 font-medium text-brand-700 flex items-center gap-1">
+                      <span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span> Phụ thu phát sinh
+                    </td>
+                    <td class="py-2.5 px-3 text-slate-600">Phụ thu giáo trình in ấn bổ sung & thẻ học viên</td>
+                    <td class="py-2.5 px-3 text-right font-medium text-brand-700">+150.000 VNĐ</td>
+                  </tr>
+                  <tr class="bg-slate-50/80 font-bold">
+                    <td colspan="2" class="py-3 px-3 text-slate-900 text-sm">TỔNG SỐ TIỀN TRÊN HÓA ĐƠN:</td>
+                    <td class="py-3 px-3 text-right text-base text-brand-600">13.500.000 VNĐ</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Xem trước ảnh hóa đơn bị hỏng/viết sai -->
+            <div class="border border-slate-200 rounded-xl p-4 space-y-2">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-semibold text-slate-800 flex items-center gap-1.5">
+                  <span class="material-symbols-outlined text-slate-500 text-sm">image</span>
+                  Ảnh chụp minh chứng hóa đơn hỏng / gạch chéo hủy:
+                </span>
+                <span class="text-slate-400">hoadon_042_hong.jpg (2.4 MB)</span>
+              </div>
+              
+              <div class="relative bg-slate-900 rounded-lg p-3 flex items-center justify-center text-slate-300 min-h-[160px] border border-slate-800 overflow-hidden">
+                <div class="text-center space-y-2">
+                  <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-800 text-slate-400">
+                    <span class="material-symbols-outlined text-2xl">receipt_long</span>
+                  </div>
+                  <div class="text-xs">
+                    <div class="font-mono text-amber-400 font-bold">HÓA ĐƠN SỐ: HĐ-0824/PTM-042 [ĐÃ GẠCH CHÉO HỦY]</div>
+                    <div class="text-slate-400 text-[11px]">Học viên: Nguyễn Văn A • Đã gạch chéo 3 liên • Chữ ký xác nhận người viết</div>
+                  </div>
+                  <div class="flex items-center justify-center gap-3 pt-1">
+                    <button class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center gap-1 border border-slate-700">
+                      <span class="material-symbols-outlined text-sm">zoom_in</span> Xem phóng to
+                    </button>
+                    <button class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center gap-1 border border-slate-700">
+                      <span class="material-symbols-outlined text-sm">download</span> Tải ảnh về
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Khu vực hành động của Admin (Có xác nhận lần 2) -->
+          <div class="pt-4 border-t border-slate-200 space-y-3">
+            <div class="text-xs text-slate-500 flex items-center justify-between">
+              <span>Quyền thực hiện: <strong class="text-slate-700">Chị Liên (Admin)</strong></span>
+              <span class="text-slate-400">Hệ thống ghi nhận thời điểm thao tác chính xác vào Audit Log</span>
+            </div>
+
+            <!-- Panel xác nhận 2 bước an toàn -->
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div class="space-y-0.5">
+                <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <span class="material-symbols-outlined text-amber-500 text-base">verified_user</span>
+                  Xác nhận xử lý yêu cầu hủy hóa đơn
+                </div>
+                <div class="text-[11px] text-slate-500">
+                  Thao tác Duyệt sẽ hoàn tác công nợ học viên và khóa vĩnh viễn số hóa đơn này.
+                </div>
+              </div>
+
+              <!-- Nhóm nút bấm hành động -->
+              <div class="flex items-center gap-3 w-full sm:w-auto">
+                <!-- Nút Từ chối -->
+                <button type="button" onclick="openRejectModal()" class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-xl transition-all shadow-sm">
+                  <span class="material-symbols-outlined text-base text-slate-500">close</span>
+                  Từ chối hủy (Giữ nguyên)
+                </button>
+
+                <!-- Nút Duyệt hủy (Xác nhận lần 2) -->
+                <button type="button" onclick="openConfirmApproveModal()" class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-5 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-xl transition-all shadow-sm hover:shadow">
+                  <span class="material-symbols-outlined text-base">delete_forever</span>
+                  Duyệt hủy hóa đơn
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- MODAL XÁC NHẬN LẦN 2 KHI DUYỆT HỦY (Mô phỏng quy trình kiểm soát bắt buộc) -->
+  <div id="confirmApproveModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white max-w-md w-full rounded-2xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all">
+      
+      <div class="p-6 space-y-4">
+        <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+          <span class="material-symbols-outlined text-3xl">warning</span>
+        </div>
+
+        <div class="text-center space-y-1">
+          <h3 class="text-lg font-bold text-slate-900">Xác nhận duyệt hủy hóa đơn?</h3>
+          <p class="text-xs text-slate-500">
+            Hành động này là quyết định cuối cùng của Admin và không thể hoàn tác.
+          </p>
+        </div>
+
+        <div class="bg-slate-50 rounded-xl p-3 text-xs space-y-1.5 border border-slate-200">
+          <div class="flex justify-between">
+            <span class="text-slate-500">Số hóa đơn hủy:</span>
+            <strong class="text-slate-900 font-mono">HĐ-0824/PTM-042</strong>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">Số tiền hủy & hoàn công nợ:</span>
+            <strong class="text-rose-600">13.500.000 VNĐ</strong>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">Học viên hưởng revert:</span>
+            <strong class="text-slate-900">Nguyễn Văn A (MS-24098)</strong>
+          </div>
+        </div>
+
+        <div class="text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
+          ⚠️ <strong>Lưu ý:</strong> Số hóa đơn <code>HĐ-0824/PTM-042</code> sẽ bị đánh dấu <strong>Đã hủy</strong> và nằm lại trong dải số, không cấp lại cho bất kỳ ai.
+        </div>
+      </div>
+
+      <div class="bg-slate-100 px-6 py-4 flex items-center justify-end gap-3 border-t border-slate-200">
+        <button type="button" onclick="closeModals()" class="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg">
+          Quay lại kiểm tra
+        </button>
+        <button type="button" onclick="handleFinalApprove()" class="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm">
+          Xác nhận duyệt hủy ngay
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    function openConfirmApproveModal() {
+      document.getElementById('confirmApproveModal').classList.remove('hidden');
+    }
+
+    function closeModals() {
+      document.getElementById('confirmApproveModal').classList.add('hidden');
+    }
+
+    function handleFinalApprove() {
+      alert('Đã duyệt hủy hóa đơn HĐ-0824/PTM-042 thành công! Hệ thống đã tự động revert 13.500.000 VNĐ vào công nợ học viên.');
+      closeModals();
+    }
+
+    // Mặc định hiển thị modal để người dùng thấy rõ cơ chế xác nhận lần 2 của spec
+  </script>
+
+</body>
+</html>

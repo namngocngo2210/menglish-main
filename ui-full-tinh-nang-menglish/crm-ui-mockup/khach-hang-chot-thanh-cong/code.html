@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary": "#256d00",
+                        "error": "#ba1a1a",
+                        "surface-container-low": "#f1f3ff",
+                        "primary-container": "#f5691a",
+                        "on-background": "#161c27",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "error-container": "#ffdad6",
+                        "secondary-fixed": "#dee0ff",
+                        "surface-container-high": "#e3e8f9",
+                        "on-surface": "#161c27",
+                        "on-primary-fixed": "#360f00",
+                        "primary": "#a23f00",
+                        "secondary-container": "#4160ff",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-container": "#faf7ff",
+                        "inverse-primary": "#ffb595",
+                        "surface-dim": "#d4daea",
+                        "on-tertiary-fixed": "#062100",
+                        "surface-container-highest": "#dde2f3",
+                        "background": "#f9f9ff",
+                        "surface-container": "#e8eeff",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "surface-bright": "#f9f9ff",
+                        "surface-tint": "#a23f00",
+                        "surface-variant": "#dde2f3",
+                        "primary-fixed-dim": "#ffb595",
+                        "on-secondary-fixed": "#00105b",
+                        "tertiary-container": "#46a917",
+                        "on-surface-variant": "#594137",
+                        "inverse-on-surface": "#ecf0ff",
+                        "on-primary": "#ffffff",
+                        "outline-variant": "#e1bfb2",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "secondary": "#1e43e7",
+                        "on-error": "#ffffff",
+                        "outline": "#8d7165",
+                        "on-tertiary": "#ffffff",
+                        "inverse-surface": "#2a303d",
+                        "on-primary-container": "#521c00",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-container": "#0e3500",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed": "#93fb65",
+                        "surface": "#f9f9ff",
+                        "primary-fixed": "#ffdbcd"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "lg": "24px",
+                        "md": "16px",
+                        "gutter": "16px",
+                        "xs": "4px",
+                        "base": "8px",
+                        "xl": "32px",
+                        "sm": "8px",
+                        "sidebar-width": "260px",
+                        "header-height": "64px"
+                    },
+                    "fontFamily": {
+                        "code": ["JetBrains Mono"],
+                        "h3": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                        "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                        "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: #f9f9ff;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e1bfb2;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #8d7165;
+        }
+    </style>
+</head>
+<body class="p-lg lg:p-xl text-on-surface">
+<!-- Container chính - Chỉ nội dung chi tiết -->
+<div class="max-w-[1440px] mx-auto space-y-lg">
+<!-- Khu vực 1: Chờ xếp lớp (Cần xử lý gấp) -->
+<section class="bg-white rounded-xl border border-outline-variant shadow-sm overflow-hidden border-l-4 border-l-primary-container">
+<div class="p-md lg:px-lg flex flex-col md:flex-row md:items-center justify-between gap-md bg-surface-container-low/50">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary-container text-[28px]" style="font-variation-settings: 'FILL' 1;">error</span>
+<div>
+<h2 class="font-h2 text-h2 text-primary">Chờ xếp lớp (Cần xử lý gấp)</h2>
+<p class="font-body-small text-body-small text-on-surface-variant">Hiện có <span class="font-bold text-primary">03</span> học viên đang đợi phân bổ vào lớp mới</p>
+</div>
+</div>
+<div class="flex items-center gap-xs bg-primary-fixed px-md py-xs rounded-full">
+<span class="material-symbols-outlined text-primary text-sm">schedule</span>
+<span class="font-label text-label text-primary uppercase">Ưu tiên xử lý</span>
+</div>
+</div>
+<div class="overflow-x-auto custom-scrollbar">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase tracking-wider">Họ tên</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase tracking-wider">Số điện thoại</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase tracking-wider">Chi nhánh</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase tracking-wider">Thời điểm chốt</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase tracking-wider text-right">Hành động</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="px-md py-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center font-bold text-primary text-xs">NA</div>
+<span class="font-body-medium text-body-medium">Nguyễn Văn An</span>
+</div>
+</td>
+<td class="px-md py-md font-code text-code">0901 234 567</td>
+<td class="px-md py-md">
+<span class="px-sm py-xs rounded-lg bg-secondary-container/10 text-secondary font-body-small text-body-small">Quận 1 - HCM</span>
+</td>
+<td class="px-md py-md font-body-small text-body-small text-on-surface-variant">09:15 22/07/2026</td>
+<td class="px-md py-md text-right">
+<button class="bg-primary-container text-white px-md py-xs rounded-lg font-body-medium text-body-medium hover:brightness-110 active:scale-95 transition-all flex items-center gap-xs ml-auto shadow-sm">
+<span class="material-symbols-outlined text-sm">assignment_turned_in</span>
+                                    Gán lớp
+                                </button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="px-md py-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-secondary-fixed flex items-center justify-center font-bold text-secondary text-xs">LN</div>
+<span class="font-body-medium text-body-medium">Lê Hoàng Nam</span>
+</div>
+</td>
+<td class="px-md py-md font-code text-code">0988 776 554</td>
+<td class="px-md py-md">
+<span class="px-sm py-xs rounded-lg bg-secondary-container/10 text-secondary font-body-small text-body-small">Cầu Giấy - HN</span>
+</td>
+<td class="px-md py-md font-body-small text-body-small text-on-surface-variant">14:45 21/07/2026</td>
+<td class="px-md py-md text-right">
+<button class="bg-primary-container text-white px-md py-xs rounded-lg font-body-medium text-body-medium hover:brightness-110 active:scale-95 transition-all flex items-center gap-xs ml-auto shadow-sm">
+<span class="material-symbols-outlined text-sm">assignment_turned_in</span>
+                                    Gán lớp
+                                </button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="px-md py-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-tertiary-fixed flex items-center justify-center font-bold text-tertiary text-xs">TT</div>
+<span class="font-body-medium text-body-medium">Trần Thị Thảo</span>
+</div>
+</td>
+<td class="px-md py-md font-code text-code">0933 112 233</td>
+<td class="px-md py-md">
+<span class="px-sm py-xs rounded-lg bg-secondary-container/10 text-secondary font-body-small text-body-small">Quận 7 - HCM</span>
+</td>
+<td class="px-md py-md font-body-small text-body-small text-on-surface-variant">10:30 20/07/2026</td>
+<td class="px-md py-md text-right">
+<button class="bg-primary-container text-white px-md py-xs rounded-lg font-body-medium text-body-medium hover:brightness-110 active:scale-95 transition-all flex items-center gap-xs ml-auto shadow-sm">
+<span class="material-symbols-outlined text-sm">assignment_turned_in</span>
+                                    Gán lớp
+                                </button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- BỘ LỌC CHO KHU VỰC 2 -->
+<div class="bg-white p-md rounded-xl border border-outline-variant shadow-sm grid grid-cols-1 md:grid-cols-4 gap-md items-end">
+<div class="space-y-xs">
+<label class="font-label text-label text-on-surface-variant uppercase">Chi nhánh</label>
+<div class="relative">
+<select class="w-full bg-surface-container-low border-none rounded-lg py-sm px-md font-body-medium text-body-medium appearance-none focus:ring-2 focus:ring-primary/20">
+<option>Tất cả chi nhánh</option>
+<option>Quận 1 - HCM</option>
+<option>Quận 7 - HCM</option>
+<option>Cầu Giấy - HN</option>
+</select>
+<span class="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
+</div>
+</div>
+<div class="space-y-xs">
+<label class="font-label text-label text-on-surface-variant uppercase">Lớp học</label>
+<div class="relative">
+<select class="w-full bg-surface-container-low border-none rounded-lg py-sm px-md font-body-medium text-body-medium appearance-none focus:ring-2 focus:ring-primary/20">
+<option>Tất cả các lớp</option>
+<option>MENGLISH A1 - K102</option>
+<option>MENGLISH B2 - K55</option>
+<option>IELTS 6.5 Intensive</option>
+</select>
+<span class="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
+</div>
+</div>
+<div class="space-y-xs md:col-span-2">
+<label class="font-label text-label text-on-surface-variant uppercase">Tìm kiếm học viên</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full bg-surface-container-low border-none rounded-lg py-sm pl-xl pr-md font-body-medium text-body-medium focus:ring-2 focus:ring-primary/20" placeholder="Nhập tên hoặc số điện thoại..." type="text"/>
+</div>
+</div>
+</div>
+<!-- Khu vực 2: Khách đã có lớp -->
+<section class="bg-white rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+<div class="p-md lg:px-lg flex items-center justify-between border-b border-outline-variant bg-surface-container-low/20">
+<div class="flex items-center gap-sm">
+<h2 class="font-h2 text-h2">Khách đã có lớp</h2>
+<span class="bg-surface-container-highest px-sm py-xs rounded-full font-label text-label text-on-surface-variant">1,248</span>
+</div>
+<button class="text-primary-container font-body-medium text-body-medium flex items-center gap-xs hover:underline decoration-2 underline-offset-4">
+<span class="material-symbols-outlined text-base">download</span>
+                    Tải báo cáo chi tiết
+                </button>
+</div>
+<div class="overflow-x-auto custom-scrollbar">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low/30">
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase tracking-wider border-b border-outline-variant">Họ tên</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase tracking-wider border-b border-outline-variant">Số điện thoại</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase tracking-wider border-b border-outline-variant">Chi nhánh</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase tracking-wider border-b border-outline-variant">Lớp học</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase tracking-wider border-b border-outline-variant">Thời điểm chốt</th>
+<th class="px-md py-sm font-label text-label text-on-surface-variant uppercase tracking-wider border-b border-outline-variant text-center">Thao tác</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-low/20 transition-colors">
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium">Phạm Minh Quân</span>
+</div>
+</td>
+<td class="px-md py-md font-code text-code">0944 555 666</td>
+<td class="px-md py-md">
+<span class="text-body-small text-body-small">Quận 1 - HCM</span>
+</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-tertiary-container"></span>
+<span class="font-body-medium text-body-medium">MENGLISH A1 - K102</span>
+</div>
+</td>
+<td class="px-md py-md font-body-small text-body-small text-on-surface-variant">08:20 22/07/2026</td>
+<td class="px-md py-md text-center">
+<button class="p-xs hover:bg-surface-container-highest rounded-full transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-low/20 transition-colors">
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium">Ngô Bảo Ngọc</span>
+</div>
+</td>
+<td class="px-md py-md font-code text-code">0912 334 455</td>
+<td class="px-md py-md">
+<span class="text-body-small text-body-small">Cầu Giấy - HN</span>
+</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-secondary-container"></span>
+<span class="font-body-medium text-body-medium">IELTS 6.5 Intensive</span>
+</div>
+</td>
+<td class="px-md py-md font-body-small text-body-small text-on-surface-variant">17:10 21/07/2026</td>
+<td class="px-md py-md text-center">
+<button class="p-xs hover:bg-surface-container-highest rounded-full transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-low/20 transition-colors">
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium">Võ Văn Kiệt</span>
+</div>
+</td>
+<td class="px-md py-md font-code text-code">0977 888 999</td>
+<td class="px-md py-md">
+<span class="text-body-small text-body-small">Quận 7 - HCM</span>
+</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-tertiary-container"></span>
+<span class="font-body-medium text-body-medium">MENGLISH B2 - K55</span>
+</div>
+</td>
+<td class="px-md py-md font-body-small text-body-small text-on-surface-variant">15:55 20/07/2026</td>
+<td class="px-md py-md text-center">
+<button class="p-xs hover:bg-surface-container-highest rounded-full transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container-low/20 transition-colors">
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium">Đặng Thu Thảo</span>
+</div>
+</td>
+<td class="px-md py-md font-code text-code">0966 221 133</td>
+<td class="px-md py-md">
+<span class="text-body-small text-body-small">Quận 1 - HCM</span>
+</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-tertiary-container"></span>
+<span class="font-body-medium text-body-medium">MENGLISH A1 - K102</span>
+</div>
+</td>
+<td class="px-md py-md font-body-small text-body-small text-on-surface-variant">11:05 20/07/2026</td>
+<td class="px-md py-md text-center">
+<button class="p-xs hover:bg-surface-container-highest rounded-full transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Phân trang (Pagination) -->
+<div class="p-md bg-surface-container-low/30 flex items-center justify-between border-t border-outline-variant">
+<span class="font-body-small text-body-small text-on-surface-variant">Hiển thị 10 trong 1,248 kết quả</span>
+<div class="flex items-center gap-base">
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant hover:bg-white text-on-surface-variant disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined text-sm">chevron_left</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg bg-primary-container text-white font-body-medium text-body-medium">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant hover:bg-white font-body-medium text-body-medium">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant hover:bg-white font-body-medium text-body-medium">3</button>
+<span class="text-on-surface-variant px-xs">...</span>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant hover:bg-white font-body-medium text-body-medium">125</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant hover:bg-white text-on-surface-variant">
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</section>
+</div>
+<!-- Script xử lý tương tác -->
+<script>
+        // Xử lý nút Gán lớp
+        document.querySelectorAll('button').forEach(btn => {
+            if (btn.innerText.includes('Gán lớp')) {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const name = btn.closest('tr').querySelector('.font-body-medium').innerText;
+                    console.log(`Đang mở giao diện gán lớp cho học viên: ${name}`);
+                    // Logic mở modal hoặc chuyển trang xử lý tại đây
+                });
+            }
+        });
+
+        // Hiệu ứng hover dòng bảng
+        document.querySelectorAll('tbody tr').forEach(row => {
+            row.addEventListener('click', (e) => {
+                if (!e.target.closest('button')) {
+                    const name = row.querySelector('.font-body-medium')?.innerText;
+                    if (name) console.log('Xem hồ sơ chi tiết học viên:', name);
+                }
+            });
+        });
+    </script>
+</body></html>

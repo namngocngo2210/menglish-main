@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tạo lớp mới - MENGLISH Web Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: '#F5691A',
+              dark: '#C94F0F',
+              light: '#FF8A47',
+              lightest: '#FFE3D1'
+            },
+            secondary: {
+              DEFAULT: '#3B5BFB',
+              dark: '#2A3FC4',
+              light: '#7B93FF'
+            },
+            accent: {
+              DEFAULT: '#4CAF1E',
+              dark: '#3A8817',
+              light: '#7ED957'
+            },
+            neutral: {
+              50: '#F7F8FA',
+              100: '#EEF1F5',
+              300: '#D6DCE5',
+              500: '#8A93A3',
+              700: '#4A5568',
+              900: '#1A202C',
+              sidebarNavy: '#111A2B'
+            },
+            semantic: {
+              success: '#22A559',
+              warning: '#F5A623',
+              error: '#E23D3D',
+              info: '#3B5BFB'
+            }
+          },
+          fontFamily: {
+            sans: ['"Be Vietnam Pro"', 'Inter', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Be Vietnam Pro', Inter, system-ui, sans-serif;
+      background-color: #F7F8FA;
+      color: #1A202C;
+      margin: 0;
+      padding: 0;
+    }
+    .required-mark::after {
+      content: " *";
+      color: #E23D3D;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body class="p-6 md:p-8 bg-[#F7F8FA] min-h-screen">
+  <!-- KHÔNG TOPBAR, KHÔNG SIDEBAR, KHÔNG LOGO - ĐIỂM ẢNH ĐẦU TIÊN LÀ TIÊU ĐỀ -->
+  <div class="max-w-4xl mx-auto">
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-6 border-b border-neutral-300/80 mb-6 gap-4">
+      <div>
+        <div class="flex items-center gap-3">
+          <h1 class="text-2xl md:text-[28px] font-bold text-neutral-900 tracking-tight leading-tight">Tạo lớp mới</h1>
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-secondary border border-secondary/20">
+            Học vụ / Quản trị
+          </span>
+        </div>
+        <p class="text-sm text-neutral-500 mt-1">
+          Khởi tạo hồ sơ lớp học với thông tin giảng dạy cốt lõi. Lịch học và thời khóa biểu chi tiết sẽ được cấu hình sau ở bước Thời khóa biểu.
+        </p>
+      </div>
+
+      <!-- Quick back action / breadcrumb text -->
+      <div class="flex items-center gap-2 text-sm text-neutral-500 self-start sm:self-center">
+        <a href="#" class="inline-flex items-center gap-1.5 text-neutral-700 hover:text-primary transition-colors font-medium">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Quay lại danh sách lớp
+        </a>
+      </div>
+    </div>
+
+    <!-- Thông báo hướng dẫn nghiệp vụ -->
+    <div class="mb-6 bg-blue-50/70 border border-blue-100 rounded-xl p-4 flex items-start gap-3">
+      <div class="text-secondary shrink-0 mt-0.5">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <div class="text-sm text-neutral-700 leading-relaxed">
+        <span class="font-semibold text-neutral-900">Lưu ý nghiệp vụ:</span> Chỉ cần nhập đủ <strong>5 trường thông tin bắt buộc</strong> để tạo lớp. Các mục như Giáo viên, Phòng học, Học phí có thể để trống và bổ sung sau tại màn <span class="font-medium text-neutral-900">Hồ sơ lớp học</span>. Lớp vừa tạo sẽ ở trạng thái <span class="inline-block px-1.5 py-0.5 rounded text-xs font-mono bg-neutral-100 text-neutral-700 border border-neutral-300">Chưa cấu hình lịch</span>.
+      </div>
+    </div>
+
+    <!-- Main Form Card (1 cột theo chiến lược UI) -->
+    <form id="createClassForm" onsubmit="handleFormSubmit(event)" class="bg-white rounded-2xl border border-neutral-300/80 shadow-sm overflow-hidden divide-y divide-neutral-100">
+      
+      <!-- Khối 1: Thông tin định danh & Phân loại lớp (Bắt buộc) -->
+      <div class="p-6 md:p-8 space-y-6">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-primary"></div>
+            <h2 class="text-base md:text-lg font-bold text-neutral-900 uppercase tracking-wide">
+              1. Thông tin cơ bản & Phân loại
+            </h2>
+          </div>
+          <span class="text-xs text-neutral-500 font-medium italic">
+            (<span class="text-semantic-error font-bold">*</span>) Trường bắt buộc nhập
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
+          <!-- Tên lớp (Bắt buộc) -->
+          <div class="md:col-span-8">
+            <label for="ten_lop" class="block text-sm font-semibold text-neutral-700 mb-1.5 required-mark">
+              Tên lớp học
+            </label>
+            <input 
+              type="text" 
+              id="ten_lop" 
+              name="ten_lop" 
+              placeholder="VD: ENG-B1 · IELTS Căn Bản K26" 
+              required
+              class="w-full px-3.5 py-2.5 text-sm bg-neutral-50/50 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all placeholder:text-neutral-500/70"
+            >
+            <p class="text-xs text-neutral-500 mt-1">Tên hiển thị rõ ràng trên sổ điểm danh và cổng giáo viên.</p>
+          </div>
+
+          <!-- Mã lớp (Tùy chọn) -->
+          <div class="md:col-span-4">
+            <label for="ma_lop" class="block text-sm font-semibold text-neutral-700 mb-1.5">
+              Mã lớp <span class="text-xs font-normal text-neutral-500">(Tùy chọn)</span>
+            </label>
+            <input 
+              type="text" 
+              id="ma_lop" 
+              name="ma_lop" 
+              placeholder="VD: ENG-B1-K26" 
+              class="w-full px-3.5 py-2.5 text-sm font-mono uppercase bg-neutral-50/50 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all placeholder:text-neutral-500/70"
+            >
+            <p class="text-xs text-neutral-500 mt-1">Để trống hệ thống sẽ tự sinh theo quy tắc.</p>
+          </div>
+
+          <!-- Chi nhánh (Bắt buộc) -->
+          <div class="md:col-span-4">
+            <label for="chi_nhanh" class="block text-sm font-semibold text-neutral-700 mb-1.5 required-mark">
+              Chi nhánh đào tạo
+            </label>
+            <div class="relative">
+              <select 
+                id="chi_nhanh" 
+                name="chi_nhanh" 
+                required
+                class="w-full appearance-none px-3.5 py-2.5 text-sm bg-neutral-50/50 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all text-neutral-900 pr-9 cursor-pointer"
+              >
+                <option value="" disabled selected>-- Chọn chi nhánh --</option>
+                <option value="CN1" selected>CN Quận 1 (Trụ sở chính)</option>
+                <option value="CN3">CN Quận 3</option>
+                <option value="CN7">CN Quận 7</option>
+                <option value="CN_TD">CN Thủ Đức</option>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-neutral-500">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chương trình (Bắt buộc) -->
+          <div class="md:col-span-4">
+            <label for="chuong_trinh" class="block text-sm font-semibold text-neutral-700 mb-1.5 required-mark">
+              Chương trình học
+            </label>
+            <div class="relative">
+              <select 
+                id="chuong_trinh" 
+                name="chuong_trinh" 
+                required
+                class="w-full appearance-none px-3.5 py-2.5 text-sm bg-neutral-50/50 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all text-neutral-900 pr-9 cursor-pointer"
+              >
+                <option value="" disabled>-- Chọn chương trình --</option>
+                <option value="IELTS" selected>IELTS Học thuật (Academic)</option>
+                <option value="TOEIC">TOEIC 4 kỹ năng</option>
+                <option value="COMMUNICATION">Tiếng Anh Giao tiếp phản xạ</option>
+                <option value="JUNIOR">Tiếng Anh Thiếu niên (Junior)</option>
+                <option value="BUSINESS">Tiếng Anh Doanh nghiệp</option>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-neutral-500">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cấp độ (Bắt buộc) -->
+          <div class="md:col-span-4">
+            <label for="cap_do" class="block text-sm font-semibold text-neutral-700 mb-1.5 required-mark">
+              Cấp độ
+            </label>
+            <div class="relative">
+              <select 
+                id="cap_do" 
+                name="cap_do" 
+                required
+                class="w-full appearance-none px-3.5 py-2.5 text-sm bg-neutral-50/50 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all text-neutral-900 pr-9 cursor-pointer"
+              >
+                <option value="" disabled>-- Chọn cấp độ --</option>
+                <option value="B1" selected>Cấp độ B1 (Mục tiêu 5.5 - 6.0)</option>
+                <option value="FOUNDATION">Foundation (Mục tiêu 4.0 - 5.0)</option>
+                <option value="B2">Cấp độ B2 (Mục tiêu 6.5 - 7.0)</option>
+                <option value="ADVANCED">Mastery (Mục tiêu 7.5+)</option>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-neutral-500">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sĩ số tối đa (Bắt buộc) -->
+          <div class="md:col-span-4">
+            <label for="si_so_toi_da" class="block text-sm font-semibold text-neutral-700 mb-1.5 required-mark">
+              Sĩ số tối đa
+            </label>
+            <div class="relative">
+              <input 
+                type="number" 
+                id="si_so_toi_da" 
+                name="si_so_toi_da" 
+                min="1" 
+                max="50" 
+                value="16" 
+                required
+                class="w-full px-3.5 py-2.5 text-sm bg-neutral-50/50 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+              >
+              <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-xs text-neutral-500 font-medium">
+                học viên
+              </div>
+            </div>
+            <p class="text-xs text-neutral-500 mt-1">Giới hạn số học viên xếp lớp tối đa.</p>
+          </div>
+
+          <!-- Trạng thái khởi tạo (Readonly indicator) -->
+          <div class="md:col-span-8 flex items-center pt-2 md:pt-6">
+            <div class="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Trạng thái lớp ban đầu:</span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-semantic-warning border border-amber-200">
+                  Chưa cấu hình lịch (Khởi tạo)
+                </span>
+              </div>
+              <span class="text-xs text-neutral-500 italic">Tự động kích hoạt khi xếp ca ở TKB</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Khối 2: Phòng học & Nhân sự giảng dạy (Tùy chọn - có thể để trống gán sau) -->
+      <div class="p-6 md:p-8 space-y-6 bg-neutral-50/30">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-secondary"></div>
+            <h2 class="text-base md:text-lg font-bold text-neutral-900 uppercase tracking-wide">
+              2. Phòng học & Đội ngũ phụ trách
+            </h2>
+          </div>
+          <span class="text-xs px-2.5 py-1 bg-neutral-100 text-neutral-700 rounded font-medium">
+            Tùy chọn · Để trống gán sau
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
+          <!-- Phòng học (Tùy chọn) -->
+          <div class="md:col-span-6">
+            <label for="phong_hoc" class="block text-sm font-semibold text-neutral-700 mb-1.5">
+              Phòng học dự kiến
+            </label>
+            <div class="relative">
+              <select 
+                id="phong_hoc" 
+                name="phong_hoc" 
+                class="w-full appearance-none px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary transition-all text-neutral-900 pr-9 cursor-pointer"
+              >
+                <option value="">-- Chưa gán phòng (để trống) --</option>
+                <option value="P101">Phòng 101 (Sức chứa 20 - Tầng 1)</option>
+                <option value="P202">Phòng 202 (Sức chứa 16 - Tầng 2)</option>
+                <option value="P302">Phòng 302 (Sức chứa 18 - Tầng 3)</option>
+                <option value="LAB_A">Phòng Lab A (Sức chứa 24 - Tầng 4)</option>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-neutral-500">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
+            <p class="text-xs text-neutral-500 mt-1">Danh sách phòng khả dụng theo Chi nhánh đã chọn.</p>
+          </div>
+
+          <!-- 3 Dropdown Giáo viên riêng biệt theo đặc tả -->
+          <!-- Giáo viên chính (Tùy chọn) -->
+          <div class="md:col-span-6">
+            <label for="giao_vien_chinh" class="block text-sm font-semibold text-neutral-700 mb-1.5">
+              Giáo viên chính
+            </label>
+            <div class="relative">
+              <select 
+                id="giao_vien_chinh" 
+                name="giao_vien_chinh" 
+                class="w-full appearance-none px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary transition-all text-neutral-900 pr-9 cursor-pointer"
+              >
+                <option value="">-- Chưa gán giáo viên chính (để trống) --</option>
+                <option value="GV01">Trần Hoàng Long (IELTS 8.5 - Full-time)</option>
+                <option value="GV02">Lê Tuấn Anh (IELTS 8.0 - Full-time)</option>
+                <option value="GV03">Nguyễn Minh Tuấn (Thạc sĩ Giảng dạy)</option>
+                <option value="GV04">Hoàng Thị Bích Ngọc (IELTS 8.0)</option>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-neutral-500">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Trợ giảng (Tùy chọn) -->
+          <div class="md:col-span-6">
+            <label for="tro_giang" class="block text-sm font-semibold text-neutral-700 mb-1.5">
+              Trợ giảng
+            </label>
+            <div class="relative">
+              <select 
+                id="tro_giang" 
+                name="tro_giang" 
+                class="w-full appearance-none px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary transition-all text-neutral-900 pr-9 cursor-pointer"
+              >
+                <option value="">-- Chưa gán trợ giảng (để trống) --</option>
+                <option value="TA01">Vũ Khánh Linh (IELTS 7.5 - Trợ giảng)</option>
+                <option value="TA02">Phạm Gia Bảo (IELTS 7.0 - Trợ giảng)</option>
+                <option value="TA03">Đỗ Thùy Trang (IELTS 7.5 - Trợ giảng)</option>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-neutral-500">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Giáo viên nước ngoài (GVNN) (Tùy chọn) -->
+          <div class="md:col-span-6">
+            <label for="giao_vien_nn" class="block text-sm font-semibold text-neutral-700 mb-1.5">
+              Giáo viên nước ngoài (GVNN)
+            </label>
+            <div class="relative">
+              <select 
+                id="giao_vien_nn" 
+                name="giao_vien_nn" 
+                class="w-full appearance-none px-3.5 py-2.5 text-sm bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary transition-all text-neutral-900 pr-9 cursor-pointer"
+              >
+                <option value="">-- Không áp dụng hoặc gán sau (để trống) --</option>
+                <option value="EXP01">Sarah Miller (CELTA - Native Speaker)</option>
+                <option value="EXP02">David Richardson (TESOL Master)</option>
+                <option value="EXP03">Michael Brown (IELTS Examiner)</option>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-neutral-500">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Khối 3: Học phí & Ghi chú quản lý (Tùy chọn) -->
+      <div class="p-6 md:p-8 space-y-6">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-accent"></div>
+            <h2 class="text-base md:text-lg font-bold text-neutral-900 uppercase tracking-wide">
+              3. Học phí & Ghi chú nội bộ
+            </h2>
+          </div>
+          <span class="text-xs px-2.5 py-1 bg-neutral-100 text-neutral-700 rounded font-medium">
+            Tùy chọn
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
+          <!-- Học phí (Tùy chọn) -->
+          <div class="md:col-span-6">
+            <label for="hoc_phi" class="block text-sm font-semibold text-neutral-700 mb-1.5">
+              Mức học phí niêm yết
+            </label>
+            <div class="relative">
+              <input 
+                type="number" 
+                id="hoc_phi" 
+                name="hoc_phi" 
+                placeholder="VD: 8500000" 
+                min="0" 
+                step="50000"
+                class="w-full pl-3.5 pr-14 py-2.5 text-sm bg-neutral-50/50 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all font-mono"
+              >
+              <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-xs font-semibold text-neutral-500">
+                VNĐ
+              </div>
+            </div>
+            <p class="text-xs text-neutral-500 mt-1">Đơn giá trọn khóa trước khi áp dụng ưu đãi/học bổng.</p>
+          </div>
+
+          <!-- Ghi chú (Tùy chọn) -->
+          <div class="md:col-span-12">
+            <label for="ghi_chu" class="block text-sm font-semibold text-neutral-700 mb-1.5">
+              Ghi chú vận hành <span class="text-xs font-normal text-neutral-500">(Tùy chọn)</span>
+            </label>
+            <textarea 
+              id="ghi_chu" 
+              name="ghi_chu" 
+              rows="3" 
+              placeholder="Ghi chú thêm về yêu cầu đầu vào, lớp liên kết doanh nghiệp hoặc lưu ý đặc biệt cho giáo viên phụ trách..."
+              class="w-full px-3.5 py-2.5 text-sm bg-neutral-50/50 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all placeholder:text-neutral-500/70"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Footer (Buttons) -->
+      <div class="p-6 bg-neutral-50 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="text-xs text-neutral-500 text-center sm:text-left">
+          Sau khi bấm <span class="font-semibold text-neutral-700">"Lưu"</span>, hệ thống sẽ tạo bản ghi lớp và tự động chuyển hướng đến <span class="font-semibold text-neutral-700">Hồ sơ lớp học</span>.
+        </div>
+
+        <div class="flex items-center gap-3 w-full sm:w-auto">
+          <!-- Nút Hủy -->
+          <button 
+            type="button" 
+            onclick="handleCancel()" 
+            class="w-full sm:w-auto px-5 py-2.5 rounded-lg border border-neutral-300 bg-white text-neutral-700 text-sm font-medium hover:bg-neutral-100 hover:text-neutral-900 transition-colors focus:outline-none"
+          >
+            Hủy bỏ
+          </button>
+
+          <!-- Nút Lưu (Primary cam #F5691A theo token duy nhất) -->
+          <button 
+            type="submit" 
+            id="btnSubmit"
+            class="w-full sm:w-auto px-7 py-2.5 rounded-lg bg-primary hover:bg-primary-dark text-white text-sm font-semibold shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 focus:outline-none"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <span>Lưu lớp học</span>
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Modal Thông báo lưu thành công & Chuyển tiếp Hồ sơ lớp học (Mô phỏng AC Flow) -->
+    <div id="successModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div class="bg-white rounded-2xl shadow-xl border border-neutral-200 max-w-md w-full p-6 text-center transform transition-all">
+        <div class="w-14 h-14 rounded-full bg-green-100 text-semantic-success mx-auto flex items-center justify-center mb-4">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h3 class="text-lg font-bold text-neutral-900 mb-2">Tạo lớp học thành công!</h3>
+        <p class="text-sm text-neutral-600 mb-6">
+          Lớp <span id="createdClassName" class="font-bold text-neutral-900">ENG-B1 · IELTS Căn Bản K26</span> đã được tạo trong hệ thống với trạng thái <span class="text-semantic-warning font-semibold">Chưa cấu hình lịch</span>.
+        </p>
+        <div class="flex flex-col gap-2.5">
+          <button 
+            type="button" 
+            onclick="closeSuccessModal()" 
+            class="w-full py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-semibold transition-all"
+          >
+            Chuyển sang Hồ sơ lớp học ngay
+          </button>
+          <button 
+            type="button" 
+            onclick="resetFormAndCloseModal()" 
+            class="w-full py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg text-sm font-medium transition-all"
+          >
+            Tiếp tục tạo lớp khác
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      const tenLop = document.getElementById('ten_lop').value.trim();
+      const chiNhanh = document.getElementById('chi_nhanh').value;
+      const chuongTrinh = document.getElementById('chuong_trinh').value;
+      const capDo = document.getElementById('cap_do').value;
+      const siSo = document.getElementById('si_so_toi_da').value;
+
+      if (!tenLop || !chiNhanh || !chuongTrinh || !capDo || !siSo) {
+        alert('Vui lòng điền đầy đủ 5 trường bắt buộc: Tên lớp, Chi nhánh, Chương trình, Cấp độ và Sĩ số tối đa!');
+        return;
+      }
+
+      // Mô phỏng thành công
+      document.getElementById('createdClassName').textContent = tenLop;
+      document.getElementById('successModal').classList.remove('hidden');
+    }
+
+    function handleCancel() {
+      if (confirm('Bạn có chắc chắn muốn hủy? Mọi thông tin vừa nhập sẽ không được lưu.')) {
+        document.getElementById('createClassForm').reset();
+      }
+    }
+
+    function closeSuccessModal() {
+      document.getElementById('successModal').classList.add('hidden');
+      alert('Đang chuyển hướng sang Hồ sơ lớp học (MH 4)...');
+    }
+
+    function resetFormAndCloseModal() {
+      document.getElementById('successModal').classList.add('hidden');
+      document.getElementById('createClassForm').reset();
+      document.getElementById('chi_nhanh').value = "CN1";
+      document.getElementById('chuong_trinh').value = "IELTS";
+      document.getElementById('cap_do').value = "B1";
+      document.getElementById('si_so_toi_da').value = "16";
+    }
+  </script>
+</body>
+</html>

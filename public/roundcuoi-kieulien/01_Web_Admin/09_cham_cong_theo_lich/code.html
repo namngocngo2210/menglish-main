@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Chấm công theo lịch - MENGLISH Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed-dim": "#78de4b",
+                        "tertiary": "#256d00",
+                        "on-error": "#ffffff",
+                        "outline": "#8d7165",
+                        "primary-container": "#f5691a",
+                        "surface-container": "#e8eeff",
+                        "secondary-container": "#4160ff",
+                        "surface-variant": "#dde2f3",
+                        "primary-fixed": "#ffdbcd",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "surface-bright": "#f9f9ff",
+                        "background": "#f9f9ff",
+                        "on-tertiary-fixed": "#062100",
+                        "on-surface": "#161c27",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "tertiary-fixed": "#93fb65",
+                        "on-primary-fixed": "#360f00",
+                        "primary": "#a23f00",
+                        "on-tertiary-container": "#0e3500",
+                        "inverse-primary": "#ffb595",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "surface-container-highest": "#dde2f3",
+                        "on-secondary-fixed": "#00105b",
+                        "surface-container-high": "#e3e8f9",
+                        "surface-tint": "#a23f00",
+                        "secondary": "#1e43e7",
+                        "on-primary": "#ffffff",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "surface-container-low": "#f1f3ff",
+                        "surface": "#f9f9ff",
+                        "on-secondary-container": "#faf7ff",
+                        "error": "#ba1a1a",
+                        "on-primary-container": "#521c00",
+                        "secondary-fixed": "#dee0ff",
+                        "inverse-surface": "#2a303d",
+                        "on-tertiary": "#ffffff",
+                        "outline-variant": "#e1bfb2",
+                        "on-error-container": "#93000a",
+                        "surface-dim": "#d4daea",
+                        "on-background": "#161c27",
+                        "primary-fixed-dim": "#ffb595",
+                        "on-secondary": "#ffffff",
+                        "tertiary-container": "#46a917",
+                        "surface-container-lowest": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "inverse-on-surface": "#ecf0ff",
+                        "on-surface-variant": "#594137"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "header-height": "64px",
+                        "gutter": "16px",
+                        "lg": "24px",
+                        "base": "8px",
+                        "xs": "4px",
+                        "sidebar-width": "260px",
+                        "xl": "32px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "h2": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "h2": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "h1": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-medium": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "body-small": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "h3": ["18px", { "lineHeight": "26px", "fontWeight": "600" }],
+                        "code": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-base": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "caption": ["11px", { "lineHeight": "16px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Smooth transitions */
+        .row-transition {
+            transition: all 0.2s ease-in-out;
+        }
+        
+        /* Table styles */
+        .data-table-header {
+            background-color: #F9FAFB; /* Gray 50 equivalent */
+            color: #6B7280; /* Gray 500 equivalent */
+        }
+        .data-table-row {
+            background-color: #FFFFFF;
+            border-bottom: 1px solid #F3F4F6; /* Gray 100 equivalent */
+        }
+        .data-table-row:hover {
+            background-color: #F9FAFB;
+        }
+        
+        /* Status Badges */
+        .badge-auto {
+            background-color: rgba(107, 114, 128, 0.1); /* Gray */
+            color: #4B5563;
+        }
+        .badge-teacher {
+            background-color: rgba(59, 130, 246, 0.1); /* Blue */
+            color: #2563EB;
+        }
+        .badge-confirmed {
+            background-color: rgba(16, 185, 129, 0.1); /* Green */
+            color: #059669;
+        }
+        
+        /* Button Primary Orange Override */
+        .btn-primary {
+            background-color: #F5691A;
+            color: #FFFFFF;
+        }
+        .btn-primary:hover {
+            background-color: #E05A12;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-base min-h-screen antialiased flex">
+<!-- Sidebar Component Logic (Semantic Shell) - Active: Chấm công -->
+<nav class="docked left-0 h-screen w-sidebar-width bg-surface-container-lowest dark:bg-inverse-surface border-r border-outline-variant dark:border-outline fixed left-0 top-0 flex flex-col py-lg z-40 hidden md:flex">
+<div class="px-md mb-xl flex flex-col gap-xs">
+<h1 class="font-h1 text-h1 font-bold text-primary-container dark:text-primary-fixed truncate" title="MENGLISH">MENGLISH</h1>
+<p class="font-caption text-caption text-on-surface-variant">Hệ thống Quản trị</p>
+</div>
+<div class="px-md mb-lg">
+<button class="w-full btn-primary font-body-medium text-body-medium py-sm px-md rounded-lg flex items-center justify-center gap-xs duration-200 ease-in-out hover:shadow-md">
+<span class="material-symbols-outlined" style="font-size: 20px;">add</span>
+                Tạo lịch mới
+            </button>
+</div>
+<ul class="flex flex-col gap-xs px-sm flex-1">
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body-medium text-body-medium">Tổng quan</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">calendar_month</span>
+<span class="font-body-medium text-body-medium">Lịch học</span>
+</a>
+</li>
+<li>
+<!-- Active Navigation Item -->
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-primary dark:text-primary-fixed-dim font-bold border-r-4 border-primary dark:border-primary-fixed-dim bg-surface-container-low dark:bg-surface-container-highest transition-colors duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined icon-fill">how_to_reg</span>
+<span class="font-body-medium text-body-medium">Chấm công</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">school</span>
+<span class="font-body-medium text-body-medium">Giáo viên</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-body-medium text-body-medium">Học viên</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-body-medium text-body-medium">Báo cáo</span>
+</a>
+</li>
+</ul>
+<div class="mt-auto px-sm flex flex-col gap-xs pt-md border-t border-outline-variant dark:border-outline">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-medium text-body-medium">Cài đặt</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="font-body-medium text-body-medium">Đăng xuất</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<div class="flex-1 flex flex-col min-h-screen md:ml-sidebar-width w-full md:w-[calc(100%-260px)] relative">
+<!-- TopAppBar Component -->
+<header class="docked top-0 w-full h-header-height bg-surface dark:bg-background border-b border-outline-variant dark:border-outline flex justify-between items-center px-lg sticky top-0 z-30">
+<div class="flex items-center gap-xl h-full">
+<!-- Mobile Menu Button (visible only on mobile) -->
+<button class="md:hidden text-on-surface p-sm rounded hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<!-- Navigation Links -->
+<nav class="hidden md:flex items-end gap-lg h-full pt-sm">
+<!-- Active Link -->
+<a class="font-h3 text-h3 h-full flex items-center text-primary dark:text-primary-fixed-dim border-b-2 border-primary dark:border-primary-fixed-dim pb-1 transition-colors cursor-pointer active:opacity-80" href="#">
+                        Chấm công theo lịch
+                    </a>
+<!-- Inactive Link -->
+<a class="font-h3 text-h3 h-full flex items-center text-on-surface-variant dark:text-surface-variant hover:text-primary-container dark:hover:text-primary-fixed pb-[6px] transition-colors cursor-pointer active:opacity-80" href="#">
+                        Chấm công thủ công
+                    </a>
+</nav>
+</div>
+<div class="flex items-center gap-md">
+<button class="font-body-medium text-body-medium text-primary hover:bg-surface-container rounded px-md py-sm transition-colors border border-primary">
+                    Xuất báo cáo
+                </button>
+<div class="flex items-center gap-xs">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-sm rounded-full hover:bg-surface-variant">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors p-sm rounded-full hover:bg-surface-variant">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+</div>
+<div class="w-8 h-8 rounded-full bg-surface-variant overflow-hidden border border-outline-variant shrink-0 cursor-pointer">
+<img alt="Admin User Profile" class="w-full h-full object-cover" data-alt="A professional headshot of a corporate administrator in a modern office setting, bright lighting, light mode aesthetic, high contrast." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB24nCILDiXhgmEQuNIn1l2_APESilxeHHI-TLz4LI3j1vkilk80VG4YBOGC9kXr41D-qvSD09V7cQHKKBZJ_3y85sFQC_pCbWN0SV7w9UbE5ub5Svi3oE6BbIdKA5NlGdBFrlPYe4v80qppuzBYayRVXDgJXIn-K1u3Ock_oPzRbHT_7sTOfLrjhrWhZ3Xh7_hMWhLjR9tkAStc1lFM4urpI6Yqj6J-iw90tLAOrn3n0fWYs8Fw9Xh"/>
+</div>
+</div>
+</header>
+<!-- Main Workspace -->
+<main class="flex-1 p-lg md:p-xl w-full max-w-[1400px] mx-auto">
+<!-- Header Section -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-md mb-lg">
+<div>
+<h2 class="font-h2 text-h2 text-on-surface mb-xs">Chấm công theo lịch</h2>
+<p class="font-body-base text-body-base text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined" style="font-size: 18px;">today</span>
+                        Thứ Hai, 15/08/2026
+                    </p>
+</div>
+<a class="inline-flex items-center gap-xs text-primary font-body-medium text-body-medium hover:underline group px-md py-sm rounded-lg hover:bg-surface-container transition-colors" href="#">
+                    Chấm công thủ công
+                    <span class="material-symbols-outlined transition-transform group-hover:translate-x-1" style="font-size: 18px;">arrow_forward</span>
+</a>
+</div>
+<!-- Data Container -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="data-table-header border-b border-outline-variant font-label text-label uppercase tracking-wider">
+<th class="px-md py-sm font-semibold">Lớp học</th>
+<th class="px-md py-sm font-semibold">Giờ học</th>
+<th class="px-md py-sm font-semibold">Giáo viên dự kiến</th>
+<th class="px-md py-sm font-semibold">Trạng thái / Nguồn</th>
+<th class="px-md py-sm font-semibold text-right">Thao tác</th>
+</tr>
+</thead>
+<tbody class="font-body-base text-body-base text-on-surface">
+<!-- Row 1: Unconfirmed (Auto) -->
+<tr class="data-table-row row-transition group" id="row-1">
+<td class="px-md py-md">
+<div class="font-body-medium text-body-medium">IELTS Starter - M01</div>
+</td>
+<td class="px-md py-md whitespace-nowrap text-on-surface-variant font-code text-code">
+                                    18:00 - 19:30
+                                </td>
+<td class="px-md py-md">
+<div class="flex items-center gap-sm">
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center text-xs font-bold text-on-surface-variant">NT</div>
+<span>Nguyễn Văn Tâm</span>
+</div>
+</td>
+<td class="px-md py-md">
+<span class="inline-flex items-center px-sm py-xs rounded font-caption text-caption font-semibold badge-auto">
+                                        Tự động (pre-fill)
+                                    </span>
+</td>
+<td class="px-md py-md text-right">
+<button class="btn-primary font-body-medium text-body-medium font-bold px-md py-xs rounded transition-colors inline-flex items-center justify-center min-w-[100px]" onclick="confirmAttendance('row-1')">
+                                        Xác nhận
+                                    </button>
+</td>
+</tr>
+<!-- Row 2: Teacher Checked-in -->
+<tr class="data-table-row row-transition group" id="row-2">
+<td class="px-md py-md">
+<div class="font-body-medium text-body-medium">TOEIC 600+ - T02</div>
+</td>
+<td class="px-md py-md whitespace-nowrap text-on-surface-variant font-code text-code">
+                                    18:00 - 19:30
+                                </td>
+<td class="px-md py-md">
+<div class="flex items-center gap-sm">
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center text-xs font-bold text-on-surface-variant">LH</div>
+<span>Lê Thị Hoa</span>
+</div>
+</td>
+<td class="px-md py-md">
+<span class="inline-flex items-center px-sm py-xs rounded font-caption text-caption font-semibold badge-teacher gap-xs">
+<span class="material-symbols-outlined" style="font-size: 14px;">smartphone</span>
+                                        GV tự check-in
+                                    </span>
+</td>
+<td class="px-md py-md text-right">
+<button class="btn-primary font-body-medium text-body-medium font-bold px-md py-xs rounded transition-colors inline-flex items-center justify-center min-w-[100px]" onclick="confirmAttendance('row-2')">
+                                        Xác nhận
+                                    </button>
+</td>
+</tr>
+<!-- Row 3: Already Confirmed (Demo state) -->
+<tr class="data-table-row bg-surface-bright" id="row-3">
+<td class="px-md py-md">
+<div class="font-body-medium text-body-medium text-on-surface-variant">Giao tiếp Cơ bản - C05</div>
+</td>
+<td class="px-md py-md whitespace-nowrap text-on-surface-variant font-code text-code opacity-80">
+                                    19:45 - 21:15
+                                </td>
+<td class="px-md py-md text-on-surface-variant opacity-80">
+<div class="flex items-center gap-sm">
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center text-xs font-bold text-on-surface-variant">PM</div>
+<span>Phạm Văn Minh</span>
+</div>
+</td>
+<td class="px-md py-md">
+<span class="inline-flex items-center px-sm py-xs rounded font-caption text-caption font-semibold badge-confirmed gap-xs">
+<span class="material-symbols-outlined icon-fill" style="font-size: 14px;">check_circle</span>
+                                        Đã xác nhận
+                                    </span>
+</td>
+<td class="px-md py-md text-right">
+<span class="font-body-small text-body-small text-on-surface-variant italic">Đã duyệt bởi Admin</span>
+</td>
+</tr>
+<!-- Row 4: Unconfirmed (Auto) -->
+<tr class="data-table-row row-transition group" id="row-4">
+<td class="px-md py-md">
+<div class="font-body-medium text-body-medium">IELTS Advanced - A01</div>
+</td>
+<td class="px-md py-md whitespace-nowrap text-on-surface-variant font-code text-code">
+                                    19:45 - 21:15
+                                </td>
+<td class="px-md py-md">
+<div class="flex items-center gap-sm">
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center text-xs font-bold text-on-surface-variant">TD</div>
+<span>Trần Văn Dũng</span>
+</div>
+</td>
+<td class="px-md py-md">
+<span class="inline-flex items-center px-sm py-xs rounded font-caption text-caption font-semibold badge-auto">
+                                        Tự động (pre-fill)
+                                    </span>
+</td>
+<td class="px-md py-md text-right">
+<button class="btn-primary font-body-medium text-body-medium font-bold px-md py-xs rounded transition-colors inline-flex items-center justify-center min-w-[100px]" onclick="confirmAttendance('row-4')">
+                                        Xác nhận
+                                    </button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination / Footer (Simplified for Admin ops) -->
+<div class="px-md py-sm border-t border-outline-variant flex justify-between items-center bg-surface-bright">
+<span class="font-caption text-caption text-on-surface-variant">Hiển thị 4 buổi học hôm nay</span>
+</div>
+</div>
+</main>
+</div>
+<!-- Script for interaction simulation -->
+<script>
+        function confirmAttendance(rowId) {
+            const row = document.getElementById(rowId);
+            if (!row) return;
+
+            // Find elements within the row
+            const statusCell = row.cells[3];
+            const actionCell = row.cells[4];
+
+            // Determine if it was "Teacher Check-in" or "Auto" to set the appropriate confirmed badge logic
+            // (For this mock, we'll just set it to "Đã xác nhận" for simplicity, but could be "Học vụ cover")
+            const currentBadge = statusCell.querySelector('span');
+            let isTeacher = currentBadge.classList.contains('badge-teacher');
+            
+            let newBadgeText = isTeacher ? "Đã xác nhận" : "Học vụ cover";
+            let newBadgeClass = "badge-confirmed";
+
+            // Update Status Cell
+            statusCell.innerHTML = `
+                <span class="inline-flex items-center px-sm py-xs rounded font-caption text-caption font-semibold ${newBadgeClass} gap-xs fade-in">
+                    <span class="material-symbols-outlined icon-fill" style="font-size: 14px;">check_circle</span>
+                    ${newBadgeText}
+                </span>
+            `;
+
+            // Update Action Cell
+            actionCell.innerHTML = `
+                <span class="font-body-small text-body-small text-on-surface-variant italic fade-in">Vừa duyệt</span>
+            `;
+
+            // Dim the row slightly to indicate it's processed
+            row.classList.add('bg-surface-bright');
+            const textElements = row.querySelectorAll('.text-body-medium, .text-code');
+            textElements.forEach(el => el.classList.add('opacity-80'));
+        }
+    </script>
+<style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+    </style>
+</body></html>

@@ -1,0 +1,350 @@
+[
+    {
+        "category_id": "01_Web_Admin",
+        "folder_name": "01_quan_ly_tai_lieu_giao_trinh",
+        "title_vn": "Quản lý tài liệu giáo trình",
+        "desc": "Quản lý, upload và phân loại các tài liệu giáo trình học tập"
+    },
+    {
+        "category_id": "01_Web_Admin",
+        "folder_name": "02_soan_syllabus_theo_chang",
+        "title_vn": "Soạn syllabus theo chặng",
+        "desc": "Biên soạn khung chương trình và syllabus chi tiết theo từng chặng học"
+    },
+    {
+        "category_id": "01_Web_Admin",
+        "folder_name": "03_giao_chang_cho_giao_vien",
+        "title_vn": "Giao chặng học cho giáo viên",
+        "desc": "Phân quyền và bàn giao chặng học cụ thể cho từng giáo viên phụ trách"
+    },
+    {
+        "category_id": "01_Web_Admin",
+        "folder_name": "04_duyet_yeu_cau_dieu_chinh_tien_do",
+        "title_vn": "Duyệt yêu cầu xin điều chỉnh tiến độ",
+        "desc": "Admin phê duyệt\/từ chối yêu cầu thay đổi tiến độ giảng dạy từ giáo viên"
+    },
+    {
+        "category_id": "01_Web_Admin",
+        "folder_name": "05_chi_tiet_de_xuat_sua_giao_trinh",
+        "title_vn": "Chi tiết đề xuất sửa giáo trình",
+        "desc": "Admin xem chi tiết và xử lý đề xuất chỉnh sửa giáo trình từ giáo viên"
+    },
+    {
+        "category_id": "01_Web_Admin",
+        "folder_name": "06_duyet_phan_phoi_de_big_test",
+        "title_vn": "Duyệt & phân phối đề Big Test",
+        "desc": "Kiểm duyệt đề thi Big Test và phân phối đề thi tới các lớp theo SLA"
+    },
+    {
+        "category_id": "01_Web_Admin",
+        "folder_name": "07_duyet_ket_qua_big_test_gui_phu_huynh",
+        "title_vn": "Duyệt kết quả Big Test & gửi phụ huynh",
+        "desc": "Admin xem xét điểm số Big Test, nhận xét và phê duyệt gửi báo cáo về cho phụ huynh"
+    },
+    {
+        "category_id": "01_Web_Admin",
+        "folder_name": "08_nhac_lich_big_test",
+        "title_vn": "Nhắc lịch Big Test",
+        "desc": "Theo dõi và gửi thông báo nhắc nhở lịch thi Big Test sắp tới"
+    },
+    {
+        "category_id": "01_Web_Admin",
+        "folder_name": "09_cham_cong_theo_lich",
+        "title_vn": "Chấm công theo lịch",
+        "desc": "Quản lý và theo dõi dữ liệu chấm công giáo viên theo lịch giảng dạy"
+    },
+    {
+        "category_id": "01_Web_Admin",
+        "folder_name": "10_doi_soat_chot_bang_cong",
+        "title_vn": "Đối soát — chốt bảng công",
+        "desc": "Đối soát số liệu chấm công, duyệt và chốt bảng công hàng tháng"
+    },
+    {
+        "category_id": "01_Web_Admin",
+        "folder_name": "11_danh_sach_buoi_day_thay_cho_xac_nhan",
+        "title_vn": "Danh sách buổi dạy thay chờ xác nhận",
+        "desc": "Quản lý và phê duyệt các yêu cầu dạy thay giữa các giáo viên"
+    },
+    {
+        "category_id": "01_Web_Admin",
+        "folder_name": "12_dat_lich_hoc_thu_popup",
+        "title_vn": "Đặt lịch khách học thử vào buổi popup",
+        "desc": "Popup tiếp nhận và sắp xếp lịch học thử cho học viên mới vào lớp"
+    },
+    {
+        "category_id": "01_Web_Admin",
+        "folder_name": "13_tao_lop_moi",
+        "title_vn": "Tạo lớp mới - Web Admin",
+        "desc": "Biểu mẫu thiết lập lớp học mới: thông tin, giáo viên, phòng học, học phí"
+    },
+    {
+        "category_id": "01_Web_Admin",
+        "folder_name": "14_ho_so_lop_hoc",
+        "title_vn": "Hồ sơ lớp học - Web Admin",
+        "desc": "Thông tin chi tiết hồ sơ lớp học và danh sách học sinh"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "01_cau_hinh_kpi_hoc_vu_1",
+        "title_vn": "Cấu hình KPI Học vụ (Mẫu 1)",
+        "desc": "Thiết lập các chỉ số KPI trọng số dành cho nhân sự học vụ"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "02_cau_hinh_kpi_hoc_vu_2",
+        "title_vn": "Cấu hình KPI Học vụ (Mẫu 2)",
+        "desc": "Giao diện cấu hình KPI nâng cao cho học vụ quản lý lớp"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "03_tong_hop_kpi_danh_gia_thang",
+        "title_vn": "Tổng hợp KPI & Đánh giá tháng",
+        "desc": "Bảng tổng hợp điểm KPI, đánh giá hiệu suất nhân sự hàng tháng"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "04_kpi_thang",
+        "title_vn": "KPI tháng Học vụ",
+        "desc": "Báo cáo chi tiết KPI tháng theo từng tiêu chí học vụ"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "05_nhat_ky_hoc_vu",
+        "title_vn": "Nhật ký Học vụ",
+        "desc": "Nhật ký theo dõi các công việc và sự vụ phát sinh hàng ngày của học vụ"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "06_bao_cao_ngay_hoc_vu",
+        "title_vn": "Báo cáo ngày Học vụ",
+        "desc": "Báo cáo tổng kết công việc, tỷ lệ chuyên cần và sĩ số trong ngày"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "07_nhap_bao_cao_tuan_hoc_vu",
+        "title_vn": "Nhập Báo cáo tuần Học vụ",
+        "desc": "Form nhập số liệu và nhận xét báo cáo tuần dành cho học vụ"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "08_qa_observation_du_gio_van_hanh",
+        "title_vn": "QA Observation — Dự giờ đội vận hành",
+        "desc": "Bảng tiêu chí đánh giá QA dự giờ và quan sát vận hành lớp học"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "09_checklist_hoc_phi_feedback_theo_lop",
+        "title_vn": "Checklist Học phí & Feedback theo lớp",
+        "desc": "Checklist kiểm tra tình trạng thu học phí và thu thập feedback phụ huynh"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "10_ra_soat_diem_danh_hoc_vu_admin",
+        "title_vn": "Rà soát điểm danh - Học vụ \/ Admin",
+        "desc": "Rà soát dữ liệu điểm danh, xử lý các trường hợp vắng học và can thiệp điểm danh"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "11_chi_tiet_bang_luong_hoc_vu",
+        "title_vn": "Chi tiết bảng lương Học vụ",
+        "desc": "Bảng tính chi tiết lương cố định, KPI, thưởng và các khoản giảm trừ"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "12_rollup_thu_hoc_phi_theo_lop",
+        "title_vn": "Rollup thu học phí theo lớp",
+        "desc": "Báo cáo tổng hợp tiến độ và số tiền thu học phí theo từng lớp"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "13_tong_quan_danh_sach_lop_hoc_thuat",
+        "title_vn": "Tổng quan Danh sách lớp Học thuật",
+        "desc": "Dashboard tổng quan số lượng lớp đang chạy, theo khối và trình độ"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "14_danh_sach_lop_chi_tiet_hoc_thuat",
+        "title_vn": "Danh sách lớp chi tiết Học thuật",
+        "desc": "Danh sách đầy đủ tất cả lớp học, trạng thái, giáo viên và sĩ số"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "15_chi_tiet_lop_hoc_hoc_thuat",
+        "title_vn": "Chi tiết lớp học Học thuật",
+        "desc": "Thông tin toàn diện của lớp: tiến độ syllabus, lịch Big Test, lịch dự giờ"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "16_danh_gia_du_gio_hoc_thuat",
+        "title_vn": "Đánh giá dự giờ Học thuật",
+        "desc": "Phiếu đánh giá dự giờ giáo viên: phương pháp giảng dạy, tương tác, chuyên môn"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "17_bao_cao_hop_giao_vien_theo_tuan",
+        "title_vn": "Báo cáo họp giáo viên theo tuần",
+        "desc": "Biên bản và báo cáo nội dung cuộc họp chuyên môn giáo viên định kỳ hàng tuần"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "18_bao_cao_tuan_hoc_thuat",
+        "title_vn": "Báo cáo tuần — Học thuật",
+        "desc": "Báo cáo công việc học thuật tuần: kết quả thực hiện, tồn đọng và kế hoạch"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "19_bao_cao_thang_hoc_thuat",
+        "title_vn": "Báo cáo tháng — Học thuật",
+        "desc": "Tổng hợp báo cáo tháng khối học thuật: chất lượng đào tạo, chỉ số vận hành"
+    },
+    {
+        "category_id": "02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu",
+        "folder_name": "20_bao_cao_quy_hoc_thuat",
+        "title_vn": "Báo cáo quý — Học thuật",
+        "desc": "Báo cáo tổng kết quý của phòng học thuật"
+    },
+    {
+        "category_id": "03_Cong_Giao_Vien",
+        "folder_name": "01_app_shell_cong_giao_vien",
+        "title_vn": "App Shell Cổng Giáo viên (Tổng quan)",
+        "desc": "Màn hình dashboard trang chủ giáo viên: lịch dạy hôm nay, thông báo, lớp phụ trách"
+    },
+    {
+        "category_id": "03_Cong_Giao_Vien",
+        "folder_name": "02_diem_danh_lop_giao_vien",
+        "title_vn": "Điểm danh lớp - Cổng Giáo viên",
+        "desc": "Màn hình giáo viên thực hiện điểm danh học sinh từng buổi học"
+    },
+    {
+        "category_id": "03_Cong_Giao_Vien",
+        "folder_name": "03_giao_bai_tap_ve_nha",
+        "title_vn": "Giao bài tập về nhà - Cổng Giáo viên",
+        "desc": "Giáo viên thiết lập bài tập về nhà: yêu cầu video, bài viết, workbook, tài liệu đính kèm"
+    },
+    {
+        "category_id": "03_Cong_Giao_Vien",
+        "folder_name": "04_bai_nop_cua_lop",
+        "title_vn": "Bài nộp của lớp (Học sinh nộp video & bài viết)",
+        "desc": "Giáo viên theo dõi danh sách học viên nộp bài tập, xem thumbnail video & hình ảnh bài làm"
+    },
+    {
+        "category_id": "03_Cong_Giao_Vien",
+        "folder_name": "05_nhan_xet_buoi_hoc_cho_tung_hoc_sinh",
+        "title_vn": "Nhận xét buổi học cho từng học sinh",
+        "desc": "Giáo viên nhập nhận xét, thái độ học tập và mức độ tiếp thu của từng em sau buổi học"
+    },
+    {
+        "category_id": "03_Cong_Giao_Vien",
+        "folder_name": "06_nhap_diem_mini_test",
+        "title_vn": "Nhập điểm mini test",
+        "desc": "Giáo viên nhập điểm kiểm tra định kỳ nhỏ (mini test) cho từng học sinh"
+    },
+    {
+        "category_id": "03_Cong_Giao_Vien",
+        "folder_name": "07_chang_dang_day_va_order_test",
+        "title_vn": "Chặng đang dạy & Order Test",
+        "desc": "Theo dõi chặng học hiện tại và yêu cầu đặt đề kiểm tra (Order Test) cho lớp"
+    },
+    {
+        "category_id": "03_Cong_Giao_Vien",
+        "folder_name": "08_xem_tai_lieu_giao_trinh",
+        "title_vn": "Xem tài liệu giáo trình & nội dung buổi",
+        "desc": "Giáo viên tra cứu tài liệu bài giảng, giáo án và slide theo từng buổi học"
+    },
+    {
+        "category_id": "03_Cong_Giao_Vien",
+        "folder_name": "09_de_xuat_sua_giao_trinh",
+        "title_vn": "Đề xuất sửa giáo trình",
+        "desc": "Giáo viên gửi đề xuất sửa đổi lỗi hoặc nội dung trong giáo trình lên ban học thuật"
+    },
+    {
+        "category_id": "03_Cong_Giao_Vien",
+        "folder_name": "10_lich_du_kien_big_test",
+        "title_vn": "Lịch dự kiến Big Test",
+        "desc": "Giáo viên theo dõi lịch thi Big Test dự kiến của các lớp"
+    },
+    {
+        "category_id": "03_Cong_Giao_Vien",
+        "folder_name": "11_report_thang_lich_big_test",
+        "title_vn": "Report tháng — Lịch Big Test",
+        "desc": "Báo cáo hàng tháng về tình hình tổ chức thi Big Test của các lớp"
+    },
+    {
+        "category_id": "03_Cong_Giao_Vien",
+        "folder_name": "12_xac_nhan_quiz_desktop",
+        "title_vn": "Xác nhận Quiz (Desktop)",
+        "desc": "Màn hình desktop giáo viên kiểm tra và xác nhận kết quả làm Quiz của học viên"
+    },
+    {
+        "category_id": "03_Cong_Giao_Vien",
+        "folder_name": "13_xac_nhan_quiz_mobile",
+        "title_vn": "Xác nhận Quiz (Mobile)",
+        "desc": "Màn hình mobile giáo viên kiểm tra và duyệt kết quả làm Quiz của học sinh"
+    },
+    {
+        "category_id": "03_Cong_Giao_Vien",
+        "folder_name": "14_xin_dieu_chinh_tien_do",
+        "title_vn": "Gửi yêu cầu xin điều chỉnh tiến độ",
+        "desc": "Giáo viên gửi đề xuất điều chỉnh nhanh\/chậm tiến độ học so với syllabus"
+    },
+    {
+        "category_id": "03_Cong_Giao_Vien",
+        "folder_name": "15_check_in_cua_toi",
+        "title_vn": "Check-in của tôi",
+        "desc": "Màn hình check-in \/ check-out khi giáo viên đến trung tâm dạy học"
+    },
+    {
+        "category_id": "03_Cong_Giao_Vien",
+        "folder_name": "16_gui_bao_cao_cham_cong",
+        "title_vn": "Gửi báo cáo chấm công",
+        "desc": "Màn hình gửi số giờ dạy, ca dạy để xác nhận công cuối kỳ"
+    },
+    {
+        "category_id": "03_Cong_Giao_Vien",
+        "folder_name": "17_bao_cao_chung_cua_giao_vien",
+        "title_vn": "Báo cáo chung của giáo viên",
+        "desc": "Báo cáo tổng kết toàn diện của giáo viên về học thuật và vận hành lớp"
+    },
+    {
+        "category_id": "04_Cong_Phu_Huynh_Hoc_Sinh",
+        "folder_name": "01_app_shell_phu_huynh_hoc_sinh",
+        "title_vn": "MENGLISH — Cổng Phụ huynh \/ Học sinh (App Shell)",
+        "desc": "Giao diện khung điều hướng và header của Cổng Phụ huynh \/ Học sinh"
+    },
+    {
+        "category_id": "04_Cong_Phu_Huynh_Hoc_Sinh",
+        "folder_name": "02_trang_chu_phu_huynh_hoc_sinh",
+        "title_vn": "Trang chủ Cổng Phụ huynh \/ Học sinh",
+        "desc": "Màn hình trang chủ: thông tin học sinh, trạng thái học phí, tin tức"
+    },
+    {
+        "category_id": "04_Cong_Phu_Huynh_Hoc_Sinh",
+        "folder_name": "03_hoc_tap_cua_toi_nop_bai_tap",
+        "title_vn": "Học tập của tôi (Report điểm, Nộp bài video & bài tập)",
+        "desc": "Học sinh theo dõi điểm số, lộ trình, nộp bài tập quay video, viết từ vựng, workbook, quiz"
+    },
+    {
+        "category_id": "04_Cong_Phu_Huynh_Hoc_Sinh",
+        "folder_name": "04_luyen_phat_am",
+        "title_vn": "Luyện phát âm (Ghi âm thu giọng nói)",
+        "desc": "Học sinh nghe file audio mẫu từ giáo trình và thu âm ghi âm trực tiếp để nộp bài"
+    },
+    {
+        "category_id": "04_Cong_Phu_Huynh_Hoc_Sinh",
+        "folder_name": "05_danh_sach_thong_bao",
+        "title_vn": "Danh sách thông báo",
+        "desc": "Xem danh sách thông báo từ trung tâm: học phí, nghỉ lễ, sự kiện, sinh nhật"
+    },
+    {
+        "category_id": "04_Cong_Phu_Huynh_Hoc_Sinh",
+        "folder_name": "06_khao_sat",
+        "title_vn": "Khảo sát & Đánh giá",
+        "desc": "Khảo sát mức độ hài lòng về chất lượng giảng dạy, giáo trình, cơ sở vật chất"
+    },
+    {
+        "category_id": "04_Cong_Phu_Huynh_Hoc_Sinh",
+        "folder_name": "07_phu_huynh_gui_feedback",
+        "title_vn": "Phụ huynh gửi Feedback chặng học",
+        "desc": "Màn hình đánh giá chặng học và gửi feedback đóng góp ý kiến từ phụ huynh"
+    }
+]

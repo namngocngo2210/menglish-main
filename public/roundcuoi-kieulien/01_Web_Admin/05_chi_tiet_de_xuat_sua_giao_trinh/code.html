@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Chi tiết Đề xuất sửa giáo trình - MENGLISH</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary": "#1e43e7",
+                        "tertiary": "#256d00",
+                        "surface-container-highest": "#dde2f3",
+                        "primary-container": "#f5691a",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface": "#161c27",
+                        "surface-dim": "#d4daea",
+                        "inverse-on-surface": "#ecf0ff",
+                        "tertiary-fixed": "#93fb65",
+                        "inverse-surface": "#2a303d",
+                        "outline": "#8d7165",
+                        "inverse-primary": "#ffb595",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "error": "#ba1a1a",
+                        "surface-tint": "#a23f00",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "surface-container-low": "#f1f3ff",
+                        "primary": "#a23f00",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "on-surface-variant": "#594137",
+                        "on-primary-container": "#521c00",
+                        "on-error": "#ffffff",
+                        "secondary-fixed": "#dee0ff",
+                        "on-secondary-fixed": "#00105b",
+                        "background": "#f9f9ff",
+                        "on-background": "#161c27",
+                        "surface": "#f9f9ff",
+                        "on-error-container": "#93000a",
+                        "surface-bright": "#f9f9ff",
+                        "error-container": "#ffdad6",
+                        "on-primary-fixed": "#360f00",
+                        "primary-fixed-dim": "#ffb595",
+                        "outline-variant": "#e1bfb2",
+                        "on-tertiary-container": "#0e3500",
+                        "surface-variant": "#dde2f3",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "on-tertiary-fixed": "#062100",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "surface-container-high": "#e3e8f9",
+                        "secondary-container": "#4160ff",
+                        "tertiary-container": "#46a917",
+                        "on-secondary-container": "#faf7ff",
+                        "on-secondary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "surface-container": "#e8eeff",
+                        "primary-fixed": "#ffdbcd"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "lg": "24px",
+                        "gutter": "16px",
+                        "sidebar-width": "260px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "sm": "8px",
+                        "base": "8px",
+                        "header-height": "64px"
+                    },
+                    "fontFamily": {
+                        "h2": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                        "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: #f9f9ff;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e1bfb2;
+            border-radius: 10px;
+        }
+        .card-hover:hover {
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="p-lg lg:p-xl text-on-surface">
+<div class="max-w-6xl mx-auto">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row md:items-center justify-between mb-xl gap-md">
+<div>
+<nav class="flex items-center gap-xs mb-xs text-on-surface-variant font-caption text-caption">
+<span>Quản lý giáo trình</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-primary font-medium">Chi tiết đề xuất</span>
+</nav>
+<h1 class="font-h1 text-h1 text-on-surface">Đề xuất sửa giáo trình</h1>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-lg">
+<!-- Left Column: Inputs & Changes -->
+<div class="lg:col-span-8 space-y-lg">
+<!-- Khối Thông tin chung -->
+<section class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm">
+<div class="flex items-center gap-sm mb-lg border-b border-outline-variant pb-md">
+<span class="material-symbols-outlined text-primary">info</span>
+<h2 class="font-h3 text-h3">Thông tin chung</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg">
+<div class="space-y-xs">
+<label class="block font-label text-label text-on-surface-variant uppercase tracking-wider">Giáo trình</label>
+<div class="relative group">
+<select class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-md py-sm font-body-medium text-body-medium appearance-none text-on-surface-variant" disabled="">
+<option selected="" value="1">IELTS Foundation - Level 1</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant opacity-50">expand_more</span>
+</div>
+</div>
+<div class="space-y-xs">
+<label class="block font-label text-label text-on-surface-variant uppercase tracking-wider">Buổi học/Unit cần sửa</label>
+<div class="relative group">
+<select class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-md py-sm font-body-medium text-body-medium appearance-none text-on-surface-variant" disabled="">
+<option selected="" value="1">Buổi 01: Introduction to Writing Task 1</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant opacity-50">expand_more</span>
+</div>
+</div>
+<div class="md:col-span-2 space-y-xs">
+<label class="block font-label text-label text-on-surface-variant uppercase tracking-wider">Người đề xuất</label>
+<div class="flex items-center gap-md bg-surface-container-low p-md rounded-lg border border-outline-variant/50">
+<img class="w-10 h-10 rounded-full border border-primary/20" data-alt="A professional portrait of a Vietnamese academic administrator in a modern office environment, wearing business casual attire, soft natural lighting, high-quality photography, minimal background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDic0Sa19XyP6La6YGiYdGN5X0_DbxoECFBqiJW72a6xvejMZVmVyrLS1zZiWOZofTwfDWEOVlCMxol18f6Jk6UEWRAJQZBhT8Hd1ZTZbKVUnz2_aZtdAlZD083UmH0QG0s_qYdVE7nnU_2CEDpjksnWnlwJ3j1dYrpbamZ-RNY5wo7Ihn7zaW0CFRjmjxa-UgntbrrU3DTigUG_1Z3dbCY1CthHEo8M51Q4y5OJE5PjpA5IzlLb6vM-lzptXiXbcqTqWWNH6sqBzk"/>
+<div>
+<p class="font-body-medium text-body-medium text-on-surface">Nguyễn Văn A</p>
+<p class="font-caption text-caption text-on-surface-variant">Quản trị viên học thuật (Academic Admin)</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Khối Nội dung đề xuất thay đổi -->
+<section class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm">
+<div class="flex items-center justify-between mb-lg border-b border-outline-variant pb-md">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">edit_document</span>
+<h2 class="font-h3 text-h3">Nội dung thay đổi chi tiết</h2>
+</div>
+</div>
+<div class="space-y-lg">
+<!-- Item 1 (View-Only) -->
+<div class="p-md bg-surface border border-outline-variant rounded-lg relative card-hover transition-all">
+<div class="grid grid-cols-1 gap-md">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+<div class="space-y-xs">
+<label class="block font-label text-label text-on-surface-variant uppercase tracking-wider">Nội dung cũ</label>
+<div class="w-full bg-surface-container-low border border-outline-variant rounded-lg p-md font-body-base text-body-base text-on-surface-variant">
+                                            Phần bài tập về nhà yêu cầu viết 150 từ trong 20 phút cho Task 2.
+                                        </div>
+</div>
+<div class="space-y-xs">
+<label class="block font-label text-label text-on-surface-variant uppercase tracking-wider">Nội dung mới đề xuất</label>
+<div class="w-full bg-white border border-outline-variant rounded-lg p-md font-body-base text-body-base">
+                                            Yêu cầu viết tối thiểu 250 từ trong 40 phút để phù hợp với chuẩn đề thi thật.
+                                        </div>
+</div>
+</div>
+<div class="space-y-xs">
+<label class="block font-label text-label text-on-surface-variant uppercase tracking-wider">Lý do thay đổi</label>
+<div class="w-full bg-white border border-outline-variant rounded-lg px-md py-sm font-body-medium text-body-medium">
+                                        Đồng bộ hóa với format bài thi IELTS 2024.
+                                    </div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Column: Status & Approval -->
+<div class="lg:col-span-4 space-y-lg">
+<!-- Khối Trạng thái & Phê duyệt -->
+<section class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm sticky top-lg flex flex-col h-[calc(100vh-64px)] justify-between">
+<div>
+<div class="flex items-center gap-sm mb-lg border-b border-outline-variant pb-md">
+<span class="material-symbols-outlined text-primary">verified_user</span>
+<h2 class="font-h3 text-h3">Trạng thái phê duyệt</h2>
+</div>
+<div class="space-y-xl">
+<!-- Trạng thái hiện tại -->
+<div class="space-y-sm">
+<label class="block font-label text-label text-on-surface-variant uppercase tracking-wider">Trạng thái hiện tại</label>
+<div class="inline-flex items-center gap-xs px-md py-xs bg-amber-100 text-amber-700 rounded-full border border-amber-200">
+<span class="material-symbols-outlined text-[18px]">pending</span>
+<span class="font-body-medium text-body-medium">Chờ duyệt</span>
+</div>
+</div>
+<!-- Người duyệt -->
+<div class="space-y-sm">
+<label class="block font-label text-label text-on-surface-variant uppercase tracking-wider">Người phê duyệt</label>
+<div class="flex items-center gap-md p-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container-high border border-outline-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant">person</span>
+</div>
+<div>
+<p class="font-body-medium text-body-medium text-on-surface">Chưa phân công</p>
+<p class="font-caption text-caption text-on-surface-variant">Bộ phận Đào tạo</p>
+</div>
+</div>
+</div>
+<!-- Ghi chú phản hồi (Editable for Admin) -->
+<div class="space-y-sm">
+<label class="block font-label text-label text-on-surface-variant uppercase tracking-wider">Phản hồi từ người duyệt</label>
+<textarea class="w-full bg-white border border-outline-variant rounded-lg p-md font-body-base text-body-base outline-none focus:border-primary transition-all" placeholder="Nhập lý do phê duyệt hoặc từ chối đề xuất này..." rows="4"></textarea>
+</div>
+<!-- Timeline -->
+<div class="space-y-sm pt-md border-t border-outline-variant">
+<label class="block font-label text-label text-on-surface-variant uppercase tracking-wider">Lịch sử xử lý</label>
+<div class="relative pl-6 space-y-md before:absolute before:left-2 before:top-2 before:bottom-2 before:w-[1px] before:bg-outline-variant">
+<div class="relative">
+<div class="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-white"></div>
+<p class="font-body-medium text-body-medium">Đã tạo đề xuất</p>
+<p class="font-caption text-caption text-on-surface-variant">10:30, 24/10/2023 - Nguyễn Văn A</p>
+</div>
+<div class="relative opacity-50">
+<div class="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-outline ring-4 ring-white"></div>
+<p class="font-body-medium text-body-medium">Đang chờ xử lý</p>
+<p class="font-caption text-caption text-on-surface-variant">Hệ thống đang chờ phê duyệt...</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Buttons (Bottom of Sidebar) -->
+<div class="mt-xl flex flex-col gap-sm pt-lg border-t border-outline-variant">
+<button class="w-full py-md bg-primary-container text-white font-body-medium text-body-medium rounded-lg hover:opacity-90 transition-all active:scale-95 shadow-sm">
+                        Phê duyệt
+                    </button>
+<button class="w-full py-md bg-surface border border-outline-variant text-error font-body-medium text-body-medium rounded-lg hover:bg-error/5 transition-all active:scale-95">
+                        Từ chối
+                    </button>
+</div>
+</section>
+</div>
+</div>
+</div>
+<!-- Micro-interaction Scripts -->
+<script>
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const ripple = document.createElement('span');
+                ripple.classList.add('ripple');
+                this.appendChild(ripple);
+                setTimeout(() => ripple.remove(), 600);
+            });
+        });
+    </script>
+<style>
+        .ripple {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            transform: scale(0);
+            animation: ripple-animation 0.6s linear;
+            pointer-events: none;
+        }
+        @keyframes ripple-animation {
+            to { transform: scale(4); opacity: 0; }
+        }
+    </style>
+</body></html>

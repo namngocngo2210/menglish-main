@@ -1,0 +1,545 @@
+<!DOCTYPE html><html class="light" lang="vi"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>MENGLISH Admin - Chi tiết Đề test online</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind Config Verbatim -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary-fixed-variant": "#002fc9",
+                    "on-primary-container": "#521c00",
+                    "inverse-primary": "#ffb595",
+                    "on-tertiary-container": "#0e3500",
+                    "surface-container": "#e8eeff",
+                    "inverse-surface": "#2a303d",
+                    "inverse-on-surface": "#ecf0ff",
+                    "secondary-fixed": "#dee0ff",
+                    "on-tertiary": "#ffffff",
+                    "outline-variant": "#e1bfb2",
+                    "outline": "#8d7165",
+                    "on-background": "#161c27",
+                    "on-secondary": "#ffffff",
+                    "on-primary-fixed-variant": "#7c2e00",
+                    "secondary-fixed-dim": "#bac3ff",
+                    "on-tertiary-fixed-variant": "#1a5200",
+                    "surface-dim": "#d4daea",
+                    "background": "#f9f9ff",
+                    "primary": "#a23f00",
+                    "on-secondary-container": "#faf7ff",
+                    "tertiary-container": "#46a917",
+                    "surface-container-low": "#f1f3ff",
+                    "error-container": "#ffdad6",
+                    "surface": "#f9f9ff",
+                    "primary-container": "#f5691a",
+                    "on-surface-variant": "#594137",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container-high": "#e3e8f9",
+                    "on-error-container": "#93000a",
+                    "surface-container-highest": "#dde2f3",
+                    "tertiary-fixed": "#93fb65",
+                    "primary-fixed-dim": "#ffb595",
+                    "secondary-container": "#4160ff",
+                    "on-primary": "#ffffff",
+                    "on-secondary-fixed": "#00105b",
+                    "error": "#ba1a1a",
+                    "surface-variant": "#dde2f3",
+                    "on-tertiary-fixed": "#062100",
+                    "on-surface": "#161c27",
+                    "on-primary-fixed": "#360f00",
+                    "on-error": "#ffffff",
+                    "primary-fixed": "#ffdbcd",
+                    "surface-bright": "#f9f9ff",
+                    "tertiary": "#256d00",
+                    "secondary": "#1e43e7",
+                    "surface-tint": "#a23f00"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sm": "8px",
+                    "xs": "4px",
+                    "sidebar-width": "260px",
+                    "lg": "24px",
+                    "base": "8px",
+                    "xl": "32px",
+                    "gutter": "16px",
+                    "header-height": "64px",
+                    "md": "16px"
+            },
+            "fontFamily": {
+                    "caption": ["Be Vietnam Pro"],
+                    "body-medium": ["Be Vietnam Pro"],
+                    "label": ["Be Vietnam Pro"],
+                    "h2": ["Be Vietnam Pro"],
+                    "code": ["JetBrains Mono"],
+                    "body-base": ["Be Vietnam Pro"],
+                    "h3": ["Be Vietnam Pro"],
+                    "body-small": ["Be Vietnam Pro"],
+                    "h1": ["Be Vietnam Pro"]
+            },
+            "fontSize": {
+                    "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                    "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                    "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; background-color: #f9f9ff; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(8px); }
+        .status-badge-pink { background: rgba(244, 63, 126, 0.1); color: #F43F7E; font-weight: 700; }
+        .status-badge-blue { background: rgba(59, 91, 251, 0.1); color: #3B5BFB; font-weight: 700; }
+        .status-badge-green { background: rgba(37, 109, 0, 0.1); color: #256D00; font-weight: 700; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #3B5BFB !important; box-shadow: 0 0 0 2px rgba(59, 91, 251, 0.1); }
+    </style>
+</head>
+<body class="bg-background text-on-surface p-lg">
+<div class="max-w-4xl mx-auto space-y-xl">
+<!-- HEADER SECTION FOR DEMO CONTEXT -->
+<div class="flex items-center justify-between">
+<div>
+<h1 class="font-h1 text-h1 text-primary">Chi tiết Khách hàng</h1>
+<p class="font-body-base text-body-base text-on-surface-variant">Quản lý lộ trình và bài kiểm tra năng lực</p>
+</div>
+<div class="flex gap-md">
+<button class="bg-surface border border-outline px-md py-sm rounded-lg font-body-medium text-body-medium flex items-center gap-xs hover:bg-surface-container-low transition-all">
+<span class="material-symbols-outlined">arrow_back</span>
+                    Quay lại
+                </button>
+</div>
+</div>
+<!-- BENTO GRID CONTAINER FOR TEST MODULE -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-lg">
+<!-- MAIN COMPONENT: ĐỀ TEST ONLINE (The Requested Block) -->
+<div class="md:col-span-2 space-y-lg">
+<!-- STATE 1: CHƯA GỬI ĐỀ -->
+<section class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm transition-all hover:shadow-md">
+<div class="bg-surface-container-low px-md py-sm border-b border-outline-variant flex justify-between items-center">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">quiz</span>
+<h2 class="font-h3 text-h3">Đề test online</h2>
+</div>
+<span class="status-badge-pink px-sm py-xs rounded text-[10px] uppercase">Chưa gửi đề</span>
+</div>
+<div class="p-md space-y-md">
+<div class="grid grid-cols-2 gap-md">
+<div class="space-y-xs">
+<label class="font-label text-label text-on-surface-variant uppercase">Chọn cấp độ</label>
+<select class="w-full bg-surface border border-outline-variant rounded-lg px-md py-sm font-body-base text-body-base">
+<option>Lớp 1-2 (Starters)</option>
+<option>Lớp 3-4 (Movers)</option>
+<option>Lớp 5-6 (Flyers)</option>
+</select>
+</div>
+<div class="space-y-xs">
+<label class="font-label text-label text-on-surface-variant uppercase">Danh sách đề tương ứng</label>
+<select class="w-full bg-surface border border-outline-variant rounded-lg px-md py-sm font-body-base text-body-base">
+<option>Đề Starter - Reading &amp; Listening (45')</option>
+<option>Đề Starter - General Test (60')</option>
+</select>
+</div>
+</div>
+<div class="flex justify-end pt-sm">
+<button class="bg-primary-container text-on-primary px-lg py-md rounded-lg font-h3 text-body-medium flex items-center gap-sm hover:scale-[1.02] active:scale-95 transition-all shadow-md">
+<span class="material-symbols-outlined">send</span>
+                                Gửi link test online
+                            </button>
+</div>
+</div>
+</section>
+<!-- STATE 2: ĐÃ GỬI LINK -->
+<section class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<div class="bg-surface-container-low px-md py-sm border-b border-outline-variant flex justify-between items-center">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">schedule_send</span>
+<h2 class="font-h3 text-h3">Đề test online</h2>
+</div>
+<span class="status-badge-blue px-sm py-xs rounded text-[10px] uppercase">Đã gửi link</span>
+</div>
+<div class="p-md">
+<div class="bg-secondary-container/5 border border-secondary-container/20 p-md rounded-lg flex items-start gap-md mb-md">
+<div class="bg-secondary-container text-on-secondary rounded-full p-xs shrink-0">
+<span class="material-symbols-outlined text-[18px]">info</span>
+</div>
+<div class="space-y-xs">
+<p class="font-body-medium text-body-medium text-secondary">Đã gửi link - Chờ học viên làm bài</p>
+<p class="font-body-small text-body-small text-on-surface-variant italic">Link đã gửi lúc 14:30, 24/10/2023</p>
+</div>
+</div>
+<div class="flex items-center justify-between p-md border border-outline-variant border-dashed rounded-lg">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 bg-surface-container-high rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant">description</span>
+</div>
+<div>
+<h4 class="font-body-medium text-body-medium">Đề Starter - Reading &amp; Listening (45')</h4>
+<p class="font-caption text-caption text-on-surface-variant">Cấp độ: Lớp 1-2</p>
+</div>
+</div>
+<button class="text-primary font-body-medium flex items-center gap-xs hover:underline">
+<span class="material-symbols-outlined text-[18px]">refresh</span>
+                                Gửi lại link
+                            </button>
+</div>
+</div>
+</section>
+<!-- STATE 3: ĐÃ CÓ KẾT QUẢ & BỘ THANG ĐIỂM TỰ ĐỘNG -->
+<section class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm relative">
+<div class="bg-surface-container-low px-md py-sm border-b border-outline-variant flex justify-between items-center flex-wrap gap-sm">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-tertiary">assignment_turned_in</span>
+<h2 class="font-h3 text-h3">Đề test online & Thang điểm tự động</h2>
+</div>
+<div class="flex items-center gap-xs">
+<span class="status-badge-green px-sm py-xs rounded text-[10px] uppercase">Đã có kết quả</span>
+<span class="bg-primary/10 text-primary border border-primary/20 px-sm py-xs rounded text-[10px] font-bold flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[12px]">auto_awesome</span> Thang điểm tự động
+</span>
+</div>
+</div>
+<div class="p-md space-y-lg">
+<!-- Level / Block Selector for Rubric Engine -->
+<div class="bg-surface-container-low/70 p-md rounded-lg border border-outline-variant flex flex-col md:flex-row items-center justify-between gap-md">
+<div class="space-y-xs w-full md:w-auto flex-1">
+<label class="font-label text-label text-on-surface-variant uppercase flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px] text-primary">school</span>
+                                Select Khối / Thang điểm tự động
+</label>
+<select id="selectKhoi" class="w-full bg-surface-container-lowest border border-outline rounded-lg px-md py-sm font-body-medium text-body-medium focus:ring-2 focus:ring-primary/20">
+<option value="khoi1_2">KHỐI 1 - 2 (Nghe /10, Đọc-Viết /15, Nói /10)</option>
+<option value="khoi2_3" selected>KHỐI 2 LÊN 3 (Nghe /15, Đọc-Viết /15, Nói /10)</option>
+<option value="khoi3_4">KHỐI 3 LÊN 4 (Nghe /15, Đọc-Viết /20, Nói /10)</option>
+<option value="khoi4_5">KHỐI 4 LÊN 5 (Nghe /15, Đọc-Viết /15, Nói /10)</option>
+</select>
+</div>
+<div class="flex items-center gap-sm">
+<button type="button" id="btnAutoGenerate" onclick="calculateAndGenerateComments()" class="bg-primary text-on-primary px-md py-sm rounded-lg font-body-medium flex items-center gap-xs hover:bg-primary-hover transition-all shadow-sm">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+                                Tự động tạo nhận xét & Xếp lớp
+</button>
+</div>
+</div>
+
+<!-- Interactive Scores Inputs -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-md">
+<!-- Listening Input -->
+<div class="p-md bg-surface-container-low rounded-lg border border-outline-variant flex flex-col justify-between">
+<div class="flex justify-between items-center mb-xs">
+<span class="font-label text-label text-on-surface-variant uppercase">Điểm Nghe (Listening)</span>
+<span id="maxListeningLabel" class="font-caption text-caption text-on-surface-variant">/ 15</span>
+</div>
+<div class="flex items-center gap-sm my-xs">
+<input id="inputListening" type="number" min="0" max="15" value="11" oninput="calculateAndGenerateComments()" class="w-24 bg-surface-container-lowest border border-outline rounded-lg px-sm py-xs font-h1 text-center text-primary font-bold">
+<div class="flex-1">
+<div class="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
+<div id="barListening" class="h-full bg-primary transition-all duration-300" style="width: 73.3%"></div>
+</div>
+</div>
+</div>
+<p id="listenRubricPreview" class="text-[11px] text-on-surface-variant line-clamp-2 italic mt-xs">Nhận xét kĩ năng nghe sẽ tự động sinh...</p>
+</div>
+
+<!-- Reading & Writing Input -->
+<div class="p-md bg-surface-container-low rounded-lg border border-outline-variant flex flex-col justify-between">
+<div class="flex justify-between items-center mb-xs">
+<span class="font-label text-label text-on-surface-variant uppercase">Điểm Đọc & Viết (R&W)</span>
+<span id="maxReadingLabel" class="font-caption text-caption text-on-surface-variant">/ 15</span>
+</div>
+<div class="flex items-center gap-sm my-xs">
+<input id="inputReading" type="number" min="0" max="20" value="12" oninput="calculateAndGenerateComments()" class="w-24 bg-surface-container-lowest border border-outline rounded-lg px-sm py-xs font-h1 text-center text-primary font-bold">
+<div class="flex-1">
+<div class="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
+<div id="barReading" class="h-full bg-primary transition-all duration-300" style="width: 80%"></div>
+</div>
+</div>
+</div>
+<p id="readRubricPreview" class="text-[11px] text-on-surface-variant line-clamp-2 italic mt-xs">Nhận xét đọc & viết sẽ tự động sinh...</p>
+</div>
+
+<!-- Speaking Input -->
+<div class="p-md bg-surface-container-low rounded-lg border border-outline-variant flex flex-col justify-between">
+<div class="flex justify-between items-center mb-xs">
+<span class="font-label text-label text-on-surface-variant uppercase flex items-center gap-xs">
+                                Điểm Speaking (Nhập tay)
+                                <span class="material-symbols-outlined text-[14px]">edit_note</span>
+</span>
+<span id="maxSpeakingLabel" class="font-caption text-caption text-on-surface-variant">/ 10</span>
+</div>
+<div class="flex items-center gap-sm my-xs">
+<input id="inputSpeaking" type="number" min="0" max="10" value="8" oninput="calculateAndGenerateComments()" class="w-24 bg-surface-container-lowest border border-outline rounded-lg px-sm py-xs font-h1 text-center text-primary font-bold">
+<div class="flex-1">
+<div class="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
+<div id="barSpeaking" class="h-full bg-primary transition-all duration-300" style="width: 80%"></div>
+</div>
+</div>
+</div>
+<p id="speakRubricPreview" class="text-[11px] text-on-surface-variant line-clamp-2 italic mt-xs">Nhận xét kĩ năng nói sẽ tự động sinh...</p>
+</div>
+</div>
+
+<!-- Auto Generated Comment Box -->
+<div class="space-y-xs bg-surface-container/40 p-md rounded-xl border border-dashed border-outline-variant">
+<div class="flex items-center justify-between">
+<label class="font-label text-label text-on-surface-variant uppercase flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px] text-primary">auto_awesome</span>
+                                Nhận xét gợi ý (Tự động theo Thang điểm)
+</label>
+<span id="badgeAutoApplied" class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-sm py-0.5 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">check_circle</span> Đã đồng bộ Thang điểm
+</span>
+</div>
+<textarea id="txtAutoComment" class="w-full bg-surface-container-lowest border border-outline rounded-lg p-md font-body-base text-body-base focus:ring-2 focus:ring-secondary-container/20 leading-relaxed" placeholder="Nhận xét sẽ tự động tạo dựa theo điểm số..." rows="4"></textarea>
+<p class="font-caption text-caption text-secondary flex items-center gap-xs">
+<span class="material-symbols-outlined text-[12px]">info</span> CM/Tư vấn viên có thể chỉnh sửa bổ sung nội dung này trước khi lưu.
+</p>
+</div>
+
+<!-- Final Summary Dashboard -->
+<div class="bg-primary/5 rounded-xl border-2 border-primary/20 p-lg flex flex-col md:flex-row items-center justify-between gap-lg">
+<div class="flex items-center gap-lg">
+<div class="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-white shadow-lg shrink-0">
+<span id="lblTotalScore" class="font-h1 text-[24px]">31</span>
+</div>
+<div>
+<p class="font-label text-label text-primary uppercase">Tổng điểm hệ thống</p>
+<p class="font-h2 text-h2 text-on-surface"><span id="lblTotalScoreBig">31</span> <span id="lblMaxScoreBig" class="font-body-base text-on-surface-variant">/ 40 điểm</span></p>
+</div>
+</div>
+<div class="h-12 w-px bg-outline-variant hidden md:block"></div>
+<div class="text-center md:text-right">
+<p class="font-label text-label text-on-surface-variant uppercase">Đề xuất xếp lớp tự động</p>
+<div class="inline-flex items-center gap-sm bg-primary-container text-white px-md py-xs rounded-full mt-xs shadow-md">
+<span class="material-symbols-outlined text-[20px]">school</span>
+<span id="lblPlacementClass" class="font-h3 text-h3 tracking-wide">STARTERS (FAM 1 _ UNIT 7 - 12)</span>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Footer Action -->
+<div class="p-md bg-surface-container-low border-t border-outline-variant flex justify-end gap-md">
+<button class="px-md py-sm border border-outline rounded-lg font-body-medium hover:bg-surface-container-high transition-colors">Lưu bản nháp</button>
+<button class="px-md py-sm bg-primary text-white rounded-lg font-body-medium shadow hover:opacity-90 transition-opacity flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">check</span> Xác nhận kết quả
+</button>
+</div>
+</section>
+</div>
+<!-- SIDEBAR: CUSTOMER INFO CONTEXT -->
+<div class="space-y-lg">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md shadow-sm">
+<div class="flex items-center gap-md mb-md">
+<div class="w-12 h-12 rounded-full overflow-hidden border-2 border-primary-fixed">
+<img class="w-full h-full object-cover" data-alt="A portrait of a young Vietnamese student, approximately 7 years old, smiling warmly in a bright classroom setting. The child has neat hair and is wearing a simple casual white polo shirt. The background is softly blurred with hints of educational posters and colorful books, emphasizing a friendly and encouraging academic environment. High-key natural lighting enhances the modern light-mode aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB2-ihTD78pRJeIHu7grVYJDabdDfPKA5JZJiNqTPBwSi4yg6L-smdsfVy0T03HVUA_oNQYiHOz_wOrNBI68lFDBP9GtgG_LMEUsY14puVzo085lbHsF-fuf8coa6tRIUhVCDn7vTKgE0Ufp2kiVO40lWwu9tDYxzDdrQY-LSFza3-5iQbrPYSqE91JTjltJkczgmVHOBqWBERBsyZ3FZQYpsF92tkTzfi8_CzZtiUuBUVjFqExztojPLIR4oqxHKaQxI_5hmEHAyo">
+</div>
+<div>
+<h3 class="font-h3 text-body-medium">Nguyễn Minh Khang</h3>
+<p class="font-caption text-caption text-on-surface-variant">Mã HV: MEN2023-0892</p>
+</div>
+</div>
+<div class="space-y-sm">
+<div class="flex justify-between items-center py-xs border-b border-outline-variant border-dashed">
+<span class="font-body-small text-on-surface-variant">Phụ huynh:</span>
+<span class="font-body-medium">Chị Lan (0912.xxx.xxx)</span>
+</div>
+<div class="flex justify-between items-center py-xs border-b border-outline-variant border-dashed">
+<span class="font-body-small text-on-surface-variant">Cấp độ mục tiêu:</span>
+<span class="font-body-medium">Movers 1</span>
+</div>
+<div class="flex justify-between items-center py-xs">
+<span class="font-body-small text-on-surface-variant">Tư vấn viên:</span>
+<span class="status-badge-blue px-xs py-0.5 rounded text-[10px]">ADMIN_LEANH</span>
+</div>
+</div>
+</div>
+<div class="bg-tertiary-container/10 border border-tertiary-fixed-dim/30 rounded-xl p-md">
+<h4 class="font-label text-label text-tertiary uppercase flex items-center gap-xs mb-sm">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+                        Ghi chú CM
+                    </h4>
+<p class="font-body-small text-on-surface">Khách hàng quan tâm lộ trình Cambridge dài hạn. Ưu tiên bài test kỹ năng giao tiếp.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- MICRO-INTERACTION & AUTOMATIC RUBRIC EVALUATION ENGINE -->
+<script>
+const RUBRICS = {
+    khoi1_2: {
+        maxL: 10, maxR: 15, maxS: 10,
+        listening: (s) => {
+            if (s >= 8) return "Con nghe tốt, nắm được hệ thống từ vựng của các chủ đề cơ bản xung quanh cuộc sống, nhận diện được từ vựng qua tranh và qua thông tin của bài hội thoại.";
+            if (s >= 5) return "Con đã có kĩ năng nghe cơ bản, con nghe và nhận diện được các từ vựng đơn giản thông qua tranh, bước đầu hình thành được kĩ năng nghe hội thoại, nhận diện một số từ key word, xác định được nội dung câu hỏi nhưng chưa theo được tốc độ của bài nghe còn bỏ lỡ thông tin.";
+            return "Con bắt đầu hình thành kĩ năng nghe cơ bản, con nhận diện được một số từ vựng đơn giản thông qua hình vẽ, các bài nghe nắm bắt thông tin để điền con chưa xử lí được, chưa nhận diện được các loại câu hỏi để tập trung tìm thông tin.";
+        },
+        reading: (s) => {
+            if (s >= 11) return "Con có vốn từ cơ bản về hệ thống các từ vựng chủ đề xung quanh, con nhớ chính tả từ, nắm được nội dung câu đơn giản. Kĩ năng xử lí bài tập Khá / Tốt.";
+            if (s >= 6) return "Con nhận diện được cơ bản một số từ vựng, chưa nhớ chính tả từ nên còn nhầm lẫn từ vựng. Con đọc câu chưa hiểu hết nội dung nhưng nhận diện được một số câu để phân biệt đúng sai.";
+            return "Con chưa có nền từ tốt, nhận diện một số từ đơn cơ bản, chưa hình thành kĩ năng nhớ từ vựng, con đọc câu chưa phân biệt được đúng sai.";
+        },
+        speaking: (s) => {
+            if (s >= 8) return "Con nói trôi chảy, nắm bắt được nội dung câu hỏi các từ để hỏi cơ bản level Starters từ cô giáo, từ vựng các chủ đề quen thuộc con nắm khá tốt, khá tự tin và trả lời tốt.";
+            if (s >= 5) return "Con đã có kĩ năng nghe nói cơ bản, có nhận diện được một số câu hỏi cơ bản theo tranh cô hỏi, phát âm khá tốt. Một số câu hỏi với từ để hỏi khó hơn con chưa nhận diện được.";
+            return "Con chưa hình thành kĩ năng nghe nói cơ bản, chưa nhận diện được các câu hỏi cơ bản, chỉ nắm bắt được 1,2 câu hỏi thông tin cá nhân đơn giản nhất.";
+        },
+        placement: (total) => {
+            if (total < 10) return "PRE STARTERS (FAM 0)";
+            if (total <= 15) return "STARTERS (FAM 1 _ Ở NHỮNG BÀI ĐẦU)";
+            if (total <= 25) return "STARTERS (FAM 1 _ TỪ BÀI 5 - 10)";
+            return "STARTERS (FAM 1 _ NÂNG CAO)";
+        }
+    },
+    khoi2_3: {
+        maxL: 15, maxR: 15, maxS: 10,
+        listening: (s) => {
+            if (s >= 11) return "Con nghe khá, quen với một số các dạng nghe cơ bản, nắm bắt được các thông tin trong bài nghe. Con phân biệt được các thông tin đa chiều, thông tin gây nhiễu, con nhận diện được thông tin để điền.";
+            if (s >= 6) return "Con có kĩ năng nghe trung bình khá, con nghe và nhận diện được các thông tin trong các bài nghe nhận diện. Con phân biệt được các câu hỏi và nắm được thông tin để điền cơ bản. Con nghe thông tin đơn nhất, 1 chiều, bị nhầm lẫn với các thông tin đa chiều.";
+            return "Con có kĩ năng nghe cơ bản, con nghe và nhận diện được một số các tình huống bài nghe cơ bản, nhận diện được key words và chọn được một số câu trả lời đúng, chưa quen với các dạng bài nghe đa dạng.";
+        },
+        reading: (s) => {
+            if (s >= 11) return "Con có nền từ khá tốt, con đọc hiểu những câu cơ bản, xử lí bài tập đúng sai linh hoạt. Con hình thành kĩ năng đọc hiểu cơ bản khá, thỉnh thoảng còn sai một vài từ. Kĩ năng xử lí bài tập kĩ năng đọc khá/tốt.";
+            if (s >= 6) return "Con nhận diện được cơ bản một số từ vựng. Con chưa hiểu hết ý nghĩa câu mà nhận diện đúng / sai dựa vào key word trong mỗi câu. Kĩ năng đọc điền từ con chưa xử lí linh hoạt. Ngữ pháp cần trau dồi để xử lí những bài ngữ pháp.";
+            return "Con chưa có nền từ tốt, nhận diện một số từ đơn cơ bản, chưa hình thành kĩ năng nhớ từ vựng, con đọc câu chưa phân biệt được đúng sai, gặp khó khăn trong các kĩ năng đọc điền từ. Nền ngữ pháp yếu nên chưa sắp xếp được câu.";
+        },
+        speaking: (s) => {
+            if (s >= 8) return "Con nói trôi chảy, nắm bắt được nội dung câu hỏi các từ để hỏi cơ bản level Starters từ cô giáo, từ vựng các chủ đề quen thuộc con nắm khá tốt, khá tự tin và trả lời tốt.";
+            if (s >= 5) return "Con đã có kĩ năng nghe nói cơ bản, có nhận diện được một số câu hỏi cơ bản theo tranh cô hỏi, phát âm khá tốt. Một số câu hỏi với từ để hỏi khó hơn con chưa nhận diện được.";
+            return "Con chưa hình thành kĩ năng nghe nói cơ bản, chưa nhận diện được các câu hỏi cơ bản, chỉ nắm bắt được 1,2 câu hỏi thông tin cá nhân đơn giản nhất.";
+        },
+        placement: (total) => {
+            if (total < 20) return "PRE STARTERS _ FAM 1 (TỪ ĐẦU _ DƯỚI U5)";
+            if (total <= 30) return "STARTERS (FAM 1 _ UNIT 6 - 10)";
+            return "STARTERS (FAM 1 _ UNIT 7 - 12)";
+        }
+    },
+    khoi3_4: {
+        maxL: 15, maxR: 20, maxS: 10,
+        listening: (s) => {
+            if (s >= 11) return "Con nghe khá / tốt, nắm được hầu hết nội dung bài nghe level Movers. Con có thể phân biệt được các thông tin đơn chiều, các thông tin gây nhiễu.";
+            if (s >= 6) return "Con có kĩ năng nghe trung bình khá, con bắt đầu nghe và nhận diện được các thông tin đơn giản trong bài nghe, các câu ngắn, các thông tin 1 chiều. Con còn gặp khó khăn với kĩ năng xử lí bài nghe dạng nối tranh / viết thông tin.";
+            return "Kĩ năng nghe của con ở mức độ hình thành cơ bản. Con nghe nhận diện một số key words đơn giản, chọn theo nhận diện key words, chưa nắm được nội dung của cả câu. Các dạng bài nghe YLE con chưa làm quen tốt.";
+        },
+        reading: (s) => {
+            if (s >= 15) return "Con có nền từ vựng và cấu trúc khá, con có nền kĩ năng xử lí các dạng bài level Movers. Con đọc câu ngắn, hiểu nội dung, đọc hiểu câu hỏi và đưa ra được câu trả lời tốt.";
+            if (s >= 7) return "Con có kiến thức cơ bản, con đọc hiểu được các câu ngắn và kết nối được thông tin. Con hiểu câu hỏi, viết được các cụm từ ngắn để trả lời. Tuy nhiên kĩ năng xử lí ngữ pháp tổng hợp nâng cao chưa thực sự linh hoạt.";
+            return "Con nhận diện các từ đơn cơ bản, chưa xây dựng kĩ năng viết cơ bản. Con nhận diện từ đơn, từ các keyword, chưa hiểu ý nghĩa của cả câu dài, chưa linh hoạt trong các dạng bài đọc điền từ.";
+        },
+        speaking: (s) => {
+            if (s >= 8) return "Con nói trôi chảy, nắm bắt được nội dung câu hỏi các từ để hỏi level Movers từ cô giáo, từ vựng các chủ đề quen thuộc con nắm khá tốt. Con có kĩ năng nói được câu, nhận diện điểm khác biệt và mô tả tranh khá.";
+            if (s >= 5) return "Con có kĩ năng nghe nói cơ bản, nhận diện được các câu hỏi cơ bản, đưa ra được câu trả lời. Từ vựng đủ dùng để đưa ra nội dung phù hợp. Con dựng câu còn chưa linh hoạt, cần luyện tập thêm mô tả tranh và so sánh.";
+            return "Con nghe hiểu cơ bản, nhận diện nội dung câu hỏi nhưng vẫn còn nhầm lẫn, nền từ yếu, chưa trả lời linh hoạt. Chưa quen với việc xây dựng câu và xử lí các bài tập mô tả tranh.";
+        },
+        placement: (total) => {
+            if (total < 20) return "FAM 2 (NỬA ĐẦU)";
+            if (total <= 35) return "FAM 2 (NỬA SAU)";
+            return "Luyện MOVERS";
+        }
+    },
+    khoi4_5: {
+        maxL: 15, maxR: 15, maxS: 10,
+        listening: (s) => {
+            if (s >= 11) return "Con nghe khá / tốt, nắm được hầu hết nội dung bài nghe level Movers. Con có thể phân biệt được các thông tin đơn chiều, các thông tin gây nhiễu.";
+            if (s >= 6) return "Con có kĩ năng nghe trung bình khá, con bắt đầu nghe và nhận diện được các thông tin đơn giản trong bài nghe, các câu ngắn, các thông tin 1 chiều. Con còn gặp khó khăn với kĩ năng xử lí bài nghe dạng nối tranh / viết thông tin.";
+            return "Kĩ năng nghe của con ở mức độ hình thành cơ bản. Con nghe nhận diện một số key words đơn giản, chọn theo nhận diện key words, chưa nắm được nội dung của cả câu. Các dạng bài nghe YLE con chưa làm quen tốt.";
+        },
+        reading: (s) => {
+            if (s >= 11) return "Con có nền từ vựng và cấu trúc khá, con có nền kĩ năng xử lí các dạng bài level Movers. Con đọc câu ngắn, hiểu nội dung, đọc hiểu câu hỏi và đưa ra được câu trả lời tốt.";
+            if (s >= 6) return "Con có kiến thức cơ bản, con đọc hiểu được các câu ngắn và kết nối được thông tin. Con hiểu câu hỏi, viết được các cụm từ ngắn để trả lời. Tuy nhiên kĩ năng xử lí ngữ pháp tổng hợp nâng cao chưa thực sự linh hoạt.";
+            return "Con nhận diện các từ đơn cơ bản, chưa xây dựng kĩ năng viết cơ bản. Con nhận diện từ đơn, từ các keyword, chưa hiểu ý nghĩa của cả câu dài, chưa linh hoạt trong các dạng bài đọc điền từ.";
+        },
+        speaking: (s) => {
+            if (s >= 8) return "Con nói trôi chảy, nắm bắt được nội dung câu hỏi các từ để hỏi level Movers từ cô giáo, từ vựng các chủ đề quen thuộc con nắm khá tốt. Con có kĩ năng nói được câu, nhận diện điểm khác biệt và mô tả tranh khá.";
+            if (s >= 5) return "Con có kĩ năng nghe nói cơ bản, nhận diện được các câu hỏi cơ bản, đưa ra được câu trả lời. Từ vựng đủ dùng để đưa ra nội dung phù hợp. Con dựng câu còn chưa linh hoạt, cần luyện tập thêm mô tả tranh và so sánh.";
+            return "Con nghe hiểu cơ bản, nhận diện nội dung câu hỏi nhưng vẫn còn nhầm lẫn, nền từ yếu, chưa trả lời linh hoạt. Chưa quen với việc xây dựng câu và xử lí các bài tập mô tả tranh.";
+        },
+        placement: (total) => {
+            if (total < 20) return "FAM 2 (NỬA ĐẦU)";
+            if (total <= 30) return "FAM 2 (NỬA SAU)";
+            return "Luyện MOVERS";
+        }
+    }
+};
+
+function calculateAndGenerateComments() {
+    const khoiSelect = document.getElementById('selectKhoi');
+    if (!khoiSelect) return;
+    const khoiKey = khoiSelect.value;
+    const rule = RUBRICS[khoiKey] || RUBRICS.khoi2_3;
+
+    // Update max score labels
+    if (document.getElementById('maxListeningLabel')) document.getElementById('maxListeningLabel').textContent = '/ ' + rule.maxL;
+    if (document.getElementById('maxReadingLabel')) document.getElementById('maxReadingLabel').textContent = '/ ' + rule.maxR;
+    if (document.getElementById('maxSpeakingLabel')) document.getElementById('maxSpeakingLabel').textContent = '/ ' + rule.maxS;
+
+    // Fetch values
+    let sL = parseFloat(document.getElementById('inputListening').value) || 0;
+    let sR = parseFloat(document.getElementById('inputReading').value) || 0;
+    let sS = parseFloat(document.getElementById('inputSpeaking').value) || 0;
+
+    // Clamp
+    sL = Math.min(Math.max(sL, 0), rule.maxL);
+    sR = Math.min(Math.max(sR, 0), rule.maxR);
+    sS = Math.min(Math.max(sS, 0), rule.maxS);
+
+    document.getElementById('inputListening').value = sL;
+    document.getElementById('inputReading').value = sR;
+    document.getElementById('inputSpeaking').value = sS;
+
+    // Progress bar widths
+    if (document.getElementById('barListening')) document.getElementById('barListening').style.width = ((sL / rule.maxL) * 100) + '%';
+    if (document.getElementById('barReading')) document.getElementById('barReading').style.width = ((sR / rule.maxR) * 100) + '%';
+    if (document.getElementById('barSpeaking')) document.getElementById('barSpeaking').style.width = ((sS / rule.maxS) * 100) + '%';
+
+    // Rubric comments
+    const commentL = rule.listening(sL);
+    const commentR = rule.reading(sR);
+    const commentS = rule.speaking(sS);
+
+    if (document.getElementById('listenRubricPreview')) document.getElementById('listenRubricPreview').textContent = '• Nghe: ' + commentL;
+    if (document.getElementById('readRubricPreview')) document.getElementById('readRubricPreview').textContent = '• Đọc-Viết: ' + commentR;
+    if (document.getElementById('speakRubricPreview')) document.getElementById('speakRubricPreview').textContent = '• Nói: ' + commentS;
+
+    // Combined comment text
+    const fullComment = `- Kĩ năng Nghe (${sL}/${rule.maxL}đ): ${commentL}\n- Kĩ năng Đọc & Viết (${sR}/${rule.maxR}đ): ${commentR}\n- Kĩ năng Speaking (${sS}/${rule.maxS}đ): ${commentS}`;
+    if (document.getElementById('txtAutoComment')) document.getElementById('txtAutoComment').value = fullComment;
+
+    // Total score & placement
+    const totalScore = Math.round((sL + sR + sS) * 10) / 10;
+    const maxTotalScore = rule.maxL + rule.maxR + rule.maxS;
+    const placement = rule.placement(totalScore);
+
+    if (document.getElementById('lblTotalScore')) document.getElementById('lblTotalScore').textContent = totalScore;
+    if (document.getElementById('lblTotalScoreBig')) document.getElementById('lblTotalScoreBig').textContent = totalScore;
+    if (document.getElementById('lblMaxScoreBig')) document.getElementById('lblMaxScoreBig').textContent = '/ ' + maxTotalScore + ' điểm';
+    if (document.getElementById('lblPlacementClass')) document.getElementById('lblPlacementClass').textContent = placement;
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    const selectKhoi = document.getElementById('selectKhoi');
+    if (selectKhoi) {
+        selectKhoi.addEventListener('change', calculateAndGenerateComments);
+        calculateAndGenerateComments();
+    }
+});
+</script>
+</body></html>

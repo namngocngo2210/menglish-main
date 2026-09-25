@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Chi tiết bảng lương Học vụ - MENGLISH</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                            "secondary": "#1e43e7",
+                            "surface-container-low": "#f1f3ff",
+                            "error": "#ba1a1a",
+                            "on-tertiary-fixed-variant": "#1a5200",
+                            "background": "#f9f9ff",
+                            "on-primary-fixed": "#360f00",
+                            "inverse-surface": "#2a303d",
+                            "surface-dim": "#d4daea",
+                            "surface": "#f9f9ff",
+                            "on-background": "#161c27",
+                            "on-tertiary": "#ffffff",
+                            "tertiary-fixed-dim": "#78de4b",
+                            "on-surface-variant": "#594137",
+                            "on-secondary-fixed": "#00105b",
+                            "on-surface": "#161c27",
+                            "surface-container-highest": "#dde2f3",
+                            "on-error": "#ffffff",
+                            "surface-container": "#e8eeff",
+                            "tertiary": "#256d00",
+                            "primary-fixed-dim": "#ffb595",
+                            "surface-container-high": "#e3e8f9",
+                            "on-tertiary-fixed": "#062100",
+                            "error-container": "#ffdad6",
+                            "surface-container-lowest": "#ffffff",
+                            "primary-container": "#f5691a",
+                            "inverse-primary": "#ffb595",
+                            "tertiary-fixed": "#93fb65",
+                            "secondary-fixed": "#dee0ff",
+                            "on-primary-fixed-variant": "#7c2e00",
+                            "on-secondary": "#ffffff",
+                            "on-tertiary-container": "#0e3500",
+                            "primary": "#a23f00",
+                            "surface-bright": "#f9f9ff",
+                            "outline-variant": "#e1bfb2",
+                            "surface-tint": "#a23f00",
+                            "tertiary-container": "#46a917",
+                            "outline": "#8d7165",
+                            "surface-variant": "#dde2f3",
+                            "primary-fixed": "#ffdbcd",
+                            "inverse-on-surface": "#ecf0ff",
+                            "secondary-container": "#4160ff",
+                            "on-error-container": "#93000a",
+                            "secondary-fixed-dim": "#bac3ff",
+                            "on-secondary-container": "#faf7ff",
+                            "on-secondary-fixed-variant": "#002fc9",
+                            "on-primary-container": "#521c00",
+                            "on-primary": "#ffffff"
+                    },
+                    "borderRadius": {
+                            "DEFAULT": "0.5rem",
+                            "lg": "0.5rem",
+                            "xl": "0.75rem",
+                            "full": "9999px"
+                    },
+                    "spacing": {
+                            "lg": "24px",
+                            "sm": "8px",
+                            "gutter": "16px",
+                            "header-height": "64px",
+                            "xl": "32px",
+                            "sidebar-width": "260px",
+                            "md": "16px",
+                            "xs": "4px",
+                            "base": "8px"
+                    },
+                    "fontFamily": {
+                            "h2": ["Be Vietnam Pro"],
+                            "body-small": ["Be Vietnam Pro"],
+                            "h1": ["Be Vietnam Pro"],
+                            "caption": ["Be Vietnam Pro"],
+                            "body-medium": ["Be Vietnam Pro"],
+                            "label": ["Be Vietnam Pro"],
+                            "body-base": ["Be Vietnam Pro"],
+                            "h3": ["Be Vietnam Pro"],
+                            "code": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                            "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                            "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                            "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                            "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                            "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                            "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                            "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                            "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                            "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; background-color: #f9f9ff; }
+        
+        /* Accordion transition */
+        .accordion-content {
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out, padding 0.3s ease-out;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        .accordion-content.expanded {
+            max-height: 500px;
+            opacity: 1;
+            padding-top: 16px;
+            padding-bottom: 16px;
+        }
+        .accordion-icon {
+            transition: transform 0.3s ease;
+        }
+        .accordion-icon.expanded {
+            transform: rotate(180deg);
+        }
+
+        /* Input Focus Glow */
+        input:focus {
+            outline: none;
+            border-color: #f5691a !important;
+            box-shadow: 0 0 0 2px rgba(245, 105, 26, 0.2) !important;
+        }
+        
+        /* Glass/Bento styling hints */
+        .bento-card {
+            background-color: #ffffff;
+            border: 1px solid #dde2f3;
+            border-radius: 8px; /* ROUND_EIGHT */
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased p-lg md:p-xl">
+<div class="max-w-7xl mx-auto space-y-lg">
+<!-- Header -->
+<header class="flex flex-col md:flex-row md:items-center justify-between gap-md pb-md border-b border-surface-variant"><div>
+<h1 class="font-h1 text-h1 text-on-surface">Chi tiết bảng lương Học vụ</h1>
+<div class="flex items-center gap-md mt-sm text-on-surface-variant flex-wrap">
+<span class="font-body-medium text-body-medium font-bold text-on-surface">Nguyễn Thị Ánh Tuyết</span>
+<span class="w-1 h-1 bg-outline-variant rounded-full"></span>
+<span class="font-body-base text-body-base">Kỳ lương: Tháng 9/2026 <span class="text-body-small opacity-80">(Giai đoạn theo dõi song song)</span></span>
+<span class="w-1 h-1 bg-outline-variant rounded-full"></span>
+<span class="inline-flex items-center gap-xs px-2 py-1 rounded bg-secondary-fixed text-on-secondary-fixed-variant font-label text-label">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">sync</span>
+                    Đang tính toán
+                </span>
+</div>
+</div>
+<div class="flex items-center gap-sm">
+<button class="inline-flex items-center justify-center h-[36px] px-md bg-surface-container-lowest border border-outline-variant text-on-surface font-body-medium text-body-medium rounded hover:bg-surface-variant transition-colors shadow-sm">
+<span class="material-symbols-outlined mr-xs text-[18px]">picture_as_pdf</span>
+                    Xuất phiếu lương (PDF)
+                </button>
+<button class="inline-flex items-center justify-center h-[36px] px-md bg-primary-container text-on-primary font-body-medium text-body-medium rounded hover:opacity-90 transition-opacity shadow-sm">
+<span class="material-symbols-outlined mr-xs text-[18px]">save</span>
+                    Lưu thay đổi
+                </button>
+</div></header>
+<!-- Main Content Grid -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-lg items-start">
+<!-- Left Column (Data Entry & Info) -->
+<div class="xl:col-span-8 space-y-lg">
+<!-- Khối 1: Thu nhập cố định & KPI -->
+<section class="bento-card p-lg"><div class="flex items-center justify-between mb-md">
+<h2 class="font-h3 text-h3 text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary-container">account_balance_wallet</span>Thu nhập cố định
+    </h2>
+<button class="text-primary-container font-body-medium text-body-medium hover:underline inline-flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">save</span> Lưu
+    </button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md mb-sm">
+<div>
+<label class="block font-body-small text-body-small text-on-surface-variant mb-xs font-medium">Lương cơ bản (VNĐ)</label>
+<input class="w-full h-[40px] px-sm bg-surface-container-lowest border border-surface-variant rounded font-body-medium text-body-medium text-on-surface focus:ring-0" type="text" value="6,500,000"/>
+</div>
+<div>
+<label class="block font-body-small text-body-small text-on-surface-variant mb-xs font-medium">Lương cứng (VNĐ)</label>
+<input class="w-full h-[40px] px-sm bg-surface-container-lowest border border-surface-variant rounded font-body-medium text-body-medium text-on-surface focus:ring-0" type="text" value="12,000,000"/>
+</div>
+</div>
+<div class="flex items-center gap-xs text-caption text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant">info</span>
+<span>Căn cứ tính các khoản trích nộp bắt buộc (BHXH, Công đoàn)</span>
+</div></section>
+<!-- Khối 2: Lương KPI -->
+<section class="bento-card p-lg"><div class="flex flex-col sm:flex-row sm:items-center justify-between gap-sm mb-md">
+<div>
+<h2 class="font-h3 text-h3 text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary-container">speed</span>Lương KPI (Tính toán tự động theo hệ thống 6 nhóm / 15 mục)
+        </h2>
+<p class="font-caption text-caption text-on-surface-variant mt-xs">Học vụ: chỉ xác nhận chốt một chiều • Admin/Chị Liên: bật/tắt tự do</p>
+</div>
+<div class="flex items-center gap-sm self-start sm:self-auto bg-surface-container-low px-sm py-1 rounded border border-surface-variant">
+<span class="font-body-small text-body-small text-on-surface-variant font-medium">Chốt KPI tháng:</span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" onchange="document.getElementById('kpi-status').innerText = this.checked ? 'Đã chốt' : 'Chưa chốt'" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container"></div>
+</label>
+<span class="font-body-small text-body-small text-on-surface-variant font-semibold w-[70px]" id="kpi-status">Chưa chốt</span>
+</div>
+</div>
+<div class="space-y-md">
+<div class="flex flex-col gap-sm bg-surface-container-low p-md rounded border border-surface-variant">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-md">
+<div class="space-y-xs">
+<div class="flex items-center gap-sm flex-wrap">
+<span class="block font-body-medium text-body-medium text-on-surface-variant">Lương KPI tự động tính toán</span>
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-secondary-fixed/50 text-secondary-fixed-variant border border-secondary-fixed">Đang theo dõi song song — chưa dùng trả lương thật</span>
+</div>
+<div class="flex items-baseline gap-sm flex-wrap">
+<span class="block font-h1 text-[28px] leading-[36px] font-bold text-on-surface tracking-tight">3,500,000 VNĐ</span>
+<span class="font-body-small text-body-small text-secondary font-medium">(Tổng điểm quy đổi: 87.5 / 100 điểm)</span>
+</div>
+</div>
+<button class="text-secondary font-body-medium text-body-medium hover:underline inline-flex items-center gap-xs self-start md:self-end" onclick="toggleAccordion('kpi-breakdown-details')">
+<span>Xem bảng kê chi tiết 6 nhóm / 15 mục</span>
+<span class="material-symbols-outlined text-[18px] accordion-icon" id="kpi-breakdown-details-icon">expand_more</span>
+</button>
+</div>
+<div class="accordion-content border-t border-surface-variant/50 mt-sm pt-sm" id="kpi-breakdown-details">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-sm text-body-small pt-sm">
+<div class="flex justify-between items-center bg-surface-container-lowest p-sm rounded border border-surface-variant/50">
+<span class="text-on-surface">1. Tuyển sinh &amp; Tái tục (trọng số 30%)</span>
+<span class="font-semibold text-primary">27.0 / 30 đ</span>
+</div>
+<div class="flex justify-between items-center bg-surface-container-lowest p-sm rounded border border-surface-variant/50">
+<span class="text-on-surface">2. Chăm sóc học viên &amp; Feedback (20%)</span>
+<span class="font-semibold text-primary">18.5 / 20 đ</span>
+</div>
+<div class="flex justify-between items-center bg-surface-container-lowest p-sm rounded border border-surface-variant/50">
+<span class="text-on-surface">3. Vận hành lớp &amp; Điểm danh (20%)</span>
+<span class="font-semibold text-primary">18.0 / 20 đ</span>
+</div>
+<div class="flex justify-between items-center bg-surface-container-lowest p-sm rounded border border-surface-variant/50">
+<span class="text-on-surface">4. Báo cáo &amp; Nhật ký học vụ (15%)</span>
+<span class="font-semibold text-primary">12.0 / 15 đ</span>
+</div>
+<div class="flex justify-between items-center bg-surface-container-lowest p-sm rounded border border-surface-variant/50">
+<span class="text-on-surface">5. Tuân thủ kỷ luật trung tâm (15%)</span>
+<span class="font-semibold text-primary">12.0 / 15 đ</span>
+</div>
+<div class="flex justify-between items-center bg-surface-container-lowest p-sm rounded border border-surface-variant/50">
+<span class="text-on-surface">6. Sáng kiến cải tiến nội bộ</span>
+<span class="font-semibold text-tertiary">Đạt chuẩn</span>
+</div>
+</div>
+</div>
+</div>
+<div class="p-sm bg-surface-bright border border-outline-variant rounded">
+<label class="block font-body-small text-body-small text-on-surface-variant mb-xs font-medium">Lương KPI (nhập tay, dùng trả lương thực tế)</label>
+<div class="flex flex-col sm:flex-row sm:items-center gap-sm">
+<input class="w-full sm:w-1/2 h-[40px] px-sm bg-surface-container-lowest border border-surface-variant rounded font-body-medium text-body-medium text-on-surface focus:ring-0" type="text" value="3,500,000"/>
+<span class="font-caption text-caption text-on-surface-variant">Từ tháng 10/2026 ô này sẽ tự động ẩn và hệ thống chốt số tự động.</span>
+</div>
+</div>
+</div></section>
+<!-- Khối 3: Hoa hồng & Thưởng hệ thống -->
+<section class="bento-card p-lg"><div class="mb-md">
+<h2 class="font-h3 text-h3 text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-tertiary-container">trending_up</span>Hoa hồng tuyển sinh &amp; Thưởng tái tục (Chỉ đọc)
+    </h2>
+<p class="font-caption text-caption text-on-surface-variant mt-xs flex items-center gap-xs bg-surface-container-low p-sm rounded border border-surface-variant w-fit">
+<span class="material-symbols-outlined text-[14px]">info</span>
+        Dữ liệu được hệ thống tự động tổng hợp từ hợp đồng và tỷ lệ duy trì lớp, không chỉnh sửa thủ công.
+    </p>
+</div>
+<div class="space-y-sm bg-surface-container-low p-md rounded border border-surface-variant">
+<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center py-sm border-b border-surface-variant/50 gap-xs">
+<div>
+<span class="block font-body-medium text-body-medium font-medium text-on-surface">Hoa hồng tuyển sinh</span>
+<span class="font-caption text-caption text-on-surface-variant">Doanh thu tính hoa hồng: 154,500,000 VNĐ • Bậc áp dụng: Bậc 3 (10%)</span>
+</div>
+<span class="font-body-medium text-body-medium font-bold text-on-surface">15,450,000 VNĐ</span>
+</div>
+<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center py-sm gap-xs">
+<div>
+<span class="block font-body-medium text-body-medium font-medium text-on-surface">Thưởng tái tục</span>
+<span class="font-caption text-caption text-on-surface-variant">Lớp IELTS Master 02 • Tỷ lệ tái tục: 85% (Bậc 2)</span>
+</div>
+<span class="font-body-medium text-body-medium font-bold text-on-surface">2,100,000 VNĐ</span>
+</div>
+</div>
+<div class="mt-md border border-surface-variant rounded overflow-hidden bg-surface-container-lowest">
+<button class="w-full flex items-center justify-between p-sm hover:bg-surface-container-low transition-colors" onclick="toggleAccordion('tier-details')">
+<span class="font-body-medium text-body-medium text-on-surface font-medium">Chi tiết bậc áp dụng &amp; Số liệu đối soát</span>
+<span class="material-symbols-outlined accordion-icon text-on-surface-variant" id="tier-details-icon">expand_more</span>
+</button>
+<div class="accordion-content px-sm bg-surface-bright border-t border-surface-variant/50" id="tier-details">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr>
+<th class="font-label text-label text-on-surface-variant uppercase py-xs px-sm bg-surface-container-low border-b border-surface-variant">Bậc</th>
+<th class="font-label text-label text-on-surface-variant uppercase py-xs px-sm bg-surface-container-low border-b border-surface-variant">Ngưỡng áp dụng</th>
+<th class="font-label text-label text-on-surface-variant uppercase py-xs px-sm bg-surface-container-low border-b border-surface-variant">Tỷ lệ</th>
+<th class="font-label text-label text-on-surface-variant uppercase py-xs px-sm bg-surface-container-low border-b border-surface-variant">Số lượng học viên</th>
+</tr>
+</thead>
+<tbody>
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="font-body-small text-body-small py-sm px-sm border-b border-surface-variant/50">Bậc 1</td>
+<td class="font-code text-code py-sm px-sm border-b border-surface-variant/50">0 - 50tr (Tuyển mới)</td>
+<td class="font-code text-code py-sm px-sm border-b border-surface-variant/50">5%</td>
+<td class="font-code text-code py-sm px-sm border-b border-surface-variant/50">-</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="font-body-small text-body-small py-sm px-sm border-b border-surface-variant/50">Bậc 2</td>
+<td class="font-code text-code py-sm px-sm border-b border-surface-variant/50">50 - 100tr (Tuyển mới)</td>
+<td class="font-code text-code py-sm px-sm border-b border-surface-variant/50">7%</td>
+<td class="font-code text-code py-sm px-sm border-b border-surface-variant/50">-</td>
+</tr>
+<tr class="bg-primary-fixed/20 hover:bg-primary-fixed/30 transition-colors">
+<td class="font-body-medium text-body-medium text-primary-container py-sm px-sm border-b border-surface-variant/50 flex items-center gap-xs font-semibold">Bậc 3<span class="material-symbols-outlined text-[14px]">check_circle</span></td>
+<td class="font-code text-code py-sm px-sm border-b border-surface-variant/50">&gt; 100tr (Tuyển mới)</td>
+<td class="font-code text-code font-bold py-sm px-sm border-b border-surface-variant/50">10%</td>
+<td class="font-code text-code py-sm px-sm border-b border-surface-variant/50 font-bold">18 học viên chốt</td>
+</tr>
+<tr class="bg-secondary-fixed/20 hover:bg-secondary-fixed/30 transition-colors">
+<td class="font-body-medium text-body-medium text-secondary py-sm px-sm border-b border-surface-variant/50 flex items-center gap-xs font-semibold">Tái tục Bậc 2<span class="material-symbols-outlined text-[14px]">check_circle</span></td>
+<td class="font-code text-code py-sm px-sm border-b border-surface-variant/50">Tỷ lệ giữ lớp &gt; 80%</td>
+<td class="font-code text-code font-bold py-sm px-sm border-b border-surface-variant/50">2,100,000đ</td>
+<td class="font-code text-code py-sm px-sm border-b border-surface-variant/50 font-bold">12/14 HV tiếp tục</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div></section>
+<!-- Khối 4: Trừ vi phạm (MỚI) -->
+<section class="bento-card p-lg"><div class="flex items-center justify-between mb-md">
+<h2 class="font-h3 text-h3 text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-error">gavel</span>Trừ vi phạm
+    </h2>
+<div class="relative group">
+<button class="inline-flex items-center justify-center h-[32px] px-sm bg-surface-container border border-surface-variant text-on-surface font-body-medium text-body-medium rounded hover:bg-surface-variant transition-colors gap-xs shadow-sm">
+<span class="material-symbols-outlined text-[16px]">add</span>Thêm khoản trừ
+        </button>
+<div class="absolute right-0 mt-1 w-48 bg-surface-container-lowest border border-surface-variant rounded shadow-lg hidden group-focus-within:block group-hover:block z-20">
+<button class="w-full text-left px-4 py-2 font-body-medium text-body-medium text-on-surface hover:bg-surface-container-low transition-colors rounded-t">Theo danh mục phạt</button>
+<button class="w-full text-left px-4 py-2 font-body-medium text-body-medium text-on-surface hover:bg-surface-container-low transition-colors rounded-b border-t border-surface-variant">Nhập thủ công</button>
+</div>
+</div>
+</div>
+<div class="border border-surface-variant rounded overflow-hidden">
+<table class="w-full text-left border-collapse bg-surface-container-lowest">
+<thead>
+<tr>
+<th class="font-label text-label text-on-surface-variant uppercase py-sm px-md bg-surface-container-low border-b border-surface-variant">Lý do / Hạng mục</th>
+<th class="font-label text-label text-on-surface-variant uppercase py-sm px-md bg-surface-container-low border-b border-surface-variant text-right">Số tiền (VNĐ)</th>
+<th class="font-label text-label text-on-surface-variant uppercase py-sm px-md bg-surface-container-low border-b border-surface-variant text-center">Trạng thái</th>
+</tr>
+</thead>
+<tbody>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="font-body-medium text-body-medium py-md px-md border-b border-surface-variant/50">Đi muộn (2 lần)</td>
+<td class="font-code text-code py-md px-md border-b border-surface-variant/50 text-right text-error font-medium">100,000</td>
+<td class="py-md px-md border-b border-surface-variant/50 text-center"><span class="inline-flex items-center gap-xs px-2 py-1 rounded-full bg-tertiary-fixed/30 text-on-tertiary-fixed-variant font-label text-label"><span class="material-symbols-outlined text-[14px]">check</span>Đã xác nhận</span></td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="font-body-medium text-body-medium py-md px-md border-b border-surface-variant/50">Quên chấm công (1 lần)</td>
+<td class="font-code text-code py-md px-md border-b border-surface-variant/50 text-right text-error font-medium">50,000</td>
+<td class="py-md px-md border-b border-surface-variant/50 text-center"><span class="inline-flex items-center gap-xs px-2 py-1 rounded-full bg-tertiary-fixed/30 text-on-tertiary-fixed-variant font-label text-label"><span class="material-symbols-outlined text-[14px]">check</span>Đã xác nhận</span></td>
+</tr>
+</tbody>
+<tfoot>
+<tr class="bg-surface-container-low">
+<td class="font-body-medium text-body-medium font-bold py-sm px-md text-on-surface">Tổng cộng trừ vi phạm</td>
+<td class="font-code text-code font-bold py-sm px-md text-right text-error">150,000 VNĐ</td>
+<td class="py-sm px-md text-center font-caption text-caption text-on-surface-variant">Cộng dồn vào Tổng trừ</td>
+</tr>
+</tfoot>
+</table>
+</div>
+<p class="font-caption text-caption text-on-surface-variant mt-xs flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">info</span>
+    Khoản trừ vi phạm được xác nhận ngay và cộng dồn vào Tổng khoản trừ.
+</p></section>
+<!-- Khối 5: Khấu trừ bắt buộc -->
+<section class="bento-card p-lg"><div class="flex items-center justify-between mb-md">
+<h2 class="font-h3 text-h3 text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-error">money_off</span>Khấu trừ bắt buộc
+    </h2>
+<span class="font-body-small text-body-small text-on-surface-variant font-medium">Tổng khấu trừ bắt buộc: <span class="font-code font-bold text-on-surface">1,965,000 VNĐ</span></span>
+</div>
+<div class="space-y-md">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-sm p-sm bg-surface-container-low rounded border border-surface-variant">
+<div>
+<span class="block font-body-medium text-body-medium font-medium text-on-surface">BHXH người lao động (10.5% lương cơ bản)</span>
+<span class="block font-caption text-caption text-on-surface-variant">Chỉ đọc, tự động trích nộp theo quy định</span>
+</div>
+<span class="font-code text-code font-medium text-on-surface bg-surface-container-lowest px-sm py-xs border border-surface-variant rounded">682,500 VNĐ</span>
+</div>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-sm p-sm bg-surface-container-low rounded border border-surface-variant">
+<div>
+<span class="block font-body-medium text-body-medium font-medium text-on-surface">Kinh phí Công đoàn (0.5% lương cơ bản)</span>
+<span class="block font-caption text-caption text-on-surface-variant">Chỉ đọc, tự động trích nộp đoàn phí</span>
+</div>
+<span class="font-code text-code font-medium text-on-surface bg-surface-container-lowest px-sm py-xs border border-surface-variant rounded">32,500 VNĐ</span>
+</div>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-sm p-sm bg-surface-container-lowest rounded border border-outline-variant hover:border-primary-container transition-colors">
+<div>
+<span class="block font-body-medium text-body-medium font-medium text-on-surface">Thuế thu nhập cá nhân (TNCN)</span>
+<span class="block font-caption text-caption text-on-surface-variant">Ô input nhập tay số tiền khấu trừ trong kỳ</span>
+</div>
+<div class="flex items-center gap-xs">
+<input class="w-[150px] h-[36px] px-sm bg-surface-container-lowest border border-surface-variant rounded font-body-medium text-body-medium text-on-surface text-right focus:ring-0" type="text" value="1,250,000"/>
+<span class="font-body-small text-body-small text-on-surface-variant">VNĐ</span>
+</div>
+</div>
+</div></section>
+</div>
+<!-- Right Column (Summary Panel) -->
+<div class="xl:col-span-4 sticky top-lg"><section class="bento-card p-lg bg-gradient-to-b from-surface-container-lowest to-primary-fixed/10 border-primary-fixed relative overflow-hidden shadow-sm">
+<div class="absolute -top-10 -right-10 w-32 h-32 bg-primary-container opacity-5 rounded-full blur-2xl"></div>
+<h2 class="font-h2 text-h2 text-on-surface mb-lg relative z-10">Tổng kết thực nhận</h2>
+<div class="space-y-md relative z-10">
+<div class="flex justify-between items-end pb-sm border-b border-surface-variant border-dashed">
+<div class="flex flex-col">
+<span class="font-body-small text-body-small text-on-surface-variant font-medium">Tổng thu nhập</span>
+<span class="font-caption text-caption text-on-surface-variant opacity-70">Lương cứng + Lương KPI thực tế + Hoa hồng + Thưởng</span>
+</div>
+<span class="font-h3 text-h3 text-on-surface font-bold">33,050,000 <span class="font-body-small font-normal">VNĐ</span></span>
+</div>
+<div class="flex justify-between items-end pb-sm border-b border-surface-variant border-dashed">
+<div class="flex flex-col">
+<span class="font-body-small text-body-small text-on-surface-variant font-medium">Tổng các khoản trừ</span>
+<span class="font-caption text-caption text-on-surface-variant opacity-70">Bắt buộc + Vi phạm</span>
+</div>
+<span class="font-h3 text-h3 text-error font-bold">-2,115,000 <span class="font-body-small font-normal">VNĐ</span></span>
+</div>
+<div class="pt-sm">
+<span class="block font-label text-label text-on-surface-variant uppercase mb-xs tracking-wider font-bold">Thực nhận</span>
+<div class="flex items-baseline gap-xs">
+<span class="font-h1 text-[36px] leading-[44px] font-bold text-primary-container tracking-tight">30,935,000</span>
+<span class="font-h3 text-h3 text-primary-container font-bold">VNĐ</span>
+</div>
+</div>
+</div>
+<div class="mt-lg pt-lg border-t border-surface-variant relative z-10 space-y-sm">
+<button class="w-full flex items-center justify-center h-[48px] bg-primary-container text-on-primary font-h3 text-h3 rounded shadow-sm hover:bg-surface-tint transition-all active:scale-[0.98] font-bold gap-xs">
+<span class="material-symbols-outlined text-[20px]">lock</span>
+        Phê duyệt &amp; Khóa bảng lương
+    </button>
+<p class="font-caption text-caption text-on-surface-variant text-center flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">verified_user</span>
+        Chị Liên (Admin) duyệt lần cuối trước khi chuyển khoản
+    </p>
+</div>
+</section></div>
+</div>
+</div>
+<script>
+        function toggleAccordion(id) {
+            const content = document.getElementById(id);
+            const icon = document.getElementById(id + '-icon');
+            
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                icon.classList.remove('expanded');
+            } else {
+                content.classList.add('expanded');
+                icon.classList.add('expanded');
+            }
+        }
+    </script>
+</body></html>

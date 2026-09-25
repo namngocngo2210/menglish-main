@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Đối soát — chốt bảng công</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;900&amp;family=JetBrains+Mono:wght@400&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-primary": "#ffffff",
+                      "tertiary-fixed": "#93fb65",
+                      "on-error": "#ffffff",
+                      "on-primary-fixed-variant": "#7c2e00",
+                      "primary": "#a23f00",
+                      "on-surface-variant": "#594137",
+                      "on-background": "#161c27",
+                      "on-error-container": "#93000a",
+                      "on-secondary-container": "#faf7ff",
+                      "secondary": "#1e43e7",
+                      "surface-container-highest": "#dde2f3",
+                      "on-tertiary-container": "#0e3500",
+                      "surface-bright": "#f9f9ff",
+                      "secondary-container": "#4160ff",
+                      "tertiary-fixed-dim": "#78de4b",
+                      "background": "#f9f9ff",
+                      "surface-container-high": "#e3e8f9",
+                      "error": "#ba1a1a",
+                      "on-tertiary-fixed": "#062100",
+                      "error-container": "#ffdad6",
+                      "surface": "#f9f9ff",
+                      "on-secondary-fixed": "#00105b",
+                      "on-primary-container": "#521c00",
+                      "tertiary": "#256d00",
+                      "inverse-primary": "#ffb595",
+                      "surface-tint": "#a23f00",
+                      "primary-container": "#f5691a",
+                      "secondary-fixed-dim": "#bac3ff",
+                      "on-secondary": "#ffffff",
+                      "tertiary-container": "#46a917",
+                      "surface-dim": "#d4daea",
+                      "on-tertiary": "#ffffff",
+                      "outline": "#8d7165",
+                      "primary-fixed-dim": "#ffb595",
+                      "on-tertiary-fixed-variant": "#1a5200",
+                      "surface-container-low": "#f1f3ff",
+                      "outline-variant": "#e1bfb2",
+                      "surface-container": "#e8eeff",
+                      "on-secondary-fixed-variant": "#002fc9",
+                      "inverse-on-surface": "#ecf0ff",
+                      "secondary-fixed": "#dee0ff",
+                      "surface-variant": "#dde2f3",
+                      "inverse-surface": "#2a303d",
+                      "on-primary-fixed": "#360f00",
+                      "primary-fixed": "#ffdbcd",
+                      "on-surface": "#161c27",
+                      "surface-container-lowest": "#ffffff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "md": "16px",
+                      "xs": "4px",
+                      "sidebar-width": "260px",
+                      "base": "8px",
+                      "sm": "8px",
+                      "gutter": "16px",
+                      "header-height": "64px",
+                      "xl": "32px",
+                      "lg": "24px"
+              },
+              "fontFamily": {
+                      "h3": [
+                              "Be Vietnam Pro"
+                      ],
+                      "code": [
+                              "JetBrains Mono"
+                      ],
+                      "label": [
+                              "Be Vietnam Pro"
+                      ],
+                      "body-medium": [
+                              "Be Vietnam Pro"
+                      ],
+                      "h2": [
+                              "Be Vietnam Pro"
+                      ],
+                      "caption": [
+                              "Be Vietnam Pro"
+                      ],
+                      "body-small": [
+                              "Be Vietnam Pro"
+                      ],
+                      "body-base": [
+                              "Be Vietnam Pro"
+                      ],
+                      "h1": [
+                              "Be Vietnam Pro"
+                      ]
+              },
+              "fontSize": {
+                      "h3": [
+                              "18px",
+                              {
+                                      "lineHeight": "26px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "code": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label": [
+                              "11px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-medium": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "h2": [
+                              "22px",
+                              {
+                                      "lineHeight": "30px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "caption": [
+                              "11px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-small": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-base": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "h1": [
+                              "28px",
+                              {
+                                      "lineHeight": "36px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background text-on-surface font-body-base antialiased selection:bg-primary-container selection:text-on-primary">
+<div class="p-lg lg:p-xl max-w-[1440px] mx-auto min-h-screen">
+<!-- Header Section -->
+<header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-xl gap-md">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface mb-xs">Đối soát — chốt bảng công</h1>
+<p class="font-body-small text-body-small text-on-surface-variant">Quản lý và xác nhận giờ làm việc của giáo viên.</p>
+</div>
+<!-- Filters -->
+<div class="flex flex-wrap items-center gap-sm bg-surface-container-lowest p-sm rounded-lg border border-outline-variant shadow-sm w-full md:w-auto">
+<div class="relative min-w-[140px]">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">calendar_month</span>
+<input class="w-full pl-xl pr-sm py-xs text-body-small font-body-small bg-transparent border-none focus:ring-0 text-on-surface cursor-pointer" placeholder="Tháng 10/2023" readonly="" type="text" value="Tháng 10/2023"/>
+</div>
+<div class="w-px h-[24px] bg-outline-variant hidden sm:block"></div>
+<div class="relative min-w-[140px]">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">location_on</span>
+<select class="w-full pl-xl pr-sm py-xs text-body-small font-body-small bg-transparent border-none focus:ring-0 text-on-surface appearance-none cursor-pointer">
+<option>Tất cả chi nhánh</option>
+<option>Chi nhánh Q1</option>
+<option>Chi nhánh Q3</option>
+</select>
+</div>
+<div class="w-px h-[24px] bg-outline-variant hidden sm:block"></div>
+<div class="relative min-w-[160px]">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">school</span>
+<select class="w-full pl-xl pr-sm py-xs text-body-small font-body-small bg-transparent border-none focus:ring-0 text-on-surface appearance-none cursor-pointer">
+<option>Tất cả lớp học</option>
+<option>IELTS Cơ bản</option>
+<option>Giao tiếp T1</option>
+</select>
+</div>
+<div class="w-px h-[24px] bg-outline-variant hidden sm:block"></div>
+<div class="relative min-w-[160px]">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">person</span>
+<input class="w-full pl-xl pr-sm py-xs text-body-small font-body-small bg-transparent border-none focus:ring-0 text-on-surface" placeholder="Tìm giáo viên..." type="text"/>
+</div>
+</div>
+</header>
+<!-- Main Content Area - Bento Grid Layout for Tables -->
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-lg items-start">
+<!-- Bảng Chờ Đối Soát -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col h-[700px]">
+<div class="p-md border-b border-outline-variant bg-surface-bright flex justify-between items-center sticky top-0 z-10">
+<div class="flex items-center gap-sm">
+<h2 class="font-h3 text-h3 text-on-surface">Chờ đối soát</h2>
+<span class="bg-secondary-container/20 text-secondary-container font-label text-label px-2 py-1 rounded-full">12 bản ghi</span>
+</div>
+<button class="bg-primary-container hover:bg-primary text-on-primary font-body-medium text-body-medium px-md py-sm rounded-lg transition-colors flex items-center gap-xs shadow-sm">
+<span class="material-symbols-outlined text-[18px]">task_alt</span>
+                        Chốt bảng công (3)
+                    </button>
+</div>
+<div class="overflow-x-auto flex-1 custom-scrollbar">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low sticky top-0 z-10">
+<tr>
+<th class="p-sm pl-md border-b border-outline-variant w-[40px]">
+<input class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+</th>
+<th class="p-sm font-label text-label text-on-surface-variant uppercase tracking-wider border-b border-outline-variant">Buổi học</th>
+<th class="p-sm font-label text-label text-on-surface-variant uppercase tracking-wider border-b border-outline-variant">Giáo viên</th>
+<th class="p-sm font-label text-label text-on-surface-variant uppercase tracking-wider border-b border-outline-variant">Giờ dạy</th>
+<th class="p-sm font-label text-label text-on-surface-variant uppercase tracking-wider border-b border-outline-variant w-[250px]">Nhận xét</th>
+<th class="p-sm pr-md font-label text-label text-on-surface-variant uppercase tracking-wider border-b border-outline-variant text-right">Trạng thái</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/50">
+<!-- Row 1 Selected -->
+<tr class="hover:bg-surface-container-lowest transition-colors bg-primary-fixed/20 group">
+<td class="p-sm pl-md align-top">
+<input checked="" class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 mt-1" type="checkbox"/>
+</td>
+<td class="p-sm align-top">
+<div class="font-body-medium text-body-medium text-on-surface">IELTS 7.0 (L01)</div>
+<div class="font-caption text-caption text-on-surface-variant mt-xs">T2, 16/10/2023</div>
+</td>
+<td class="p-sm align-top">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center text-xs font-bold text-on-surface-variant">AN</div>
+<span class="font-body-medium text-body-medium text-on-surface">Nguyễn Văn An</span>
+</div>
+</td>
+<td class="p-sm align-top">
+<div class="font-code text-code text-on-surface bg-surface-container-low inline-block px-1 rounded">18:00 - 20:00</div>
+<div class="font-caption text-caption text-on-surface-variant mt-xs">2.0 giờ</div>
+</td>
+<td class="p-sm align-top">
+<p class="font-body-small text-body-small text-on-surface-variant line-clamp-2" title="Lớp học đầy đủ. Học viên tương tác tốt bài Listening Test 3. Cần gửi thêm tài liệu Reading cho bạn Nam.">Lớp học đầy đủ. Học viên tương tác tốt bài Listening Test 3. Cần gửi thêm tài liệu Reading cho bạn Nam.</p>
+<button class="text-secondary font-caption text-caption mt-xs hover:underline flex items-center">
+                                        Chi tiết <span class="material-symbols-outlined text-[12px] ml-1">open_in_new</span>
+</button>
+</td>
+<td class="p-sm pr-md align-top text-right">
+<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-[#1e43e7]/10 text-[#1e43e7]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#1e43e7] mr-1"></span>
+                                        Chờ đối soát
+                                    </span>
+</td>
+</tr>
+<!-- Row 2 Selected -->
+<tr class="hover:bg-surface-container-lowest transition-colors bg-primary-fixed/20 group">
+<td class="p-sm pl-md align-top">
+<input checked="" class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 mt-1" type="checkbox"/>
+</td>
+<td class="p-sm align-top">
+<div class="font-body-medium text-body-medium text-on-surface">Giao Tiếp T1 (GT05)</div>
+<div class="font-caption text-caption text-on-surface-variant mt-xs">T4, 18/10/2023</div>
+</td>
+<td class="p-sm align-top">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center text-xs font-bold text-on-surface-variant">BD</div>
+<span class="font-body-medium text-body-medium text-on-surface">Trần Bình Dương</span>
+</div>
+</td>
+<td class="p-sm align-top">
+<div class="font-code text-code text-on-surface bg-surface-container-low inline-block px-1 rounded">19:30 - 21:00</div>
+<div class="font-caption text-caption text-on-surface-variant mt-xs">1.5 giờ</div>
+</td>
+<td class="p-sm align-top">
+<p class="font-body-small text-body-small text-on-surface-variant line-clamp-2" title="Thực hành chủ đề Travel. Học viên phát âm còn sai âm /th/.">Thực hành chủ đề Travel. Học viên phát âm còn sai âm /th/.</p>
+</td>
+<td class="p-sm pr-md align-top text-right">
+<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-[#1e43e7]/10 text-[#1e43e7]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#1e43e7] mr-1"></span>
+                                        Chờ đối soát
+                                    </span>
+</td>
+</tr>
+<!-- Row 3 Unselected -->
+<tr class="hover:bg-surface-container transition-colors bg-surface-container-lowest group">
+<td class="p-sm pl-md align-top">
+<input class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 mt-1" type="checkbox"/>
+</td>
+<td class="p-sm align-top">
+<div class="font-body-medium text-body-medium text-on-surface">TOEIC 500+ (T02)</div>
+<div class="font-caption text-caption text-on-surface-variant mt-xs">T6, 20/10/2023</div>
+</td>
+<td class="p-sm align-top">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center text-xs font-bold text-on-surface-variant">LM</div>
+<span class="font-body-medium text-body-medium text-on-surface">Lê Thị Mai</span>
+</div>
+</td>
+<td class="p-sm align-top">
+<div class="font-code text-code text-on-surface bg-surface-container-low inline-block px-1 rounded">17:30 - 19:30</div>
+<div class="font-caption text-caption text-on-surface-variant mt-xs">2.0 giờ</div>
+</td>
+<td class="p-sm align-top">
+<p class="font-body-small text-body-small text-on-surface-variant line-clamp-2" title="Giải đề Reading part 5,6.">Giải đề Reading part 5,6.</p>
+</td>
+<td class="p-sm pr-md align-top text-right">
+<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-[#1e43e7]/10 text-[#1e43e7]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#1e43e7] mr-1"></span>
+                                        Chờ đối soát
+                                    </span>
+</td>
+</tr>
+<!-- Row 4 Unselected -->
+<tr class="hover:bg-surface-container transition-colors bg-surface-container-lowest group">
+<td class="p-sm pl-md align-top">
+<input class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 mt-1" type="checkbox"/>
+</td>
+<td class="p-sm align-top">
+<div class="font-body-medium text-body-medium text-on-surface">IELTS 6.0 (L03)</div>
+<div class="font-caption text-caption text-on-surface-variant mt-xs">T7, 21/10/2023</div>
+</td>
+<td class="p-sm align-top">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center text-xs font-bold text-on-surface-variant">AN</div>
+<span class="font-body-medium text-body-medium text-on-surface">Nguyễn Văn An</span>
+</div>
+</td>
+<td class="p-sm align-top">
+<div class="font-code text-code text-on-surface bg-surface-container-low inline-block px-1 rounded">08:00 - 10:00</div>
+<div class="font-caption text-caption text-on-surface-variant mt-xs">2.0 giờ</div>
+</td>
+<td class="p-sm align-top">
+<span class="font-body-small text-body-small text-outline italic">Chưa có nhận xét</span>
+</td>
+<td class="p-sm pr-md align-top text-right">
+<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-[#1e43e7]/10 text-[#1e43e7]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#1e43e7] mr-1"></span>
+                                        Chờ đối soát
+                                    </span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-sm border-t border-outline-variant bg-surface-container-lowest flex justify-between items-center">
+<span class="font-caption text-caption text-on-surface-variant">Đang hiển thị 1-4 trên 12</span>
+<div class="flex gap-1">
+<button class="p-1 text-on-surface-variant hover:text-on-surface disabled:opacity-50" disabled=""><span class="material-symbols-outlined text-[18px]">chevron_left</span></button>
+<button class="p-1 text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined text-[18px]">chevron_right</span></button>
+</div>
+</div>
+</div>
+<!-- Bảng Đã Chốt -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col h-[700px]">
+<div class="p-md border-b border-outline-variant bg-surface-bright flex justify-between items-center sticky top-0 z-10">
+<div class="flex items-center gap-sm">
+<h2 class="font-h3 text-h3 text-on-surface">Đã chốt</h2>
+<span class="bg-surface-dim text-on-surface font-label text-label px-2 py-1 rounded-full">45 bản ghi</span>
+</div>
+<div class="flex items-center gap-sm">
+<span class="font-body-small text-body-small text-on-surface-variant bg-surface-container px-2 py-1 rounded">Kỳ lương: T10/2023</span>
+</div>
+</div>
+<div class="overflow-x-auto flex-1 custom-scrollbar">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low sticky top-0 z-10">
+<tr>
+<th class="p-sm pl-md font-label text-label text-on-surface-variant uppercase tracking-wider border-b border-outline-variant">Buổi học</th>
+<th class="p-sm font-label text-label text-on-surface-variant uppercase tracking-wider border-b border-outline-variant">Giáo viên</th>
+<th class="p-sm font-label text-label text-on-surface-variant uppercase tracking-wider border-b border-outline-variant">Giờ dạy</th>
+<th class="p-sm font-label text-label text-on-surface-variant uppercase tracking-wider border-b border-outline-variant">Trạng thái</th>
+<th class="p-sm pr-md font-label text-label text-on-surface-variant uppercase tracking-wider border-b border-outline-variant text-right">Thao tác</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/50">
+<!-- Locked Row 1 -->
+<tr class="hover:bg-surface-container-lowest transition-colors bg-surface opacity-90 group">
+<td class="p-sm pl-md align-top">
+<div class="font-body-medium text-body-medium text-on-surface">IELTS 7.0 (L01)</div>
+<div class="font-caption text-caption text-on-surface-variant mt-xs">T4, 11/10/2023</div>
+</td>
+<td class="p-sm align-top">
+<span class="font-body-medium text-body-medium text-on-surface">Nguyễn Văn An</span>
+</td>
+<td class="p-sm align-top">
+<div class="font-code text-code text-on-surface">18:00 - 20:00</div>
+<div class="font-caption text-caption text-on-surface-variant mt-xs">2.0 giờ</div>
+</td>
+<td class="p-sm align-top">
+<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-surface-variant text-on-surface-variant border border-outline-variant/50">
+<span class="material-symbols-outlined text-[12px] mr-1">lock</span>
+                                        Đã khóa
+                                    </span>
+</td>
+<td class="p-sm pr-md align-top text-right">
+<button class="text-error font-body-small text-body-small hover:bg-error-container/20 px-2 py-1 rounded transition-colors inline-flex items-center gap-1 opacity-0 group-hover:opacity-100">
+<span class="material-symbols-outlined text-[16px]">lock_open</span> Mở khóa
+                                    </button>
+</td>
+</tr>
+<!-- Locked Row 2 -->
+<tr class="hover:bg-surface-container-lowest transition-colors bg-surface opacity-90 group">
+<td class="p-sm pl-md align-top">
+<div class="font-body-medium text-body-medium text-on-surface">Giao Tiếp T1 (GT05)</div>
+<div class="font-caption text-caption text-on-surface-variant mt-xs">T6, 13/10/2023</div>
+</td>
+<td class="p-sm align-top">
+<span class="font-body-medium text-body-medium text-on-surface">Trần Bình Dương</span>
+</td>
+<td class="p-sm align-top">
+<div class="font-code text-code text-on-surface">19:30 - 21:00</div>
+<div class="font-caption text-caption text-on-surface-variant mt-xs">1.5 giờ</div>
+</td>
+<td class="p-sm align-top">
+<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-surface-variant text-on-surface-variant border border-outline-variant/50">
+<span class="material-symbols-outlined text-[12px] mr-1">lock</span>
+                                        Đã khóa
+                                    </span>
+</td>
+<td class="p-sm pr-md align-top text-right">
+<button class="text-error font-body-small text-body-small hover:bg-error-container/20 px-2 py-1 rounded transition-colors inline-flex items-center gap-1 opacity-0 group-hover:opacity-100">
+<span class="material-symbols-outlined text-[16px]">lock_open</span> Mở khóa
+                                    </button>
+</td>
+</tr>
+<!-- Locked Row 3 -->
+<tr class="hover:bg-surface-container-lowest transition-colors bg-surface opacity-90 group">
+<td class="p-sm pl-md align-top">
+<div class="font-body-medium text-body-medium text-on-surface">TOEIC 500+ (T02)</div>
+<div class="font-caption text-caption text-on-surface-variant mt-xs">T7, 14/10/2023</div>
+</td>
+<td class="p-sm align-top">
+<span class="font-body-medium text-body-medium text-on-surface">Lê Thị Mai</span>
+</td>
+<td class="p-sm align-top">
+<div class="font-code text-code text-on-surface">17:30 - 19:30</div>
+<div class="font-caption text-caption text-on-surface-variant mt-xs">2.0 giờ</div>
+</td>
+<td class="p-sm align-top">
+<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-surface-variant text-on-surface-variant border border-outline-variant/50">
+<span class="material-symbols-outlined text-[12px] mr-1">lock</span>
+                                        Đã khóa
+                                    </span>
+</td>
+<td class="p-sm pr-md align-top text-right">
+<button class="text-error font-body-small text-body-small hover:bg-error-container/20 px-2 py-1 rounded transition-colors inline-flex items-center gap-1 opacity-0 group-hover:opacity-100">
+<span class="material-symbols-outlined text-[16px]">lock_open</span> Mở khóa
+                                    </button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-sm border-t border-outline-variant bg-surface-container-lowest flex justify-between items-center">
+<span class="font-caption text-caption text-on-surface-variant">Đang hiển thị 1-3 trên 45</span>
+<div class="flex gap-1">
+<button class="p-1 text-on-surface-variant hover:text-on-surface disabled:opacity-50" disabled=""><span class="material-symbols-outlined text-[18px]">chevron_left</span></button>
+<button class="p-1 text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined text-[18px]">chevron_right</span></button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent; 
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d4daea; 
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #8d7165; 
+        }
+    </style>
+</body></html>

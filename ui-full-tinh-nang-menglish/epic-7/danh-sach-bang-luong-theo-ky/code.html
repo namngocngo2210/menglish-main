@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Danh sách bảng lương theo kỳ</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "inverse-on-surface": "#ecf0ff",
+                        "on-tertiary-container": "#0e3500",
+                        "primary-fixed": "#ffdbcd",
+                        "tertiary": "#256d00",
+                        "surface-bright": "#f9f9ff",
+                        "primary-fixed-dim": "#ffb595",
+                        "surface-container-high": "#e3e8f9",
+                        "surface-container": "#e8eeff",
+                        "on-error-container": "#93000a",
+                        "error": "#ba1a1a",
+                        "tertiary-container": "#46a917",
+                        "on-error": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "on-primary-container": "#521c00",
+                        "on-tertiary-fixed": "#062100",
+                        "inverse-surface": "#2a303d",
+                        "on-surface-variant": "#594137",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-container": "#faf7ff",
+                        "primary": "#a23f00",
+                        "surface-container-low": "#f1f3ff",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "surface-tint": "#a23f00",
+                        "surface-container-lowest": "#ffffff",
+                        "primary-container": "#f5691a",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "outline": "#8d7165",
+                        "on-surface": "#161c27",
+                        "error-container": "#ffdad6",
+                        "outline-variant": "#e1bfb2",
+                        "on-secondary-fixed": "#00105b",
+                        "secondary-fixed": "#dee0ff",
+                        "tertiary-fixed": "#93fb65",
+                        "secondary-fixed-dim": "#bac3ff",
+                        "secondary": "#1e43e7",
+                        "surface-container-highest": "#dde2f3",
+                        "on-tertiary": "#ffffff",
+                        "surface": "#f9f9ff",
+                        "background": "#f9f9ff",
+                        "surface-dim": "#d4daea",
+                        "inverse-primary": "#ffb595",
+                        "on-primary-fixed": "#360f00",
+                        "surface-variant": "#dde2f3",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "secondary-container": "#4160ff",
+                        "on-background": "#161c27",
+                        "men-orange": "#f5691a",
+                        "men-orange-hover": "#e45e15"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "sidebar-width": "260px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "gutter": "16px",
+                        "md": "16px",
+                        "base": "8px",
+                        "xl": "32px",
+                        "header-height": "64px"
+                    },
+                    fontFamily: {
+                        "label": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "h1": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"]
+                    },
+                    fontSize: {
+                        "label": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "code": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-base": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-small": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "h2": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-medium": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "h3": ["18px", { "lineHeight": "26px", "fontWeight": "600" }],
+                        "h1": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "caption": ["11px", { "lineHeight": "16px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-base antialiased p-lg">
+<div class="max-w-7xl mx-auto w-full">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row md:items-center justify-between mb-lg gap-md">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface">Danh sách bảng lương theo kỳ</h1>
+<p class="font-body-small text-body-small text-on-surface-variant mt-xs">Quản lý và chốt lương giáo viên theo từng kỳ học.</p>
+</div>
+<div class="flex items-center gap-sm">
+<button class="bg-surface hover:bg-surface-container-high text-on-surface-variant border border-outline-variant opacity-50 cursor-not-allowed transition-all duration-200 px-md py-sm rounded-lg font-body-medium text-body-medium flex items-center gap-xs" disabled="" title="Không thể chốt bảng lương khi còn giáo viên chưa chốt KPI">
+<span class="material-symbols-outlined" style="font-size: 20px;">task_alt</span>
+                    Chốt bảng lương
+                </button>
+<button class="bg-surface hover:bg-surface-container-high text-on-surface-variant border border-outline-variant opacity-50 cursor-not-allowed transition-all duration-200 px-md py-sm rounded-lg font-body-medium text-body-medium flex items-center gap-xs" disabled="" title="Chỉ khả dụng khi đã chốt bảng lương">
+<span class="material-symbols-outlined" style="font-size: 20px;">payments</span>
+                    Đánh dấu đã trả
+                </button>
+</div>
+</div>
+<!-- Filter Section -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md mb-lg shadow-sm flex items-center justify-between">
+<div class="flex items-center gap-md">
+<div class="relative">
+<label class="block font-label text-label text-on-surface-variant mb-xs" for="period-select">KỲ LƯƠNG</label>
+<div class="relative">
+<select class="appearance-none bg-surface border border-outline-variant text-on-surface rounded-lg pl-md pr-xl py-sm focus:outline-none focus:ring-2 focus:ring-secondary focus:border-secondary font-body-medium text-body-medium cursor-pointer transition-colors w-48" id="period-select">
+<option selected="" value="08-2026">Tháng 08/2026</option>
+<option value="07-2026">Tháng 07/2026</option>
+<option value="06-2026">Tháng 06/2026</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-sm text-on-surface-variant">
+<span class="material-symbols-outlined" style="font-size: 20px;">expand_more</span>
+</div>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-sm">
+<div class="relative w-64 hidden md:block">
+<div class="absolute inset-y-0 left-0 pl-sm flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-on-surface-variant" style="font-size: 20px;">search</span>
+</div>
+<input class="block w-full pl-[36px] pr-sm py-sm border border-outline-variant rounded-lg bg-surface text-on-surface focus:ring-2 focus:ring-secondary focus:border-secondary sm:text-sm font-body-base transition-colors" placeholder="Tìm giáo viên..." type="text"/>
+</div>
+<button class="bg-surface border border-outline-variant hover:bg-surface-container-high text-on-surface-variant p-sm rounded-lg transition-colors">
+<span class="material-symbols-outlined" style="font-size: 20px;">filter_list</span>
+</button>
+</div>
+</div>
+<!-- Smart Warning Panel (Visible intentionally for this context) -->
+<div class="bg-error-container border border-error text-on-error-container rounded-xl p-md mb-lg shadow-sm flex items-start gap-md transition-all">
+<span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1;">error</span>
+<div class="flex-1">
+<p class="font-body-base text-body-base text-error font-medium">Không thể chốt bảng lương kỳ 08/2026 do: Còn giáo viên chưa chốt KPI (Nguyễn Văn A, Trần Thị B).</p>
+</div>
+<button class="text-on-error-container hover:bg-white/20 p-xs rounded-full transition-colors">
+<span class="material-symbols-outlined" style="font-size: 20px;">close</span>
+</button>
+</div>
+<!-- Data Table -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low font-label text-label text-on-surface-variant uppercase border-b border-outline-variant">
+<tr>
+<th class="py-sm px-md whitespace-nowrap">Tên giáo viên</th>
+<th class="py-sm px-md whitespace-nowrap">Trạng thái bảng lương</th>
+<th class="py-sm px-md whitespace-nowrap">Trạng thái KPI</th>
+<th class="py-sm px-md text-right whitespace-nowrap">Thực nhận</th>
+<th class="py-sm px-md text-center whitespace-nowrap">Thao tác</th>
+</tr>
+</thead>
+<tbody class="font-body-base text-body-base text-on-surface">
+<!-- Row 1 -->
+<tr class="border-b border-outline-variant hover:bg-surface-container-lowest transition-colors group">
+<td class="py-md px-md font-medium">Nguyễn Văn A</td>
+<td class="py-md px-md">
+<span class="inline-flex items-center gap-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary font-label text-label">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                                    Đang tính
+                                </span>
+</td>
+<td class="py-md px-md">
+<span class="inline-flex items-center gap-xs px-2 py-1 rounded-full bg-error/10 text-error font-label text-label">
+<span class="material-symbols-outlined text-[14px]">close</span>
+                                    Chưa chốt KPI
+                                </span>
+</td>
+<td class="py-md px-md text-right font-code text-code">4.350.000 đ</td>
+<td class="py-md px-md text-center">
+<button class="text-secondary hover:bg-secondary/10 px-sm py-xs rounded-lg transition-colors font-body-medium text-body-medium inline-flex items-center gap-xs">
+<span class="material-symbols-outlined" style="font-size: 18px;">visibility</span>
+                                    Chi tiết
+                                </button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="border-b border-outline-variant hover:bg-surface-container-lowest transition-colors group">
+<td class="py-md px-md font-medium">Trần Thị B</td>
+<td class="py-md px-md">
+<span class="inline-flex items-center gap-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary font-label text-label">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                                    Đang tính
+                                </span>
+</td>
+<td class="py-md px-md">
+<span class="inline-flex items-center gap-xs px-2 py-1 rounded-full bg-error/10 text-error font-label text-label">
+<span class="material-symbols-outlined text-[14px]">close</span>
+                                    Chưa chốt KPI
+                                </span>
+</td>
+<td class="py-md px-md text-right font-code text-code">5.200.000 đ</td>
+<td class="py-md px-md text-center">
+<button class="text-secondary hover:bg-secondary/10 px-sm py-xs rounded-lg transition-colors font-body-medium text-body-medium inline-flex items-center gap-xs">
+<span class="material-symbols-outlined" style="font-size: 18px;">visibility</span>
+                                    Chi tiết
+                                </button>
+</td>
+</tr>
+<!-- Row 3 (Warning) -->
+<tr class="border-b border-outline-variant bg-error-container/20 hover:bg-error-container/30 transition-colors group">
+<td class="py-md px-md font-medium">Lê Văn C</td>
+<td class="py-md px-md">
+<span class="inline-flex items-center gap-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary font-label text-label">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                                    Đang tính
+                                </span>
+<span class="material-symbols-outlined text-error align-middle ml-xs cursor-help" style="font-size: 18px; font-variation-settings: 'FILL' 1;" title="Khoản trừ chờ xác nhận">error</span>
+</td>
+<td class="py-md px-md">
+<span class="inline-flex items-center gap-xs px-2 py-1 rounded-full bg-tertiary-container/20 text-tertiary font-label text-label">
+<span class="material-symbols-outlined text-[14px]">check</span>
+                                    Đã chốt KPI
+                                </span>
+</td>
+<td class="py-md px-md text-right font-code text-code">3.800.000 đ</td>
+<td class="py-md px-md text-center">
+<button class="text-secondary hover:bg-secondary/10 px-sm py-xs rounded-lg transition-colors font-body-medium text-body-medium inline-flex items-center gap-xs">
+<span class="material-symbols-outlined" style="font-size: 18px;">visibility</span>
+                                    Chi tiết
+                                </button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="border-b border-outline-variant hover:bg-surface-container-lowest transition-colors group">
+<td class="py-md px-md font-medium">Phạm Văn D</td>
+<td class="py-md px-md">
+<span class="inline-flex items-center gap-xs px-2 py-1 rounded-full bg-primary-container/10 text-primary-container font-label text-label">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+                                    Đã chốt
+                                </span>
+</td>
+<td class="py-md px-md">
+<span class="inline-flex items-center gap-xs px-2 py-1 rounded-full bg-tertiary-container/20 text-tertiary font-label text-label">
+<span class="material-symbols-outlined text-[14px]">check</span>
+                                    Đã chốt KPI
+                                </span>
+</td>
+<td class="py-md px-md text-right font-code text-code">6.000.000 đ</td>
+<td class="py-md px-md text-center">
+<button class="text-secondary hover:bg-secondary/10 px-sm py-xs rounded-lg transition-colors font-body-medium text-body-medium inline-flex items-center gap-xs">
+<span class="material-symbols-outlined" style="font-size: 18px;">visibility</span>
+                                    Chi tiết
+                                </button>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="py-md px-md font-medium">Đỗ Thị E</td>
+<td class="py-md px-md">
+<span class="inline-flex items-center gap-xs px-2 py-1 rounded-full bg-tertiary-container/20 text-tertiary font-label text-label">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                                    Đã trả
+                                </span>
+</td>
+<td class="py-md px-md">
+<span class="inline-flex items-center gap-xs px-2 py-1 rounded-full bg-tertiary-container/20 text-tertiary font-label text-label">
+<span class="material-symbols-outlined text-[14px]">check</span>
+                                    Đã chốt KPI
+                                </span>
+</td>
+<td class="py-md px-md text-right font-code text-code">4.500.000 đ</td>
+<td class="py-md px-md text-center">
+<button class="text-secondary hover:bg-secondary/10 px-sm py-xs rounded-lg transition-colors font-body-medium text-body-medium inline-flex items-center gap-xs">
+<span class="material-symbols-outlined" style="font-size: 18px;">visibility</span>
+                                    Chi tiết
+                                </button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination / Summary -->
+<div class="bg-surface px-md py-sm border-t border-outline-variant flex items-center justify-between text-body-small font-body-small text-on-surface-variant">
+<span>Hiển thị 1-5 của 45 giáo viên</span>
+<div class="flex gap-xs">
+<button class="p-xs hover:bg-surface-container-high rounded transition-colors disabled:opacity-50"><span class="material-symbols-outlined" style="font-size: 20px;">chevron_left</span></button>
+<button class="p-xs hover:bg-surface-container-high rounded transition-colors"><span class="material-symbols-outlined" style="font-size: 20px;">chevron_right</span></button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,274 @@
+<x-app-layout>
+    <style>
+    body {
+      font-family: 'Be Vietnam Pro', sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+  </style>
+    <div class="p-6">
+        <!-- Vùng bắt đầu trực tiếp: Tiêu đề QA Observation -->
+  <div class="mb-8">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-slate-200">
+      <div>
+        <h1 class="text-3xl font-bold tracking-tight text-slate-900">QA Observation</h1>
+        <p class="text-sm text-slate-500 mt-1">Ghi nhận và theo dõi lịch sử dự giờ quan sát lớp học của đội vận hành (QA/Học vụ)</p>
+      </div>
+      <div>
+        <a href="#form-ghi-nhan" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white font-medium text-sm shadow-sm transition duration-150 ease-in-out">
+          <span class="material-symbols-outlined text-[20px]">add_circle</span>
+          <span>Ghi nhận dự giờ mới</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHẦN 1: BẢNG DANH SÁCH LƯỢT DỰ GIỜ ĐÃ GHI NHẬN (Read-only, Sort giảm dần theo ngày) -->
+  <section class="mb-10 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+      <div class="flex items-center gap-2.5">
+        <span class="material-symbols-outlined text-primary text-[22px]">visibility</span>
+        <h2 class="font-semibold text-slate-800 text-base">Danh sách lượt dự giờ đã ghi nhận</h2>
+      </div>
+      <span class="text-xs font-medium text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200">Sắp xếp theo ngày dự giờ giảm dần</span>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse text-sm">
+        <thead>
+          <tr class="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold text-xs uppercase tracking-wider">
+            <th class="py-3.5 px-6">Ngày dự giờ</th>
+            <th class="py-3.5 px-6">Giáo viên</th>
+            <th class="py-3.5 px-6">Lớp</th>
+            <th class="py-3.5 px-6 text-center">Xếp loại</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 text-slate-700">
+          <tr class="hover:bg-slate-50/80 transition-colors">
+            <td class="py-4 px-6 font-medium text-slate-900 flex items-center gap-2">
+              <span class="material-symbols-outlined text-slate-400 text-[18px]">calendar_today</span>
+              <span>18/09/2026</span>
+            </td>
+            <td class="py-4 px-6">
+              <div class="font-medium text-slate-900">Nguyễn Thu Thảo</div>
+              <div class="text-xs text-slate-400">Mã GV: GV042</div>
+            </td>
+            <td class="py-4 px-6">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                IELTS Fighter K28 (Cơ sở 1)
+              </span>
+            </td>
+            <td class="py-4 px-6 text-center">
+              <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Xuất sắc
+              </span>
+            </td>
+          </tr>
+
+          <tr class="hover:bg-slate-50/80 transition-colors">
+            <td class="py-4 px-6 font-medium text-slate-900 flex items-center gap-2">
+              <span class="material-symbols-outlined text-slate-400 text-[18px]">calendar_today</span>
+              <span>15/09/2026</span>
+            </td>
+            <td class="py-4 px-6">
+              <div class="font-medium text-slate-900">Trần Quốc Anh</div>
+              <div class="text-xs text-slate-400">Mã GV: GV019</div>
+            </td>
+            <td class="py-4 px-6">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                Giao tiếp Nâng cao B1 - T2-T4
+              </span>
+            </td>
+            <td class="py-4 px-6 text-center">
+              <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                Tốt
+              </span>
+            </td>
+          </tr>
+
+          <tr class="hover:bg-slate-50/80 transition-colors">
+            <td class="py-4 px-6 font-medium text-slate-900 flex items-center gap-2">
+              <span class="material-symbols-outlined text-slate-400 text-[18px]">calendar_today</span>
+              <span>10/09/2026</span>
+            </td>
+            <td class="py-4 px-6">
+              <div class="font-medium text-slate-900">Hoàng Thị Mai Lan</div>
+              <div class="text-xs text-slate-400">Mã GV: GV055</div>
+            </td>
+            <td class="py-4 px-6">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                TOEIC Khởi động T3-T5
+              </span>
+            </td>
+            <td class="py-4 px-6 text-center">
+              <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-300">
+                Đạt
+              </span>
+            </td>
+          </tr>
+
+          <tr class="hover:bg-slate-50/80 transition-colors">
+            <td class="py-4 px-6 font-medium text-slate-900 flex items-center gap-2">
+              <span class="material-symbols-outlined text-slate-400 text-[18px]">calendar_today</span>
+              <span>04/09/2026</span>
+            </td>
+            <td class="py-4 px-6">
+              <div class="font-medium text-slate-900">Vũ Minh Đức</div>
+              <div class="text-xs text-slate-400">Mã GV: GV031</div>
+            </td>
+            <td class="py-4 px-6">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                IELTS Foundation M12
+              </span>
+            </td>
+            <td class="py-4 px-6 text-center">
+              <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                Cần cải thiện
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- PHẦN 2: FORM GHI NHẬN 1 LƯỢT DỰ GIỜ MỚI -->
+  <section id="form-ghi-nhan" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 md:p-8">
+    <div class="flex items-center gap-2.5 pb-5 mb-6 border-b border-slate-100">
+      <span class="material-symbols-outlined text-primary text-[24px]">edit_note</span>
+      <div>
+        <h2 class="font-bold text-lg text-slate-900">Ghi nhận lượt dự giờ mới</h2>
+        <p class="text-xs text-slate-500 mt-0.5">Nhập đầy đủ thông tin buổi quan sát thực tế (các mục nội dung là tùy chọn)</p>
+      </div>
+    </div>
+
+    <form class="space-y-6" onsubmit="event.preventDefault();">
+      <!-- Dòng 1: 3 trường chọn bắt buộc -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- 1. Date picker Ngày dự giờ -->
+        <div>
+          <label for="ngay_du_gio" class="block text-sm font-semibold text-slate-800 mb-2">
+            Ngày dự giờ <span class="text-rose-500 font-bold">*</span>
+          </label>
+          <div class="relative">
+            <input type="date" id="ngay_du_gio" name="ngay_du_gio" value="2026-09-20" required
+              class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm bg-white" />
+          </div>
+          <span class="text-xs text-slate-400 mt-1 block">Bắt buộc chọn</span>
+        </div>
+
+        <!-- 2. Dropdown Giáo viên -->
+        <div>
+          <label for="giao_vien" class="block text-sm font-semibold text-slate-800 mb-2">
+            Giáo viên <span class="text-rose-500 font-bold">*</span>
+          </label>
+          <select id="giao_vien" name="giao_vien" required
+            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm bg-white">
+            <option value="">-- Chọn giáo viên --</option>
+            <option value="gv1" selected>Nguyễn Thu Thảo (2 lớp đang dạy)</option>
+            <option value="gv2">Trần Quốc Anh (1 lớp đang dạy)</option>
+            <option value="gv3">Hoàng Thị Mai Lan (3 lớp đang dạy)</option>
+            <option value="gv4">Vũ Minh Đức (1 lớp đang dạy)</option>
+          </select>
+          <span class="text-xs text-slate-400 mt-1 block">Chỉ hiện giáo viên đang có lớp hoạt động</span>
+        </div>
+
+        <!-- 3. Dropdown Lớp -->
+        <div>
+          <label for="lop_hoc" class="block text-sm font-semibold text-slate-800 mb-2">
+            Lớp <span class="text-rose-500 font-bold">*</span>
+          </label>
+          <select id="lop_hoc" name="lop_hoc" required
+            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm bg-white">
+            <option value="">-- Chọn lớp học --</option>
+            <option value="lop1" selected>IELTS Fighter K28 (Đang hoạt động)</option>
+            <option value="lop2">IELTS Intensive C1 (Đang hoạt động)</option>
+          </select>
+          <span class="text-xs text-slate-400 mt-1 block">Lọc theo giáo viên đã chọn</span>
+        </div>
+      </div>
+
+      <!-- Khối các textarea nội dung chuyên môn (5 mục tùy chọn) -->
+      <div class="space-y-5 pt-2">
+        <!-- 4. Textarea Nội dung bài học -->
+        <div>
+          <label for="noi_dung_bai_hoc" class="block text-sm font-semibold text-slate-800 mb-1.5">
+            Nội dung bài học
+          </label>
+          <textarea id="noi_dung_bai_hoc" name="noi_dung_bai_hoc" rows="3"
+            placeholder="Ghi nhận nội dung, chủ đề bài học, kiến thức trọng tâm buổi dạy..."
+            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm"></textarea>
+        </div>
+
+        <!-- 5. Textarea Tác phong, thái độ -->
+        <div>
+          <label for="tac_phong_thai_do" class="block text-sm font-semibold text-slate-800 mb-1.5">
+            Tác phong, thái độ
+          </label>
+          <textarea id="tac_phong_thai_do" name="tac_phong_thai_do" rows="3"
+            placeholder="Quan sát tác phong sư phạm, đúng giờ, năng lượng, thái độ với học viên..."
+            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm"></textarea>
+        </div>
+
+        <!-- 6. Textarea Chuẩn bị bài giảng -->
+        <div>
+          <label for="chuan_bi_bai_giang" class="block text-sm font-semibold text-slate-800 mb-1.5">
+            Chuẩn bị bài giảng
+          </label>
+          <textarea id="chuan_bi_bai_giang" name="chuan_bi_bai_giang" rows="3"
+            placeholder="Tài liệu, giáo án, slide trình chiếu, thiết bị dạy học..."
+            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm"></textarea>
+        </div>
+
+        <!-- 7. Textarea Kỹ thuật giảng dạy (tương tác) -->
+        <div>
+          <label for="ky_thuat_giang_day" class="block text-sm font-semibold text-slate-800 mb-1.5">
+            Kỹ thuật giảng dạy (tương tác)
+          </label>
+          <textarea id="ky_thuat_giang_day" name="ky_thuat_giang_day" rows="3"
+            placeholder="Phương pháp truyền đạt, phân bổ thời gian, mức độ tương tác hai chiều và bao quát lớp..."
+            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm"></textarea>
+        </div>
+
+        <!-- 8. Textarea Góp ý/Cải thiện -->
+        <div>
+          <label for="gop_y_cai_thien" class="block text-sm font-semibold text-slate-800 mb-1.5">
+            Góp ý/Cải thiện
+          </label>
+          <textarea id="gop_y_cai_thien" name="gop_y_cai_thien" rows="3"
+            placeholder="Các điểm cần khắc phục, đề xuất giải pháp nâng cao chất lượng tiết dạy..."
+            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm"></textarea>
+        </div>
+      </div>
+
+      <!-- Dòng xếp loại & hành động lưu -->
+      <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+        <!-- 9. Dropdown Xếp loại -->
+        <div class="w-full sm:w-72">
+          <label for="xep_loai" class="block text-sm font-semibold text-slate-800 mb-2">
+            Xếp loại <span class="text-rose-500 font-bold">*</span>
+          </label>
+          <select id="xep_loai" name="xep_loai" required
+            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm bg-white">
+            <option value="">-- Chọn xếp loại --</option>
+            <option value="xuat_sac">Xuất sắc</option>
+            <option value="tot" selected>Tốt</option>
+            <option value="dat">Đạt</option>
+            <option value="can_cai_thien">Cần cải thiện</option>
+          </select>
+          <span class="text-xs text-slate-400 mt-1 block">Bắt buộc đánh giá</span>
+        </div>
+
+        <!-- 10. Nút Lưu -->
+        <div class="sm:self-end">
+          <button type="submit"
+            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white font-semibold text-sm shadow-sm transition duration-150 ease-in-out">
+            <span class="material-symbols-outlined text-[20px]">save</span>
+            <span>Lưu</span>
+          </button>
+        </div>
+      </div>
+    </form>
+  </section>
+    </div>
+</x-app-layout>

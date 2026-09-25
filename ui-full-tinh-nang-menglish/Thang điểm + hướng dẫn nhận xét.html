@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MENGLISH Admin - Thang điểm & Hướng dẫn nhận xét tự động</title>
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#F5691A',
+                        'primary-hover': '#E05A10',
+                        navy: '#111A2B',
+                        'navy-light': '#1C2940'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; background-color: #F8FAFC; color: #1E293B; }
+        .tab-btn.active { background-color: #F5691A; color: #FFFFFF; font-weight: 700; border-color: #F5691A; }
+        .rubric-table th { background-color: #111A2B; color: #FFFFFF; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .rubric-table td { font-size: 13px; vertical-align: top; line-height: 1.5; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto space-y-6">
+        
+        <!-- Header -->
+        <div class="bg-navy text-white rounded-2xl p-6 shadow-xl border border-slate-700/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div class="space-y-1">
+                <div class="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider">
+                    <span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+                    MEnglish CRM Academic Engine
+                </div>
+                <h1 class="text-2xl font-black tracking-tight">Thang Điểm & Hướng Dẫn Nhận Xét Tự Động</h1>
+                <p class="text-slate-400 text-sm">Hệ thống quy chuẩn điểm số, nhận xét theo từng kĩ năng và gợi ý xếp lớp tự động sau khi thi đầu vào</p>
+            </div>
+            <div class="flex items-center gap-2 bg-navy-light px-4 py-2 rounded-xl border border-slate-700">
+                <span class="material-symbols-outlined text-amber-400 text-[22px]">verified</span>
+                <div>
+                    <p class="text-[10px] text-slate-400 uppercase font-bold">Phiên bản quy chuẩn</p>
+                    <p class="text-xs font-bold text-white">Cambridge YLE Starter - Movers</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Score Simulator Card -->
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-slate-200 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2 text-slate-800 font-bold">
+                    <span class="material-symbols-outlined text-primary text-[20px]">calculate</span>
+                    <h2>Công cụ Tính Điểm & Tạo Nhận Xét Trực Tiếp (Live Simulator)</h2>
+                </div>
+                <span class="text-xs bg-orange-100 text-orange-700 font-semibold px-2.5 py-1 rounded-full">Interactive Demo</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Chọn Khối Lớp</label>
+                    <select id="simKhoi" onchange="runSimulator()" class="w-full text-sm border-slate-300 rounded-lg focus:ring-primary focus:border-primary">
+                        <option value="khoi1_2">KHỐI 1 - 2</option>
+                        <option value="khoi2_3" selected>KHỐI 2 LÊN 3</option>
+                        <option value="khoi3_4">KHỐI 3 LÊN 4</option>
+                        <option value="khoi4_5">KHỐI 4 LÊN 5</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Điểm Nghe (Listening)</label>
+                    <input id="simL" type="number" value="11" oninput="runSimulator()" class="w-full text-sm border-slate-300 rounded-lg focus:ring-primary focus:border-primary">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Điểm Đọc & Viết (R&W)</label>
+                    <input id="simR" type="number" value="12" oninput="runSimulator()" class="w-full text-sm border-slate-300 rounded-lg focus:ring-primary focus:border-primary">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Điểm Speaking (Nói)</label>
+                    <input id="simS" type="number" value="8" oninput="runSimulator()" class="w-full text-sm border-slate-300 rounded-lg focus:ring-primary focus:border-primary">
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase text-slate-500">Kết quả & Nhận xét Tự động</span>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs text-slate-600 font-medium">Tổng điểm: <strong id="simTotal" class="text-primary text-base">31</strong> <span id="simMaxTotal" class="text-slate-400">/ 40</span></span>
+                        <span id="simPlacement" class="text-xs font-bold bg-primary text-white px-3 py-1 rounded-full">STARTERS (FAM 1 _ UNIT 7 - 12)</span>
+                    </div>
+                </div>
+                <textarea id="simResultBox" rows="3" readonly class="w-full text-xs text-slate-700 bg-white border border-slate-300 rounded-lg p-3 leading-relaxed font-sans"></textarea>
+            </div>
+        </div>
+
+        <!-- Rubric Navigation Tabs -->
+        <div class="flex flex-wrap gap-2 border-b border-slate-200 pb-2">
+            <button class="tab-btn active px-4 py-2 text-sm font-semibold rounded-xl border border-slate-200 transition-all flex items-center gap-1.5" onclick="showTab('tab1', this)">
+                <span class="material-symbols-outlined text-[18px]">looks_one</span> Khối 1 - 2
+            </button>
+            <button class="tab-btn px-4 py-2 text-sm font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 transition-all flex items-center gap-1.5" onclick="showTab('tab2', this)">
+                <span class="material-symbols-outlined text-[18px]">looks_two</span> Khối 2 lên 3
+            </button>
+            <button class="tab-btn px-4 py-2 text-sm font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 transition-all flex items-center gap-1.5" onclick="showTab('tab3', this)">
+                <span class="material-symbols-outlined text-[18px]">looks_3</span> Khối 3 lên 4
+            </button>
+            <button class="tab-btn px-4 py-2 text-sm font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 transition-all flex items-center gap-1.5" onclick="showTab('tab4', this)">
+                <span class="material-symbols-outlined text-[18px]">looks_4</span> Khối 4 lên 5
+            </button>
+        </div>
+
+        <!-- TAB 1: KHỐI 1 - 2 -->
+        <div id="tab1" class="tab-content space-y-4">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-900 text-white px-6 py-3 flex justify-between items-center">
+                    <h3 class="font-bold text-sm uppercase tracking-wide flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary text-[18px]">grade</span>
+                        KHỐI 1 - 2 (Tổng điểm tối đa: 35)
+                    </h3>
+                    <span class="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full">Starters Level</span>
+                </div>
+                <div class="p-4 overflow-x-auto">
+                    <table class="w-full rubric-table border-collapse border border-slate-200">
+                        <thead>
+                            <tr>
+                                <th class="p-3 text-left w-1/4 border border-slate-700">LISTENING /10</th>
+                                <th class="p-3 text-left w-1/3 border border-slate-700">READING AND WRITING /15</th>
+                                <th class="p-3 text-left w-1/3 border border-slate-700">SPEAKING /10</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 bg-white">
+                            <tr>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 2 - 4 điểm:</div>
+                                    Con bắt đầu hình thành kĩ năng nghe cơ bản, con nhận diện được một số từ vựng đơn giản thông qua hình vẽ, các bài nghe nắm bắt thông tin để điền con chưa xử lí được, chưa nhận diện được các loại câu hỏi để tập trung tìm thông tin.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 1 - 5 điểm:</div>
+                                    Con chưa có nền từ tốt, nhận diện một số từ đơn cơ bản, chưa hình thành kĩ năng nhớ từ vựng, con đọc câu chưa phân biệt được đúng sai.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 2 - 4 điểm:</div>
+                                    Con chưa hình thành kĩ năng nghe nói cơ bản, chưa nhận diện được các câu hỏi cơ bản, chỉ nắm bắt được 1,2 câu hỏi thông tin cá nhân đơn giản nhất.
+                                </td>
+                            </tr>
+                            <tr class="bg-slate-50/50">
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 5 - 7 điểm:</div>
+                                    Con đã có kĩ năng nghe cơ bản, con nghe và nhận diện được các từ vựng đơn giản thông qua tranh, bước đầu hình thành được kĩ năng nghe hội thoại, nhận diện một số từ key word, xác định được nội dung câu hỏi nhưng chưa theo được tốc độ của bài nghe còn bỏ lỡ thông tin.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 6 - 10 điểm:</div>
+                                    Con nhận diện được cơ bản một số từ vựng, chưa nhớ chính tả từ nên còn nhầm lẫn từ vựng. Con đọc câu chưa hiểu hết nội dung nhưng nhận diện được một số câu để phân biệt đúng sai.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 5 - 7 điểm:</div>
+                                    Con đã có kĩ năng nghe nói cơ bản, có nhận diện được một số câu hỏi cơ bản theo tranh cô hỏi, con <strong>tự tin / không tự tin</strong>. Con phát âm <strong>tốt / chưa tốt</strong>. Một số câu hỏi với từ để hỏi khó hơn con chưa nhận diện được.
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 8 - 10 điểm:</div>
+                                    Con nghe tốt, nắm được hệ thống từ vựng của các chủ đề cơ bản xung quanh cuộc sống, nhận diện được từ vựng qua tranh và qua thông tin của bài hội thoại.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 11 - 15 điểm:</div>
+                                    Con có vốn từ cơ bản về hệ thống các từ vựng chủ đề xung quanh, con nhớ chính tả từ, nắm được nội dung câu đơn giản. Kĩ năng xử lí bài tập Khá / Tốt.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 8 - 10 điểm:</div>
+                                    Con nói trôi chảy, nắm bắt được nội dung câu hỏi các từ để hỏi cơ bản level Starters từ cô giáo, từ vựng các chủ đề quen thuộc con nắm khá tốt, con <strong>có thể / chưa</strong> trả lời được cả câu; khá tự tin và trả lời tốt.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Placement Table -->
+                <div class="bg-amber-50 p-4 border-t border-amber-200">
+                    <h4 class="font-bold text-xs uppercase text-amber-800 mb-2 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[16px]">map</span> Quyết định Xếp lớp tự động (Khối 1-2)
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div class="bg-white p-3 rounded-lg border border-amber-200 text-center">
+                            <span class="text-xs text-slate-500 font-bold block">Tổng điểm &lt; 10</span>
+                            <span class="font-extrabold text-amber-900 text-sm">PRE STARTERS (FAM 0)</span>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg border border-amber-200 text-center">
+                            <span class="text-xs text-slate-500 font-bold block">Tổng điểm 10 - 15</span>
+                            <span class="font-extrabold text-amber-900 text-sm">STARTERS (FAM 1 _ Ở NHỮNG BÀI ĐẦU)</span>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg border border-amber-200 text-center">
+                            <span class="text-xs text-slate-500 font-bold block">Tổng điểm 16 - 25</span>
+                            <span class="font-extrabold text-amber-900 text-sm">STARTERS (FAM 1 _ TỪ BÀI 5 - 10)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: KHỐI 2 LÊN 3 -->
+        <div id="tab2" class="tab-content hidden space-y-4">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-900 text-white px-6 py-3 flex justify-between items-center">
+                    <h3 class="font-bold text-sm uppercase tracking-wide flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary text-[18px]">grade</span>
+                        KHỐI 2 LÊN 3 (Tổng điểm tối đa: 40)
+                    </h3>
+                    <span class="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full">Starters Level</span>
+                </div>
+                <div class="p-4 overflow-x-auto">
+                    <table class="w-full rubric-table border-collapse border border-slate-200">
+                        <thead>
+                            <tr>
+                                <th class="p-3 text-left w-1/3 border border-slate-700">LISTENING /15</th>
+                                <th class="p-3 text-left w-1/3 border border-slate-700">READING AND WRITING /15</th>
+                                <th class="p-3 text-left w-1/3 border border-slate-700">SPEAKING /10</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 bg-white">
+                            <tr>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 1 - 6 điểm:</div>
+                                    Con có kĩ năng nghe cơ bản, con nghe và nhận diện được một số các tình huống bài nghe cơ bản, nhận diện được key words và chọn được một số câu trả lời đúng, chưa quen với các dạng bài nghe đa dạng.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 1 - 5 điểm:</div>
+                                    Con chưa có nền từ tốt, nhận diện một số từ đơn cơ bản, chưa hình thành kĩ năng nhớ từ vựng, con đọc câu chưa phân biệt được đúng sai, gặp khó khăn trong các kĩ năng đọc điền từ. Nền ngữ pháp yếu nên chưa sắp xếp được câu.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 2 - 4 điểm:</div>
+                                    Con chưa hình thành kĩ năng nghe nói cơ bản, chưa nhận diện được các câu hỏi cơ bản, chỉ nắm bắt được 1,2 câu hỏi thông tin cá nhân đơn giản nhất.
+                                </td>
+                            </tr>
+                            <tr class="bg-slate-50/50">
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 6 - 10 điểm:</div>
+                                    Con có kĩ năng nghe trung bình khá, con nghe và nhận diện được các thông tin trong các bài nghe nhận diện. Con phân biệt được các câu hỏi và nắm được thông tin để điền cơ bản. Con nghe thông tin đơn nhất, 1 chiều, bị nhầm lẫn với các thông tin đa chiều, thông tin gây nhiễu.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 6 - 10 điểm:</div>
+                                    Con nhận diện được cơ bản một số từ vựng. Con chưa hiểu hết ý nghĩa câu mà nhận diện đúng / sai dựa vào key word trong mỗi câu. Kĩ năng đọc điền từ con chưa xử lí linh hoạt. Ngữ pháp cần trau dồi để xử lí những bài ngữ pháp nhưng sắp xếp câu.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 5 - 7 điểm:</div>
+                                    Con đã có kĩ năng nghe nói cơ bản, có nhận diện được một số câu hỏi cơ bản theo tranh cô hỏi, con <strong>tự tin / không tự tin</strong>. Con phát âm <strong>tốt / chưa tốt</strong>. Một số câu hỏi với từ để hỏi khó hơn con chưa nhận diện được.
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 11 - 15 điểm:</div>
+                                    Con nghe khá, quen với một số các dạng nghe cơ bản, nắm bắt được các thông tin trong bài nghe. Con phân biệt được các thông tin đa chiều, thông tin gây nhiễu, con nhận diện được thông tin để điền. Cần chú ý hơn phần <strong>nối tranh / viết thông tin / nghe hội thoại chọn tranh</strong>.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 11 - 15 điểm:</div>
+                                    Con có nền từ khá tốt, con đọc hiểu những câu cơ bản, xử lí bài tập đúng sai linh hoạt. Con hình thành kĩ năng đọc hiểu cơ bản khá, thỉnh thoảng còn sai một vài từ. Kĩ năng xử lí bài tập kĩ năng đọc <strong>khá / tốt</strong>. Ngữ pháp con nắm <strong>cơ bản / tốt</strong>. Xử lí bài sắp xếp câu <strong>linh hoạt / còn chưa linh hoạt</strong>.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 8 - 10 điểm:</div>
+                                    Con nói trôi chảy, nắm bắt được nội dung câu hỏi các từ để hỏi cơ bản level Starters từ cô giáo, từ vựng các chủ đề quen thuộc con nắm khá tốt, con <strong>có thể / chưa</strong> trả lời được cả câu; khá tự tin và trả lời tốt.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Placement Table -->
+                <div class="bg-amber-50 p-4 border-t border-amber-200">
+                    <h4 class="font-bold text-xs uppercase text-amber-800 mb-2 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[16px]">map</span> Quyết định Xếp lớp tự động (Khối 2 lên 3)
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div class="bg-white p-3 rounded-lg border border-amber-200 text-center">
+                            <span class="text-xs text-slate-500 font-bold block">Tổng điểm 10 - 20</span>
+                            <span class="font-extrabold text-amber-900 text-sm">PRE STARTERS _ FAM 1 (TỪ ĐẦU _ DƯỚI U5)</span>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg border border-amber-200 text-center">
+                            <span class="text-xs text-slate-500 font-bold block">Tổng điểm 20 - 30</span>
+                            <span class="font-extrabold text-amber-900 text-sm">STARTERS (FAM 1 _ UNIT 6 - 10)</span>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg border border-amber-200 text-center">
+                            <span class="text-xs text-slate-500 font-bold block">Tổng điểm 30 - 40</span>
+                            <span class="font-extrabold text-amber-900 text-sm">STARTERS (FAM 1 _ UNIT 7 - 12)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: KHỐI 3 LÊN 4 -->
+        <div id="tab3" class="tab-content hidden space-y-4">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-900 text-white px-6 py-3 flex justify-between items-center">
+                    <h3 class="font-bold text-sm uppercase tracking-wide flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary text-[18px]">grade</span>
+                        KHỐI 3 LÊN 4 (Tổng điểm tối đa: 45)
+                    </h3>
+                    <span class="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full">Movers Level</span>
+                </div>
+                <div class="p-4 overflow-x-auto">
+                    <table class="w-full rubric-table border-collapse border border-slate-200">
+                        <thead>
+                            <tr>
+                                <th class="p-3 text-left w-1/3 border border-slate-700">LISTENING /15</th>
+                                <th class="p-3 text-left w-1/3 border border-slate-700">READING AND WRITING /20</th>
+                                <th class="p-3 text-left w-1/3 border border-slate-700">SPEAKING /10</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 bg-white">
+                            <tr>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 1 - 6 điểm:</div>
+                                    Kĩ năng nghe của con ở mức độ hình thành cơ bản. Con nghe nhận diện một số key words đơn giản, chọn theo nhận diện key words, chưa nắm được nội dung của cả câu chưa phân biệt được các thông tin gây nhiễu và các thông tin đa chiều. Các dạng bài nghe YLE con chưa làm quen tốt.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 1 - 7 điểm:</div>
+                                    Con nhận diện các từ đơn cơ bản, chưa xây dựng kĩ năng viết cơ bản. Con nhận diện từ đơn, từ các keyword, chưa hiểu ý nghĩa của cả câu dài, chưa linh hoạt trong các dạng bài đọc điền từ, kĩ năng xử lí ngữ pháp trong các bài đọc, viết còn yếu, nền ngữ pháp chưa chắc chắn. Con <strong>hiểu câu hỏi / chưa hiểu câu hỏi</strong> nhưng chưa nhớ chính tả từ vựng. Cần hệ thống kiến thức và tăng nền từ vựng.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 2 - 4 điểm:</div>
+                                    Con nghe hiểu cơ bản, nhận diện nội dung câu hỏi nhưng vẫn còn nhầm lẫn, nền từ yếu, chưa trả lời linh hoạt, thành thạo các dạng câu hỏi. Chưa quen với việc xây dựng câu và xử lí các bài tập kĩ năng tìm lỗi sai, mô tả tranh.
+                                </td>
+                            </tr>
+                            <tr class="bg-slate-50/50">
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 6 - 10 điểm:</div>
+                                    Con có kĩ năng nghe trung bình khá, con bắt đầu nghe và nhận diện được các thông tin đơn giản trong bài nghe, các câu ngắn, các thông tin 1 chiều. Con còn gặp khó khăn với kĩ năng xử lí bài nghe dạng <strong>nối tranh / viết thông tin / chọn tranh</strong>. Các thông tin đa chiều con chưa nhận diện được!
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 7 - 15 điểm:</div>
+                                    Con có kiến thức cơ bản, con đọc hiểu được các câu ngắn và kết nối được thông tin. Con hiểu câu hỏi, viết được các cụm từ ngắn để trả lời. Tuy nhiên kĩ năng xử lí ngữ pháp tổng hợp nâng cao trong bài chọn chưa thực sự linh hoạt. Ngữ pháp cần được hệ thống và học nâng cao hơn. Kĩ năng sắp xếp câu <strong>khá / chưa tốt</strong>, Con bám theo cấu trúc cơ bản để viết câu.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 5 - 7 điểm:</div>
+                                    Con có kĩ năng nghe nói cơ bản, nhận diện được các câu hỏi cơ bản, đưa ra được câu trả lời <strong>linh hoạt / còn chưa tự tin</strong>. Từ vựng đủ dùng để đưa ra được nội dung cho câu trả lời phù hợp. Con dựng câu còn chưa linh hoạt, còn sai cấu trúc, chưa nói được câu dài, các kĩ năng mô tả tranh, so sánh khác biệt cần được luyện tập thêm.
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 11 - 15 điểm:</div>
+                                    Con nghe <strong>khá / tốt</strong>, nắm được hầu hết nội dung bài nghe level Movers. Con có thể phân biệt được các thông tin đơn chiều, các thông tin gây nhiễu. Con nghe và nắm bắt được thông tin để ghi chép được.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 15 - 20 điểm:</div>
+                                    Con có nền từ vựng và cấu trúc khá, con có nền kĩ năng xử lí các dạng bài level Movers. Con đọc câu ngắn, hiểu nội dung, đọc hiểu câu hỏi và đưa ra được câu trả lời. Con nắm được cấu trúc câu cơ bản, xử lí bài tập sắp xếp khá / tốt. Con có hệ thống kiến thức ngữ pháp khá.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 8 - 10 điểm:</div>
+                                    Con nói trôi chảy, nắm bắt được nội dung câu hỏi các từ để hỏi level Movers từ cô giáo, từ vựng các chủ đề quen thuộc con nắm khá tốt, Con có kĩ năng nói được câu, nhận diện điểm khác biệt và mô tả tranh khá.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Placement Table -->
+                <div class="bg-amber-50 p-4 border-t border-amber-200">
+                    <h4 class="font-bold text-xs uppercase text-amber-800 mb-2 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[16px]">map</span> Quyết định Xếp lớp tự động (Khối 3 lên 4)
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div class="bg-white p-3 rounded-lg border border-amber-200 text-center">
+                            <span class="text-xs text-slate-500 font-bold block">Tổng điểm 10 - 20</span>
+                            <span class="font-extrabold text-amber-900 text-sm">FAM 2 (NỬA ĐẦU)</span>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg border border-amber-200 text-center">
+                            <span class="text-xs text-slate-500 font-bold block">Tổng điểm 20 - 35</span>
+                            <span class="font-extrabold text-amber-900 text-sm">FAM 2 (NỬA SAU)</span>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg border border-amber-200 text-center">
+                            <span class="text-xs text-slate-500 font-bold block">Tổng điểm 35 - 45</span>
+                            <span class="font-extrabold text-amber-900 text-sm">Luyện MOVERS</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: KHỐI 4 LÊN 5 -->
+        <div id="tab4" class="tab-content hidden space-y-4">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-900 text-white px-6 py-3 flex justify-between items-center">
+                    <h3 class="font-bold text-sm uppercase tracking-wide flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary text-[18px]">grade</span>
+                        KHỐI 4 LÊN 5 (Tổng điểm tối đa: 40)
+                    </h3>
+                    <span class="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full">Movers Level</span>
+                </div>
+                <div class="p-4 overflow-x-auto">
+                    <table class="w-full rubric-table border-collapse border border-slate-200">
+                        <thead>
+                            <tr>
+                                <th class="p-3 text-left w-1/3 border border-slate-700">LISTENING /15</th>
+                                <th class="p-3 text-left w-1/3 border border-slate-700">READING AND WRITING /15</th>
+                                <th class="p-3 text-left w-1/3 border border-slate-700">SPEAKING /10</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 bg-white">
+                            <tr>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 1 - 6 điểm:</div>
+                                    Kĩ năng nghe của con ở mức độ hình thành cơ bản. Con nghe nhận diện một số key words đơn giản, chọn theo nhận diện key words, chưa nắm được nội dung của cả câu chưa phân biệt được các thông tin gây nhiễu và các thông tin đa chiều. Các dạng bài nghe YLE con chưa làm quen tốt.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 1 - 5 điểm:</div>
+                                    Con nhận diện các từ đơn cơ bản, chưa xây dựng kĩ năng viết cơ bản. Con nhận diện từ đơn, từ các keyword, chưa hiểu ý nghĩa của cả câu dài, chưa linh hoạt trong các dạng bài đọc điền từ, kĩ năng xử lí ngữ pháp trong các bài đọc, viết còn yếu, nền ngữ pháp chưa chắc chắn. Con <strong>hiểu câu hỏi / chưa hiểu câu hỏi</strong> nhưng chưa nhớ chính tả từ vựng. Cần hệ thống kiến thức và tăng nền từ vựng.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 2 - 4 điểm:</div>
+                                    Con nghe hiểu cơ bản, nhận diện nội dung câu hỏi nhưng vẫn còn nhầm lẫn, nền từ yếu, chưa trả lời linh hoạt, thành thạo các dạng câu hỏi. Chưa quen với việc xây dựng câu và xử lí các bài tập kĩ năng tìm lỗi sai, mô tả tranh.
+                                </td>
+                            </tr>
+                            <tr class="bg-slate-50/50">
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 6 - 10 điểm:</div>
+                                    Con có kĩ năng nghe trung bình khá, con bắt đầu nghe và nhận diện được các thông tin đơn giản trong bài nghe, các câu ngắn, các thông tin 1 chiều. Con còn gặp khó khăn với kĩ năng xử lí bài nghe dạng <strong>nối tranh / viết thông tin / chọn tranh</strong>. Các thông tin đa chiều con chưa nhận diện được!
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 6 - 10 điểm:</div>
+                                    Con có kiến thức cơ bản, con đọc hiểu được các câu ngắn và kết nối được thông tin. Con hiểu câu hỏi, viết được các cụm từ ngắn để trả lời. Tuy nhiên kĩ năng xử lí ngữ pháp tổng hợp nâng cao trong bài chọn chưa thực sự linh hoạt. Ngữ pháp cần được hệ thống và học nâng cao hơn. Kĩ năng sắp xếp câu <strong>khá / chưa tốt</strong>, Con bám theo cấu trúc cơ bản để viết câu.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 5 - 7 điểm:</div>
+                                    Con có kĩ năng nghe nói cơ bản, nhận diện được các câu hỏi cơ bản, đưa ra được câu trả lời <strong>linh hoạt / còn chưa tự tin</strong>. Từ vựng đủ dùng để đưa ra được nội dung cho câu trả lời phù hợp. Con dựng câu còn chưa linh hoạt, còn sai cấu trúc, chưa nói được câu dài, các kĩ năng mô tả tranh, so sánh khác biệt cần được luyện tập thêm.
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 11 - 15 điểm:</div>
+                                    Con nghe <strong>khá / tốt</strong>, nắm được hầu hết nội dung bài nghe level Movers. Con có thể phân biệt được các thông tin đơn chiều, các thông tin gây nhiễu. Con nghe và nắm bắt được thông tin để ghi chép được.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 11 - 15 điểm:</div>
+                                    Con có nền từ vựng và cấu trúc khá, con có nền kĩ năng xử lí các dạng bài level Movers. Con đọc câu ngắn, hiểu nội dung, đọc hiểu câu hỏi và đưa ra được câu trả lời. Con nắm được cấu trúc câu cơ bản, xử lí bài tập sắp xếp khá / tốt. Con có hệ thống kiến thức ngữ pháp khá.
+                                </td>
+                                <td class="p-3 border border-slate-200">
+                                    <div class="font-bold text-primary mb-1">Mức 8 - 10 điểm:</div>
+                                    Con nói trôi chảy, nắm bắt được nội dung câu hỏi các từ để hỏi level Movers từ cô giáo, từ vựng các chủ đề quen thuộc con nắm khá tốt, Con có kĩ năng nói được câu, nhận diện điểm khác biệt và mô tả tranh khá.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Placement Table -->
+                <div class="bg-amber-50 p-4 border-t border-amber-200">
+                    <h4 class="font-bold text-xs uppercase text-amber-800 mb-2 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[16px]">map</span> Quyết định Xếp lớp tự động (Khối 4 lên 5)
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div class="bg-white p-3 rounded-lg border border-amber-200 text-center">
+                            <span class="text-xs text-slate-500 font-bold block">Tổng điểm 10 - 20</span>
+                            <span class="font-extrabold text-amber-900 text-sm">FAM 2 (NỬA ĐẦU)</span>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg border border-amber-200 text-center">
+                            <span class="text-xs text-slate-500 font-bold block">Tổng điểm 20 - 30</span>
+                            <span class="font-extrabold text-amber-900 text-sm">FAM 2 (NỬA SAU)</span>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg border border-amber-200 text-center">
+                            <span class="text-xs text-slate-500 font-bold block">Tổng điểm 30 - 40</span>
+                            <span class="font-extrabold text-amber-900 text-sm">Luyện MOVERS</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Script for Tabs and Simulator -->
+    <script>
+        function showTab(tabId, btnElem) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('active');
+                el.classList.add('text-slate-600');
+            });
+            document.getElementById(tabId).classList.remove('hidden');
+            btnElem.classList.add('active');
+            btnElem.classList.remove('text-slate-600');
+        }
+
+        const SIM_RUBRICS = {
+            khoi1_2: {
+                maxL: 10, maxR: 15, maxS: 10,
+                listening: s => s>=8 ? "Con nghe tốt, nắm được hệ thống từ vựng các chủ đề xung quanh..." : (s>=5 ? "Con đã có kĩ năng nghe cơ bản, nhận diện từ vựng qua tranh..." : "Con bắt đầu hình thành kĩ năng nghe cơ bản..."),
+                reading: s => s>=11 ? "Con có vốn từ cơ bản, nhớ chính tả, nắm câu đơn giản." : (s>=6 ? "Con nhận diện cơ bản từ vựng, chưa nhớ chính tả..." : "Con chưa có nền từ tốt..."),
+                speaking: s => s>=8 ? "Con nói trôi chảy, nắm câu hỏi Starters..." : (s>=5 ? "Con có kĩ năng nghe nói cơ bản, nhận diện câu hỏi tranh..." : "Con chưa hình thành kĩ năng nghe nói cơ bản..."),
+                placement: t => t<10 ? "PRE STARTERS (FAM 0)" : (t<=15 ? "STARTERS (FAM 1 _ Ở NHỮNG BÀI ĐẦU)" : (t<=25 ? "STARTERS (FAM 1 _ TỪ BÀI 5 - 10)" : "STARTERS (FAM 1 _ NÂNG CAO)"))
+            },
+            khoi2_3: {
+                maxL: 15, maxR: 15, maxS: 10,
+                listening: s => s>=11 ? "Con nghe khá, phân biệt thông tin gây nhiễu..." : (s>=6 ? "Con nghe trung bình khá, nhận diện thông tin 1 chiều..." : "Con nghe cơ bản, chưa quen bài nghe đa dạng..."),
+                reading: s => s>=11 ? "Con có nền từ khá tốt, đọc hiểu câu cơ bản..." : (s>=6 ? "Con nhận diện cơ bản một số từ vựng..." : "Con chưa có nền từ tốt, gặp khó khăn điền từ..."),
+                speaking: s => s>=8 ? "Con nói trôi chảy, khá tự tin và trả lời tốt..." : (s>=5 ? "Con có kĩ năng nghe nói cơ bản, phát âm tốt..." : "Con chưa hình thành kĩ năng nghe nói..."),
+                placement: t => t<20 ? "PRE STARTERS _ FAM 1 (TỪ ĐẦU _ DƯỚI U5)" : (t<=30 ? "STARTERS (FAM 1 _ UNIT 6 - 10)" : "STARTERS (FAM 1 _ UNIT 7 - 12)")
+            },
+            khoi3_4: {
+                maxL: 15, maxR: 20, maxS: 10,
+                listening: s => s>=11 ? "Con nghe khá/tốt, nắm nội dung Movers..." : (s>=6 ? "Con nghe trung bình khá..." : "Kĩ năng nghe ở mức hình thành cơ bản..."),
+                reading: s => s>=15 ? "Con có nền từ vựng khá, xử lí bài Movers tốt..." : (s>=7 ? "Con có kiến thức cơ bản, đọc hiểu câu ngắn..." : "Con nhận diện từ đơn cơ bản..."),
+                speaking: s => s>=8 ? "Con nói trôi chảy, mô tả tranh khá..." : (s>=5 ? "Con có kĩ năng nghe nói cơ bản..." : "Con nghe hiểu cơ bản, nền từ yếu..."),
+                placement: t => t<20 ? "FAM 2 (NỬA ĐẦU)" : (t<=35 ? "FAM 2 (NỬA SAU)" : "Luyện MOVERS")
+            },
+            khoi4_5: {
+                maxL: 15, maxR: 15, maxS: 10,
+                listening: s => s>=11 ? "Con nghe khá/tốt..." : (s>=6 ? "Con nghe trung bình khá..." : "Kĩ năng nghe hình thành cơ bản..."),
+                reading: s => s>=11 ? "Con có nền từ vựng khá..." : (s>=6 ? "Con có kiến thức cơ bản..." : "Con nhận diện từ đơn..."),
+                speaking: s => s>=8 ? "Con nói trôi chảy..." : (s>=5 ? "Con có kĩ năng nghe nói..." : "Con nghe hiểu cơ bản..."),
+                placement: t => t<20 ? "FAM 2 (NỬA ĐẦU)" : (t<=30 ? "FAM 2 (NỬA SAU)" : "Luyện MOVERS")
+            }
+        };
+
+        function runSimulator() {
+            const kKey = document.getElementById('simKhoi').value;
+            const r = SIM_RUBRICS[kKey];
+            let l = parseFloat(document.getElementById('simL').value) || 0;
+            let rd = parseFloat(document.getElementById('simR').value) || 0;
+            let s = parseFloat(document.getElementById('simS').value) || 0;
+
+            l = Math.min(Math.max(l, 0), r.maxL);
+            rd = Math.min(Math.max(rd, 0), r.maxR);
+            s = Math.min(Math.max(s, 0), r.maxS);
+
+            const tot = Math.round((l + rd + s)*10)/10;
+            const maxTot = r.maxL + r.maxR + r.maxS;
+
+            document.getElementById('simTotal').textContent = tot;
+            document.getElementById('simMaxTotal').textContent = '/ ' + maxTot;
+            document.getElementById('simPlacement').textContent = r.placement(tot);
+
+            document.getElementById('simResultBox').value = 
+                `- Nghe (${l}/${r.maxL}đ): ${r.listening(l)}\n` +
+                `- Đọc & Viết (${rd}/${r.maxR}đ): ${r.reading(rd)}\n` +
+                `- Nói (${s}/${r.maxS}đ): ${r.speaking(s)}`;
+        }
+
+        window.addEventListener('DOMContentLoaded', runSimulator);
+    </script>
+</body>
+</html>

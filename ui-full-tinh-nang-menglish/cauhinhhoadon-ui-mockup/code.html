@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Cấu hình dải số hóa đơn - MENGLISH Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-fixed-dim": "#bac3ff",
+                        "secondary": "#1e43e7",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#7c2e00",
+                        "inverse-surface": "#2a303d",
+                        "on-tertiary-fixed": "#062100",
+                        "surface-container-low": "#f1f3ff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-primary-container": "#521c00",
+                        "tertiary": "#256d00",
+                        "on-secondary-container": "#faf7ff",
+                        "on-secondary": "#ffffff",
+                        "on-surface-variant": "#594137",
+                        "on-secondary-fixed": "#00105b",
+                        "on-error-container": "#93000a",
+                        "surface-container": "#e8eeff",
+                        "secondary-container": "#4160ff",
+                        "on-primary-fixed": "#360f00",
+                        "outline-variant": "#e1bfb2",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "on-secondary-fixed-variant": "#002fc9",
+                        "tertiary-container": "#46a917",
+                        "primary-fixed": "#ffdbcd",
+                        "surface": "#f9f9ff",
+                        "on-background": "#161c27",
+                        "surface-dim": "#d4daea",
+                        "surface-container-highest": "#dde2f3",
+                        "surface-tint": "#a23f00",
+                        "primary-container": "#f5691a",
+                        "background": "#f9f9ff",
+                        "surface-container-high": "#e3e8f9",
+                        "primary": "#a23f00",
+                        "tertiary-fixed": "#93fb65",
+                        "primary-fixed-dim": "#ffb595",
+                        "on-surface": "#161c27",
+                        "surface-bright": "#f9f9ff",
+                        "tertiary-fixed-dim": "#78de4b",
+                        "inverse-primary": "#ffb595",
+                        "inverse-on-surface": "#ecf0ff",
+                        "on-tertiary-container": "#0e3500",
+                        "secondary-fixed": "#dee0ff",
+                        "on-primary": "#ffffff",
+                        "surface-variant": "#dde2f3",
+                        "outline": "#8d7165",
+                        "error": "#ba1a1a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "xl": "32px",
+                        "lg": "24px",
+                        "md": "16px",
+                        "sidebar-width": "260px",
+                        "header-height": "64px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "h1": ["Be Vietnam Pro"],
+                        "h3": ["Be Vietnam Pro"],
+                        "h2": ["Be Vietnam Pro"],
+                        "body-medium": ["Be Vietnam Pro"],
+                        "body-base": ["Be Vietnam Pro"],
+                        "label": ["Be Vietnam Pro"],
+                        "code": ["JetBrains Mono"],
+                        "caption": ["Be Vietnam Pro"],
+                        "body-small": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "h1": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "h3": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                        "h2": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "body-medium": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "caption": ["11px", {"lineHeight": "16px", "fontWeight": "400"}],
+                        "body-small": ["13px", {"lineHeight": "18px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: #f9f9ff;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="p-lg lg:p-xl">
+<!-- Screen Content Container -->
+<div class="max-w-[1400px] mx-auto space-y-lg">
+<!-- 1. Header Màn hình -->
+<header class="flex flex-col md:flex-row md:items-center justify-between gap-md mb-lg">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface">Cấu hình dải số hóa đơn</h1>
+<p class="font-body-base text-body-base text-on-surface-variant mt-xs">Quản lý và cấp phát dải số hóa đơn tài chính cho các chi nhánh trên hệ thống MENGLISH.</p>
+</div>
+<button class="bg-primary-container text-white px-lg py-md rounded-lg font-body-medium flex items-center gap-sm hover:opacity-90 active:scale-95 transition-all shadow-sm" onclick="toggleForm()">
+<span class="material-symbols-outlined">add</span>
+                Thêm cấu hình mới
+            </button>
+</header>
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-lg items-start">
+<!-- 2. Danh sách dải số hóa đơn (Table Section) -->
+<div class="xl:col-span-8 bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container text-on-surface-variant font-label text-label uppercase tracking-wider">
+<tr>
+<th class="px-md py-lg border-b border-outline-variant">Chi nhánh</th>
+<th class="px-md py-lg border-b border-outline-variant">Dải số (Đầu - Cuối)</th>
+<th class="px-md py-lg border-b border-outline-variant">Số hiện tại</th>
+<th class="px-md py-lg border-b border-outline-variant">Số còn lại</th>
+<th class="px-md py-lg border-b border-outline-variant text-center">Trạng thái</th>
+<th class="px-md py-lg border-b border-outline-variant text-right">Thao tác</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Chi nhánh Cầu Giấy -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-md py-md">
+<div class="font-body-medium text-on-surface">Chi nhánh Cầu Giấy</div>
+</td>
+<td class="px-md py-md font-code text-on-surface-variant">
+                                    0001 - 1000
+                                </td>
+<td class="px-md py-md font-code">0955</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-xs text-error font-bold">
+<span class="material-symbols-outlined text-[18px]">warning</span>
+<span>45</span>
+<span class="text-caption font-normal ml-1">Sắp hết số</span>
+</div>
+</td>
+<td class="px-md py-md text-center">
+<span class="status-badge bg-[#256d001a] text-tertiary">Đang hiệu lực</span>
+</td>
+<td class="px-md py-md text-right">
+<div class="flex justify-end gap-xs">
+<button class="p-sm text-on-surface-variant hover:bg-surface-container rounded-full transition-colors" title="Xem lịch sử">
+<span class="material-symbols-outlined">history</span>
+</button>
+<button class="p-sm text-error hover:bg-error-container/20 rounded-full transition-colors" title="Ngừng sử dụng">
+<span class="material-symbols-outlined">block</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Chi nhánh Đống Đa -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-md py-md">
+<div class="font-body-medium text-on-surface">Chi nhánh Đống Đa</div>
+</td>
+<td class="px-md py-md font-code text-on-surface-variant">
+                                    2001 - 3000
+                                </td>
+<td class="px-md py-md font-code">2150</td>
+<td class="px-md py-md font-body-base text-on-surface-variant">
+                                    850
+                                </td>
+<td class="px-md py-md text-center">
+<span class="status-badge bg-[#256d001a] text-tertiary">Đang hiệu lực</span>
+</td>
+<td class="px-md py-md text-right">
+<div class="flex justify-end gap-xs">
+<button class="p-sm text-on-surface-variant hover:bg-surface-container rounded-full transition-colors" title="Xem lịch sử">
+<span class="material-symbols-outlined">history</span>
+</button>
+<button class="p-sm text-error hover:bg-error-container/20 rounded-full transition-colors" title="Ngừng sử dụng">
+<span class="material-symbols-outlined">block</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Chi nhánh Long Biên -->
+<tr class="hover:bg-surface-container-low transition-colors opacity-70 bg-surface-dim/20">
+<td class="px-md py-md">
+<div class="font-body-medium text-on-surface">Chi nhánh Long Biên</div>
+</td>
+<td class="px-md py-md font-code text-on-surface-variant">
+                                    5001 - 6000
+                                </td>
+<td class="px-md py-md font-code text-on-surface-variant">6000</td>
+<td class="px-md py-md font-body-base text-on-surface-variant">
+                                    0
+                                </td>
+<td class="px-md py-md text-center">
+<span class="status-badge bg-outline-variant text-on-surface-variant">Đã ngừng dùng</span>
+</td>
+<td class="px-md py-md text-right">
+<div class="flex justify-end gap-xs">
+<button class="p-sm text-on-surface-variant hover:bg-surface-container rounded-full transition-colors" title="Xem lịch sử">
+<span class="material-symbols-outlined">history</span>
+</button>
+<button class="p-sm text-on-surface-variant opacity-20 cursor-not-allowed" disabled="" title="Đã ngừng">
+<span class="material-symbols-outlined">block</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- 3. Form Thêm/Sửa cấu hình (Right Panel) -->
+<aside class="xl:col-span-4 bg-white border border-outline-variant rounded-xl shadow-sm overflow-hidden sticky top-lg" id="config-form">
+<div class="p-lg border-b border-outline-variant bg-surface-container">
+<h3 class="font-h3 text-h3 text-on-surface">Thêm cấu hình mới</h3>
+<p class="text-caption text-on-surface-variant">Nhập thông tin để cấp dải số hóa đơn mới.</p>
+</div>
+<form class="p-lg space-y-md">
+<!-- Chi nhánh Selection -->
+<div class="space-y-xs">
+<label class="block text-body-medium text-on-surface-variant">Chọn chi nhánh</label>
+<select class="w-full h-11 px-md rounded-lg border border-outline focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all outline-none bg-surface text-on-surface">
+<option value="">Chọn một chi nhánh...</option>
+<option value="cg">Chi nhánh Cầu Giấy</option>
+<option value="dd">Chi nhánh Đống Đa</option>
+<option value="lb">Chi nhánh Long Biên</option>
+<option value="tx">Chi nhánh Thanh Xuân</option>
+</select>
+</div>
+<div class="grid grid-cols-2 gap-md">
+<!-- Số bắt đầu -->
+<div class="space-y-xs">
+<label class="block text-body-medium text-on-surface-variant">Số bắt đầu</label>
+<input class="w-full h-11 px-md rounded-lg border border-outline focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all outline-none bg-surface text-on-surface placeholder:text-outline-variant font-code" placeholder="Ví dụ: 0001" type="number"/>
+</div>
+<!-- Số kết thúc -->
+<div class="space-y-xs">
+<label class="block text-body-medium text-on-surface-variant">Số kết thúc</label>
+<input class="w-full h-11 px-md rounded-lg border border-outline focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all outline-none bg-surface text-on-surface placeholder:text-outline-variant font-code" placeholder="Ví dụ: 1000" type="number"/>
+</div>
+</div>
+<!-- Alerts/Notice -->
+<div class="bg-surface-container-low p-md rounded-lg border border-outline-variant flex gap-sm items-start">
+<span class="material-symbols-outlined text-secondary text-[20px]">info</span>
+<p class="text-caption text-on-surface-variant">Dải số này phải duy nhất trên hệ thống và không được chồng lấn với các dải số đã tồn tại của chi nhánh khác.</p>
+</div>
+<!-- Actions -->
+<div class="pt-md flex items-center gap-md">
+<button class="flex-1 bg-primary-container text-white py-md rounded-lg font-body-medium hover:opacity-90 active:scale-95 transition-all shadow-sm" type="submit">
+                            Lưu cấu hình
+                        </button>
+<button class="flex-1 bg-white border border-outline text-on-surface py-md rounded-lg font-body-medium hover:bg-surface transition-all" onclick="resetForm()" type="button">
+                            Hủy
+                        </button>
+</div>
+</form>
+</aside>
+</div>
+<!-- Info Visual (Contextual Artwork) -->
+<div class="mt-xl relative rounded-xl overflow-hidden h-40 group">
+<div class="w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105" data-alt="A clean, minimalist high-tech administrative dashboard background with soft abstract orange and blue glowing lines. The mood is professional and academic, representing financial precision and educational management. Soft studio lighting on a pristine light grey background." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBhbKEhSXPFpUA-fCdWE-Ts4OEAKARdsxeNdIkfi_4_jSIynOyVq8k9A4g9UmG2eOY1nmK7sOXmRXDyPDI3Je41lPoqbesWBRt7Oi6whDfP6AiJqvTsoOzeKgynD5XBqHaVPU9RY8_0qjpQqVKNlQvnmvUg7-_txi5SUn-ydKXrvAyd1a6gPIKoQqXOweKMoXXs1HcWJKFWZpX_Q8tag5TPGNmzqw3RslbuIj2nfAnTh7y__KvTsPhl')"></div>
+<div class="absolute inset-0 bg-gradient-to-r from-on-background/80 to-transparent flex items-center px-lg">
+<div class="max-w-md">
+<h4 class="text-white font-h3 text-h3">Chính sách đồng bộ số hóa đơn</h4>
+<p class="text-white/80 font-body-small mt-xs">Mọi thay đổi trong dải số hóa đơn sẽ được cập nhật thời gian thực vào phân hệ kế toán và thông báo tới chi nhánh liên quan.</p>
+</div>
+</div>
+</div>
+</div>
+<script>
+        function toggleForm() {
+            const form = document.getElementById('config-form');
+            form.classList.remove('opacity-50');
+            form.classList.add('ring-2', 'ring-primary-container', 'ring-offset-2');
+            setTimeout(() => {
+                form.classList.remove('ring-2', 'ring-primary-container', 'ring-offset-2');
+            }, 1000);
+            
+            // Focusing logic for user experience
+            const select = form.querySelector('select');
+            if(select) select.focus();
+        }
+
+        function resetForm() {
+            const form = document.querySelector('#config-form form');
+            form.reset();
+        }
+
+        // Add some basic row highlight logic
+        const rows = document.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            row.addEventListener('click', () => {
+                rows.forEach(r => r.classList.remove('bg-secondary-container/10'));
+                row.classList.add('bg-secondary-container/10');
+            });
+        });
+    </script>
+</body></html>
