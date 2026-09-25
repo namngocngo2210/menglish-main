@@ -317,6 +317,13 @@ class TeacherPortalController extends Controller
 
                 continue;
             }
+            // Đã check-in buổi này (chờ duyệt / đã duyệt): bấm lại không ghi đè giờ check-in và không đưa ca đã duyệt
+            // về "chờ duyệt". Chỉ ca bị từ chối mới được check-in lại.
+            if ($duplicate) {
+                $skipped[] = "{$class->name}: bạn đã check-in buổi này lúc ".($duplicate->checkin_time ?: '—');
+
+                continue;
+            }
 
             $hours = max(0.5, abs(Carbon::parse($session->start_time)->diffInMinutes(Carbon::parse($session->end_time))) / 60);
             TeacherTimesheet::updateOrCreate(

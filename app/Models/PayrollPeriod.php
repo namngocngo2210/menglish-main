@@ -94,6 +94,8 @@ class PayrollPeriod extends Model
             || Penalty::whereIn('payroll_record_id', $this->records()->select('id'))->where('updated_at', '>', $this->calculated_at)->exists()
             || Penalty::deductibleFor($this)->whereNull('payroll_record_id')
                 ->whereIn('user_id', $this->records()->select('user_id'))->exists()
+            // Biên bản đã trừ ở lần tính bị gỡ khỏi phiếu (nộp trực tiếp / miễn phạt) — kể cả biên bản vi phạm từ kỳ trước
+            || $this->penaltyDeductionOutOfSync()
             // Phiếu thu được duyệt / thu hồi hoa hồng phát sinh sau lần tính
             || TuitionReceipt::whereBetween('approved_at', [$this->start_date->copy()->startOfDay(), $this->end_date->copy()->endOfDay()])
                 ->where('updated_at', '>', $this->calculated_at)->exists()
@@ -111,6 +113,17 @@ class PayrollPeriod extends Model
             // Đánh giá KPI tháng của kỳ được chốt / sửa sau lần tính (KPI Học vụ tự động)
             || KpiEvaluation::where('month', $this->month)->where('year', $this->year)
                 ->where('updated_at', '>', $this->calculated_at)->exists();
+    }
+
+    /** Tiền phạt đã trừ trên phiếu khác tổng các biên bản còn gắn với phiếu đó. */
+    private function penaltyDeductionOutOfSync(): bool
+    {
+        $linked = Penalty::whereIn('payroll_record_id', $this->records()->select('id'))
+            ->selectRaw('payroll_record_id, SUM(amount) as total')->groupBy('payroll_record_id')
+            ->pluck('total', 'payroll_record_id');
+
+        return $this->records()->get(['id', 'penalty_deduction'])
+            ->contains(fn (PayrollRecord $record) => abs((float) $record->penalty_deduction - (float) ($linked[$record->id] ?? 0)) > 0.5);
     }
 
     /**
