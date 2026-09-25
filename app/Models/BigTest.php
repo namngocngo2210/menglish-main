@@ -21,6 +21,7 @@ class BigTest extends Model
         'code',
         'title',
         'class_id',
+        'syllabus_stage_id',
         'test_type',
         'scheduled_at',
         'room',
@@ -33,6 +34,7 @@ class BigTest extends Model
         'approved_at',
         'distributed_at',
         'teacher_reminded_at',
+        'results_completed_at',
     ];
 
     protected $casts = [
@@ -41,11 +43,18 @@ class BigTest extends Model
         'approved_at' => 'datetime',
         'distributed_at' => 'datetime',
         'teacher_reminded_at' => 'datetime',
+        'results_completed_at' => 'datetime',
     ];
 
     public function classModel(): BelongsTo
     {
         return $this->belongsTo(ClassModel::class, 'class_id');
+    }
+
+    /** Chặng giáo trình mà đợt thi này là Big Test cuối chặng (Q4). */
+    public function stage(): BelongsTo
+    {
+        return $this->belongsTo(SyllabusStage::class, 'syllabus_stage_id');
     }
 
     public function proctor(): BelongsTo

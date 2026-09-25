@@ -10,11 +10,11 @@
                         <span class="material-symbols-outlined text-primary">edit_document</span>
                         Soạn syllabus theo chặng
                     </h1>
-                    <p class="text-xs text-gray-500">Chọn giáo trình, cập nhật thông tin chặng và soạn nội dung chi tiết từng buổi học.</p>
+                    <p class="text-xs text-gray-500">Giáo trình → Chặng (Big Test cuối chặng) → Unit → Buổi. Số buổi đánh liên tục trong cả giáo trình.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <x-ui.button variant="secondary" icon="assignment_ind" :href="route('syllabus.assignments')">Giao chặng</x-ui.button>
+                <x-ui.button variant="secondary" icon="assignment_ind" :href="route('syllabus.assignments')">Chặng của lớp</x-ui.button>
                 @can('syllabus.manage')
                     <x-ui.button icon="library_add" x-data @click="$dispatch('open-modal', 'new-curriculum')">Tạo giáo trình mới</x-ui.button>
                 @endcan
@@ -34,7 +34,7 @@
                 <x-ui.input name="version" label="Phiên bản" required value="v1.0" />
                 <x-ui.input name="title" label="Tên giáo trình" required class="md:col-span-2" placeholder="IELTS Foundation - Level 1" />
                 <x-ui.select name="course_id" label="Khóa học áp dụng" placeholder="-- Chọn khóa học --" :options="$courses->pluck('name', 'id')" />
-                <x-ui.input name="stage_name" label="Chặng học" placeholder="Chặng 1: Xây dựng nền tảng" />
+                <x-ui.input name="stage_name" label="Tên chặng đầu tiên" placeholder="Chặng 1: Xây dựng nền tảng" hint="Để trống sẽ đặt là “Chặng 1”." />
             </form>
             <x-slot:footer>
                 <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'new-curriculum')">Hủy</x-ui.button>
@@ -56,21 +56,24 @@
         </section>
 
         @if (! $curriculum)
-            <x-ui.empty-state icon="library_books" title="Chưa có giáo trình nào" description="Tạo giáo trình đầu tiên để bắt đầu soạn bài.">
+            <x-ui.empty-state icon="library_books" title="Chưa có giáo trình nào" description="Tạo giáo trình đầu tiên để bắt đầu soạn chặng, unit và buổi học.">
                 @can('syllabus.manage')
                     <x-ui.button icon="library_add" x-data @click="$dispatch('open-modal', 'new-curriculum')">Tạo giáo trình mới</x-ui.button>
                 @endcan
             </x-ui.empty-state>
         @else
-            {{-- Thông tin chung chặng / giáo trình --}}
+            @php($builderUrl = fn (array $params = []) => route('syllabus.builder', ['curriculum' => $curriculum->id] + $params))
+
+            {{-- Thông tin giáo trình + Trình độ áp dụng --}}
             <section class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                 <div class="flex items-center justify-between gap-2 mb-5 pb-3 border-b border-gray-100">
                     <div class="flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">info</span>
-                        <h2 class="text-sm font-bold text-gray-900">Thông tin chung chặng học</h2>
+                        <h2 class="text-sm font-bold text-gray-900">Thông tin giáo trình</h2>
+                        <x-ui.badge color="primary">{{ $stages->count() }} chặng · {{ $units->count() }} unit · {{ $lessons->count() }} buổi</x-ui.badge>
                     </div>
                     @if ($canManage)
-                        <form method="POST" action="{{ route('syllabus.curriculums.destroy', $curriculum->id) }}" data-confirm="Xóa giáo trình {{ $curriculum->title }} cùng toàn bộ bài học và tài liệu?">
+                        <form method="POST" action="{{ route('syllabus.curriculums.destroy', $curriculum->id) }}" data-confirm="Xóa giáo trình {{ $curriculum->title }} cùng toàn bộ chặng, unit, buổi học và tài liệu?">
                             @csrf @method('DELETE')
                             <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete">Xóa giáo trình</x-ui.button>
                         </form>
@@ -80,139 +83,232 @@
                 <form method="POST" action="{{ route('syllabus.curriculums.update', $curriculum->id) }}" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     @csrf @method('PUT')
                     <input type="hidden" name="_curriculum_id" value="{{ $curriculum->id }}">
+                    <input type="hidden" name="levels_submitted" value="1">
                     <x-ui.input name="title" label="Tên giáo trình" required :value="$curriculum->title" :disabled="! $canManage" />
-                    <x-ui.input name="stage_name" label="Tên chặng học" :value="$curriculum->stage_name" placeholder="Chặng 1: Xây dựng nền tảng (Foundation)" :disabled="! $canManage" />
                     <x-ui.input name="code" label="Mã giáo trình" required :value="$curriculum->code" :disabled="! $canManage" />
                     <x-ui.input name="version" label="Phiên bản" required :value="$curriculum->version" :disabled="! $canManage" />
                     <x-ui.select name="course_id" label="Khóa học áp dụng" placeholder="-- Không gắn khóa --" :value="$curriculum->course_id" :options="$courses->pluck('name', 'id')" :disabled="! $canManage" />
-                    <x-ui.select name="unlock_policy" label="Chính sách mở khóa" placeholder="-- Chưa chọn --" :value="$curriculum->unlock_policy" :options="\App\Models\SyllabusCurriculum::UNLOCK_POLICIES" :disabled="! $canManage" />
                     <div class="md:col-span-2">
-                        <x-ui.input name="overview_link" type="url" label="Link ảnh / tài liệu tổng quan chặng" :value="$curriculum->overview_link" placeholder="https://..." :disabled="! $canManage" />
-                        @if ($curriculum->overview_link)
-                            <a href="{{ $curriculum->overview_link }}" target="_blank" rel="noopener" class="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline">
-                                <span class="material-symbols-outlined text-[14px]">open_in_new</span> Mở tài liệu tổng quan
-                            </a>
-                        @endif
+                        <x-ui.field label="Trình độ áp dụng" hint="Lớp thuộc trình độ được chọn sẽ mặc định học giáo trình này khi mở chặng.">
+                            @php($selectedLevels = collect(old('level_ids', $curriculum->levels->pluck('id')->all()))->map(fn ($id) => (int) $id))
+                            <div class="flex flex-wrap gap-2">
+                                @forelse ($levels as $level)
+                                    <label class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-outline-variant text-xs {{ $level->syllabus_curriculum_id && $level->syllabus_curriculum_id !== $curriculum->id ? 'text-gray-400' : 'text-gray-700' }}">
+                                        <input type="checkbox" name="level_ids[]" value="{{ $level->id }}" class="rounded border-gray-300 text-primary focus:ring-primary-container"
+                                               @checked($selectedLevels->contains($level->id)) @disabled(! $canManage)>
+                                        {{ $level->name }} <span class="font-mono text-[10px] text-gray-400">{{ $level->code }}</span>
+                                        @if ($level->syllabus_curriculum_id && $level->syllabus_curriculum_id !== $curriculum->id)
+                                            <span class="text-[10px]" title="Đang gắn giáo trình khác — chọn sẽ chuyển sang giáo trình này">(đang dùng GT khác)</span>
+                                        @endif
+                                    </label>
+                                @empty
+                                    <span class="text-xs text-gray-400">Chưa có trình độ nào — tạo ở màn Cấu hình trình độ.</span>
+                                @endforelse
+                            </div>
+                        </x-ui.field>
                     </div>
                     <div class="md:col-span-2">
                         <x-ui.textarea name="description" label="Mô tả" rows="2" :value="$curriculum->description" :disabled="! $canManage" />
                     </div>
                     @if ($canManage)
                         <div class="md:col-span-2 flex justify-end">
-                            <x-ui.button type="submit" icon="save">Lưu thông tin chặng</x-ui.button>
+                            <x-ui.button type="submit" icon="save">Lưu thông tin giáo trình</x-ui.button>
                         </div>
                     @endif
                 </form>
             </section>
 
-            {{-- Form soạn / sửa bài học --}}
-            @if ($canManage)
-            <section id="unit-form" class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm relative overflow-hidden">
-                <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary-container"></div>
-                <div class="flex items-center justify-between mb-5 pb-3 border-b border-gray-100">
-                    <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">{{ $editUnit ? 'edit' : 'add_circle' }}</span>
-                        <h2 class="text-sm font-bold text-gray-900">{{ $editUnit ? 'Sửa buổi #'.$editUnit->unit_number.': '.$editUnit->title : 'Soạn bài học (Unit) mới' }}</h2>
-                    </div>
-                    <x-ui.badge color="primary">Đã có {{ $units->count() }} buổi</x-ui.badge>
-                </div>
-
-                <form action="{{ $editUnit ? route('syllabus.units.update', $editUnit->id) : route('syllabus.units.store') }}" method="POST" class="space-y-4">
-                    @csrf
-                    @if ($editUnit)
-                        @method('PUT')
+            {{-- Ô soạn thảo chặng / unit / buổi --}}
+            @if ($editor)
+                @php($model = $editor['model'])
+                <section id="editor" class="bg-white border border-primary-container/40 rounded-2xl p-6 shadow-sm relative overflow-hidden">
+                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary-container"></div>
+                    @if ($editor['type'] === 'stage')
+                        <h2 class="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">{{ $model ? 'edit' : 'add_circle' }}</span>
+                            {{ $model ? 'Sửa '.$model->label : 'Thêm chặng mới (Chặng '.($stages->max('position') + 1).')' }}
+                        </h2>
+                        <form method="POST" action="{{ $model ? route('syllabus.stages.update', $model->id) : route('syllabus.stages.store') }}" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            @csrf
+                            @if ($model) @method('PUT') @else <input type="hidden" name="curriculum_id" value="{{ $curriculum->id }}"> @endif
+                            <x-ui.input name="name" label="Tên chặng" required :value="$model?->name" placeholder="Chặng 2: Kỹ năng chuyên sâu" />
+                            <x-ui.input name="overview_link" type="url" label="Link ảnh / tài liệu tổng quan chặng" :value="$model?->overview_link" placeholder="https://..." />
+                            <div class="md:col-span-2"><x-ui.textarea name="description" label="Mục tiêu / đầu ra của chặng" rows="2" :value="$model?->description" /></div>
+                            <x-ui.input name="big_test_title" label="Big Test cuối chặng" :value="$model?->big_test_title" placeholder="Big Test chặng 2 — 4 kỹ năng" />
+                            <x-ui.textarea name="big_test_note" label="Ghi chú Big Test (dạng đề, thời lượng, đầu ra)" rows="2" :value="$model?->big_test_note" />
+                            <div class="md:col-span-2 flex justify-end gap-2">
+                                <x-ui.button variant="secondary" :href="$builderUrl()">Hủy</x-ui.button>
+                                <x-ui.button type="submit" icon="save">{{ $model ? 'Lưu chặng' : 'Thêm chặng' }}</x-ui.button>
+                            </div>
+                        </form>
+                    @elseif ($editor['type'] === 'unit')
+                        @php($stage = $model?->stage ?? $editor['parent'])
+                        <h2 class="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">{{ $model ? 'edit' : 'add_circle' }}</span>
+                            {{ $model ? 'Sửa Unit '.$model->unit_number.': '.$model->title : 'Thêm Unit vào '.$stage?->label }}
+                        </h2>
+                        <form method="POST" action="{{ $model ? route('syllabus.units.update', $model->id) : route('syllabus.units.store') }}" class="space-y-4">
+                            @csrf
+                            @if ($model) @method('PUT') @else <input type="hidden" name="curriculum_id" value="{{ $curriculum->id }}"> @endif
+                            <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                                <x-ui.input type="number" name="unit_number" label="Unit số" required min="1" :value="$model?->unit_number ?? (($units->max('unit_number') ?? 0) + 1)" />
+                                <div class="sm:col-span-3"><x-ui.input name="title" label="Tên Unit" required :value="$model?->title" placeholder="Unit 3: Environment & Climate Change" /></div>
+                            </div>
+                            <x-ui.select name="stage_id" label="Thuộc chặng" required :value="$stage?->id" :options="$stages->pluck('label', 'id')" />
+                            <x-ui.textarea name="objectives" label="Mô tả / mục tiêu Unit" rows="2" :value="$model?->objectives" />
+                            <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
+                                <x-ui.button variant="secondary" :href="$builderUrl()">Hủy</x-ui.button>
+                                <x-ui.button type="submit" icon="save">{{ $model ? 'Lưu Unit' : 'Thêm Unit' }}</x-ui.button>
+                            </div>
+                        </form>
                     @else
-                        <input type="hidden" name="curriculum_id" value="{{ $curriculum->id }}" />
+                        @php($unit = $model?->unit ?? $editor['parent'])
+                        <h2 class="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">{{ $model ? 'edit' : 'add_circle' }}</span>
+                            {{ $model ? 'Sửa Buổi '.$model->session_no.': '.$model->title : 'Thêm buổi vào Unit '.$unit?->unit_number.': '.$unit?->title }}
+                        </h2>
+                        <form method="POST" action="{{ $model ? route('syllabus.lessons.update', $model->id) : route('syllabus.lessons.store') }}" class="space-y-4">
+                            @csrf
+                            @if ($model) @method('PUT') @endif
+                            <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                                <x-ui.input type="number" name="session_no" label="Buổi số" required min="1" hint="Đánh liên tục trong cả giáo trình" :value="$model?->session_no ?? (($lessons->max('session_no') ?? 0) + 1)" />
+                                <div class="sm:col-span-3"><x-ui.input name="title" label="Tiêu đề buổi học" required :value="$model?->title" placeholder="Buổi 01: Introduction to IELTS & Greetings" /></div>
+                            </div>
+                            <x-ui.select name="unit_id" label="Thuộc Unit" required :value="$unit?->id"
+                                         :options="$units->mapWithKeys(fn ($u) => [$u->id => 'Unit '.$u->unit_number.': '.$u->title])" />
+                            <x-ui.textarea name="objectives" label="Mục tiêu buổi học" rows="2" :value="$model?->objectives" />
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <x-ui.textarea name="vocabulary_focus" label="Trọng tâm từ vựng" rows="3" :value="$model?->vocabulary_focus" />
+                                <x-ui.textarea name="grammar_focus" label="Trọng tâm ngữ pháp" rows="3" :value="$model?->grammar_focus" />
+                            </div>
+                            <x-ui.textarea name="homework_guide" label="Bài tập về nhà" rows="2" :value="$model?->homework_guide" />
+                            <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
+                                <x-ui.button variant="secondary" :href="$builderUrl()">Hủy</x-ui.button>
+                                <x-ui.button type="submit" icon="save">{{ $model ? 'Lưu buổi học' : 'Thêm buổi học' }}</x-ui.button>
+                            </div>
+                        </form>
                     @endif
-
-                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        <x-ui.input type="number" name="unit_number" label="Buổi số" required min="1" :value="$editUnit?->unit_number ?? (($units->max('unit_number') ?? 0) + 1)" />
-                        <div class="sm:col-span-3">
-                            <x-ui.input name="title" label="Tiêu đề bài học" required :value="$editUnit?->title" placeholder="Buổi 01: Introduction to IELTS & Greetings" />
-                        </div>
-                    </div>
-                    <x-ui.textarea name="objectives" label="Mục tiêu buổi học" rows="2" :value="$editUnit?->objectives" />
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <x-ui.textarea name="vocabulary_focus" label="Trọng tâm từ vựng" rows="4" :value="$editUnit?->vocabulary_focus" />
-                        <x-ui.textarea name="grammar_focus" label="Trọng tâm ngữ pháp" rows="4" :value="$editUnit?->grammar_focus" />
-                    </div>
-                    <x-ui.textarea name="homework_guide" label="Bài tập về nhà" rows="3" :value="$editUnit?->homework_guide" />
-
-                    <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
-                        @if ($editUnit)
-                            <x-ui.button variant="secondary" :href="route('syllabus.builder', ['curriculum' => $curriculum->id])">Hủy sửa</x-ui.button>
-                        @endif
-                        <x-ui.button type="submit" icon="save">{{ $editUnit ? 'Lưu thay đổi' : 'Lưu buổi học' }}</x-ui.button>
-                    </div>
-                </form>
-            </section>
+                </section>
             @endif
 
-            {{-- Danh sách buổi học --}}
+            {{-- Cây Chặng → Unit → Buổi --}}
             <section class="space-y-4">
-                <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">menu_book</span>
-                    <h2 class="text-sm font-bold text-gray-900">Danh sách buổi học trong giáo trình ({{ $units->count() }})</h2>
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">account_tree</span>
+                        <h2 class="text-sm font-bold text-gray-900">Chặng học của giáo trình</h2>
+                    </div>
+                    @if ($canManage)
+                        <x-ui.button size="sm" icon="add" :href="$builderUrl(['new_stage' => 1]).'#editor'">Thêm chặng</x-ui.button>
+                    @endif
                 </div>
+                <x-ui.alert type="info">Mỗi lớp chỉ học 1 chặng tại một thời điểm. Khi Big Test của chặng được duyệt và gửi kết quả cho phụ huynh, chặng đóng và chặng kế tiếp (theo thứ tự dưới đây) tự mở.</x-ui.alert>
 
-                @forelse ($units as $u)
-                    <div class="bg-white border {{ $editUnit?->id === $u->id ? 'border-primary-container ring-1 ring-primary-container/30' : 'border-gray-200' }} rounded-2xl overflow-hidden shadow-sm relative">
-                        <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary-container"></div>
-                        <div class="p-5">
-                            <div class="flex justify-between items-start gap-3 mb-4">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-xl bg-orange-100 text-primary font-bold flex items-center justify-center text-xs">{{ $u->unit_number }}</div>
-                                    <div>
-                                        <h3 class="text-sm font-bold text-gray-900">{{ $u->title }}</h3>
-                                        <span class="text-[11px] text-gray-400">Buổi #{{ $u->unit_number }} · cập nhật {{ $u->updated_at?->format('d/m/Y H:i') }}</span>
-                                    </div>
+                @foreach ($stages as $stage)
+                    @php($openClasses = $openClassesByStage->get($stage->id, collect()))
+                    <article class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+                        <header class="p-5 border-b border-gray-100 bg-gray-50/60 flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                            <div class="flex items-start gap-3 min-w-0">
+                                <div class="w-9 h-9 shrink-0 rounded-xl bg-primary-container/10 text-primary font-bold flex items-center justify-center text-sm">{{ $stage->position }}</div>
+                                <div class="min-w-0">
+                                    <h3 class="text-sm font-bold text-gray-900">{{ $stage->label }}</h3>
+                                    <p class="text-[11px] text-gray-500">{{ $stage->units->count() }} unit · {{ $stage->units->sum(fn ($u) => $u->lessons->count()) }} buổi
+                                        @if ($openClasses->isNotEmpty()) · Đang học: {{ $openClasses->map(fn ($a) => $a->classModel?->name)->filter()->implode(', ') }} @endif
+                                    </p>
+                                    @if ($stage->description)<p class="text-xs text-gray-600 mt-1 whitespace-pre-line">{{ $stage->description }}</p>@endif
+                                    <p class="text-[11px] mt-1.5 flex flex-wrap items-center gap-2">
+                                        <span class="inline-flex items-center gap-1 text-purple-700 font-semibold"><span class="material-symbols-outlined text-[14px]">quiz</span>{{ $stage->big_test_title ?: 'Big Test cuối chặng (chưa đặt tên)' }}</span>
+                                        @if ($stage->big_test_note)<span class="text-gray-500">— {{ $stage->big_test_note }}</span>@endif
+                                        @if ($stage->overview_link)
+                                            <a href="{{ $stage->overview_link }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold text-primary hover:underline"><span class="material-symbols-outlined text-[14px]">open_in_new</span>Tổng quan chặng</a>
+                                        @endif
+                                    </p>
                                 </div>
-                                @if ($canManage)
-                                    <div class="flex items-center gap-1">
-                                        <x-ui.button variant="ghost" size="sm" icon="edit" :href="route('syllabus.builder', ['curriculum' => $curriculum->id, 'edit_unit' => $u->id]).'#unit-form'">Sửa</x-ui.button>
-                                        <form method="POST" action="{{ route('syllabus.units.destroy', $u->id) }}" data-confirm="Xóa buổi {{ $u->title }}?">
-                                            @csrf @method('DELETE')
-                                            <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete">Xóa</x-ui.button>
+                            </div>
+                            @if ($canManage)
+                                <div class="flex flex-wrap items-center gap-1 shrink-0">
+                                    @unless ($loop->first)
+                                        <form method="POST" action="{{ route('syllabus.stages.move', $stage->id) }}">@csrf <input type="hidden" name="direction" value="up">
+                                            <x-ui.button type="submit" variant="ghost" size="sm" icon="arrow_upward" title="Chuyển lên" />
                                         </form>
-                                    </div>
-                                @endif
-                            </div>
+                                    @endunless
+                                    @unless ($loop->last)
+                                        <form method="POST" action="{{ route('syllabus.stages.move', $stage->id) }}">@csrf <input type="hidden" name="direction" value="down">
+                                            <x-ui.button type="submit" variant="ghost" size="sm" icon="arrow_downward" title="Chuyển xuống" />
+                                        </form>
+                                    @endunless
+                                    <x-ui.button variant="ghost" size="sm" icon="edit" :href="$builderUrl(['edit_stage' => $stage->id]).'#editor'">Sửa</x-ui.button>
+                                    <x-ui.button variant="ghost" size="sm" icon="add" :href="$builderUrl(['new_unit' => $stage->id]).'#editor'">Unit</x-ui.button>
+                                    <form method="POST" action="{{ route('syllabus.stages.destroy', $stage->id) }}" data-confirm="Xóa {{ $stage->label }}?">
+                                        @csrf @method('DELETE')
+                                        <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete" title="Xóa chặng" />
+                                    </form>
+                                </div>
+                            @endif
+                        </header>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                                <div class="bg-gray-50 rounded-xl p-3.5 border border-gray-100">
-                                    <div class="font-semibold text-gray-800 mb-1">Mục tiêu buổi học</div>
-                                    <p class="text-gray-600 leading-relaxed whitespace-pre-line">{{ $u->objectives ?: 'Chưa cập nhật' }}</p>
-                                </div>
-                                <div class="bg-gray-50 rounded-xl p-3.5 border border-gray-100">
-                                    <div class="font-semibold text-gray-800 mb-1">Bài tập về nhà</div>
-                                    <p class="text-gray-600 leading-relaxed whitespace-pre-line">{{ $u->homework_guide ?: 'Chưa cập nhật' }}</p>
-                                </div>
-                                @if ($u->vocabulary_focus || $u->grammar_focus)
-                                    <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-orange-50/40 rounded-xl p-3.5 border border-orange-200/50 text-gray-700">
-                                        <div>
-                                            <span class="font-medium text-gray-900 block text-[11px] uppercase tracking-wider mb-0.5">Từ vựng</span>
-                                            <p class="text-[11px] whitespace-pre-line">{{ $u->vocabulary_focus ?: '—' }}</p>
+                        <div class="p-4 space-y-3">
+                            @forelse ($stage->units as $u)
+                                <div class="border border-gray-200 rounded-xl">
+                                    <div class="px-4 py-3 flex items-center justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <p class="text-xs font-bold text-gray-900">Unit {{ $u->unit_number }}: {{ $u->title }}</p>
+                                            @if ($u->objectives)<p class="text-[11px] text-gray-500 truncate">{{ $u->objectives }}</p>@endif
                                         </div>
-                                        <div>
-                                            <span class="font-medium text-gray-900 block text-[11px] uppercase tracking-wider mb-0.5">Ngữ pháp</span>
-                                            <p class="text-[11px] whitespace-pre-line">{{ $u->grammar_focus ?: '—' }}</p>
-                                        </div>
+                                        @if ($canManage)
+                                            <div class="flex items-center gap-1 shrink-0">
+                                                <x-ui.button variant="ghost" size="sm" icon="add" :href="$builderUrl(['new_lesson' => $u->id]).'#editor'">Buổi</x-ui.button>
+                                                <x-ui.button variant="ghost" size="sm" icon="edit" :href="$builderUrl(['edit_unit' => $u->id]).'#editor'">Sửa</x-ui.button>
+                                                <form method="POST" action="{{ route('syllabus.units.destroy', $u->id) }}" data-confirm="Xóa Unit {{ $u->unit_number }} cùng {{ $u->lessons->count() }} buổi học?">
+                                                    @csrf @method('DELETE')
+                                                    <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete" title="Xóa unit" />
+                                                </form>
+                                            </div>
+                                        @endif
                                     </div>
-                                @endif
-                            </div>
+                                    <div class="border-t border-gray-100 divide-y divide-gray-100">
+                                        @forelse ($u->lessons as $lesson)
+                                            <details class="px-4 py-2.5 text-xs group">
+                                                <summary class="flex items-center justify-between gap-2 cursor-pointer list-none">
+                                                    <span class="flex items-center gap-2 min-w-0">
+                                                        <span class="w-7 h-7 shrink-0 rounded-lg bg-orange-100 text-primary font-bold flex items-center justify-center text-[11px]">{{ $lesson->session_no }}</span>
+                                                        <span class="font-semibold text-gray-800 truncate">Buổi {{ $lesson->session_no }}: {{ $lesson->title }}</span>
+                                                    </span>
+                                                    <span class="material-symbols-outlined text-[18px] text-gray-400 group-open:rotate-180 transition">expand_more</span>
+                                                </summary>
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 text-gray-700">
+                                                    <p class="whitespace-pre-line"><span class="font-semibold">Mục tiêu:</span> {{ $lesson->objectives ?: 'Chưa cập nhật' }}</p>
+                                                    <p class="whitespace-pre-line"><span class="font-semibold">Bài tập về nhà:</span> {{ $lesson->homework_guide ?: 'Chưa cập nhật' }}</p>
+                                                    <p class="whitespace-pre-line"><span class="font-semibold">Từ vựng:</span> {{ $lesson->vocabulary_focus ?: '—' }}</p>
+                                                    <p class="whitespace-pre-line"><span class="font-semibold">Ngữ pháp:</span> {{ $lesson->grammar_focus ?: '—' }}</p>
+                                                </div>
+                                                @if ($canManage)
+                                                    <div class="flex justify-end gap-1 mt-2">
+                                                        <x-ui.button variant="ghost" size="sm" icon="edit" :href="$builderUrl(['edit_lesson' => $lesson->id]).'#editor'">Sửa buổi</x-ui.button>
+                                                        <form method="POST" action="{{ route('syllabus.lessons.destroy', $lesson->id) }}" data-confirm="Xóa Buổi {{ $lesson->session_no }}?">
+                                                            @csrf @method('DELETE')
+                                                            <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete">Xóa</x-ui.button>
+                                                        </form>
+                                                    </div>
+                                                @endif
+                                            </details>
+                                        @empty
+                                            <p class="px-4 py-3 text-[11px] text-gray-400">Unit chưa có buổi học nào.</p>
+                                        @endforelse
+                                    </div>
+                                </div>
+                            @empty
+                                <p class="text-center text-xs text-gray-400 py-6">Chặng chưa có unit nào.</p>
+                            @endforelse
                         </div>
-                    </div>
-                @empty
-                    <div class="p-8 text-center bg-white rounded-2xl border border-gray-200 text-gray-400 text-xs">
-                        Chưa có buổi học nào trong giáo trình này.
-                    </div>
-                @endforelse
+                    </article>
+                @endforeach
             </section>
         @endif
 
         <div class="flex items-center justify-end gap-2">
             <x-ui.button variant="secondary" :href="route('syllabus.documents')">Quay lại</x-ui.button>
-            <x-ui.button icon="arrow_forward" :href="route('syllabus.assignments')">Tiếp tục: Giao chặng</x-ui.button>
+            <x-ui.button icon="arrow_forward" :href="route('syllabus.assignments')">Tiếp tục: Chặng của lớp</x-ui.button>
         </div>
     </div>
 </x-app-layout>

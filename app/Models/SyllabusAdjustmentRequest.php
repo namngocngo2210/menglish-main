@@ -14,6 +14,7 @@ class SyllabusAdjustmentRequest extends Model
 
     protected $fillable = [
         'class_id',
+        'syllabus_assignment_id',
         'user_id',
         'request_type',
         'reason',
@@ -47,6 +48,12 @@ class SyllabusAdjustmentRequest extends Model
     public function classModel(): BelongsTo
     {
         return $this->belongsTo(ClassModel::class, 'class_id');
+    }
+
+    /** Chặng đang mở của lớp tại thời điểm gửi yêu cầu giãn tiến độ. */
+    public function assignment(): BelongsTo
+    {
+        return $this->belongsTo(SyllabusAssignment::class, 'syllabus_assignment_id');
     }
 
     public function teacher(): BelongsTo

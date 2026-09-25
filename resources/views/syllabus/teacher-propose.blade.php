@@ -26,7 +26,7 @@
         @can('syllabus.propose_adjustment')
         <div class="lg:col-span-5 flex flex-col gap-4 min-w-0">
             <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm"
-                 x-data="{ curriculum: @js((string) old('curriculum_id', '')), units: @js($curriculums->mapWithKeys(fn ($c) => [$c->id => $c->units->map(fn ($u) => ['id' => $u->id, 'label' => 'Buổi '.$u->unit_number.': '.$u->title])->values()])) }">
+                 x-data="{ curriculum: @js((string) old('curriculum_id', '')), units: @js($curriculums->mapWithKeys(fn ($c) => [$c->id => $c->units->map(fn ($u) => ['id' => $u->id, 'label' => 'Unit '.$u->unit_number.': '.$u->title])->values()])) }">
                 <div class="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100">
                     <span class="material-symbols-outlined text-primary">post_add</span>
                     <h2 class="text-sm font-bold text-gray-900">Gửi đề xuất sửa mới</h2>
@@ -43,7 +43,7 @@
                         </select>
                     </x-ui.field>
 
-                    <x-ui.field label="Buổi học / Unit cần sửa" name="unit_id" hint="Bỏ trống nếu đề xuất áp dụng cho toàn bộ giáo trình.">
+                    <x-ui.field label="Unit cần sửa" name="unit_id" hint="Bỏ trống nếu đề xuất áp dụng cho toàn bộ giáo trình.">
                         <select name="unit_id" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm text-body-base">
                             <option value="">-- Toàn bộ giáo trình --</option>
                             <template x-for="unit in (units[curriculum] || [])" :key="unit.id">
@@ -84,7 +84,7 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Giáo trình / Buổi</th>
+                            <th>Giáo trình / Unit</th>
                             <th>Nội dung đề xuất</th>
                             <th>Ngày gửi</th>
                             <th class="text-right">Trạng thái</th>
@@ -95,7 +95,7 @@
                             <tr>
                                 <td>
                                     <p class="font-bold text-gray-900">{{ $p->curriculum?->title }}</p>
-                                    <p class="text-[11px] text-gray-400">{{ $p->unit ? 'Buổi '.$p->unit->unit_number.': '.$p->unit->title : 'Chung toàn giáo trình' }}</p>
+                                    <p class="text-[11px] text-gray-400">{{ $p->unit ? 'Unit '.$p->unit->unit_number.': '.$p->unit->title : 'Chung toàn giáo trình' }}</p>
                                 </td>
                                 <td class="max-w-xs">
                                     <a href="{{ route('syllabus.versions', ['proposal' => $p->id]) }}" class="text-gray-800 line-clamp-2 hover:text-primary">{{ $p->new_content }}</a>

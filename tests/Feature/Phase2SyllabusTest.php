@@ -108,14 +108,18 @@ class Phase2SyllabusTest extends TestCase
         ])->assertRedirect();
         $this->assertDatabaseHas('syllabus_units', ['id' => $unit->id, 'unit_number' => 2, 'title' => 'Bài 2 của B (sửa)', 'objectives' => 'Mục tiêu mới']);
 
-        // Lưu thông tin chặng / giáo trình
+        // Lưu thông tin giáo trình; thông tin chặng lưu trên từng chặng (Q4)
         $this->actingAs($this->academic)->put(route('syllabus.curriculums.update', $second->id), [
             'code' => 'CUR-B', 'title' => 'Giáo trình B', 'version' => 'v1.1',
-            'stage_name' => 'Chặng 2: Kỹ năng chuyên sâu', 'unlock_policy' => 'after_big_test',
-            'overview_link' => 'https://example.com/overview.jpg',
         ])->assertRedirect();
-        $this->assertDatabaseHas('syllabus_curriculums', [
-            'id' => $second->id, 'version' => 'v1.1', 'stage_name' => 'Chặng 2: Kỹ năng chuyên sâu', 'unlock_policy' => 'after_big_test',
+        $this->assertDatabaseHas('syllabus_curriculums', ['id' => $second->id, 'version' => 'v1.1']);
+        $stage = $second->stages()->firstOrFail();
+        $this->actingAs($this->academic)->put(route('syllabus.stages.update', $stage->id), [
+            'name' => 'Chặng 2: Kỹ năng chuyên sâu', 'overview_link' => 'https://example.com/overview.jpg',
+            'big_test_title' => 'Big Test chặng 2',
+        ])->assertRedirect();
+        $this->assertDatabaseHas('syllabus_stages', [
+            'id' => $stage->id, 'name' => 'Chặng 2: Kỹ năng chuyên sâu', 'big_test_title' => 'Big Test chặng 2',
         ]);
 
         // Xóa bài
@@ -149,12 +153,13 @@ class Phase2SyllabusTest extends TestCase
             ->assertSessionHasErrors('class_id');
         $this->assertSame(1, SyllabusAssignment::where('class_id', $this->class->id)->count());
 
-        // Hoàn thành chặng hiện tại rồi mới giao chặng tiếp
+        // Đóng tay chặng hiện tại (bắt buộc lý do, không mở tiếp) rồi mới mở chặng khác
         $current = SyllabusAssignment::where('class_id', $this->class->id)->firstOrFail();
-        $this->actingAs($this->academic)->post(route('syllabus.assignments.complete', $current->id))->assertRedirect();
+        $this->actingAs($this->academic)->post(route('syllabus.assignments.close', $current->id))->assertSessionHasErrors('reason');
+        $this->actingAs($this->academic)->post(route('syllabus.assignments.close', $current->id), ['reason' => 'Lớp học lại chặng 1'])->assertRedirect();
         $this->assertSame('completed', $current->fresh()->status);
 
-        $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), ['stage_name' => 'Chặng 2'] + $payload)
+        $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), ['stage_id' => $cur->stages()->value('id')] + $payload)
             ->assertSessionHasNoErrors();
         $this->assertSame(1, SyllabusAssignment::where('class_id', $this->class->id)->where('status', 'in_progress')->count());
     }

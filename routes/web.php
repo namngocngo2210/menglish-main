@@ -400,9 +400,17 @@ Route::middleware('auth')->group(function () {
         Route::post('/units', [SyllabusController::class, 'storeUnit'])->middleware('can:syllabus.manage')->name('units.store');
         Route::put('/units/{id}', [SyllabusController::class, 'updateUnit'])->whereNumber('id')->middleware('can:syllabus.manage')->name('units.update');
         Route::delete('/units/{id}', [SyllabusController::class, 'destroyUnit'])->whereNumber('id')->middleware('can:syllabus.manage')->name('units.destroy');
+        Route::post('/stages', [SyllabusController::class, 'storeStage'])->middleware('can:syllabus.manage')->name('stages.store');
+        Route::put('/stages/{id}', [SyllabusController::class, 'updateStage'])->whereNumber('id')->middleware('can:syllabus.manage')->name('stages.update');
+        Route::delete('/stages/{id}', [SyllabusController::class, 'destroyStage'])->whereNumber('id')->middleware('can:syllabus.manage')->name('stages.destroy');
+        Route::post('/stages/{id}/move', [SyllabusController::class, 'moveStage'])->whereNumber('id')->middleware('can:syllabus.manage')->name('stages.move');
+        Route::post('/lessons', [SyllabusController::class, 'storeLesson'])->middleware('can:syllabus.manage')->name('lessons.store');
+        Route::put('/lessons/{id}', [SyllabusController::class, 'updateLesson'])->whereNumber('id')->middleware('can:syllabus.manage')->name('lessons.update');
+        Route::delete('/lessons/{id}', [SyllabusController::class, 'destroyLesson'])->whereNumber('id')->middleware('can:syllabus.manage')->name('lessons.destroy');
         Route::get('/assignments', [SyllabusController::class, 'assignments'])->name('assignments');
         Route::post('/assignments', [SyllabusController::class, 'storeAssignment'])->middleware('can:syllabus.manage')->name('assignments.store');
-        Route::post('/assignments/{id}/complete', [SyllabusController::class, 'completeAssignment'])->whereNumber('id')->middleware('can:syllabus.manage')->name('assignments.complete');
+        // Đóng tay chặng đang mở (Học thuật, bắt buộc lý do). Đóng tự động khi Big Test của chặng được duyệt và gửi PH.
+        Route::post('/assignments/{id}/close', [SyllabusController::class, 'closeAssignment'])->whereNumber('id')->middleware('can:syllabus.approve_adjustment')->name('assignments.close');
         Route::get('/versions', [SyllabusController::class, 'versions'])->name('versions');
         Route::post('/proposals', [SyllabusController::class, 'storeProposal'])->middleware('can:syllabus.propose_adjustment')->name('proposals.store');
         Route::post('/proposals/{id}/approve', [SyllabusController::class, 'approveProposal'])->whereNumber('id')->middleware('can:syllabus.approve_adjustment')->name('proposals.approve');
