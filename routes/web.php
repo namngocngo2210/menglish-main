@@ -506,18 +506,23 @@ Route::middleware('auth')->group(function () {
     // ─────────────────────────────────────────────
     Route::prefix('tasks')->name('tasks.')->middleware('can:work_task.view')->group(function () {
         Route::get('/', [WorkTaskController::class, 'index'])->name('index');
-        Route::get('/create', [WorkTaskController::class, 'create'])->middleware('can:work_task.create')->name('create');
-        Route::post('/', [WorkTaskController::class, 'store'])->middleware('can:work_task.create')->name('store');
-        Route::post('/{id}/status', [WorkTaskController::class, 'updateStatus'])->middleware('can:work_task.update')->name('status.update');
+        // Giao việc 2 chiều: work_task.create (giao cho mọi người) hoặc work_task.request (GV/TA giao ngược
+        // cho Admin/Học vụ) — kiểm tra trong controller. Đổi trạng thái: người thực hiện/người giao/người duyệt.
+        Route::get('/create', [WorkTaskController::class, 'create'])->name('create');
+        Route::post('/', [WorkTaskController::class, 'store'])->name('store');
+        Route::post('/{id}/status', [WorkTaskController::class, 'updateStatus'])->name('status.update');
         Route::get('/classes-dashboard', [WorkTaskController::class, 'classesDashboard'])->name('classes-dashboard');
         Route::get('/ta-assign', [WorkTaskController::class, 'taAssignForm'])->middleware('can:work_task.assign')->name('ta-assign');
         Route::post('/ta-assign', [WorkTaskController::class, 'taAssignStore'])->middleware('can:work_task.assign')->name('ta-assign.store');
         Route::post('/{id}/complete', [WorkTaskController::class, 'completeTask'])->name('complete');
         Route::get('/class-reports/create', [WorkTaskController::class, 'createClassReport'])->name('class-reports.create');
         Route::post('/class-reports', [WorkTaskController::class, 'storeClassReport'])->name('class-reports.store');
-        Route::get('/manual-approvals', [WorkTaskController::class, 'manualApprovals'])->middleware('can:work_task.approve')->name('manual-approvals');
-        Route::post('/{id}/approve', [WorkTaskController::class, 'approveTask'])->middleware('can:work_task.approve')->name('approve');
-        Route::post('/{id}/reject', [WorkTaskController::class, 'rejectTask'])->middleware('can:work_task.approve')->name('reject');
+        // Người giao việc hoặc người có work_task.approve duyệt (không tự duyệt) — kiểm tra trong controller.
+        Route::get('/manual-approvals', [WorkTaskController::class, 'manualApprovals'])->name('manual-approvals');
+        Route::post('/{id}/approve', [WorkTaskController::class, 'approveTask'])->name('approve');
+        Route::post('/{id}/reject', [WorkTaskController::class, 'rejectTask'])->name('reject');
+        Route::post('/class-reports/{id}/approve', [WorkTaskController::class, 'approveClassReport'])->name('class-reports.approve');
+        Route::post('/class-reports/{id}/reject', [WorkTaskController::class, 'rejectClassReport'])->name('class-reports.reject');
         Route::get('/schedule-config', [WorkTaskController::class, 'scheduleConfig'])->name('schedule-config');
         Route::post('/schedule-config', [WorkTaskController::class, 'updateScheduleConfig'])->middleware('can:work_task.assign')->name('schedule-config.update');
         Route::get('/support-sessions', [WorkTaskController::class, 'supportSessions'])->name('support-sessions');

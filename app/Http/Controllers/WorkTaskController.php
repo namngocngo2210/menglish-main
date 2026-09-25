@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AdminNotification;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\ClassReport;
@@ -32,13 +33,20 @@ class WorkTaskController extends Controller
     {
         $currentUser = Auth::user();
         $currentUserId = Auth::id();
+        // Tab "Tất cả" chỉ dành cho người có quyền duyệt công việc; người khác
+        // chỉ thấy việc mình được giao hoặc mình tạo.
+        $canViewAll = $currentUser->can('work_task.approve');
         $defaultTab = ($currentUser && $currentUser->hasRole('admin')) ? 'all' : 'mine';
         $tab = $request->get('tab', $defaultTab); // 'mine', 'assigned', 'all'
+        if (! in_array($tab, ['mine', 'assigned', 'all'], true) || ($tab === 'all' && ! $canViewAll)) {
+            $tab = 'mine';
+        }
         $status = $request->get('status', 'all');
         $taskType = $request->get('task_type', 'all');
         $search = $request->get('q', '');
 
         $query = WorkTask::with(['creator', 'assignee', 'branch', 'classModel']);
+        $this->scopeVisibleTasks($query, $currentUser);
 
         if ($tab === 'mine') {
             $query->where('assignee_id', $currentUserId);
@@ -78,19 +86,20 @@ class WorkTaskController extends Controller
             END ASC
         ")->latest()->paginate($request->perPage(10))->withQueryString();
 
-        $users = User::where('is_active', true)->orderBy('name')->get();
+        $users = $this->assignableUsers($currentUser);
         $branches = Branch::where('is_active', true)->get();
-        $classes = ClassModel::where('status', 'active')->get();
+        $classes = ClassModel::query()->visibleTo($currentUser)->where('status', 'active')->get();
 
+        $visible = fn () => $this->scopeVisibleTasks(WorkTask::query(), $currentUser);
         $counts = [
-            'all' => WorkTask::count(),
+            'all' => $visible()->count(),
             'mine' => WorkTask::where('assignee_id', $currentUserId)->count(),
             'assigned' => WorkTask::where('creator_id', $currentUserId)->count(),
-            'overdue' => WorkTask::where('status', 'overdue')->count(),
-            'pending' => WorkTask::where('status', 'pending_confirmation')->count(),
+            'overdue' => $visible()->where('status', 'overdue')->count(),
+            'pending' => $visible()->where('status', 'pending_confirmation')->count(),
         ];
 
-        return view('tasks.index', compact('tasks', 'tab', 'status', 'taskType', 'search', 'users', 'branches', 'classes', 'counts'));
+        return view('tasks.index', compact('tasks', 'tab', 'status', 'taskType', 'search', 'users', 'branches', 'classes', 'counts', 'canViewAll'));
     }
 
     /**
@@ -98,15 +107,18 @@ class WorkTaskController extends Controller
      */
     public function create()
     {
-        $users = User::where('is_active', true)->orderBy('name')->get();
+        $this->ensureCanCreateTask();
+        $users = $this->assignableUsers(Auth::user());
         $branches = Branch::where('is_active', true)->get();
-        $classes = ClassModel::where('status', 'active')->get();
+        $classes = ClassModel::query()->visibleTo(Auth::user())->where('status', 'active')->get();
 
         return view('tasks.create', compact('users', 'branches', 'classes'));
     }
 
     public function store(Request $request)
     {
+        $this->ensureCanCreateTask();
+
         $validated = $request->validate([
             'taskTitle' => 'required|string|max:255',
             'taskDescription' => 'nullable|string',
@@ -121,6 +133,15 @@ class WorkTaskController extends Controller
         ]);
 
         $taskTypeDb = ($validated['taskType'] === 'one-time' || $validated['taskType'] === 'one_time') ? 'one_time' : 'recurring';
+
+        // Giao việc 2 chiều: người chỉ có quyền "đề xuất" (GV/TA) chỉ được giao
+        // ngược cho Admin / Quản lý / Học vụ / Học thuật.
+        $assignee = User::findOrFail($validated['assignee']);
+        if (! $this->assignableUsers(Auth::user())->contains('id', $assignee->id)) {
+            throw ValidationException::withMessages([
+                'assignee' => 'Bạn chỉ được giao việc cho Admin, Quản lý cơ sở, Học vụ hoặc Học thuật.',
+            ]);
+        }
 
         $task = WorkTask::create([
             'title' => $validated['taskTitle'],
@@ -137,6 +158,8 @@ class WorkTaskController extends Controller
             'status' => 'new',
         ]);
 
+        $this->notifyAssignee($task);
+
         return redirect()->route('tasks.index')->with('success', "Đã giao việc '{$task->title}' thành công cho nhân sự!");
     }
 
@@ -146,9 +169,25 @@ class WorkTaskController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $task = WorkTask::findOrFail($id);
+        $request->validate([
+            'status' => 'required|string|in:'.implode(',', array_keys(self::STATUS_TRANSITIONS)),
+            'reason' => 'nullable|string|max:1000',
+            'note' => 'nullable|string|max:2000',
+        ]);
         $status = $request->input('status');
         $reason = $request->input('reason');
         $note = $request->input('note');
+
+        $user = $request->user();
+        abort_unless($this->isTaskParticipant($task, $user), 403, 'Bạn không phụ trách công việc này.');
+
+        if (! in_array($status, self::allowedTransitions($task, $user), true)) {
+            $message = $status === 'completed' && (int) $task->assignee_id === (int) $user->id
+                ? 'Người thực hiện không tự xác nhận hoàn thành: hãy gửi "Chờ xác nhận" để người giao việc duyệt.'
+                : "Không thể chuyển công việc từ \"{$task->status_label}\" sang trạng thái này.";
+
+            return redirect()->back()->withErrors(['status' => $message]);
+        }
 
         $updateData = ['status' => $status];
 
@@ -156,6 +195,12 @@ class WorkTaskController extends Controller
             $updateData['blocked_reason'] = $reason ?? $note;
         } elseif ($status === 'completed') {
             $updateData['completed_at'] = now();
+            $updateData['confirmed_by'] = $user->id;
+            $updateData['confirmed_at'] = now();
+            if ($note) {
+                $updateData['completion_note'] = $note;
+            }
+        } elseif ($status === 'pending_confirmation') {
             if ($note) {
                 $updateData['completion_note'] = $note;
             }
@@ -237,10 +282,11 @@ class WorkTaskController extends Controller
         ]);
 
         $createdCount = 0;
+        $lastTask = null;
         foreach ($validated['tasks'] as $item) {
             $hasAttachClass = isset($item['attach_class']) && ($item['attach_class'] == '1' || $item['attach_class'] == 'on');
 
-            WorkTask::create([
+            $lastTask = WorkTask::create([
                 'title' => $item['content'],
                 'description' => 'Nhiệm vụ trực ca '.($item['category'] === 'before' ? 'Trước giờ học' : ($item['category'] === 'during' ? 'Trong giờ học' : 'Sau giờ học')),
                 'creator_id' => Auth::id() ?? 1,
@@ -255,6 +301,10 @@ class WorkTaskController extends Controller
                 'status' => 'new',
             ]);
             $createdCount++;
+        }
+
+        if ($lastTask) {
+            $this->notifyAssignee($lastTask, $createdCount);
         }
 
         return redirect()->route('tasks.index')->with('success', "Đã tạo thành công {$createdCount} nhiệm vụ cho Trợ giảng!");
@@ -428,6 +478,10 @@ class WorkTaskController extends Controller
             }
         }
 
+        if (! $hasImage) {
+            $this->notifyClassReportReviewers($report, $class);
+        }
+
         $msg = $hasImage
             ? 'Đã nộp báo cáo trực lớp thành công kèm hình ảnh minh chứng!'
             : 'Đã nộp báo cáo trực lớp (Không có ảnh, hệ thống đang chờ GV chính xác nhận)!';
@@ -442,21 +496,290 @@ class WorkTaskController extends Controller
     {
         $selectedId = $request->get('selected_id');
 
-        $pendingTasks = WorkTask::with(['assignee', 'creator', 'classModel', 'classReport'])
+        $user = $request->user();
+
+        // Người có quyền duyệt thấy việc chờ xác nhận trong phạm vi; người khác
+        // chỉ thấy việc do chính mình giao. Không ai duyệt việc của chính mình.
+        $pendingQuery = WorkTask::with(['assignee', 'creator', 'classModel', 'classReport'])
             ->where('status', 'pending_confirmation')
-            ->latest()
-            ->get();
+            ->where(fn ($q) => $q->whereNull('assignee_id')->orWhere('assignee_id', '!=', $user->id));
+        if ($user->can('work_task.approve')) {
+            $this->scopeVisibleTasks($pendingQuery, $user);
+        } else {
+            $pendingQuery->where('creator_id', $user->id);
+        }
+        $pendingTasks = $pendingQuery->latest()->get();
 
         $selectedTask = $selectedId
             ? $pendingTasks->firstWhere('id', $selectedId)
             : $pendingTasks->first();
 
-        return view('tasks.manual-approvals', compact('pendingTasks', 'selectedTask'));
+        $pendingReports = ClassReport::with(['classModel', 'reporter', 'task'])
+            ->where('status', 'pending_approval')
+            ->latest()
+            ->get()
+            ->filter(fn (ClassReport $report) => $this->canReviewClassReport($report, $user))
+            ->values();
+
+        return view('tasks.manual-approvals', compact('pendingTasks', 'selectedTask', 'pendingReports'));
+    }
+
+    /**
+     * Chuyển trạng thái hợp lệ của công việc.
+     */
+    public const STATUS_TRANSITIONS = [
+        'new' => ['in_progress', 'blocked', 'pending_confirmation', 'canceled'],
+        'in_progress' => ['blocked', 'pending_confirmation', 'completed', 'canceled'],
+        'blocked' => ['in_progress', 'canceled'],
+        'pending_confirmation' => ['completed', 'in_progress'],
+        'overdue' => ['in_progress', 'pending_confirmation', 'completed', 'canceled'],
+        'completed' => [],
+        'canceled' => [],
+    ];
+
+    /**
+     * Trạng thái mà $user được chuyển công việc sang:
+     *  - Người thực hiện: bắt đầu / báo bị chặn / gửi chờ xác nhận (KHÔNG tự hoàn thành).
+     *  - Người giao hoặc người có quyền duyệt (khác người thực hiện): hoàn thành, hủy, trả về.
+     *
+     * @return string[]
+     */
+    public static function allowedTransitions(WorkTask $task, User $user): array
+    {
+        $next = self::STATUS_TRANSITIONS[$task->status] ?? [];
+        $isAssignee = (int) $task->assignee_id === (int) $user->id;
+        $isCreator = (int) $task->creator_id === (int) $user->id;
+        $isApprover = ! $isAssignee && ($isCreator || $user->can('work_task.approve'));
+
+        return array_values(array_filter($next, function (string $status) use ($isAssignee, $isApprover, $isCreator, $task) {
+            return match ($status) {
+                'completed' => $isApprover,
+                'canceled' => $isApprover || $isCreator,
+                'pending_confirmation' => $isAssignee,
+                'in_progress' => $isAssignee || ($isApprover && $task->status === 'pending_confirmation'),
+                'blocked' => $isAssignee,
+                default => false,
+            };
+        }));
+    }
+
+    /**
+     * Duyệt báo cáo trực lớp chờ xác nhận (không có ảnh bảng): GV chính của lớp
+     * hoặc Học vụ/Quản lý (work_task.approve). Người nộp không tự duyệt.
+     */
+    public function approveClassReport(Request $request, int $id)
+    {
+        $report = ClassReport::with(['classModel', 'task'])->findOrFail($id);
+        abort_unless($this->canReviewClassReport($report, $request->user()), 403, 'Bạn không có quyền duyệt báo cáo này.');
+        abort_unless($report->status === 'pending_approval', 422, 'Báo cáo không ở trạng thái chờ duyệt.');
+
+        DB::transaction(function () use ($report, $request) {
+            $report->update([
+                'status' => 'approved',
+                'approved_by' => $request->user()->id,
+                'approved_at' => now(),
+                'rejection_reason' => null,
+            ]);
+
+            if ($report->task && $report->task->status === 'pending_confirmation') {
+                $report->task->update([
+                    'status' => 'completed',
+                    'confirmed_by' => $request->user()->id,
+                    'confirmed_at' => now(),
+                    'completed_at' => now(),
+                ]);
+            }
+        });
+
+        $this->notifyUser($report->reporter_id, 'class_report_pending', 'Báo cáo trực lớp đã được duyệt',
+            "{$request->user()->name} đã duyệt báo cáo trực lớp {$report->session_name}.", route('portal.ta-tasks'));
+
+        return back()->with('success', 'Đã duyệt báo cáo trực lớp.');
+    }
+
+    public function rejectClassReport(Request $request, int $id)
+    {
+        $validated = $request->validate(['reason' => 'required|string|max:1000']);
+        $report = ClassReport::with(['classModel', 'task'])->findOrFail($id);
+        abort_unless($this->canReviewClassReport($report, $request->user()), 403, 'Bạn không có quyền duyệt báo cáo này.');
+        abort_unless($report->status === 'pending_approval', 422, 'Báo cáo không ở trạng thái chờ duyệt.');
+
+        DB::transaction(function () use ($report, $validated) {
+            $report->update([
+                'status' => 'rejected',
+                'rejection_reason' => $validated['reason'],
+            ]);
+
+            if ($report->task && $report->task->status === 'pending_confirmation') {
+                $report->task->update([
+                    'status' => 'in_progress',
+                    'rejection_reason' => $validated['reason'],
+                ]);
+            }
+        });
+
+        $this->notifyUser($report->reporter_id, 'class_report_pending', 'Báo cáo trực lớp bị trả về',
+            "{$request->user()->name}: {$validated['reason']}", route('portal.ta-tasks'));
+
+        return back()->with('info', 'Đã trả báo cáo trực lớp về cho người nộp.');
+    }
+
+    /**
+     * Giới hạn danh sách công việc được xem:
+     *  - Có quyền duyệt (Admin/Quản lý/Học vụ/Học thuật): tất cả; Quản lý cơ sở
+     *    chỉ việc thuộc chi nhánh mình (hoặc việc mình tạo/được giao).
+     *  - Người khác: chỉ việc mình tạo hoặc được giao.
+     */
+    private function scopeVisibleTasks($query, User $user)
+    {
+        if ($user->can('work_task.approve')) {
+            $managed = $user->managedBranchIds();
+            if ($managed !== null) {
+                $query->where(function ($q) use ($user, $managed) {
+                    $q->whereIn('branch_id', $managed)
+                        ->orWhereHas('assignee', fn ($a) => $a->whereIn('branch_id', $managed))
+                        ->orWhere('creator_id', $user->id)
+                        ->orWhere('assignee_id', $user->id);
+                });
+            }
+
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($user) {
+            $q->where('creator_id', $user->id)->orWhere('assignee_id', $user->id);
+        });
+    }
+
+    /**
+     * Không tự duyệt việc của chính mình; chỉ người giao việc hoặc người có
+     * quyền duyệt (trong phạm vi) được duyệt; chỉ duyệt việc đang chờ xác nhận.
+     */
+    private function ensureCanApprove(WorkTask $task, User $user): void
+    {
+        abort_if((int) $task->assignee_id === (int) $user->id, 403, 'Không thể tự duyệt công việc của chính mình.');
+        abort_unless(
+            (int) $task->creator_id === (int) $user->id
+                || ($user->can('work_task.approve') && $this->isTaskParticipant($task, $user)),
+            403,
+            'Bạn không có quyền duyệt công việc này.'
+        );
+        abort_unless($task->status === 'pending_confirmation', 422, 'Công việc không ở trạng thái chờ xác nhận.');
+    }
+
+    private function isTaskParticipant(WorkTask $task, User $user): bool
+    {
+        if ((int) $task->assignee_id === (int) $user->id || (int) $task->creator_id === (int) $user->id) {
+            return true;
+        }
+
+        return $user->can('work_task.approve')
+            && $this->scopeVisibleTasks(WorkTask::query()->whereKey($task->id), $user)->exists();
+    }
+
+    /**
+     * Người được giao việc: người có quyền giao việc (work_task.create) giao cho
+     * mọi nhân sự đang hoạt động (Quản lý cơ sở: trong chi nhánh mình); người chỉ
+     * có quyền đề xuất (work_task.request — GV/TA) chỉ giao ngược cho Admin,
+     * Quản lý cơ sở, Học vụ, Học thuật.
+     */
+    private function assignableUsers(User $user)
+    {
+        $query = User::where('is_active', true)->whereNull('locked_at')->orderBy('name');
+
+        if (! $user->can('work_task.create')) {
+            $query->whereHas('roles', fn ($r) => $r->whereIn('name', self::REQUEST_TARGET_ROLES));
+        } elseif (($managed = $user->managedBranchIds()) !== null) {
+            $query->where(fn ($q) => $q->whereIn('branch_id', $managed)->orWhere('id', $user->id));
+        }
+
+        return $query->get();
+    }
+
+    public const REQUEST_TARGET_ROLES = ['admin', 'manager', 'academic_staff', 'academic_lead'];
+
+    private function ensureCanCreateTask(): void
+    {
+        $user = Auth::user();
+        abort_unless($user && ($user->can('work_task.create') || $user->can('work_task.request')), 403, 'Bạn không có quyền giao việc.');
+    }
+
+    private function canReviewClassReport(ClassReport $report, User $user): bool
+    {
+        if ((int) $report->reporter_id === (int) $user->id) {
+            return false;
+        }
+
+        if ($report->classModel && (int) $report->classModel->teacher_id === (int) $user->id) {
+            return true;
+        }
+
+        if (! $user->can('work_task.approve')) {
+            return false;
+        }
+
+        $managed = $user->managedBranchIds();
+
+        return $managed === null || in_array((int) $report->classModel?->branch_id, $managed, true);
+    }
+
+    private function notifyAssignee(WorkTask $task, int $count = 1): void
+    {
+        if (! $task->assignee_id || (int) $task->assignee_id === (int) Auth::id()) {
+            return;
+        }
+
+        $creator = Auth::user()?->name ?? 'Hệ thống';
+        $title = $count > 1 ? "Bạn được giao {$count} nhiệm vụ mới" : "Bạn được giao việc: {$task->title}";
+        $message = $count > 1
+            ? "{$creator} đã giao {$count} nhiệm vụ trực ca ngày ".$task->due_date?->format('d/m/Y').'.'
+            : "{$creator} đã giao việc, hạn ".$task->due_date?->format('d/m/Y').'.';
+
+        $this->notifyUser($task->assignee_id, 'task_assigned', $title, $message, route('tasks.index', ['tab' => 'mine']), ['task_id' => $task->id]);
+    }
+
+    private function notifyClassReportReviewers(ClassReport $report, ClassModel $class): void
+    {
+        $recipientIds = collect([$class->teacher_id])->filter()
+            ->reject(fn ($id) => (int) $id === (int) $report->reporter_id)
+            ->unique();
+
+        // Lớp chưa có GV chính: báo cho người có quyền duyệt công việc cùng chi nhánh.
+        if ($recipientIds->isEmpty()) {
+            $recipientIds = User::permission('work_task.approve')
+                ->where('is_active', true)
+                ->where(fn ($q) => $q->where('branch_id', $class->branch_id)->orWhereHas('roles', fn ($r) => $r->where('name', 'admin')))
+                ->pluck('id')
+                ->reject(fn ($id) => (int) $id === (int) $report->reporter_id);
+        }
+
+        foreach ($recipientIds as $userId) {
+            $this->notifyUser($userId, 'class_report_pending', 'Báo cáo trực lớp chờ duyệt',
+                "Báo cáo {$report->session_name} lớp {$class->name} chưa có ảnh bảng, cần xác nhận.",
+                route('tasks.manual-approvals'), ['class_report_id' => $report->id]);
+        }
+    }
+
+    private function notifyUser(?int $userId, string $type, string $title, string $message, string $link, array $data = []): void
+    {
+        if (! $userId) {
+            return;
+        }
+
+        AdminNotification::create([
+            'user_id' => $userId,
+            'type' => $type,
+            'title' => $title,
+            'message' => $message,
+            'data' => array_merge($data, ['link' => $link]),
+            'is_read' => false,
+        ]);
     }
 
     public function approveTask(Request $request, $id)
     {
         $task = WorkTask::findOrFail($id);
+        $this->ensureCanApprove($task, $request->user());
         $adminNote = $request->input('admin_note');
 
         $task->update([
@@ -478,12 +801,15 @@ class WorkTaskController extends Controller
     public function rejectTask(Request $request, $id)
     {
         $task = WorkTask::findOrFail($id);
+        $this->ensureCanApprove($task, $request->user());
         $adminNote = $request->input('admin_note', 'Yêu cầu bổ sung hình ảnh hoặc tài liệu minh chứng.');
 
         $task->update([
             'status' => 'in_progress',
             'rejection_reason' => $adminNote,
         ]);
+
+        $this->notifyUser($task->assignee_id, 'task_assigned', "Công việc bị trả về: {$task->title}", $adminNote, route('tasks.index', ['tab' => 'mine']), ['task_id' => $task->id]);
 
         return redirect()->route('tasks.manual-approvals')->with('info', "Đã từ chối/yêu cầu bổ sung cho công việc '{$task->title}'!");
     }

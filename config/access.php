@@ -44,7 +44,7 @@ return [
         'teacher_rate' => ['manage'],
         'commission_config' => ['manage'],
         'violation' => ['view', 'create', 'confirm_error', 'confirm_fine', 'cancel', 'mark_paid', 'mark_resolved'],
-        'work_task' => ['view', 'create', 'update', 'assign', 'approve'],
+        'work_task' => ['view', 'create', 'update', 'assign', 'approve', 'request'],
         'support_ticket' => ['view', 'create', 'update', 'assign', 'close'],
         'media' => ['view', 'upload', 'delete', 'manage'],
         'notification' => ['view', 'manage'],
@@ -122,7 +122,7 @@ return [
             'payroll.view_own',
             'class.view',
             'attendance_student.view', 'attendance_student.record',
-            'work_task.view', 'support_ticket.create', 'support_ticket.view',
+            'work_task.view', 'work_task.request', 'support_ticket.create', 'support_ticket.view',
             'syllabus.view', 'syllabus.update', 'syllabus.propose_adjustment',
         ],
 
@@ -130,7 +130,7 @@ return [
             'payroll.view_own',
             'class.view',
             'attendance_student.view', 'attendance_student.record',
-            'work_task.view', 'support_ticket.create', 'support_ticket.view',
+            'work_task.view', 'work_task.request', 'support_ticket.create', 'support_ticket.view',
             'syllabus.view', 'syllabus.update', 'syllabus.propose_adjustment',
         ],
 
@@ -138,7 +138,7 @@ return [
             'payroll.view_own',
             'class.view',
             'attendance_student.view', 'attendance_student.record',
-            'work_task.view', 'support_ticket.create', 'support_ticket.view',
+            'work_task.view', 'work_task.request', 'support_ticket.create', 'support_ticket.view',
             'syllabus.view', 'syllabus.update', 'syllabus.propose_adjustment',
         ],
 
@@ -146,7 +146,7 @@ return [
             'payroll.view_own',
             'class.view',
             'attendance_student.view', 'attendance_student.record',
-            'work_task.view', 'support_ticket.create', 'support_ticket.view',
+            'work_task.view', 'work_task.request', 'support_ticket.create', 'support_ticket.view',
             'syllabus.view', 'syllabus.propose_adjustment',
         ],
 

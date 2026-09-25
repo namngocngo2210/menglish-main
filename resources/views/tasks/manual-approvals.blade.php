@@ -205,5 +205,46 @@
             </section>
         </div>
 
+        <!-- Báo cáo trực lớp chờ duyệt (không có ảnh bảng): GV chính của lớp / Học vụ duyệt -->
+        <section class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                <h2 class="text-sm font-bold text-gray-900 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary text-[18px]">fact_check</span>
+                    Báo cáo trực lớp chờ duyệt
+                </h2>
+                <span class="text-xs text-gray-500">{{ $pendingReports->count() }} báo cáo</span>
+            </div>
+            <div class="divide-y divide-gray-100">
+                @forelse ($pendingReports as $report)
+                    <div class="p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                        <div class="md:col-span-7 space-y-1 text-xs">
+                            <div class="font-semibold text-gray-900">{{ $report->session_name }} — {{ $report->classModel?->name ?? 'Lớp đã xóa' }}</div>
+                            <div class="text-gray-500">Người nộp: {{ $report->reporter?->name ?? '—' }} · {{ $report->session_date?->format('d/m/Y') }}</div>
+                            <div class="text-gray-700"><span class="font-semibold">Hôm nay học gì:</span> {{ $report->topics_learned }}</div>
+                            @if ($report->teaching_log)
+                                <div class="text-gray-600"><span class="font-semibold">Nhật ký dạy:</span> {{ $report->teaching_log }}</div>
+                            @endif
+                            <div class="text-amber-700 text-[11px]">Không có ảnh bảng — cần GV chính / Học vụ xác nhận.</div>
+                        </div>
+                        <div class="md:col-span-5 space-y-2">
+                            <form method="POST" action="{{ route('tasks.class-reports.approve', $report->id) }}">
+                                @csrf
+                                <button type="submit" class="w-full bg-primary-container text-white hover:bg-primary font-bold text-xs py-2 rounded-xl transition flex items-center justify-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[16px]">check_circle</span> Duyệt báo cáo
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ route('tasks.class-reports.reject', $report->id) }}" class="flex gap-2">
+                                @csrf
+                                <input type="text" name="reason" required maxlength="1000" placeholder="Lý do trả về..." class="flex-1 rounded-xl border-gray-200 text-xs">
+                                <button type="submit" class="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-bold hover:bg-rose-100">Trả về</button>
+                            </form>
+                        </div>
+                    </div>
+                @empty
+                    <x-ui.empty-state icon="task_alt" title="Không có báo cáo trực lớp chờ duyệt" />
+                @endforelse
+            </div>
+        </section>
+
     </div>
 </x-app-layout>
