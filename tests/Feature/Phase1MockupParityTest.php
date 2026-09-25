@@ -234,6 +234,30 @@ class Phase1MockupParityTest extends TestCase
         $this->actingAs($this->academic)->get(route('crm.waiting-list'))->assertOk()->assertSee('Nguyễn Văn An')->assertSee('Gán lớp');
     }
 
+    // ── 9. Xác nhận chính thức ───────────────────────────────────────────
+
+    public function test_confirmation_screen_matches_mockup_sections(): void
+    {
+        $course = Course::create(['name' => 'IELTS Foundation', 'code' => 'IF', 'tuition_fee' => 5000000, 'is_active' => true]);
+        $class = ClassModel::create(['code' => 'IF-202310', 'name' => 'IELTS Foundation K1', 'course_id' => $course->id, 'branch_id' => $this->branch->id, 'status' => 'active', 'start_date' => now()->subWeek(), 'max_capacity' => 10]);
+        $student = Student::create(['code' => 'HV-C1', 'name' => 'Phan Văn Trị', 'phone' => '0944555666', 'branch_id' => $this->branch->id, 'current_class_id' => $class->id, 'status' => Student::INITIAL_STATUS]);
+        $lead = $this->lead('won', ['name' => 'Phan Văn Trị', 'converted_student_id' => $student->id, 'converted_at' => now()]);
+        ClassEnrollment::create(['class_id' => $class->id, 'student_id' => $student->id, 'customer_id' => $lead->id, 'status' => 'pending', 'enrolled_at' => now()]);
+        $waitingStudent = Student::create(['code' => 'HV-C2', 'name' => 'HV chờ', 'phone' => '0944555667', 'branch_id' => $this->branch->id, 'status' => Student::INITIAL_STATUS]);
+        $this->lead('waiting_class', ['name' => 'Nguyễn Hoàng Anh', 'converted_student_id' => $waitingStudent->id, 'waiting_course_id' => $course->id, 'converted_at' => now()]);
+
+        $this->actingAs($this->academic)->get(route('crm.confirmations'))->assertOk()
+            ->assertSee('Khách hàng đã chốt thành công')->assertSee('học viên')
+            ->assertSee('Chờ xếp lớp (Cần xử lý gấp)')->assertSee('Nguyễn Hoàng Anh')->assertSee('Gán lớp')
+            ->assertSee('Chi nhánh:')->assertSee('Lớp học:')->assertSee('Tìm kiếm học viên...')
+            ->assertSee('Khách đã có lớp')->assertSee('Lớp ID: IF-202310')->assertSee('Ngày chốt')->assertSee('Trạng thái')
+            ->assertSee('Chờ khai giảng')->assertSee('Xác nhận chính thức')->assertSee('Xác nhận học viên')
+            // A6 Q5: không có trạng thái Học thử
+            ->assertDontSee('>Học thử<', false);
+
+        $this->actingAs($this->academic)->get(route('crm.confirmations', ['class_id' => $class->id + 99]))->assertDontSee('Lớp ID: IF-202310');
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────
 
     private function lead(string $stage, array $attributes = []): CrmCustomer

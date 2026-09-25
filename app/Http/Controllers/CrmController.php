@@ -1230,10 +1230,22 @@ class CrmController extends Controller
                 ->orWhere('code', 'like', "%{$search}%")
                 ->orWhere('phone', 'like', "%{$search}%"));
         }
+        // Mockup epic-6 khach-hang-chot-thanh-cong-xac-nhan: lọc Chi nhánh / Lớp học (trong phạm vi được xem).
+        $scopedClassIds = $scoped()->select('class_id');
+        $filterClasses = ClassModel::whereIn('id', $scopedClassIds)->orderBy('name')->get(['id', 'name', 'code', 'branch_id']);
+        $filterBranches = Branch::whereIn('id', $filterClasses->pluck('branch_id')->filter()->unique())->orderBy('name')->get(['id', 'name']);
+        if ($request->filled('branch_id')) {
+            $query->whereHas('classModel', fn (Builder $q) => $q->where('branch_id', $request->integer('branch_id')));
+        }
+        if ($request->filled('class_id')) {
+            $query->where('class_id', $request->integer('class_id'));
+        }
         $enrollments = $query->latest('enrolled_at')->latest('id')->paginate($request->perPage(20))->withQueryString();
         $pendingCount = $scoped()->whereNull('confirmed_at')->count();
+        $totalCount = $scoped()->count();
 
-        return view('crm.confirmations', compact('enrollments', 'status', 'pendingCount'));
+        return view('crm.confirmations', compact('enrollments', 'status', 'pendingCount', 'totalCount', 'filterClasses', 'filterBranches')
+            + $this->waitingClassData());
     }
 
     public function confirmEnrollment(Request $request, ClassEnrollment $enrollment)
