@@ -668,6 +668,23 @@
 
 **Triển khai:** chạy `php artisan migrate` (5 migration `2026_09_28_2000xx`); migration đã gán `finance.view` cho admin/accountant/manager, hoặc chạy lại `db:seed --class=PermissionSeeder` + `RoleSeeder`. Phải cấu hình số tài khoản ngân hàng nhận tiền trước khi bật SePay, nếu không webhook sẽ không gạch nợ.
 
+#### Q4 — Mô hình giáo trình theo chặng (nhánh `feat/ba-syllabus-stages`)
+**Đã làm:**
+- [x] Phân cấp **Giáo trình → Chặng → Unit → Buổi**: bảng mới `syllabus_stages` (thứ tự, tên, mục tiêu, link tổng quan, thông tin Big Test cuối chặng) và `syllabus_lessons` (nội dung từng buổi); `syllabus_units` thêm `stage_id`. Đánh số duy nhất: `unit_number` và `session_no` đều duy nhất trong cả giáo trình (buổi thứ N của lớp ↔ `session_no` N) — màn soạn, màn GV và đề xuất sửa dùng chung.
+- [x] Soạn syllabus: thêm/sửa/xóa/đổi thứ tự chặng, thêm unit vào chặng, thêm buổi vào unit; gắn giáo trình cho **Trình độ** ngay trên màn soạn. Tạo giáo trình tự có "Chặng 1". Không xóa được chặng còn unit / đã giao lớp / đã gắn Big Test.
+- [x] Chặng của lớp: mặc định giáo trình theo trình độ của lớp, chặng kế tiếp, GV chính. **Mỗi lớp 1 chặng mở** (kiểm tra ở service + UNIQUE `open_class_id` trong DB). Big Test tạo mới tự gắn chặng đang mở (`big_tests.syllabus_stage_id`).
+- [x] **Chặng đóng khi Big Test của chặng được duyệt và gửi PH** (mọi kết quả "Đã gửi PH"; học viên vắng thi chỉ cần "Đã duyệt"; không còn kết quả chờ duyệt) — kiểm tra sau Duyệt kết quả, Gửi Zalo cả lớp, Gửi từng học viên. Chặng kế tiếp tự mở cùng GV, báo GV chính/GVNN; hết chặng → ghi "hoàn thành giáo trình" (`curriculum_completed_at`).
+- [x] Học thuật (`syllabus.approve_adjustment`) **đóng tay** (bắt buộc lý do, tùy chọn mở chặng kế) và **chuyển chặng** (đóng chặng đang mở rồi mở chặng chọn, bắt buộc lý do). Lịch sử hiện người/lý do mở, đóng.
+- [x] Màn GV xem giáo trình: chọn lớp, dải tiến trình các chặng, chặng đang học, số buổi đã dạy (buổi không hủy từ ngày mở chặng), **buổi tiếp theo** và nội dung Unit/Buổi của chặng.
+- [x] Giãn tiến độ vẫn thêm buổi vào TKB như cũ; yêu cầu gắn chặng đang mở, duyệt xong cộng `extra_sessions` cho chặng.
+**Chưa làm / câu hỏi mở:**
+- [ ] **Q4 — Unit có cần bảng riêng?** Đang làm Unit là bảng riêng "nhẹ" (tên, số unit, mô tả); nội dung dạy ở Buổi. Nếu BA chốt Unit chỉ là số (`so_unit`), gộp thành cột trên `syllabus_lessons`, không đổi cách đánh số. Chưa có bảng NOI_DUNG_BUOI_HOC nào trong code — `syllabus_lessons` là bảng nội dung buổi duy nhất.
+- [ ] Buổi học trong TKB (`class_sessions`) chưa lưu `session_no`; vị trí buổi tính theo số buổi đã dạy kể từ khi mở chặng.
+- [ ] Order đề của GV (`big_test_orders.stage_name`, cổng GV) vẫn nhập tên chặng tự do — thuộc nhánh cổng GV.
+- [ ] Chưa có màn đổi chặng cho một đợt Big Test đã tạo (đợt thi cũ trước migrate không gắn chặng nên không tự đóng chặng; Học thuật đóng tay nếu cần).
+**Quyết định phát sinh:** Big Test "đã duyệt và gửi" = không còn kết quả nháp/chờ duyệt, mọi kết quả có điểm đã gửi PH; học viên chưa có dòng kết quả không chặn đóng chặng. Chặng tự mở dùng GV của chặng trước.
+**Triển khai:** chạy `php artisan migrate` (`2026_09_29_100000_create_syllabus_stage_hierarchy`). Migration chuyển dữ liệu: mỗi giáo trình → Chặng 1 (tên = `stage_name` cũ); mỗi bài cũ → Unit cùng id + 1 Buổi cùng số (trùng số → số trống kế tiếp), nội dung chép sang; chặng đã giao gắn Chặng 1, lớp có nhiều chặng đang áp dụng chỉ giữ bản mới nhất (bản cũ đóng kèm lý do); Big Test cũ **không** tự gắn chặng (tránh gửi kết quả một đợt thi cũ làm đóng chặng duy nhất và đánh dấu lớp xong giáo trình) — chỉ đợt thi tạo sau khi migrate mới tự gắn chặng đang mở. **Sau migrate:** Học thuật tách giáo trình cũ thành nhiều chặng/unit ở màn Soạn syllabus (dữ liệu cũ đều nằm trong Chặng 1) trước khi tạo Big Test cuối chặng mới. Sao lưu DB trước khi chạy.
+
 ---
 
 ## Phụ lục — Vị trí kỹ thuật các lỗi P0 (cho dev)
