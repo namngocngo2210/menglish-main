@@ -366,20 +366,23 @@ class Phase1CrmTest extends TestCase
         $this->actingAs($this->sales)->post(route('crm.customers.care-checklist', $won), ['items' => ['bogus']])->assertSessionHasErrors('items.0');
     }
 
-    public function test_detail_shows_rubric_block_and_score_scales_are_labelled(): void
+    public function test_detail_shows_rubric_result_block_with_grade_group_scale(): void
     {
         $lead = $this->lead('tested');
         $test = PlacementTest::create(['code' => 'TEST-G3-G4', 'title' => 'Đề khối 3-4', 'is_active' => true]);
-        $submission = PlacementTestSubmission::create([
-            'placement_test_id' => $test->id, 'customer_id' => $lead->id, 'candidate_name' => $lead->name, 'candidate_phone' => $lead->phone,
-            'listening_score' => 7, 'reading_score' => 7, 'writing_score' => 7, 'speaking_score' => 7, 'overall_score' => 7, 'status' => 'graded',
+        $submission = new PlacementTestSubmission([
+            'placement_test_id' => $test->id, 'customer_id' => $lead->id, 'candidate_name' => $lead->name, 'candidate_phone' => $lead->phone, 'status' => 'graded',
         ]);
+        $submission->applyRubricGrade(['grade_group' => 'khoi_3_4', 'listening_score' => 13, 'reading_writing_score' => 17, 'speaking_score' => 8, 'chosen_class' => 'FAM 2 (NỬA SAU)']);
+        $submission->save();
 
         $this->actingAs($this->academic)->get(route('crm.customers.show', $lead))->assertOk()
-            ->assertSee('Khối lớp 3–4')->assertSee('Luyện MOVERS')->assertSee('Gợi ý lớp')
-            ->assertSee('Thang điểm màn này: 0 – 100 / kỹ năng');
+            ->assertSee('Khối 3 lên 4')->assertSee('38')->assertSee('/ 45')
+            ->assertSee('FAM 2 (NỬA SAU)')
+            ->assertSee('Lớp đề xuất theo thang điểm: <strong>Luyện MOVERS</strong>', false)
+            ->assertSee('level Movers');
         $this->actingAs($this->academic)->get(route('placement-tests.results.show', $submission->id))->assertOk()
-            ->assertSee('Thang điểm màn này: 0 – 9 (band) / kỹ năng');
+            ->assertSee('Chấm điểm theo thang điểm khối lớp')->assertDontSee('name="cefr_level"', false);
     }
 
     // ── 13. Khách chốt / không chốt ───────────────────────────────────────

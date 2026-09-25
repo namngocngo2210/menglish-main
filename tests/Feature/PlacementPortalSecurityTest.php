@@ -259,8 +259,10 @@ class PlacementPortalSecurityTest extends TestCase
         ]))->assertRedirect();
 
         $submission = PlacementTestSubmission::latest('id')->firstOrFail();
-        $this->assertEquals(4.5, (float) $submission->listening_score); // 1/2 đúng
-        $this->assertEquals(8.5, (float) $submission->reading_score);   // 2/2 đúng (không phân biệt hoa thường)
+        // Đề không thuộc khối có thang điểm → thang tạm /10: điểm = tỉ lệ đúng × 10 (làm tròn 0,5).
+        $this->assertSame('khac', $submission->grade_group);
+        $this->assertEquals(5.0, (float) $submission->listening_score); // 1/2 đúng
+        $this->assertEquals(10.0, (float) $submission->reading_score);  // 2/2 đúng (không phân biệt hoa thường)
         $this->assertNull($submission->writing_score);
         $this->assertNull($submission->speaking_score);
         $this->assertNull($submission->overall_score);
@@ -349,8 +351,7 @@ class PlacementPortalSecurityTest extends TestCase
             'status' => 'pending',
         ]);
         $payload = [
-            'listening_score' => 6, 'reading_score' => 6, 'writing_score' => 6, 'speaking_score' => 6,
-            'cefr_level' => 'B1',
+            'grade_group' => 'khoi_2_3', 'listening_score' => 6, 'reading_writing_score' => 6, 'speaking_score' => 6,
         ];
 
         foreach (['sales_consultant', 'teacher', 'teacher_fulltime', 'teacher_parttime'] as $role) {
@@ -388,8 +389,7 @@ class PlacementPortalSecurityTest extends TestCase
         $won = $this->makeLead('won', ['branch_id' => $branch->id]);
         $scheduled = $this->makeLead('test_scheduled', ['phone' => '0911 222 333', 'email' => 'b@example.com', 'branch_id' => $branch->id]);
         $payload = [
-            'listening_score' => 6, 'reading_score' => 7, 'writing_score' => 6, 'speaking_score' => 7,
-            'cefr_level' => 'B1',
+            'grade_group' => 'khoi_2_3', 'listening_score' => 6, 'reading_writing_score' => 7, 'speaking_score' => 7,
         ];
 
         foreach ([$won, $scheduled] as $lead) {
@@ -406,14 +406,13 @@ class PlacementPortalSecurityTest extends TestCase
 
         $this->assertSame('won', $won->fresh()->stage);
         $this->assertSame('tested', $scheduled->fresh()->stage);
-        $this->assertSame('6.5 (B1)', $scheduled->fresh()->test_score);
+        // 6 + 7 + 7 = 20/40 → băng 20 - 30 của Khối 2 lên 3.
+        $this->assertSame('20/40 · STARTERS (FAM 1 _ UNIT 6 - 10)', $scheduled->fresh()->test_score);
     }
 
-    public function test_show_result_unknown_id_is_404_and_grader_list_is_limited(): void
+    public function test_show_result_unknown_id_is_404(): void
     {
         $academic = $this->userWithRole('academic_staff');
-        $sales = $this->userWithRole('sales_consultant');
-        $sales->update(['name' => 'Sale Không Được Chấm']);
         $test = $this->makeTest();
         $submission = PlacementTestSubmission::create([
             'placement_test_id' => $test->id,
@@ -423,12 +422,8 @@ class PlacementPortalSecurityTest extends TestCase
         ]);
 
         $this->actingAs($academic)->get(route('placement-tests.results.show', 999999))->assertNotFound();
-
-        $response = $this->actingAs($academic)->get(route('placement-tests.results.show', $submission->id));
-        $response->assertOk();
-        $graderIds = $response->viewData('graders')->pluck('id')->all();
-        $this->assertContains($academic->id, $graderIds);
-        $this->assertNotContains($sales->id, $graderIds);
+        $this->actingAs($academic)->get(route('placement-tests.results.show', $submission->id))->assertOk()
+            ->assertSee('name="grade_group"', false);
     }
 
     // ── 8. Nhập điểm từ CRM ──────────────────────────────────────────
@@ -444,8 +439,8 @@ class PlacementPortalSecurityTest extends TestCase
                 'assigned_user_id' => $user->id,
             ]);
             $this->actingAs($user)->post(route('crm.customers.save-test-score', $lead->id), [
-                'placement_test_id' => $test->id,
-                'listening_score' => 6, 'reading_score' => 6, 'speaking_score' => 6,
+                'placement_test_id' => $test->id, 'grade_group' => 'khoi_2_3',
+                'listening_score' => 6, 'reading_writing_score' => 6, 'speaking_score' => 6,
             ])->assertForbidden();
         }
         $this->assertSame(0, PlacementTestSubmission::count());
@@ -462,21 +457,21 @@ class PlacementPortalSecurityTest extends TestCase
 
         // Không có đề: không được lấy đại PlacementTest::first()
         $this->actingAs($manager)->post(route('crm.customers.save-test-score', $lead->id), [
-            'listening_score' => 6, 'reading_score' => 8, 'speaking_score' => 7,
+            'grade_group' => 'khoi_1_2', 'listening_score' => 6, 'reading_writing_score' => 8, 'speaking_score' => 7,
         ])->assertSessionHasErrors('placement_test_id');
         $this->assertSame(0, PlacementTestSubmission::count());
 
         $test = PlacementTest::firstOrFail();
         $this->actingAs($manager)->post(route('crm.customers.save-test-score', $lead->id), [
-            'placement_test_id' => $test->id,
-            'listening_score' => 6, 'reading_score' => 8, 'speaking_score' => 7,
+            'placement_test_id' => $test->id, 'grade_group' => 'khoi_1_2',
+            'listening_score' => 6, 'reading_writing_score' => 8, 'speaking_score' => 7,
         ])->assertSessionHasNoErrors();
 
         $submission = PlacementTestSubmission::where('customer_id', $lead->id)->firstOrFail();
         $this->assertNull($submission->writing_score);
         $this->assertNull($submission->cefr_level);
-        $this->assertEquals(7.0, (float) $submission->overall_score);
-        $this->assertSame('7', $lead->fresh()->test_score);
+        $this->assertEquals(21.0, (float) $submission->total_score);
+        $this->assertSame('21/35 · STARTERS (FAM 1 _ TỪ BÀI 5 - 10)', $lead->fresh()->test_score);
     }
 
     public function test_crm_score_modal_has_no_fabricated_defaults(): void
@@ -487,9 +482,10 @@ class PlacementPortalSecurityTest extends TestCase
         $response = $this->actingAs($admin)->get(route('crm.customers.show', $lead->id));
         $response->assertOk();
         $html = $response->getContent();
-        foreach (['listening_score', 'reading_score', 'writing_score', 'speaking_score'] as $field) {
-            $this->assertMatchesRegularExpression('/name="'.$field.'" value=""/', $html);
-        }
+        // Ô điểm dùng x-model, giá trị khởi tạo trống (không bịa điểm mặc định).
+        $this->assertStringContainsString('\\u0022listening\\u0022:\\u0022\\u0022', $html);
+        $this->assertStringContainsString('\\u0022speaking\\u0022:\\u0022\\u0022', $html);
+        $this->assertStringNotContainsString('name="cefr_level"', $html);
         $response->assertDontSee('IELTS 6.5 Intensive');
         $response->assertDontSee('Học viên có phản xạ nói tự nhiên, vốn từ cơ bản tốt.');
     }

@@ -457,7 +457,7 @@
                                 </td>
                                 <td class="py-3.5 px-4 text-center whitespace-nowrap">
                                     <span class="px-2.5 py-1 rounded-full bg-orange-100 text-orange-800 font-mono font-black text-xs whitespace-nowrap inline-flex items-center justify-center">
-                                        @if ($sub->isPending()) Chờ chấm @else {{ $sub->overall_score ?? '—' }} ({{ $sub->cefr_level ?? '—' }}) @endif
+                                        @if ($sub->isPending()) Chờ chấm @else {{ $sub->scoreSummary() ?? '—' }} @endif
                                     </span>
                                 </td>
                                 <td class="py-3.5 px-4 font-semibold text-primary whitespace-nowrap">{{ $sub->recommended_course }}</td>

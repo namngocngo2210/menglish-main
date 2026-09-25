@@ -192,13 +192,13 @@ class AcademicSystemTest extends TestCase
         ]);
 
         // 3. Teacher grades submission (Listening, Reading, Writing, Speaking)
+        // Đề IELTS: chưa có thang điểm khối lớp → Học thuật chọn lớp thủ công.
         $gradePayload = [
+            'grade_group' => 'khac',
             'listening_score' => 7.0,
-            'reading_score' => 6.5,
-            'writing_score' => 6.0,
+            'reading_writing_score' => 6.5,
             'speaking_score' => 6.5,
-            'cefr_level' => 'B2',
-            'recommended_course' => 'IELTS Chuyên Sâu 7.0+',
+            'chosen_class' => 'IELTS Chuyên Sâu 7.0+',
             'teacher_comments' => 'Phát âm tốt, ngữ pháp tương đối chuẩn, cần bổ sung từ vựng Writing Task 2.',
         ];
 
@@ -208,14 +208,14 @@ class AcademicSystemTest extends TestCase
         $submission->refresh();
         $this->assertEquals('graded', $submission->status);
         $this->assertEquals($this->academicHead->id, $submission->grader_id);
-        $this->assertEquals('B2', $submission->cefr_level);
+        $this->assertNull($submission->cefr_level);
         $this->assertEquals(7.0, $submission->listening_score);
-        $this->assertEquals(6.5, $submission->reading_score);
-        $this->assertEquals(6.0, $submission->writing_score);
+        $this->assertEquals(6.5, $submission->reading_writing_score);
         $this->assertEquals(6.5, $submission->speaking_score);
 
-        // Verify Overall Score computation: (7.0 + 6.5 + 6.0 + 6.5) / 4 = 6.5
-        $this->assertEquals(6.5, $submission->overall_score);
+        // Tổng = Nghe + Đọc&Viết + Nói = 20; không quy đổi CEFR.
+        $this->assertEquals(20.0, $submission->total_score);
+        $this->assertSame('IELTS Chuyên Sâu 7.0+', $submission->chosen_class);
 
         // 4. View rubric guide
         $responseRubric = $this->actingAs($this->academicHead)->get(route('placement-tests.rubric-guide'));
@@ -308,8 +308,9 @@ class AcademicSystemTest extends TestCase
 
         // 3. Nghe/Đọc chấm tự động theo đáp án của đề; Viết/Nói chờ Học vụ chấm
         $this->assertSame($lead->id, $submission->customer_id);
-        $this->assertEquals(8.5, $submission->listening_score); // 2/2
-        $this->assertEquals(4.5, $submission->reading_score);   // 1/2
+        // Đề không thuộc khối có thang điểm → thang tạm /10 (tỉ lệ đúng × 10).
+        $this->assertEquals(10.0, $submission->listening_score); // 2/2
+        $this->assertEquals(5.0, $submission->reading_score);    // 1/2
         $this->assertNull($submission->writing_score);
         $this->assertNull($submission->speaking_score);
         $this->assertNull($submission->overall_score);
@@ -322,18 +323,20 @@ class AcademicSystemTest extends TestCase
         $this->assertNull($lead->test_score);
 
         // 5. Học vụ chấm hoàn tất -> rubric sinh nhận xét, đồng bộ điểm sang CRM
+        // Chấm theo Khối 3 lên 4: nhận xét từng kỹ năng gợi ý theo băng điểm.
         $this->actingAs($this->academicHead)->post(route('placement-tests.results.update', $submission->id), [
-            'listening_score' => 8.5,
-            'reading_score' => 4.5,
-            'writing_score' => 6.0,
-            'speaking_score' => 6.0,
-            'cefr_level' => 'B1',
+            'grade_group' => 'khoi_3_4',
+            'listening_score' => 12,
+            'reading_writing_score' => 16,
+            'speaking_score' => 6,
         ])->assertRedirect();
         $submission->refresh();
         $this->assertSame('graded', $submission->status);
-        $this->assertEquals(6.3, $submission->overall_score);
-        $this->assertStringContainsString('Kỹ năng Nghe', $submission->teacher_comments);
-        $this->assertStringContainsString('6.3', $lead->fresh()->test_score);
+        $this->assertEquals(34.0, $submission->total_score);
+        $this->assertSame('FAM 2 (NỬA SAU)', $submission->suggested_class);
+        $this->assertStringContainsString('level Movers', $submission->listening_comment);
+        $this->assertStringContainsString('Con có kĩ năng nghe nói cơ bản', $submission->speaking_comment);
+        $this->assertSame('34/45 · FAM 2 (NỬA SAU)', $lead->fresh()->test_score);
 
         // 6. View candidate scorecard (public route yêu cầu URL có chữ ký)
         $responseScorecard = $this->get(URL::signedRoute('portal.test.scorecard', ['id' => $submission->id]));

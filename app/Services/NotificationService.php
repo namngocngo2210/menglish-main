@@ -907,10 +907,8 @@ class NotificationService
         $candidateName = $submission->candidate_name ?? 'Học viên';
         $candidatePhone = $submission->candidate_phone ?? '---';
         $testTitle = $submission->test?->title ?? 'Bài kiểm tra đầu vào';
-        $scoreLabel = $submission->overall_score !== null
-            ? "{$submission->overall_score} Band (".($submission->cefr_level ?? 'Chưa xác định').')'
-            : 'Chờ Học vụ chấm';
-        $course = $submission->recommended_course ?? 'Đang tư vấn';
+        $scoreLabel = $submission->isPending() ? 'Chờ Học vụ chấm' : ($submission->scoreSummary() ?? 'Chờ Học vụ chấm');
+        $course = $submission->finalClass() ?? 'Đang tư vấn';
 
         $subject = "[Học vụ] Học viên nộp bài: {$candidateName} - {$testTitle}";
         $content = "Học viên vừa hoàn thành và nộp bài trực tuyến trên hệ thống Portal:\n\n"

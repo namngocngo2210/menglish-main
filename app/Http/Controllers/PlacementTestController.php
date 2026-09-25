@@ -7,7 +7,6 @@ use App\Models\CrmCustomer;
 use App\Models\CrmCustomerHistory;
 use App\Models\PlacementTest;
 use App\Models\PlacementTestSubmission;
-use App\Models\User;
 use App\Services\CrmStageService;
 use App\Services\NotificationService;
 use App\Services\PlacementPortalLinkService;
@@ -227,49 +226,24 @@ class PlacementTestController extends Controller
         $test = $submission->test;
         $questions = is_array($test?->questions) ? $test->questions : [];
 
-        $graders = User::query()
-            ->where('is_active', true)
-            ->permission('placement_test.grade')
-            ->orderBy('name')
-            ->get();
-
-        return view('placement-tests.result', compact('submission', 'graders', 'questions'));
+        return view('placement-tests.result', compact('submission', 'questions'));
     }
 
+    /**
+     * Chấm bài theo thang điểm khối lớp (BA Q2): Nghe + Đọc&Viết + Nói, tổng → lớp đề xuất, cho chọn lại lớp.
+     * Chỉ Học vụ / Quản lý cơ sở / Admin (quyền placement_test.grade).
+     */
     public function updateResult(Request $request, $id)
     {
-        $submission = $this->visibleSubmissionsQuery()->findOrFail($id);
+        $submission = $this->visibleSubmissionsQuery()->with('test')->findOrFail($id);
 
-        $validated = $request->validate([
-            'listening_score' => 'required|numeric|min:0|max:9',
-            'reading_score' => 'required|numeric|min:0|max:9',
-            'writing_score' => 'required|numeric|min:0|max:9',
-            'speaking_score' => 'required|numeric|min:0|max:9',
-            'cefr_level' => 'required|string|max:255',
-            'recommended_course' => 'nullable|string|max:255',
-            'teacher_comments' => 'nullable|string|max:5000',
-        ]);
+        $group = (string) $request->input('grade_group');
+        $validated = $request->validate(
+            PlacementRubricService::scoreRules($group),
+            PlacementRubricService::scoreMessages($group)
+        );
 
-        $submission->fill($validated);
-        $submission->calculateOverall();
-
-        if (empty($validated['teacher_comments']) || empty($validated['recommended_course'])) {
-            $eval = PlacementRubricService::evaluate(
-                $submission->test?->code ?? 'TEST-GENERAL',
-                (float) $submission->listening_score,
-                (float) $submission->reading_score,
-                (float) $submission->writing_score,
-                (float) $submission->speaking_score,
-                (float) $submission->overall_score
-            );
-            if (empty($validated['teacher_comments'])) {
-                $submission->teacher_comments = $eval['teacher_comments'];
-            }
-            if (empty($validated['recommended_course'])) {
-                $submission->recommended_course = $eval['recommended_course'];
-            }
-        }
-
+        $submission->applyRubricGrade($validated);
         $submission->grader_id = Auth::id();
         $submission->status = PlacementTestSubmission::STATUS_GRADED;
         $submission->save();
@@ -279,7 +253,7 @@ class PlacementTestController extends Controller
         }
 
         return redirect()->route('placement-tests.results.show', $submission->id)
-            ->with('status', "Đã chấm và lưu kết quả bài test (Overall: {$submission->overall_score} - {$submission->cefr_level})!");
+            ->with('status', 'Đã chấm và lưu kết quả bài test: '.$submission->scoreSummary().'.');
     }
 
     public function rubricGuide()
@@ -330,8 +304,11 @@ class PlacementTestController extends Controller
 
         // Chỉ chấm tự động Nghe / Đọc-Ngữ pháp theo đáp án lưu trong đề.
         // Viết / Nói do Học vụ chấm (BA) nên để trống, bài ở trạng thái chờ chấm.
-        $listeningScore = $this->autoGradeSkill($questions, $submittedAnswers, ['listening']);
-        $readingScore = $this->autoGradeSkill($questions, $submittedAnswers, ['reading', 'grammar']);
+        // Điểm quy về thang của khối lớp (theo mã đề): Nghe trên thang Nghe, phần Đọc trắc nghiệm trên thang Đọc & Viết.
+        $gradeGroup = PlacementRubricService::detectGradeGroup($test->code);
+        $maxScores = PlacementRubricService::maxScores($gradeGroup);
+        $listeningScore = $this->autoGradeSkill($questions, $submittedAnswers, ['listening'], $maxScores['listening']);
+        $readingScore = $this->autoGradeSkill($questions, $submittedAnswers, ['reading', 'grammar'], $maxScores['reading_writing']);
 
         [$customer, $viaSignedLink] = $this->resolveSubmissionLead($validated, $test, $links);
 
@@ -346,6 +323,7 @@ class PlacementTestController extends Controller
             'candidate_name' => $validated['candidate_name'],
             'candidate_phone' => $validated['candidate_phone'],
             'candidate_email' => $validated['candidate_email'] ?? null,
+            'grade_group' => $gradeGroup,
             'listening_score' => $listeningScore,
             'reading_score' => $readingScore,
             'writing_score' => null,
@@ -411,14 +389,15 @@ class PlacementTestController extends Controller
     }
 
     /**
-     * Chấm tự động các câu của kỹ năng theo đáp án chuẩn trong đề.
+     * Chấm tự động các câu của kỹ năng theo đáp án chuẩn trong đề, quy về thang điểm của khối
+     * (tỉ lệ đúng × điểm tối đa, làm tròn 0,5). Đây là điểm gợi ý — Học vụ xác nhận khi chấm (phần Viết / Nói nhập tay).
      * Đề không có câu nào của kỹ năng này (hoặc không có đáp án) => null, không bịa điểm.
      *
      * @param  array<int, array<string, mixed>>  $questions
      * @param  array<int|string, string>  $answers
      * @param  array<int, string>  $skills
      */
-    private function autoGradeSkill(array $questions, array $answers, array $skills): ?float
+    private function autoGradeSkill(array $questions, array $answers, array $skills, int $maxScore): ?float
     {
         $total = 0;
         $correct = 0;
@@ -438,16 +417,7 @@ class PlacementTestController extends Controller
             return null;
         }
 
-        $ratio = $correct / $total;
-
-        return match (true) {
-            $ratio >= 0.9 => 8.5,
-            $ratio >= 0.75 => 7.0,
-            $ratio >= 0.6 => 5.5,
-            $ratio >= 0.4 => 4.5,
-            $ratio >= 0.2 => 3.5,
-            default => 2.5,
-        };
+        return round($correct / $total * $maxScore * 2) / 2;
     }
 
     /**
@@ -503,14 +473,17 @@ class PlacementTestController extends Controller
      */
     private function syncGradedResultToLead(PlacementTestSubmission $submission, CrmCustomer $customer): void
     {
-        $scoreText = "{$submission->overall_score} ({$submission->cefr_level})";
+        $scoreText = $submission->scoreSummary();
         if ($customer->canAdvanceToTested() || in_array($customer->stage, ['tested', 'result_sent'], true)) {
             $customer->update(['test_score' => $scoreText]);
         }
         // BA: Học vụ chấm xong → lead tự chuyển "Đã test" (chỉ đi tiến, không đụng lead đã chốt / thất bại).
         $advanced = app(CrmStageService::class)->advanceTo($customer, 'tested', Auth::user(), "Học vụ chấm xong bài test #{$submission->id}.");
 
-        $content = "Học vụ đã chấm bài test #{$submission->id}: {$scoreText}";
+        $content = "Học vụ đã chấm bài test #{$submission->id} (".PlacementRubricService::groupLabel($submission->grade_group)."): {$scoreText}";
+        if ($submission->classWasOverridden()) {
+            $content .= " (lớp đề xuất theo thang điểm: {$submission->suggested_class})";
+        }
         if (! $advanced && ! in_array($customer->stage, ['tested', 'result_sent'], true)) {
             $content .= " · Giữ nguyên giai đoạn hiện tại ({$customer->stage_label}).";
         }

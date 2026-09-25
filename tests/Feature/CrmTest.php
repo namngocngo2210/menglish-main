@@ -237,31 +237,32 @@ class CrmTest extends TestCase
 
         // 1. Submit test score directly from CRM
         $response = $this->actingAs($user)->post(route('crm.customers.save-test-score', $customer->id), [
+            'grade_group' => 'khac',
             'listening_score' => 6.5,
-            'reading_score' => 6.0,
-            'writing_score' => 6.5,
+            'reading_writing_score' => 6.0,
             'speaking_score' => 7.0,
-            'cefr_level' => 'B2',
-            'recommended_course' => 'IELTS 6.5 Intensive',
+            'chosen_class' => 'IELTS 6.5 Intensive',
             'teacher_comments' => 'Phát âm chuẩn và phản xạ xuất sắc.',
         ]);
 
         $response->assertRedirect();
         $this->assertDatabaseHas('placement_test_submissions', [
             'customer_id' => $customer->id,
-            'overall_score' => 6.5,
-            'cefr_level' => 'B2',
+            'grade_group' => 'khac',
+            'total_score' => 19.5,
+            'chosen_class' => 'IELTS 6.5 Intensive',
+            'cefr_level' => null,
             'speaking_score' => 7.0,
         ]);
 
         $customer->refresh();
-        $this->assertEquals('6.5 (B2)', $customer->test_score);
+        $this->assertEquals('19.5/30 · IELTS 6.5 Intensive', $customer->test_score);
         $this->assertEquals('tested', $customer->stage);
 
         // 2. View customer page
         $viewResponse = $this->actingAs($user)->get(route('crm.customers.show', $customer->id));
         $viewResponse->assertOk();
-        $viewResponse->assertSee('Đã Làm Bài Test (6.5)');
+        $viewResponse->assertSee('Đã Làm Bài Test (19.5/30 · IELTS 6.5 Intensive)');
         $viewResponse->assertSee('Scorecard');
     }
 }
