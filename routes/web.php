@@ -454,6 +454,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/create', [SupportTicketController::class, 'create'])->middleware('can:support_ticket.create')->name('create');
         Route::post('/', [SupportTicketController::class, 'store'])->middleware('can:support_ticket.create')->name('store');
         Route::get('/{id}', [SupportTicketController::class, 'show'])->middleware('can:support_ticket.view')->name('show');
+        Route::get('/{id}/attachment', [SupportTicketController::class, 'attachment'])->middleware('can:support_ticket.view')->name('attachment');
         Route::post('/{id}/messages', [SupportTicketController::class, 'storeMessage'])->middleware('can:support_ticket.view')->name('messages.store');
         Route::post('/{id}/status', [SupportTicketController::class, 'updateStatus'])->middleware('can:support_ticket.close')->name('status.update');
         Route::post('/{id}/assign', [SupportTicketController::class, 'assign'])->middleware('can:support_ticket.assign')->name('assign');

@@ -78,6 +78,8 @@ class TicketNotificationScopeTest extends TestCase
     public function test_ticket_creation_notifies_assignee_only_and_not_unrelated_users(): void
     {
         $this->teacherA->givePermissionTo('support_ticket.assign');
+        // Phase 4: chỉ phân công ticket cho người có quyền xử lý (support_ticket.update).
+        $this->teacherB->givePermissionTo('support_ticket.update');
 
         // Admin creates ticket assigning Teacher B (assignment requires support_ticket.assign).
         $response = $this->actingAs($this->teacherA)->post(route('tickets.store'), [

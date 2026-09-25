@@ -105,7 +105,9 @@ class SupportTicketTest extends TestCase
         $this->assertNotNull($ticket->resolved_at);
 
         // 5. Reassign ticket to another user
-        $newStaff = User::factory()->create(['name' => 'Kỹ sư IT Support']);
+        // Phase 4: chỉ phân công cho nhân sự có quyền xử lý ticket (support_ticket.update).
+        $newStaff = User::factory()->create(['name' => 'Kỹ sư IT Support', 'branch_id' => $this->branch->id]);
+        $newStaff->assignRole('manager');
         $responseAssign = $this->actingAs($this->admin)->post(route('tickets.assign', $ticket->id), [
             'assignee_id' => $newStaff->id,
         ]);
@@ -115,9 +117,14 @@ class SupportTicketTest extends TestCase
         $this->assertEquals($newStaff->id, $ticket->assignee_id);
     }
 
+    /**
+     * Phase 4: file đính kèm mới lưu ở disk riêng tư (local) theo thư mục
+     * tickets/YYYY/MM/DD/ và chỉ xem được qua route có kiểm tra quyền
+     * (trước đây lưu public/uploads/... ai có link cũng xem được).
+     */
     public function test_can_create_ticket_with_uploaded_images_stored_in_dated_folders(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
 
         $fakeImage = UploadedFile::fake()->image('screenshot_error.png', 600, 400);
 
@@ -138,14 +145,18 @@ class SupportTicketTest extends TestCase
         $year = date('Y');
         $month = date('m');
         $day = date('d');
-        $expectedPrefix = "uploads/{$year}/{$month}/{$day}/";
+        $expectedPrefix = "tickets/{$year}/{$month}/{$day}/";
 
-        $this->assertStringStartsWith($expectedPrefix, $ticket->attachment_list[0]);
-        $this->assertFileExists(public_path($ticket->attachment_list[0]));
+        $path = $ticket->attachment_list[0];
+        $this->assertStringStartsWith($expectedPrefix, $path);
+        Storage::disk('local')->assertExists($path);
+        $this->assertFileDoesNotExist(public_path($path));
 
-        // Cleanup test file
-        if (file_exists(public_path($ticket->attachment_list[0]))) {
-            unlink(public_path($ticket->attachment_list[0]));
-        }
+        // Người tạo xem được qua route có kiểm tra quyền; người ngoài luồng bị chặn; khách phải đăng nhập.
+        $this->actingAs($this->staff)->get(route('tickets.attachment', ['id' => $ticket->id, 'path' => $path]))->assertOk();
+        $outsider = User::factory()->create(['branch_id' => $this->branch->id]);
+        $outsider->assignRole('sales_consultant');
+        $this->actingAs($outsider)->get(route('tickets.attachment', ['id' => $ticket->id, 'path' => $path]))->assertForbidden();
+        $this->actingAs($this->staff)->get(route('tickets.attachment', ['id' => $ticket->id, 'path' => 'tickets/khac.png']))->assertNotFound();
     }
 }
