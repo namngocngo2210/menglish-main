@@ -118,13 +118,11 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Khóa học quan tâm</label>
-                        <input type="text" name="course_interest" @readonly($locked) value="{{ old('course_interest', $customer->course_interest) }}" placeholder="VD: IELTS 6.5 Intensive" list="course-interest-options" class="{{ $locked ? 'bg-gray-50 text-gray-500' : '' }} w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 font-semibold" />
+                        <input type="text" name="course_interest" @readonly($locked) value="{{ old('course_interest', $customer->course_interest) }}" placeholder="Chọn hoặc nhập khóa học" list="course-interest-options" class="{{ $locked ? 'bg-gray-50 text-gray-500' : '' }} w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 font-semibold" />
                         <datalist id="course-interest-options">
-                            <option value="IELTS 6.5 Intensive">IELTS 6.5 Intensive</option>
-                            <option value="IELTS 7.0 Master">IELTS 7.0 Master</option>
-                            <option value="Giao tiếp Pro B1">Giao tiếp Pro B1</option>
-                            <option value="Giao tiếp Pro B2">Giao tiếp Pro B2</option>
-                            <option value="Tiếng Anh Mất Gốc">Tiếng Anh Mất Gốc</option>
+                            @foreach (\App\Models\Course::where('is_active', true)->orderBy('name')->pluck('name') as $courseName)
+                                <option value="{{ $courseName }}"></option>
+                            @endforeach
                         </datalist>
                     </div>
                     <div>
