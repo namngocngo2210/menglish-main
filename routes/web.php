@@ -9,6 +9,7 @@ use App\Http\Controllers\ClassManagementController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CourseLevelController;
 use App\Http\Controllers\CrmController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\KpiController;
@@ -43,9 +44,8 @@ Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth'])->name('dashboard');
+// Dashboard theo vai trò (BPMN 22): Admin / Quản lý cơ sở / Học thuật có số liệu riêng.
+Route::get('/dashboard', DashboardController::class)->middleware(['auth'])->name('dashboard');
 
 // Interactive Mockup Hub Navigator (Admin / Manager)
 Route::get('/mockup-hub', [MockupHubController::class, 'index'])->middleware(['auth', 'can:system_category.manage'])->name('mockup-hub.index');
