@@ -40,7 +40,7 @@
                             type="submit" 
                             name="preset" 
                             value="{{ $key }}"
-                            class="px-3.5 py-1.5 rounded-xl text-xs transition {{ $preset === $key ? 'bg-[#ea580c] text-white font-bold shadow-xs' : 'bg-[#f0f4f9] text-[#334155] hover:bg-[#e2e8f0] font-medium' }}"
+                            class="px-3.5 py-1.5 rounded-xl text-xs transition {{ $preset === $key ? 'bg-primary-container text-white font-bold shadow-xs' : 'bg-[#f0f4f9] text-slate-700 hover:bg-slate-200 font-medium' }}"
                         >
                             {{ $label }}
                         </button>
@@ -60,7 +60,7 @@
                                 type="date" 
                                 name="start_date" 
                                 value="{{ $startDate->format('Y-m-d') }}" 
-                                class="w-full text-xs font-medium rounded-xl border border-gray-200 px-3.5 py-2 bg-white focus:border-[#ea580c] focus:ring-1 focus:ring-[#ea580c]"
+                                class="w-full text-xs font-medium rounded-xl border border-gray-200 px-3.5 py-2 bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-container"
                             />
                         </div>
                         <span class="text-xs text-gray-500 font-medium shrink-0">đến</span>
@@ -69,7 +69,7 @@
                                 type="date" 
                                 name="end_date" 
                                 value="{{ $endDate->format('Y-m-d') }}" 
-                                class="w-full text-xs font-medium rounded-xl border border-gray-200 px-3.5 py-2 bg-white focus:border-[#ea580c] focus:ring-1 focus:ring-[#ea580c]"
+                                class="w-full text-xs font-medium rounded-xl border border-gray-200 px-3.5 py-2 bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-container"
                             />
                         </div>
                     </div>
@@ -83,7 +83,7 @@
                     <div class="flex items-center gap-2">
                         <select 
                             name="branch_id" 
-                            class="w-full text-xs font-medium rounded-xl border border-gray-200 px-3.5 py-2 bg-white focus:border-[#ea580c] focus:ring-1 focus:ring-[#ea580c]"
+                            class="w-full text-xs font-medium rounded-xl border border-gray-200 px-3.5 py-2 bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-container"
                         >
                             <option value="">Tất cả chi nhánh</option>
                             @foreach ($branches as $branch)
@@ -97,7 +97,7 @@
                             type="submit" 
                             name="preset" 
                             value="custom"
-                            class="px-4 py-2 bg-[#ea580c] hover:bg-[#c2410c] text-white text-xs font-bold rounded-xl shadow-xs transition inline-flex items-center gap-1.5 shrink-0"
+                            class="px-4 py-2 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition inline-flex items-center gap-1.5 shrink-0"
                         >
                             <span class="material-symbols-outlined text-base">search</span>
                             <span>Lọc dữ liệu</span>
@@ -153,10 +153,10 @@
             <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-xs relative">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-semibold text-gray-700">Tỷ lệ chốt thành công</span>
-                    <span class="material-symbols-outlined text-[#ea580c] text-xl font-light">bookmark</span>
+                    <span class="material-symbols-outlined text-primary-container text-xl font-light">bookmark</span>
                 </div>
                 <div class="mt-3 flex items-baseline justify-between">
-                    <div class="text-3xl font-black text-[#ea580c] font-mono tracking-tight">
+                    <div class="text-3xl font-black text-primary-container font-mono tracking-tight">
                         {{ $metricConversionRate }}%
                     </div>
                     <div class="text-xs font-bold text-emerald-600 flex items-center gap-0.5">
@@ -232,7 +232,7 @@
                 </div>
 
                 @can('commission_config.manage')
-                <a href="{{ route('payroll.config.commission-tiers') }}" class="text-xs font-bold text-[#ea580c] hover:underline inline-flex items-center gap-1">
+                <a href="{{ route('payroll.config.commission-tiers') }}" class="text-xs font-bold text-primary-container hover:underline inline-flex items-center gap-1">
                     <span class="material-symbols-outlined text-sm">settings</span>
                     <span>Cấu hình công thức hoa hồng &rarr;</span>
                 </a>
@@ -241,14 +241,14 @@
 
             <div class="overflow-x-auto rounded-xl border border-gray-200">
                 <table class="w-full text-left text-xs">
-                    <thead class="bg-[#f8fafc] text-gray-600 font-bold uppercase tracking-wider border-b border-gray-200 text-[11px]">
+                    <thead class="bg-slate-50 text-gray-600 font-bold uppercase tracking-wider border-b border-gray-200 text-[11px]">
                         <tr>
                             <th class="py-3 px-4">Người phụ trách</th>
                             <th class="py-3 px-3 text-center">Số lượng Lead</th>
                             <th class="py-3 px-3 text-center">SL chốt thành công</th>
                             <th class="py-3 px-3 text-center">% Chốt thành công</th>
                             <th class="py-3 px-4 text-right">Doanh thu</th>
-                            <th class="py-3 px-4 text-right bg-[#fff7ed] text-[#9a3412] font-bold">Hoa hồng (Tier)</th>
+                            <th class="py-3 px-4 text-right bg-brand-surface text-on-primary-fixed-variant font-bold">Hoa hồng (Tier)</th>
                             <th class="py-3 px-3 text-center">Biến động % vs kỳ trước</th>
                             <th class="py-3 px-3 text-center">Đánh giá</th>
                         </tr>
@@ -259,7 +259,7 @@
                                 <!-- Người phụ trách -->
                                 <td class="py-3.5 px-4 font-bold text-gray-900">
                                     <div class="flex items-center gap-2.5">
-                                        <span class="w-7 h-7 rounded-full bg-[#ea580c] text-white flex items-center justify-center font-bold text-xs shrink-0">
+                                        <span class="w-7 h-7 rounded-full bg-primary-container text-white flex items-center justify-center font-bold text-xs shrink-0">
                                             {{ $rep['avatar_letter'] }}
                                         </span>
                                         <div>
@@ -290,8 +290,8 @@
                                 </td>
 
                                 <!-- Hoa hồng -->
-                                <td class="py-3.5 px-4 text-right bg-[#fff7ed]">
-                                    <div class="font-mono font-bold text-[#ea580c]">
+                                <td class="py-3.5 px-4 text-right bg-brand-surface">
+                                    <div class="font-mono font-bold text-primary-container">
                                         {{ number_format($rep['commission_amount']) }} đ
                                     </div>
                                     <div class="text-[10px] text-gray-500 font-sans">
@@ -323,7 +323,7 @@
                     <span>Dữ liệu được tổng hợp theo thời gian thực từ CRM.</span>
                 </div>
                 <div>
-                    Công thức hoa hồng được tính tự động @can('commission_config.manage') từ <a href="{{ route('payroll.config.commission-tiers') }}" class="font-bold text-[#ea580c] hover:underline">Cấu hình Mốc Hoa hồng</a> @endcan
+                    Công thức hoa hồng được tính tự động @can('commission_config.manage') từ <a href="{{ route('payroll.config.commission-tiers') }}" class="font-bold text-primary-container hover:underline">Cấu hình Mốc Hoa hồng</a> @endcan
                 </div>
             </div>
         </div>

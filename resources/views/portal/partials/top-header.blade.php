@@ -24,7 +24,7 @@
     <div class="flex items-center gap-2">
         @if($students && $students->count() > 1)
             <!-- Quick Student Switcher Dropdown -->
-            <select class="text-[11px] font-semibold py-1 px-2.5 bg-gray-100 hover:bg-gray-200 border-none rounded-full text-gray-700 cursor-pointer focus:ring-1 focus:ring-primary"
+            <select class="text-[11px] font-semibold py-1 px-2.5 bg-gray-100 hover:bg-gray-200 border-none rounded-full text-gray-700 cursor-pointer focus:ring-1 focus:ring-primary-container"
                     onchange="window.location.href = window.location.pathname.replace(/\/home(\/\d+)?$/, '/home/' + this.value).replace(/\/student-homework(\/\d+)?$/, '/student-homework/' + this.value).replace(/\/pronunciation(\/\d+)?$/, '/pronunciation/' + this.value).replace(/\/notifications(\/\d+)?$/, '/notifications/' + this.value).replace(/\/survey(\/\d+)?$/, '/survey/' + this.value).replace(/\/feedback(\/\d+)?$/, '/feedback/' + this.value)">
                 @foreach($students as $st)
                     <option value="{{ $st->id }}" {{ ($student && $student->id === $st->id) ? 'selected' : '' }}>

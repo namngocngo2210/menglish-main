@@ -56,7 +56,7 @@
                             value="{{ old('code', $item->code) }}" 
                             placeholder="Ví dụ: BOOK-CAM-S3, UNI-POLO-M..." 
                             required 
-                            class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary px-3 py-2 uppercase"
+                            class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 uppercase"
                         />
                         <p class="text-[10px] text-gray-400 mt-1">Mã định danh duy nhất của hàng hóa trong hệ thống.</p>
                     </div>
@@ -69,7 +69,7 @@
                         <select 
                             name="category" 
                             required 
-                            class="w-full text-xs font-semibold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary px-3 py-2 text-gray-800"
+                            class="w-full text-xs font-semibold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 text-gray-800"
                         >
                             @foreach ($categories as $catKey => $cat)
                                 <option value="{{ $catKey }}" {{ old('category', $item->category) === $catKey ? 'selected' : '' }}>
@@ -91,7 +91,7 @@
                         value="{{ old('name', $item->name) }}" 
                         placeholder="Ví dụ: Bộ Giáo trình Cambridge Stage 3, Áo Polo Đồng phục MEnglish..." 
                         required 
-                        class="w-full text-xs font-bold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary px-3 py-2 text-gray-900"
+                        class="w-full text-xs font-bold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 text-gray-900"
                     />
                 </div>
 
@@ -107,7 +107,7 @@
                             value="{{ old('unit', $item->unit ?? 'Bộ') }}" 
                             placeholder="Bộ, Cuốn, Chiếc, Cái..." 
                             required 
-                            class="w-full text-xs font-semibold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary px-3 py-2"
+                            class="w-full text-xs font-semibold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2"
                         />
                     </div>
 
@@ -123,7 +123,7 @@
                             min="0" 
                             step="1000" 
                             required 
-                            class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary px-3 py-2 text-[#ea580c]"
+                            class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 text-primary-container"
                         />
                         <p class="text-[10px] text-gray-400 mt-1">Giá tính vào hợp đồng &amp; hoá đơn.</p>
                     </div>
@@ -140,7 +140,7 @@
                             min="0" 
                             step="1000" 
                             placeholder="Tùy chọn" 
-                            class="w-full text-xs font-mono rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary px-3 py-2 text-gray-600"
+                            class="w-full text-xs font-mono rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 text-gray-600"
                         />
                     </div>
                 </div>
@@ -157,7 +157,7 @@
                             value="{{ old('stock_quantity', $item->stock_quantity ?? 0) }}" 
                             min="0" 
                             required 
-                            class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary px-3 py-2 text-gray-800"
+                            class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 text-gray-800"
                         />
                     </div>
 
@@ -168,7 +168,7 @@
                                 name="is_active" 
                                 value="1" 
                                 {{ old('is_active', $item->is_active ?? true) ? 'checked' : '' }} 
-                                class="w-4 h-4 rounded text-primary focus:ring-primary border-gray-300"
+                                class="w-4 h-4 rounded text-primary focus:ring-primary-container border-gray-300"
                             />
                             <span class="text-xs font-bold text-gray-800">Kích hoạt kinh doanh (Cho phép chọn khi tạo Hóa đơn / Phiếu thu)</span>
                         </label>
@@ -184,7 +184,7 @@
                         name="description" 
                         rows="3" 
                         placeholder="Nhập thông tin chi tiết về sách, độ tuổi phù hợp, chất liệu đồng phục hoặc phụ kiện đi kèm..." 
-                        class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary p-3 text-gray-800"
+                        class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container p-3 text-gray-800"
                     >{{ old('description', $item->description) }}</textarea>
                 </div>
             </div>
@@ -194,7 +194,7 @@
                 <a href="{{ route('merchandise.index') }}" class="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 text-xs font-semibold hover:bg-gray-50 transition">
                     Hủy bỏ
                 </a>
-                <button type="submit" class="px-5 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-hover shadow-sm shadow-primary/30 transition flex items-center gap-1.5">
+                <button type="submit" class="px-5 py-2 rounded-xl bg-primary-container text-white text-xs font-bold hover:bg-primary-hover shadow-sm shadow-primary-container/30 transition flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-base">save</span>
                     <span>{{ $isEdit ? 'Lưu cập nhật' : 'Tạo mới Hàng hóa' }}</span>
                 </button>

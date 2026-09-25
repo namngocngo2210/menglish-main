@@ -14,7 +14,7 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('syllabus.adjustment-requests') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
+                <a href="{{ route('syllabus.adjustment-requests') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
                     <span class="material-symbols-outlined text-[18px]">rule</span>
                     <span>Admin duyệt tiến độ (Bước #8)</span>
                 </a>
@@ -38,7 +38,7 @@
                     @csrf
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Lớp học / Chặng học <span class="text-rose-500">*</span></label>
-                        <select name="class_id" required class="w-full rounded-xl border border-gray-200 bg-white text-xs p-2.5 font-bold text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                        <select name="class_id" required class="w-full rounded-xl border border-gray-200 bg-white text-xs p-2.5 font-bold text-primary focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none">
                             <option disabled selected value="">Chọn lớp học đang giảng dạy...</option>
                             @foreach ($classes as $cl)
                                 <option value="{{ $cl->id }}">{{ $cl->name }} ({{ $cl->code }})</option>
@@ -48,7 +48,7 @@
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Loại điều chỉnh <span class="text-rose-500">*</span></label>
-                        <select name="request_type" required class="w-full rounded-xl border border-gray-200 bg-white text-xs p-2.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                        <select name="request_type" required class="w-full rounded-xl border border-gray-200 bg-white text-xs p-2.5 focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none">
                             <option value="Xin thêm 02 buổi phụ đạo Speaking">Xin thêm 02 buổi phụ đạo Speaking</option>
                             <option value="Xin thêm 01 buổi ôn tập ngữ pháp">Xin thêm 01 buổi ôn tập ngữ pháp</option>
                             <option value="Lùi lịch thi Big Test 1 tuần">Lùi lịch thi Big Test 1 tuần</option>
@@ -58,7 +58,7 @@
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Lý do điều chỉnh chi tiết <span class="text-rose-500">*</span></label>
-                        <textarea name="reason" required rows="4" class="w-full rounded-xl border border-gray-200 p-2.5 text-xs focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none" placeholder="Học viên phản hồi phần Speaking còn yếu, cần thêm thời gian luyện phản xạ trước bài thi..."></textarea>
+                        <textarea name="reason" required rows="4" class="w-full rounded-xl border border-gray-200 p-2.5 text-xs focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none resize-none" placeholder="Học viên phản hồi phần Speaking còn yếu, cần thêm thời gian luyện phản xạ trước bài thi..."></textarea>
                     </div>
 
                     <!-- SLA Notice -->
@@ -67,7 +67,7 @@
                         <p class="leading-relaxed"><strong>Quy định SLA:</strong> Yêu cầu của bạn sẽ được Admin / Ban Đào tạo xem xét và phản hồi phê duyệt trong vòng 24h làm việc tại Bước #8.</p>
                     </div>
 
-                    <button type="submit" class="w-full bg-primary hover:bg-primary-hover text-white py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
+                    <button type="submit" class="w-full bg-primary-container hover:bg-primary-hover text-white py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
                         <span class="material-symbols-outlined text-[18px]">send</span>
                         <span>Gửi đơn xin điều chỉnh tiến độ</span>
                     </button>

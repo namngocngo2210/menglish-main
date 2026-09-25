@@ -18,7 +18,7 @@
                 </form>
                 <form action="{{ route('notifications.read-all') }}" method="POST" class="inline">
                     @csrf
-                    <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
+                    <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
                         <span class="material-symbols-outlined text-[18px]">done_all</span>
                         <span>Đánh dấu tất cả đã đọc</span>
                     </button>
@@ -64,7 +64,7 @@
         <!-- Filter Bar -->
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2">
-                <a href="{{ route('notifications.index') }}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition {{ !request('type') && !request('unread') ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                <a href="{{ route('notifications.index') }}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition {{ !request('type') && !request('unread') ? 'bg-primary-container text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
                     Tất cả
                 </a>
                 <a href="{{ route('notifications.index', ['type' => 'stale_lead_24h']) }}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition {{ request('type') === 'stale_lead_24h' ? 'bg-rose-600 text-white' : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200' }}">

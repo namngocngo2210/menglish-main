@@ -8,7 +8,7 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span>Chi tiết Bảng lương Tổng hợp (Kỳ 08/2026)</span>
-                        <span class="text-xs px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200">Đang tính toán (Draft)</span>
+                        <span class="text-xs px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200">Đang tính</span>
                     </h1>
                     <p class="text-xs text-gray-500">Mã kỳ lương: {{ $id }} · Chu kỳ: 01/08/2026 - 31/08/2026</p>
                 </div>

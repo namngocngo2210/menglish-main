@@ -30,15 +30,15 @@
                 <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                         <label class="block text-[11px] font-semibold text-gray-500 mb-1">Tên bài kiểm tra</label>
-                        <input type="text" name="name" required value="{{ $testName }}" class="w-full text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
+                        <input type="text" name="name" required value="{{ $testName }}" class="w-full text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
                     </div>
                     <div>
                         <label class="block text-[11px] font-semibold text-gray-500 mb-1">Ngày kiểm tra</label>
-                        <input type="date" name="test_date" required value="{{ $testDate }}" class="w-full text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
+                        <input type="date" name="test_date" required value="{{ $testDate }}" class="w-full text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
                     </div>
                     <div>
                         <label class="block text-[11px] font-semibold text-gray-500 mb-1">Thang điểm tối đa</label>
-                        <input type="number" name="max_score" required value="10" min="1" step="0.5" class="w-full text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
+                        <input type="number" name="max_score" required value="10" min="1" step="0.5" class="w-full text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
                     </div>
                 </div>
 
@@ -52,16 +52,16 @@
                             </div>
                             <input type="number" name="score[{{ $student->id }}]" value="{{ $sc?->score }}"
                                    min="0" step="0.25" placeholder="Điểm"
-                                   class="w-24 text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary text-center font-bold">
+                                   class="w-24 text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container text-center font-bold">
                             <input type="text" name="note[{{ $student->id }}]" value="{{ $sc?->note }}"
                                    placeholder="Nhận xét..."
-                                   class="w-full sm:w-56 text-xs rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
+                                   class="w-full sm:w-56 text-xs rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
                         </div>
                     @endforeach
                 </div>
 
                 <div class="flex justify-end">
-                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
                         <span class="material-symbols-outlined text-[18px]">save</span> Lưu điểm
                     </button>
                 </div>

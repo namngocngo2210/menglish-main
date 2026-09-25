@@ -64,7 +64,7 @@
             </div>
 
             <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                <button type="submit" class="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5">
+                <button type="submit" class="px-6 py-2.5 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-base">save</span>
                     <span>Lưu Chấm công vào CSDL</span>
                 </button>

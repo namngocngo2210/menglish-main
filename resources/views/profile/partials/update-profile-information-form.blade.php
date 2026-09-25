@@ -21,13 +21,13 @@
 
         <div>
             <x-input-label for="name" :value="__('Họ và tên')" class="font-bold text-gray-700" />
-            <x-text-input id="name" name="name" type="text" class="mt-1 block w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold focus:border-primary focus:ring-primary" :value="old('name', $user->name)" required autofocus autocomplete="name" />
+            <x-text-input id="name" name="name" type="text" class="mt-1 block w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold focus:border-primary-container focus:ring-primary-container" :value="old('name', $user->name)" required autofocus autocomplete="name" />
             <x-input-error class="mt-1 text-xs" :messages="$errors->get('name')" />
         </div>
 
         <div>
             <x-input-label for="email" :value="__('Email đăng nhập')" class="font-bold text-gray-700" />
-            <x-text-input id="email" name="email" type="email" class="mt-1 block w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold focus:border-primary focus:ring-primary" :value="old('email', $user->email)" required autocomplete="username" />
+            <x-text-input id="email" name="email" type="email" class="mt-1 block w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold focus:border-primary-container focus:ring-primary-container" :value="old('email', $user->email)" required autocomplete="username" />
             <x-input-error class="mt-1 text-xs" :messages="$errors->get('email')" />
 
             @if ($user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && ! $user->hasVerifiedEmail())
@@ -52,7 +52,7 @@
         </div>
 
         <div class="flex items-center gap-3 pt-2">
-            <button type="submit" class="px-4 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition">
+            <button type="submit" class="px-4 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition">
                 Lưu thay đổi
             </button>
 

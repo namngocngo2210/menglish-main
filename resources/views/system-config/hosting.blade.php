@@ -46,7 +46,7 @@
 
             <a 
                 href="{{ route('system-config.hosting') }}"
-                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-[#ea580c] bg-[#ea580c] text-white font-bold shadow-xs shrink-0"
+                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-primary-container bg-primary-container text-white font-bold shadow-xs shrink-0"
             >
                 <span class="material-symbols-outlined text-base">dns</span>
                 <span>Hosting &amp; Máy chủ</span>

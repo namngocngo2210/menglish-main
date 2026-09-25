@@ -23,12 +23,12 @@
             @csrf
             <h2 class="text-sm font-bold text-gray-900">Nộp {{ mb_strtolower($label) }} mới</h2>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <input type="text" name="title" required placeholder="Tiêu đề *" class="sm:col-span-2 text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary" value="{{ old('title') }}">
-                <input type="date" name="report_date" value="{{ now()->toDateString() }}" class="text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
+                <input type="text" name="title" required placeholder="Tiêu đề *" class="sm:col-span-2 text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container" value="{{ old('title') }}">
+                <input type="date" name="report_date" value="{{ now()->toDateString() }}" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
             </div>
-            <textarea name="content" rows="5" required placeholder="Nội dung: kết quả thực hiện, tồn đọng, kế hoạch..." class="w-full text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">{{ old('content') }}</textarea>
+            <textarea name="content" rows="5" required placeholder="Nội dung: kết quả thực hiện, tồn đọng, kế hoạch..." class="w-full text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">{{ old('content') }}</textarea>
             <div class="flex justify-end">
-                <button type="submit" class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
                     <span class="material-symbols-outlined text-[18px]">send</span> Nộp báo cáo
                 </button>
             </div>

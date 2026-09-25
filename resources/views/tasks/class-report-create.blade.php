@@ -40,12 +40,12 @@
             <!-- Thông tin Lớp học & Buổi học Card -->
             <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-xs space-y-4">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-orange-100 text-[#F5691A] flex items-center justify-center shrink-0">
+                    <div class="w-10 h-10 rounded-xl bg-orange-100 text-primary-container flex items-center justify-center shrink-0">
                         <span class="material-symbols-outlined">class</span>
                     </div>
                     <div class="flex-1">
                         <label class="block text-[11px] font-bold uppercase text-gray-500 mb-1">Lớp học</label>
-                        <select name="class_id" required class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary focus:border-primary">
+                        <select name="class_id" required class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container">
                             @foreach($classes as $c)
                                 <option value="{{ $c->id }}" {{ $selectedClass && $selectedClass->id === $c->id ? 'selected' : '' }}>
                                     {{ $c->name }} ({{ $c->code }}) · {{ $c->schedule_text }}
@@ -62,7 +62,7 @@
                     <div class="flex-1">
                         <label class="block text-[11px] font-bold uppercase text-gray-500 mb-1">Buổi học</label>
                         <input type="text" name="session_name" required value="Buổi 5 - Listening Practice"
-                               class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary focus:border-primary">
+                               class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container">
                     </div>
                 </div>
             </div>
@@ -74,7 +74,7 @@
                         Hôm nay học gì <span class="text-rose-500">*</span>
                     </label>
                     <textarea id="hom_nay_hoc_gi" name="hom_nay_hoc_gi" required rows="3" placeholder="Tóm tắt nội dung chính đã giảng dạy..."
-                              class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary focus:border-primary">Hôm nay học Section 1 & Section 2 dạng bài Form/Note Completion, chiến thuật bắt từ khóa (Keywords) và tránh bẫy ngữ pháp.</textarea>
+                              class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container">Hôm nay học Section 1 & Section 2 dạng bài Form/Note Completion, chiến thuật bắt từ khóa (Keywords) và tránh bẫy ngữ pháp.</textarea>
                 </div>
 
                 <div>
@@ -82,7 +82,7 @@
                         Nhật ký dạy <span class="text-gray-400 font-normal text-xs">(Tùy chọn)</span>
                     </label>
                     <textarea id="nhat_ky_day" name="nhat_ky_day" rows="3" placeholder="Ghi chú về thái độ học tập, vấn đề phát sinh..."
-                              class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary focus:border-primary">Lớp học nghiêm túc, phần nghe số điện thoại và tên riêng còn một số bạn nhầm lẫn giữa 15 và 50.</textarea>
+                              class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container">Lớp học nghiêm túc, phần nghe số điện thoại và tên riêng còn một số bạn nhầm lẫn giữa 15 và 50.</textarea>
                 </div>
 
                 <!-- Đính kèm hình ảnh bảng / lớp -->
@@ -146,7 +146,7 @@
                     </template>
                 </div>
 
-                <button type="button" @click="addSupport()" class="w-full py-3 border border-dashed border-[#F5691A] text-[#F5691A] font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 hover:bg-orange-50/50 transition">
+                <button type="button" @click="addSupport()" class="w-full py-3 border border-dashed border-primary-container text-primary-container font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 hover:bg-orange-50/50 transition">
                     <span class="material-symbols-outlined text-[18px]">add</span>
                     Thêm học sinh cần bổ trợ
                 </button>
@@ -154,7 +154,7 @@
 
             <!-- Footer Action -->
             <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col items-center gap-2">
-                <button type="submit" class="w-full bg-[#F5691A] text-white hover:bg-[#d85a15] font-bold text-sm py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition">
+                <button type="submit" class="w-full bg-primary-container text-white hover:bg-primary font-bold text-sm py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition">
                     <span class="material-symbols-outlined text-[20px]">send</span>
                     Nộp báo cáo trực lớp
                 </button>

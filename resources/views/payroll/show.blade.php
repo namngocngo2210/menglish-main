@@ -239,7 +239,7 @@
 
                                                 <div class="flex items-center justify-end gap-2 pt-2 border-t">
                                                     <button type="button" @click="openDeductionModal = false" class="px-3 py-1.5 border rounded-lg text-gray-600 hover:bg-gray-50">Hủy</button>
-                                                    <button type="submit" class="px-4 py-1.5 bg-primary text-white font-bold rounded-lg shadow-sm hover:bg-primary-hover">Lưu giảm trừ</button>
+                                                    <button type="submit" class="px-4 py-1.5 bg-primary-container text-white font-bold rounded-lg shadow-sm hover:bg-primary-hover">Lưu giảm trừ</button>
                                                 </div>
                                             </form>
                                         </div>

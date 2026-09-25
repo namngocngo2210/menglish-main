@@ -48,7 +48,7 @@
                                 <a href="{{ route('crm.customers.show', $lead->id) }}" class="inline-flex px-3 py-1.5 rounded-xl bg-slate-900 text-white font-bold">Mở hồ sơ</a>
                                 @if ($matches->isNotEmpty())
                                     @can('lead.convert')
-                                    <a href="{{ route('crm.closing-wizard', ['customer_id' => $lead->id]) }}" class="inline-flex ml-1 px-3 py-1.5 rounded-xl bg-[#ea580c] text-white font-bold">Xếp lớp</a>
+                                    <a href="{{ route('crm.closing-wizard', ['customer_id' => $lead->id]) }}" class="inline-flex ml-1 px-3 py-1.5 rounded-xl bg-primary-container text-white font-bold">Xếp lớp</a>
                                     @endcan
                                 @endif
                             </td>

@@ -46,7 +46,7 @@
         <!-- Student Switcher Bar (For Testing / Admin Viewing) -->
         <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                <div class="w-10 h-10 rounded-full bg-primary-container/10 text-primary flex items-center justify-center font-bold">
                     <span class="material-symbols-outlined">account_circle</span>
                 </div>
                 <div>
@@ -58,7 +58,7 @@
 
             <div class="flex items-center gap-2">
                 <span class="text-xs text-gray-500 font-medium">Đổi học viên:</span>
-                <select class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
+                <select class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container cursor-pointer"
                         onchange="window.location.href = '{{ route('portal.student.homework') }}/' + this.value">
                     @foreach($students as $st)
                         <option value="{{ $st->id }}" {{ ($student && $student->id === $st->id) ? 'selected' : '' }}>
@@ -72,7 +72,7 @@
         <!-- Student Mobile Frame: Exact Match to 04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap -->
         <div class="max-w-[420px] mx-auto bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden pb-8">
             <!-- Decorative Header Area -->
-            <div class="w-full h-[140px] bg-gradient-to-br from-primary to-orange-400 p-6 flex flex-col justify-end text-white relative">
+            <div class="w-full h-[140px] bg-gradient-to-br from-primary-container to-orange-400 p-6 flex flex-col justify-end text-white relative">
                 <div class="absolute top-3 right-3 bg-white/20 backdrop-blur-xs px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase">
                     MENGLISH LMS
                 </div>
@@ -83,7 +83,7 @@
             <!-- Subtab Switcher: Nộp bài tập / Luyện phát âm -->
             <div class="flex items-center border-b border-gray-200 bg-gray-50 px-3 pt-2">
                 <a href="{{ route('portal.student.homework', ['studentId' => $student?->id]) }}"
-                   class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-primary text-primary font-bold text-xs">
+                   class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-primary-container text-primary font-bold text-xs">
                     <span class="material-symbols-outlined text-[16px]">assignment</span>
                     <span>Nộp bài tập</span>
                 </a>
@@ -331,7 +331,7 @@
                                     <div class="flex flex-col gap-1.5 pt-1">
                                         <button type="button"
                                                 @click="openUpload('{{ $key }}', '{{ $cat['title'] }}')"
-                                                class="w-full py-2 bg-primary hover:bg-primary-dark text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition">
+                                                class="w-full py-2 bg-primary-container hover:bg-primary-dark text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition">
                                             <span class="material-symbols-outlined text-[18px]">upload</span>
                                             {{ $cat['btn_text'] }}
                                         </button>
@@ -356,13 +356,13 @@
                     </div>
                     <div class="bg-white rounded-2xl p-3 border border-gray-200 shadow-2xs">
                         <div class="p-4 bg-gray-50 rounded-xl flex flex-col items-center text-center space-y-2">
-                            <div class="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                            <div class="w-12 h-12 rounded-full bg-primary-container/10 text-primary flex items-center justify-center">
                                 <span class="material-symbols-outlined text-[28px]">trending_up</span>
                             </div>
                             <h3 class="text-xs font-bold text-gray-900">Lộ trình mục tiêu: IELTS 6.5</h3>
                             <p class="text-[11px] text-gray-500 max-w-[280px]">Đang học Chặng 2 (Intermediate). Đạt 65% thời lượng chương trình.</p>
                             <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden mt-2">
-                                <div class="bg-primary h-full rounded-full" style="width: 65%"></div>
+                                <div class="bg-primary-container h-full rounded-full" style="width: 65%"></div>
                             </div>
                         </div>
                     </div>
@@ -393,7 +393,7 @@
 
                     <div>
                         <label class="block font-bold text-gray-700 mb-1">Chọn tệp tin bài làm (Video / Ảnh / PDF)</label>
-                        <div class="border-2 border-dashed border-gray-300 hover:border-primary rounded-xl p-6 text-center cursor-pointer bg-gray-50 transition">
+                        <div class="border-2 border-dashed border-gray-300 hover:border-primary-container rounded-xl p-6 text-center cursor-pointer bg-gray-50 transition">
                             <span class="material-symbols-outlined text-[36px] text-gray-400 block mb-1">attach_file</span>
                             <span class="text-xs text-gray-600 block">Kéo thả hoặc bấm để chọn tệp tải lên</span>
                             <span class="text-[10px] text-gray-400 block mt-1">Hỗ trợ MP4, MOV, PNG, JPG, PDF (tối đa 50MB)</span>
@@ -403,14 +403,14 @@
 
                     <div>
                         <label class="block font-bold text-gray-700 mb-1">Ghi chú gửi thầy cô (Tùy chọn)</label>
-                        <textarea name="notes" rows="3" placeholder="Nhập ghi chú cho bài nộp..." class="w-full p-2.5 border rounded-xl bg-gray-50 text-xs focus:ring-primary"></textarea>
+                        <textarea name="notes" rows="3" placeholder="Nhập ghi chú cho bài nộp..." class="w-full p-2.5 border rounded-xl bg-gray-50 text-xs focus:ring-primary-container"></textarea>
                     </div>
 
                     <div class="flex justify-end gap-2 pt-3 border-t">
                         <button type="button" @click="uploadModal = false" class="px-4 py-2 border rounded-xl font-semibold text-gray-600 hover:bg-gray-100">
                             Hủy
                         </button>
-                        <button type="submit" class="px-5 py-2 bg-primary text-white rounded-xl font-bold shadow-sm hover:bg-primary-dark transition flex items-center gap-1.5">
+                        <button type="submit" class="px-5 py-2 bg-primary-container text-white rounded-xl font-bold shadow-sm hover:bg-primary-dark transition flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-[16px]">send</span>
                             <span>Xác nhận nộp bài</span>
                         </button>
@@ -441,14 +441,14 @@
 
                     <div>
                         <label class="block font-bold text-gray-700 mb-1">Ghi chú gửi thầy cô</label>
-                        <textarea name="notes" x-model="editNotes" rows="3" class="w-full p-2.5 border rounded-xl bg-gray-50 text-xs focus:ring-primary"></textarea>
+                        <textarea name="notes" x-model="editNotes" rows="3" class="w-full p-2.5 border rounded-xl bg-gray-50 text-xs focus:ring-primary-container"></textarea>
                     </div>
 
                     <div class="flex justify-end gap-2 pt-3 border-t">
                         <button type="button" @click="editModal = false" class="px-4 py-2 border rounded-xl font-semibold text-gray-600 hover:bg-gray-100">
                             Hủy
                         </button>
-                        <button type="submit" class="px-5 py-2 bg-primary text-white rounded-xl font-bold shadow-sm hover:bg-primary-dark transition flex items-center gap-1.5">
+                        <button type="submit" class="px-5 py-2 bg-primary-container text-white rounded-xl font-bold shadow-sm hover:bg-primary-dark transition flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-[16px]">save</span>
                             <span>Lưu cập nhật</span>
                         </button>

@@ -43,7 +43,7 @@
                 @csrf
                 <div class="flex items-center justify-between">
                     <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider">Danh sách ca dạy · chọn nhiều ca để check-in cùng lúc</h2>
-                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
                         <span class="material-symbols-outlined text-[18px]">how_to_reg</span>
                         Check-in các ca đã chọn
                     </button>
@@ -57,7 +57,7 @@
                                 <label class="flex items-start gap-3 cursor-pointer flex-1">
                                     @unless ($shift['checked_in'])
                                         <input type="checkbox" name="class_ids[]" value="{{ $class->id }}"
-                                               class="mt-1 w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary">
+                                               class="mt-1 w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary-container">
                                     @else
                                         <span class="material-symbols-outlined text-emerald-500 text-[20px]">check_circle</span>
                                     @endunless

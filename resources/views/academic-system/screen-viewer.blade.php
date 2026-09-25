@@ -23,7 +23,7 @@
                     <span class="material-symbols-outlined text-[16px]">open_in_new</span>
                     <span>Toàn màn hình (Không Menu)</span>
                 </a>
-                <a href="{{ route('syllabus.documents') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
+                <a href="{{ route('syllabus.documents') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
                     <span class="material-symbols-outlined text-[16px]">menu_book</span>
                     <span>Về Giáo trình Flow 2</span>
                 </a>

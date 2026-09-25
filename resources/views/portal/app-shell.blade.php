@@ -14,7 +14,7 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('portal.student.home', ['studentId' => $student?->id]) }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition shadow-sm">
+                <a href="{{ route('portal.student.home', ['studentId' => $student?->id]) }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold hover:bg-primary-dark transition shadow-sm">
                     <span class="material-symbols-outlined text-[18px]">cottage</span>
                     <span>Vào Trang chủ</span>
                 </a>
@@ -25,11 +25,11 @@
     <!-- Outer Mobile Shell Container -->
     <div class="max-w-[430px] mx-auto bg-white min-h-[844px] shadow-2xl rounded-3xl border border-gray-200 overflow-hidden flex flex-col relative pb-20 my-4">
         <!-- Top App Bar (Exact Match Prototype) -->
-        <header class="w-full top-0 sticky bg-[#f9f9ff] dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 h-16 z-40">
+        <header class="w-full top-0 sticky bg-background dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 h-16 z-40">
             <h1 class="font-bold text-2xl text-primary tracking-tight">MENGLISH</h1>
             <div class="flex items-center gap-2">
                 @if($students && $students->count() > 1)
-                    <select class="text-[11px] font-semibold py-1 px-2.5 bg-gray-100 hover:bg-gray-200 border-none rounded-full text-gray-700 cursor-pointer focus:ring-1 focus:ring-primary"
+                    <select class="text-[11px] font-semibold py-1 px-2.5 bg-gray-100 hover:bg-gray-200 border-none rounded-full text-gray-700 cursor-pointer focus:ring-1 focus:ring-primary-container"
                             onchange="window.location.href = '{{ route('portal.app-shell') }}?student_id=' + this.value">
                         @foreach($students as $st)
                             <option value="{{ $st->id }}" {{ ($student && $student->id === $st->id) ? 'selected' : '' }}>
@@ -47,7 +47,7 @@
         <!-- Main Content Area: Interactive Shell Hub -->
         <main class="flex-1 bg-[#F7F8FA] p-4 flex flex-col gap-4 overflow-y-auto">
             <!-- Welcome Banner -->
-            <div class="bg-gradient-to-r from-primary to-orange-500 rounded-2xl p-4 text-white shadow-md">
+            <div class="bg-gradient-to-r from-primary-container to-orange-500 rounded-2xl p-4 text-white shadow-md">
                 <div class="flex items-center justify-between">
                     <div>
                         <span class="text-[11px] font-bold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">Cổng Học Sinh & Phụ Huynh</span>
@@ -65,7 +65,7 @@
                 <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2.5 px-1">Các chức năng chính (Flow 4)</h3>
                 <div class="grid grid-cols-2 gap-3">
                     <!-- Screen 2: Trang chủ -->
-                    <a href="{{ route('portal.student.home', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary hover:shadow-md transition flex flex-col gap-2 group">
+                    <a href="{{ route('portal.student.home', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary-container hover:shadow-md transition flex flex-col gap-2 group">
                         <div class="flex items-center justify-between">
                             <div class="w-10 h-10 rounded-xl bg-orange-50 text-primary flex items-center justify-center group-hover:scale-105 transition-transform">
                                 <span class="material-symbols-outlined text-[22px]">home</span>
@@ -84,7 +84,7 @@
                     </a>
 
                     <!-- Screen 3: Học tập & Nộp bài -->
-                    <a href="{{ route('portal.student.homework', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary hover:shadow-md transition flex flex-col gap-2 group">
+                    <a href="{{ route('portal.student.homework', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary-container hover:shadow-md transition flex flex-col gap-2 group">
                         <div class="flex items-center justify-between">
                             <div class="w-10 h-10 rounded-xl bg-blue-50 text-secondary flex items-center justify-center group-hover:scale-105 transition-transform">
                                 <span class="material-symbols-outlined text-[22px]">upload_file</span>
@@ -101,7 +101,7 @@
                     </a>
 
                     <!-- Screen 4: Luyện phát âm AI -->
-                    <a href="{{ route('portal.student.pronunciation', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary hover:shadow-md transition flex flex-col gap-2 group">
+                    <a href="{{ route('portal.student.pronunciation', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary-container hover:shadow-md transition flex flex-col gap-2 group">
                         <div class="flex items-center justify-between">
                             <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center group-hover:scale-105 transition-transform">
                                 <span class="material-symbols-outlined text-[22px]">mic</span>
@@ -120,7 +120,7 @@
                     </a>
 
                     <!-- Screen 5: Danh sách thông báo -->
-                    <a href="{{ route('portal.student.notifications', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary hover:shadow-md transition flex flex-col gap-2 group">
+                    <a href="{{ route('portal.student.notifications', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary-container hover:shadow-md transition flex flex-col gap-2 group">
                         <div class="flex items-center justify-between">
                             <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-105 transition-transform relative">
                                 <span class="material-symbols-outlined text-[22px]">notifications</span>
@@ -146,7 +146,7 @@
                     </a>
 
                     <!-- Screen 6: Khảo sát chất lượng -->
-                    <a href="{{ route('portal.student.survey', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary hover:shadow-md transition flex flex-col gap-2 group">
+                    <a href="{{ route('portal.student.survey', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary-container hover:shadow-md transition flex flex-col gap-2 group">
                         <div class="flex items-center justify-between">
                             <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform">
                                 <span class="material-symbols-outlined text-[22px]">assignment</span>
@@ -165,7 +165,7 @@
                     </a>
 
                     <!-- Screen 7: Phụ huynh gửi feedback chặng học -->
-                    <a href="{{ route('portal.student.feedback', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary hover:shadow-md transition flex flex-col gap-2 group">
+                    <a href="{{ route('portal.student.feedback', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary-container hover:shadow-md transition flex flex-col gap-2 group">
                         <div class="flex items-center justify-between">
                             <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-105 transition-transform">
                                 <span class="material-symbols-outlined text-[22px]">rate_review</span>

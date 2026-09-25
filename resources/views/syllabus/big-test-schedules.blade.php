@@ -8,13 +8,13 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">alarm</span>
-                        Nhắc Lịch &amp; Giám Sát Tổ Chức Big Test (Database)
+                        Nhắc Lịch &amp; Giám Sát Tổ Chức Big Test
                     </h1>
                     <p class="text-xs text-gray-500">Lịch thi giữa kỳ, phân công phòng thi, giám thị coi thi và gửi nhắc lịch cho học viên</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('syllabus.big-tests.distribution') }}" class="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                <a href="{{ route('syllabus.big-tests.distribution') }}" class="px-3.5 py-1.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-[16px]">add_circle</span>
                     <span>Tạo Đợt Big Test</span>
                 </a>

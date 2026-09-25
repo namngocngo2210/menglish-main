@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-app-layout hide-errors>
     <x-slot name="header">
         <div class="flex items-center gap-3">
             <a href="{{ route('tuition.students') }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
@@ -28,7 +28,7 @@
         <form action="{{ route('tuition.import.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
             @csrf
             <!-- File upload box -->
-            <div class="bg-white rounded-2xl border-2 border-dashed border-gray-300 p-8 text-center hover:border-primary transition cursor-pointer"
+            <div class="bg-white rounded-2xl border-2 border-dashed border-gray-300 p-8 text-center hover:border-primary-container transition cursor-pointer"
                  @dragover.prevent
                  @drop.prevent="fileName = 'Danh_sach_hoc_vien_T8_2026.xlsx'; fileUploaded = true"
                  @click="$refs.fileInput.click()">
@@ -58,7 +58,7 @@
                 <a href="{{ route('tuition.students') }}" class="px-4 py-2 border border-gray-200 text-xs font-semibold text-gray-700 rounded-xl hover:bg-gray-50">
                     Hủy
                 </a>
-                <button type="submit" class="px-5 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
+                <button type="submit" class="px-5 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-base">cloud_done</span>
                     <span>Tiến hành Import vào CSDL</span>
                 </button>

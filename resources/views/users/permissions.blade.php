@@ -8,7 +8,7 @@
                         <span>Nhân sự</span>
                     </a>
                     <span class="material-symbols-outlined text-[14px]">chevron_right</span>
-                    <span class="text-[#F5691A] font-semibold">Phân quyền cá nhân</span>
+                    <span class="text-primary-container font-semibold">Phân quyền cá nhân</span>
                 </nav>
                 <h1 class="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span>Cấu hình quyền chi tiết — {{ $user->name }}</span>
@@ -19,7 +19,7 @@
                     <span class="material-symbols-outlined text-[18px]">history</span>
                     <span>Xem nhật ký</span>
                 </a>
-                <button type="submit" form="permissionOverrideForm" class="px-5 py-2.5 rounded-xl bg-[#F5691A] hover:bg-[#d85a15] text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                <button type="submit" form="permissionOverrideForm" class="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-primary text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer">
                     <span class="material-symbols-outlined text-[18px]">save</span>
                     <span>Lưu thay đổi</span>
                 </button>
@@ -54,13 +54,13 @@
                 <!-- Employee Summary Card -->
                 <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm text-center space-y-5">
                     <div class="flex flex-col items-center">
-                        <div class="w-20 h-20 rounded-full bg-orange-100 text-[#F5691A] border-4 border-orange-200/60 flex items-center justify-center font-bold text-3xl mb-3 shadow-xs">
+                        <div class="w-20 h-20 rounded-full bg-orange-100 text-primary-container border-4 border-orange-200/60 flex items-center justify-center font-bold text-3xl mb-3 shadow-xs">
                             {{ Str::substr($user->name, 0, 1) }}
                         </div>
                         <h2 class="text-lg font-bold text-gray-900">{{ $user->name }}</h2>
                         <div class="flex flex-wrap gap-1 justify-center mt-1">
                             @foreach ($user->roles as $role)
-                                <span class="px-3 py-1 rounded-full bg-orange-50 text-[#F5691A] border border-orange-200 text-xs font-bold">
+                                <span class="px-3 py-1 rounded-full bg-orange-50 text-primary-container border border-orange-200 text-xs font-bold">
                                     {{ \App\Helpers\AclHelper::roleLabel($role->name) }}
                                 </span>
                             @endforeach
@@ -110,7 +110,7 @@
                 <!-- Quick Help -->
                 <div class="bg-gray-50 rounded-2xl p-5 border border-gray-200 space-y-3 text-xs">
                     <h3 class="font-bold text-gray-900 flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[#F5691A] text-[18px]">lightbulb</span>
+                        <span class="material-symbols-outlined text-primary-container text-[18px]">lightbulb</span>
                         Hướng dẫn phân quyền
                     </h3>
                     <p class="text-gray-600 leading-relaxed">
@@ -173,7 +173,7 @@
                                         <tr class="bg-slate-50/90 border-y border-slate-200/80">
                                             <td colspan="3" class="py-2.5 px-4 font-bold text-gray-900 text-xs flex items-center justify-between">
                                                 <div class="flex items-center gap-2">
-                                                    <span class="w-2 h-2 rounded-full bg-[#F5691A]"></span>
+                                                    <span class="w-2 h-2 rounded-full bg-primary-container"></span>
                                                     <span>{{ \App\Helpers\AclHelper::moduleLabel($module) }}</span>
                                                 </div>
                                                 <span class="font-mono text-[10px] text-gray-400 font-normal bg-white px-2 py-0.5 rounded border border-gray-200">{{ $permissions->count() }} quyền ({{ $module }})</span>
@@ -228,7 +228,7 @@
                                 <a href="{{ route('users.index') }}" class="px-4 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold transition">
                                     Hủy
                                 </a>
-                                <button type="submit" class="px-5 py-2 rounded-xl bg-[#F5691A] hover:bg-[#d85a15] text-white text-xs font-bold shadow-sm transition">
+                                <button type="submit" class="px-5 py-2 rounded-xl bg-primary-container hover:bg-primary text-white text-xs font-bold shadow-sm transition">
                                     Lưu thay đổi phân quyền
                                 </button>
                             </div>
@@ -244,7 +244,7 @@
                     </div>
                     <div>
                         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Quyền hạn hệ thống</p>
-                        <p class="text-xl font-bold text-[#F5691A] mt-0.5 font-mono">{{ $permissionsByModule->flatten()->count() }} <span class="text-xs font-normal text-gray-500">thao tác</span></p>
+                        <p class="text-xl font-bold text-primary-container mt-0.5 font-mono">{{ $permissionsByModule->flatten()->count() }} <span class="text-xs font-normal text-gray-500">thao tác</span></p>
                     </div>
                     <div>
                         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cơ sở công tác</p>

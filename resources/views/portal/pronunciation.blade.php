@@ -80,7 +80,7 @@
                 <span>Nộp bài tập</span>
             </a>
             <a href="{{ route('portal.student.pronunciation', ['studentId' => $student?->id]) }}"
-               class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-primary text-primary font-bold text-xs">
+               class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-primary-container text-primary font-bold text-xs">
                 <span class="material-symbols-outlined text-[16px]">mic</span>
                 <span>Luyện phát âm AI</span>
             </a>
@@ -115,10 +115,10 @@
                     </div>
 
                     <!-- Audio Item 2 (Active state simulation) -->
-                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-orange-50/80 border border-primary/40 shadow-2xs"
-                         :class="{ 'bg-orange-50/80 border-primary/40': selectedUnit === 'Unit 1: Greetings - Bài 2' }">
+                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-orange-50/80 border border-primary-container/40 shadow-2xs"
+                         :class="{ 'bg-orange-50/80 border-primary-container/40': selectedUnit === 'Unit 1: Greetings - Bài 2' }">
                         <div class="flex items-center gap-3">
-                            <div class="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white shadow-xs">
+                            <div class="w-9 h-9 rounded-full bg-primary-container flex items-center justify-center text-white shadow-xs">
                                 <span class="material-symbols-outlined text-[20px]">pause</span>
                             </div>
                             <div>
@@ -129,10 +129,10 @@
 
                         <!-- Waveform inside active audio item -->
                         <div class="flex items-center gap-0.5 h-4 mr-1">
-                            <div class="w-0.5 bg-primary rounded-full animate-pulse h-2"></div>
-                            <div class="w-0.5 bg-primary rounded-full animate-pulse h-4" style="animation-delay: 0.2s"></div>
-                            <div class="w-0.5 bg-primary rounded-full animate-pulse h-3" style="animation-delay: 0.4s"></div>
-                            <div class="w-0.5 bg-primary rounded-full animate-pulse h-2" style="animation-delay: 0.1s"></div>
+                            <div class="w-0.5 bg-primary-container rounded-full animate-pulse h-2"></div>
+                            <div class="w-0.5 bg-primary-container rounded-full animate-pulse h-4" style="animation-delay: 0.2s"></div>
+                            <div class="w-0.5 bg-primary-container rounded-full animate-pulse h-3" style="animation-delay: 0.4s"></div>
+                            <div class="w-0.5 bg-primary-container rounded-full animate-pulse h-2" style="animation-delay: 0.1s"></div>
                         </div>
                     </div>
 
@@ -157,7 +157,7 @@
 
             <!-- Section 2: Khối Ghi Âm (Active Recording State) -->
             <section class="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col items-center justify-center text-center space-y-4 relative overflow-hidden shadow-2xs">
-                <div class="absolute inset-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary via-transparent to-transparent"></div>
+                <div class="absolute inset-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-container via-transparent to-transparent"></div>
 
                 <div class="relative z-10 w-full space-y-3">
                     <p class="text-xs text-gray-700">
@@ -169,25 +169,25 @@
 
                     <!-- Animated Waveform Display (visible when recording) -->
                     <div class="flex items-center justify-center gap-1.5 h-12 w-full max-w-[200px] mx-auto py-1" x-show="isRecording">
-                        <div class="w-1 bg-primary rounded-full animate-pulse h-4" style="animation-delay: 0.1s"></div>
-                        <div class="w-1 bg-primary rounded-full animate-pulse h-8" style="animation-delay: 0.3s"></div>
-                        <div class="w-1 bg-primary rounded-full animate-pulse h-11" style="animation-delay: 0.2s"></div>
-                        <div class="w-1 bg-primary rounded-full animate-pulse h-6" style="animation-delay: 0.5s"></div>
-                        <div class="w-1 bg-primary rounded-full animate-pulse h-10" style="animation-delay: 0.4s"></div>
-                        <div class="w-1 bg-primary rounded-full animate-pulse h-7" style="animation-delay: 0.2s"></div>
-                        <div class="w-1 bg-primary rounded-full animate-pulse h-9" style="animation-delay: 0.6s"></div>
-                        <div class="w-1 bg-primary rounded-full animate-pulse h-5" style="animation-delay: 0.3s"></div>
-                        <div class="w-1 bg-primary rounded-full animate-pulse h-12" style="animation-delay: 0.1s"></div>
-                        <div class="w-1 bg-primary rounded-full animate-pulse h-6" style="animation-delay: 0.4s"></div>
+                        <div class="w-1 bg-primary-container rounded-full animate-pulse h-4" style="animation-delay: 0.1s"></div>
+                        <div class="w-1 bg-primary-container rounded-full animate-pulse h-8" style="animation-delay: 0.3s"></div>
+                        <div class="w-1 bg-primary-container rounded-full animate-pulse h-11" style="animation-delay: 0.2s"></div>
+                        <div class="w-1 bg-primary-container rounded-full animate-pulse h-6" style="animation-delay: 0.5s"></div>
+                        <div class="w-1 bg-primary-container rounded-full animate-pulse h-10" style="animation-delay: 0.4s"></div>
+                        <div class="w-1 bg-primary-container rounded-full animate-pulse h-7" style="animation-delay: 0.2s"></div>
+                        <div class="w-1 bg-primary-container rounded-full animate-pulse h-9" style="animation-delay: 0.6s"></div>
+                        <div class="w-1 bg-primary-container rounded-full animate-pulse h-5" style="animation-delay: 0.3s"></div>
+                        <div class="w-1 bg-primary-container rounded-full animate-pulse h-12" style="animation-delay: 0.1s"></div>
+                        <div class="w-1 bg-primary-container rounded-full animate-pulse h-6" style="animation-delay: 0.4s"></div>
                     </div>
 
                     <!-- Record Button -->
                     <div class="flex justify-center py-2">
                         <button type="button"
                                 @click="toggleRecording()"
-                                class="relative w-20 h-20 bg-primary hover:bg-[#e0560b] rounded-full flex items-center justify-center text-white shadow-xl transition-all transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-orange-200">
+                                class="relative w-20 h-20 bg-primary-container hover:bg-primary rounded-full flex items-center justify-center text-white shadow-xl transition-all transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-orange-200">
                             <!-- Pulsing ring effect when recording -->
-                            <div x-show="isRecording" class="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-75"></div>
+                            <div x-show="isRecording" class="absolute inset-0 rounded-full border-2 border-primary-container animate-ping opacity-75"></div>
                             <span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;" x-text="isRecording ? 'stop' : 'mic'"></span>
                         </button>
                     </div>
@@ -201,7 +201,7 @@
                         <input type="hidden" name="duration" :value="timerText">
 
                         <button type="submit"
-                                class="w-full max-w-[240px] bg-primary hover:bg-[#e0560b] text-white font-bold text-xs py-3 px-6 rounded-xl transition shadow-md flex items-center justify-center gap-2 active:scale-95">
+                                class="w-full max-w-[240px] bg-primary-container hover:bg-primary text-white font-bold text-xs py-3 px-6 rounded-xl transition shadow-md flex items-center justify-center gap-2 active:scale-95">
                             <span class="material-symbols-outlined text-[18px]">send</span>
                             <span>Nộp bài ghi âm AI</span>
                         </button>
@@ -237,7 +237,7 @@
                                 </span>
                             </div>
                             <div class="flex items-center gap-1.5">
-                                <button type="button" class="w-8 h-8 rounded-full bg-orange-100 hover:bg-primary hover:text-white transition flex items-center justify-center text-primary shadow-2xs" title="Nghe lại">
+                                <button type="button" class="w-8 h-8 rounded-full bg-orange-100 hover:bg-primary-container hover:text-white transition flex items-center justify-center text-primary shadow-2xs" title="Nghe lại">
                                     <span class="material-symbols-outlined text-[18px]">play_arrow</span>
                                 </button>
                                 <form action="{{ route('portal.student.pronunciation.destroy', $rec->id) }}" method="POST" onsubmit="return confirm('Bạn có chắc muốn xóa bản ghi âm này?');">
@@ -269,7 +269,7 @@
                                     Điểm AI: 94/100 (Phát âm chuẩn)
                                 </span>
                             </div>
-                            <button type="button" class="w-9 h-9 rounded-full bg-orange-100 hover:bg-primary hover:text-white transition flex items-center justify-center text-primary shadow-2xs">
+                            <button type="button" class="w-9 h-9 rounded-full bg-orange-100 hover:bg-primary-container hover:text-white transition flex items-center justify-center text-primary shadow-2xs">
                                 <span class="material-symbols-outlined text-[20px]">play_arrow</span>
                             </button>
                         </div>
@@ -292,7 +292,7 @@
                                     Điểm AI: 91/100 (Cần chú ý âm đuôi)
                                 </span>
                             </div>
-                            <button type="button" class="w-9 h-9 rounded-full bg-orange-100 hover:bg-primary hover:text-white transition flex items-center justify-center text-primary shadow-2xs">
+                            <button type="button" class="w-9 h-9 rounded-full bg-orange-100 hover:bg-primary-container hover:text-white transition flex items-center justify-center text-primary shadow-2xs">
                                 <span class="material-symbols-outlined text-[20px]">play_arrow</span>
                             </button>
                         </div>

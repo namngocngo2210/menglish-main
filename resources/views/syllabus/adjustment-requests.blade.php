@@ -18,7 +18,7 @@
                     <span class="material-symbols-outlined text-[18px]">speed</span>
                     <span>Cổng GV gửi đơn (Bước #7)</span>
                 </a>
-                <button type="button" onclick="document.getElementById('newAdjModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
+                <button type="button" onclick="document.getElementById('newAdjModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
                     <span class="material-symbols-outlined text-[18px]">add_circle</span>
                     <span>Tạo yêu cầu mới</span>
                 </button>
@@ -44,7 +44,7 @@
                 @csrf
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 mb-1">Lớp học cần điều chỉnh <span class="text-rose-500">*</span></label>
-                    <select name="class_id" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none bg-white">
+                    <select name="class_id" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold text-primary focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none bg-white">
                         @foreach ($classes as $cl)
                             <option value="{{ $cl->id }}">{{ $cl->name }} ({{ $cl->code }})</option>
                         @endforeach
@@ -52,7 +52,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 mb-1">Loại yêu cầu <span class="text-rose-500">*</span></label>
-                    <select name="request_type" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 bg-white focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                    <select name="request_type" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none">
                         <option value="Xin thêm 02 buổi phụ đạo Speaking">Xin thêm 02 buổi phụ đạo Speaking</option>
                         <option value="Xin thêm 01 buổi ôn tập ngữ pháp">Xin thêm 01 buổi ôn tập ngữ pháp</option>
                         <option value="Lùi lịch thi Big Test 1 tuần">Lùi lịch thi Big Test 1 tuần</option>
@@ -61,11 +61,11 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 mb-1">Lý do chi tiết <span class="text-rose-500">*</span></label>
-                    <textarea name="reason" rows="3" required placeholder="Ghi rõ lý do và tình hình học tập của lớp..." class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none"></textarea>
+                    <textarea name="reason" rows="3" required placeholder="Ghi rõ lý do và tình hình học tập của lớp..." class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none"></textarea>
                 </div>
                 <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
                     <button type="button" onclick="document.getElementById('newAdjModal').classList.add('hidden')" class="px-3.5 py-2 rounded-xl border border-gray-200 text-xs text-gray-600 hover:bg-gray-50">Hủy</button>
-                    <button type="submit" class="px-4 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm">Gửi đề xuất</button>
+                    <button type="submit" class="px-4 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm">Gửi đề xuất</button>
                 </div>
             </form>
         </div>
@@ -96,10 +96,10 @@
                         $isPending = ($req->status === 'pending');
                     @endphp
                     <div 
-                        class="group request-card cursor-pointer border rounded-2xl p-4 transition-all relative overflow-hidden {{ $isSelected ? 'border-primary bg-orange-50/30 ring-1 ring-primary/20' : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-2xs' }}"
+                        class="group request-card cursor-pointer border rounded-2xl p-4 transition-all relative overflow-hidden {{ $isSelected ? 'border-primary-container bg-orange-50/30 ring-1 ring-primary-container/20' : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-2xs' }}"
                         onclick="selectRequest({{ $req->id }}, this, '{{ addslashes($teacherName) }}', 'GV-{{ str_pad($req->user_id, 3, '0', STR_PAD_LEFT) }}', '{{ addslashes($req->classModel?->name ?? 'Lớp IELTS') }}', '{{ $req->created_at->format('d/m/Y') }}', '{{ addslashes($req->request_type) }}', '{{ addslashes($req->reason) }}', '{{ $req->status }}')"
                     >
-                        <div class="absolute left-0 top-0 bottom-0 w-1 {{ $isSelected ? 'bg-primary' : 'bg-transparent group-hover:bg-gray-200' }}"></div>
+                        <div class="absolute left-0 top-0 bottom-0 w-1 {{ $isSelected ? 'bg-primary-container' : 'bg-transparent group-hover:bg-gray-200' }}"></div>
 
                         <div class="flex justify-between items-start mb-2 pl-2">
                             <div class="flex items-center gap-2.5">
@@ -245,7 +245,7 @@
 
                         <form id="approve-form-action" action="{{ route('syllabus.adjustment-requests.approve', $firstReq->id) }}" method="POST">
                             @csrf
-                            <button type="submit" class="px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                            <button type="submit" class="px-4 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-[16px]">check_circle</span>
                                 <span>Phê duyệt</span>
                             </button>
@@ -262,16 +262,16 @@
         function selectRequest(id, cardEl, teacher, code, className, date, reqType, reason, status) {
             // Update active state on cards
             document.querySelectorAll('.request-card').forEach(c => {
-                c.classList.remove('border-primary', 'bg-orange-50/30', 'ring-1', 'ring-primary/20');
+                c.classList.remove('border-primary-container', 'bg-orange-50/30', 'ring-1', 'ring-primary-container/20');
                 c.classList.add('border-gray-200', 'bg-white');
-                c.querySelector('div.absolute').classList.remove('bg-primary');
+                c.querySelector('div.absolute').classList.remove('bg-primary-container');
                 c.querySelector('div.absolute').classList.add('bg-transparent');
             });
 
             cardEl.classList.remove('border-gray-200', 'bg-white');
-            cardEl.classList.add('border-primary', 'bg-orange-50/30', 'ring-1', 'ring-primary/20');
+            cardEl.classList.add('border-primary-container', 'bg-orange-50/30', 'ring-1', 'ring-primary-container/20');
             cardEl.querySelector('div.absolute').classList.remove('bg-transparent');
-            cardEl.querySelector('div.absolute').classList.add('bg-primary');
+            cardEl.querySelector('div.absolute').classList.add('bg-primary-container');
 
             // Update Right Pane data
             document.getElementById('detail-avatar').textContent = teacher.charAt(0);

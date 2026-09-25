@@ -20,17 +20,17 @@
             @csrf
             <h2 class="text-sm font-bold text-gray-900">Ghi nhận sự vụ mới</h2>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <input type="text" name="title" required placeholder="Tiêu đề sự vụ *" class="sm:col-span-2 text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary" value="{{ old('title') }}">
-                <select name="severity" class="text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
+                <input type="text" name="title" required placeholder="Tiêu đề sự vụ *" class="sm:col-span-2 text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container" value="{{ old('title') }}">
+                <select name="severity" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
                     <option value="normal">Bình thường</option>
                     <option value="important">Quan trọng</option>
                     <option value="urgent">Khẩn cấp</option>
                 </select>
             </div>
-            <textarea name="content" rows="2" placeholder="Mô tả chi tiết..." class="w-full text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">{{ old('content') }}</textarea>
+            <textarea name="content" rows="2" placeholder="Mô tả chi tiết..." class="w-full text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">{{ old('content') }}</textarea>
             <div class="flex items-center justify-between">
-                <input type="date" name="report_date" value="{{ now()->toDateString() }}" class="text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
-                <button type="submit" class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
+                <input type="date" name="report_date" value="{{ now()->toDateString() }}" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
                     <span class="material-symbols-outlined text-[18px]">add</span> Ghi sự vụ
                 </button>
             </div>
@@ -72,7 +72,7 @@
                         </div>
                         <form method="POST" action="{{ route('reports.journal.status', $j->id) }}" class="shrink-0">
                             @csrf
-                            <select name="status" onchange="this.form.submit()" class="text-[11px] rounded-lg border-gray-200 focus:border-primary focus:ring-primary py-1">
+                            <select name="status" onchange="this.form.submit()" class="text-[11px] rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container py-1">
                                 <option value="open" @selected($j->status==='open')>Mới</option>
                                 <option value="following" @selected($j->status==='following')>Đang theo dõi</option>
                                 <option value="resolved" @selected($j->status==='resolved')>Đã xử lý</option>
@@ -95,7 +95,7 @@
                     <!-- Thêm follow-up (tạo tác vụ) -->
                     <form method="POST" action="{{ route('reports.journal.followup', $j->id) }}" class="flex items-center gap-2">
                         @csrf
-                        <input type="text" name="content" required placeholder="Nhập nội dung tác vụ / follow-up..." class="flex-1 text-xs rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
+                        <input type="text" name="content" required placeholder="Nhập nội dung tác vụ / follow-up..." class="flex-1 text-xs rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
                         <button type="submit" class="px-3 py-2 rounded-lg bg-orange-50 text-primary hover:bg-orange-100 text-xs font-bold transition flex items-center gap-1">
                             <span class="material-symbols-outlined text-[16px]">add_task</span> Tạo tác vụ
                         </button>

@@ -18,7 +18,7 @@
                     <span class="material-symbols-outlined text-[18px]">edit_attributes</span>
                     <span>Đề xuất sửa (Bước #5)</span>
                 </a>
-                <a href="{{ route('syllabus.documents') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
+                <a href="{{ route('syllabus.documents') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
                     <span class="material-symbols-outlined text-[18px]">folder_shared</span>
                     <span>Quản lý kho tài liệu (Bước #1)</span>
                 </a>
@@ -42,7 +42,7 @@
 
             <div class="flex items-center gap-3">
                 <div class="flex border-b border-gray-200">
-                    <button class="pb-2 px-3 border-b-2 border-primary text-primary font-bold text-xs">Tài liệu bài giảng</button>
+                    <button class="pb-2 px-3 border-b-2 border-primary-container text-primary font-bold text-xs">Tài liệu bài giảng</button>
                     <button class="pb-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-gray-800 font-medium text-xs transition">Tổng quan syllabus</button>
                     <button class="pb-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-gray-800 font-medium text-xs transition">Nội dung buổi học</button>
                 </div>
@@ -64,7 +64,7 @@
                         <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider pl-1">Chặng 1: Nền tảng (Buổi 1 - 10)</h3>
                         
                         <!-- Item 1 (Selected) -->
-                        <div class="bg-orange-50/50 text-gray-900 p-3.5 rounded-xl border border-primary cursor-pointer transition-all shadow-2xs relative overflow-hidden">
+                        <div class="bg-orange-50/50 text-gray-900 p-3.5 rounded-xl border border-primary-container cursor-pointer transition-all shadow-2xs relative overflow-hidden">
                             <div class="flex items-start gap-3 relative z-10">
                                 <div class="bg-white p-2 rounded-lg text-red-600 shadow-2xs border border-red-100">
                                     <span class="material-symbols-outlined text-[20px]">picture_as_pdf</span>
@@ -188,7 +188,7 @@
 
                     <!-- PDF Page Mockup 1 (Paper Preview) -->
                     <div class="bg-white w-full max-w-[760px] shadow-lg rounded-xl mb-6 relative z-10 flex flex-col p-8 border border-gray-200">
-                        <div class="border-b-2 border-primary pb-2 mb-6 flex justify-between items-end">
+                        <div class="border-b-2 border-primary-container pb-2 mb-6 flex justify-between items-end">
                             <div>
                                 <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">MENGLISH ACADEMIC CURRICULUM</span>
                                 <h1 class="text-xl font-black text-primary tracking-tight">STARTER UNIT 1: GREETINGS &amp; INTRODUCTIONS</h1>
@@ -200,7 +200,7 @@
                             <!-- Part A -->
                             <div>
                                 <h2 class="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
-                                    <span class="w-2 h-2 rounded-full bg-primary"></span>
+                                    <span class="w-2 h-2 rounded-full bg-primary-container"></span>
                                     <span>A. Vocabulary: Common Greetings</span>
                                 </h2>
                                 <div class="grid grid-cols-2 gap-3">
@@ -233,7 +233,7 @@
                             <!-- Part B -->
                             <div>
                                 <h2 class="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
-                                    <span class="w-2 h-2 rounded-full bg-primary"></span>
+                                    <span class="w-2 h-2 rounded-full bg-primary-container"></span>
                                     <span>B. Grammar Focus: Verb "To Be" (Present Simple)</span>
                                 </h2>
                                 <table class="w-full text-left border-collapse text-xs border border-gray-200 rounded-xl overflow-hidden">
@@ -273,7 +273,7 @@
                         <span class="material-symbols-outlined text-[16px] text-amber-600">lock</span>
                         <span>Tài liệu này không hỗ trợ tải về máy để bảo mật bản quyền theo chính sách của MEnglish Academy.</span>
                     </p>
-                    <button type="button" onclick="alert('Đã ghi nhận giáo viên hoàn thành xem bài giảng này!')" class="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5">
+                    <button type="button" onclick="alert('Đã ghi nhận giáo viên hoàn thành xem bài giảng này!')" class="bg-primary-container hover:bg-primary-hover text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-[16px]">check_circle</span>
                         <span>Đánh dấu đã xem bài giảng</span>
                     </button>

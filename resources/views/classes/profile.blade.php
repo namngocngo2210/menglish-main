@@ -32,7 +32,7 @@
                     </form>
                     @endcan
                 @endif
-                <a href="{{ route('classes.academic-overview') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary-dark transition">
+                <a href="{{ route('classes.academic-overview') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-dark transition">
                     <span class="material-symbols-outlined text-[18px]">dashboard</span>
                     <span>Sơ đồ khối lớp (Bước #4)</span>
                 </a>
@@ -53,7 +53,7 @@
             <!-- Class Switcher -->
             <div class="flex items-center gap-2.5">
                 <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Đang xem lớp:</span>
-                <select class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
+                <select class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container cursor-pointer"
                         onchange="window.location.href = '{{ route('classes.profile') }}/' + this.value">
                     @foreach($classes as $c)
                         <option value="{{ $c->id }}" {{ ($class && $class->id === $c->id) ? 'selected' : '' }}>
@@ -186,7 +186,7 @@
                     <h2 class="text-base font-bold text-gray-900">Danh sách học sinh</h2>
                     <p class="text-xs text-gray-500">Danh sách xếp lớp chính thức của lớp {{ $class?->code ?? 'ENG-01' }}</p>
                 </div>
-                <span class="px-3 py-1 rounded-full bg-primary/10 text-primary font-bold text-xs">
+                <span class="px-3 py-1 rounded-full bg-primary-container/10 text-primary font-bold text-xs">
                     {{ $students->count() }} học sinh
                 </span>
             </div>

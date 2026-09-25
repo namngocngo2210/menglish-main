@@ -25,7 +25,7 @@
                     </a>
                 @endcan
                 @can('permission.override')
-                    <a href="{{ route('users.permissions.edit', $user) }}" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#F5691A] hover:bg-[#d85a15] text-white text-xs font-semibold shadow-sm transition">
+                    <a href="{{ route('users.permissions.edit', $user) }}" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary-container hover:bg-primary text-white text-xs font-semibold shadow-sm transition">
                         <span class="material-symbols-outlined text-[16px]">admin_panel_settings</span>
                         <span>Phân quyền chi tiết</span>
                     </a>
@@ -38,7 +38,7 @@
         <!-- Top Profile Card -->
         <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
             <div class="flex items-center gap-4">
-                <div class="w-16 h-16 rounded-full bg-orange-100 text-[#F5691A] font-bold text-2xl flex items-center justify-center shadow-xs">
+                <div class="w-16 h-16 rounded-full bg-orange-100 text-primary-container font-bold text-2xl flex items-center justify-center shadow-xs">
                     {{ Str::substr($user->name, 0, 1) }}
                 </div>
                 <div>
@@ -61,7 +61,7 @@
                 <div class="h-8 w-px bg-gray-200"></div>
                 <div>
                     <span class="block text-[11px] font-bold text-gray-400 uppercase">Lương cơ bản</span>
-                    <span class="text-sm font-bold font-mono text-[#F5691A]">{{ $user->base_salary ? number_format($user->base_salary) . 'đ' : '15,000,000đ' }}</span>
+                    <span class="text-sm font-bold font-mono text-primary-container">{{ $user->base_salary ? number_format($user->base_salary) . 'đ' : '15,000,000đ' }}</span>
                 </div>
             </div>
         </div>
@@ -72,7 +72,7 @@
                 <!-- Section 1: Hồ sơ nhân sự -->
                 <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-5">
                     <h3 class="text-base font-bold text-gray-900 flex items-center gap-2 border-b border-gray-100 pb-3">
-                        <span class="material-symbols-outlined text-[#F5691A]">badge</span>
+                        <span class="material-symbols-outlined text-primary-container">badge</span>
                         Hồ sơ nhân sự
                     </h3>
 
@@ -138,7 +138,7 @@
                         </div>
                         <div>
                             <span class="text-[11px] text-gray-400 font-bold uppercase block mb-0.5">Lương theo giờ dạy</span>
-                            <span class="font-bold text-[#F5691A] font-mono">{{ $user->hourly_rate ? number_format($user->hourly_rate) . 'đ' : 'Chưa cập nhật' }}</span>
+                            <span class="font-bold text-primary-container font-mono">{{ $user->hourly_rate ? number_format($user->hourly_rate) . 'đ' : 'Chưa cập nhật' }}</span>
                         </div>
                         <div>
                             <span class="text-[11px] text-gray-400 font-bold uppercase block mb-0.5">Ngày bắt đầu</span>
@@ -178,7 +178,7 @@
                             <span class="material-symbols-outlined text-purple-600 text-[18px]">co_present</span>
                             Kiêm nhiệm giảng dạy
                         </h3>
-                        <button class="text-[11px] text-[#F5691A] font-bold hover:underline flex items-center gap-0.5">
+                        <button class="text-[11px] text-primary-container font-bold hover:underline flex items-center gap-0.5">
                             <span class="material-symbols-outlined text-[14px]">add</span> Thêm
                         </button>
                     </div>

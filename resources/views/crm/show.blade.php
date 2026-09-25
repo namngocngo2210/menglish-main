@@ -33,7 +33,7 @@
 
                     @can('entrance_test.grade')
                     @if (! in_array($customer->stage, ['won', 'lost'], true))
-                    <button type="button" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#F5691A] border border-orange-200 text-xs font-bold shadow-2xs transition whitespace-nowrap shrink-0 cursor-pointer">
+                    <button type="button" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-primary-container border border-orange-200 text-xs font-bold shadow-2xs transition whitespace-nowrap shrink-0 cursor-pointer">
                         <span class="material-symbols-outlined text-[16px]">edit_note</span>
                         <span>{{ $customer->stage === 'test_scheduled' ? 'Nhập điểm lần test lại' : 'Sửa Điểm Test' }}</span>
                     </button>
@@ -61,7 +61,7 @@
 
                     @can('entrance_test.grade')
                     @if (in_array($customer->stage, ['consulting', 'test_scheduled'], true))
-                    <button type="button" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#F5691A] border border-orange-200 text-xs font-bold shadow-2xs transition whitespace-nowrap shrink-0 cursor-pointer">
+                    <button type="button" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-primary-container border border-orange-200 text-xs font-bold shadow-2xs transition whitespace-nowrap shrink-0 cursor-pointer">
                         <span class="material-symbols-outlined text-[16px]">post_add</span>
                         <span>Nhập Điểm Test</span>
                     </button>
@@ -306,7 +306,7 @@
         <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-gray-200">
             <div class="flex justify-between items-center pb-2 border-b border-gray-100">
                 <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[#F5691A]">military_tech</span>
+                    <span class="material-symbols-outlined text-primary-container">military_tech</span>
                     <span>Ghi Nhận &amp; Nhập Điểm Test Đầu Vào</span>
                 </h3>
                 <button type="button" onclick="document.getElementById('editTestScoreModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
@@ -324,7 +324,7 @@
                     <input type="hidden" name="submission_id" value="{{ $editSub->id }}">
                 @endif
                 <div class="p-3 bg-orange-50/60 border border-orange-100 rounded-xl text-[11px] text-orange-950 flex items-start gap-2">
-                    <span class="material-symbols-outlined text-[#F5691A] text-base mt-0.5">info</span>
+                    <span class="material-symbols-outlined text-primary-container text-base mt-0.5">info</span>
                     <div>
                         <strong>Học viên:</strong> {{ $customer->name }} ({{ $customer->phone }})<br>
                         <span>Nhập điểm 4 kỹ năng để hệ thống tự động tính Overall Band &amp; cập nhật giai đoạn CRM.</span>
@@ -391,19 +391,13 @@
 
                 <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
                     <button type="button" onclick="document.getElementById('editTestScoreModal').classList.add('hidden')" class="px-3 py-1.5 rounded-lg border text-xs text-gray-600 hover:bg-gray-50">Hủy</button>
-                    <button type="submit" class="px-4 py-2 bg-[#F5691A] hover:bg-[#d85a15] text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer">Lưu Điểm Test</button>
+                    <button type="submit" class="px-4 py-2 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer">Lưu Điểm Test</button>
                 </div>
             </form>
         </div>
     </div>
 
     <!-- Success flash banner -->
-    @if (session('status'))
-        <div class="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs font-semibold text-emerald-800 flex items-center gap-2 shadow-sm">
-            <span class="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
-            <span>{{ session('status') }}</span>
-        </div>
-    @endif
 
     @if ($customer->trial_at || $customer->waiting_since)
         <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
@@ -429,7 +423,7 @@
         <div class="space-y-6">
             <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
                 <div class="flex items-center gap-3 pb-4 border-b border-gray-100">
-                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-orange-100 text-primary flex items-center justify-center font-bold text-lg shadow-sm">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-container/20 to-orange-100 text-primary flex items-center justify-center font-bold text-lg shadow-sm">
                         {{ Str::substr($customer->name, 0, 1) }}
                     </div>
                     <div>
@@ -565,7 +559,7 @@
                                     <span>Nhập điểm trực tiếp</span>
                                 </button>
                                 @endcan
-                                <button type="submit" class="w-full sm:w-auto px-4 py-2.5 bg-[#F5691A] hover:bg-[#d85a15] text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                <button type="submit" class="w-full sm:w-auto px-4 py-2.5 bg-primary-container hover:bg-primary text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
                                     <span class="material-symbols-outlined text-[16px]">send</span>
                                     <span>Gửi link test online</span>
                                 </button>
@@ -631,7 +625,7 @@
                         <!-- Score Header Summary -->
                         <div class="p-4 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl flex items-center justify-between gap-4 flex-wrap">
                             <div class="flex items-center gap-3">
-                                <div class="w-12 h-12 rounded-xl bg-[#F5691A] text-white flex flex-col items-center justify-center font-black shadow-sm">
+                                <div class="w-12 h-12 rounded-xl bg-primary-container text-white flex flex-col items-center justify-center font-black shadow-sm">
                                     <span class="text-sm leading-none">{{ $submission->overall_score ?? $customer->test_score ?? '—' }}</span>
                                     <span class="text-[9px] uppercase tracking-wider font-semibold opacity-90">Band</span>
                                 </div>
@@ -643,7 +637,7 @@
                                         </span>
                                     </div>
                                     <p class="text-xs text-amber-950 font-semibold mt-0.5">
-                                        Khóa đề xuất: <span class="text-[#F5691A] font-bold">{{ $submission->recommended_course ?? '—' }}</span>
+                                        Khóa đề xuất: <span class="text-primary-container font-bold">{{ $submission->recommended_course ?? '—' }}</span>
                                     </p>
                                 </div>
                             </div>
@@ -709,7 +703,7 @@
                                     </a>
                                 @endif
                                 @can('entrance_test.grade')
-                                <button type="button" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')" class="px-3 py-1.5 bg-orange-50 border border-orange-200 hover:bg-orange-100 text-[#F5691A] rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+                                <button type="button" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')" class="px-3 py-1.5 bg-orange-50 border border-orange-200 hover:bg-orange-100 text-primary-container rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer">
                                     <span class="material-symbols-outlined text-[14px]">edit_note</span>
                                     <span>Sửa điểm</span>
                                 </button>
@@ -815,19 +809,19 @@
                         <span>Ghi nhật ký chăm sóc</span>
                     </h3>
                     <div class="flex flex-wrap items-center gap-1.5 text-xs">
-                        <button type="button" @click="noteType = 'call'" :class="noteType === 'call' ? 'bg-primary text-white shadow-sm ring-1 ring-primary' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 shrink-0">
+                        <button type="button" @click="noteType = 'call'" :class="noteType === 'call' ? 'bg-primary-container text-white shadow-sm ring-1 ring-primary-container' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 shrink-0">
                             <span>📞</span> <span>Gọi điện</span>
                         </button>
-                        <button type="button" @click="noteType = 'message'" :class="noteType === 'message' ? 'bg-primary text-white shadow-sm ring-1 ring-primary' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 shrink-0">
+                        <button type="button" @click="noteType = 'message'" :class="noteType === 'message' ? 'bg-primary-container text-white shadow-sm ring-1 ring-primary-container' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 shrink-0">
                             <span>💬</span> <span>Nhắn tin</span>
                         </button>
-                        <button type="button" @click="noteType = 'meet'" :class="noteType === 'meet' ? 'bg-primary text-white shadow-sm ring-1 ring-primary' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 shrink-0">
+                        <button type="button" @click="noteType = 'meet'" :class="noteType === 'meet' ? 'bg-primary-container text-white shadow-sm ring-1 ring-primary-container' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 shrink-0">
                             <span>🤝</span> <span>Gặp trực tiếp</span>
                         </button>
-                        <button type="button" @click="noteType = 'test'" :class="noteType === 'test' ? 'bg-primary text-white shadow-sm ring-1 ring-primary' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 shrink-0">
+                        <button type="button" @click="noteType = 'test'" :class="noteType === 'test' ? 'bg-primary-container text-white shadow-sm ring-1 ring-primary-container' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 shrink-0">
                             <span>📝</span> <span>Test thử</span>
                         </button>
-                        <button type="button" @click="noteType = 'note'" :class="noteType === 'note' ? 'bg-primary text-white shadow-sm ring-1 ring-primary' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 shrink-0">
+                        <button type="button" @click="noteType = 'note'" :class="noteType === 'note' ? 'bg-primary-container text-white shadow-sm ring-1 ring-primary-container' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 shrink-0">
                             <span>📌</span> <span>Ghi chú</span>
                         </button>
                     </div>
@@ -836,7 +830,7 @@
                 <textarea name="content" rows="3" required placeholder="Nhập nội dung trao đổi, phản hồi của khách hàng..." class="w-full text-xs rounded-xl border border-gray-200 p-3"></textarea>
 
                 <div class="flex justify-end">
-                    <button type="submit" class="px-4 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
+                    <button type="submit" class="px-4 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-[16px]">send</span>
                         <span>Lưu nhật ký</span>
                     </button>

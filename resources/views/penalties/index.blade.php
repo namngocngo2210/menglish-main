@@ -4,7 +4,7 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-rose-600">gavel</span>
-                    Biên bản Vi phạm &amp; Kỷ luật Nhân sự (Database)
+                    Biên bản Vi phạm &amp; Kỷ luật Nhân sự
                 </h1>
                 <p class="text-xs text-gray-500">Ghi nhận vi phạm quy chế đào tạo, trừ thưởng KPI và chế tài bảng lương</p>
             </div>

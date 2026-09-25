@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-app-layout hide-errors>
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -117,7 +117,7 @@
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                                 1. Chọn Hồ sơ Học phí đến hạn <span class="text-rose-500">*</span>
                             </label>
-                            <select name="student_tuition_id" x-model="selectedTuitionId" @change="onTuitionChange()" class="w-full text-xs font-bold rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-slate-900 py-2.5 px-3">
+                            <select name="student_tuition_id" x-model="selectedTuitionId" @change="onTuitionChange()" class="w-full text-xs font-bold rounded-xl border-slate-200 focus:border-primary-container focus:ring-primary-container/20 text-slate-900 py-2.5 px-3">
                                 <option value="">-- Thu riêng phụ thu (Không gắn hồ sơ học phí) --</option>
                                 <template x-for="t in tuitions" :key="t.id">
                                     <option :value="t.id" x-text="t.student_name + ' (' + t.student_code + ') - ' + t.class_name + ' · Nợ: ' + formatVND(t.debt_amount)"></option>
@@ -129,7 +129,7 @@
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                                 Học viên được ghi nhận <span class="text-rose-500">*</span>
                             </label>
-                            <select name="student_id" x-model="selectedStudentId" @change="onStudentChange()" required class="w-full text-xs font-medium rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-slate-800 py-2.5 px-3">
+                            <select name="student_id" x-model="selectedStudentId" @change="onStudentChange()" required class="w-full text-xs font-medium rounded-xl border-slate-200 focus:border-primary-container focus:ring-primary-container/20 text-slate-800 py-2.5 px-3">
                                 <template x-for="s in students" :key="s.id">
                                     <option :value="s.id" x-text="s.name + ' (' + s.code + ') · ' + s.class_name + ' (' + s.branch_name + ')'"></option>
                                 </template>
@@ -177,7 +177,7 @@
                         </div>
 
                         <template x-if="!skipTuition && currentTuition">
-                            <div class="bg-white px-3 py-1 rounded-lg border border-primary/60 text-slate-800 text-xs flex items-center gap-1.5 shadow-2xs">
+                            <div class="bg-white px-3 py-1 rounded-lg border border-primary-container/60 text-slate-800 text-xs flex items-center gap-1.5 shadow-2xs">
                                 <span class="material-symbols-outlined text-emerald-600 text-sm">check_circle</span>
                                 <span>Đã chọn: <strong x-text="'Học phí đợt ' + (currentTuition.receipt_count + 1) + ' - ' + currentTuition.class_name"></strong></span>
                             </div>
@@ -199,7 +199,7 @@
                             </button>
                         </template>
                         <template x-if="skipTuition && currentTuition">
-                            <button type="button" @click="toggleSkipTuition(false)" class="px-3 py-1 rounded-lg border border-primary text-primary hover:bg-orange-50 text-xs font-bold transition flex items-center gap-1">
+                            <button type="button" @click="toggleSkipTuition(false)" class="px-3 py-1 rounded-lg border border-primary-container text-primary hover:bg-orange-50 text-xs font-bold transition flex items-center gap-1">
                                 <span class="material-symbols-outlined text-xs">add</span>
                                 Bật lại khoản học phí
                             </button>
@@ -260,7 +260,7 @@
                                     <span class="text-[10px] text-slate-400 font-normal lowercase italic">không vượt tổng trước giảm</span>
                                 </label>
                                 <div class="relative">
-                                    <input type="number" name="discount_amount" x-model.number="discountAmount" @input="recalc()" min="0" :max="tuitionSubtotal" class="w-full h-10 rounded-xl border border-slate-200 focus:border-primary focus:ring-primary/20 text-xs font-mono font-bold px-3 pr-12 text-slate-800" placeholder="0" />
+                                    <input type="number" name="discount_amount" x-model.number="discountAmount" @input="recalc()" min="0" :max="tuitionSubtotal" class="w-full h-10 rounded-xl border border-slate-200 focus:border-primary-container focus:ring-primary-container/20 text-xs font-mono font-bold px-3 pr-12 text-slate-800" placeholder="0" />
                                     <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-mono">VNĐ</span>
                                 </div>
                             </div>
@@ -300,7 +300,7 @@
                                 Số tiền phụ thu (VNĐ)
                             </label>
                             <div class="relative">
-                                <input type="number" name="surcharge_amount" x-model.number="surchargeAmount" @input="recalc()" min="0" step="10000" class="w-full h-11 rounded-xl border border-slate-200 focus:border-primary focus:ring-primary/20 text-xs font-mono font-bold px-3 pr-12 text-slate-900" placeholder="Nhập số tiền > 0..." />
+                                <input type="number" name="surcharge_amount" x-model.number="surchargeAmount" @input="recalc()" min="0" step="10000" class="w-full h-11 rounded-xl border border-slate-200 focus:border-primary-container focus:ring-primary-container/20 text-xs font-mono font-bold px-3 pr-12 text-slate-900" placeholder="Nhập số tiền > 0..." />
                                 <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-mono">VNĐ</span>
                             </div>
 
@@ -318,7 +318,7 @@
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                                 Lý do phụ thu <span class="text-rose-500" x-show="surchargeAmount > 0">*</span>
                             </label>
-                            <input type="text" name="surcharge_reason" x-model="surchargeReason" placeholder="Ví dụ: Phụ thu giáo trình in ấn bổ sung, đồng phục, thẻ học viên..." class="w-full h-11 rounded-xl border border-slate-200 focus:border-primary focus:ring-primary/20 text-xs px-3 text-slate-800" />
+                            <input type="text" name="surcharge_reason" x-model="surchargeReason" placeholder="Ví dụ: Phụ thu giáo trình in ấn bổ sung, đồng phục, thẻ học viên..." class="w-full h-11 rounded-xl border border-slate-200 focus:border-primary-container focus:ring-primary-container/20 text-xs px-3 text-slate-800" />
                             <p class="text-[11px] text-slate-400 italic mt-1.5">* Bắt buộc nhập lý do khi có nhập số tiền phụ thu.</p>
                         </div>
                     </div>
@@ -331,7 +331,7 @@
             </div>
 
             <!-- Khối 3: TỔNG THỰC THU CỦA PHIẾU NÀY (Học phí + Phụ thu) -->
-            <div class="bg-white p-5 rounded-2xl border-2 border-primary/50 shadow-sm">
+            <div class="bg-white p-5 rounded-2xl border-2 border-primary-container/50 shadow-sm">
                 <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div class="space-y-1">
                         <span class="text-xs font-bold text-primary uppercase tracking-wider">TỔNG THỰC THU CỦA PHIẾU NÀY</span>
@@ -380,7 +380,7 @@
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
-                        <label :class="paymentMethod === 'transfer' ? 'border-primary bg-orange-50/60 ring-1 ring-primary' : 'border-slate-200 hover:bg-slate-50'" class="relative flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition">
+                        <label :class="paymentMethod === 'transfer' ? 'border-primary-container bg-orange-50/60 ring-1 ring-primary-container' : 'border-slate-200 hover:bg-slate-50'" class="relative flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition">
                             <input type="radio" name="payment_method" value="transfer" x-model="paymentMethod" class="sr-only" />
                             <div class="flex flex-col items-center">
                                 <span class="material-symbols-outlined mb-1" :class="paymentMethod === 'transfer' ? 'text-primary' : 'text-slate-400'">account_balance</span>
@@ -388,7 +388,7 @@
                             </div>
                         </label>
 
-                        <label :class="paymentMethod === 'cash' ? 'border-primary bg-orange-50/60 ring-1 ring-primary' : 'border-slate-200 hover:bg-slate-50'" class="relative flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition">
+                        <label :class="paymentMethod === 'cash' ? 'border-primary-container bg-orange-50/60 ring-1 ring-primary-container' : 'border-slate-200 hover:bg-slate-50'" class="relative flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition">
                             <input type="radio" name="payment_method" value="cash" x-model="paymentMethod" class="sr-only" />
                             <div class="flex flex-col items-center">
                                 <span class="material-symbols-outlined mb-1" :class="paymentMethod === 'cash' ? 'text-primary' : 'text-slate-400'">payments</span>
@@ -438,7 +438,7 @@
 
                                 <!-- Dynamic VietQR Code -->
                                 <div class="flex flex-col items-center gap-1 shrink-0">
-                                    <div class="w-28 h-28 bg-white border-2 border-primary/20 p-1 rounded-xl shadow-xs overflow-hidden flex items-center justify-center">
+                                    <div class="w-28 h-28 bg-white border-2 border-primary-container/20 p-1 rounded-xl shadow-xs overflow-hidden flex items-center justify-center">
                                         <img :src="vietQrUrl" alt="VietQR Thanh toán" class="w-full h-full object-contain" />
                                     </div>
                                     <span class="text-[10px] text-slate-400 italic">Quét VietQR tự điền số tiền</span>
@@ -459,7 +459,7 @@
 
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Mã tham chiếu / Mã giao dịch ngân hàng (nếu có)</label>
-                            <input type="text" name="transaction_code" placeholder="Ví dụ: FT232981354789..." class="w-full text-xs font-mono rounded-xl border border-slate-200 px-3 py-2 focus:border-primary focus:ring-primary/20" />
+                            <input type="text" name="transaction_code" placeholder="Ví dụ: FT232981354789..." class="w-full text-xs font-mono rounded-xl border border-slate-200 px-3 py-2 focus:border-primary-container focus:ring-primary-container/20" />
                         </div>
                     </div>
 
@@ -470,7 +470,7 @@
                                 <span>Số phiếu / Số hóa đơn giấy thu tiền mặt (nếu có)</span>
                                 <span class="text-[10px] text-slate-400 lowercase font-normal italic">áp dụng khi viết biên lai tay</span>
                             </label>
-                            <input type="text" name="paper_invoice_number" placeholder="Ví dụ: HĐG-0824/PTM-042..." class="w-full h-10 rounded-xl border border-slate-200 px-3 text-xs font-mono font-bold focus:border-primary focus:ring-primary/20 bg-white" />
+                            <input type="text" name="paper_invoice_number" placeholder="Ví dụ: HĐG-0824/PTM-042..." class="w-full h-10 rounded-xl border border-slate-200 px-3 text-xs font-mono font-bold focus:border-primary-container focus:ring-primary-container/20 bg-white" />
                         </div>
                     </div>
                 </div>
@@ -493,7 +493,7 @@
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" name="is_vat_invoice" value="1" class="sr-only peer" />
-                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container"></div>
                         </label>
                     </div>
 
@@ -501,18 +501,18 @@
                     <div class="grid grid-cols-2 gap-3 text-xs">
                         <div class="space-y-1">
                             <label class="font-bold text-slate-700 uppercase tracking-wider block">Người nộp tiền</label>
-                            <input type="text" name="payer_name" x-model="payerName" placeholder="Họ và tên người nộp..." class="w-full h-10 rounded-xl border border-slate-200 focus:border-primary focus:ring-primary/20 px-3 text-xs font-medium text-slate-800" />
+                            <input type="text" name="payer_name" x-model="payerName" placeholder="Họ và tên người nộp..." class="w-full h-10 rounded-xl border border-slate-200 focus:border-primary-container focus:ring-primary-container/20 px-3 text-xs font-medium text-slate-800" />
                         </div>
                         <div class="space-y-1">
                             <label class="font-bold text-slate-700 uppercase tracking-wider block">Số điện thoại</label>
-                            <input type="tel" name="payer_phone" x-model="payerPhone" placeholder="09xxxxxxxx..." class="w-full h-10 rounded-xl border border-slate-200 focus:border-primary focus:ring-primary/20 px-3 text-xs font-mono text-slate-800" />
+                            <input type="tel" name="payer_phone" x-model="payerPhone" placeholder="09xxxxxxxx..." class="w-full h-10 rounded-xl border border-slate-200 focus:border-primary-container focus:ring-primary-container/20 px-3 text-xs font-mono text-slate-800" />
                         </div>
                     </div>
 
                     <!-- Ghi chú nội bộ -->
                     <div class="space-y-1 text-xs">
                         <label class="font-bold text-slate-700 uppercase tracking-wider block">Ghi chú nội bộ</label>
-                        <textarea name="notes" rows="3" placeholder="Nhập ghi chú quan trọng cho bộ phận kế toán và quản lý lớp..." class="w-full rounded-xl border border-slate-200 focus:border-primary focus:ring-primary/20 p-3 text-xs text-slate-800">Phụ huynh nộp thanh toán học phí &amp; phụ thu qua cổng MEnglish.</textarea>
+                        <textarea name="notes" rows="3" placeholder="Nhập ghi chú quan trọng cho bộ phận kế toán và quản lý lớp..." class="w-full rounded-xl border border-slate-200 focus:border-primary-container focus:ring-primary-container/20 p-3 text-xs text-slate-800">Phụ huynh nộp thanh toán học phí &amp; phụ thu qua cổng MEnglish.</textarea>
                     </div>
                 </div>
             </div>
@@ -585,7 +585,7 @@
                             <span class="material-symbols-outlined text-base">print</span>
                             Xuất biên lai
                         </button>
-                        <button type="submit" name="submit_action" value="submit" :disabled="!isValidReceipt" :class="isValidReceipt ? 'bg-primary hover:bg-primary-hover text-white shadow-md' : 'bg-slate-200 text-slate-400 cursor-not-allowed'" class="px-6 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2">
+                        <button type="submit" name="submit_action" value="submit" :disabled="!isValidReceipt" :class="isValidReceipt ? 'bg-primary-container hover:bg-primary-hover text-white shadow-md' : 'bg-slate-200 text-slate-400 cursor-not-allowed'" class="px-6 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2">
                             <span class="material-symbols-outlined text-base">save</span>
                             <span>Lưu phiếu thu &amp; Gửi duyệt (<span class="font-mono" x-text="formatVND(totalAmount)"></span>)</span>
                         </button>

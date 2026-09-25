@@ -7,7 +7,7 @@
             </div>
             <div class="flex items-center gap-3">
                 @can('user.create')
-                    <a href="{{ route('users.create') }}" class="bg-[#F5691A] hover:bg-[#d85a15] text-white text-sm font-medium px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-2">
+                    <a href="{{ route('users.create') }}" class="bg-primary-container hover:bg-primary text-white text-sm font-medium px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-2">
                         <span class="material-symbols-outlined text-[20px]">person_add</span>
                         <span>Thêm nhân viên mới</span>
                     </a>
@@ -27,12 +27,6 @@
             this.drawerOpen = false;
         }
     }">
-        @if (session('status'))
-            <div class="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl flex items-center gap-3 text-sm font-medium">
-                <span class="material-symbols-outlined text-emerald-600">check_circle</span>
-                <span>{{ session('status') }}</span>
-            </div>
-        @endif
 
         @if ($errors->any())
             <div class="p-4 rounded-2xl bg-rose-50 text-rose-800 border border-rose-200 text-xs font-semibold">
@@ -51,7 +45,7 @@
                     <p class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Tổng nhân sự</p>
                     <h3 class="text-2xl font-bold text-gray-900 mt-1 font-mono">{{ $totalStaff }}</h3>
                 </div>
-                <div class="w-10 h-10 rounded-xl bg-orange-50 text-[#F5691A] flex items-center justify-center">
+                <div class="w-10 h-10 rounded-xl bg-orange-50 text-primary-container flex items-center justify-center">
                     <span class="material-symbols-outlined">group</span>
                 </div>
             </div>
@@ -90,10 +84,10 @@
                 <div class="relative flex-1 w-full">
                     <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
                     <input type="text" name="search" value="{{ request('search') }}" placeholder="Tìm kiếm theo họ tên, email, SĐT hoặc mã nhân viên..."
-                           class="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-[#F5691A] focus:border-[#F5691A] shadow-2xs">
+                           class="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-primary-container focus:border-primary-container shadow-2xs">
                 </div>
                 <div class="w-full md:w-56">
-                    <select name="branch_id" class="w-full bg-white border border-gray-200 rounded-xl text-sm focus:ring-[#F5691A] focus:border-[#F5691A] py-2 shadow-2xs">
+                    <select name="branch_id" class="w-full bg-white border border-gray-200 rounded-xl text-sm focus:ring-primary-container focus:border-primary-container py-2 shadow-2xs">
                         <option value="">Tất cả cơ sở</option>
                         @foreach ($branches as $b)
                             <option value="{{ $b->id }}" @selected(request('branch_id') == $b->id)>{{ $b->name }}</option>
@@ -101,7 +95,7 @@
                     </select>
                 </div>
                 <div class="w-full md:w-56">
-                    <select name="role" class="w-full bg-white border border-gray-200 rounded-xl text-sm focus:ring-[#F5691A] focus:border-[#F5691A] py-2 shadow-2xs">
+                    <select name="role" class="w-full bg-white border border-gray-200 rounded-xl text-sm focus:ring-primary-container focus:border-primary-container py-2 shadow-2xs">
                         <option value="">Tất cả vai trò</option>
                         @foreach ($roles as $r)
                             <option value="{{ $r }}" @selected(request('role') == $r)>{{ \App\Helpers\AclHelper::roleLabel($r) }}</option>
@@ -140,13 +134,13 @@
                             <tr class="hover:bg-orange-50/15 transition group">
                                 <td class="py-3.5 px-4">
                                     <div class="flex items-center gap-3">
-                                        <div class="w-9 h-9 rounded-full bg-orange-100 text-[#F5691A] flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs">
+                                        <div class="w-9 h-9 rounded-full bg-orange-100 text-primary-container flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs">
                                             {{ Str::substr($user->name, 0, 1) }}
                                         </div>
                                         <div>
                                             <div class="font-bold text-gray-900 text-sm flex items-center gap-1.5">
                                                 <span>{{ $user->name }}</span>
-                                                <button @click="openProfile({{ json_encode($user->load(['branch', 'roles'])) }})" class="text-gray-400 hover:text-[#F5691A] transition" title="Xem hồ sơ nhanh">
+                                                <button @click="openProfile({{ json_encode($user->load(['branch', 'roles'])) }})" class="text-gray-400 hover:text-primary-container transition" title="Xem hồ sơ nhanh">
                                                     <span class="material-symbols-outlined text-[15px]">info</span>
                                                 </button>
                                             </div>
@@ -197,7 +191,7 @@
                                         @endcan
 
                                         @can('user.update')
-                                            <a href="{{ route('users.edit', $user) }}" class="p-1 rounded-lg text-gray-500 hover:text-[#F5691A] hover:bg-orange-50 transition" title="Sửa thông tin">
+                                            <a href="{{ route('users.edit', $user) }}" class="p-1 rounded-lg text-gray-500 hover:text-primary-container hover:bg-orange-50 transition" title="Sửa thông tin">
                                                 <span class="material-symbols-outlined text-[18px]">edit</span>
                                             </a>
                                         @endcan
@@ -274,7 +268,7 @@
                     <div class="flex-1 overflow-y-auto p-5 space-y-6" x-show="activeUser">
                         <!-- Top Staff Info -->
                         <div class="flex items-center gap-4 bg-orange-50/40 p-4 rounded-2xl border border-orange-100/70">
-                            <div class="w-14 h-14 rounded-full bg-[#F5691A] text-white flex items-center justify-center font-bold text-xl shrink-0 shadow-xs"
+                            <div class="w-14 h-14 rounded-full bg-primary-container text-white flex items-center justify-center font-bold text-xl shrink-0 shadow-xs"
                                  x-text="activeUser ? activeUser.name.charAt(0) : 'N'"></div>
                             <div>
                                 <h3 class="font-bold text-gray-900 text-base" x-text="activeUser ? activeUser.name : ''"></h3>
@@ -286,7 +280,7 @@
                         <!-- Section: Hồ sơ nhân sự -->
                         <section class="bg-gray-50/70 rounded-2xl border border-gray-200 p-4 space-y-4">
                             <h4 class="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5 border-b border-gray-200 pb-2">
-                                <span class="material-symbols-outlined text-[#F5691A] text-[16px]">badge</span>
+                                <span class="material-symbols-outlined text-primary-container text-[16px]">badge</span>
                                 Thông tin nhân sự
                             </h4>
                             <div class="grid grid-cols-2 gap-3 text-xs">
@@ -347,7 +341,7 @@
                                 </div>
                                 <div>
                                     <span class="text-[10px] text-gray-400 font-bold uppercase block">Lương cơ bản</span>
-                                    <span class="font-bold text-[#F5691A] font-mono" x-text="activeUser && activeUser.base_salary ? Number(activeUser.base_salary).toLocaleString() + 'đ' : 'Chưa cập nhật'"></span>
+                                    <span class="font-bold text-primary-container font-mono" x-text="activeUser && activeUser.base_salary ? Number(activeUser.base_salary).toLocaleString() + 'đ' : 'Chưa cập nhật'"></span>
                                 </div>
                                 <div>
                                     <span class="text-[10px] text-gray-400 font-bold uppercase block">Ngày bắt đầu</span>
@@ -384,7 +378,7 @@
                         @endcan
                         @can('permission.override')
                             <template x-if="activeUser">
-                                <a :href="'/users/' + activeUser.id + '/permissions'" class="flex-1 py-2 bg-[#F5691A] hover:bg-[#d85a15] text-white rounded-xl text-xs font-semibold text-center transition shadow-xs">
+                                <a :href="'/users/' + activeUser.id + '/permissions'" class="flex-1 py-2 bg-primary-container hover:bg-primary text-white rounded-xl text-xs font-semibold text-center transition shadow-xs">
                                     Phân quyền
                                 </a>
                             </template>

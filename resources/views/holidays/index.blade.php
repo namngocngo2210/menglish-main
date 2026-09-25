@@ -6,7 +6,7 @@
     <div class="max-w-4xl mx-auto space-y-4">
         <div class="flex justify-end">
             @can('holiday.manage')
-                <a href="{{ route('holidays.create') }}" class="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-white text-sm font-medium px-4 py-2 rounded-lg">
+                <a href="{{ route('holidays.create') }}" class="inline-flex items-center gap-2 bg-primary-container hover:bg-primary-hover text-white text-sm font-medium px-4 py-2 rounded-lg">
                     <span class="material-symbols-outlined text-[18px]">add</span> Thêm ngày nghỉ mới
                 </a>
             @endcan
@@ -32,7 +32,7 @@
                             <td class="px-4 py-3 text-gray-700">{{ $holiday->start_date->format('d/m/Y') }} &rarr; {{ $holiday->end_date->format('d/m/Y') }}</td>
                             <td class="px-4 py-3">
                                 @if ($holiday->is_system_wide)
-                                    <span class="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">Toàn hệ thống</span>
+                                    <span class="text-xs px-2 py-0.5 rounded-full bg-primary-container/10 text-primary">Toàn hệ thống</span>
                                 @else
                                     @foreach ($holiday->branches as $branch)
                                         <span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">{{ $branch->name }}</span>

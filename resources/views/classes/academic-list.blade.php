@@ -14,7 +14,7 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('classes.academic-detail') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary-dark transition">
+                <a href="{{ route('classes.academic-detail') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-dark transition">
                     <span class="material-symbols-outlined text-[18px]">class</span>
                     <span>Chi tiết lớp học (Bước #6)</span>
                 </a>
@@ -39,14 +39,14 @@
                     <input type="text"
                            name="search"
                            value="{{ $search }}"
-                           class="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                           class="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition"
                            placeholder="Tìm kiếm lớp..."/>
                 </div>
 
                 <div class="flex gap-2 w-full sm:w-auto">
                     <select name="branch_id"
                             onchange="this.form.submit()"
-                            class="w-full sm:w-auto px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer">
+                            class="w-full sm:w-auto px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container cursor-pointer">
                         <option value="">Tất cả Chi nhánh</option>
                         @foreach($branches as $b)
                             <option value="{{ $b->id }}" {{ $branchFilter == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
@@ -55,7 +55,7 @@
 
                     <select name="program"
                             onchange="this.form.submit()"
-                            class="w-full sm:w-auto px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer">
+                            class="w-full sm:w-auto px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container cursor-pointer">
                         <option value="">Tất cả Chương trình</option>
                         <option value="ielts" {{ $programFilter == 'ielts' ? 'selected' : '' }}>IELTS</option>
                         <option value="toeic" {{ $programFilter == 'toeic' ? 'selected' : '' }}>TOEIC</option>

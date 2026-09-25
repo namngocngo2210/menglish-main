@@ -4,7 +4,7 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-amber-600">notifications_active</span>
-                    Mẫu Tin Nhắn Nhắc Nợ Học Phí Tự Động (Database)
+                    Mẫu Tin Nhắn Nhắc Nợ Học Phí Tự Động
                 </h1>
                 <p class="text-xs text-gray-500">Cấu hình mẫu tin nhắn gửi qua Zalo ZNS / SMS Brandname theo các mốc T-3, T0, T+3</p>
             </div>
@@ -24,7 +24,7 @@
 
             <a 
                 href="{{ route('system-config.debt-reminders') }}"
-                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-[#ea580c] bg-[#ea580c] text-white font-bold shadow-xs shrink-0"
+                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-primary-container bg-primary-container text-white font-bold shadow-xs shrink-0"
             >
                 <span class="material-symbols-outlined text-base">notifications_active</span>
                 <span>Mẫu nhắc nợ</span>
@@ -69,7 +69,7 @@
                 </div>
 
                 <div class="flex items-center justify-end pt-2">
-                    <button type="submit" class="px-5 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition">
+                    <button type="submit" class="px-5 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition">
                         Lưu mẫu tin nhắn
                     </button>
                 </div>

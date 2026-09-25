@@ -18,7 +18,7 @@
                     <span class="material-symbols-outlined text-[18px]">assignment_ind</span>
                     <span>Giao chặng GV (Bước #3)</span>
                 </a>
-                <a href="{{ route('teacher-portal.shortcut', '08_xem_tai_lieu_giao_trinh') }}" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
+                <a href="{{ route('teacher-portal.shortcut', '08_xem_tai_lieu_giao_trinh') }}" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
                     <span class="material-symbols-outlined text-[18px]">visibility</span>
                     <span>Cổng Giáo viên (Bước #4)</span>
                 </a>
@@ -39,13 +39,13 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div class="space-y-1.5">
                     <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider">Tên chặng học / Giáo trình <span class="text-rose-500">*</span></label>
-                    <input type="text" value="{{ $curriculum?->title ?? 'Chặng 1: Xây dựng nền tảng (Foundation)' }}" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-medium focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                    <input type="text" value="{{ $curriculum?->title ?? 'Chặng 1: Xây dựng nền tảng (Foundation)' }}" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-medium focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none" />
                 </div>
 
                 <div class="space-y-1.5">
                     <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider">Chính sách mở khóa</label>
                     <div class="relative">
-                        <select class="w-full text-xs rounded-xl border border-gray-200 p-2.5 appearance-none bg-white focus:border-primary focus:ring-1 focus:ring-primary outline-none pr-8">
+                        <select class="w-full text-xs rounded-xl border border-gray-200 p-2.5 appearance-none bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none pr-8">
                             <option>Mở khóa theo tuần</option>
                             <option>Hoàn thành bài kiểm tra (Big Test) mới được mở</option>
                             <option>Mở khóa thủ công bởi Admin</option>
@@ -57,7 +57,7 @@
                 <div class="md:col-span-2 space-y-1.5">
                     <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider">Link ảnh / Tài liệu tổng quan chặng (overview_link)</label>
                     <div class="flex gap-2">
-                        <input type="text" value="https://dungthu.meducation.vn/syllabus-overview-stage-1.jpg" class="flex-1 text-xs rounded-xl border border-gray-200 p-2.5 font-mono text-gray-600 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                        <input type="text" value="https://dungthu.meducation.vn/syllabus-overview-stage-1.jpg" class="flex-1 text-xs rounded-xl border border-gray-200 p-2.5 font-mono text-gray-600 focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none" />
                         <button type="button" class="px-4 py-2 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-semibold flex items-center gap-1 transition">
                             <span class="material-symbols-outlined text-[16px]">visibility</span>
                             <span>Xem thử</span>
@@ -67,7 +67,7 @@
 
                 <!-- Image Preview Area -->
                 <div class="md:col-span-2">
-                    <div class="w-full h-48 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/60 flex flex-col items-center justify-center overflow-hidden relative group hover:border-primary/40 transition">
+                    <div class="w-full h-48 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/60 flex flex-col items-center justify-center overflow-hidden relative group hover:border-primary-container/40 transition">
                         <div class="flex flex-col items-center text-center p-4">
                             <span class="material-symbols-outlined text-4xl text-gray-400 mb-1">image</span>
                             <p class="text-xs font-semibold text-gray-700">Khu vực hiển thị preview ảnh mục lục tổng quan</p>
@@ -80,7 +80,7 @@
 
         <!-- Section 2: Form Soạn Bài Học (Unit) Mới -->
         <section class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm relative overflow-hidden">
-            <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+            <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary-container"></div>
             <div class="flex items-center justify-between mb-5 pb-3 border-b border-gray-100">
                 <div class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">add_circle</span>
@@ -100,19 +100,19 @@
                         <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Số thứ tự Buổi <span class="text-rose-500">*</span></label>
                         <div class="flex items-center">
                             <span class="px-3 py-2.5 bg-gray-100 border border-r-0 border-gray-200 rounded-l-xl text-xs font-bold text-gray-600">Buổi</span>
-                            <input type="number" name="unit_number" value="{{ ($units->max('unit_number') ?? 0) + 1 }}" required class="w-full text-xs rounded-r-xl border border-gray-200 p-2.5 font-mono font-bold focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                            <input type="number" name="unit_number" value="{{ ($units->max('unit_number') ?? 0) + 1 }}" required class="w-full text-xs rounded-r-xl border border-gray-200 p-2.5 font-mono font-bold focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none" />
                         </div>
                     </div>
                     <div class="sm:col-span-3">
                         <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Tiêu đề bài học (Unit Title) <span class="text-rose-500">*</span></label>
-                        <input type="text" name="title" placeholder="Buổi 01: Introduction to IELTS &amp; Greetings" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                        <input type="text" name="title" placeholder="Buổi 01: Introduction to IELTS &amp; Greetings" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none" />
                     </div>
                 </div>
 
                 <!-- Target / Objectives -->
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Mục tiêu buổi học (Target Objectives)</label>
-                    <textarea name="objectives" rows="2" placeholder="Người học cần nắm được format bài thi, vận dụng 15 từ vựng chủ đề Greetings..." class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none"></textarea>
+                    <textarea name="objectives" rows="2" placeholder="Người học cần nắm được format bài thi, vận dụng 15 từ vựng chủ đề Greetings..." class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none"></textarea>
                 </div>
 
                 <!-- Main Content (Vocab & Grammar) & Homework -->
@@ -122,7 +122,7 @@
                             <span>Trọng tâm Từ vựng (Vocabulary Focus)</span>
                             <span class="text-[11px] text-gray-400 font-mono">Markdown</span>
                         </label>
-                        <div class="border border-gray-200 rounded-xl overflow-hidden focus-within:border-primary">
+                        <div class="border border-gray-200 rounded-xl overflow-hidden focus-within:border-primary-container">
                             <div class="flex items-center gap-1 px-3 py-1.5 border-b border-gray-100 bg-gray-50 text-gray-500">
                                 <span class="material-symbols-outlined text-[16px]">format_bold</span>
                                 <span class="material-symbols-outlined text-[16px]">format_italic</span>
@@ -137,7 +137,7 @@
                             <span>Trọng tâm Ngữ pháp (Grammar Focus)</span>
                             <span class="text-[11px] text-gray-400 font-mono">Markdown</span>
                         </label>
-                        <div class="border border-gray-200 rounded-xl overflow-hidden focus-within:border-primary">
+                        <div class="border border-gray-200 rounded-xl overflow-hidden focus-within:border-primary-container">
                             <div class="flex items-center gap-1 px-3 py-1.5 border-b border-gray-100 bg-gray-50 text-gray-500">
                                 <span class="material-symbols-outlined text-[16px]">format_bold</span>
                                 <span class="material-symbols-outlined text-[16px]">format_italic</span>
@@ -151,7 +151,7 @@
                 <!-- Homework Guide -->
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Bài tập về nhà (Homework Guide)</label>
-                    <div class="border border-gray-200 rounded-xl overflow-hidden focus-within:border-primary">
+                    <div class="border border-gray-200 rounded-xl overflow-hidden focus-within:border-primary-container">
                         <div class="flex items-center gap-1 px-3 py-1.5 border-b border-gray-100 bg-gray-50 text-gray-500">
                             <span class="material-symbols-outlined text-[16px]">format_list_numbered</span>
                             <span class="material-symbols-outlined text-[16px]">checklist</span>
@@ -162,7 +162,7 @@
                 </div>
 
                 <div class="flex items-center justify-end pt-3 border-t border-gray-100">
-                    <button type="submit" class="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
+                    <button type="submit" class="px-5 py-2.5 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-[18px]">save</span>
                         <span>Lưu buổi học vào CSDL</span>
                     </button>
@@ -181,8 +181,8 @@
 
             <div class="space-y-4">
                 @forelse ($units as $u)
-                    <div class="group bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:border-primary/60 transition relative">
-                        <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+                    <div class="group bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:border-primary-container/60 transition relative">
+                        <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary-container"></div>
                         <div class="p-5">
                             <div class="flex justify-between items-start mb-4">
                                 <div class="flex items-center gap-3">
@@ -260,7 +260,7 @@
                 <a href="{{ route('syllabus.documents') }}" class="px-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 text-xs font-semibold hover:bg-gray-50 transition">
                     Quay lại
                 </a>
-                <a href="{{ route('syllabus.assignments') }}" class="px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                <a href="{{ route('syllabus.assignments') }}" class="px-4 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5">
                     <span>Tiếp tục: Giao chặng GV (Bước #3)</span>
                     <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
                 </a>

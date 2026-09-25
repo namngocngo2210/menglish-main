@@ -11,7 +11,7 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('teacher-portal.shortcut', '08_xem_tai_lieu_giao_trinh') }}" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
+                <a href="{{ route('teacher-portal.shortcut', '08_xem_tai_lieu_giao_trinh') }}" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
                     <span class="material-symbols-outlined text-[18px]">menu_book</span>
                     <span>Cổng GV xem tài liệu (Bước #4)</span>
                 </a>
@@ -37,7 +37,7 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Chọn Giáo trình / Khóa học <span class="text-rose-500">*</span></label>
                         <div class="relative">
-                            <select name="curriculum_id" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 appearance-none bg-white focus:border-primary focus:ring-1 focus:ring-primary outline-none pr-8">
+                            <select name="curriculum_id" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 appearance-none bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none pr-8">
                                 <option disabled selected value="">Chọn giáo trình áp dụng...</option>
                                 @foreach ($curriculums as $c)
                                     <option value="{{ $c->id }}">{{ $c->title }} ({{ $c->code }})</option>
@@ -61,7 +61,7 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Chọn Giáo viên phụ trách <span class="text-rose-500">*</span></label>
                         <div class="relative">
-                            <select name="user_id" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 appearance-none bg-white focus:border-primary focus:ring-1 focus:ring-primary outline-none pr-8 font-medium">
+                            <select name="user_id" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 appearance-none bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none pr-8 font-medium">
                                 <option disabled selected value="">Chọn giáo viên phân quyền...</option>
                                 @foreach ($teachers as $tc)
                                     <option value="{{ $tc->id }}">{{ $tc->name }} (ID: GV-{{ str_pad($tc->id, 3, '0', STR_PAD_LEFT) }})</option>
@@ -74,7 +74,7 @@
                     <!-- Chặng học phân công -->
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Nội dung / Chặng học được giao <span class="text-rose-500">*</span></label>
-                        <input type="text" name="assigned_chapters" placeholder="Chặng 1: Xây dựng nền tảng (Buổi 1 - 10)" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                        <input type="text" name="assigned_chapters" placeholder="Chặng 1: Xây dựng nền tảng (Buổi 1 - 10)" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none" />
                     </div>
 
                     <div>
@@ -85,11 +85,11 @@
                     <!-- Ngày hoàn thành / Deadline -->
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Thời hạn hoàn thành (Deadline) <span class="text-rose-500">*</span></label>
-                        <input type="date" name="deadline" value="{{ date('Y-m-d', strtotime('+14 days')) }}" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none font-mono" />
+                        <input type="date" name="deadline" value="{{ date('Y-m-d', strtotime('+14 days')) }}" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none font-mono" />
                     </div>
 
                     <!-- Alert Banner (R19) -->
-                    <div class="bg-amber-50/70 border-l-4 border-primary p-3 rounded-r-xl flex gap-2.5 text-xs text-amber-950">
+                    <div class="bg-amber-50/70 border-l-4 border-primary-container p-3 rounded-r-xl flex gap-2.5 text-xs text-amber-950">
                         <span class="material-symbols-outlined text-primary shrink-0 text-[18px]">info</span>
                         <div>
                             <span class="font-bold text-primary block mb-0.5">Lưu ý nghiệp vụ (R19):</span>
@@ -98,7 +98,7 @@
                     </div>
 
                     <!-- Action Button -->
-                    <button type="submit" class="w-full py-2.5 px-4 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
+                    <button type="submit" class="w-full py-2.5 px-4 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
                         <span class="material-symbols-outlined text-[18px]">send</span>
                         <span>Xác nhận giao chặng</span>
                     </button>
@@ -128,7 +128,7 @@
 
                     <div class="flex items-center gap-2">
                         <div class="relative">
-                            <input type="text" id="assignSearch" onkeyup="filterAssignTable()" class="pl-9 pr-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:border-primary focus:ring-1 focus:ring-primary outline-none w-56" placeholder="Tìm tên giáo viên, lớp..." />
+                            <input type="text" id="assignSearch" onkeyup="filterAssignTable()" class="pl-9 pr-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none w-56" placeholder="Tìm tên giáo viên, lớp..." />
                             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
                         </div>
                     </div>
@@ -177,7 +177,7 @@
                                     </td>
                                     <td class="py-3.5 px-4 text-center whitespace-nowrap">
                                         <div class="w-24 bg-gray-100 rounded-full h-2 mx-auto overflow-hidden">
-                                            <div class="bg-primary h-2 rounded-full" style="width: {{ max($as->progress_percent, 15) }}%"></div>
+                                            <div class="bg-primary-container h-2 rounded-full" style="width: {{ max($as->progress_percent, 15) }}%"></div>
                                         </div>
                                         <span class="text-[10px] text-gray-400 font-mono mt-1 block">{{ $as->progress_percent }}%</span>
                                     </td>
@@ -203,7 +203,7 @@
                         <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-white disabled:opacity-40" disabled>
                             <span class="material-symbols-outlined text-[18px]">chevron_left</span>
                         </button>
-                        <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-white text-xs font-bold shadow-2xs">1</button>
+                        <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-primary-container text-white text-xs font-bold shadow-2xs">1</button>
                         <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-white">
                             <span class="material-symbols-outlined text-[18px]">chevron_right</span>
                         </button>

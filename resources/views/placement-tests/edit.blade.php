@@ -111,11 +111,11 @@
                     </div>
                     <div>
                         <label class="block font-semibold text-gray-700 mb-1">Thời gian làm bài (Phút) <span class="text-rose-500">*</span></label>
-                        <input type="number" name="duration_minutes" value="{{ old('duration_minutes', $test->duration_minutes) }}" min="5" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2.5 focus:border-primary focus:ring-primary" />
+                        <input type="number" name="duration_minutes" value="{{ old('duration_minutes', $test->duration_minutes) }}" min="5" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container" />
                     </div>
                     <div>
                         <label class="block font-semibold text-gray-700 mb-1">Trình độ mục tiêu <span class="text-rose-500">*</span></label>
-                        <select name="target_level" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold focus:border-primary focus:ring-primary">
+                        <select name="target_level" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold focus:border-primary-container focus:ring-primary-container">
                             <option value="Tổng hợp A1 - B2" {{ $test->target_level === 'Tổng hợp A1 - B2' ? 'selected' : '' }}>Tổng hợp A1 - B2</option>
                             <option value="IELTS Foundation (3.0 - 4.5)" {{ $test->target_level === 'IELTS Foundation (3.0 - 4.5)' ? 'selected' : '' }}>IELTS Foundation (3.0 - 4.5)</option>
                             <option value="IELTS Intensive (5.0 - 6.5)" {{ $test->target_level === 'IELTS Intensive (5.0 - 6.5)' ? 'selected' : '' }}>IELTS Intensive (5.0 - 6.5)</option>
@@ -125,14 +125,14 @@
                     </div>
                     <div class="md:col-span-3">
                         <label class="block font-semibold text-gray-700 mb-1">Tiêu đề đề thi <span class="text-rose-500">*</span></label>
-                        <input type="text" name="title" value="{{ old('title', $test->title) }}" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold focus:border-primary focus:ring-primary" />
+                        <input type="text" name="title" value="{{ old('title', $test->title) }}" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold focus:border-primary-container focus:ring-primary-container" />
                     </div>
                     <div class="md:col-span-3">
                         <label class="block font-semibold text-gray-700 mb-1">Mô tả / Hướng dẫn thí sinh khi bắt đầu</label>
-                        <textarea name="description" rows="2" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary focus:ring-primary">{{ old('description', $test->description) }}</textarea>
+                        <textarea name="description" rows="2" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container">{{ old('description', $test->description) }}</textarea>
                     </div>
                     <div class="md:col-span-3 flex items-center gap-2 pt-1">
-                        <input type="checkbox" name="is_active" id="is_active" value="1" {{ $test->is_active ? 'checked' : '' }} class="rounded border-gray-300 text-primary focus:ring-primary">
+                        <input type="checkbox" name="is_active" id="is_active" value="1" {{ $test->is_active ? 'checked' : '' }} class="rounded border-gray-300 text-primary focus:ring-primary-container">
                         <label for="is_active" class="text-xs font-semibold text-gray-800">Đang kích hoạt đề thi (Hiển thị cho Lead / Thí sinh truy cập làm bài)</label>
                     </div>
                 </div>
@@ -370,7 +370,7 @@
                 <a href="{{ route('placement-tests.index') }}" class="px-4 py-2 border border-gray-200 text-xs font-semibold text-gray-700 rounded-xl hover:bg-gray-50 transition">
                     Hủy bỏ
                 </a>
-                <button type="submit" class="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                <button type="submit" class="px-6 py-2.5 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer">
                     <span class="material-symbols-outlined text-base">save</span>
                     <span>Cập nhật đề thi &amp; Câu hỏi vào CSDL</span>
                 </button>

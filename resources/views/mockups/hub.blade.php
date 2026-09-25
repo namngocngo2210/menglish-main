@@ -44,7 +44,7 @@
                     type="text"
                     x-model="search"
                     placeholder="Tìm nhanh trong 65 màn hình (vd: pipeline, giao việc, trợ giảng...)"
-                    class="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                    class="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition"
                 />
             </div>
 
@@ -74,7 +74,7 @@
                 <button
                     @click="activeTab = 'crm'"
                     class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition"
-                    :class="activeTab === 'crm' ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                    :class="activeTab === 'crm' ? 'bg-primary-container text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
                 >
                     CRM (10)
                 </button>
@@ -127,7 +127,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                         @foreach ($module['screens'] as $screen)
                             <div
-                                class="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md hover:border-primary/50 transition-all flex flex-col justify-between group"
+                                class="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md hover:border-primary-container/50 transition-all flex flex-col justify-between group"
                                 x-show="!search || '{{ strtolower($screen['name'] . ' ' . $screen['type']) }}'.includes(search.toLowerCase())"
                             >
                                 <div>
@@ -160,7 +160,7 @@
                                 <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
                                     <a
                                         href="{{ isset($screen['params']) ? route($screen['route'], $screen['params']) : route($screen['route']) }}"
-                                        class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition"
+                                        class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition"
                                     >
                                         <span class="material-symbols-outlined text-[15px]">play_circle</span>
                                         <span>Mở màn hình</span>
@@ -205,7 +205,7 @@
                     <div class="flex items-center gap-2">
                         <a
                             :href="previewRoute"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition"
                         >
                             <span class="material-symbols-outlined text-[15px]">open_in_new</span>
                             <span>Mở Live Controller</span>

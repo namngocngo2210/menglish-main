@@ -8,7 +8,7 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">sync</span>
-                        Lịch Sử Đồng Bộ Dữ Liệu Máy Chấm Công (Database)
+                        Lịch Sử Đồng Bộ Dữ Liệu Máy Chấm Công
                     </h1>
                     <p class="text-xs text-gray-500">Nhật ký quét vân tay / FaceID từ thiết bị phần học viện tại các cơ sở</p>
                 </div>

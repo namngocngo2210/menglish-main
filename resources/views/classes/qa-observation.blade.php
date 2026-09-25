@@ -15,7 +15,7 @@
         <p class="text-sm text-slate-500 mt-1">Ghi nhận và theo dõi lịch sử dự giờ quan sát lớp học của đội vận hành (QA/Học vụ)</p>
       </div>
       <div>
-        <a href="#form-ghi-nhan" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white font-medium text-sm shadow-sm transition duration-150 ease-in-out">
+        <a href="#form-ghi-nhan" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary-container hover:bg-primary-hover text-white font-medium text-sm shadow-sm transition duration-150 ease-in-out">
           <span class="material-symbols-outlined text-[20px]">add_circle</span>
           <span>Ghi nhận dự giờ mới</span>
         </a>
@@ -152,7 +152,7 @@
           </label>
           <div class="relative">
             <input type="date" id="ngay_du_gio" name="ngay_du_gio" value="2026-09-20" required
-              class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm bg-white" />
+              class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container text-sm shadow-sm bg-white" />
           </div>
           <span class="text-xs text-slate-400 mt-1 block">Bắt buộc chọn</span>
         </div>
@@ -163,7 +163,7 @@
             Giáo viên <span class="text-rose-500 font-bold">*</span>
           </label>
           <select id="giao_vien" name="giao_vien" required
-            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm bg-white">
+            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container text-sm shadow-sm bg-white">
             <option value="">-- Chọn giáo viên --</option>
             <option value="gv1" selected>Nguyễn Thu Thảo (2 lớp đang dạy)</option>
             <option value="gv2">Trần Quốc Anh (1 lớp đang dạy)</option>
@@ -179,7 +179,7 @@
             Lớp <span class="text-rose-500 font-bold">*</span>
           </label>
           <select id="lop_hoc" name="lop_hoc" required
-            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm bg-white">
+            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container text-sm shadow-sm bg-white">
             <option value="">-- Chọn lớp học --</option>
             <option value="lop1" selected>IELTS Fighter K28 (Đang hoạt động)</option>
             <option value="lop2">IELTS Intensive C1 (Đang hoạt động)</option>
@@ -197,7 +197,7 @@
           </label>
           <textarea id="noi_dung_bai_hoc" name="noi_dung_bai_hoc" rows="3"
             placeholder="Ghi nhận nội dung, chủ đề bài học, kiến thức trọng tâm buổi dạy..."
-            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm"></textarea>
+            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container text-sm shadow-sm"></textarea>
         </div>
 
         <!-- 5. Textarea Tác phong, thái độ -->
@@ -207,7 +207,7 @@
           </label>
           <textarea id="tac_phong_thai_do" name="tac_phong_thai_do" rows="3"
             placeholder="Quan sát tác phong sư phạm, đúng giờ, năng lượng, thái độ với học viên..."
-            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm"></textarea>
+            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container text-sm shadow-sm"></textarea>
         </div>
 
         <!-- 6. Textarea Chuẩn bị bài giảng -->
@@ -217,7 +217,7 @@
           </label>
           <textarea id="chuan_bi_bai_giang" name="chuan_bi_bai_giang" rows="3"
             placeholder="Tài liệu, giáo án, slide trình chiếu, thiết bị dạy học..."
-            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm"></textarea>
+            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container text-sm shadow-sm"></textarea>
         </div>
 
         <!-- 7. Textarea Kỹ thuật giảng dạy (tương tác) -->
@@ -227,7 +227,7 @@
           </label>
           <textarea id="ky_thuat_giang_day" name="ky_thuat_giang_day" rows="3"
             placeholder="Phương pháp truyền đạt, phân bổ thời gian, mức độ tương tác hai chiều và bao quát lớp..."
-            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm"></textarea>
+            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container text-sm shadow-sm"></textarea>
         </div>
 
         <!-- 8. Textarea Góp ý/Cải thiện -->
@@ -237,7 +237,7 @@
           </label>
           <textarea id="gop_y_cai_thien" name="gop_y_cai_thien" rows="3"
             placeholder="Các điểm cần khắc phục, đề xuất giải pháp nâng cao chất lượng tiết dạy..."
-            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm"></textarea>
+            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container text-sm shadow-sm"></textarea>
         </div>
       </div>
 
@@ -249,7 +249,7 @@
             Xếp loại <span class="text-rose-500 font-bold">*</span>
           </label>
           <select id="xep_loai" name="xep_loai" required
-            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm bg-white">
+            class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container text-sm shadow-sm bg-white">
             <option value="">-- Chọn xếp loại --</option>
             <option value="xuat_sac">Xuất sắc</option>
             <option value="tot" selected>Tốt</option>
@@ -262,7 +262,7 @@
         <!-- 10. Nút Lưu -->
         <div class="sm:self-end">
           <button type="submit"
-            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white font-semibold text-sm shadow-sm transition duration-150 ease-in-out">
+            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-2.5 rounded-lg bg-primary-container hover:bg-primary-hover text-white font-semibold text-sm shadow-sm transition duration-150 ease-in-out">
             <span class="material-symbols-outlined text-[20px]">save</span>
             <span>Lưu</span>
           </button>

@@ -17,9 +17,6 @@
     </x-slot>
 
     <div class="max-w-3xl mx-auto space-y-5">
-        @if (session('status'))
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">{{ session('status') }}</div>
-        @endif
 
         <div class="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-4 flex items-start gap-3 shadow-2xs">
             <span class="material-symbols-outlined text-[20px] text-secondary shrink-0 mt-0.5">info</span>
@@ -38,7 +35,7 @@
                     <div class="relative">
                         <input type="number" id="allowance_amount" name="allowance_amount" min="0" step="1000"
                                value="{{ old('allowance_amount', $settings['allowance_amount']) }}"
-                               class="w-full px-3.5 py-2.5 text-xs font-mono bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                               class="w-full px-3.5 py-2.5 text-xs font-mono bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
                         <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-bold text-gray-400 pointer-events-none">đ</div>
                     </div>
                     @error('allowance_amount') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
@@ -50,7 +47,7 @@
                         <div class="relative">
                             <input type="number" id="kpi_bonus_amount" name="kpi_bonus_amount" min="0" step="1000"
                                    value="{{ old('kpi_bonus_amount', $settings['kpi_bonus_amount']) }}"
-                                   class="w-full px-3.5 py-2.5 text-xs font-mono bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                                   class="w-full px-3.5 py-2.5 text-xs font-mono bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
                             <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-bold text-gray-400 pointer-events-none">đ</div>
                         </div>
                         @error('kpi_bonus_amount') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
@@ -60,7 +57,7 @@
                         <div class="relative">
                             <input type="number" id="kpi_bonus_hours_threshold" name="kpi_bonus_hours_threshold" min="1" step="1"
                                    value="{{ old('kpi_bonus_hours_threshold', $settings['kpi_bonus_hours_threshold']) }}"
-                                   class="w-full px-3.5 py-2.5 text-xs font-mono bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                                   class="w-full px-3.5 py-2.5 text-xs font-mono bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
                             <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-bold text-gray-400 pointer-events-none">giờ</div>
                         </div>
                         @error('kpi_bonus_hours_threshold') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
@@ -73,7 +70,7 @@
                         <div class="relative">
                             <input type="number" id="insurance_rate_percent" name="insurance_rate_percent" min="0" max="100" step="0.1"
                                    value="{{ old('insurance_rate_percent', $settings['insurance_rate_percent']) }}"
-                                   class="w-full px-3.5 py-2.5 text-xs font-mono bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                                   class="w-full px-3.5 py-2.5 text-xs font-mono bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
                             <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-bold text-gray-400 pointer-events-none">%</div>
                         </div>
                         @error('insurance_rate_percent') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
@@ -83,7 +80,7 @@
                         <div class="relative">
                             <input type="number" id="foreign_teacher_deduction_rate" name="foreign_teacher_deduction_rate" min="0" step="1000"
                                    value="{{ old('foreign_teacher_deduction_rate', $settings['foreign_teacher_deduction_rate']) }}"
-                                   class="w-full px-3.5 py-2.5 text-xs font-mono bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                                   class="w-full px-3.5 py-2.5 text-xs font-mono bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
                             <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-bold text-gray-400 pointer-events-none">đ/buổi</div>
                         </div>
                         @error('foreign_teacher_deduction_rate') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
@@ -95,7 +92,7 @@
                 <div class="text-xs text-gray-500 text-center sm:text-left">
                     Giá trị mặc định: phụ cấp 500.000đ · thưởng KPI 1.000.000đ / 40 giờ · BHXH 10,5% · trừ GVNN 50.000đ/buổi.
                 </div>
-                <button type="submit" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-sm hover:bg-primary-dark transition flex items-center justify-center gap-2">
+                <button type="submit" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-primary-container text-white text-xs font-bold shadow-sm hover:bg-primary-dark transition flex items-center justify-center gap-2">
                     <span class="material-symbols-outlined text-[18px]">save</span>
                     <span>Lưu tham số</span>
                 </button>

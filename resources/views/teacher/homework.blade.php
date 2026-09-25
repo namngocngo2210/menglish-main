@@ -24,12 +24,12 @@
             @csrf
             <h2 class="text-sm font-bold text-gray-900">Giao bài tập mới</h2>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <input type="text" name="title" required placeholder="Tiêu đề bài tập *" class="sm:col-span-2 text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary" value="{{ old('title') }}">
-                <input type="date" name="due_date" value="{{ now()->addDays(3)->toDateString() }}" class="text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
+                <input type="text" name="title" required placeholder="Tiêu đề bài tập *" class="sm:col-span-2 text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container" value="{{ old('title') }}">
+                <input type="date" name="due_date" value="{{ now()->addDays(3)->toDateString() }}" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
             </div>
-            <textarea name="description" rows="3" placeholder="Mô tả / hướng dẫn làm bài..." class="w-full text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">{{ old('description') }}</textarea>
+            <textarea name="description" rows="3" placeholder="Mô tả / hướng dẫn làm bài..." class="w-full text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">{{ old('description') }}</textarea>
             <div class="flex justify-end">
-                <button type="submit" class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
                     <span class="material-symbols-outlined text-[18px]">add</span> Giao bài
                 </button>
             </div>

@@ -14,7 +14,7 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <button class="px-4 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
+                <button class="px-4 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-[16px]">send</span>
                     <span>Duyệt &amp; Gửi Báo Cáo Toàn Lớp</span>
                 </button>

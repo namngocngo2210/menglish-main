@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-app-layout hide-errors>
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -11,7 +11,7 @@
                     <span class="text-slate-900 font-bold">Duyệt phiếu thu học phí</span>
                 </div>
             </div>
-            <a href="{{ route('tuition.receipts.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-xs transition">
+            <a href="{{ route('tuition.receipts.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-xs transition">
                 <span class="material-symbols-outlined text-[18px]">add_circle</span>
                 <span>Lập phiếu thu mới</span>
             </a>
@@ -21,12 +21,6 @@
     @include('tuition.partials.errors')
 
     <div class="max-w-[1520px] mx-auto space-y-5" x-data="{ showApproveModal: false, showRejectModal: false, zoomImage: false }">
-        @if (session('status'))
-            <div class="p-4 bg-emerald-50 border-l-4 border-emerald-500 rounded-r-xl text-xs text-emerald-800 flex items-center gap-2 shadow-xs">
-                <span class="material-symbols-outlined text-emerald-600 text-lg">check_circle</span>
-                <span>{{ session('status') }}</span>
-            </div>
-        @endif
 
         @if (isset($errors) && $errors->any())
             <div class="p-4 bg-rose-50 border-l-4 border-rose-500 rounded-r-xl text-xs text-rose-800 space-y-1 shadow-xs">
@@ -100,7 +94,7 @@
                 <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto text-xs">
                     <!-- Branch Selector -->
                     <div class="min-w-[160px]">
-                        <select name="branch_id" onchange="this.form.submit()" class="w-full text-xs font-semibold text-slate-700 bg-slate-50 border-slate-200 rounded-lg py-2 pl-3 pr-8 focus:ring-primary focus:border-primary cursor-pointer">
+                        <select name="branch_id" onchange="this.form.submit()" class="w-full text-xs font-semibold text-slate-700 bg-slate-50 border-slate-200 rounded-lg py-2 pl-3 pr-8 focus:ring-primary-container focus:border-primary-container cursor-pointer">
                             <option value="all">Tất cả Cơ sở</option>
                             @foreach ($branches as $b)
                                 <option value="{{ $b->id }}" {{ request('branch_id') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
@@ -110,7 +104,7 @@
 
                     <!-- Payment Method Selector -->
                     <div class="min-w-[150px]">
-                        <select name="payment_method" onchange="this.form.submit()" class="w-full text-xs font-semibold text-slate-700 bg-slate-50 border-slate-200 rounded-lg py-2 pl-3 pr-8 focus:ring-primary focus:border-primary cursor-pointer">
+                        <select name="payment_method" onchange="this.form.submit()" class="w-full text-xs font-semibold text-slate-700 bg-slate-50 border-slate-200 rounded-lg py-2 pl-3 pr-8 focus:ring-primary-container focus:border-primary-container cursor-pointer">
                             <option value="all">Hình thức: Tất cả</option>
                             <option value="transfer" {{ request('payment_method') === 'transfer' || request('payment_method') === 'ck' ? 'selected' : '' }}>Chuyển khoản</option>
                             <option value="cash" {{ request('payment_method') === 'cash' ? 'selected' : '' }}>Tiền mặt</option>
@@ -137,7 +131,7 @@
                 <!-- Search Input -->
                 <div class="relative w-full lg:w-80">
                     <span class="material-symbols-outlined absolute left-3 top-2 text-slate-400 text-lg pointer-events-none">search</span>
-                    <input type="text" name="q" value="{{ request('q') }}" placeholder="Tìm theo tên học viên, mã phiếu..." class="w-full text-xs font-medium bg-slate-50 border-slate-200 rounded-lg pl-9 pr-8 py-2 focus:bg-white focus:ring-primary focus:border-primary transition" />
+                    <input type="text" name="q" value="{{ request('q') }}" placeholder="Tìm theo tên học viên, mã phiếu..." class="w-full text-xs font-medium bg-slate-50 border-slate-200 rounded-lg pl-9 pr-8 py-2 focus:bg-white focus:ring-primary-container focus:border-primary-container transition" />
                     @if (request('q'))
                         <a href="{{ route('tuition.receipts.approve', request()->except('q')) }}" class="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600">
                             <span class="material-symbols-outlined text-base">close</span>
@@ -170,10 +164,10 @@
                             $branch = $student?->branch;
                             $className = $rc->tuition?->classModel?->name ?? $student?->currentClass?->name ?? 'Lớp học';
                         @endphp
-                        <a href="{{ route('tuition.receipts.approve', array_merge(request()->all(), ['selected_id' => $rc->id])) }}" class="block p-4 transition relative {{ $isSelected ? 'bg-orange-50/50 border-l-4 border-primary shadow-xs' : 'hover:bg-slate-50 border-l-4 border-transparent' }}">
+                        <a href="{{ route('tuition.receipts.approve', array_merge(request()->all(), ['selected_id' => $rc->id])) }}" class="block p-4 transition relative {{ $isSelected ? 'bg-orange-50/50 border-l-4 border-primary-container shadow-xs' : 'hover:bg-slate-50 border-l-4 border-transparent' }}">
                             <div class="flex items-start justify-between gap-2 mb-1.5">
                                 <div class="flex items-center gap-1.5">
-                                    <span class="text-xs font-bold font-mono px-2 py-0.5 rounded {{ $isSelected ? 'bg-white text-slate-900 border border-primary/40' : 'bg-slate-100 text-slate-700 border border-slate-200' }}">
+                                    <span class="text-xs font-bold font-mono px-2 py-0.5 rounded {{ $isSelected ? 'bg-white text-slate-900 border border-primary-container/40' : 'bg-slate-100 text-slate-700 border border-slate-200' }}">
                                         {{ $rc->receipt_number }}
                                     </span>
                                     @if ($rc->payment_method === 'cash')
@@ -498,7 +492,7 @@
                                         <span class="material-symbols-outlined text-base text-rose-600">close</span>
                                         Từ chối phiếu thu
                                     </button>
-                                    <button type="button" @click="showApproveModal = true" class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-xs transition shadow-sm inline-flex items-center gap-1.5 cursor-pointer">
+                                    <button type="button" @click="showApproveModal = true" class="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white font-bold text-xs transition shadow-sm inline-flex items-center gap-1.5 cursor-pointer">
                                         <span class="material-symbols-outlined text-base">check</span>
                                         Duyệt phiếu thu ({{ number_format((float)$selectedReceipt->amount) }} VNĐ)
                                     </button>
@@ -521,7 +515,7 @@
                                         <input type="hidden" name="surcharge_reason" value="{{ $selectedReceipt->surcharge_reason }}">
                                         <input type="hidden" name="payment_method" value="{{ $selectedReceipt->payment_method }}">
                                         <input type="hidden" name="submit_action" value="submit">
-                                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-xs transition shadow-sm inline-flex items-center gap-1.5">
+                                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white font-bold text-xs transition shadow-sm inline-flex items-center gap-1.5">
                                             <span class="material-symbols-outlined text-base">send</span>
                                             Gửi duyệt lại
                                         </button>
@@ -566,7 +560,7 @@
                                 <button type="button" @click="showApproveModal = false" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs transition">
                                     Hủy bỏ
                                 </button>
-                                <button type="submit" class="px-5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-xs transition shadow-sm flex items-center gap-1">
+                                <button type="submit" class="px-5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white font-bold text-xs transition shadow-sm flex items-center gap-1">
                                     <span class="material-symbols-outlined text-sm">check</span>
                                     Xác nhận phê duyệt
                                 </button>

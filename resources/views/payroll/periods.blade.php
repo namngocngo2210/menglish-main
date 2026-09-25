@@ -68,7 +68,7 @@
                 <div>
                     <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Chọn Kỳ Lương</label>
                     <div class="relative">
-                        <select onchange="if(this.value) window.location.href=this.value;" class="text-xs font-bold rounded-xl border border-gray-300 bg-slate-50 py-2 pl-3 pr-8 focus:ring-primary focus:border-primary cursor-pointer">
+                        <select onchange="if(this.value) window.location.href=this.value;" class="text-xs font-bold rounded-xl border border-gray-300 bg-slate-50 py-2 pl-3 pr-8 focus:ring-primary-container focus:border-primary-container cursor-pointer">
                             @foreach ($periods as $p)
                                 <option value="{{ route('payroll.periods.show', $p->id) }}">
                                     {{ $p->title }} ({{ $p->code }})
@@ -82,7 +82,7 @@
             <div class="flex items-center gap-3">
                 <div class="relative w-full sm:w-64">
                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
-                    <input type="text" x-model="searchQuery" placeholder="Tìm kiếm kỳ lương / nhân sự..." class="w-full text-xs rounded-xl border border-gray-300 pl-9 pr-3 py-2 bg-slate-50 focus:bg-white focus:ring-primary focus:border-primary transition" />
+                    <input type="text" x-model="searchQuery" placeholder="Tìm kiếm kỳ lương / nhân sự..." class="w-full text-xs rounded-xl border border-gray-300 pl-9 pr-3 py-2 bg-slate-50 focus:bg-white focus:ring-primary-container focus:border-primary-container transition" />
                 </div>
             </div>
         </div>

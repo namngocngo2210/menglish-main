@@ -1,10 +1,10 @@
+{{-- Danh sách lỗi validate của form học phí (trang dùng <x-app-layout hide-errors> để không lặp alert toàn cục). --}}
 @if ($errors->any())
-    <div class="mb-4 p-4 rounded-xl bg-rose-50 text-rose-800 border border-rose-200 flex items-start gap-3" role="alert">
-        <span class="material-symbols-outlined text-rose-600">error</span>
-        <ul class="text-sm font-medium space-y-0.5">
+    <x-ui.alert type="error" title="Vui lòng kiểm tra lại thông tin" class="mb-4">
+        <ul class="list-inside list-disc space-y-0.5">
             @foreach ($errors->all() as $message)
                 <li>{{ $message }}</li>
             @endforeach
         </ul>
-    </div>
+    </x-ui.alert>
 @endif

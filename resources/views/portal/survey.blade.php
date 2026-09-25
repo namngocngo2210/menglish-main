@@ -50,7 +50,7 @@
         <!-- Subtab Switcher: Khảo sát chung vs Feedback chặng -->
         <div class="flex items-center border-b border-gray-200 bg-gray-50 px-3 pt-2">
             <a href="{{ route('portal.student.survey', ['studentId' => $student?->id]) }}"
-               class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-primary text-primary font-bold text-xs">
+               class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-primary-container text-primary font-bold text-xs">
                 <span class="material-symbols-outlined text-[16px]">assignment</span>
                 <span>Khảo sát định kỳ</span>
             </a>
@@ -77,8 +77,8 @@
                     <button type="button"
                             @click="select('{{ $srv['title'] }}')"
                             class="w-full text-left bg-white rounded-xl p-3.5 transition-all relative overflow-hidden border shadow-2xs hover:bg-orange-50/20"
-                            :class="selectedSurvey === '{{ $srv['title'] }}' ? 'border-primary ring-1 ring-primary/20' : 'border-gray-200'">
-                        <div x-show="selectedSurvey === '{{ $srv['title'] }}'" class="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-xl"></div>
+                            :class="selectedSurvey === '{{ $srv['title'] }}' ? 'border-primary-container ring-1 ring-primary-container/20' : 'border-gray-200'">
+                        <div x-show="selectedSurvey === '{{ $srv['title'] }}'" class="absolute left-0 top-0 bottom-0 w-1 bg-primary-container rounded-l-xl"></div>
                         <div class="flex justify-between items-start gap-2">
                             <div class="pr-2">
                                 <h4 class="text-xs font-bold text-gray-900 mb-1 leading-snug">{{ $srv['title'] }}</h4>
@@ -117,7 +117,7 @@
                         <div class="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-gray-200">
                             @for($s = 1; $s <= 5; $s++)
                                 <label class="flex-1 flex flex-col items-center gap-1 cursor-pointer">
-                                    <input type="radio" name="rating" value="{{ $s }}" {{ $s === 5 ? 'checked' : '' }} class="text-primary focus:ring-primary">
+                                    <input type="radio" name="rating" value="{{ $s }}" {{ $s === 5 ? 'checked' : '' }} class="text-primary focus:ring-primary-container">
                                     <span class="text-[10px] font-bold text-gray-600">{{ $s }} ★</span>
                                 </label>
                             @endfor
@@ -133,11 +133,11 @@
                                   rows="4"
                                   required
                                   placeholder="Vui lòng nhập chi tiết phản hồi của bạn tại đây..."
-                                  class="w-full bg-white border border-gray-300 rounded-xl p-3 text-xs text-gray-900 focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none transition-all placeholder:text-gray-400"></textarea>
+                                  class="w-full bg-white border border-gray-300 rounded-xl p-3 text-xs text-gray-900 focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container resize-none transition-all placeholder:text-gray-400"></textarea>
                     </div>
 
                     <button type="submit"
-                            class="w-full bg-primary hover:bg-[#e0560b] text-white font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-md transition active:scale-[0.98]">
+                            class="w-full bg-primary-container hover:bg-primary text-white font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-md transition active:scale-[0.98]">
                         <span class="material-symbols-outlined text-[18px]">send</span>
                         <span>Gửi phản hồi khảo sát</span>
                     </button>
