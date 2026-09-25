@@ -416,7 +416,8 @@ class MasterEntitySeeder extends Seeder
         }
 
         // 7. Bảng lương kỳ & Timesheets
-        $period = PayrollPeriod::query()->updateOrCreate(
+        // firstOrCreate: chạy lại db:seed không được ghi đè trạng thái / tổng tiền của kỳ đã tính hoặc đã duyệt (khóa).
+        $period = PayrollPeriod::query()->firstOrCreate(
             ['code' => 'PR-2026-08'],
             [
                 'title' => '# Bảng lương Tháng 08/2026',
@@ -431,26 +432,29 @@ class MasterEntitySeeder extends Seeder
             ]
         );
 
-        PayrollRecord::query()->updateOrCreate(
-            ['payroll_period_id' => $period->id, 'user_id' => $teacher?->id],
-            [
-                'department' => 'fulltime',
-                'base_salary' => 15000000,
-                'standard_hours' => 40,
-                'actual_hours' => 64,
-                'overtime_hours' => 24,
-                'teaching_salary' => 7200000,
-                'kpi_bonus' => 3500000,
-                'renew_bonus' => 1500000,
-                'allowance' => 1000000,
-                'insurance_deduction' => 1575000,
-                'tax_deduction' => 850000,
-                'penalty_deduction' => 0,
-                'net_salary' => 25775000,
-                'status' => 'pending',
-                'notes' => 'Senior IELTS Teacher - Dạy vượt 24h định mức',
-            ]
-        );
+        // Phiếu mẫu chỉ tạo khi kỳ còn mở và chưa có phiếu (không ghi đè phiếu đã tính lại / kỳ đã khóa).
+        if (! $period->isLocked()) {
+            PayrollRecord::query()->firstOrCreate(
+                ['payroll_period_id' => $period->id, 'user_id' => $teacher?->id],
+                [
+                    'department' => 'fulltime',
+                    'base_salary' => 15000000,
+                    'standard_hours' => 40,
+                    'actual_hours' => 64,
+                    'overtime_hours' => 24,
+                    'teaching_salary' => 7200000,
+                    'kpi_bonus' => 3500000,
+                    'renew_bonus' => 1500000,
+                    'allowance' => 1000000,
+                    'insurance_deduction' => 1575000,
+                    'tax_deduction' => 850000,
+                    'penalty_deduction' => 0,
+                    'net_salary' => 25775000,
+                    'status' => 'pending',
+                    'notes' => 'Senior IELTS Teacher - Dạy vượt 24h định mức',
+                ]
+            );
+        }
 
         // teaching_date lưu dạng datetime trên SQLite: so theo ngày để chạy lại không nhân bản.
         if (! TeacherTimesheet::query()->where('user_id', $teacher?->id)->whereDate('teaching_date', now()->toDateString())->exists()) {
@@ -463,7 +467,8 @@ class MasterEntitySeeder extends Seeder
                 'hours' => 2.0,
                 'hourly_rate' => 300000,
                 'type' => 'regular',
-                'status' => 'valid',
+                // Không gắn buổi học thật → chờ Học vụ duyệt (Phase 3: chỉ tính công buổi dạy có thật).
+                'status' => 'pending_review',
                 'notes' => 'Giảng dạy buổi 4: IELTS Writing Task 2',
             ]);
         }
