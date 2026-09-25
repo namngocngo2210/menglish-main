@@ -57,8 +57,72 @@
                 <x-ui.select name="user_id" :options="$filterTeachers->pluck('name', 'id')" placeholder="Tất cả giáo viên" aria-label="Giáo viên" />
             @endif
             <x-ui.select name="status" :options="['pending_review' => 'Chờ đối soát', 'valid' => 'Hợp lệ', 'invalid' => 'Từ chối']" placeholder="Tất cả trạng thái" aria-label="Trạng thái" />
+            <x-ui.select name="type" :options="['regular' => 'Ca dạy chính khóa', 'sub' => 'Dạy thay', '1on1' => 'Kèm 1-1 / bổ trợ', 'grading' => 'Chấm bài thi', 'workshop' => 'Workshop / Sự kiện']" placeholder="Mọi loại ca" aria-label="Loại ca" />
             <x-ui.button type="submit" variant="secondary" icon="filter_list">Lọc</x-ui.button>
         </x-ui.filter-bar>
+
+        @if ($canViewAll && $subPendingCount > 0)
+            <x-ui.alert type="warning" class="mb-md">
+                Có <strong>{{ $subPendingCount }}</strong> buổi dạy thay chờ xác nhận.
+                <a href="{{ route('payroll.timesheets.teachers', ['month' => $month, 'type' => 'sub', 'status' => 'pending_review']) }}" class="font-semibold underline">Xem danh sách buổi dạy thay chờ xác nhận</a>
+            </x-ui.alert>
+        @endif
+
+        @if ($scheduleDay)
+            <x-ui.data-table class="mb-lg" min-width="760px">
+                <x-slot:header>
+                    <div>
+                        <h3 class="font-h3 text-h3 text-on-surface">Chấm công theo lịch</h3>
+                        <p class="inline-flex items-center gap-xs font-body-small text-body-small text-on-surface-variant">
+                            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">today</span>
+                            {{ ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'][$scheduleDay->dayOfWeek] }}, {{ $scheduleDay->format('d/m/Y') }}
+                        </p>
+                    </div>
+                    <form method="GET" class="flex items-center gap-sm">
+                        @foreach (request()->except(['day', 'page']) as $k => $v)
+                            @if (is_string($v))<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endif
+                        @endforeach
+                        <x-ui.date name="day" inline-label="Ngày:" :value="$scheduleDay->toDateString()" onchange="this.form.submit()" />
+                    </form>
+                </x-slot:header>
+                <table>
+                    <thead><tr><th>Lớp học</th><th>Giờ học</th><th>Giáo viên dự kiến</th><th>Trạng thái / Nguồn</th><th class="text-right">Thao tác</th></tr></thead>
+                    <tbody>
+                        @forelse ($scheduleSessions as $session)
+                            @php $sts = $session->schedule_timesheet; @endphp
+                            <tr>
+                                <td class="font-semibold">{{ $session->classModel?->name }} <span class="font-caption text-caption text-on-surface-variant">{{ $session->classModel?->code }}</span></td>
+                                <td class="font-mono">{{ $session->start_time?->format('H:i') }} - {{ $session->end_time?->format('H:i') }}</td>
+                                <td><span class="inline-flex items-center gap-sm"><x-ui.avatar :name="$session->teacher?->name ?? '?'" size="sm" />{{ $session->teacher?->name }}</span></td>
+                                <td>
+                                    @if ($sts && $sts->status === 'valid')
+                                        <span class="inline-flex items-center gap-xs text-tertiary"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">check_circle</span>Đã xác nhận</span>
+                                        <span class="block font-caption text-caption text-on-surface-variant">{{ $sts->reviewer ? 'Đã duyệt bởi '.$sts->reviewer->name : $sts->source_label }}</span>
+                                    @elseif ($sts && $sts->source === 'checkin')
+                                        <span class="inline-flex items-center gap-xs text-secondary"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">smartphone</span>GV tự check-in</span>
+                                    @elseif ($sts)
+                                        <x-ui.badge color="warning">{{ $sts->source_label }} — chờ duyệt</x-ui.badge>
+                                    @else
+                                        <x-ui.badge color="neutral">Tự động (pre-fill theo lịch)</x-ui.badge>
+                                    @endif
+                                </td>
+                                <td class="text-right">
+                                    @if (! ($sts && $sts->status === 'valid') && $canReview && ! $session->date->isFuture() && ! \App\Models\PayrollPeriod::isLockedFor($session->date))
+                                        <form method="POST" action="{{ route('payroll.timesheets.sessions.confirm', $session->id) }}">
+                                            @csrf
+                                            <x-ui.button type="submit" size="sm" icon="check">Xác nhận</x-ui.button>
+                                        </form>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="5"><x-ui.empty-state icon="event_busy" title="Không có buổi học nào trong ngày" /></td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+                <x-slot:footer><p class="p-sm font-body-small text-body-small text-on-surface-variant">Hiển thị {{ $scheduleSessions->count() }} buổi học ngày {{ $scheduleDay->format('d/m/Y') }}. Xác nhận = tính công theo giờ lịch cho GV dự kiến (ca đã check-in / chấm tay thì duyệt ca đó).</p></x-slot:footer>
+            </x-ui.data-table>
+        @endif
 
         @if ($teacher)
             <div class="mb-lg grid grid-cols-1 gap-md lg:grid-cols-3">

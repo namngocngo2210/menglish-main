@@ -80,7 +80,7 @@ class TeacherTimesheet extends Model
         if (blank($this->checkin_time)) {
             return 'missing_in';
         }
-        if (blank($this->checkout_time) && $this->source !== self::SOURCE_CHECKIN) {
+        if (blank($this->checkout_time) && ! in_array($this->source, [self::SOURCE_CHECKIN, self::SOURCE_SCHEDULE], true)) {
             return 'missing_out';
         }
 
@@ -103,7 +103,7 @@ class TeacherTimesheet extends Model
         if (filled($this->checkout_time)) {
             return $this->checkout_time;
         }
-        if ($this->source === self::SOURCE_CHECKIN && $this->scheduled_time && str_contains($this->scheduled_time, '-')) {
+        if (in_array($this->source, [self::SOURCE_CHECKIN, self::SOURCE_SCHEDULE], true) && $this->scheduled_time && str_contains($this->scheduled_time, '-')) {
             return trim(explode('-', $this->scheduled_time)[1]);
         }
 
@@ -116,6 +116,9 @@ class TeacherTimesheet extends Model
     public const SOURCE_CHECKIN = 'checkin';
 
     public const SOURCE_MANUAL = 'manual';
+
+    /** Học vụ / Admin "Xác nhận" buổi học trên lịch (mockup Chấm công theo lịch) — giờ theo lịch buổi học. */
+    public const SOURCE_SCHEDULE = 'schedule';
 
     /**
      * Đơn giá áp dụng khi tính lương:
@@ -217,6 +220,7 @@ class TeacherTimesheet extends Model
         return match ($this->source) {
             self::SOURCE_MANUAL => 'Chấm tay',
             self::SOURCE_CHECKIN => 'Check-in',
+            self::SOURCE_SCHEDULE => 'Xác nhận theo lịch',
             default => '—',
         };
     }

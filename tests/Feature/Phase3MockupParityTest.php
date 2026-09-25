@@ -182,7 +182,27 @@ class Phase3MockupParityTest extends TestCase
 
         // Giáo viên chỉ thấy ca của mình.
         $this->actingAs($this->teacher)->get(route('payroll.timesheets.teachers', ['month' => '2026-08']))
-            ->assertOk()->assertSee('Chấm công của tôi')->assertDontSee('Chốt bảng công');
+            ->assertOk()->assertSee('Chấm công của tôi')->assertDontSee('Chốt bảng công')->assertDontSee('Chấm công theo lịch');
+
+        // Chấm công theo lịch (roundcuoi 01_Web_Admin/09) + buổi dạy thay chờ xác nhận (01_Web_Admin/11), tháng 9 chưa khóa.
+        Carbon::setTestNow('2026-09-15 20:00:00');
+        $today = ClassSession::create([
+            'class_id' => $this->classModel->id, 'branch_id' => $this->branch->id, 'date' => '2026-09-15',
+            'start_time' => '18:00', 'end_time' => '19:30', 'teacher_id' => $this->teacher->id, 'status' => 'scheduled',
+        ]);
+        $this->timesheet(['teaching_date' => '2026-09-14', 'type' => 'sub']);
+        $this->actingAs($this->admin)->get(route('payroll.timesheets.teachers', ['month' => '2026-09']))
+            ->assertOk()
+            ->assertSee('Chấm công theo lịch')->assertSee('Thứ Ba, 15/09/2026')
+            ->assertSee('Giáo viên dự kiến')->assertSee('Tự động (pre-fill theo lịch)')
+            ->assertSee('buổi dạy thay chờ xác nhận');
+        $this->actingAs($this->admin)->post(route('payroll.timesheets.sessions.confirm', $today->id))->assertSessionHasNoErrors();
+        $confirmed = TeacherTimesheet::where('class_session_id', $today->id)->firstOrFail();
+        $this->assertSame('valid', $confirmed->status);
+        $this->assertSame(TeacherTimesheet::SOURCE_SCHEDULE, $confirmed->source);
+        $this->assertEquals(1.5, (float) $confirmed->hours);
+        $this->actingAs($this->admin)->get(route('payroll.timesheets.teachers', ['month' => '2026-09', 'type' => 'sub']))
+            ->assertOk()->assertSee('Đã xác nhận')->assertViewHas('timesheets', fn ($p) => $p->total() === 1);
     }
 
     /** Màn "Lịch sử đồng bộ" (epic-7/lich-su-dong-bo-cham-cong). */

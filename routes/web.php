@@ -316,6 +316,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/timesheets/teachers', [PayrollController::class, 'teacherTimesheets'])->name('timesheets.teachers');
         Route::post('/timesheets/teachers/{id}/review', [PayrollController::class, 'reviewTimesheet'])->middleware('can:attendance_staff.view')->name('timesheets.review');
         Route::post('/timesheets/teachers/bulk-review', [PayrollController::class, 'bulkReviewTimesheets'])->middleware('can:attendance_staff.view')->name('timesheets.bulk-review');
+        Route::post('/timesheets/sessions/{sessionId}/confirm', [PayrollController::class, 'confirmScheduledSession'])->whereNumber('sessionId')->middleware('can:attendance_staff.view')->name('timesheets.sessions.confirm');
         Route::put('/timesheets/teachers/{id}/adjust', [PayrollController::class, 'adjustTimesheet'])->whereNumber('id')->middleware('can:attendance_staff.manual_record')->name('timesheets.adjust');
         Route::get('/timesheets/sync-history', [PayrollController::class, 'syncHistory'])->middleware('can:attendance_staff.sync')->name('timesheets.sync-history');
         Route::get('/timesheets/sync-history/{id}/errors', [PayrollController::class, 'exportSyncErrors'])->whereNumber('id')->middleware('can:attendance_staff.sync')->name('timesheets.sync-history.errors');

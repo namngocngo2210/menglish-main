@@ -707,7 +707,7 @@ class AcademicSystemController extends Controller
             '01_Web_Admin/08_nhac_lich_big_test' => route('syllabus.big-tests.schedules'),
             '01_Web_Admin/09_cham_cong_theo_lich' => route('payroll.timesheets.teachers'),
             '01_Web_Admin/10_doi_soat_chot_bang_cong' => route('payroll.periods.index'),
-            '01_Web_Admin/11_danh_sach_buoi_day_thay_cho_xac_nhan' => route('tasks.manual-approvals'),
+            '01_Web_Admin/11_danh_sach_buoi_day_thay_cho_xac_nhan' => route('payroll.timesheets.teachers', ['type' => 'sub', 'status' => 'pending_review']),
 
             // Học Vụ & KPI (Phase 3)
             '02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu/01_cau_hinh_kpi_hoc_vu_1' => route('kpi.criteria'),

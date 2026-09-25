@@ -579,6 +579,8 @@ class PayrollController extends Controller
         $monthStart = Carbon::createFromFormat('Y-m-d', $month.'-01')->startOfDay();
         $monthEnd = $monthStart->copy()->endOfMonth();
         $status = in_array($request->query('status'), ['pending_review', 'valid', 'invalid'], true) ? $request->query('status') : null;
+        // Loại ca (VD "sub" = danh sách buổi dạy thay chờ xác nhận — mockup 01_Web_Admin/11).
+        $type = in_array($request->query('type'), ['regular', 'sub', '1on1', 'grading', 'workshop'], true) ? $request->query('type') : null;
         $search = trim((string) $request->query('search', ''));
         $branchId = $canViewAll ? ($request->integer('branch_id') ?: null) : null;
         $classId = $request->integer('class_id') ?: null;
@@ -595,6 +597,7 @@ class PayrollController extends Controller
             ->when($branchId, fn ($q) => $q->whereHas('classModel', fn ($c) => $c->where('branch_id', $branchId)))
             ->when($classId, fn ($q) => $q->where('class_id', $classId))
             ->when($status, fn ($q) => $q->where('status', $status))
+            ->when($type, fn ($q) => $q->where('type', $type))
             ->when($search !== '', fn ($q) => $q->whereHas('teacher', fn ($t) => $t->where('name', 'like', "%{$search}%")
                 ->orWhere('employee_code', 'like', "%{$search}%")));
 
@@ -623,14 +626,87 @@ class PayrollController extends Controller
                 ->values();
         }
 
+        // Chấm công theo lịch (mockup 01_Web_Admin/09): buổi học của ngày chọn + trạng thái chấm công của GV dự kiến.
+        $scheduleDay = $canViewAll
+            ? (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $request->query('day')) ? Carbon::parse($request->query('day')) : today())
+            : null;
+        $scheduleSessions = collect();
+        if ($scheduleDay) {
+            $scheduleSessions = \App\Models\ClassSession::with(['classModel', 'teacher', 'timesheets.reviewer'])
+                ->whereDate('date', $scheduleDay->toDateString())
+                ->where('status', '!=', 'cancelled')
+                ->whereNotNull('teacher_id')
+                ->whereIn('class_id', ClassModel::query()->visibleTo($user)->select('id'))
+                ->when($branchId, fn ($q) => $q->whereHas('classModel', fn ($c) => $c->where('branch_id', $branchId)))
+                ->orderBy('start_time')->get()
+                ->map(function ($session) {
+                    $ts = $session->timesheets->first(fn ($t) => (int) $t->user_id === (int) $session->teacher_id && $t->status !== 'invalid')
+                        ?? TeacherTimesheet::findDuplicate((int) $session->teacher_id, (int) $session->class_id, $session->date->toDateString(), $session->id);
+                    $session->setAttribute('schedule_timesheet', $ts);
+
+                    return $session;
+                });
+        }
+        $subPendingCount = $canViewAll
+            ? TeacherTimesheet::where('type', 'sub')->where('status', 'pending_review')
+                ->when($user->managedBranchIds() !== null, fn ($q) => $q->whereIn('class_id', $visibleClassIds))->count()
+            : 0;
+
         $filterClasses = $canViewAll ? ClassModel::query()->visibleTo($user)->orderBy('name')->get(['id', 'name', 'code', 'branch_id']) : collect();
         $filterBranches = $canViewAll ? \App\Models\Branch::whereIn('id', $filterClasses->pluck('branch_id')->filter()->unique())->orderBy('name')->get(['id', 'name']) : collect();
         $filterTeachers = $canViewAll ? $this->teachingStaff() : collect();
 
         return view('payroll.timesheets-teachers', compact(
             'timesheets', 'summary', 'month', 'monthStart', 'status', 'period', 'periodLocked',
-            'teacher', 'missingSessions', 'filterClasses', 'filterBranches', 'filterTeachers', 'canViewAll'
+            'teacher', 'missingSessions', 'filterClasses', 'filterBranches', 'filterTeachers', 'canViewAll',
+            'scheduleDay', 'scheduleSessions', 'subPendingCount', 'type'
         ));
+    }
+
+    /**
+     * "Xác nhận" một buổi học trên lịch (mockup Chấm công theo lịch): ghi / duyệt ca chấm công của GV dự kiến
+     * với giờ theo lịch. Ca GV đã check-in hoặc đã chấm tay → duyệt ca đó; chưa có → tạo ca "Xác nhận theo lịch" hợp lệ.
+     * Chỉ buổi thật, đã tới ngày, chưa hủy, ngoài kỳ lương đã khóa.
+     */
+    public function confirmScheduledSession(Request $request, int $sessionId)
+    {
+        abort_unless($request->user()->can('attendance_staff.view'), 403);
+        $session = \App\Models\ClassSession::with('classModel')->findOrFail($sessionId);
+        abort_unless(ClassModel::query()->visibleTo($request->user())->whereKey($session->class_id)->exists(), 403);
+        abort_if($session->status === 'cancelled' || ! $session->teacher_id, 422, 'Buổi học đã hủy hoặc chưa phân công giáo viên.');
+        if ($session->date->isAfter(today())) {
+            throw ValidationException::withMessages(['session' => 'Chưa tới ngày học — không thể xác nhận chấm công trước.']);
+        }
+        if (PayrollPeriod::isLockedFor($session->date)) {
+            return $this->rejectLockedDate('session', $session->date);
+        }
+
+        $review = ['status' => 'valid', 'reviewed_by' => $request->user()->id, 'reviewed_at' => now(), 'rejection_reason' => null];
+        $existing = TeacherTimesheet::where('user_id', $session->teacher_id)->where('class_session_id', $session->id)->first()
+            ?? TeacherTimesheet::findDuplicate((int) $session->teacher_id, (int) $session->class_id, $session->date->toDateString(), $session->id);
+
+        if ($existing && $existing->status !== 'invalid') {
+            $existing->update($review);
+        } else {
+            $start = $session->start_time?->format('H:i');
+            $end = $session->end_time?->format('H:i');
+            $attributes = $review + [
+                'user_id' => $session->teacher_id,
+                'class_id' => $session->class_id,
+                'class_session_id' => $session->id,
+                'teaching_date' => $session->date->toDateString(),
+                'scheduled_time' => $start && $end ? $start.'-'.$end : null,
+                'checkin_time' => $start,
+                'checkout_time' => $end,
+                'hours' => $start && $end ? max(0.5, round(abs(Carbon::parse($start)->diffInMinutes(Carbon::parse($end))) / 60, 2)) : 0,
+                'type' => $session->type === \App\Models\ClassSession::TYPE_SUPPORT ? '1on1' : 'regular',
+                'source' => TeacherTimesheet::SOURCE_SCHEDULE,
+                'notes' => 'Học vụ xác nhận theo lịch buổi học',
+            ];
+            $existing ? $existing->update($attributes) : TeacherTimesheet::create($attributes);
+        }
+
+        return redirect()->back()->with('status', 'Đã xác nhận chấm công buổi '.($session->classModel?->code ?? '').' ngày '.$session->date->format('d/m/Y').'.');
     }
 
     public function reviewTimesheet(Request $request, int $id)
