@@ -344,6 +344,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/penalties/{id}/mark-paid', [PenaltyController::class, 'markPaidPenalty'])->middleware('can:violation.mark_paid')->name('penalties.mark-paid');
     Route::post('/penalties/{id}/resolve', [PenaltyController::class, 'resolvePenalty'])->middleware('can:violation.mark_resolved')->name('penalties.resolve');
     Route::post('/penalties/{id}/cancel', [PenaltyController::class, 'cancelPenalty'])->middleware('can:violation.cancel')->name('penalties.cancel');
+    Route::post('/penalties/{id}/remedy', [PenaltyController::class, 'remedyPenalty'])->middleware('can:violation.mark_resolved')->name('penalties.remedy');
 
     // ─────────────────────────────────────────────
     // 6. Khóa học, Bảng giá học phí & Trình độ

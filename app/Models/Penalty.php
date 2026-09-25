@@ -78,6 +78,9 @@ class Penalty extends Model
         'decision_note',
         'due_date',
         'paid_at',
+        'remedied_at',
+        'remedied_by',
+        'remedy_note',
     ];
 
     protected $casts = [
@@ -87,6 +90,7 @@ class Penalty extends Model
         'decided_at' => 'datetime',
         'due_date' => 'date',
         'paid_at' => 'datetime',
+        'remedied_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
@@ -113,6 +117,80 @@ class Penalty extends Model
     public function decider(): BelongsTo
     {
         return $this->belongsTo(User::class, 'decided_by');
+    }
+
+    public function remedier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'remedied_by');
+    }
+
+    /**
+     * Các bước xử lý theo mockup "Danh sách vi phạm" (lọc theo bước) → trạng thái trong hệ thống.
+     * "Đã khắc phục" là mốc riêng (remedied_at) sau khi đã nộp / đã trừ lương.
+     */
+    public const STEPS = [
+        'recorded' => 'Ghi nhận',
+        'confirmed' => 'Đã chốt lỗi',
+        'fined' => 'Đã chốt phạt',
+        'paid' => 'Đã nộp',
+        'remedied' => 'Đã khắc phục',
+        'resolved' => 'Đóng - không phạt',
+        'cancelled' => 'Đã hủy',
+    ];
+
+    public function scopeAtStep($query, string $step)
+    {
+        return match ($step) {
+            'recorded' => $query->whereIn('status', ['pending', 'explained']),
+            'confirmed' => $query->where('status', 'confirmed'),
+            'fined' => $query->where('status', 'fined'),
+            'paid' => $query->whereIn('status', ['paid', 'deducted'])->whereNull('remedied_at'),
+            'remedied' => $query->whereIn('status', ['paid', 'deducted'])->whereNotNull('remedied_at'),
+            'resolved' => $query->where('status', 'resolved'),
+            'cancelled' => $query->where('status', 'cancelled'),
+            default => $query,
+        };
+    }
+
+    public function getStepAttribute(): string
+    {
+        return match ($this->status) {
+            'pending', 'explained' => 'recorded',
+            'confirmed' => 'confirmed',
+            'fined' => 'fined',
+            'paid', 'deducted' => $this->remedied_at ? 'remedied' : 'paid',
+            'resolved' => 'resolved',
+            default => 'cancelled',
+        };
+    }
+
+    public function getStepLabelAttribute(): string
+    {
+        return self::STEPS[$this->step] ?? $this->status_label;
+    }
+
+    /** Nguồn ghi nhận: có người lập biên bản = Thủ công; hệ thống tự tạo (không có người lập) = Tự động. */
+    public function getSourceLabelAttribute(): string
+    {
+        return $this->reporter_id ? 'Thủ công' : 'Tự động';
+    }
+
+    /**
+     * "Trạng thái GV" (mockup): nhân sự đã giải trình = Đã xác nhận; còn chờ giải trình = Chờ xác nhận;
+     * biên bản đã chốt / đóng mà nhân sự không giải trình = Bỏ qua.
+     *
+     * @return array{0: string, 1: string} [nhãn, màu badge]
+     */
+    public function getEmployeeStateAttribute(): array
+    {
+        if ($this->explanation) {
+            return ['Đã xác nhận', 'success'];
+        }
+        if ($this->status === 'pending') {
+            return ['Chờ xác nhận', 'warning'];
+        }
+
+        return ['Bỏ qua', 'neutral'];
     }
 
     public function getStatusBadgeAttribute(): string

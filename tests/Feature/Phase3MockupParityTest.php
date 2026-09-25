@@ -221,4 +221,55 @@ class Phase3MockupParityTest extends TestCase
         $this->actingAs($this->admin)->get(route('payroll.timesheets.sync-history.errors', $partial->id))->assertOk();
         $this->assertNotNull($failed->id);
     }
+
+    /** Màn "Danh sách vi phạm" + luồng tạo / giải trình / chốt (epic-8-danh-sach-phat). */
+    public function test_violation_list_screen_and_flow_match_mockup(): void
+    {
+        $manager = $this->userWithRole('manager', ['name' => 'Quản lý P3']);
+        $base = ['user_id' => $this->teacher->id, 'error_category' => 'operations', 'violation_type' => 'Đi muộn', 'reporter_id' => $manager->id];
+        $recorded = \App\Models\Penalty::create($base + ['code' => 'BB-M01', 'violation_date' => '2026-09-10', 'status' => 'pending']);
+        $confirmed = \App\Models\Penalty::create($base + ['code' => 'BB-M02', 'violation_date' => '2026-09-11', 'status' => 'confirmed', 'explanation' => 'Kẹt xe do mưa lớn']);
+        $fined = \App\Models\Penalty::create($base + ['code' => 'BB-M03', 'violation_date' => '2026-09-12', 'status' => 'fined', 'amount' => 200000, 'due_date' => now()->addDays(2)]);
+        $paid = \App\Models\Penalty::create($base + ['code' => 'BB-M04', 'violation_date' => '2026-09-13', 'status' => 'paid', 'amount' => 500000, 'paid_at' => now()]);
+        \App\Models\Penalty::create(array_merge($base, ['code' => 'BB-M05', 'violation_date' => '2026-09-14', 'status' => 'resolved', 'reporter_id' => null]));
+
+        $this->actingAs($manager)->get(route('penalties.index'))
+            ->assertOk()
+            ->assertSee('Danh sách vi phạm')
+            ->assertSee('Ghi nhận vi phạm mới')
+            ->assertSee('Nhập tên hoặc mã nhân viên...')
+            ->assertSee('Lọc theo bước')
+            ->assertSee('Đã chốt lỗi')->assertSee('Đã chốt phạt')->assertSee('Đã khắc phục')->assertSee('Đóng - không phạt')
+            ->assertSee('Bộ lọc nâng cao')
+            ->assertSee('Bước hiện tại')->assertSee('Trạng thái GV')->assertSee('Nguồn')
+            ->assertSee('ID: GV-0492')
+            ->assertSee('Thủ công')->assertSee('Tự động')
+            ->assertSee('Chờ xác nhận')->assertSee('Đã xác nhận')
+            ->assertSee('Chốt lỗi')->assertSee('Chốt mức phạt')->assertSee('Hủy vi phạm')
+            ->assertSee('Đánh dấu đã nộp')->assertSee('Ghi nhận khắc phục');
+
+        // Tìm theo mã nhân viên + lọc theo bước.
+        $this->actingAs($manager)->get(route('penalties.index', ['search' => 'GV-0492', 'step' => 'fined']))
+            ->assertOk()->assertViewHas('penalties', fn ($p) => $p->total() === 1 && $p->first()->is($fined));
+        $this->actingAs($manager)->get(route('penalties.index', ['step' => 'recorded']))
+            ->assertViewHas('penalties', fn ($p) => $p->total() === 1 && $p->first()->is($recorded));
+
+        // Ghi nhận khắc phục sau khi đã nộp → bước "Đã khắc phục".
+        $this->actingAs($manager)->post(route('penalties.remedy', $paid->id), ['remedy_note' => 'Đã cam kết không tái phạm'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('remedied', $paid->fresh()->step);
+        $this->actingAs($manager)->get(route('penalties.index', ['step' => 'remedied']))
+            ->assertViewHas('penalties', fn ($p) => $p->total() === 1);
+
+        // Kỳ lương đã khóa → "Chốt mức phạt" bị chặn với thông báo theo mockup.
+        PayrollPeriod::create([
+            'code' => 'PR-2026-09', 'title' => 'Bảng lương Tháng 9/2026', 'month' => 9, 'year' => 2026,
+            'start_date' => '2026-09-01', 'end_date' => '2026-09-30', 'status' => 'approved',
+        ]);
+        $this->actingAs($manager)->from(route('penalties.index'))
+            ->post(route('penalties.confirm', $confirmed->id), ['decision' => 'fine', 'amount' => 100000])
+            ->assertSessionHasErrors('violation_date')
+            ->assertSessionHas('locked_penalty', fn ($m) => str_contains($m, 'Kỳ lương hiện tại của nhân viên GV Mockup P3 đã khóa. Không thể thực hiện chốt mức phạt.'));
+        $this->assertSame('confirmed', $confirmed->fresh()->status);
+    }
 }
