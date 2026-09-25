@@ -1,271 +1,233 @@
+{{-- Mockup: ui-full-tinh-nang-menglish/epic-7/danh-sach-bang-luong-theo-ky (bảng lương của một kỳ) --}}
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('payroll.periods.index') }}" class="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-orange-600">payments</span>
-                        <span>Chi Tiết Bảng Lương: {{ $period->title }}</span>
-                        <span class="text-xs px-2.5 py-0.5 rounded-full border font-bold {{ $period->status_badge }}">
-                            {{ $period->status_label }}
-                        </span>
-                    </h1>
-                    <p class="text-xs text-gray-500 font-mono">Mã kỳ: {{ $period->code }} · Thời gian: {{ $period->start_date->format('d/m/Y') }} – {{ $period->end_date->format('d/m/Y') }}</p>
-                </div>
-            </div>
-            
-            <div class="flex flex-wrap items-center gap-2">
-                @can('payroll.calculate')
-                @unless(in_array($period->status, ['approved', 'paid']))
-                <form action="{{ route('payroll.periods.calculate', $period->id) }}" method="POST">
-                    @csrf
-                    <button type="submit" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer">
-                        <span class="material-symbols-outlined text-[16px]">sync</span>
-                        <span>Đồng bộ &amp; Tính lại</span>
-                    </button>
-                </form>
-                @endunless
-                @endcan
+    @php
+        [$statusColor, $statusText] = match ($period->status) {
+            'paid' => ['secondary', 'Đã trả'],
+            'approved' => ['success', 'Đã chốt'],
+            default => ['info', 'Đang tính'],
+        };
+        $kpiColors = ['done' => 'success', 'pending' => 'error', 'na' => 'neutral'];
+        $kpiIcons = ['done' => 'check', 'pending' => 'close', 'na' => 'remove'];
+    @endphp
 
-                @can('payroll.approve')
-                @unless(in_array($period->status, ['approved', 'paid']))
-                    <form action="{{ route('payroll.periods.approve', $period->id) }}" method="POST">
+    <x-ui.page-header title="Danh sách bảng lương theo kỳ"
+                      :description="'Quản lý và chốt lương giáo viên, nhân sự theo từng kỳ — '.$period->title.' ('.$period->code.', '.$period->start_date->format('d/m/Y').' – '.$period->end_date->format('d/m/Y').')'">
+        <x-slot:breadcrumbs>
+            <a href="{{ route('payroll.periods.index') }}" class="hover:text-primary">Kỳ lương</a>
+            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">chevron_right</span>
+            <span>{{ $period->title }}</span>
+            <x-ui.badge :color="$statusColor">{{ $statusText }}</x-ui.badge>
+        </x-slot:breadcrumbs>
+        <x-slot:actions>
+            @can('payroll.calculate')
+                @unless ($period->isLocked())
+                    <form action="{{ route('payroll.periods.calculate', $period->id) }}" method="POST">
                         @csrf
-                        <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer">
-                            <span class="material-symbols-outlined text-[16px]">check_circle</span>
-                            <span>Chốt bảng lương</span>
-                        </button>
+                        <x-ui.button type="submit" variant="secondary" icon="sync">Đồng bộ &amp; Tính lại</x-ui.button>
                     </form>
                 @endunless
-                @endcan
-
-                @can('payroll.mark_paid')
+            @endcan
+            @can('payroll.approve')
+                @unless ($period->isLocked())
+                    <form action="{{ route('payroll.periods.approve', $period->id) }}" method="POST"
+                          @if ($kpiPending->isNotEmpty()) data-confirm="Còn {{ $kpiPending->count() }} nhân sự chưa chốt KPI — KPI của họ sẽ tính 0đ. Vẫn chốt bảng lương?" @endif>
+                        @csrf
+                        <x-ui.button type="submit" icon="task_alt">Chốt bảng lương</x-ui.button>
+                    </form>
+                @endunless
+            @endcan
+            @can('payroll.mark_paid')
                 @if ($period->status === 'approved')
                     <form action="{{ route('payroll.periods.mark-paid', $period->id) }}" method="POST">
                         @csrf
-                        <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer">
-                            <span class="material-symbols-outlined text-[16px]">payments</span>
-                            <span>Đánh dấu đã chi trả</span>
-                        </button>
+                        <x-ui.button type="submit" variant="secondary" icon="payments">Đánh dấu đã trả</x-ui.button>
                     </form>
+                @elseif ($period->status !== 'paid')
+                    <span title="Chỉ kỳ lương đã chốt mới đánh dấu đã trả"><x-ui.button variant="secondary" icon="payments" disabled>Đánh dấu đã trả</x-ui.button></span>
                 @endif
-                @endcan
+            @endcan
+            <x-ui.button variant="secondary" icon="download" :href="route('payroll.periods.export', $period->id)">Xuất Excel</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-                <a href="{{ route('payroll.periods.export', $period->id) }}" class="px-3 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold shadow-2xs transition flex items-center gap-1">
-                    <span class="material-symbols-outlined text-[16px]">download</span>
-                    <span>Xuất Excel</span>
-                </a>
-            </div>
-        </div>
-    </x-slot>
-
-    <div class="space-y-6">
-
+    <div class="space-y-lg">
         @error('period')
-            <div class="p-4 rounded-xl bg-rose-50 text-rose-800 border border-rose-200 flex items-center gap-3 text-sm font-medium">
-                <span class="material-symbols-outlined text-rose-600">error</span>
-                <span>{{ $message }}</span>
-            </div>
+            <x-ui.alert type="error">{{ $message }}</x-ui.alert>
         @enderror
 
-        <!-- Department / Role Sub-navigation Tabs -->
-        <div class="flex flex-wrap gap-2 border-b border-gray-200 pb-2 text-xs">
-            <a href="{{ route('payroll.periods.show', $period->id) }}" class="px-4 py-2 font-bold rounded-xl bg-orange-600 text-white shadow-xs flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-base">groups</span>
-                <span>Toàn bộ / GV Part-time</span>
-            </a>
-            <a href="{{ route('payroll.periods.fulltime', $period->id) }}" class="px-4 py-2 font-semibold rounded-xl bg-white text-gray-700 border border-gray-200 hover:bg-slate-50 transition flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-base">work</span>
-                <span>Giáo viên Full-time</span>
-            </a>
-            <a href="{{ route('payroll.periods.academic', $period->id) }}" class="px-4 py-2 font-semibold rounded-xl bg-white text-gray-700 border border-gray-200 hover:bg-slate-50 transition flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-base">school</span>
-                <span>Khối Học Thuật</span>
-            </a>
-            <a href="{{ route('payroll.periods.operations', $period->id) }}" class="px-4 py-2 font-semibold rounded-xl bg-white text-gray-700 border border-gray-200 hover:bg-slate-50 transition flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-base">support_agent</span>
-                <span>Khối Học Vụ &amp; Vận Hành</span>
-            </a>
+        @if ($kpiPending->isNotEmpty() && ! $period->isLocked())
+            <x-ui.alert type="error" dismissible
+                        :title="'Chưa thể chốt bảng lương kỳ '.str_pad($period->month, 2, '0', STR_PAD_LEFT).'/'.$period->year.' do: Còn '.$kpiPending->count().' nhân sự chưa chốt KPI'">
+                {{ $kpiPending->take(8)->map(fn ($r) => $r->user?->name)->filter()->implode(', ') }}{{ $kpiPending->count() > 8 ? '…' : '' }}.
+                Chọn bậc KPI giữ HS / nhập KPI trên phiếu lương, hoặc chốt đánh giá KPI Học vụ tháng rồi bấm "Đồng bộ &amp; Tính lại".
+                <a href="{{ request()->fullUrlWithQuery(['kpi' => 'pending', 'page' => null]) }}" class="font-semibold underline">Xem danh sách</a>
+            </x-ui.alert>
+        @endif
+
+        {{-- Khối / loại nhân sự --}}
+        <nav class="flex flex-wrap gap-sm border-b border-surface-container pb-sm" aria-label="Bảng lương theo khối">
+            <x-ui.button icon="groups" size="sm" :href="route('payroll.periods.show', $period->id)">Toàn bộ / GV Part-time</x-ui.button>
+            <x-ui.button variant="secondary" size="sm" icon="work" :href="route('payroll.periods.fulltime', $period->id)">Giáo viên Full-time</x-ui.button>
+            <x-ui.button variant="secondary" size="sm" icon="school" :href="route('payroll.periods.academic', $period->id)">Khối Học thuật</x-ui.button>
+            <x-ui.button variant="secondary" size="sm" icon="support_agent" :href="route('payroll.periods.operations', $period->id)">Khối Học vụ &amp; Vận hành</x-ui.button>
+        </nav>
+
+        <div class="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-4">
+            <x-ui.stat-card label="Tổng chi quỹ lương" :value="number_format((float) $period->total_amount, 0, ',', '.').'đ'" tone="primary" icon="account_balance_wallet"
+                            :hint="$period->records->count().' nhân sự nhận lương'" />
+            <x-ui.stat-card label="Tổng buổi dạy (Part-time)" :value="$period->records->where('employee_type', 'parttime')->sum('teaching_sessions').' buổi'" icon="event_available"
+                            :hint="$period->records->sum('actual_hours').' giờ chấm công hợp lệ'" />
+            <x-ui.stat-card label="Tổng thưởng KPI / Giữ học sinh" :value="number_format((float) $period->records->sum('kpi_bonus'), 0, ',', '.').'đ'" tone="success" icon="trending_up"
+                            hint="Giữ HS (PT) · KPI tự do · KPI Học vụ" />
+            <x-ui.stat-card label="Tổng khấu trừ & Phạt" :value="'-'.number_format((float) $period->records->sum('total_deductions'), 0, ',', '.').'đ'" tone="error" icon="money_off"
+                            hint="BHXH, Công đoàn, TNCN, phạt, thu hồi, khấu trừ tự do" />
         </div>
 
-        <!-- KPI & Salary Statistics Bento Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-1">
-                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tổng chi quỹ lương</span>
-                <div class="text-xl font-black text-orange-600 font-mono">{{ number_format($period->total_amount) }}đ</div>
-                <p class="text-[11px] text-gray-500 font-mono">{{ $period->records->count() }} nhân sự nhận lương</p>
-            </div>
+        <form method="GET" action="{{ route('payroll.periods.show', $period->id) }}" role="search"
+              class="flex flex-wrap items-end gap-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
+            <label class="flex flex-col gap-xs">
+                <span class="font-label text-label uppercase tracking-wide text-on-surface-variant">Kỳ lương</span>
+                <select onchange="window.location.href = this.value" aria-label="Chọn kỳ lương"
+                        class="rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
+                    @foreach ($allPeriods as $p)
+                        <option value="{{ route('payroll.periods.show', $p->id) }}" @selected($p->id === $period->id)>Tháng {{ str_pad($p->month, 2, '0', STR_PAD_LEFT) }}/{{ $p->year }} ({{ $p->code }})</option>
+                    @endforeach
+                </select>
+            </label>
+            <label class="relative min-w-[220px] flex-1">
+                <span class="sr-only">Tìm nhân sự</span>
+                <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
+                <input type="search" name="search" value="{{ $search }}" placeholder="Tìm giáo viên / nhân sự..."
+                       class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-10 pr-md font-body-base text-body-base placeholder:text-on-surface-variant/60 focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
+            </label>
+            <x-ui.select name="type" :options="\App\Models\PayrollRecord::SALARY_ROLE_LABELS" placeholder="Mọi loại nhân sự" aria-label="Loại nhân sự" />
+            <x-ui.select name="kpi" :options="['pending' => 'Chưa chốt KPI', 'done' => 'Đã chốt KPI']" placeholder="Mọi trạng thái KPI" aria-label="Trạng thái KPI" />
+            <x-ui.button type="submit" variant="secondary" icon="filter_list">Lọc</x-ui.button>
+        </form>
 
-            <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-1">
-                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tổng buổi dạy (Part-time)</span>
-                <div class="text-xl font-black text-indigo-900 font-mono">{{ $period->records->where('employee_type', 'parttime')->sum('teaching_sessions') }} buổi</div>
-                <p class="text-[11px] text-indigo-600 font-medium">{{ $period->records->sum('actual_hours') }} giờ chấm công hợp lệ</p>
-            </div>
-
-            <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-1">
-                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tổng thưởng KPI / Giữ học sinh</span>
-                <div class="text-xl font-black text-emerald-600 font-mono">{{ number_format($period->records->sum('kpi_bonus')) }}đ</div>
-                <p class="text-[11px] text-emerald-700 font-medium">Giữ HS (PT) · KPI tự do · KPI Học vụ</p>
-            </div>
-
-            <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-1">
-                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tổng khấu trừ &amp; Phạt</span>
-                <div class="text-xl font-black text-rose-600 font-mono">-{{ number_format($period->records->sum('total_deductions')) }}đ</div>
-                <p class="text-[11px] text-rose-600 font-medium">BHXH, Công đoàn, thuế TNCN, phạt, thu hồi hoa hồng, khấu trừ tự do</p>
-            </div>
-        </div>
-
-        <!-- Master Salary Table -->
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div class="p-4 border-b border-gray-100 bg-slate-50/70 flex justify-between items-center">
-                <h3 class="font-bold text-xs uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-orange-600 text-base">table_rows</span>
-                    <span>Chi Tiết Bảng Lương Từng Nhân Sự (Kỳ {{ $period->month }}/{{ $period->year }})</span>
-                </h3>
-            </div>
-
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
-                            <th class="py-3 px-4">Giáo viên / Nhân sự</th>
-                            <th class="py-3 px-4 text-center">Loại</th>
-                            <th class="py-3 px-4 text-right">Lương CB / Buổi dạy</th>
-                            <th class="py-3 px-4 text-right">KPI</th>
-                            <th class="py-3 px-4 text-right">Buổi GVNN</th>
-                            <th class="py-3 px-4 text-right">Hoa hồng</th>
-                            <th class="py-3 px-4 text-right">Tái tục</th>
-                            <th class="py-3 px-4 text-right">Phụ cấp tự do</th>
-                            <th class="py-3 px-4 text-right">BHXH + CĐ</th>
-                            <th class="py-3 px-4 text-right">Thuế TNCN</th>
-                            <th class="py-3 px-4 text-right">Phạt & trừ khác</th>
-                            <th class="py-3 px-4 text-right font-black">Thực lĩnh</th>
-                            <th class="py-3 px-4 text-center">Trạng thái</th>
-                            <th class="py-3 px-4 text-right">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
-                        @forelse ($period->records as $r)
-                            <tr class="hover:bg-orange-50/20 transition" x-data="{ openForeignModal: false }">
-                                <td class="py-3.5 px-4 font-bold text-gray-900">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-xs">
-                                            {{ Str::substr($r->user?->name ?? 'U', 0, 1) }}
-                                        </div>
-                                        <div>
-                                            <a href="{{ route('payroll.records.show', $r->id) }}" class="text-xs font-bold text-gray-900 hover:text-orange-600 hover:underline" title="Xem phiếu lương">{{ $r->user?->name }}</a>
-                                            <p class="text-[10px] text-gray-400 font-mono">{{ $r->user?->email }}</p>
-                                        </div>
+        <x-ui.data-table min-width="1500px">
+            <x-slot:header>
+                <h3 class="font-h3 text-h3 text-on-surface">Bảng lương từng nhân sự (Kỳ {{ $period->month }}/{{ $period->year }})</h3>
+            </x-slot:header>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tên giáo viên / nhân sự</th>
+                        <th class="text-center">Loại</th>
+                        <th>Trạng thái bảng lương</th>
+                        <th>Trạng thái KPI</th>
+                        <th class="text-right">Lương CB / Buổi dạy</th>
+                        <th class="text-right">KPI</th>
+                        <th class="text-right">Buổi GVNN</th>
+                        <th class="text-right">Hoa hồng</th>
+                        <th class="text-right">Tái tục</th>
+                        <th class="text-right">Phụ cấp tự do</th>
+                        <th class="text-right">BHXH + CĐ</th>
+                        <th class="text-right">Thuế TNCN</th>
+                        <th class="text-right">Phạt &amp; trừ khác</th>
+                        <th class="text-right">Thực nhận</th>
+                        <th class="text-right">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($records as $r)
+                        @php [$kpiKey, $kpiLabel] = $r->kpi_state; @endphp
+                        <tr x-data="{ openForeignModal: false }">
+                            <td>
+                                <div class="flex items-center gap-sm">
+                                    <x-ui.avatar :name="$r->user?->name ?? 'U'" size="sm" />
+                                    <div>
+                                        <a href="{{ route('payroll.records.show', $r->id) }}" class="font-semibold text-on-surface hover:text-primary hover:underline" title="Xem phiếu lương">{{ $r->user?->name }}</a>
+                                        <p class="font-caption text-caption text-on-surface-variant">{{ $r->user?->employee_code ?: $r->user?->email }}</p>
                                     </div>
-                                </td>
-                                <td class="py-3.5 px-4 text-center">
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $r->isPartTime() ? 'bg-sky-50 text-sky-700 border border-sky-200' : 'bg-slate-50 text-slate-700 border border-slate-200' }}">{{ $r->employee_type_label }}</span>
-                                    <p class="text-[10px] text-gray-400 mt-0.5">{{ $r->salary_role_label }}</p>
-                                </td>
-                                <td class="py-3.5 px-4 text-right font-mono font-semibold">
-                                    @if ($r->isPartTime())
-                                        <span class="text-emerald-600">{{ number_format($r->teaching_salary) }}đ</span>
-                                        <p class="text-[10px] text-gray-400">{{ (int) $r->teaching_sessions }} buổi</p>
-                                    @else
-                                        {{ number_format((float) $r->base_salary + (float) $r->teaching_salary) }}đ
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <x-ui.badge :color="$r->isPartTime() ? 'info' : 'neutral'">{{ $r->employee_type_label }}</x-ui.badge>
+                                <p class="mt-xs font-caption text-caption text-on-surface-variant">{{ $r->salary_role_label }}</p>
+                            </td>
+                            <td>
+                                <span class="inline-flex items-center gap-xs">
+                                    <x-ui.badge :color="$statusColor">{{ $statusText }}</x-ui.badge>
+                                    @if ($kpiKey === 'pending' && ! $period->isLocked())
+                                        <span class="material-symbols-outlined text-[18px] text-error" title="Chưa chốt KPI" aria-label="Chưa chốt KPI">error</span>
                                     @endif
-                                </td>
-                                <td class="py-3.5 px-4 text-right font-mono text-amber-600 font-semibold">
-                                    {{ number_format($r->kpi_bonus) }}đ
-                                    @if ($r->kpi_source === 'retention')
-                                        <p class="text-[10px] text-gray-400">{{ (int) $r->retention_students }} HS × {{ $r->retention_tier !== null ? number_format($r->retention_tier) : 'chưa chọn bậc' }}</p>
-                                    @elseif ($r->kpi_source === 'academic_kpi')
-                                        <p class="text-[10px] text-gray-400">{{ $r->kpi_score !== null ? rtrim(rtrim(number_format((float) $r->kpi_score, 2), '0'), '.').'% quỹ' : 'chưa chấm' }}</p>
-                                    @endif
-                                </td>
-                                <td class="py-3.5 px-4 text-right font-mono">{{ $r->isPartTime() ? number_format($r->foreign_session_pay).'đ' : '—' }}</td>
-                                <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">
-                                    {{ number_format($r->commission_bonus) }}đ
-                                    @if ((float) $r->commission_deferred > 0)
-                                        <p class="text-[10px] text-amber-700 font-semibold">Hoãn {{ number_format($r->commission_deferred) }}đ</p>
-                                    @endif
-                                </td>
-                                <td class="py-3.5 px-4 text-right font-mono">{{ number_format($r->renew_bonus) }}đ</td>
-                                <td class="py-3.5 px-4 text-right font-mono">{{ number_format((float) $r->allowance + (float) $r->other_bonus) }}đ</td>
-                                <td class="py-3.5 px-4 text-right font-mono text-rose-600">-{{ number_format((float) $r->insurance_deduction + (float) $r->union_deduction) }}đ</td>
-                                <td class="py-3.5 px-4 text-right font-mono text-rose-600">-{{ number_format($r->tax_deduction) }}đ</td>
-                                <td class="py-3.5 px-4 text-right font-mono text-rose-600">
-                                    -{{ number_format((float) $r->penalty_deduction + (float) $r->commission_clawback + (float) $r->other_deduction + (float) $r->foreign_teacher_deduction) }}đ
-                                </td>
-                                <td class="py-3.5 px-4 text-right font-mono font-black text-orange-600 text-sm">
-                                    {{ number_format($r->net_salary) }}đ
-                                </td>
-                                <td class="py-3.5 px-4 text-center">
-                                    @php
-                                        [$rowBadge, $rowLabel] = match ($period->status) {
-                                            'paid' => ['bg-purple-50 text-purple-700 border border-purple-200', 'Đã trả'],
-                                            'approved' => ['bg-emerald-50 text-emerald-700 border border-emerald-200', 'Đã duyệt'],
-                                            default => ['bg-blue-50 text-blue-700 border border-blue-200', 'Đang tính'],
-                                        };
-                                    @endphp
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $rowBadge }}">{{ $rowLabel }}</span>
-                                </td>
-                                <td class="py-3.5 px-4 text-right">
+                                </span>
+                            </td>
+                            <td>
+                                <span class="inline-flex items-center gap-xs font-body-small text-body-small {{ $kpiKey === 'done' ? 'text-tertiary' : ($kpiKey === 'pending' ? 'text-error' : 'text-on-surface-variant') }}">
+                                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ $kpiIcons[$kpiKey] }}</span>{{ $kpiLabel }}
+                                </span>
+                            </td>
+                            <td class="text-right font-mono">
+                                @if ($r->isPartTime())
+                                    <span class="text-tertiary">{{ number_format($r->teaching_salary) }}đ</span>
+                                    <p class="font-caption text-caption text-on-surface-variant">{{ (int) $r->teaching_sessions }} buổi</p>
+                                @else
+                                    {{ number_format((float) $r->base_salary + (float) $r->teaching_salary) }}đ
+                                @endif
+                            </td>
+                            <td class="text-right font-mono">
+                                {{ number_format($r->kpi_bonus) }}đ
+                                @if ($r->kpi_source === 'retention')
+                                    <p class="font-caption text-caption text-on-surface-variant">{{ (int) $r->retention_students }} HS × {{ $r->retention_tier !== null ? number_format($r->retention_tier) : 'chưa chọn bậc' }}</p>
+                                @elseif ($r->kpi_source === 'academic_kpi')
+                                    <p class="font-caption text-caption text-on-surface-variant">{{ $r->kpi_score !== null ? rtrim(rtrim(number_format((float) $r->kpi_score, 2), '0'), '.').'% quỹ' : 'chưa chấm' }}</p>
+                                @endif
+                            </td>
+                            <td class="text-right font-mono">{{ $r->isPartTime() ? number_format($r->foreign_session_pay).'đ' : '—' }}</td>
+                            <td class="text-right font-mono text-tertiary">
+                                {{ number_format($r->commission_bonus) }}đ
+                                @if ((float) $r->commission_deferred > 0)
+                                    <p class="font-caption text-caption font-semibold text-amber-700">Hoãn {{ number_format($r->commission_deferred) }}đ</p>
+                                @endif
+                            </td>
+                            <td class="text-right font-mono">{{ number_format($r->renew_bonus) }}đ</td>
+                            <td class="text-right font-mono">{{ number_format((float) $r->allowance + (float) $r->other_bonus) }}đ</td>
+                            <td class="text-right font-mono text-error">-{{ number_format((float) $r->insurance_deduction + (float) $r->union_deduction) }}đ</td>
+                            <td class="text-right font-mono text-error">-{{ number_format($r->tax_deduction) }}đ</td>
+                            <td class="text-right font-mono text-error">-{{ number_format((float) $r->penalty_deduction + (float) $r->commission_clawback + (float) $r->other_deduction + (float) $r->foreign_teacher_deduction) }}đ</td>
+                            <td class="text-right font-mono font-bold text-primary">{{ number_format($r->net_salary) }}đ</td>
+                            <td class="text-right">
+                                <div class="flex items-center justify-end gap-xs">
                                     @if (! $period->isLocked() && $r->isPartTime())
-                                    @can('payroll.edit')
-                                    <button type="button" @click="openForeignModal = true" class="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-gray-300 hover:bg-gray-50 text-gray-700 transition">
-                                        Buổi GVNN
-                                    </button>
-
-                                    <!-- Modal nhập lương buổi có GVNN (chờ BA chốt cách tính) -->
-                                    <div x-show="openForeignModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto bg-black/40 flex items-center justify-center p-4 text-left">
-                                        <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl" @click.away="openForeignModal = false">
-                                            <div class="flex items-center justify-between border-b pb-3">
-                                                <div>
-                                                    <h3 class="font-bold text-sm text-gray-900">Lương buổi có GVNN</h3>
-                                                    <p class="text-xs text-gray-500 font-medium">{{ $r->user?->name }}</p>
+                                        @can('payroll.edit')
+                                            <x-ui.button variant="secondary" size="sm" @click="openForeignModal = true">Buổi GVNN</x-ui.button>
+                                            <div x-show="openForeignModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 text-left">
+                                                <div class="w-full max-w-md space-y-md rounded-xl bg-surface-container-lowest p-lg shadow-xl" @click.away="openForeignModal = false">
+                                                    <div class="flex items-center justify-between border-b border-surface-container pb-sm">
+                                                        <div>
+                                                            <h3 class="font-h3 text-h3 text-on-surface">Lương buổi có GVNN</h3>
+                                                            <p class="font-body-small text-body-small text-on-surface-variant">{{ $r->user?->name }}</p>
+                                                        </div>
+                                                        <x-ui.button variant="ghost" size="sm" icon="close" aria-label="Đóng" @click="openForeignModal = false" />
+                                                    </div>
+                                                    <form action="{{ route('payroll.records.update', $r->id) }}" method="POST" class="space-y-md">
+                                                        @csrf
+                                                        <x-ui.alert type="warning"><strong>Chờ BA chốt:</strong> cách tính lương buổi có GVNN chưa được xác nhận. Kế toán nhập tổng tiền cộng cho GV. Kỳ này có {{ (int) $r->foreign_teacher_sessions_count }} buổi GVNN cùng lớp.</x-ui.alert>
+                                                        <x-ui.input type="number" name="foreign_session_pay" label="Số tiền (VNĐ)" :value="(int) $r->foreign_session_pay" min="0" step="1000" required />
+                                                        <x-ui.textarea name="notes" label="Ghi chú" rows="2" :value="$r->adjustment_notes" placeholder="Ghi chú thêm..." />
+                                                        <div class="flex justify-end gap-sm border-t border-surface-container pt-sm">
+                                                            <x-ui.button variant="secondary" @click="openForeignModal = false">Hủy</x-ui.button>
+                                                            <x-ui.button type="submit">Lưu</x-ui.button>
+                                                        </div>
+                                                    </form>
                                                 </div>
-                                                <button type="button" @click="openForeignModal = false" class="text-gray-400 hover:text-gray-600">
-                                                    <span class="material-symbols-outlined">close</span>
-                                                </button>
                                             </div>
-
-                                            <form action="{{ route('payroll.records.update', $r->id) }}" method="POST" class="space-y-3 text-xs">
-                                                @csrf
-                                                <div class="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-amber-800 text-[11px]">
-                                                    <strong>Chờ BA chốt:</strong> cách tính lương buổi có GVNN chưa được xác nhận. Kế toán nhập tổng tiền cộng cho GV.
-                                                    Kỳ này có {{ (int) $r->foreign_teacher_sessions_count }} buổi GVNN cùng lớp.
-                                                </div>
-
-                                                <div>
-                                                    <label class="block font-bold text-gray-700 mb-1">Số tiền (VNĐ)</label>
-                                                    <input type="number" name="foreign_session_pay" value="{{ (int) $r->foreign_session_pay }}" min="0" step="1000" required class="w-full text-xs rounded-xl border-gray-200 p-2 font-mono font-bold">
-                                                </div>
-
-                                                <div>
-                                                    <label class="block font-bold text-gray-700 mb-1">Ghi chú</label>
-                                                    <textarea name="notes" rows="2" placeholder="Ghi chú thêm..." class="w-full text-xs rounded-xl border-gray-200 p-2">{{ $r->adjustment_notes }}</textarea>
-                                                </div>
-
-                                                <div class="flex items-center justify-end gap-2 pt-2 border-t">
-                                                    <button type="button" @click="openForeignModal = false" class="px-3 py-1.5 border rounded-lg text-gray-600 hover:bg-gray-50">Hủy</button>
-                                                    <button type="submit" class="px-4 py-1.5 bg-primary-container text-white font-bold rounded-lg shadow-sm hover:bg-primary-hover">Lưu</button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </div>
-                                    @endcan
+                                        @endcan
                                     @endif
-                                    <a href="{{ route('payroll.records.show', $r->id) }}" class="ml-1 px-2.5 py-1 text-[11px] font-bold rounded-lg border border-gray-300 hover:bg-gray-50 text-gray-700 transition inline-block">Phiếu</a>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="14" class="text-center py-8 text-gray-400 text-xs">Chưa có chi tiết lương nhân sự cho kỳ này.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
+                                    <x-ui.button variant="ghost" size="sm" icon="visibility" :href="route('payroll.records.show', $r->id)">Chi tiết</x-ui.button>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="15"><x-ui.empty-state icon="payments" title="Chưa có chi tiết lương" :description="$search || $type || $kpi ? 'Không có nhân sự khớp bộ lọc.' : 'Bấm “Đồng bộ & Tính lại” để tính lương cho kỳ này.'" /></td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+            <x-slot:footer><x-ui.pagination :paginator="$records" unit="nhân sự" /></x-slot:footer>
+        </x-ui.data-table>
     </div>
 </x-app-layout>

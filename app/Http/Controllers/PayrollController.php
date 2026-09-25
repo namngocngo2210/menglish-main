@@ -84,11 +84,38 @@ class PayrollController extends Controller
             ->with('status', "Đã khởi tạo và tự động tính toán bảng lương {$period->title} từ dữ liệu chấm công & hoa hồng!");
     }
 
-    public function showPeriod($id)
+    /**
+     * Danh sách bảng lương của một kỳ (mockup epic-7/danh-sach-bang-luong-theo-ky): chọn kỳ, tìm nhân sự,
+     * lọc loại nhân sự, trạng thái KPI từng người + cảnh báo còn người chưa chốt KPI trước khi chốt bảng lương.
+     */
+    public function showPeriod(Request $request, $id)
     {
         $period = PayrollPeriod::with(['records.user'])->where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $search = trim((string) $request->query('search', ''));
+        $type = in_array($request->query('type'), array_keys(PayrollRecord::SALARY_ROLE_LABELS), true) ? $request->query('type') : null;
+        $kpi = in_array($request->query('kpi'), ['done', 'pending'], true) ? $request->query('kpi') : null;
 
-        return view('payroll.show', compact('period'));
+        $filtered = $period->records
+            ->when($search !== '', fn ($rows) => $rows->filter(fn (PayrollRecord $r) => str_contains(
+                mb_strtolower(($r->user?->name ?? '').' '.($r->user?->email ?? '').' '.($r->user?->employee_code ?? '')),
+                mb_strtolower($search)
+            )))
+            ->when($type, fn ($rows) => $rows->where('salary_role', $type))
+            ->when($kpi, fn ($rows) => $rows->filter(fn (PayrollRecord $r) => $r->kpi_state[0] === $kpi))
+            ->sortBy(fn (PayrollRecord $r) => $r->user?->name)
+            ->values();
+
+        $perPage = $request->perPage(20);
+        $page = max(1, $request->integer('page', 1));
+        $records = new \Illuminate\Pagination\LengthAwarePaginator(
+            $filtered->forPage($page, $perPage)->values(), $filtered->count(), $perPage, $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
+        $kpiPending = $period->records->filter(fn (PayrollRecord $r) => $r->kpi_state[0] === 'pending')->values();
+        $allPeriods = PayrollPeriod::orderByDesc('year')->orderByDesc('month')->get(['id', 'code', 'title', 'month', 'year']);
+
+        return view('payroll.show', compact('period', 'records', 'kpiPending', 'allPeriods', 'search', 'type', 'kpi'));
     }
 
     /**
@@ -105,32 +132,60 @@ class PayrollController extends Controller
             ->orderBy('department')->orderBy('id')
             ->get();
 
+        $kpiSources = [PayrollRecord::KPI_RETENTION => 'Giữ học sinh', PayrollRecord::KPI_ACADEMIC => 'KPI Học vụ (tự động)', PayrollRecord::KPI_MANUAL => 'Nhập tự do'];
+        $lineText = fn (PayrollRecord $r, string $kind) => collect($r->manualLines($kind))
+            ->map(fn ($l) => $l['label'].': '.number_format($l['amount'], 0, ',', '.'))->implode('; ');
+
+        // Đủ mọi dòng của phiếu lương Q3 (cùng căn cứ với màn phiếu lương) để Kế toán đối chiếu Excel đang dùng.
         $rows = $records->map(fn (PayrollRecord $r) => [
             $r->user?->name ?? 'Chưa cập nhật',
+            $r->user?->employee_code,
             $r->user?->email,
             $departments[$r->department] ?? $r->department,
             $r->employee_type_label,
+            $r->salary_role_label,
             (float) $r->base_salary,
             (int) $r->teaching_sessions,
+            (float) $r->actual_hours,
             (float) $r->teaching_salary,
+            $kpiSources[$r->kpi_source] ?? '',
+            $r->kpi_state[1],
+            $r->kpi_source === PayrollRecord::KPI_RETENTION ? (int) $r->retention_students.'/'.(int) $r->retention_base_students : '',
+            $r->retention_tier !== null ? (float) $r->retention_tier : '',
+            $r->kpi_score !== null ? (float) $r->kpi_score : '',
             (float) $r->kpi_bonus,
+            (int) $r->foreign_teacher_sessions_count,
             (float) $r->foreign_session_pay,
+            (int) $r->commission_closed_count,
+            $r->commission_percent !== null ? (float) $r->commission_percent : '',
+            (float) $r->commission_base,
             (float) $r->commission_bonus,
             (float) $r->commission_deferred,
             (float) $r->renew_bonus,
+            $lineText($r, 'earning'),
             (float) $r->allowance + (float) $r->other_bonus,
+            (float) $r->gross_income,
             (float) $r->insurance_deduction,
             (float) $r->union_deduction,
             (float) $r->tax_deduction,
             (float) $r->penalty_deduction,
             (float) $r->commission_clawback,
+            $lineText($r, 'deduction'),
             (float) $r->other_deduction + (float) $r->foreign_teacher_deduction,
+            (float) $r->total_deductions,
             (float) $r->net_salary,
+            (string) $r->adjustment_notes,
         ])->all();
 
         return \App\Exports\ArrayExport::download(
             'bang-luong-'.\Illuminate\Support\Str::slug($period->code ?: $period->id).($department ? '-'.$department : ''),
-            ['Nhân sự', 'Email', 'Khối', 'Loại', 'Lương cơ bản', 'Số buổi', 'Lương buổi dạy', 'KPI', 'Buổi có GVNN (chờ BA)', 'Hoa hồng', 'Hoa hồng hoãn', 'Thưởng tái tục', 'Phụ cấp / cộng khác', 'BHXH', 'Công đoàn', 'Thuế TNCN', 'Phạt', 'Thu hồi hoa hồng', 'Khấu trừ khác', 'Thực lĩnh'],
+            [
+                'Nhân sự', 'Mã NV', 'Email', 'Khối', 'Loại', 'Vai trò lương', 'Lương cơ bản', 'Số buổi', 'Số giờ', 'Lương buổi dạy',
+                'Nguồn KPI', 'Trạng thái KPI', 'HS giữ được / đầu kỳ', 'Bậc KPI giữ HS (đ/HS)', 'Điểm KPI Học vụ (%)', 'KPI',
+                'Số buổi có GVNN', 'Buổi có GVNN (chờ BA)', 'Số HS chốt (hoa hồng)', '% hoa hồng', 'Căn cứ thực thu', 'Hoa hồng', 'Hoa hồng hoãn',
+                'Thưởng tái tục', 'Chi tiết cộng tự do', 'Phụ cấp / cộng khác', 'Tổng thu nhập',
+                'BHXH', 'Công đoàn', 'Thuế TNCN', 'Phạt', 'Thu hồi hoa hồng', 'Chi tiết trừ tự do', 'Khấu trừ khác', 'Tổng khấu trừ', 'Thực lĩnh', 'Ghi chú',
+            ],
             $rows,
             $request->query('format', 'xlsx')
         );

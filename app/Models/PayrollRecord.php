@@ -173,6 +173,33 @@ class PayrollRecord extends Model
         return self::SALARY_ROLE_LABELS[$this->salary_role] ?? ($this->employee_type_label);
     }
 
+    /**
+     * "Trạng thái KPI" trên danh sách bảng lương (mockup): KPI của phiếu đã được chốt chưa.
+     * Part-time: đã chọn bậc KPI giữ HS (không có HS đầu kỳ thì không áp dụng); Học vụ: đã có đánh giá KPI tháng
+     * được chốt; GV Full-time / Học thuật / Sale / khác: đã nhập KPI tự do (kể cả 0đ). Phiếu trước Q3: không áp dụng.
+     *
+     * @return array{0: string, 1: string} [done|pending|na, nhãn]
+     */
+    public function getKpiStateAttribute(): array
+    {
+        if (! $this->usesQ3Formula()) {
+            return ['na', 'Không áp dụng'];
+        }
+
+        $done = match ($this->kpi_source) {
+            self::KPI_RETENTION => (int) $this->retention_base_students === 0 ? null : $this->retention_tier !== null,
+            self::KPI_ACADEMIC => $this->kpi_score !== null,
+            self::KPI_MANUAL => $this->kpi_manual_amount !== null,
+            default => null,
+        };
+
+        return match ($done) {
+            true => ['done', 'Đã chốt KPI'],
+            false => ['pending', 'Chưa chốt KPI'],
+            default => ['na', 'Không áp dụng'],
+        };
+    }
+
     /** @return list<array{kind: string, label: string, amount: float}> */
     public function manualLines(?string $kind = null): array
     {

@@ -348,4 +348,62 @@ class Phase3MockupParityTest extends TestCase
         $this->assertEquals(0.5, $table[2]['percent']);
         $this->assertTrue($table[2]['pending']);
     }
+
+    private function period(int $month = 8, string $status = 'draft'): PayrollPeriod
+    {
+        return PayrollPeriod::create([
+            'code' => sprintf('PR-2026-%02d', $month), 'title' => "Bảng lương Tháng {$month}/2026", 'month' => $month, 'year' => 2026,
+            'start_date' => sprintf('2026-%02d-01', $month), 'end_date' => Carbon::create(2026, $month, 1)->endOfMonth()->toDateString(),
+            'status' => $status, 'calculated_at' => now(),
+        ]);
+    }
+
+    /** Màn "Danh sách bảng lương theo kỳ" (epic-7/danh-sach-bang-luong-theo-ky) + Excel đủ các dòng Q3. */
+    public function test_period_payroll_list_screen_matches_mockup(): void
+    {
+        $period = $this->period();
+        $this->period(7, 'paid');
+        \App\Models\PayrollRecord::create([
+            'payroll_period_id' => $period->id, 'user_id' => $this->teacher->id, 'department' => 'teacher', 'employee_type' => 'parttime',
+            'salary_role' => 'teacher_parttime', 'kpi_source' => 'retention', 'retention_base_students' => 10, 'retention_students' => 9,
+            'teaching_sessions' => 8, 'teaching_salary' => 2000000, 'net_salary' => 2000000,
+            'manual_lines' => [['kind' => 'earning', 'label' => 'Gửi xe', 'amount' => 100000]],
+        ]);
+        \App\Models\PayrollRecord::create([
+            'payroll_period_id' => $period->id, 'user_id' => $this->academicStaff->id, 'department' => 'operations', 'employee_type' => 'fulltime',
+            'salary_role' => 'academic_staff', 'kpi_source' => 'academic_kpi', 'kpi_score' => 82.5, 'base_salary' => 8000000, 'net_salary' => 8000000,
+        ]);
+
+        $this->actingAs($this->admin)->get(route('payroll.periods.show', $period->id))
+            ->assertOk()
+            ->assertSee('Danh sách bảng lương theo kỳ')
+            ->assertSee('Chốt bảng lương')->assertSee('Đánh dấu đã trả')
+            ->assertSee('Kỳ lương')->assertSee('Tháng 07/2026')
+            ->assertSee('Tìm giáo viên / nhân sự...')
+            ->assertSee('Chưa thể chốt bảng lương kỳ 08/2026 do: Còn 1 nhân sự chưa chốt KPI')
+            ->assertSeeInOrder(['Tên giáo viên / nhân sự', 'Trạng thái bảng lương', 'Trạng thái KPI'])
+            ->assertSee('Thực nhận')
+            ->assertSee('Chưa chốt KPI')->assertSee('Đã chốt KPI')
+            ->assertSee('Đang tính')
+            ->assertSee('Chi tiết');
+
+        $this->actingAs($this->admin)->get(route('payroll.periods.show', [$period->id, 'search' => 'GV-0492']))
+            ->assertViewHas('records', fn ($p) => $p->total() === 1);
+        $this->actingAs($this->admin)->get(route('payroll.periods.show', [$period->id, 'kpi' => 'done']))
+            ->assertViewHas('records', fn ($p) => $p->total() === 1 && $p->first()->user_id === $this->academicStaff->id);
+
+        $this->actingAs($this->admin)->get(route('payroll.periods.index'))
+            ->assertOk()->assertSee('Danh sách bảng lương theo kỳ')->assertSee('2 kỳ lương')->assertSee('Đã trả');
+
+        // Xuất Excel có đủ các dòng mới của phiếu lương Q3.
+        $response = $this->actingAs($this->admin)->get(route('payroll.periods.export', [$period->id, 'format' => 'csv']));
+        $csv = file_get_contents($response->baseResponse->getFile()->getPathname());
+        foreach (['Mã NV', 'Trạng thái KPI', 'HS giữ được / đầu kỳ', 'Bậc KPI giữ HS', 'Điểm KPI Học vụ', 'Buổi có GVNN', '% hoa hồng',
+            'Hoa hồng hoãn', 'Thưởng tái tục', 'Chi tiết cộng tự do', 'Công đoàn', 'Thuế TNCN', 'Thu hồi hoa hồng', 'Tổng khấu trừ', 'Thực lĩnh'] as $heading) {
+            $this->assertStringContainsString($heading, $csv);
+        }
+        $this->assertStringContainsString('GV-0492', $csv);
+        $this->assertStringContainsString('9/10', $csv);
+        $this->assertStringContainsString('Gửi xe: 100.000', $csv);
+    }
 }
