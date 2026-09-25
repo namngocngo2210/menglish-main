@@ -7,14 +7,14 @@ use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 /**
- * Chăm sóc học viên tháng đầu: tạo việc cho Học vụ chi nhánh ở ngày 3/7/14/30 sau khi học viên
- * bắt đầu học. Chạy hằng ngày, idempotent (chạy lại không tạo trùng).
+ * Chăm sóc học viên tháng đầu (3 mốc gate hoa hồng A6): tạo việc cho Học vụ chi nhánh sau buổi có mặt đầu tiên,
+ * sau buổi có mặt thứ 4 (Buổi 4–5) và khi đủ 30 ngày từ ngày chốt. Chạy hằng ngày, idempotent.
  */
 class ScheduleFirstMonthCareCommand extends Command
 {
     protected $signature = 'students:schedule-first-month-care {--date= : Ngày xử lý Y-m-d}';
 
-    protected $description = 'Tạo việc chăm sóc tháng đầu (ngày 3/7/14/30) cho Học vụ chi nhánh';
+    protected $description = 'Tạo việc chăm sóc tháng đầu (Buổi 1, Buổi 4–5, Đủ 30 ngày) cho Học vụ chi nhánh';
 
     public function handle(FirstMonthCareService $care): int
     {

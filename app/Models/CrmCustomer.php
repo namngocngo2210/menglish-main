@@ -59,13 +59,26 @@ class CrmCustomer extends Model
         'course_interest' => 'Khóa học đăng ký',
     ];
 
-    /** Checklist chăm sóc tháng đầu cho khách đã chốt (mockup Chi tiết khách). */
+    /**
+     * Checklist chăm sóc tháng đầu cho khách đã chốt — 3 mốc của gate hoa hồng A6 (tick đủ 3/3):
+     * Buổi 1, Buổi 4–5, Đủ 30 ngày (xem FirstMonthCareService).
+     */
     public const CARE_CHECKLIST_ITEMS = [
-        'welcome_call' => 'Gọi chào mừng, xác nhận lịch học buổi đầu',
-        'first_session_feedback' => 'Hỏi phản hồi sau buổi học đầu tiên',
-        'week2_parent_update' => 'Trao đổi với phụ huynh sau 2 tuần',
-        'materials_check' => 'Kiểm tra đã nhận đủ giáo trình / tài khoản học',
-        'month_end_review' => 'Đánh giá cuối tháng đầu, ghi nhận mức độ hài lòng',
+        'session_1' => 'Buổi 1 — Hỏi phản hồi sau buổi học đầu tiên',
+        'session_4_5' => 'Buổi 4–5 — Trao đổi tiến độ với phụ huynh',
+        'day_30' => 'Đủ 30 ngày — Đánh giá cuối tháng đầu, mức độ hài lòng',
+    ];
+
+    /**
+     * Khóa checklist cũ (5 mục, trước 01/10/2026) → mốc mới; null = bỏ (không thuộc gate A6). Migration
+     * `2026_10_01_100300_rework_first_month_care_milestones` chuyển dữ liệu theo bảng này.
+     */
+    public const LEGACY_CARE_CHECKLIST_MAP = [
+        'welcome_call' => null,
+        'first_session_feedback' => 'session_1',
+        'materials_check' => null,
+        'week2_parent_update' => 'session_4_5',
+        'month_end_review' => 'day_30',
     ];
 
     /** Nguồn khách mặc định theo mockup Thêm khách mới (khi chưa cấu hình danh mục "lead_source"). */

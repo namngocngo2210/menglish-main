@@ -18,6 +18,7 @@ use App\Models\StudentAttendance;
 use App\Models\SupportSession;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\FirstMonthCareService;
 use App\Services\SupportListService;
 use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
@@ -333,33 +334,88 @@ class Phase2AttendanceTest extends TestCase
 
     // ── 6. Chăm sóc tháng đầu & sinh nhật ─────────────────────────────────
 
-    public function test_first_month_care_tasks_are_created_on_milestones_and_sync_crm_checklist(): void
+    public function test_first_month_care_tasks_follow_a6_commission_milestones_and_sync_crm_checklist(): void
     {
-        $first = $this->makeSession('2026-10-04');
-        StudentAttendance::create(['class_id' => $this->classModel->id, 'class_session_id' => $first->id, 'student_id' => $this->student->id,
-            'session_date' => '2026-10-04', 'status' => 'present']);
+        // A6: 3 mốc chăm sóc = Buổi 1, Buổi 4–5, Đủ 30 ngày (từ ngày chốt).
         $customer = CrmCustomer::create(['code' => CrmCustomer::generateCode(), 'name' => 'KH chốt', 'phone' => '0901234567',
-            'phone_normalized' => '0901234567', 'branch_id' => $this->branch->id, 'stage' => 'won', 'converted_student_id' => $this->student->id]);
+            'phone_normalized' => '0901234567', 'branch_id' => $this->branch->id, 'stage' => 'won', 'converted_student_id' => $this->student->id,
+            'converted_at' => '2026-09-20 09:00:00']);
+        $attend = function (string $date, string $status = 'present') {
+            $session = $this->makeSession($date);
+            StudentAttendance::create(['class_id' => $this->classModel->id, 'class_session_id' => $session->id, 'student_id' => $this->student->id,
+                'session_date' => $date, 'status' => $status]);
+        };
+        $attend('2026-09-28');
+        $attend('2026-09-30', 'late');
+        $attend('2026-10-02', 'absent');
+        $attend('2026-10-05');
 
-        $this->artisan('students:schedule-first-month-care', ['--date' => '2026-10-07'])->assertExitCode(0);
-        $this->artisan('students:schedule-first-month-care', ['--date' => '2026-10-07'])->assertExitCode(0);
-
+        // Sau buổi có mặt đầu tiên → mốc "Buổi 1" (hạn = hôm sau). Chạy lại không tạo trùng.
+        $this->artisan('students:schedule-first-month-care', ['--date' => '2026-09-29'])->assertExitCode(0);
+        $this->artisan('students:schedule-first-month-care', ['--date' => '2026-09-29'])->assertExitCode(0);
         $task = WorkTask::sole();
-        $this->assertSame(3, (int) $task->care_milestone);
+        $this->assertSame(FirstMonthCareService::MILESTONE_SESSION_1, (int) $task->care_milestone);
+        $this->assertStringContainsString('Buổi 1', $task->title);
         $this->assertSame($this->academicStaff->id, (int) $task->assignee_id);
         $this->assertSame($this->manager->id, (int) $task->creator_id);
-        $this->assertSame('2026-10-07', $task->due_date->toDateString());
+        $this->assertSame('2026-09-29', $task->due_date->toDateString());
         $this->assertTrue(AdminNotification::where('user_id', $this->academicStaff->id)->exists());
 
-        $this->artisan('students:schedule-first-month-care', ['--date' => '2026-10-11']);
-        $this->assertSame([3, 7], WorkTask::orderBy('care_milestone')->pluck('care_milestone')->map(fn ($d) => (int) $d)->all());
+        // Mới có 3 buổi có mặt (vắng không tính) → chưa tới mốc Buổi 4–5; chưa đủ 30 ngày từ ngày chốt.
+        $this->artisan('students:schedule-first-month-care', ['--date' => '2026-10-06']);
+        $this->assertSame(1, WorkTask::count());
+        $attend('2026-10-07');
+        $this->artisan('students:schedule-first-month-care', ['--date' => '2026-10-07']);
+        $second = WorkTask::where('care_milestone', FirstMonthCareService::MILESTONE_SESSION_4_5)->sole();
+        $this->assertSame('2026-10-08', $second->due_date->toDateString());
 
+        // Đủ 30 ngày từ ngày chốt (20/09 → 20/10).
+        $this->artisan('students:schedule-first-month-care', ['--date' => '2026-10-20']);
+        $this->assertSame([1, 4, 30], WorkTask::orderBy('care_milestone')->pluck('care_milestone')->map(fn ($d) => (int) $d)->all());
+        $this->assertSame('2026-10-20', WorkTask::where('care_milestone', 30)->value('due_date')->toDateString());
+
+        // Tick: hoàn thành việc → tự tick checklist CRM; hoặc tick thẳng ở checklist CRM.
+        $care = app(FirstMonthCareService::class);
+        $this->assertSame(0, $care->careMilestonesCompleted($this->student));
         $task->update(['status' => 'completed', 'completed_at' => now()]);
-        $this->assertNotEmpty($customer->fresh()->care_checklist['first_session_feedback'] ?? null);
+        $this->assertNotEmpty($customer->fresh()->care_checklist['session_1'] ?? null);
+        $this->assertSame(1, $care->careMilestonesCompleted($customer->fresh()));
+
+        $this->actingAs($this->manager)->post(route('crm.customers.care-checklist', $customer), ['items' => ['session_1', 'day_30']])->assertRedirect();
+        $this->assertSame(2, $care->careMilestonesCompleted($this->student));
+        $second->update(['status' => 'completed', 'completed_at' => now()]);
+        $this->assertSame(3, $care->careMilestonesCompleted($this->student));
 
         $this->actingAs($this->academicStaff)->get(route('students.show', $this->student->id))
-            ->assertOk()->assertSee('Chăm sóc tháng đầu')->assertSee('Bắt đầu học')->assertSee('04/10/2026')
-            ->assertSee('Hỏi phản hồi sau buổi học đầu tiên');
+            ->assertOk()->assertSee('Chăm sóc tháng đầu')->assertSee('3/3 mốc')->assertSee('Ngày chốt')->assertSee('20/09/2026')
+            ->assertSee('Buổi 1 — Hỏi phản hồi sau buổi học đầu tiên')->assertSee('Buổi 4–5')->assertSee('Đủ 30 ngày');
+    }
+
+    public function test_first_month_care_migration_maps_legacy_checklist_and_task_milestones(): void
+    {
+        $migration = require database_path('migrations/2026_10_01_100300_rework_first_month_care_milestones.php');
+        $customer = CrmCustomer::create(['code' => CrmCustomer::generateCode(), 'name' => 'KH cũ', 'phone' => '0901234568',
+            'phone_normalized' => '0901234568', 'branch_id' => $this->branch->id, 'stage' => 'won', 'converted_student_id' => $this->student->id]);
+        $done = ['done_at' => '2026-09-01 10:00:00', 'by' => 'Học vụ'];
+        \Illuminate\Support\Facades\DB::table('crm_customers')->where('id', $customer->id)->update(['care_checklist' => json_encode([
+            'welcome_call' => $done, 'first_session_feedback' => $done, 'week2_parent_update' => null, 'materials_check' => $done, 'month_end_review' => $done,
+        ])]);
+        foreach ([3, 7, 14] as $day) {
+            WorkTask::create(['title' => "Chăm sóc ngày {$day}", 'creator_id' => $this->manager->id, 'assignee_id' => $this->academicStaff->id,
+                'student_id' => $this->student->id, 'care_milestone' => $day, 'task_type' => 'one_time', 'status' => 'new', 'due_date' => '2026-09-10']);
+        }
+
+        $migration->up();
+
+        $state = $customer->fresh()->care_checklist;
+        $this->assertSame(['session_1', 'session_4_5', 'day_30'], array_keys($state));
+        $this->assertNotNull($state['session_1']);
+        $this->assertNull($state['session_4_5']);
+        $this->assertNotNull($state['day_30']);
+        $this->assertTrue(\App\Models\CrmCustomerHistory::where('customer_id', $customer->id)->where('type', 'care')->where('content', 'like', '%Kiểm tra đã nhận đủ giáo trình%')->exists());
+        $this->assertSame([1, 4], WorkTask::whereNotNull('care_milestone')->orderBy('care_milestone')->pluck('care_milestone')->map(fn ($m) => (int) $m)->all());
+        $this->assertSame(1, WorkTask::whereNull('care_milestone')->where('title', 'Chăm sóc ngày 7')->count());
+        $this->assertSame(2, app(FirstMonthCareService::class)->careMilestonesCompleted($customer->fresh()));
     }
 
     public function test_birthday_skips_dropped_students_and_alerts_teacher_and_academic_staff(): void

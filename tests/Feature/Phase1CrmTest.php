@@ -351,16 +351,16 @@ class Phase1CrmTest extends TestCase
     {
         $open = $this->lead('consulting');
         $this->actingAs($this->sales)->get(route('crm.customers.show', $open))->assertDontSee('Chăm sóc tháng đầu');
-        $this->actingAs($this->sales)->post(route('crm.customers.care-checklist', $open), ['items' => ['welcome_call']])->assertSessionHasErrors('care');
+        $this->actingAs($this->sales)->post(route('crm.customers.care-checklist', $open), ['items' => ['session_1']])->assertSessionHasErrors('care');
 
         $won = $this->lead('won', attributes: ['converted_student_id' => $this->student()->id]);
-        $this->actingAs($this->sales)->get(route('crm.customers.show', $won))->assertOk()->assertSee('Chăm sóc tháng đầu')->assertSee(CrmCustomer::CARE_CHECKLIST_ITEMS['welcome_call']);
+        $this->actingAs($this->sales)->get(route('crm.customers.show', $won))->assertOk()->assertSee('Chăm sóc tháng đầu')->assertSee(CrmCustomer::CARE_CHECKLIST_ITEMS['session_1']);
 
-        $this->actingAs($this->sales)->post(route('crm.customers.care-checklist', $won), ['items' => ['welcome_call', 'first_session_feedback'], 'note' => 'PH hài lòng'])
+        $this->actingAs($this->sales)->post(route('crm.customers.care-checklist', $won), ['items' => ['session_1', 'session_4_5'], 'note' => 'PH hài lòng'])
             ->assertRedirect(route('crm.customers.show', $won));
         $state = $won->fresh()->care_checklist;
-        $this->assertNotNull($state['welcome_call']['done_at']);
-        $this->assertNull($state['month_end_review']);
+        $this->assertNotNull($state['session_1']['done_at']);
+        $this->assertNull($state['day_30']);
         $this->assertDatabaseHas('crm_customer_histories', ['customer_id' => $won->id, 'type' => 'care']);
 
         $this->actingAs($this->sales)->post(route('crm.customers.care-checklist', $won), ['items' => ['bogus']])->assertSessionHasErrors('items.0');
