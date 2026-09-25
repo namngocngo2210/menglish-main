@@ -355,14 +355,25 @@ class PayrollController extends Controller
         return view('payroll.operations', compact('period', 'records'));
     }
 
-    public function manualTimesheet()
+    public function manualTimesheet(Request $request)
     {
-        // Chỉ liệt kê lớp đang/opening và nhân sự giảng dạy — User::all() trước đây
+        // Chỉ liệt kê lớp đang/opening trong phạm vi người chấm và nhân sự giảng dạy — User::all() trước đây
         // đưa cả học viên vào dropdown chấm công.
-        $classes = ClassModel::whereIn('status', ['active', 'upcoming', 'pending_schedule'])->orderBy('name')->get();
+        $classes = ClassModel::with('branch')->visibleTo($request->user())
+            ->whereIn('status', ['active', 'upcoming', 'pending_schedule'])->orderBy('name')->get();
         $teachers = $this->teachingStaff();
+        $branches = $classes->pluck('branch')->filter()->unique('id')->sortBy('name')->values();
 
-        return view('payroll.timesheets-manual', compact('classes', 'teachers'));
+        // Khoảng ngày của các kỳ lương đã duyệt/đã chi trả: màn hình cảnh báo và khóa nút lưu ngay khi chọn ngày.
+        $lockedRanges = PayrollPeriod::whereIn('status', PayrollPeriod::LOCKED_STATUSES)
+            ->get(['start_date', 'end_date', 'title'])
+            ->map(fn (PayrollPeriod $p) => [
+                'from' => Carbon::parse($p->start_date)->toDateString(),
+                'to' => Carbon::parse($p->end_date)->toDateString(),
+                'title' => $p->title,
+            ])->values();
+
+        return view('payroll.timesheets-manual', compact('classes', 'teachers', 'branches', 'lockedRanges'));
     }
 
     /**
@@ -373,6 +384,7 @@ class PayrollController extends Controller
     {
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
+            'branch_id' => 'nullable|exists:branches,id',
             'class_id' => 'required|exists:classes,id',
             'teaching_date' => 'required|date',
             'time_in' => ['required', 'date_format:H:i'],
@@ -395,6 +407,11 @@ class PayrollController extends Controller
             403,
             'Lớp này nằm ngoài phạm vi bạn được chấm công.'
         );
+
+        if (filled($validated['branch_id'] ?? null)
+            && (int) ClassModel::whereKey($validated['class_id'])->value('branch_id') !== (int) $validated['branch_id']) {
+            throw ValidationException::withMessages(['class_id' => 'Lớp đã chọn không thuộc chi nhánh đã chọn.']);
+        }
 
         if (PayrollPeriod::isLockedFor($validated['teaching_date'])) {
             return $this->rejectLockedDate('teaching_date', $validated['teaching_date']);
