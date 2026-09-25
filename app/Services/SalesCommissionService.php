@@ -57,7 +57,7 @@ class SalesCommissionService
     {
         $owners = $this->studentOwners($userId, $customerScope);
         if ($owners->isEmpty()) {
-            return collect();
+            return (new TuitionReceipt)->newCollection();
         }
 
         $tuitions = StudentTuition::whereIn('student_id', $owners->keys())

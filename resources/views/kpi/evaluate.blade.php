@@ -19,6 +19,10 @@
             <div class="rounded-xl bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 text-sm font-medium">{{ $errors->first() }}</div>
         @endif
 
+        @if ($isSelf ?? false)
+            <x-ui.alert type="warning" title="Không tự chấm KPI">Bạn đang xem phiếu KPI của chính mình — việc chấm điểm do cấp quản lý thực hiện.</x-ui.alert>
+        @endif
+
         @if ($criteria->isEmpty())
             <div class="bg-white rounded-2xl p-10 border border-gray-200 shadow-sm text-center text-gray-500">
                 <span class="material-symbols-outlined text-4xl text-gray-300">tune</span>
@@ -64,9 +68,11 @@
                     @if ($evaluation)
                         <span class="text-sm text-gray-500">Điểm tổng hiện tại: <span class="font-black text-primary">{{ rtrim(rtrim(number_format($evaluation->total_score,2),'0'),'.') }}%</span></span>
                     @else <span></span> @endif
+                    @unless ($isSelf ?? false)
                     <button type="submit" class="px-6 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
                         <span class="material-symbols-outlined text-[18px]">save</span> Lưu đánh giá
                     </button>
+                    @endunless
                 </div>
             </form>
         @endif

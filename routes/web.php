@@ -281,6 +281,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/periods/{id}/academic', [PayrollController::class, 'academicPeriod'])->middleware('can:payroll.view')->name('periods.academic');
         Route::get('/periods/{id}/operations', [PayrollController::class, 'operationsPeriod'])->middleware('can:payroll.view')->name('periods.operations');
         Route::post('/records/{id}/update', [PayrollController::class, 'updateRecord'])->middleware('can:payroll.edit')->name('records.update');
+        Route::get('/records/{id}', [PayrollController::class, 'showRecord'])->whereNumber('id')->middleware('can:payroll.view')->name('records.show');
+        Route::post('/records/{id}/adjust', [PayrollController::class, 'adjustRecord'])->whereNumber('id')->middleware('can:payroll.edit')->name('records.adjust');
         Route::get('/timesheets/appsheet', [PayrollController::class, 'appsheetTimesheet'])->middleware('can:attendance_staff.view')->name('timesheets.appsheet');
         Route::get('/timesheets/manual', [PayrollController::class, 'manualTimesheet'])->middleware('can:attendance_staff.manual_record')->name('timesheets.manual');
         Route::post('/timesheets/manual', [PayrollController::class, 'storeTimesheet'])->middleware('can:attendance_staff.manual_record')->name('timesheets.manual.store');

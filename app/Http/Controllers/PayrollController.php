@@ -158,6 +158,74 @@ class PayrollController extends Controller
         return redirect()->back()->with('status', 'Đã cập nhật điều chỉnh và tính lại lương thực lĩnh.');
     }
 
+    /**
+     * Phiếu lương một người: toàn bộ khoản cộng / khoản trừ của một bản ghi lương,
+     * kèm căn cứ (ca dạy, biên bản phạt, phiếu thu tính hoa hồng, thu hồi hoa hồng).
+     */
+    public function showRecord(int $id)
+    {
+        $record = PayrollRecord::with(['user.roles', 'period'])->findOrFail($id);
+        $period = $record->period;
+
+        $timesheets = TeacherTimesheet::with('classModel')
+            ->where('user_id', $record->user_id)
+            ->whereBetween('teaching_date', [$period->start_date, $period->end_date])
+            ->where('status', 'valid')
+            ->orderBy('teaching_date')
+            ->get();
+        $penalties = Penalty::where('payroll_record_id', $record->id)->orderBy('due_date')->get();
+        $clawbacks = CommissionAdjustment::with('student')->where('payroll_record_id', $record->id)->get();
+        $commissionReceipts = app(SalesCommissionService::class)
+            ->commissionableReceipts($period->start_date, $period->end_date, $record->user_id)
+            ->load('student');
+
+        return view('payroll.record-show', compact('record', 'period', 'timesheets', 'penalties', 'clawbacks', 'commissionReceipts'));
+    }
+
+    /**
+     * Kế toán điều chỉnh tay các khoản trên phiếu lương khi kỳ chưa duyệt. Các khoản này
+     * được giữ lại khi "Đồng bộ & Tính lại".
+     */
+    public function adjustRecord(Request $request, int $id)
+    {
+        $record = PayrollRecord::with('period')->findOrFail($id);
+        abort_if($record->isLocked(), 422, 'Không thể sửa phiếu lương của kỳ đã duyệt/đã chi trả.');
+
+        $validated = $request->validate([
+            'allowance_override' => ['nullable', 'numeric', 'min:0'],
+            'other_bonus' => ['nullable', 'numeric', 'min:0'],
+            'other_deduction' => ['nullable', 'numeric', 'min:0'],
+            'adjustment_notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+        if (((float) ($validated['other_bonus'] ?? 0) > 0 || (float) ($validated['other_deduction'] ?? 0) > 0)
+            && blank($validated['adjustment_notes'] ?? null)) {
+            throw ValidationException::withMessages(['adjustment_notes' => 'Vui lòng ghi rõ lý do khi cộng/trừ khoản khác.']);
+        }
+
+        $before = $record->only(['allowance', 'allowance_override', 'other_bonus', 'other_deduction', 'adjustment_notes', 'net_salary']);
+
+        $record->allowance_override = $validated['allowance_override'] ?? null;
+        if ($record->allowance_override !== null) {
+            $record->allowance = $record->allowance_override;
+        } elseif ($before['allowance_override'] !== null) {
+            // Bỏ điều chỉnh tay → trở về phụ cấp theo cấu hình
+            $record->allowance = (float) $record->base_salary > 0 ? PayrollPeriod::payrollSettings()['allowance_amount'] : 0;
+        }
+        $record->other_bonus = $validated['other_bonus'] ?? 0;
+        $record->other_deduction = $validated['other_deduction'] ?? 0;
+        $record->adjustment_notes = $validated['adjustment_notes'] ?? null;
+        $record->calculateNetSalary();
+        $record->save();
+        $record->period->refreshTotals();
+
+        activity('payroll_record')->causedBy($request->user())->performedOn($record)
+            ->withProperties(['before' => $before, 'after' => $record->only(array_keys($before))])
+            ->log('Điều chỉnh phiếu lương '.$record->user?->name.' — '.$record->period->title);
+
+        return redirect()->route('payroll.records.show', $record->id)
+            ->with('status', 'Đã lưu điều chỉnh phiếu lương — thực lĩnh mới '.number_format((float) $record->net_salary, 0, ',', '.').'đ.');
+    }
+
     public function fulltimePeriod($id)
     {
         $period = PayrollPeriod::with(['records.user'])->where('id', $id)->orWhere('code', $id)->firstOrFail();

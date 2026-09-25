@@ -153,7 +153,7 @@
                                             {{ Str::substr($r->user?->name ?? 'U', 0, 1) }}
                                         </div>
                                         <div>
-                                            <p class="text-xs font-bold text-gray-900">{{ $r->user?->name }}</p>
+                                            <a href="{{ route('payroll.records.show', $r->id) }}" class="text-xs font-bold text-gray-900 hover:text-orange-600 hover:underline" title="Xem phiếu lương">{{ $r->user?->name }}</a>
                                             <p class="text-[10px] text-gray-400 font-mono">{{ $r->user?->email }}</p>
                                         </div>
                                     </div>
@@ -164,7 +164,7 @@
                                 <td class="py-3.5 px-4 text-right font-mono text-amber-600 font-semibold">{{ number_format($r->kpi_bonus) }}đ</td>
                                 <td class="py-3.5 px-4 text-right font-mono">{{ number_format($r->allowance) }}đ</td>
                                 <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">
-                                    {{ number_format($r->commission_bonus + $r->renew_bonus) }}đ
+                                    {{ number_format($r->commission_bonus) }}đ
                                 </td>
                                 <td class="py-3.5 px-4 text-right font-mono text-rose-600">
                                     <div>-{{ number_format($r->total_deductions) }}đ</div>
