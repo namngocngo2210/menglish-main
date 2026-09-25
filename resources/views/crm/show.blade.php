@@ -304,7 +304,7 @@
 
     <!-- Enter / Edit Test Score Modal -->
     <div id="editTestScoreModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border border-gray-200 max-h-[92vh] overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border border-gray-200 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center pb-2 border-b border-gray-100">
                 <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary-container">military_tech</span>

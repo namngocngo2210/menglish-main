@@ -109,10 +109,10 @@
             <div class="p-2.5 rounded-xl border {{ $skillStyles[$skill] }} space-y-1">
                 <label class="block text-[10px] font-black uppercase tracking-wide">
                     {{ $label }} <span class="font-mono" x-text="'/' + max('{{ $skill }}')"></span>
-                    @if ($skill === 'speaking')<span class="normal-case font-semibold text-[10px] block text-gray-500">Luôn nhập tay</span>@endif
+                    @if ($skill === 'speaking')<span class="font-semibold text-[10px] block text-gray-500">Luôn nhập tay</span>@endif
                 </label>
                 <input type="number" step="0.5" min="0" :max="max('{{ $skill }}')" name="{{ $skill }}_score" x-model="scores.{{ $skill }}" required
-                       :class="overMax('{{ $skill }}') ? 'border-rose-400 ring-2 ring-rose-100' : 'border-gray-200'"
+                       :class="overMax('{{ $skill }}') ? 'border-rose-300 ring-2' : 'border-gray-200'"
                        class="w-full text-center font-mono font-black text-base rounded-lg border bg-white p-1.5 shadow-2xs" />
                 @error($skill.'_score')<p class="text-rose-600">{{ $message }}</p>@enderror
             </div>

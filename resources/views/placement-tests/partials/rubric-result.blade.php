@@ -20,7 +20,7 @@
 <div class="space-y-3 text-xs" data-testid="rubric-result">
     <div class="p-4 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl flex items-center justify-between gap-4 flex-wrap">
         <div class="flex items-center gap-3">
-            <div class="min-w-[3.5rem] h-12 px-2 rounded-xl bg-primary-container text-white flex flex-col items-center justify-center font-black shadow-sm">
+            <div class="w-14 h-12 px-1 rounded-xl bg-primary-container text-white flex flex-col items-center justify-center font-black shadow-sm">
                 @if ($rubric && ! $rubric['legacy'])
                     <span class="text-sm leading-none">{{ $fmt($rubric['total']) }}</span>
                     <span class="text-[9px] tracking-wider font-semibold opacity-90">/ {{ $rubric['max_total'] }}</span>
