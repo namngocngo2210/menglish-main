@@ -137,7 +137,7 @@ class BigTest extends Model
             return false;
         }
 
-        if ($user->can('syllabus.approve_adjustment')) {
+        if ($user->can('big_test.approve')) {
             return true;
         }
 

@@ -112,7 +112,7 @@
                             <td class="font-mono font-bold text-tertiary">{{ $bt->passcodeVisibleTo(auth()->user()) ? $bt->passcode : '••••••' }}</td>
                             <td class="text-right">
                                 <div class="flex items-center justify-end gap-2">
-                                    @can('syllabus.approve_adjustment')
+                                    @can('syllabus.manage')
                                         <form action="{{ route('syllabus.big-tests.remind', $bt->id) }}" method="POST" class="inline" data-confirm="Gửi nhắc lịch {{ $bt->title }} tới toàn bộ học viên của lớp {{ $bt->classModel?->name }}?">
                                             @csrf
                                             <x-ui.button type="submit" size="sm" variant="secondary" icon="notifications_active" title="Gửi thông báo nhắc lịch vào Cổng PH/HS">Nhắc lịch</x-ui.button>

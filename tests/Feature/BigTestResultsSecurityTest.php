@@ -21,6 +21,9 @@ class BigTestResultsSecurityTest extends TestCase
 
     private User $manager;
 
+    /** Học thuật: người duyệt kết quả / gửi phụ huynh (big_test.approve). */
+    private User $lead;
+
     private User $teacherA;
 
     private User $teacherB;
@@ -47,6 +50,8 @@ class BigTestResultsSecurityTest extends TestCase
         $branch = Branch::create(['name' => 'Cầu Giấy', 'code' => 'CG-BTS', 'is_active' => true]);
         $this->manager = User::factory()->create(['is_active' => true, 'branch_id' => $branch->id]);
         $this->manager->assignRole('manager');
+        $this->lead = User::factory()->create(['is_active' => true, 'branch_id' => $branch->id]);
+        $this->lead->assignRole('academic_lead');
         $this->teacherA = User::factory()->create(['is_active' => true, 'branch_id' => $branch->id]);
         $this->teacherA->assignRole('teacher');
         $this->teacherB = User::factory()->create(['is_active' => true, 'branch_id' => $branch->id]);
@@ -129,7 +134,7 @@ class BigTestResultsSecurityTest extends TestCase
 
     public function test_academic_role_can_grade_any_class(): void
     {
-        $this->actingAs($this->manager)
+        $this->actingAs($this->lead)
             ->post(route('syllabus.big-tests.results.store', $this->testB->id), ['results' => [$this->scoreRow($this->studentB)]])
             ->assertRedirect();
         $this->assertDatabaseHas('big_test_results', ['student_id' => $this->studentB->id]);
@@ -144,7 +149,7 @@ class BigTestResultsSecurityTest extends TestCase
         $response->assertSee('[BT-A]', false);
         $response->assertDontSee('[BT-B]', false);
 
-        $this->actingAs($this->manager)->get(route('syllabus.big-tests.results'))
+        $this->actingAs($this->lead)->get(route('syllabus.big-tests.results'))
             ->assertOk()->assertSee('[BT-A]', false)->assertSee('[BT-B]', false);
     }
 
@@ -175,7 +180,7 @@ class BigTestResultsSecurityTest extends TestCase
         $alreadySent->update(['notified_at' => $sentAt]);
         $pending = $this->makeResult($this->testA, $this->studentA, 'approved');
 
-        $this->actingAs($this->manager)->post(route('syllabus.big-tests.send-zalo', $this->testA->id))
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-zalo', $this->testA->id))
             ->assertRedirect()
             ->assertSessionHas('status', fn ($msg) => str_contains($msg, '1'));
 
@@ -192,7 +197,7 @@ class BigTestResultsSecurityTest extends TestCase
         Http::fake(['*' => Http::response(['error' => -124, 'message' => 'Invalid'], 200)]);
         $result = $this->makeResult($this->testA, $this->studentA, 'approved');
 
-        $this->actingAs($this->manager)->post(route('syllabus.big-tests.send-zalo', $this->testA->id))
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-zalo', $this->testA->id))
             ->assertRedirect()
             ->assertSessionHas('warning');
 
@@ -284,7 +289,7 @@ class BigTestResultsSecurityTest extends TestCase
                 ->assertDontSee('PASS-BBBB')
                 ->assertDontSee($draftA->passcode);
 
-            $this->actingAs($this->manager)->get(route($route))
+            $this->actingAs($this->lead)->get(route($route))
                 ->assertOk()->assertSee('PASS-AAAA')->assertSee('PASS-BBBB')->assertSee('PASS-DRAFT');
         }
     }
@@ -303,7 +308,7 @@ class BigTestResultsSecurityTest extends TestCase
             ->assertDontSee(route('syllabus.big-tests.send-zalo', $this->testA->id))
             ->assertDontSee('/ 9.0');
 
-        $this->actingAs($this->manager)->get(route('syllabus.big-tests.results', $this->testA->id))
+        $this->actingAs($this->lead)->get(route('syllabus.big-tests.results', $this->testA->id))
             ->assertOk()
             ->assertSee(route('syllabus.big-tests.results.approve', $this->testA->id))
             ->assertSee(route('syllabus.big-tests.send-zalo', $this->testA->id));
@@ -313,7 +318,7 @@ class BigTestResultsSecurityTest extends TestCase
     {
         BigTest::query()->delete();
 
-        $this->actingAs($this->manager)->get(route('syllabus.big-tests.results'))
+        $this->actingAs($this->lead)->get(route('syllabus.big-tests.results'))
             ->assertOk()
             ->assertDontSee('action="#"', false);
     }

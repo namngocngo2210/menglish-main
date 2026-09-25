@@ -18,7 +18,7 @@
 
             <div class="flex flex-wrap items-center gap-2">
                 @if($test)
-                    @can('syllabus.approve_adjustment')
+                    @can('big_test.approve')
                         <form method="POST" action="{{ route('syllabus.big-tests.results.approve', $test->id) }}">@csrf
                             <x-ui.button type="submit" variant="secondary" icon="task_alt">Duyệt kết quả</x-ui.button>
                         </form>
@@ -124,7 +124,7 @@
                                 <span class="font-body-medium text-body-medium text-on-surface">{{ $selectedResult->approver?->name ?? auth()->user()->name.' (Bạn)' }}</span>
                             </div>
                         </div>
-                        @can('syllabus.approve_adjustment')
+                        @can('big_test.approve')
                             @if (in_array($selectedResult->status, ['pending_review', 'approved'], true) && ! $selectedResult->parent_notified)
                                 <form method="POST" action="{{ route('syllabus.big-tests.results.approve-send', $selectedResult->id) }}">
                                     @csrf
@@ -233,7 +233,7 @@
 
             @php($resultsByStudent = $results->keyBy('student_id'))
             @php($canGrade = $test && auth()->user()->can('syllabus.update'))
-            @php($canSend = $test && auth()->user()->can('syllabus.approve_adjustment'))
+            @php($canSend = $test && auth()->user()->can('big_test.approve'))
             @if ($canSend)
                 {{-- Form gửi từng học viên nằm ngoài form nhập điểm (không lồng form); nút bấm tham chiếu qua thuộc tính form= --}}
                 @foreach ($results as $res)

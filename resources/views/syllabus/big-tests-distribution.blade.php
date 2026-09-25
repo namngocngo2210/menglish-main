@@ -11,7 +11,7 @@
         </div>
     </x-slot>
 
-    @php($canReview = auth()->user()->can('syllabus.approve_adjustment'))
+    @php($canReview = auth()->user()->can('big_test.approve'))
 
     @can('syllabus.manage')
         <x-ui.modal name="new-big-test" title="Tạo đợt thi Big Test (bản nháp)" max-width="md">

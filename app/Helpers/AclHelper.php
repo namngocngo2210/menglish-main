@@ -19,6 +19,7 @@ class AclHelper
             'attendance_student' => '📅 Điểm Danh & Chuyên Cần Học Viên',
             'level' => '🏆 Khung Trình Độ & Cấp Độ Đào Tạo',
             'syllabus' => '📚 Giáo Trình, Unit & Đợt Thi Big Test',
+            'big_test' => '🧪 Duyệt Đề & Kết Quả Big Test (Học thuật)',
             'tuition' => '💰 Quản Lý Học Phí & Phiếu Thu',
             'invoice' => '🧾 Hóa Đơn Điện Tử & Hủy Hóa Đơn',
             'refund_transfer' => '🔄 Hoàn Phí, Khất Nợ & Chuyển Phí',

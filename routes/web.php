@@ -431,19 +431,19 @@ Route::middleware('auth')->group(function () {
         Route::get('/teaching-stages', [SyllabusController::class, 'teachingStages'])->name('teaching-stages');
         Route::post('/assignments/{id}/expected-big-test-date', [SyllabusController::class, 'updateExpectedBigTestDate'])->whereNumber('id')->name('assignments.expected-date');
         Route::get('/big-tests/distribution', [SyllabusController::class, 'bigTestDistribution'])->name('big-tests.distribution');
-        Route::post('/big-tests/{id}/stage', [SyllabusController::class, 'assignBigTestStage'])->whereNumber('id')->middleware('can:syllabus.approve_adjustment')->name('big-tests.stage');
+        Route::post('/big-tests/{id}/stage', [SyllabusController::class, 'assignBigTestStage'])->whereNumber('id')->middleware('can:big_test.approve')->name('big-tests.stage');
         Route::post('/big-tests/distribution', [SyllabusController::class, 'storeBigTest'])->middleware('can:syllabus.manage')->name('big-tests.store');
-        Route::post('/big-tests/{id}/approve', [SyllabusController::class, 'approveAndDistributeBigTest'])->middleware('can:syllabus.approve_adjustment')->name('big-tests.approve');
-        Route::post('/big-tests/orders/{id}/approve', [SyllabusController::class, 'approveBigTestOrder'])->whereNumber('id')->middleware('can:syllabus.approve_adjustment')->name('big-tests.orders.approve');
-        Route::post('/big-tests/orders/{id}/reject', [SyllabusController::class, 'rejectBigTestOrder'])->whereNumber('id')->middleware('can:syllabus.approve_adjustment')->name('big-tests.orders.reject');
+        Route::post('/big-tests/{id}/approve', [SyllabusController::class, 'approveAndDistributeBigTest'])->middleware('can:big_test.approve')->name('big-tests.approve');
+        Route::post('/big-tests/orders/{id}/approve', [SyllabusController::class, 'approveBigTestOrder'])->whereNumber('id')->middleware('can:big_test.approve')->name('big-tests.orders.approve');
+        Route::post('/big-tests/orders/{id}/reject', [SyllabusController::class, 'rejectBigTestOrder'])->whereNumber('id')->middleware('can:big_test.approve')->name('big-tests.orders.reject');
         Route::get('/big-tests/schedules', [SyllabusController::class, 'bigTestSchedules'])->name('big-tests.schedules');
-        Route::post('/big-tests/{id}/remind', [SyllabusController::class, 'sendBigTestReminder'])->middleware('can:syllabus.approve_adjustment')->name('big-tests.remind');
+        Route::post('/big-tests/{id}/remind', [SyllabusController::class, 'sendBigTestReminder'])->middleware('can:syllabus.manage')->name('big-tests.remind');
         Route::get('/big-tests/results/{id?}', [SyllabusController::class, 'bigTestResults'])->name('big-tests.results');
         Route::post('/big-tests/{id}/results', [SyllabusController::class, 'storeBigTestResults'])->middleware('can:syllabus.update')->name('big-tests.results.store');
-        Route::post('/big-tests/{id}/results/approve', [SyllabusController::class, 'approveBigTestResults'])->middleware('can:syllabus.approve_adjustment')->name('big-tests.results.approve');
-        Route::post('/big-tests/{id}/send-zalo', [SyllabusController::class, 'sendZaloResults'])->middleware('can:syllabus.approve_adjustment')->name('big-tests.send-zalo');
-        Route::post('/big-tests/results/{resultId}/send-single-zalo', [SyllabusController::class, 'sendSingleZaloResult'])->middleware('can:syllabus.approve_adjustment')->name('big-tests.send-single-zalo');
-        Route::post('/big-tests/results/{resultId}/approve-send', [SyllabusController::class, 'approveAndSendResult'])->whereNumber('resultId')->middleware('can:syllabus.approve_adjustment')->name('big-tests.results.approve-send');
+        Route::post('/big-tests/{id}/results/approve', [SyllabusController::class, 'approveBigTestResults'])->middleware('can:big_test.approve')->name('big-tests.results.approve');
+        Route::post('/big-tests/{id}/send-zalo', [SyllabusController::class, 'sendZaloResults'])->middleware('can:big_test.approve')->name('big-tests.send-zalo');
+        Route::post('/big-tests/results/{resultId}/send-single-zalo', [SyllabusController::class, 'sendSingleZaloResult'])->middleware('can:big_test.approve')->name('big-tests.send-single-zalo');
+        Route::post('/big-tests/results/{resultId}/approve-send', [SyllabusController::class, 'approveAndSendResult'])->whereNumber('resultId')->middleware('can:big_test.approve')->name('big-tests.results.approve-send');
     });
 
     // ─────────────────────────────────────────────
