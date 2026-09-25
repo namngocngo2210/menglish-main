@@ -68,9 +68,11 @@ return [
             'user.view', 'user.lock', 'user.reset_password', 'user.assign_role',
             'role.view',
             'lead.*', 'entrance_test.*', 'student.*', 'class.*', 'attendance_student.*',
+            'placement_test.view', 'placement_test.grade',
             'level.*', 'syllabus.*',
             'tuition.*', 'invoice.*', 'refund_transfer.*',
-            'payroll.*', 'kpi.*', 'teacher_rate.manage', 'commission_config.manage',
+            // Flow §15: chỉ Admin duyệt/chi trả lương; Kế toán tính & soát; Manager chỉ xem.
+            'payroll.view', 'payroll.view_own', 'kpi.*', 'teacher_rate.manage', 'commission_config.manage',
             'attendance_staff.view', 'attendance_staff.manual_record',
             'violation.*',
             'work_task.*', 'support_ticket.*', 'notification.*', 'survey.manage',
@@ -82,7 +84,7 @@ return [
         'accountant' => [
             'tuition.*', 'invoice.*', 'refund_transfer.*',
             'bank_account.manage', 'invoice_range.manage', 'fee_reminder_config.manage',
-            'payroll.*', 'report.view',
+            'payroll.view', 'payroll.create', 'payroll.edit', 'payroll.calculate', 'payroll.view_own', 'report.view',
             'work_task.view', 'support_ticket.create', 'support_ticket.view',
         ],
 

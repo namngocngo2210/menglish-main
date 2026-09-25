@@ -35,10 +35,18 @@
                             <td class="py-3.5 px-4 font-mono font-medium">{{ $log->created_at->format('d/m/Y H:i:s') }}</td>
                             <td class="py-3.5 px-4 font-bold text-gray-900">{{ $log->branch?->name ?? 'Toàn hệ thống' }}</td>
                             <td class="py-3.5 px-4">{{ $log->device_name }}</td>
-                            <td class="py-3.5 px-4 font-bold font-mono text-center">{{ $log->total_records }} lượt</td>
-                            <td class="py-3.5 px-4 font-bold text-emerald-600 text-center">{{ $log->matched_records }} / {{ $log->total_records }}</td>
+                            <td class="py-3.5 px-4 font-bold font-mono text-center">{{ $log->records_count }} lượt</td>
+                            <td class="py-3.5 px-4 font-bold text-emerald-600 text-center">{{ $log->matched_count }} / {{ $log->records_count }}</td>
                             <td class="py-3.5 px-4">
-                                <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold text-[10px]">Đồng bộ thành công</span>
+                                @php
+                                    [$syncBadge, $syncLabel] = match ($log->status) {
+                                        'success' => ['bg-emerald-50 text-emerald-700', 'Đồng bộ thành công'],
+                                        'partial' => ['bg-amber-50 text-amber-700', 'Đồng bộ một phần'],
+                                        'failed', 'error' => ['bg-rose-50 text-rose-700', 'Thất bại'],
+                                        default => ['bg-gray-50 text-gray-700', $log->status],
+                                    };
+                                @endphp
+                                <span class="px-2 py-0.5 rounded {{ $syncBadge }} font-bold text-[10px]">{{ $syncLabel }}</span>
                             </td>
                         </tr>
                     @empty

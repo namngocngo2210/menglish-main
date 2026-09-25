@@ -24,7 +24,7 @@ class PayrollModuleTest extends TestCase
     public function test_can_create_and_approve_payroll_period(): void
     {
         $user = User::factory()->create();
-        $user->assignRole('manager');
+        $user->assignRole('admin');
 
         $response = $this->actingAs($user)->post('/payroll/periods', [
             'month' => 9,

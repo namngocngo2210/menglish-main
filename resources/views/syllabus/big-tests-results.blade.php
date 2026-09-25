@@ -16,12 +16,14 @@
 
             <div class="flex items-center gap-2">
                 @if($test)
-                    <form method="POST" action="{{ route('syllabus.big-tests.results.approve', $test->id) }}">@csrf
-                        <button class="px-3.5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold">Duyệt kết quả</button>
-                    </form>
-                    <form method="POST" action="{{ route('syllabus.big-tests.send-zalo', $test->id) }}">@csrf
-                        <button class="px-3.5 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold">Gửi kết quả đã duyệt</button>
-                    </form>
+                    @can('syllabus.approve_adjustment')
+                        <form method="POST" action="{{ route('syllabus.big-tests.results.approve', $test->id) }}">@csrf
+                            <button class="px-3.5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold">Duyệt kết quả</button>
+                        </form>
+                        <form method="POST" action="{{ route('syllabus.big-tests.send-zalo', $test->id) }}">@csrf
+                            <button class="px-3.5 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold">Gửi kết quả đã duyệt</button>
+                        </form>
+                    @endcan
                 @endif
                 <button type="button" onclick="window.print();" class="px-3.5 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold shadow-2xs transition flex items-center gap-1.5 cursor-pointer">
                     <span class="material-symbols-outlined text-[16px] text-gray-500">print</span>
@@ -65,7 +67,7 @@
             <div class="bg-white rounded-2xl border border-gray-200 shadow-2xs p-4 flex items-center justify-between">
                 <div>
                     <div class="text-[11px] font-bold text-gray-500 uppercase">Điểm Trung Bình Cả Lớp</div>
-                    <div class="text-2xl font-black text-indigo-600 font-mono mt-1">{{ $avgOverall }} <span class="text-xs font-normal text-gray-400">/ 9.0</span></div>
+                    <div class="text-2xl font-black text-indigo-600 font-mono mt-1">{{ $avgOverall }} <span class="text-xs font-normal text-gray-400">/ 10</span></div>
                     <div class="text-[10px] text-gray-400 mt-0.5">Dựa trên {{ $totalCount }} học viên dự thi</div>
                 </div>
                 <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
@@ -78,7 +80,7 @@
                 <div>
                     <div class="text-[11px] font-bold text-gray-500 uppercase">Điểm Cao Nhất (Top Score)</div>
                     <div class="text-2xl font-black text-emerald-600 font-mono mt-1">
-                        {{ $highestScore }} <span class="text-xs font-normal text-gray-400">Band</span>
+                        {{ $highestScore }} <span class="text-xs font-normal text-gray-400">/ 10</span>
                     </div>
                     <div class="text-[10px] text-emerald-600 font-semibold mt-0.5">
                         Tổng số thí sinh: {{ $totalCount }} học viên
@@ -100,8 +102,11 @@
             </div>
 
             @php($resultsByStudent = $results->keyBy('student_id'))
-            <form method="POST" action="{{ $test ? route('syllabus.big-tests.results.store', $test->id) : '#' }}">
+            @php($canGrade = $test && auth()->user()->can('syllabus.update'))
+            @if($canGrade)
+            <form method="POST" action="{{ route('syllabus.big-tests.results.store', $test->id) }}">
                 @csrf
+            @endif
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
@@ -118,24 +123,25 @@
                     <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
                         @forelse ($students as $index => $student)
                             @php($res = $resultsByStudent->get($student->id))
+                            @php($locked = ! $canGrade || ($res?->isLocked() ?? false))
                             <tr class="hover:bg-blue-50/30 transition">
                                 <td class="py-3.5 px-4">
-                                    <input type="hidden" name="results[{{ $index }}][student_id]" value="{{ $student->id }}">
+                                    <input type="hidden" name="results[{{ $index }}][student_id]" value="{{ $student->id }}" @disabled($locked)>
                                     <div class="font-bold text-gray-900">{{ $student->name }}</div>
                                     <div class="text-[11px] text-gray-400 font-mono mt-0.5">
                                         Mã HV: {{ $student->code ?? 'HV-' . $student->id }}
                                     </div>
                                 </td>
-                                <td class="py-3.5 px-3"><input type="number" step=".1" min="0" max="10" required name="results[{{ $index }}][listening_score]" value="{{ old("results.$index.listening_score", $res?->listening_score ?? 0) }}" class="w-16 rounded border-gray-200 text-xs"></td>
-                                <td class="py-3.5 px-3"><input type="number" step=".1" min="0" max="10" required name="results[{{ $index }}][reading_score]" value="{{ old("results.$index.reading_score", $res?->reading_score ?? 0) }}" class="w-16 rounded border-gray-200 text-xs"></td>
-                                <td class="py-3.5 px-3"><input type="number" step=".1" min="0" max="10" required name="results[{{ $index }}][writing_score]" value="{{ old("results.$index.writing_score", $res?->writing_score ?? 0) }}" class="w-16 rounded border-gray-200 text-xs"></td>
-                                <td class="py-3.5 px-3"><input type="number" step=".1" min="0" max="10" required name="results[{{ $index }}][speaking_score]" value="{{ old("results.$index.speaking_score", $res?->speaking_score ?? 0) }}" class="w-16 rounded border-gray-200 text-xs"></td>
+                                <td class="py-3.5 px-3"><input type="number" step=".1" min="0" max="10" name="results[{{ $index }}][listening_score]" value="{{ old("results.$index.listening_score", $res?->listening_score) }}" placeholder="—" @disabled($locked) class="w-16 rounded border-gray-200 text-xs disabled:bg-gray-50"></td>
+                                <td class="py-3.5 px-3"><input type="number" step=".1" min="0" max="10" name="results[{{ $index }}][reading_score]" value="{{ old("results.$index.reading_score", $res?->reading_score) }}" placeholder="—" @disabled($locked) class="w-16 rounded border-gray-200 text-xs disabled:bg-gray-50"></td>
+                                <td class="py-3.5 px-3"><input type="number" step=".1" min="0" max="10" name="results[{{ $index }}][writing_score]" value="{{ old("results.$index.writing_score", $res?->writing_score) }}" placeholder="—" @disabled($locked) class="w-16 rounded border-gray-200 text-xs disabled:bg-gray-50"></td>
+                                <td class="py-3.5 px-3"><input type="number" step=".1" min="0" max="10" name="results[{{ $index }}][speaking_score]" value="{{ old("results.$index.speaking_score", $res?->speaking_score) }}" placeholder="—" @disabled($locked) class="w-16 rounded border-gray-200 text-xs disabled:bg-gray-50"></td>
                                 <td class="py-3.5 px-4 text-center font-mono font-black text-orange-600 bg-orange-50/40 text-base">
                                         {{ $res?->overall_score ?? '—' }}
                                 </td>
                                 <td class="py-3.5 px-4">
-                                    <textarea name="results[{{ $index }}][progress_note]" rows="2" class="w-full rounded border-gray-200 text-xs">{{ old("results.$index.progress_note", $res?->progress_note) }}</textarea>
-                                    <span class="text-[10px] {{ $res?->status === 'approved' ? 'text-emerald-700' : 'text-amber-700' }}">{{ $res?->status ?? 'Chưa nhập' }}</span>
+                                    <textarea name="results[{{ $index }}][progress_note]" rows="2" @disabled($locked) class="w-full rounded border-gray-200 text-xs disabled:bg-gray-50">{{ old("results.$index.progress_note", $res?->progress_note) }}</textarea>
+                                    <span class="text-[10px] {{ $res?->isLocked() ? 'text-emerald-700' : 'text-amber-700' }}">{{ $res?->status_label ?? 'Chưa nhập' }}</span>
                                 </td>
                             </tr>
                         @empty
@@ -151,10 +157,15 @@
                     </tbody>
                 </table>
             </div>
-            @if($test && $students->isNotEmpty())
-                <div class="p-4 border-t text-right"><button class="px-4 py-2 bg-primary-container text-white rounded-xl text-xs font-bold">Lưu điểm chờ duyệt</button></div>
-            @endif
+            @if($canGrade)
+                @if($students->contains(fn ($s) => ! ($resultsByStudent->get($s->id)?->isLocked() ?? false)))
+                    <div class="p-4 border-t flex items-center justify-between gap-3">
+                        <span class="text-[11px] text-gray-500">Bỏ trống cả 4 kỹ năng với học viên vắng thi. Điểm đã duyệt/đã gửi phụ huynh không thể sửa.</span>
+                        <button class="px-4 py-2 bg-primary-container text-white rounded-xl text-xs font-bold">Lưu điểm chờ duyệt</button>
+                    </div>
+                @endif
             </form>
+            @endif
         </div>
 
     </div>

@@ -323,11 +323,14 @@
                                         </a>
 
                                         <!-- Duplicate button -->
-                                        <a href="{{ route('placement-tests.duplicate', $t->id) }}" 
-                                           class="p-1.5 rounded-lg bg-gray-100 hover:bg-emerald-50 text-gray-600 hover:text-emerald-600 transition" 
-                                           title="Nhân bản đề thi này">
-                                            <span class="material-symbols-outlined text-[16px]">content_copy</span>
-                                        </a>
+                                        <form action="{{ route('placement-tests.duplicate', $t->id) }}" method="POST" class="inline">
+                                            @csrf
+                                            <button type="submit"
+                                                    class="p-1.5 rounded-lg bg-gray-100 hover:bg-emerald-50 text-gray-600 hover:text-emerald-600 transition cursor-pointer"
+                                                    title="Nhân bản đề thi này">
+                                                <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                                            </button>
+                                        </form>
 
                                         @if (!$t->is_preset)
                                             <!-- Edit button -->
@@ -454,19 +457,19 @@
                                 </td>
                                 <td class="py-3.5 px-4 text-center whitespace-nowrap">
                                     <span class="px-2.5 py-1 rounded-full bg-orange-100 text-orange-800 font-mono font-black text-xs whitespace-nowrap inline-flex items-center justify-center">
-                                        {{ $sub->overall_score }} ({{ $sub->cefr_level }})
+                                        @if ($sub->isPending()) Chờ chấm @else {{ $sub->overall_score ?? '—' }} ({{ $sub->cefr_level ?? '—' }}) @endif
                                     </span>
                                 </td>
                                 <td class="py-3.5 px-4 font-semibold text-primary whitespace-nowrap">{{ $sub->recommended_course }}</td>
                                 <td class="py-3.5 px-4 text-right whitespace-nowrap">
                                     <div class="flex items-center justify-end gap-1.5 whitespace-nowrap">
-                                        <a href="{{ route('portal.test.scorecard', $sub->id) }}" target="_blank" class="px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-primary-container hover:text-white text-primary font-bold text-[11px] transition inline-flex items-center gap-1 shrink-0 whitespace-nowrap border border-orange-200">
+                                        <a href="{{ \Illuminate\Support\Facades\URL::signedRoute('portal.test.scorecard', ['id' => $sub->id]) }}" target="_blank" class="px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-primary-container hover:text-white text-primary font-bold text-[11px] transition inline-flex items-center gap-1 shrink-0 whitespace-nowrap border border-orange-200">
                                             <span class="material-symbols-outlined text-[13px]">description</span>
                                             <span>Phiếu điểm</span>
                                         </a>
                                         <a href="{{ route('placement-tests.results.show', $sub->id) }}" class="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-[11px] transition inline-flex items-center gap-1 shrink-0 whitespace-nowrap">
                                             <span class="material-symbols-outlined text-[13px]">edit_note</span>
-                                            <span>Chấm lại</span>
+                                            <span>{{ $sub->isPending() ? 'Chấm bài' : 'Chấm lại' }}</span>
                                         </a>
                                     </div>
                                 </td>

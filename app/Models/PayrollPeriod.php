@@ -2,13 +2,20 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class PayrollPeriod extends Model
 {
     use HasFactory;
+
+    /** Kỳ ở các trạng thái này bị khoá hoàn toàn (không tính lại, không ghi thêm dữ liệu). */
+    public const LOCKED_STATUSES = ['approved', 'paid'];
 
     protected $table = 'payroll_periods';
 
@@ -23,6 +30,7 @@ class PayrollPeriod extends Model
         'total_staff',
         'total_hours',
         'total_amount',
+        'calculated_at',
     ];
 
     protected $casts = [
@@ -33,11 +41,70 @@ class PayrollPeriod extends Model
         'total_staff' => 'integer',
         'total_hours' => 'decimal:2',
         'total_amount' => 'decimal:2',
+        'calculated_at' => 'datetime',
     ];
 
     public function records(): HasMany
     {
         return $this->hasMany(PayrollRecord::class, 'payroll_period_id');
+    }
+
+    public function isLocked(): bool
+    {
+        return in_array($this->status, self::LOCKED_STATUSES, true);
+    }
+
+    /**
+     * Ngày này có thuộc một kỳ lương đã duyệt/đã chi trả không. Dữ liệu chấm công
+     * hay phạt ghi vào ngày đó sẽ không bao giờ được trả/trừ (kỳ sau chỉ quét
+     * dữ liệu trong khoảng ngày của chính nó) nên phải bị từ chối.
+     */
+    public static function isLockedFor(CarbonInterface|string $date): bool
+    {
+        $day = Carbon::parse($date)->toDateString();
+
+        return static::query()
+            ->whereIn('status', self::LOCKED_STATUSES)
+            ->whereDate('start_date', '<=', $day)
+            ->whereDate('end_date', '>=', $day)
+            ->exists();
+    }
+
+    public static function lockedMessage(CarbonInterface|string $date): string
+    {
+        return 'Ngày '.Carbon::parse($date)->format('d/m/Y').' thuộc kỳ lương đã duyệt/đã chi trả — không thể ghi nhận hoặc thay đổi dữ liệu lương cho ngày này.';
+    }
+
+    /**
+     * Chấm công/phạt trong kỳ bị thêm/sửa sau lần tính gần nhất → phải tính lại trước khi duyệt.
+     */
+    public function hasChangesSinceCalculation(): bool
+    {
+        if ($this->calculated_at === null) {
+            return true;
+        }
+
+        $range = [$this->start_date, $this->end_date];
+
+        return TeacherTimesheet::whereBetween('teaching_date', $range)->where('updated_at', '>', $this->calculated_at)->exists()
+            || Penalty::whereBetween('violation_date', $range)->where('updated_at', '>', $this->calculated_at)->exists();
+    }
+
+    /**
+     * Tổng hợp lại số liệu kỳ từ các bản ghi lương hiện có.
+     */
+    public function refreshTotals(): void
+    {
+        $totals = $this->records()
+            ->selectRaw('COUNT(*) as staff, COALESCE(SUM(actual_hours), 0) as hours, COALESCE(SUM(net_salary), 0) as amount')
+            ->toBase()
+            ->first();
+
+        $this->update([
+            'total_staff' => (int) $totals->staff,
+            'total_hours' => (float) $totals->hours,
+            'total_amount' => (float) $totals->amount,
+        ]);
     }
 
     public function getStatusBadgeAttribute(): string
@@ -83,11 +150,23 @@ class PayrollPeriod extends Model
      */
     public function calculatePayrollForPeriod(): void
     {
+        // Khoá theo kỳ để 2 lần bấm "Tính lại" song song không ghi đè lẫn nhau;
+        // transaction đảm bảo bản ghi lương, liên kết phạt và tổng kỳ nhất quán.
+        Cache::lock("payroll:period:{$this->id}", 120)->block(10, function () {
+            DB::transaction(fn () => $this->runCalculation());
+        });
+    }
+
+    private function runCalculation(): void
+    {
         $settings = self::payrollSettings();
         $users = User::where('is_active', true)->get();
-        $totalHours = 0;
-        $totalAmount = 0;
-        $staffCount = 0;
+        $producedUserIds = [];
+
+        // Gỡ liên kết phạt của lần tính trước; lần tính này sẽ gắn lại đúng các biên bản đã trừ.
+        Penalty::whereIn('payroll_record_id', $this->records()->select('id'))
+            ->toBase()
+            ->update(['payroll_record_id' => null]);
 
         foreach ($users as $user) {
             // 1. Giờ dạy thực tế từ bảng chấm công
@@ -98,11 +177,9 @@ class PayrollPeriod extends Model
                 ->get();
 
             $actualHours = (float) $timesheets->sum('hours');
-            $teachingSalary = (float) $timesheets->sum(function ($ts) use ($user) {
-                $rate = $ts->hourly_rate > 0 ? $ts->hourly_rate : ($user->hourly_rate > 0 ? $user->hourly_rate : 250000);
-
-                return $ts->hours * $rate;
-            });
+            $teachingSalary = (float) $timesheets->sum(
+                fn (TeacherTimesheet $ts) => (float) $ts->hours * $ts->effectiveHourlyRate($user)
+            );
 
             // 2. Hoa hồng tuyển sinh CRM (Deal Won trong kỳ; lead cũ chưa có
             //     converted_at thì lùi về created_at để khớp Báo cáo CRM)
@@ -131,10 +208,11 @@ class PayrollPeriod extends Model
 
             // 3. Giảm trừ vi phạm kỷ luật trong kỳ (chỉ biên bản đã "quyết phạt";
             //     nộp trực tiếp đã đóng bằng status paid nên không trừ lương nữa)
-            $penaltyDeduction = (float) Penalty::where('user_id', $user->id)
+            $penalties = Penalty::where('user_id', $user->id)
                 ->whereIn('status', Penalty::payableStatuses())
                 ->whereBetween('violation_date', [$this->start_date, $this->end_date])
-                ->sum('amount');
+                ->get(['id', 'amount']);
+            $penaltyDeduction = (float) $penalties->sum('amount');
 
             // 3.1. Giảm trừ khi có Giáo viên Nước ngoài (GVNN) cùng dạy trong ca
             $foreignTeacherSessionsCount = 0;
@@ -171,7 +249,7 @@ class PayrollPeriod extends Model
                 continue;
             }
 
-            PayrollRecord::updateOrCreate(
+            $record = PayrollRecord::updateOrCreate(
                 [
                     'payroll_period_id' => $this->id,
                     'user_id' => $user->id,
@@ -183,6 +261,7 @@ class PayrollPeriod extends Model
                     'actual_hours' => $actualHours,
                     'teaching_salary' => $teachingSalary,
                     'kpi_bonus' => $kpiBonus,
+                    'renew_bonus' => 0,
                     'commission_bonus' => $commissionBonus,
                     'allowance' => $allowance,
                     'penalty_deduction' => $penaltyDeduction,
@@ -196,16 +275,20 @@ class PayrollPeriod extends Model
                 ]
             );
 
-            $totalHours += $actualHours;
-            $totalAmount += $netSalary;
-            $staffCount++;
+            if ($penalties->isNotEmpty()) {
+                Penalty::whereKey($penalties->modelKeys())
+                    ->toBase()
+                    ->update(['payroll_record_id' => $record->id]);
+            }
+
+            $producedUserIds[] = $user->id;
         }
 
-        $this->update([
-            'status' => 'reviewing',
-            'total_staff' => $staffCount,
-            'total_hours' => $totalHours,
-            'total_amount' => $totalAmount,
-        ]);
+        // Nhân sự không còn đủ điều kiện ở lần tính này không được giữ bản ghi cũ.
+        $this->records()->whereNotIn('user_id', $producedUserIds)->delete();
+
+        $this->status = 'reviewing';
+        $this->calculated_at = now();
+        $this->refreshTotals();
     }
 }

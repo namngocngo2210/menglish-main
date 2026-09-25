@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-app-layout hide-errors>
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -15,6 +15,8 @@
             </div>
         </div>
     </x-slot>
+
+    @include('tuition.partials.errors')
 
     <div class="max-w-5xl mx-auto space-y-6" x-data="refundTransferManager()">
         <form action="{{ route('tuition.refunds.store') }}" method="POST" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">

@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-app-layout hide-errors>
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -26,6 +26,8 @@
             </button>
         </div>
     </x-slot>
+
+    @include('tuition.partials.errors')
 
     <div class="max-w-[1520px] mx-auto space-y-5" x-data="{ showConfirmModal: false, showRejectModal: false, zoomProof: false }">
 
@@ -251,8 +253,8 @@
                             <div class="flex flex-col items-end gap-1 text-xs">
                                 <div class="flex items-center gap-2">
                                     <span class="text-slate-500">Trạng thái phiếu thu:</span>
-                                    <span class="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
-                                        Đã duyệt (MH3)
+                                    <span class="font-bold px-2 py-0.5 rounded border text-[11px] {{ $rc?->status_badge ?? 'bg-gray-50 text-gray-600 border-gray-200' }}">
+                                        {{ $rc?->status_label ?? 'Không xác định phiếu thu' }}
                                     </span>
                                 </div>
                                 <div class="flex items-center gap-2">
@@ -567,11 +569,14 @@
                 @csrf
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Số Hóa đơn / Biên lai cần hủy <span class="text-rose-500">*</span></label>
-                    <input type="text" name="invoice_number" placeholder="Ví dụ: HĐ-0824/PTM-042..." required class="w-full text-xs rounded-xl border border-slate-200 p-2.5 font-mono font-bold text-slate-900" />
+                    <input type="text" name="invoice_number" value="{{ old('invoice_number') }}" placeholder="Ví dụ: C26MEN-0001001" required class="w-full text-xs rounded-xl border border-slate-200 p-2.5 font-mono font-bold text-slate-900" />
+                    <p class="text-[11px] text-slate-400 mt-1">Nhập đúng số HĐĐT của phiếu thu <strong>đã duyệt</strong>; hệ thống tự đối chiếu phiếu thu và hoàn tác công nợ khi được duyệt hủy.</p>
+                    @error('invoice_number') <p class="text-[11px] text-rose-600 mt-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Số tiền trên hóa đơn (VNĐ) <span class="text-rose-500">*</span></label>
-                    <input type="number" name="amount" placeholder="13500000" required class="w-full text-xs rounded-xl border border-slate-200 p-2.5 font-mono font-bold text-rose-600" />
+                    <input type="number" name="amount" value="{{ old('amount') }}" placeholder="13500000" required class="w-full text-xs rounded-xl border border-slate-200 p-2.5 font-mono font-bold text-rose-600" />
+                    @error('amount') <p class="text-[11px] text-rose-600 mt-1">Số tiền phải khớp giá trị hóa đơn. {{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Đính kèm ảnh hóa đơn hỏng / gạch chéo</label>

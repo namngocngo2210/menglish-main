@@ -43,8 +43,9 @@
                     <input type="number" step="0.5" name="hours" value="2.0" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2" />
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Đơn giá giờ dạy (VNĐ/h) <span class="text-rose-500">*</span></label>
-                    <input type="number" name="hourly_rate" value="300000" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2 text-emerald-600" />
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Đơn giá giờ dạy riêng (VNĐ/h)</label>
+                    <input type="number" name="hourly_rate" value="{{ old('hourly_rate') }}" min="1000" step="1000" placeholder="Bỏ trống = đơn giá của giáo viên" class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2 text-emerald-600" />
+                    <p class="text-[10px] text-gray-400 mt-1">Bỏ trống để dùng đơn giá trong hồ sơ nhân sự (mặc định 250.000đ/h).</p>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 mb-1">Loại ca dạy</label>

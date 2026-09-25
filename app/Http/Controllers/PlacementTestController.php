@@ -9,6 +9,7 @@ use App\Models\PlacementTest;
 use App\Models\PlacementTestSubmission;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Services\PlacementPortalLinkService;
 use App\Services\PlacementRubricService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -203,78 +204,16 @@ class PlacementTestController extends Controller
 
     public function showResult($id)
     {
-        $submission = PlacementTestSubmission::with(['test', 'grader', 'customer', 'student'])
-            ->where('id', $id)
-            ->first();
-
-        if (! $submission) {
-            $submission = PlacementTestSubmission::with(['test', 'grader', 'customer', 'student'])->firstOrFail();
-        }
+        $submission = PlacementTestSubmission::with(['test', 'grader', 'customer', 'student'])->findOrFail($id);
 
         $test = $submission->test;
-        $questions = is_array($test?->questions) && ! empty($test->questions) ? $test->questions : [
-            [
-                'id' => 1,
-                'type' => 'multiple_choice',
-                'skill' => 'listening',
-                'title' => "What is the passenger's final destination in the conversation?",
-                'points' => 1,
-                'options' => [
-                    ['key' => 'A', 'text' => 'London Heathrow'],
-                    ['key' => 'B', 'text' => 'Melbourne International Airport'],
-                    ['key' => 'C', 'text' => 'Tokyo Narita'],
-                    ['key' => 'D', 'text' => 'Singapore Changi'],
-                ],
-                'passage' => 'Listen to the audio clip at Customer Service Desk.',
-                'audio_url' => '/uploads/2026/dethitest/de-test-lop-6-len-7/track-1-4-20260819105025-7k9aa.mp3',
-                'explanation' => 'The passenger confirms connecting flight to Melbourne.',
-                'correct_answer' => 'B',
-            ],
-            [
-                'id' => 2,
-                'type' => 'multiple_choice',
-                'skill' => 'reading',
-                'title' => 'According to the passage, what is the primary benefit of renewable energy?',
-                'points' => 1,
-                'options' => [
-                    ['key' => 'A', 'text' => 'It eliminates the need for power grids'],
-                    ['key' => 'B', 'text' => 'It significantly reduces greenhouse gas emissions'],
-                    ['key' => 'C', 'text' => 'It requires no initial capital investment'],
-                    ['key' => 'D', 'text' => 'It operates without any maintenance'],
-                ],
-                'passage' => 'Renewable energy sources, such as solar and wind power, emit little to no greenhouse gases during operation. In addition, they decrease reliance on finite fossil fuel reserves and stimulate local job growth in clean tech sectors.',
-                'explanation' => 'The passage explicitly states that renewable energy emits little to no greenhouse gases.',
-                'correct_answer' => 'B',
-            ],
-            [
-                'id' => 3,
-                'type' => 'fill_blank',
-                'skill' => 'grammar',
-                'title' => 'Complete the sentence: If she _____ (study) harder last month, she would have passed the IELTS exam.',
-                'points' => 1,
-                'explanation' => 'Third conditional structure: If + S + had + V3/ed, S + would have + V3/ed.',
-                'correct_answer' => 'had studied',
-            ],
-            [
-                'id' => 4,
-                'type' => 'essay',
-                'skill' => 'writing',
-                'title' => 'Writing Task: Some people believe that studying online is more effective than traditional classroom learning. Discuss both views and give your opinion.',
-                'points' => 9,
-                'min_words' => 120,
-                'rubric_note' => 'Chấm theo tiêu chí: Task Response, Coherence & Cohesion, Lexical Resource, Grammar Accuracy.',
-            ],
-            [
-                'id' => 5,
-                'type' => 'speaking_prompt',
-                'skill' => 'speaking',
-                'title' => 'Speaking Part 2: Describe a memorable journey or trip you took.',
-                'points' => 9,
-                'cue_points' => "• Where you went and who you went with\n• How you travelled there\n• What you did during the trip\n• And explain why this trip was so memorable for you",
-            ],
-        ];
+        $questions = is_array($test?->questions) ? $test->questions : [];
 
-        $graders = User::all();
+        $graders = User::query()
+            ->where('is_active', true)
+            ->permission('placement_test.grade')
+            ->orderBy('name')
+            ->get();
 
         return view('placement-tests.result', compact('submission', 'graders', 'questions'));
     }
@@ -314,15 +253,11 @@ class PlacementTestController extends Controller
         }
 
         $submission->grader_id = Auth::id();
-        $submission->status = 'graded';
+        $submission->status = PlacementTestSubmission::STATUS_GRADED;
         $submission->save();
 
-        // Cập nhật ngược lại CRM Lead nếu có
         if ($submission->customer) {
-            $submission->customer->update([
-                'test_score' => "{$submission->overall_score} ({$submission->cefr_level})",
-                'stage' => 'tested',
-            ]);
+            $this->syncGradedResultToLead($submission, $submission->customer);
         }
 
         return redirect()->route('placement-tests.results.show', $submission->id)
@@ -338,57 +273,20 @@ class PlacementTestController extends Controller
     // CỔNG LÀM BÀI TRỰC TUYẾN CHO LEAD / HỌC VIÊN
     // ─────────────────────────────────────────────────────────────
 
-    public function portalTakeTest($code, Request $request)
+    public function portalTakeTest($code, Request $request, PlacementPortalLinkService $links)
     {
-        $test = PlacementTest::where('code', $code)
-            ->orWhere('id', $code)
-            ->orWhere('code', 'LIKE', "%{$code}%")
-            ->first();
+        $test = $this->findActiveTestByCode($code);
 
-        if (! $test) {
-            $test = PlacementTest::where('is_active', true)->first() ?? PlacementTest::first();
-        }
+        // Chỉ link có chữ ký (CRM sinh, hạn 7 ngày) mới được điền sẵn thông tin lead.
+        $lead = $links->leadFromSignedRequest($request);
+        $leadToken = $lead ? $links->issueLeadToken($test, $lead, $request) : null;
 
-        if (! $test) {
-            $test = PlacementTest::create([
-                'code' => $code ?: 'TEST-01',
-                'title' => 'Đề Kiểm Tra Trình Độ 4 Kỹ Năng - Standard 2026',
-                'target_level' => 'Tổng hợp A1 - B2',
-                'duration_minutes' => 45,
-                'questions_count' => 5,
-                'is_active' => true,
-            ]);
-        }
-
-        $lead = null;
-        if ($customerId = $request->query('lead_id')) {
-            $lead = CrmCustomer::find($customerId);
-        }
-
-        return view('placement-tests.portal-take', compact('test', 'lead'));
+        return view('placement-tests.portal-take', compact('test', 'lead', 'leadToken'));
     }
 
-    public function portalSubmitTest($code, Request $request)
+    public function portalSubmitTest($code, Request $request, PlacementPortalLinkService $links)
     {
-        $test = PlacementTest::where('code', $code)
-            ->orWhere('id', $code)
-            ->orWhere('code', 'LIKE', "%{$code}%")
-            ->first();
-
-        if (! $test) {
-            $test = PlacementTest::where('is_active', true)->first() ?? PlacementTest::first();
-        }
-
-        if (! $test) {
-            $test = PlacementTest::create([
-                'code' => $code ?: 'TEST-01',
-                'title' => 'Đề Kiểm Tra Trình Độ 4 Kỹ Năng - Standard 2026',
-                'target_level' => 'Tổng hợp A1 - B2',
-                'duration_minutes' => 45,
-                'questions_count' => 5,
-                'is_active' => true,
-            ]);
-        }
+        $test = $this->findActiveTestByCode($code);
 
         if ($request->isMethod('GET')) {
             return redirect()->route('portal.test.take', $test->code);
@@ -398,186 +296,48 @@ class PlacementTestController extends Controller
             'candidate_name' => 'required|string|max:255',
             'candidate_phone' => 'required|string|max:20',
             'candidate_email' => 'nullable|email|max:255',
-            'answers' => 'nullable|array',
-            'listening_answers' => 'nullable|array',
-            'reading_answers' => 'nullable|array',
+            'answers' => 'nullable|array|max:500',
+            'answers.*' => 'nullable|string|max:1000',
             'writing_content' => 'nullable|string|max:5000',
-            'speaking_self_rate' => 'nullable|string',
-            'customer_id' => 'nullable|exists:crm_customers,id',
+            'speaking_self_rate' => 'nullable|string|in:beginner,intermediate,advanced',
+            'lead_token' => 'nullable|string|max:2000',
         ]);
 
-        $submittedAnswers = $validated['answers'] ?? [];
         $questions = is_array($test->questions) ? $test->questions : [];
+        $submittedAnswers = $this->answersForQuestions($questions, $validated['answers'] ?? []);
 
-        // 1. Chấm điểm Listening tự động
-        $listeningKey = ['q1' => 'B', 'q2' => 'A', 'q3' => 'C', 'q4' => 'A', 'q5' => 'D'];
-        if (! empty($validated['listening_answers'])) {
-            $listeningCorrect = 0;
-            foreach ($listeningKey as $q => $ans) {
-                if (isset($validated['listening_answers'][$q]) && $validated['listening_answers'][$q] === $ans) {
-                    $listeningCorrect++;
-                }
-            }
-            $listeningScore = match ($listeningCorrect) {
-                5 => 8.5,
-                4 => 7.0,
-                3 => 5.5,
-                2 => 4.5,
-                1 => 3.5,
-                default => 2.5,
-            };
-        } else {
-            $listeningTotal = 0;
-            $listeningCorrect = 0;
-            foreach ($questions as $idx => $q) {
-                if (($q['skill'] ?? '') === 'listening') {
-                    $listeningTotal++;
-                    $qId = $q['id'] ?? $idx;
-                    $userAns = trim((string) ($submittedAnswers[$qId] ?? ''));
-                    $correctAns = trim((string) ($q['correct_answer'] ?? ''));
-                    if ($userAns !== '' && strcasecmp($userAns, $correctAns) === 0) {
-                        $listeningCorrect++;
-                    }
-                }
-            }
-            if ($listeningTotal > 0) {
-                $ratio = $listeningCorrect / $listeningTotal;
-                $listeningScore = match (true) {
-                    $ratio >= 0.9 => 8.5,
-                    $ratio >= 0.75 => 7.0,
-                    $ratio >= 0.6 => 5.5,
-                    $ratio >= 0.4 => 4.5,
-                    $ratio >= 0.2 => 3.5,
-                    default => 2.5,
-                };
-            } else {
-                $listeningScore = 5.0;
-            }
+        // Chỉ chấm tự động Nghe / Đọc-Ngữ pháp theo đáp án lưu trong đề.
+        // Viết / Nói do Học vụ chấm (BA) nên để trống, bài ở trạng thái chờ chấm.
+        $listeningScore = $this->autoGradeSkill($questions, $submittedAnswers, ['listening']);
+        $readingScore = $this->autoGradeSkill($questions, $submittedAnswers, ['reading', 'grammar']);
+
+        [$customer, $viaSignedLink] = $this->resolveSubmissionLead($validated, $test, $links);
+
+        $storedAnswers = $submittedAnswers;
+        if (! empty($validated['speaking_self_rate'])) {
+            $storedAnswers['speaking_self_rate'] = $validated['speaking_self_rate'];
         }
-
-        // 2. Chấm điểm Reading & Grammar tự động
-        $readingKey = ['q1' => 'C', 'q2' => 'B', 'q3' => 'A', 'q4' => 'D', 'q5' => 'B'];
-        if (! empty($validated['reading_answers'])) {
-            $readingCorrect = 0;
-            foreach ($readingKey as $q => $ans) {
-                if (isset($validated['reading_answers'][$q]) && $validated['reading_answers'][$q] === $ans) {
-                    $readingCorrect++;
-                }
-            }
-            $readingScore = match ($readingCorrect) {
-                5 => 8.5,
-                4 => 7.0,
-                3 => 5.5,
-                2 => 4.5,
-                1 => 3.5,
-                default => 2.5,
-            };
-        } else {
-            $readingTotal = 0;
-            $readingCorrect = 0;
-            foreach ($questions as $idx => $q) {
-                if (in_array($q['skill'] ?? '', ['reading', 'grammar'])) {
-                    $readingTotal++;
-                    $qId = $q['id'] ?? $idx;
-                    $userAns = trim((string) ($submittedAnswers[$qId] ?? ''));
-                    $correctAns = trim((string) ($q['correct_answer'] ?? ''));
-                    if ($userAns !== '' && strcasecmp($userAns, $correctAns) === 0) {
-                        $readingCorrect++;
-                    }
-                }
-            }
-            if ($readingTotal > 0) {
-                $ratio = $readingCorrect / $readingTotal;
-                $readingScore = match (true) {
-                    $ratio >= 0.9 => 8.5,
-                    $ratio >= 0.75 => 7.0,
-                    $ratio >= 0.6 => 5.5,
-                    $ratio >= 0.4 => 4.5,
-                    $ratio >= 0.2 => 3.5,
-                    default => 2.5,
-                };
-            } else {
-                $readingScore = 5.0;
-            }
-        }
-
-        // 3. Chấm điểm Writing sơ bộ tự động theo heuristic độ dài & độ phức tạp
-        $wordCount = str_word_count($validated['writing_content'] ?? '');
-        $writingScore = match (true) {
-            $wordCount >= 100 => 6.5,
-            $wordCount >= 60 => 5.5,
-            $wordCount >= 30 => 4.5,
-            $wordCount >= 10 => 3.5,
-            default => 2.5,
-        };
-
-        // 4. Điểm Speaking ước tính
-        $speakingScore = match ($validated['speaking_self_rate'] ?? 'intermediate') {
-            'advanced' => 7.0,
-            'intermediate' => 5.5,
-            'beginner' => 4.0,
-            default => 5.0,
-        };
-
-        // 5. Tính Overall & Đánh giá năng lực theo Thang điểm chuẩn MEnglish (Rubric Service)
-        $overallScore = round(($listeningScore + $readingScore + $writingScore + $speakingScore) / 4, 1);
-
-        $evaluation = PlacementRubricService::evaluate(
-            $test->code,
-            $listeningScore,
-            $readingScore,
-            $writingScore,
-            $speakingScore,
-            $overallScore
-        );
-
-        $cefrLevel = $evaluation['cefr_level'];
-        $recommendedCourse = $evaluation['recommended_course'];
-        $teacherComments = $evaluation['teacher_comments'];
-
-        // Tìm Lead CRM nếu có
-        $customer = null;
-        if (! empty($validated['customer_id'])) {
-            $customer = CrmCustomer::find($validated['customer_id']);
-        } elseif (! empty($validated['candidate_phone'])) {
-            $customer = CrmCustomer::where('phone', $validated['candidate_phone'])->first();
-        }
-
-        // Tạo Submission bài làm
-        $graderId = Auth::id() ?? User::first()?->id;
 
         $submission = PlacementTestSubmission::create([
             'placement_test_id' => $test->id,
             'customer_id' => $customer?->id,
             'candidate_name' => $validated['candidate_name'],
             'candidate_phone' => $validated['candidate_phone'],
-            'candidate_email' => $validated['candidate_email'] ?? $customer?->email,
+            'candidate_email' => $validated['candidate_email'] ?? null,
             'listening_score' => $listeningScore,
             'reading_score' => $readingScore,
-            'writing_score' => $writingScore,
-            'speaking_score' => $speakingScore,
-            'overall_score' => $overallScore,
-            'cefr_level' => $cefrLevel,
+            'writing_score' => null,
+            'speaking_score' => null,
+            'overall_score' => null,
+            'cefr_level' => null,
             'writing_content' => $validated['writing_content'] ?? null,
-            'recommended_course' => $recommendedCourse,
-            'teacher_comments' => $teacherComments,
-            'grader_id' => $graderId,
-            'status' => 'graded',
+            'answers' => $storedAnswers,
+            'grader_id' => null,
+            'status' => PlacementTestSubmission::STATUS_PENDING,
         ]);
 
-        // Cập nhật CRM Lead
         if ($customer) {
-            $customer->update([
-                'test_score' => "{$overallScore} ({$cefrLevel})",
-                'stage' => 'tested',
-            ]);
-
-            CrmCustomerHistory::create([
-                'customer_id' => $customer->id,
-                'user_id' => Auth::id() ?? $customer->assigned_user_id ?? $graderId,
-                'type' => 'test',
-                'content' => "Học viên đã nộp bài test trực tuyến [{$test->title}]: Đạt {$overallScore} Band ({$cefrLevel}) · Khóa đề xuất: {$recommendedCourse}",
-            ]);
+            $this->recordPortalSubmissionOnLead($customer, $submission, $test, $viaSignedLink);
         }
 
         // Bắn email thông báo học vụ nộp bài / kiểm tra
@@ -589,13 +349,161 @@ class PlacementTestController extends Controller
 
         // Scorecard là trang public nên bắt buộc link có chữ ký — chống dò id tuần tự
         return redirect()->to(URL::signedRoute('portal.test.scorecard', ['id' => $submission->id]))
-            ->with('status', 'Hoàn thành bài thi! Hệ thống đã tự động chấm điểm và đánh giá trình độ của bạn.');
+            ->with('status', 'Hoàn thành bài thi! Học vụ MEnglish sẽ chấm phần Viết/Nói và gửi kết quả xếp lớp cho bạn.');
     }
 
     public function portalScorecard($id)
     {
-        $submission = PlacementTestSubmission::with(['test', 'customer'])->findOrFail($id);
+        $submission = PlacementTestSubmission::with('test')->findOrFail($id);
 
         return view('placement-tests.portal-scorecard', compact('submission'));
+    }
+
+    private function findActiveTestByCode(string $code): PlacementTest
+    {
+        return PlacementTest::query()
+            ->where('code', $code)
+            ->where('is_active', true)
+            ->firstOrFail();
+    }
+
+    /**
+     * Chỉ giữ đáp án của các câu hỏi có trong đề (theo id câu hỏi).
+     *
+     * @param  array<int, array<string, mixed>>  $questions
+     * @param  array<int|string, mixed>  $answers
+     * @return array<int|string, string>
+     */
+    private function answersForQuestions(array $questions, array $answers): array
+    {
+        $kept = [];
+        foreach ($questions as $idx => $question) {
+            $questionId = $question['id'] ?? $idx;
+            $answer = $answers[$questionId] ?? null;
+            if (is_string($answer) && trim($answer) !== '') {
+                $kept[$questionId] = trim($answer);
+            }
+        }
+
+        return $kept;
+    }
+
+    /**
+     * Chấm tự động các câu của kỹ năng theo đáp án chuẩn trong đề.
+     * Đề không có câu nào của kỹ năng này (hoặc không có đáp án) => null, không bịa điểm.
+     *
+     * @param  array<int, array<string, mixed>>  $questions
+     * @param  array<int|string, string>  $answers
+     * @param  array<int, string>  $skills
+     */
+    private function autoGradeSkill(array $questions, array $answers, array $skills): ?float
+    {
+        $total = 0;
+        $correct = 0;
+        foreach ($questions as $idx => $question) {
+            $correctAnswer = trim((string) ($question['correct_answer'] ?? ''));
+            if (! in_array($question['skill'] ?? '', $skills, true) || $correctAnswer === '') {
+                continue;
+            }
+            $total++;
+            $answer = $answers[$question['id'] ?? $idx] ?? '';
+            if ($answer !== '' && strcasecmp($answer, $correctAnswer) === 0) {
+                $correct++;
+            }
+        }
+
+        if ($total === 0) {
+            return null;
+        }
+
+        $ratio = $correct / $total;
+
+        return match (true) {
+            $ratio >= 0.9 => 8.5,
+            $ratio >= 0.75 => 7.0,
+            $ratio >= 0.6 => 5.5,
+            $ratio >= 0.4 => 4.5,
+            $ratio >= 0.2 => 3.5,
+            default => 2.5,
+        };
+    }
+
+    /**
+     * Không tin `customer_id` từ client. Lead chỉ được gắn khi:
+     *  (a) nộp qua link có chữ ký (token được server xác minh lại), hoặc
+     *  (b) SĐT chuẩn hoá khớp lead đang ở bước tư vấn / hẹn test.
+     *
+     * @return array{0: ?CrmCustomer, 1: bool}
+     */
+    private function resolveSubmissionLead(array $validated, PlacementTest $test, PlacementPortalLinkService $links): array
+    {
+        $linked = $links->leadFromToken($validated['lead_token'] ?? null, $test);
+        if ($linked) {
+            return [$linked, true];
+        }
+
+        $phone = CrmCustomer::normalizePhone($validated['candidate_phone']);
+        if ($phone === '') {
+            return [null, false];
+        }
+
+        $matched = CrmCustomer::query()
+            ->where('phone_normalized', $phone)
+            ->whereIn('stage', CrmCustomer::TEST_ADVANCEABLE_STAGES)
+            ->first();
+
+        return [$matched, false];
+    }
+
+    private function recordPortalSubmissionOnLead(CrmCustomer $customer, PlacementTestSubmission $submission, PlacementTest $test, bool $viaSignedLink): void
+    {
+        $advanced = $customer->canAdvanceToTested();
+        if ($advanced) {
+            $customer->update(['stage' => 'tested']);
+        }
+
+        $content = "Học viên đã nộp bài test trực tuyến [{$test->title}] (bài #{$submission->id}), chờ Học vụ chấm điểm.";
+        $content .= $viaSignedLink ? ' Nộp qua link test riêng của lead.' : ' Khớp lead theo số điện thoại.';
+        if (! $advanced) {
+            $content .= " Giữ nguyên giai đoạn hiện tại ({$customer->stage_label}).";
+        }
+
+        CrmCustomerHistory::create([
+            'customer_id' => $customer->id,
+            'user_id' => Auth::id() ?? $customer->assigned_user_id,
+            'type' => 'test',
+            'content' => $content,
+        ]);
+    }
+
+    /**
+     * Đồng bộ kết quả đã chấm sang Lead: lead chỉ đi tiến
+     * (consulting / test_scheduled -> tested), không kéo lùi hay hồi sinh won/lost.
+     */
+    private function syncGradedResultToLead(PlacementTestSubmission $submission, CrmCustomer $customer): void
+    {
+        $scoreText = "{$submission->overall_score} ({$submission->cefr_level})";
+        $updates = [];
+        if ($customer->canAdvanceToTested() || $customer->stage === 'tested') {
+            $updates['test_score'] = $scoreText;
+        }
+        if ($customer->canAdvanceToTested()) {
+            $updates['stage'] = 'tested';
+        }
+        if ($updates !== []) {
+            $customer->update($updates);
+        }
+
+        $content = "Học vụ đã chấm bài test #{$submission->id}: {$scoreText}";
+        if (! isset($updates['stage']) && $customer->stage !== 'tested') {
+            $content .= " · Giữ nguyên giai đoạn hiện tại ({$customer->stage_label}).";
+        }
+
+        CrmCustomerHistory::create([
+            'customer_id' => $customer->id,
+            'user_id' => Auth::id(),
+            'type' => 'test',
+            'content' => $content,
+        ]);
     }
 }

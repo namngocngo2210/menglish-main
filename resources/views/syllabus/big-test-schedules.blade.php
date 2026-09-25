@@ -45,7 +45,7 @@
                             <td class="py-3.5 px-4 font-mono font-medium text-gray-600">{{ $bt->scheduled_at ? $bt->scheduled_at->format('d/m/Y H:i') : '—' }}</td>
                             <td class="py-3.5 px-4">{{ $bt->room }} · {{ $bt->classModel?->branch?->name ?? 'Cơ sở 1' }}</td>
                             <td class="py-3.5 px-4 font-medium text-gray-800">{{ $bt->proctor?->name ?? 'Giám thị MEnglish' }}</td>
-                            <td class="py-3.5 px-4 font-mono font-bold text-emerald-600">{{ $bt->passcode }}</td>
+                            <td class="py-3.5 px-4 font-mono font-bold text-emerald-600">{{ $bt->passcodeVisibleTo(auth()->user()) ? $bt->passcode : '••••••' }}</td>
                             <td class="py-3.5 px-4 text-right">
                                 @can('syllabus.approve_adjustment')
                                 <form action="{{ route('syllabus.big-tests.remind', $bt->id) }}" method="POST" class="inline" data-confirm="Gửi nhắc lịch {{ $bt->title }} tới toàn bộ học viên của lớp {{ $bt->classModel?->name }}?">

@@ -9,10 +9,10 @@
                     <div class="flex items-center gap-2 flex-wrap">
                         <h1 class="text-xl font-black text-gray-900 tracking-tight">Chi Tiết Bài Làm &amp; Chấm Điểm Thí Sinh</h1>
                         <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-primary-container border border-orange-200">
-                            {{ $submission->overall_score }} Band ({{ $submission->cefr_level }})
+                            {{ $submission->overall_score ?? '—' }} Band ({{ $submission->cefr_level ?? '—' }})
                         </span>
-                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
-                            {{ $submission->status === 'graded' ? 'Đã Chấm Điểm' : 'Chờ Chấm' }}
+                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase border {{ $submission->isPending() ? 'bg-sky-50 text-sky-700 border-sky-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200' }}">
+                            {{ $submission->isPending() ? 'Chờ Chấm' : 'Đã Chấm Điểm' }}
                         </span>
                     </div>
                     <p class="text-xs text-gray-500 font-mono mt-0.5">
@@ -28,7 +28,7 @@
                         <span>Hồ Sơ Lead CRM</span>
                     </a>
                 @endif
-                <a href="{{ route('portal.test.scorecard', $submission->id) }}" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs">
+                <a href="{{ \Illuminate\Support\Facades\URL::signedRoute('portal.test.scorecard', ['id' => $submission->id]) }}" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs">
                     <span class="material-symbols-outlined text-[16px] text-amber-400">military_tech</span>
                     <span>Xem Bảng Điểm Scorecard</span>
                 </a>
@@ -67,23 +67,24 @@
             <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <div class="p-3.5 bg-indigo-50/60 rounded-xl border border-indigo-100 text-center space-y-1">
                     <label class="text-[11px] text-indigo-900 font-black uppercase tracking-wider block">Nghe (Listening)</label>
-                    <input type="number" step="0.5" min="0" max="9" name="listening_score" value="{{ $submission->listening_score }}" class="w-full text-center font-mono font-black text-xl rounded-lg border border-indigo-200 bg-white text-indigo-700 p-1 shadow-2xs" />
+                    <input type="number" step="0.5" min="0" max="9" name="listening_score" value="{{ $submission->listening_score }}" required class="w-full text-center font-mono font-black text-xl rounded-lg border border-indigo-200 bg-white text-indigo-700 p-1 shadow-2xs" />
                 </div>
                 <div class="p-3.5 bg-emerald-50/60 rounded-xl border border-emerald-100 text-center space-y-1">
                     <label class="text-[11px] text-emerald-900 font-black uppercase tracking-wider block">Đọc &amp; Ngữ pháp</label>
-                    <input type="number" step="0.5" min="0" max="9" name="reading_score" value="{{ $submission->reading_score }}" class="w-full text-center font-mono font-black text-xl rounded-lg border border-emerald-200 bg-white text-emerald-700 p-1 shadow-2xs" />
+                    <input type="number" step="0.5" min="0" max="9" name="reading_score" value="{{ $submission->reading_score }}" required class="w-full text-center font-mono font-black text-xl rounded-lg border border-emerald-200 bg-white text-emerald-700 p-1 shadow-2xs" />
                 </div>
                 <div class="p-3.5 bg-amber-50/60 rounded-xl border border-amber-100 text-center space-y-1">
                     <label class="text-[11px] text-amber-900 font-black uppercase tracking-wider block">Viết (Writing)</label>
-                    <input type="number" step="0.5" min="0" max="9" name="writing_score" value="{{ $submission->writing_score }}" class="w-full text-center font-mono font-black text-xl rounded-lg border border-amber-200 bg-white text-amber-700 p-1 shadow-2xs" />
+                    <input type="number" step="0.5" min="0" max="9" name="writing_score" value="{{ $submission->writing_score }}" required class="w-full text-center font-mono font-black text-xl rounded-lg border border-amber-200 bg-white text-amber-700 p-1 shadow-2xs" />
                 </div>
                 <div class="p-3.5 bg-rose-50/60 rounded-xl border border-rose-100 text-center space-y-1">
                     <label class="text-[11px] text-rose-900 font-black uppercase tracking-wider block">Nói (Speaking)</label>
-                    <input type="number" step="0.5" min="0" max="9" name="speaking_score" value="{{ $submission->speaking_score }}" class="w-full text-center font-mono font-black text-xl rounded-lg border border-rose-200 bg-white text-rose-700 p-1 shadow-2xs" />
+                    <input type="number" step="0.5" min="0" max="9" name="speaking_score" value="{{ $submission->speaking_score }}" required class="w-full text-center font-mono font-black text-xl rounded-lg border border-rose-200 bg-white text-rose-700 p-1 shadow-2xs" />
                 </div>
                 <div class="p-3.5 bg-gradient-to-br from-primary-container/10 to-orange-100 rounded-xl border border-orange-300 text-center space-y-1 col-span-2 sm:col-span-1">
                     <label class="text-[11px] text-primary-container font-black uppercase tracking-wider block">CEFR Band</label>
-                    <select name="cefr_level" class="w-full text-center font-mono font-black text-base rounded-lg border border-orange-300 bg-white text-gray-900 p-1 shadow-2xs">
+                    <select name="cefr_level" required class="w-full text-center font-mono font-black text-base rounded-lg border border-orange-300 bg-white text-gray-900 p-1 shadow-2xs">
+                        <option value="" @selected(empty($submission->cefr_level))>— Chọn —</option>
                         <option value="A1" @selected($submission->cefr_level === 'A1')>A1 (Mất gốc)</option>
                         <option value="A2" @selected($submission->cefr_level === 'A2')>A2 (Sơ cấp)</option>
                         <option value="B1" @selected($submission->cefr_level === 'B1')>B1 (Trung cấp)</option>
@@ -97,7 +98,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                 <div>
                     <label class="block font-bold text-gray-700 uppercase tracking-wider text-[10px] mb-1">Khóa học đề xuất cho học viên</label>
-                    <input type="text" name="recommended_course" value="{{ $submission->recommended_course ?? ($submission->customer?->course_interest ?? 'IELTS 6.5 Intensive') }}" class="w-full text-xs font-bold text-primary-container rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
+                    <input type="text" name="recommended_course" value="{{ $submission->recommended_course }}" class="w-full text-xs font-bold text-primary-container rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
                 </div>
                 <div>
                     <label class="block font-bold text-gray-700 uppercase tracking-wider text-[10px] mb-1">Giáo viên / Giám thị phụ trách chấm</label>
@@ -117,7 +118,7 @@
 
                 <div class="md:col-span-3">
                     <label class="block font-bold text-gray-700 uppercase tracking-wider text-[10px] mb-1">Nhận xét &amp; Lời khuyên chuyên môn của Giáo viên chấm bài</label>
-                    <textarea name="teacher_comments" rows="3" class="w-full text-xs text-gray-800 rounded-xl border border-gray-200 p-3 bg-white shadow-2xs leading-relaxed" placeholder="Nhận xét chi tiết về phát âm, ngữ pháp, độ lưu loát và định hướng lộ trình học tập...">{{ $submission->teacher_comments ?? 'Học viên có phản xạ tự nhiên, vốn từ vựng cơ bản vững vàng. Cần rèn luyện thêm kỹ năng viết học thuật và liên kết ý trong bài nói.' }}</textarea>
+                    <textarea name="teacher_comments" rows="3" class="w-full text-xs text-gray-800 rounded-xl border border-gray-200 p-3 bg-white shadow-2xs leading-relaxed" placeholder="Nhận xét chi tiết về phát âm, ngữ pháp, độ lưu loát và định hướng lộ trình học tập...">{{ $submission->teacher_comments }}</textarea>
                 </div>
             </div>
 

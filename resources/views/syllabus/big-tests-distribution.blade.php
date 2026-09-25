@@ -93,7 +93,7 @@
                                 <div class="text-[10px] text-gray-400">{{ $bt->room }}</div>
                             </td>
                             <td class="py-3.5 px-4">{{ $bt->proctor?->name ?? 'Admin' }}</td>
-                            <td class="py-3.5 px-4 font-mono font-bold text-emerald-600">{{ $bt->passcode }}</td>
+                            <td class="py-3.5 px-4 font-mono font-bold text-emerald-600">{{ $bt->passcodeVisibleTo(auth()->user()) ? $bt->passcode : '••••••' }}</td>
                             <td class="py-3.5 px-4 text-right">
                                 <div class="flex justify-end items-center gap-2">
                                     @if(!$bt->is_distributed)

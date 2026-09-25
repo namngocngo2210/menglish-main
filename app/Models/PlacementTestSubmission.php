@@ -10,6 +10,11 @@ class PlacementTestSubmission extends Model
 {
     use HasFactory;
 
+    /** Bài nộp chờ Học vụ chấm (Writing/Speaking hoặc duyệt lại điểm tự động). */
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_GRADED = 'graded';
+
     protected $table = 'placement_test_submissions';
 
     protected $fillable = [
@@ -68,8 +73,32 @@ class PlacementTestSubmission extends Model
         return $this->belongsTo(User::class, 'grader_id');
     }
 
+    /**
+     * Overall = trung bình các kỹ năng ĐÃ có điểm. Kỹ năng chưa chấm (null)
+     * không bị thay bằng điểm giả; không có kỹ năng nào thì overall = null.
+     */
     public function calculateOverall(): void
     {
-        $this->overall_score = round(($this->listening_score + $this->reading_score + $this->writing_score + $this->speaking_score) / 4, 1);
+        $this->overall_score = self::averageOf([
+            $this->listening_score,
+            $this->reading_score,
+            $this->writing_score,
+            $this->speaking_score,
+        ]);
+    }
+
+    /**
+     * @param  array<int, float|int|string|null>  $scores
+     */
+    public static function averageOf(array $scores): ?float
+    {
+        $present = array_map('floatval', array_filter($scores, fn ($score) => $score !== null && $score !== ''));
+
+        return $present === [] ? null : round(array_sum($present) / count($present), 1);
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status !== self::STATUS_GRADED;
     }
 }

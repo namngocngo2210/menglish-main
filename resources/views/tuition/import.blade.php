@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-app-layout hide-errors>
     <x-slot name="header">
         <div class="flex items-center gap-3">
             <a href="{{ route('tuition.students') }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
@@ -13,6 +13,13 @@
             </div>
         </div>
     </x-slot>
+
+    @include('tuition.partials.errors')
+
+    <div class="max-w-4xl mx-auto mb-4 p-4 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-sm flex items-center gap-2">
+        <span class="material-symbols-outlined text-amber-600">construction</span>
+        Chức năng nhập học phí từ Excel đang được phát triển — hiện chưa nạp được dữ liệu. Vui lòng nhập thủ công.
+    </div>
 
     <div class="max-w-4xl mx-auto space-y-6" x-data="{
         fileName: '',

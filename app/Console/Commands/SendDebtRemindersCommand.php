@@ -24,7 +24,7 @@ class SendDebtRemindersCommand extends Command
         $tuitions = StudentTuition::with(['student', 'classModel'])
             ->whereNotNull('due_date')
             ->where('debt_amount', '>', 0)
-            ->where(function ($query) {
+            ->where(function ($query) use ($today) {
                 // Chỉ lấy hợp đồng có ngày chạm đúng một trong 3 mốc hôm nay
                 $query->whereDate('due_date', $today->copy()->addDays(3)->toDateString())   // T-3
                     ->orWhereDate('due_date', $today->toDateString())                        // T0
@@ -32,9 +32,19 @@ class SendDebtRemindersCommand extends Command
             })
             ->get();
 
+        $dryRun = (bool) $this->option('dry-run');
         $sent = 0;
         $skipped = 0;
         foreach ($tuitions as $tuition) {
+            if ($dryRun) {
+                // Dry-run: chỉ liệt kê, không ghi thông báo / không gửi email.
+                $milestone = NotificationService::debtMilestoneFor($tuition);
+                $sent++;
+                $this->info("[dry-run][{$milestone}] {$tuition->student?->name} — ".number_format((float) $tuition->debt_amount).'đ');
+
+                continue;
+            }
+
             $result = $service->notifyDebtReminderByMilestone($tuition);
             if ($result['sent']) {
                 $sent++;

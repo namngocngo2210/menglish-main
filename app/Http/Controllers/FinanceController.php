@@ -9,6 +9,7 @@ use App\Models\PayrollRecord;
 use App\Models\TuitionReceipt;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FinanceController extends Controller
 {
+    /** Ngưỡng tỷ suất gộp (%) đánh giá chi nhánh — dùng chung cho màn hình và file xuất. */
+    private const MARGIN_GOOD = 69;
+
+    private const MARGIN_TARGET = 60;
+
     /**
      * Màn hình: Sổ khoản chi vận hành (Epic 13)
      */
@@ -352,25 +358,14 @@ class FinanceController extends Controller
 
         // 2. Query Doanh thu (Tổng thu thực tế)
         // Tất cả phiếu thu còn hiệu lực (không bị hủy hóa đơn / rejected)
-        $receiptQuery = TuitionReceipt::with(['student.branch', 'tuition.branch'])
-            ->whereBetween('payment_date', [$startDate, $endDate])
-            ->whereNotIn('status', ['rejected', 'cancelled']);
-
-        if ($branchId !== 'all' && is_numeric($branchId)) {
-            $receiptQuery->where(function ($q) use ($branchId) {
-                $q->whereHas('tuition', fn($t) => $t->where('branch_id', $branchId))
-                    ->orWhereHas('student', fn($s) => $s->where('branch_id', $branchId));
-            });
-        }
-
-        $receipts = $receiptQuery->get();
+        $receipts = $this->revenueReceiptQuery($startDate, $endDate, $branchId)
+            ->with(['student.branch', 'tuition.branch'])
+            ->get();
         $totalRevenue = (float)$receipts->sum('amount');
         $validReceiptsCount = $receipts->count();
 
         // Bóc tách nguồn thu: Học phí vs Phụ thu
-        $tuitionRevenue = (float)$receipts->sum(function ($r) {
-            return $r->tuition_amount > 0 ? $r->tuition_amount : ($r->amount - $r->surcharge_amount);
-        });
+        $tuitionRevenue = (float)$receipts->sum(fn (TuitionReceipt $r) => $r->tuitionPortion());
         $surchargeRevenue = (float)$receipts->sum('surcharge_amount');
 
         $tuitionPercent = $totalRevenue > 0 ? round(($tuitionRevenue / $totalRevenue) * 100, 1) : 0;
@@ -387,15 +382,7 @@ class FinanceController extends Controller
         $prevStart = $prevParsed->copy()->startOfMonth()->toDateString();
         $prevEnd = $prevParsed->copy()->endOfMonth()->toDateString();
 
-        $prevReceiptQuery = TuitionReceipt::whereBetween('payment_date', [$prevStart, $prevEnd])
-            ->whereNotIn('status', ['rejected', 'cancelled']);
-        if ($branchId !== 'all' && is_numeric($branchId)) {
-            $prevReceiptQuery->where(function ($q) use ($branchId) {
-                $q->whereHas('tuition', fn($t) => $t->where('branch_id', $branchId))
-                    ->orWhereHas('student', fn($s) => $s->where('branch_id', $branchId));
-            });
-        }
-        $prevRevenue = (float)$prevReceiptQuery->sum('amount');
+        $prevRevenue = (float)$this->revenueReceiptQuery($prevStart, $prevEnd, $branchId)->sum('amount');
         $revenueDiffPercent = 0;
         $revenueDiffIsUp = true;
         if ($prevRevenue > 0) {
@@ -455,13 +442,7 @@ class FinanceController extends Controller
 
         foreach ($branches as $b) {
             // Doanh thu chi nhánh
-            $bRevenue = (float)TuitionReceipt::whereBetween('payment_date', [$startDate, $endDate])
-                ->whereNotIn('status', ['rejected', 'cancelled'])
-                ->where(function ($q) use ($b) {
-                    $q->whereHas('tuition', fn($t) => $t->where('branch_id', $b->id))
-                        ->orWhereHas('student', fn($s) => $s->where('branch_id', $b->id));
-                })
-                ->sum('amount');
+            $bRevenue = (float)$this->revenueReceiptQuery($startDate, $endDate, $b->id)->sum('amount');
 
             // Chi phí tự nhập chi nhánh
             $bManualExpense = (float)OperatingExpense::whereBetween('expense_date', [$startDate, $endDate])
@@ -481,12 +462,7 @@ class FinanceController extends Controller
             $bMargin = $bRevenue > 0 ? round(($bProfit / $bRevenue) * 100, 1) : 0;
 
             // Đánh giá tình trạng chi nhánh
-            $statusBadge = match (true) {
-                $bMargin >= 69 => ['label' => 'Tăng trưởng tốt', 'class' => 'text-emerald-700', 'dot' => 'bg-emerald-500', 'badge_bg' => 'bg-emerald-50 text-emerald-700'],
-                $bMargin >= 60 => ['label' => 'Đạt chỉ tiêu', 'class' => 'text-emerald-700', 'dot' => 'bg-emerald-500', 'badge_bg' => 'bg-emerald-50 text-emerald-700'],
-                $bMargin >= 0 => ['label' => 'Ổn định', 'class' => 'text-blue-700', 'dot' => 'bg-blue-500', 'badge_bg' => 'bg-blue-50 text-blue-700'],
-                default => ['label' => 'Cần tối ưu', 'class' => 'text-rose-700', 'dot' => 'bg-rose-500', 'badge_bg' => 'bg-rose-50 text-rose-700'],
-            };
+            $statusBadge = $this->branchMarginStatus($bMargin);
 
             $branchMatrix[] = [
                 'branch' => $b,
@@ -583,12 +559,7 @@ class FinanceController extends Controller
             $sumExp = 0;
 
             foreach ($branches as $b) {
-                $bRevenue = (float)TuitionReceipt::whereBetween('payment_date', [$startDate, $endDate])
-                    ->whereNotIn('status', ['rejected', 'cancelled'])
-                    ->where(function ($q) use ($b) {
-                        $q->whereHas('tuition', fn($t) => $t->where('branch_id', $b->id))
-                            ->orWhereHas('student', fn($s) => $s->where('branch_id', $b->id));
-                    })->sum('amount');
+                $bRevenue = (float)$this->revenueReceiptQuery($startDate, $endDate, $b->id)->sum('amount');
 
                 $bManual = (float)OperatingExpense::whereBetween('expense_date', [$startDate, $endDate])
                     ->where('branch_id', $b->id)->sum('amount');
@@ -609,7 +580,7 @@ class FinanceController extends Controller
                     number_format($bExp, 0, ',', '.'),
                     number_format($bProfit, 0, ',', '.'),
                     $bMargin . '%',
-                    $bMargin >= 65 ? 'Tăng trưởng tốt' : ($bMargin >= 50 ? 'Đạt chỉ tiêu' : 'Ổn định'),
+                    $this->branchMarginStatus($bMargin)['label'],
                 ]);
 
                 $sumRev += $bRevenue;
@@ -633,5 +604,41 @@ class FinanceController extends Controller
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
+    }
+
+    /**
+     * Phiếu thu tính doanh thu: CHỈ phiếu đã duyệt (pending/draft/rejected/cancelled không tính).
+     * Chi nhánh ghi nhận theo hợp đồng (tuition.branch_id); chỉ fallback chi nhánh học viên khi phiếu không gắn hợp đồng
+     * -> mỗi phiếu thuộc đúng 1 chi nhánh, không cộng trùng.
+     */
+    private function revenueReceiptQuery(string $startDate, string $endDate, int|string|null $branchId = null): Builder
+    {
+        $query = TuitionReceipt::query()
+            ->whereBetween('payment_date', [$startDate, $endDate])
+            ->where('status', TuitionReceipt::STATUS_APPROVED);
+
+        if ($branchId !== null && $branchId !== 'all' && is_numeric($branchId)) {
+            $query->where(function (Builder $q) use ($branchId) {
+                $q->whereHas('tuition', fn (Builder $t) => $t->where('branch_id', $branchId))
+                    ->orWhere(fn (Builder $noTuition) => $noTuition
+                        ->whereNull('student_tuition_id')
+                        ->whereHas('student', fn (Builder $s) => $s->where('branch_id', $branchId)));
+            });
+        }
+
+        return $query;
+    }
+
+    /**
+     * @return array{label: string, class: string, dot: string, badge_bg: string}
+     */
+    private function branchMarginStatus(float $margin): array
+    {
+        return match (true) {
+            $margin >= self::MARGIN_GOOD => ['label' => 'Tăng trưởng tốt', 'class' => 'text-emerald-700', 'dot' => 'bg-emerald-500', 'badge_bg' => 'bg-emerald-50 text-emerald-700'],
+            $margin >= self::MARGIN_TARGET => ['label' => 'Đạt chỉ tiêu', 'class' => 'text-emerald-700', 'dot' => 'bg-emerald-500', 'badge_bg' => 'bg-emerald-50 text-emerald-700'],
+            $margin >= 0 => ['label' => 'Ổn định', 'class' => 'text-blue-700', 'dot' => 'bg-blue-500', 'badge_bg' => 'bg-blue-50 text-blue-700'],
+            default => ['label' => 'Cần tối ưu', 'class' => 'text-rose-700', 'dot' => 'bg-rose-500', 'badge_bg' => 'bg-rose-50 text-rose-700'],
+        };
     }
 }

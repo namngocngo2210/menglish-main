@@ -76,11 +76,16 @@ class PlacementTestModuleTest extends TestCase
             'title' => 'Đề Test Đầu Vào IELTS Intensive 2026',
             'target_level' => 'IELTS 5.0 - 6.5',
             'duration_minutes' => 60,
-            'questions_count' => 5,
+            'questions_count' => 2,
             'is_active' => true,
+            'questions' => [
+                ['id' => 1, 'skill' => 'listening', 'type' => 'multiple_choice', 'title' => 'L1', 'options' => [['key' => 'A', 'text' => 'a'], ['key' => 'B', 'text' => 'b']], 'correct_answer' => 'B'],
+                ['id' => 2, 'skill' => 'reading', 'type' => 'multiple_choice', 'title' => 'R1', 'options' => [['key' => 'C', 'text' => 'c'], ['key' => 'D', 'text' => 'd']], 'correct_answer' => 'C'],
+            ],
         ]);
 
-        $response = $this->get('/portal/placement-test/TEST-IE-2026?lead_id=13');
+        // Link công khai (không chữ ký) chỉ hiển thị form trống.
+        $response = $this->get('/portal/placement-test/TEST-IE-2026');
         $response->assertOk();
         $response->assertSee('Đề Test Đầu Vào IELTS Intensive 2026');
 
@@ -88,8 +93,7 @@ class PlacementTestModuleTest extends TestCase
             'candidate_name' => 'Nguyễn Minh Anh',
             'candidate_phone' => '0988 123 456',
             'candidate_email' => 'minhanh@gmail.com',
-            'listening_answers' => ['q1' => 'B', 'q2' => 'A'],
-            'reading_answers' => ['q1' => 'C', 'q2' => 'B'],
+            'answers' => ['1' => 'B', '2' => 'D'],
             'writing_content' => 'Learning English is very important because it helps people travel, study abroad, and get better jobs in international companies.',
             'speaking_self_rate' => 'intermediate',
         ]);
@@ -98,6 +102,7 @@ class PlacementTestModuleTest extends TestCase
         $this->assertDatabaseHas('placement_test_submissions', [
             'candidate_name' => 'Nguyễn Minh Anh',
             'placement_test_id' => $test->id,
+            'status' => 'pending',
         ]);
     }
 
@@ -131,9 +136,8 @@ class PlacementTestModuleTest extends TestCase
         $this->assertStringContainsString('Bản sao tùy biến', $copy->title);
         $this->assertFalse($copy->is_preset);
 
-        // 3. Can also duplicate via direct GET link
-        $responseGetDuplicate = $this->actingAs($user)->get(route('placement-tests.duplicate', $test->id));
-        $responseGetDuplicate->assertRedirect();
+        // 3. GET không được phép tạo bản sao (tránh CSRF qua link/ảnh)
+        $this->actingAs($user)->get(route('placement-tests.duplicate', $test->id))->assertStatus(405);
     }
 
     public function test_speaking_tests_and_rubric_evaluation(): void
@@ -182,8 +186,10 @@ class PlacementTestModuleTest extends TestCase
 
         $sub = PlacementTestSubmission::where('candidate_name', 'Bé Mai An')->first();
         $this->assertNotNull($sub);
-        $this->assertNotEmpty($sub->cefr_level);
-        $this->assertNotEmpty($sub->recommended_course);
+        // Speaking do Học vụ chấm: bài chờ chấm, không tự sinh CEFR / khóa đề xuất.
+        $this->assertSame('pending', $sub->status);
+        $this->assertNull($sub->speaking_score);
+        $this->assertNull($sub->cefr_level);
 
         // Check scorecard page (public route yêu cầu URL có chữ ký)
         $scorecardResp = $this->get(URL::signedRoute('portal.test.scorecard', ['id' => $sub->id]));
