@@ -227,8 +227,12 @@ class WorkTaskController extends Controller
             'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
             'date' => ['nullable', 'date'],
             'week' => ['nullable', 'regex:/^\d{4}-W\d{2}$/'],
+            'attendance' => ['nullable', 'in:done,missing,upcoming,cancelled'],
+            'teacher_id' => ['nullable', 'integer'],
         ]);
         $viewer = $request->user();
+        $attendanceFilter = $validated['attendance'] ?? null;
+        $teacherFilter = isset($validated['teacher_id']) ? (int) $validated['teacher_id'] : null;
         $tab = $validated['tab'] ?? 'day';
         $branchId = isset($validated['branch_id']) ? (int) $validated['branch_id'] : null;
         $today = CarbonImmutable::today();
@@ -242,6 +246,14 @@ class WorkTaskController extends Controller
 
         // Theo ngày: buổi học thật của ngày được chọn (kể cả buổi đã hủy/nghỉ lễ để học vụ nắm được).
         $daySessions = $dashboard->sessionsQuery($viewer, $branchId)->whereDate('date', $date)->get();
+        // "Lọc thêm" (mockup): giáo viên và trạng thái điểm danh — lọc trên buổi thật trong ngày.
+        $dayTeachers = $daySessions->flatMap(fn (ClassSession $s) => [$s->teacher, $s->foreignTeacher])->filter()->unique('id')->sortBy('name')->values();
+        if ($teacherFilter) {
+            $daySessions = $daySessions->filter(fn (ClassSession $s) => in_array($teacherFilter, [(int) $s->teacher_id, (int) $s->foreign_teacher_id], true))->values();
+        }
+        if ($attendanceFilter) {
+            $daySessions = $daySessions->filter(fn (ClassSession $s) => $dashboard->attendanceState($s, $today)['key'] === $attendanceFilter)->values();
+        }
         $dayStats = [
             'total' => $daySessions->where('status', '!=', 'cancelled')->count(),
             'done' => $daySessions->filter(fn ($s) => $s->status !== 'cancelled' && $s->attendances_count > 0)->count(),
@@ -284,7 +296,8 @@ class WorkTaskController extends Controller
 
         return view('tasks.classes-dashboard', compact(
             'tab', 'branches', 'branchId', 'selectedBranch', 'date', 'week', 'today',
-            'daySessions', 'dayStats', 'seats', 'assistantsToday', 'weekStart', 'matrix', 'dashboard'
+            'daySessions', 'dayStats', 'seats', 'assistantsToday', 'weekStart', 'matrix', 'dashboard',
+            'dayTeachers', 'attendanceFilter', 'teacherFilter'
         ));
     }
 

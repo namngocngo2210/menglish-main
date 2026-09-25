@@ -159,4 +159,39 @@ class Phase2MockupClassesTest extends TestCase
         $this->actingAs($this->admin)->withSession(['errors' => session('errors')])->get(route('tasks.schedule-config'))
             ->assertSee('Cảnh báo xung đột lịch')->assertSee('data-testid="schedule-conflict"', false);
     }
+
+    // ── 3. Dashboard lớp học ──────────────────────────────────────────────
+
+    public function test_class_dashboard_matches_mockup_with_attendance_window_extra_filters_and_branch_alert(): void
+    {
+        $morning = $this->makeSession('2026-10-07', '07:00', '08:30');   // đã học, trong cửa sổ 24h
+        $evening = $this->makeSession('2026-10-07', '18:00', '19:30');   // chưa tới giờ
+        $old = $this->makeSession('2026-10-05', '07:00', '08:30');       // quá 24h
+        $student = $this->student('Học sinh Dashboard');
+        \App\Models\StudentAttendance::create(['class_id' => $this->classModel->id, 'class_session_id' => $morning->id,
+            'student_id' => $student->id, 'user_id' => $this->teacher->id, 'session_date' => '2026-10-07', 'status' => 'present']);
+
+        $this->actingAs($this->admin)->get(route('tasks.classes-dashboard', ['date' => '2026-10-07']))->assertOk()
+            ->assertSee('Quản lý lịch học, điểm danh và chấm công giảng viên')
+            ->assertSee('Xuất báo cáo')->assertSee('Thêm lớp học')
+            ->assertSee('Theo ngày')->assertSee('Theo tuần')->assertSee('Lọc thêm')
+            ->assertSee('Chỉ được chấm công trong vòng 24h sau giờ học')
+            ->assertSee('Xem điểm danh')
+            ->assertSee('Trợ giảng làm việc hôm nay')->assertSee('Xem tất cả trợ giảng')
+            ->assertSee('Hiển thị 2 buổi học của 1 lớp học')
+            ->assertDontSee('data-testid="no-branch-alert"', false);
+
+        $this->actingAs($this->admin)->get(route('tasks.classes-dashboard', ['date' => '2026-10-05']))
+            ->assertSee('Điểm danh bù');
+
+        // Lọc thêm: chỉ buổi đã điểm danh.
+        $this->actingAs($this->admin)->get(route('tasks.classes-dashboard', ['date' => '2026-10-07', 'attendance' => 'done']))
+            ->assertSee('Hiển thị 1 buổi học của 1 lớp học')->assertSee('07:00 - 08:30')->assertDontSee('18:00 - 19:30');
+
+        // Tài khoản không gán chi nhánh → cảnh báo như mockup.
+        $noBranch = User::factory()->create(['name' => 'Học vụ chưa gán CN', 'is_active' => true, 'branch_id' => null]);
+        $noBranch->assignRole('academic_staff');
+        $this->actingAs($noBranch)->get(route('tasks.classes-dashboard'))
+            ->assertOk()->assertSee('Tài khoản chưa gán chi nhánh, liên hệ Quản trị viên.');
+    }
 }

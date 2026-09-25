@@ -61,6 +61,27 @@ class ClassDashboardService
         return ['key' => 'missing', 'color' => 'error', 'label' => 'Chưa điểm danh'];
     }
 
+    /** Cửa sổ chấm công / điểm danh theo mockup: từ giờ bắt đầu buổi đến 24 giờ sau giờ kết thúc. */
+    public const ATTENDANCE_WINDOW_HOURS = 24;
+
+    /**
+     * Vị trí hiện tại so với cửa sổ chấm công của buổi: before (chưa tới giờ học), open (trong 24h sau
+     * giờ học), closed (quá 24h — vẫn điểm danh bù được, sẽ được Học vụ rà soát).
+     */
+    public function attendanceWindow(ClassSession $session, ?\Carbon\CarbonInterface $now = null): string
+    {
+        $now ??= now();
+        $date = $session->date->format('Y-m-d');
+        $start = \Illuminate\Support\Carbon::parse($date.' '.($session->start_time?->format('H:i') ?? '00:00'));
+        $end = \Illuminate\Support\Carbon::parse($date.' '.($session->end_time?->format('H:i') ?? '23:59'));
+
+        return match (true) {
+            $now->lt($start) => 'before',
+            $now->lte($end->copy()->addHours(self::ATTENDANCE_WINDOW_HOURS)) => 'open',
+            default => 'closed',
+        };
+    }
+
     /**
      * Trợ giảng có buổi trong ngày cùng khung giờ làm việc (giờ bắt đầu sớm nhất → kết thúc muộn nhất).
      *
