@@ -458,9 +458,16 @@ class ClassManagementController extends Controller
         if ($selectedBranch !== 'all' && is_numeric($selectedBranch)) {
             $classesQuery->where('branch_id', $selectedBranch);
         }
-        $totalActive = $classesQuery->where('status', '!=', 'cancelled')->count();
+        $classesQuery->where('status', '!=', 'cancelled');
+        $totalActive = (clone $classesQuery)->count();
 
-        return view('classes.academic-overview', compact('branches', 'selectedBranch', 'totalActive'));
+        // Số lớp thật theo chương trình và theo trình độ / khối (cột classes.program / classes.level).
+        $programCounts = (clone $classesQuery)->selectRaw("COALESCE(NULLIF(program, ''), '') as label, COUNT(*) as total")
+            ->groupBy('label')->orderByDesc('total')->pluck('total', 'label');
+        $levelCounts = (clone $classesQuery)->selectRaw("COALESCE(NULLIF(level, ''), '') as label, COUNT(*) as total")
+            ->groupBy('label')->orderByDesc('total')->pluck('total', 'label');
+
+        return view('classes.academic-overview', compact('branches', 'selectedBranch', 'totalActive', 'programCounts', 'levelCounts'));
     }
 
     /**
@@ -473,6 +480,7 @@ class ClassManagementController extends Controller
         $search = $request->query('search');
         $branchFilter = $request->query('branch_id');
         $programFilter = $request->query('program');
+        $levelFilter = $request->query('level');
 
         $this->ensureCanBrowseClasses();
         $classesQuery = ClassModel::with(['branch', 'teacher', 'assistant', 'students'])->visibleTo(auth()->user())->where('status', '!=', 'cancelled');
@@ -487,6 +495,9 @@ class ClassManagementController extends Controller
         }
         if ($programFilter) {
             $classesQuery->where('program', $programFilter);
+        }
+        if ($levelFilter) {
+            $classesQuery->where('level', $levelFilter);
         }
 
         // Tiến độ thật: số buổi (không tính buổi hủy) và số buổi đã diễn ra.
@@ -506,7 +517,7 @@ class ClassManagementController extends Controller
         $programs = ClassModel::visibleTo(auth()->user())->whereNotNull('program')->where('program', '!=', '')
             ->distinct()->orderBy('program')->pluck('program');
 
-        return view('classes.academic-list', compact('classes', 'branches', 'search', 'branchFilter', 'programFilter', 'programs', 'bigTests'));
+        return view('classes.academic-list', compact('classes', 'branches', 'search', 'branchFilter', 'programFilter', 'levelFilter', 'programs', 'bigTests'));
     }
 
     /**

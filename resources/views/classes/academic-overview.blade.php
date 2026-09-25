@@ -48,7 +48,7 @@
             </div>
         </div>
 
-        <!-- Summary: Active Classes Card (Exact Match BA) -->
+        <!-- Tổng số lớp đang hoạt động -->
         <section>
             <a href="{{ route('classes.academic-list') }}"
                class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex items-center gap-6 group block">
@@ -68,104 +68,58 @@
             </a>
         </section>
 
-        <!-- Program Grid: Số lớp theo chương trình (Exact Match BA 4 Cards) -->
+        <!-- Số lớp theo chương trình (dữ liệu thật) -->
         <section class="space-y-4">
             <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">
                 <span class="material-symbols-outlined text-primary text-[20px]">category</span>
                 Số lớp theo chương trình
             </h3>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <!-- Card 1: Super Safari -->
-                <a href="{{ route('classes.academic-list') }}?program=super-safari"
-                   class="bg-white border border-gray-200 rounded-2xl p-4 hover:bg-emerald-50/20 hover:border-emerald-300 transition cursor-pointer group flex justify-between items-center relative overflow-hidden shadow-2xs">
-                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500"></div>
-                    <div class="pl-2">
-                        <div class="text-sm font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">Super Safari</div>
-                        <div class="text-[11px] text-gray-400 font-medium">Mầm non (3 - 6 tuổi)</div>
-                    </div>
-                    <div class="flex items-baseline gap-1">
-                        <span class="text-xl font-bold text-gray-900 font-mono">6</span>
-                        <span class="text-xs text-gray-400">lớp</span>
-                    </div>
-                </a>
-
-                <!-- Card 2: Cambridge -->
-                <a href="{{ route('classes.academic-list') }}?program=cambridge"
-                   class="bg-white border border-gray-200 rounded-2xl p-4 hover:bg-blue-50/20 hover:border-blue-300 transition cursor-pointer group flex justify-between items-center relative overflow-hidden shadow-2xs">
-                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-600"></div>
-                    <div class="pl-2">
-                        <div class="text-sm font-bold text-gray-900 group-hover:text-blue-700 transition-colors">Cambridge</div>
-                        <div class="text-[11px] text-gray-400 font-medium">Tiểu học &amp; THCS</div>
-                    </div>
-                    <div class="flex items-baseline gap-1">
-                        <span class="text-xl font-bold text-gray-900 font-mono">15</span>
-                        <span class="text-xs text-gray-400">lớp</span>
-                    </div>
-                </a>
-
-                <!-- Card 3: IELTS -->
-                <a href="{{ route('classes.academic-list') }}?program=ielts"
-                   class="bg-white border border-gray-200 rounded-2xl p-4 hover:bg-rose-50/20 hover:border-rose-300 transition cursor-pointer group flex justify-between items-center relative overflow-hidden shadow-2xs">
-                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-500"></div>
-                    <div class="pl-2">
-                        <div class="text-sm font-bold text-gray-900 group-hover:text-rose-700 transition-colors">IELTS</div>
-                        <div class="text-[11px] text-gray-400 font-medium">Luyện thi học thuật</div>
-                    </div>
-                    <div class="flex items-baseline gap-1">
-                        <span class="text-xl font-bold text-gray-900 font-mono">12</span>
-                        <span class="text-xs text-gray-400">lớp</span>
-                    </div>
-                </a>
-
-                <!-- Card 4: Giao tiếp -->
-                <a href="{{ route('classes.academic-list') }}?program=communication"
-                   class="bg-white border border-gray-200 rounded-2xl p-4 hover:bg-orange-50/20 hover:border-orange-300 transition cursor-pointer group flex justify-between items-center relative overflow-hidden shadow-2xs">
-                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-primary-container"></div>
-                    <div class="pl-2">
-                        <div class="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors">Giao tiếp</div>
-                        <div class="text-[11px] text-gray-400 font-medium">Sinh viên &amp; Người lớn</div>
-                    </div>
-                    <div class="flex items-baseline gap-1">
-                        <span class="text-xl font-bold text-gray-900 font-mono">9</span>
-                        <span class="text-xs text-gray-400">lớp</span>
-                    </div>
-                </a>
-            </div>
+            @if ($programCounts->isEmpty())
+                <p class="text-xs text-gray-400">Chưa có dữ liệu.</p>
+            @else
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    @foreach ($programCounts as $program => $count)
+                        @php($programUrl = $program !== '' ? route('classes.academic-list', array_merge(['program' => $program], $selectedBranch !== 'all' ? ['branch_id' => $selectedBranch] : [])) : route('classes.academic-list', $selectedBranch !== 'all' ? ['branch_id' => $selectedBranch] : []))
+                        <a href="{{ $programUrl }}"
+                           class="bg-white border border-gray-200 rounded-2xl p-4 hover:border-primary-container/40 transition cursor-pointer group flex justify-between items-center relative overflow-hidden shadow-2xs">
+                            <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-primary-container"></div>
+                            <div class="pl-2 text-sm font-bold text-gray-900 group-hover:text-primary transition-colors">{{ $program !== '' ? $program : 'Chưa gán chương trình' }}</div>
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-xl font-bold text-gray-900 font-mono">{{ $count }}</span>
+                                <span class="text-xs text-gray-400">lớp</span>
+                            </div>
+                        </a>
+                    @endforeach
+                </div>
+            @endif
         </section>
 
-        <!-- Level/Block Grid: Số lớp theo trình độ/khối (Exact Match BA) -->
+        <!-- Số lớp theo trình độ / khối (dữ liệu thật) -->
         <section class="space-y-4">
             <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">
                 <span class="material-symbols-outlined text-primary text-[20px]">layers</span>
                 Số lớp theo trình độ / khối
             </h3>
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                @php
-                    $levels = [
-                        ['name' => 'Starter', 'count' => 10],
-                        ['name' => 'Mover', 'count' => 8],
-                        ['name' => 'Flyer', 'count' => 7],
-                        ['name' => 'Band 5.0', 'count' => 5],
-                        ['name' => 'Band 6.5+', 'count' => 12],
-                    ];
-                @endphp
-
-                @foreach($levels as $lvl)
-                    <a href="{{ route('classes.academic-list') }}?search={{ $lvl['name'] }}"
-                       class="bg-white border border-gray-200 rounded-2xl p-4 hover:shadow-md hover:border-primary-container/40 transition cursor-pointer flex flex-col gap-3 group">
-                        <div class="text-xs font-bold text-gray-700 truncate group-hover:text-primary transition-colors">
-                            {{ $lvl['name'] }}
-                        </div>
-                        <div class="flex justify-between items-end">
-                            <div class="flex items-baseline gap-1">
-                                <span class="text-2xl font-black text-primary tracking-tight font-mono">{{ $lvl['count'] }}</span>
-                                <span class="text-xs text-gray-400">lớp</span>
+            @if ($levelCounts->isEmpty())
+                <p class="text-xs text-gray-400">Chưa có dữ liệu.</p>
+            @else
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                    @foreach ($levelCounts as $level => $count)
+                        @php($levelUrl = $level !== '' ? route('classes.academic-list', array_merge(['level' => $level], $selectedBranch !== 'all' ? ['branch_id' => $selectedBranch] : [])) : route('classes.academic-list', $selectedBranch !== 'all' ? ['branch_id' => $selectedBranch] : []))
+                        <a href="{{ $levelUrl }}"
+                           class="bg-white border border-gray-200 rounded-2xl p-4 hover:shadow-md hover:border-primary-container/40 transition cursor-pointer flex flex-col gap-3 group">
+                            <div class="text-xs font-bold text-gray-700 truncate group-hover:text-primary transition-colors">{{ $level !== '' ? $level : 'Chưa gán trình độ' }}</div>
+                            <div class="flex justify-between items-end">
+                                <div class="flex items-baseline gap-1">
+                                    <span class="text-2xl font-black text-primary tracking-tight font-mono">{{ $count }}</span>
+                                    <span class="text-xs text-gray-400">lớp</span>
+                                </div>
+                                <span class="material-symbols-outlined text-gray-300 group-hover:text-primary group-hover:translate-x-1 transition-all text-[18px]">arrow_forward</span>
                             </div>
-                            <span class="material-symbols-outlined text-gray-300 group-hover:text-primary group-hover:translate-x-1 transition-all text-[18px]">arrow_forward</span>
-                        </div>
-                    </a>
-                @endforeach
-            </div>
+                        </a>
+                    @endforeach
+                </div>
+            @endif
         </section>
     </div>
 </x-app-layout>
