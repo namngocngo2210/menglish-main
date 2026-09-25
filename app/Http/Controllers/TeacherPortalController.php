@@ -635,20 +635,22 @@ class TeacherPortalController extends Controller
     public function orderTest(Request $request, int $classId)
     {
         $this->guardTeacher();
-        $class = ClassModel::with(['course', 'syllabusAssignments' => fn ($q) => $q->where('user_id', Auth::id())])
+        $class = ClassModel::with(['course', 'syllabusAssignments' => fn ($q) => $q->with('stage')->latest('id')])
             ->findOrFail($classId);
         $this->authorizeClass($class);
 
+        // Q4: order đề luôn gắn chặng đang mở của lớp (không nhập tên chặng tự do).
+        $openAssignment = $class->syllabusAssignments->first(fn ($a) => $a->isOpen());
         $assignments = $class->syllabusAssignments;
 
         // Lịch sử order đề của lớp này (cùng dữ liệu với màn Duyệt & phân phối đề của Học thuật)
-        $requests = BigTestOrder::with('reviewer')
+        $requests = BigTestOrder::with(['reviewer', 'stage'])
             ->where('class_id', $class->id)
             ->latest()
             ->take(10)
             ->get();
 
-        return view('teacher.order-test', compact('class', 'assignments', 'requests'));
+        return view('teacher.order-test', compact('class', 'assignments', 'openAssignment', 'requests'));
     }
 
     public function submitOrderTest(Request $request, int $classId)
@@ -658,18 +660,31 @@ class TeacherPortalController extends Controller
         $this->authorizeClass($class);
 
         $validated = $request->validate([
-            'stage_name' => 'required|string|max:255',
             'test_type' => 'required|in:mini,big',
             'exam_date' => 'nullable|date|after_or_equal:today',
             'note' => 'nullable|string|max:1000',
         ]);
 
+        // Q4: đề gắn chặng đang mở của lớp; lớp chưa mở chặng thì chưa order được.
+        $assignment = \App\Models\SyllabusAssignment::open()->with('stage')->where('class_id', $class->id)->first();
+        if (! $assignment) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['stage' => 'Lớp chưa được giao chặng nào đang mở — liên hệ Học thuật mở chặng trước khi order đề.']);
+        }
+        $stageLabel = $assignment->stage?->label ?? $assignment->stage_name;
+        $duplicate = BigTestOrder::where('class_id', $class->id)->where('status', 'pending')->where('test_type', $validated['test_type'])
+            ->when($assignment->stage_id, fn ($q) => $q->where('syllabus_stage_id', $assignment->stage_id), fn ($q) => $q->where('stage_name', $stageLabel))
+            ->exists();
+        if ($duplicate) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['stage' => "Đã có order đề cho {$stageLabel} đang chờ Học thuật duyệt."]);
+        }
+
         $examDate = isset($validated['exam_date']) ? Carbon::parse($validated['exam_date']) : null;
         $order = BigTestOrder::create([
             'code' => 'ORDTEST-'.strtoupper(Str::random(6)),
             'class_id' => $class->id,
+            'syllabus_stage_id' => $assignment->stage_id,
             'teacher_id' => Auth::id(),
-            'stage_name' => $validated['stage_name'],
+            'stage_name' => $stageLabel,
             'test_type' => $validated['test_type'],
             'exam_date' => $examDate,
             // Hạn xử lý: đề phải phân phối trước ngày thi N ngày; không có ngày thi thì trong 3 ngày làm việc.
@@ -683,7 +698,7 @@ class TeacherPortalController extends Controller
         AdminNotification::create([
             'type' => 'big_test_order',
             'title' => 'GV yêu cầu đề test: '.Auth::user()->name,
-            'message' => 'Giáo viên '.Auth::user()->name.' yêu cầu đề '.$order->type_label." cho chặng \"{$validated['stage_name']}\" của lớp {$class->name}".(filled($validated['note'] ?? null) ? " — Ghi chú: {$validated['note']}" : ''),
+            'message' => 'Giáo viên '.Auth::user()->name.' yêu cầu đề '.$order->type_label." cho chặng \"{$stageLabel}\" của lớp {$class->name}".(filled($validated['note'] ?? null) ? " — Ghi chú: {$validated['note']}" : ''),
             'data' => ['link' => route('syllabus.big-tests.distribution', ['order' => $order->id])],
             'is_read' => false,
         ]);

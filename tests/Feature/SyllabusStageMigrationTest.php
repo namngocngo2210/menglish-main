@@ -34,6 +34,14 @@ class SyllabusStageMigrationTest extends TestCase
         $class = ClassModel::create(['code' => 'MIG-01', 'name' => 'Lớp MIG']);
 
         $migration = require base_path('database/migrations/2026_09_29_100000_create_syllabus_stage_hierarchy.php');
+        // Migration sau có khóa ngoại tới syllabus_stages / syllabus_lessons → gỡ trước, dựng lại sau.
+        $dependents = collect([
+            '2026_09_30_120000_add_content_to_syllabus_lessons',
+            '2026_09_30_120100_add_stage_and_views_to_syllabus_documents',
+            '2026_09_30_120200_add_lesson_to_syllabus_change_proposals',
+            '2026_09_30_120300_add_stage_to_big_test_orders',
+        ])->map(fn ($name) => require base_path("database/migrations/{$name}.php"));
+        $dependents->reverse()->each->down();
         $migration->down();
 
         $now = now();
@@ -56,6 +64,7 @@ class SyllabusStageMigrationTest extends TestCase
         DB::table('big_test_results')->insert(['big_test_id' => $sentTest, 'student_id' => $st->id, 'status' => 'sent', 'parent_notified' => true, 'created_at' => $now, 'updated_at' => $now]);
 
         $migration->up();
+        $dependents->each->up();
 
         $stage = SyllabusStage::where('curriculum_id', $curId)->sole();
         $this->assertSame(1, $stage->position);

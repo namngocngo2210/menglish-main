@@ -29,6 +29,7 @@ class BigTestOrder extends Model
     protected $fillable = [
         'code',
         'class_id',
+        'syllabus_stage_id',
         'teacher_id',
         'stage_name',
         'test_type',
@@ -64,6 +65,11 @@ class BigTestOrder extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
+    public function stage(): BelongsTo
+    {
+        return $this->belongsTo(SyllabusStage::class, 'syllabus_stage_id');
+    }
+
     public function bigTest(): BelongsTo
     {
         return $this->belongsTo(BigTest::class, 'big_test_id');
@@ -87,6 +93,17 @@ class BigTestOrder extends Model
     public function isOverdue(): bool
     {
         return $this->status === 'pending' && $this->due_date !== null && $this->due_date->lt(today());
+    }
+
+    /** Cảnh báo SLA: còn chờ duyệt và hạn xử lý là hôm nay / ngày mai (chưa quá hạn). */
+    public function isSlaWarning(): bool
+    {
+        return $this->status === 'pending' && $this->due_date !== null && ! $this->isOverdue() && $this->due_date->lte(today()->addDay());
+    }
+
+    public function getStageLabelAttribute(): string
+    {
+        return $this->stage?->label ?? (string) $this->stage_name;
     }
 
     public function getStatusLabelAttribute(): string

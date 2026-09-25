@@ -6,14 +6,15 @@
                     <span class="material-symbols-outlined text-[18px]">arrow_back</span>
                 </a>
                 <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">rule</span>
-                        Duyệt yêu cầu xin điều chỉnh tiến độ
-                    </h1>
-                    <p class="text-xs text-gray-500">Duyệt giãn tiến độ sẽ thêm buổi học vào cuối lịch của lớp; từ chối bắt buộc nhập lý do.</p>
+                    <h1 class="font-h1 text-h1 text-on-surface">Duyệt yêu cầu xin điều chỉnh tiến độ</h1>
+                    <p class="font-body-base text-on-surface-variant">Quản lý các yêu cầu giãn tiến độ từ giáo viên. Duyệt sẽ thêm buổi vào cuối lịch của lớp; từ chối bắt buộc nhập lý do.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
+                <form method="GET" class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[18px] text-on-surface-variant">filter_list</span>
+                    <x-ui.select name="status" :value="$status" :options="['all' => 'Tất cả'] + \App\Models\SyllabusAdjustmentRequest::STATUS_LABELS" onchange="this.form.submit()" aria-label="Lọc" />
+                </form>
                 <x-ui.button variant="secondary" icon="speed" :href="route('syllabus.teacher-adjust')">Gửi yêu cầu mới</x-ui.button>
             </div>
         </div>
@@ -22,114 +23,140 @@
     @include('syllabus.partials.flow-header', ['activeStep' => 8])
 
     @php($canReview = auth()->user()->can('syllabus.approve_adjustment'))
+    @php($listTitle = ['pending' => 'Danh sách chờ duyệt', 'approved' => 'Đã duyệt', 'rejected' => 'Đã từ chối'][$status] ?? 'Tất cả yêu cầu')
 
+    {{-- Mockup 01_Web_Admin/04: master (thẻ yêu cầu có SLA) – detail (lớp/chặng, ngày gửi, số buổi, lý do, Từ chối → xác nhận / Phê duyệt). --}}
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div class="lg:col-span-7 min-w-0">
-            <x-ui.data-table>
-                <x-slot:header>
-                    <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary text-[20px]">pending_actions</span>
-                        <span class="text-sm font-bold text-gray-900">Danh sách yêu cầu</span>
-                        <x-ui.badge color="warning">{{ $requests->total() }} yêu cầu</x-ui.badge>
-                    </div>
-                </x-slot:header>
-                <table>
-                    <thead><tr><th>Giáo viên / Lớp</th><th>Yêu cầu</th><th class="text-right">Trạng thái</th></tr></thead>
-                    <tbody>
-                        @forelse ($requests as $req)
-                            <tr class="{{ $selected?->id === $req->id ? 'bg-orange-50/60' : '' }}">
-                                <td>
-                                    <a href="{{ route('syllabus.adjustment-requests', array_filter(['request' => $req->id, 'page' => request('page')])) }}" class="block">
-                                        <p class="font-bold text-gray-900 text-xs">{{ $req->teacher?->name ?? '—' }}</p>
-                                        <p class="text-[11px] text-gray-500">{{ $req->classModel?->name }} · {{ $req->created_at->format('d/m/Y') }}</p>
-                                    </a>
-                                </td>
-                                <td class="text-xs">
-                                    <p class="font-semibold text-gray-800">{{ $req->request_type }}</p>
-                                    @if ($req->extra_sessions)
-                                        <p class="text-[11px] text-primary font-semibold">+{{ $req->extra_sessions }} buổi</p>
-                                    @endif
-                                </td>
-                                <td class="text-right whitespace-nowrap">
-                                    <x-ui.badge :color="['pending' => 'warning', 'approved' => 'success', 'rejected' => 'error'][$req->status] ?? 'neutral'">{{ $req->status_label }}</x-ui.badge>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="3"><x-ui.empty-state icon="inbox" title="Chưa có yêu cầu điều chỉnh tiến độ nào" /></td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-                <x-slot:footer><x-ui.pagination :paginator="$requests" unit="yêu cầu" /></x-slot:footer>
-            </x-ui.data-table>
+        <div class="lg:col-span-5 min-w-0 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
+            <div class="px-lg py-md border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
+                <span class="font-h3 text-h3 text-on-surface">{{ $listTitle }}</span>
+                <span class="rounded-full bg-primary-fixed px-sm py-0.5 font-label text-label text-primary">{{ $requests->total() }} Yêu cầu</span>
+            </div>
+            <div class="flex-1 space-y-sm overflow-y-auto p-md max-h-[720px]">
+                @forelse ($requests as $req)
+                    @php($active = $selected?->id === $req->id)
+                    <a href="{{ route('syllabus.adjustment-requests', array_filter(['request' => $req->id, 'status' => $status, 'page' => request('page')])) }}"
+                       class="relative block overflow-hidden rounded-lg border p-md transition-colors {{ $active ? 'border-primary-container bg-surface-container-low' : 'border-outline-variant bg-surface-container-lowest hover:bg-surface-container-low' }}">
+                        <span class="absolute left-0 top-0 bottom-0 w-1 {{ $active ? 'bg-primary-container' : 'bg-transparent' }}"></span>
+                        <div class="flex items-start justify-between gap-sm">
+                            <div class="flex items-center gap-sm min-w-0">
+                                <x-ui.avatar :name="$req->teacher?->name ?? '?'" size="sm" />
+                                <div class="min-w-0">
+                                    <h3 class="font-body-medium text-body-medium font-semibold text-on-surface truncate">{{ $req->teacher?->name ?? '—' }}</h3>
+                                    <p class="font-caption text-caption text-on-surface-variant">Giáo viên</p>
+                                </div>
+                            </div>
+                            @if ($req->status === 'pending')
+                                <x-ui.badge :color="$req->isSlaOverdue() ? 'error' : 'success'">{{ $req->isSlaOverdue() ? 'Quá hạn' : 'Còn hạn' }}</x-ui.badge>
+                            @else
+                                <x-ui.badge :color="$req->status === 'approved' ? 'success' : 'error'">{{ $req->status_label }}</x-ui.badge>
+                            @endif
+                        </div>
+                        <div class="mt-sm grid grid-cols-1 gap-xs font-body-small text-body-small text-on-surface-variant">
+                            <span class="flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]">school</span>{{ $req->class_stage_label }}</span>
+                            <span class="flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]">calendar_today</span>Gửi: {{ $req->created_at->format('d/m/Y') }}</span>
+                            <span class="flex items-center gap-xs"><span class="material-symbols-outlined text-[16px] {{ $active ? 'text-primary' : '' }}">add_circle</span>Xin thêm: <strong class="{{ $active ? 'text-primary' : 'text-on-surface' }}">{{ $req->extra_sessions ?: 0 }}</strong> buổi</span>
+                        </div>
+                        <p class="mt-xs line-clamp-1 font-caption text-caption text-on-surface-variant">{{ $req->reason }}</p>
+                    </a>
+                @empty
+                    <x-ui.empty-state icon="inbox" title="Không có yêu cầu nào" />
+                @endforelse
+            </div>
+            <div class="border-t border-outline-variant"><x-ui.pagination :paginator="$requests" :options="[]" unit="yêu cầu" /></div>
         </div>
 
-        <div class="lg:col-span-5 min-w-0">
-            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div class="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2 bg-gray-50/50">
+        <div class="lg:col-span-7 min-w-0">
+            <div class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden" x-data="{ rejecting: @js($errors->has('rejection_reason')) }">
+                <div class="px-lg py-md border-b border-outline-variant flex items-center gap-2 bg-surface-container-low">
                     <span class="material-symbols-outlined text-primary text-[20px]">assignment</span>
-                    <span class="text-sm font-bold text-gray-900">Chi tiết yêu cầu &amp; Xử lý</span>
+                    <span class="font-h3 text-h3 text-on-surface">Chi tiết yêu cầu</span>
                 </div>
 
                 @if (! $selected)
                     <x-ui.empty-state icon="inbox" title="Không có yêu cầu để xử lý" />
                 @else
-                    <div class="p-5 space-y-4 text-xs">
+                    <div class="p-lg space-y-lg">
                         <div class="flex items-center justify-between gap-3">
-                            <div>
-                                <p class="text-sm font-bold text-gray-900">{{ $selected->teacher?->name ?? '—' }}</p>
-                                <p class="text-[11px] text-gray-400">Gửi {{ $selected->created_at->format('H:i d/m/Y') }}</p>
+                            <div class="flex items-center gap-sm">
+                                <x-ui.avatar :name="$selected->teacher?->name ?? '?'" />
+                                <div>
+                                    <h2 class="font-h3 text-h3 text-on-surface">{{ $selected->teacher?->name ?? '—' }}</h2>
+                                    <p class="font-caption text-caption text-on-surface-variant">{{ $selected->teacher?->employee_code ?: 'Giáo viên' }}</p>
+                                </div>
                             </div>
-                            <x-ui.badge :color="['pending' => 'warning', 'approved' => 'success', 'rejected' => 'error'][$selected->status] ?? 'neutral'">{{ $selected->status_label }}</x-ui.badge>
+                            @if ($selected->status === 'pending')
+                                <x-ui.badge :color="$selected->isSlaOverdue() ? 'error' : 'success'">{{ $selected->isSlaOverdue() ? 'Quá hạn xử lý' : 'Còn hạn xử lý' }}</x-ui.badge>
+                            @else
+                                <x-ui.badge :color="$selected->status === 'approved' ? 'success' : 'error'">{{ $selected->status_label }}</x-ui.badge>
+                            @endif
                         </div>
 
-                        <dl class="bg-gray-50 p-3.5 rounded-xl border border-gray-100 grid grid-cols-2 gap-3">
-                            <div>
-                                <dt class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Lớp</dt>
-                                <dd class="font-bold text-gray-800">{{ $selected->classModel?->name }}</dd>
+                        <dl class="grid grid-cols-1 sm:grid-cols-3 gap-md rounded-lg border border-outline-variant bg-surface-container-low p-md">
+                            <div class="sm:col-span-3">
+                                <dt class="font-label text-label text-on-surface-variant uppercase">Lớp / Chặng học</dt>
+                                <dd class="mt-xs flex items-center gap-xs font-body-medium text-body-medium text-on-surface"><span class="material-symbols-outlined text-[18px] text-primary">school</span>{{ $selected->class_stage_label }}</dd>
                             </div>
                             <div>
-                                <dt class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Kết thúc lớp hiện tại</dt>
-                                <dd class="font-mono text-gray-700">{{ $selected->classModel?->end_date?->format('d/m/Y') ?? '—' }}</dd>
+                                <dt class="font-label text-label text-on-surface-variant uppercase">Ngày gửi yêu cầu</dt>
+                                <dd class="mt-xs flex items-center gap-xs font-body-medium text-body-small text-on-surface"><span class="material-symbols-outlined text-[16px]">calendar_today</span>{{ $selected->created_at->format('d/m/Y') }}</dd>
                             </div>
                             <div>
-                                <dt class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Yêu cầu</dt>
-                                <dd class="font-bold text-primary">{{ $selected->request_type }}</dd>
+                                <dt class="font-label text-label text-on-surface-variant uppercase">Số buổi xin thêm</dt>
+                                <dd class="mt-xs flex items-center gap-xs font-body-medium text-body-small text-primary"><span class="material-symbols-outlined text-[16px]">add_circle</span>+{{ $selected->extra_sessions ?: 0 }} buổi</dd>
                             </div>
                             <div>
-                                <dt class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Số buổi cần thêm</dt>
-                                <dd class="font-bold text-gray-800">{{ $selected->extra_sessions ?: 0 }}</dd>
+                                <dt class="font-label text-label text-on-surface-variant uppercase">Kết thúc lớp hiện tại</dt>
+                                <dd class="mt-xs font-mono text-body-small text-on-surface">{{ $selected->classModel?->end_date?->format('d/m/Y') ?? '—' }}</dd>
                             </div>
                         </dl>
 
                         <div>
-                            <p class="font-bold text-gray-800 mb-1">Lý do từ giáo viên</p>
-                            <div class="bg-orange-50/30 border border-orange-200/60 rounded-xl p-3 text-gray-700 whitespace-pre-line">{{ $selected->reason }}</div>
+                            <p class="mb-xs font-label text-label text-on-surface-variant uppercase">Lý do xin giãn tiến độ</p>
+                            <div class="relative rounded-lg border border-outline-variant bg-surface-container-lowest p-md pl-xl">
+                                <span class="material-symbols-outlined absolute left-sm top-sm text-[20px] text-outline">format_quote</span>
+                                <p class="whitespace-pre-line font-body-base text-body-base text-on-surface">{{ $selected->reason }}</p>
+                                @if ($selected->request_type)<p class="mt-xs font-caption text-caption text-on-surface-variant">{{ $selected->request_type }}</p>@endif
+                            </div>
                         </div>
 
                         @if ($selected->status === 'approved')
-                            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-emerald-800">
-                                <p class="font-bold">Đã duyệt bởi {{ $selected->approver?->name }} {{ $selected->reviewed_at ? 'lúc '.$selected->reviewed_at->format('H:i d/m/Y') : '' }}</p>
+                            <div class="rounded-lg border border-tertiary/20 bg-tertiary/5 p-md font-body-small text-body-small text-on-surface">
+                                <p class="font-semibold">Đã duyệt bởi {{ $selected->approver?->name }} {{ $selected->reviewed_at ? 'lúc '.$selected->reviewed_at->format('H:i d/m/Y') : '' }}</p>
                                 <p class="mt-1">{{ $selected->applied_note }}</p>
                             </div>
                         @elseif ($selected->status === 'rejected')
-                            <div class="bg-rose-50 border border-rose-200 rounded-xl p-3 text-rose-800">
-                                <p class="font-bold">Đã từ chối bởi {{ $selected->approver?->name }} {{ $selected->reviewed_at ? 'lúc '.$selected->reviewed_at->format('H:i d/m/Y') : '' }}</p>
+                            <div class="rounded-lg border border-error/20 bg-error/5 p-md font-body-small text-body-small text-on-surface">
+                                <p class="font-semibold">Đã từ chối bởi {{ $selected->approver?->name }} {{ $selected->reviewed_at ? 'lúc '.$selected->reviewed_at->format('H:i d/m/Y') : '' }}</p>
                                 <p class="mt-1">Lý do: {{ $selected->rejection_reason ?: '—' }}</p>
                             </div>
                         @elseif ($canReview)
-                            <form method="POST" action="{{ route('syllabus.adjustment-requests.approve', $selected->id) }}" class="space-y-2 border-t border-gray-100 pt-4">
+                            <form id="reject-form" method="POST" action="{{ route('syllabus.adjustment-requests.reject', $selected->id) }}" x-show="rejecting" x-cloak class="rounded-lg border border-error/30 bg-error/5 p-md">
+                                @csrf
+                                <label for="reject-reason" class="mb-xs flex items-center gap-xs font-label text-label text-error"><span class="material-symbols-outlined text-[18px]">warning</span>Lý do từ chối (Bắt buộc)</label>
+                                <textarea id="reject-reason" name="rejection_reason" rows="3" placeholder="Nhập lý do chi tiết để phản hồi lại giáo viên..." class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest p-md font-body-base text-body-base focus:border-error focus:outline-none focus:ring-2 focus:ring-error/20">{{ old('rejection_reason') }}</textarea>
+                                @error('rejection_reason')<p class="mt-xs font-caption text-caption text-error">{{ $message }}</p>@enderror
+                            </form>
+                            <form id="approve-form" method="POST" action="{{ route('syllabus.adjustment-requests.approve', $selected->id) }}" x-show="! rejecting">
                                 @csrf
                                 <x-ui.input type="number" name="extra_sessions" label="Số buổi thêm vào lịch khi duyệt" min="0" :max="\App\Models\SyllabusAdjustmentRequest::MAX_EXTRA_SESSIONS" :value="$selected->extra_sessions ?? 0"
                                             hint="Buổi mới nối tiếp sau buổi cuối của lớp, theo TKB, bỏ qua ngày nghỉ lễ; 0 = chỉ ghi nhận, không đổi lịch." />
-                                <x-ui.button type="submit" icon="check_circle" class="w-full">Phê duyệt</x-ui.button>
-                            </form>
-                            <form method="POST" action="{{ route('syllabus.adjustment-requests.reject', $selected->id) }}" class="space-y-2 border-t border-gray-100 pt-4">
-                                @csrf
-                                <x-ui.textarea name="rejection_reason" label="Lý do từ chối" required rows="3" placeholder="Nhập lý do chi tiết để phản hồi lại giáo viên..." />
-                                <x-ui.button type="submit" variant="danger" icon="cancel" class="w-full">Từ chối</x-ui.button>
                             </form>
                         @endif
                     </div>
+
+                    @if ($canReview && $selected->status === 'pending')
+                        <div class="flex items-center justify-end gap-md border-t border-outline-variant bg-surface-container-low px-lg py-md">
+                            <div x-show="! rejecting" class="flex items-center gap-md">
+                                <x-ui.button variant="danger-text" icon="cancel" @click="rejecting = true">Từ chối</x-ui.button>
+                                <x-ui.button type="submit" form="approve-form" icon="check_circle">Phê duyệt</x-ui.button>
+                            </div>
+                            <div x-show="rejecting" x-cloak class="flex items-center gap-md">
+                                <x-ui.button variant="secondary" @click="rejecting = false">Hủy</x-ui.button>
+                                <x-ui.button type="submit" form="reject-form" variant="danger">Xác nhận từ chối</x-ui.button>
+                            </div>
+                        </div>
+                    @endif
                 @endif
             </div>
         </div>

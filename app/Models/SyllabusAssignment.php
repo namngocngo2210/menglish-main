@@ -37,6 +37,7 @@ class SyllabusAssignment extends Model
         'assigned_chapters',
         'stage_name',
         'deadline',
+        'expected_big_test_date',
         'progress_percent',
         'status',
         'opened_at',
@@ -52,6 +53,7 @@ class SyllabusAssignment extends Model
 
     protected $casts = [
         'deadline' => 'date',
+        'expected_big_test_date' => 'date',
         'progress_percent' => 'integer',
         'opened_at' => 'datetime',
         'closed_at' => 'datetime',
@@ -111,6 +113,12 @@ class SyllabusAssignment extends Model
     public function isOpen(): bool
     {
         return $this->status === self::STATUS_OPEN;
+    }
+
+    /** Mã chặng của lớp hiển thị trên màn nhắc lịch: CH-{năm mở}-{id}. */
+    public function getCodeAttribute(): string
+    {
+        return 'CH-'.($this->opened_at ?? $this->created_at ?? now())->format('Y').'-'.str_pad((string) $this->id, 3, '0', STR_PAD_LEFT);
     }
 
     public function getStatusLabelAttribute(): string
