@@ -252,6 +252,7 @@ class Phase1MockupParityTest extends TestCase
             ->assertSee('Chi nhánh:')->assertSee('Lớp học:')->assertSee('Tìm kiếm học viên...')
             ->assertSee('Khách đã có lớp')->assertSee('Lớp ID: IF-202310')->assertSee('Ngày chốt')->assertSee('Trạng thái')
             ->assertSee('Chờ khai giảng')->assertSee('Xác nhận chính thức')->assertSee('Xác nhận học viên')
+            ->assertDontSee('@js(', false)
             // A6 Q5: không có trạng thái Học thử
             ->assertDontSee('>Học thử<', false);
 

@@ -135,8 +135,12 @@
                                     </td>
                                     <td class="text-right">
                                         <div class="flex flex-col items-end gap-xs">
-                                            <x-ui.button size="sm" icon="verified_user"
-                                                @click="confirmForm = @js('confirm-'.$enrollment->id); confirmName = @js($enrollment->student?->name ?? ''); $dispatch('open-modal', 'confirm-official')">Xác nhận chính thức</x-ui.button>
+                                            {{-- Thẻ <button> thường: @js không biên dịch trong thuộc tính của Blade component. --}}
+                                            <button type="button"
+                                                    @click="confirmForm = @js('confirm-'.$enrollment->id); confirmName = @js($enrollment->student?->name ?? ''); $dispatch('open-modal', 'confirm-official')"
+                                                    class="inline-flex items-center gap-xs rounded-lg bg-primary-container px-sm py-xs font-body-medium text-body-small text-white shadow-sm hover:bg-primary">
+                                                <span class="material-symbols-outlined text-[16px]">verified_user</span>Xác nhận chính thức
+                                            </button>
                                             <x-ui.button type="submit" form="confirm-{{ $enrollment->id }}" name="action" value="save" size="sm" variant="ghost">Lưu tiến độ</x-ui.button>
                                         </div>
                                     </td>
