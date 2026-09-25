@@ -168,6 +168,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/overdue/{id}/upcoming-remind', [TuitionController::class, 'sendUpcomingReminder'])->middleware('can:tuition.mark_contacted')->name('overdue.upcoming-remind');
         Route::get('/config', [TuitionController::class, 'config'])->name('config');
         Route::post('/config', [TuitionController::class, 'updateConfig'])->middleware('can:invoice_range.manage')->name('config.update');
+        Route::post('/config/ranges', [TuitionController::class, 'storeInvoiceRange'])->middleware('can:invoice_range.manage')->name('config.ranges.store');
+        Route::post('/config/ranges/{id}/toggle', [TuitionController::class, 'toggleInvoiceRange'])->middleware('can:invoice_range.manage')->name('config.ranges.toggle');
     });
 
     // ─────────────────────────────────────────────

@@ -237,7 +237,7 @@ class SepayWebhookController extends Controller
                 }
 
                 $appliedAmount = round(min($transferAmount, (float) $tuition->debt_amount), 2);
-                $invoiceNumber = InvoiceConfiguration::consumeNextInvoiceNumber();
+                $invoiceNumber = InvoiceConfiguration::consumeNextInvoiceNumber($tuition->branch_id ?? $tuition->student?->branch_id);
                 // whereHas thay vì role(): webhook public không được 500 khi vai trò admin chưa được seed
                 $adminUser = User::query()->whereHas('roles', fn ($q) => $q->where('name', 'admin'))->first()
                     ?: User::first();

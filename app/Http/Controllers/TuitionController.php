@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\InvoiceRangeExhaustedException;
 use App\Models\AcademicRecord;
 use App\Models\AdminNotification;
 use App\Models\BankAccount;
@@ -467,8 +468,15 @@ class TuitionController extends Controller
                 }
             }
 
+            try {
+                $invoiceNumber = $receipt->invoice_number
+                    ?? InvoiceConfiguration::consumeNextInvoiceNumber($this->receiptBranchId($receipt, $tuition));
+            } catch (InvoiceRangeExhaustedException $e) {
+                return 'Không thể duyệt: '.$e->getMessage();
+            }
+
             $receipt->update([
-                'invoice_number' => $receipt->invoice_number ?? InvoiceConfiguration::consumeNextInvoiceNumber(),
+                'invoice_number' => $invoiceNumber,
                 'status' => TuitionReceipt::STATUS_APPROVED,
                 'approver_id' => $user->id,
                 'rejection_reason' => null,
@@ -544,6 +552,17 @@ class TuitionController extends Controller
         }
 
         return redirect()->back()->with('status', "Đã phê duyệt phiếu thu {$receipt->receipt_number} và phát hành HĐĐT số {$invoiceNumber}!");
+    }
+
+    /** Chi nhánh ghi nhận phiếu thu: theo hợp đồng học phí, fallback chi nhánh học viên. */
+    private function receiptBranchId(TuitionReceipt $receipt, ?StudentTuition $tuition = null): ?int
+    {
+        $tuition ??= $receipt->tuition;
+        $branchId = $tuition?->branch_id
+            ?? $tuition?->student?->branch_id
+            ?? $receipt->student?->branch_id;
+
+        return $branchId ? (int) $branchId : null;
     }
 
     public function rejectReceiptAction(Request $request, $id)
@@ -1086,26 +1105,163 @@ class TuitionController extends Controller
             : "Chưa gửi được: {$result['reason']}");
     }
 
-    public function config()
+    public function config(Request $request)
     {
-        $invoiceConfig = InvoiceConfiguration::first() ?? new InvoiceConfiguration;
+        $ranges = InvoiceConfiguration::with('branch')
+            ->orderByRaw('CASE WHEN branch_id IS NULL THEN 0 ELSE 1 END')
+            ->orderBy('branch_id')
+            ->orderBy('start_number')
+            ->get();
 
-        return view('tuition.config', compact('invoiceConfig'));
+        // Số lớn nhất đã cấp trong từng dải (đọc từ phiếu thật) để hiển thị & chặn lùi số.
+        $maxIssued = $ranges->mapWithKeys(fn (InvoiceConfiguration $range) => [$range->id => $range->maxIssuedNumber()]);
+
+        $recentInvoices = $ranges->mapWithKeys(fn (InvoiceConfiguration $range) => [
+            $range->id => InvoiceConfiguration::issuedInvoicesQuery((string) $range->series_code, (int) ($range->start_number ?? 1), $range->end_number)
+                ->orderByDesc('invoice_number')
+                ->limit(5)
+                ->get(['invoice_number', 'status', 'updated_at']),
+        ]);
+
+        $branches = Branch::orderBy('name')->get();
+        $editing = $request->filled('edit') ? $ranges->firstWhere('id', (int) $request->input('edit')) : null;
+
+        return view('tuition.config', compact('ranges', 'maxIssued', 'recentInvoices', 'branches', 'editing'));
     }
 
+    /**
+     * Cập nhật một dải số (config_id) — hoặc dải mặc định dùng chung khi không truyền config_id.
+     * current_number (số kế tiếp) không được lùi về số đã cấp và phải nằm trong dải.
+     */
     public function updateConfig(Request $request)
     {
         $validated = $request->validate([
-            'template_code' => 'required|string',
-            'series_code' => 'required|string',
-            'current_number' => 'required|integer',
+            'config_id' => 'nullable|integer|exists:invoice_configurations,id',
+            'template_code' => 'required|string|max:50',
+            'series_code' => ['required', 'string', 'max:30', 'regex:/^[A-Za-z0-9]+$/'],
+            'start_number' => 'nullable|integer|min:1',
+            'end_number' => 'nullable|integer|min:1',
+            'current_number' => 'required|integer|min:1',
+            'provider' => 'nullable|string|max:50',
+        ], [
+            'series_code.regex' => 'Ký hiệu hóa đơn chỉ gồm chữ và số, không dấu, không khoảng trắng.',
         ]);
 
-        $config = InvoiceConfiguration::first() ?? new InvoiceConfiguration;
-        $config->fill($validated);
+        $config = ! empty($validated['config_id'])
+            ? InvoiceConfiguration::findOrFail($validated['config_id'])
+            : (InvoiceConfiguration::whereNull('branch_id')->orderBy('id')->first() ?? new InvoiceConfiguration(['branch_id' => null]));
+
+        $series = strtoupper($validated['series_code']);
+        $start = (int) ($validated['start_number'] ?? $config->start_number ?? 1);
+        $end = array_key_exists('end_number', $validated) && $validated['end_number'] !== null
+            ? (int) $validated['end_number']
+            : ($request->has('end_number') ? null : $config->end_number);
+
+        if ($error = $this->invoiceRangeError($series, $start, $end, (int) $validated['current_number'], $config->id)) {
+            return redirect()->back()->withErrors($error)->withInput();
+        }
+
+        $config->fill([
+            'template_code' => $validated['template_code'],
+            'series_code' => $series,
+            'start_number' => $start,
+            'end_number' => $end,
+            'current_number' => (int) $validated['current_number'],
+            'provider' => $validated['provider'] ?? $config->provider ?? 'vnpt',
+        ]);
         $config->save();
 
-        return redirect()->back()->with('status', 'Đã lưu cấu hình dải số hóa đơn điện tử thành công!');
+        return redirect()->route('tuition.config')->with('status', 'Đã lưu cấu hình dải số hóa đơn điện tử thành công!');
+    }
+
+    /**
+     * Thêm dải số mới cho một chi nhánh (hoặc dải mặc định). Dải không được chồng lấn dải khác cùng ký hiệu.
+     */
+    public function storeInvoiceRange(Request $request)
+    {
+        $validated = $request->validate([
+            'branch_id' => 'nullable|exists:branches,id',
+            'template_code' => 'required|string|max:50',
+            'series_code' => ['required', 'string', 'max:30', 'regex:/^[A-Za-z0-9]+$/'],
+            'start_number' => 'required|integer|min:1',
+            'end_number' => 'required|integer|gte:start_number',
+            'provider' => 'nullable|string|max:50',
+        ], [
+            'branch_id.exists' => 'Chi nhánh không tồn tại.',
+            'end_number.gte' => 'Số kết thúc phải lớn hơn hoặc bằng số bắt đầu.',
+            'series_code.regex' => 'Ký hiệu hóa đơn chỉ gồm chữ và số, không dấu, không khoảng trắng.',
+        ]);
+
+        $series = strtoupper($validated['series_code']);
+        $start = (int) $validated['start_number'];
+        $end = (int) $validated['end_number'];
+        // Số kế tiếp = số bắt đầu, nhưng không bao giờ thấp hơn số đã cấp của cùng ký hiệu.
+        $current = max($start, (int) (InvoiceConfiguration::maxIssuedNumberFor($series, $start, $end) ?? 0) + 1);
+
+        if ($error = $this->invoiceRangeError($series, $start, $end, $current, null)) {
+            return redirect()->back()->withErrors($error)->withInput();
+        }
+
+        $range = InvoiceConfiguration::create([
+            'branch_id' => $validated['branch_id'] ?? null,
+            'template_code' => $validated['template_code'],
+            'series_code' => $series,
+            'start_number' => $start,
+            'end_number' => $end,
+            'current_number' => $current,
+            'provider' => $validated['provider'] ?? 'vnpt',
+            'auto_issue' => true,
+            'is_active' => true,
+        ]);
+
+        $branchName = $range->branch?->name ?? 'Dải mặc định (dùng chung)';
+
+        return redirect()->route('tuition.config')
+            ->with('status', "Đã thêm dải số {$series} ".str_pad((string) $start, InvoiceConfiguration::NUMBER_PAD, '0', STR_PAD_LEFT)
+                .' – '.str_pad((string) $end, InvoiceConfiguration::NUMBER_PAD, '0', STR_PAD_LEFT)." cho {$branchName}.");
+    }
+
+    /** Ngừng dùng / dùng lại một dải số. Số đã cấp của dải vẫn giữ nguyên, không cấp lại. */
+    public function toggleInvoiceRange($id)
+    {
+        $range = InvoiceConfiguration::findOrFail($id);
+        $range->update(['is_active' => ! $range->is_active]);
+
+        return redirect()->route('tuition.config')->with('status', $range->is_active
+            ? "Đã kích hoạt lại dải số {$range->series_code}."
+            : "Đã ngừng dùng dải số {$range->series_code}. Hóa đơn mới sẽ lấy từ dải khác của chi nhánh hoặc dải mặc định.");
+    }
+
+    /**
+     * @return array<string, string>|null
+     */
+    private function invoiceRangeError(string $series, int $start, ?int $end, int $current, ?int $ignoreId): ?array
+    {
+        if ($end !== null && $end < $start) {
+            return ['end_number' => 'Số kết thúc phải lớn hơn hoặc bằng số bắt đầu.'];
+        }
+
+        if ($overlap = InvoiceConfiguration::overlapping($series, $start, $end, $ignoreId)) {
+            return ['start_number' => 'Dải số chồng lấn với dải '.$overlap->series_code.' '
+                .($overlap->start_number ?? 1).' – '.($overlap->end_number ?? '∞')
+                .' ('.($overlap->branch?->name ?? 'dải mặc định').'). Mỗi dải phải duy nhất trên toàn hệ thống.'];
+        }
+
+        if ($current < $start) {
+            return ['current_number' => 'Số hiện tại (số kế tiếp) không được nhỏ hơn số bắt đầu của dải.'];
+        }
+
+        if ($end !== null && $current > $end + 1) {
+            return ['current_number' => 'Số hiện tại vượt quá số kết thúc của dải.'];
+        }
+
+        $maxIssued = InvoiceConfiguration::maxIssuedNumberFor($series, $start, $end);
+        if ($maxIssued !== null && $current <= $maxIssued) {
+            return ['current_number' => 'Không được lùi số: số '.InvoiceConfiguration::format($series, $maxIssued)
+                .' đã được cấp. Số kế tiếp phải từ '.($maxIssued + 1).' trở lên.'];
+        }
+
+        return null;
     }
 
     /**
