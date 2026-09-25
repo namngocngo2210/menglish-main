@@ -204,7 +204,7 @@ class Phase1EnrollmentTest extends TestCase
             'candidate_phone' => $ownLead->phone, 'status' => 'pending',
         ]);
         $walkIn = PlacementTestSubmission::create(['placement_test_id' => $test->id, 'candidate_name' => 'Khách vãng lai', 'candidate_phone' => '0900000001', 'status' => 'pending']);
-        $grade = ['listening_score' => 6, 'reading_score' => 6, 'writing_score' => 6, 'speaking_score' => 6, 'cefr_level' => 'A2'];
+        $grade = ['grade_group' => 'khoi_2_3', 'listening_score' => 6, 'reading_writing_score' => 6, 'speaking_score' => 6];
 
         foreach ([$this->manager, $this->academic] as $user) {
             $this->actingAs($user)->get(route('placement-tests.results.show', $foreignSubmission->id))->assertNotFound();

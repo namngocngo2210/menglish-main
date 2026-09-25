@@ -77,6 +77,8 @@ class ClosingWizardRulesTest extends TestCase
         $this->assertSame('won', $lead->stage);
         $this->assertTrue((bool) $lead->fee_paid_at_closing);
         $this->assertStringStartsWith('HV-', $student->code);
+        // Hồ sơ học viên chỉ tạo khi chốt, khởi tạo "Chờ khai giảng" (không có trạng thái Học thử).
+        $this->assertSame(Student::INITIAL_STATUS, $student->status);
         $this->assertSame($this->classModel->id, $student->current_class_id);
         $this->assertDatabaseHas('class_enrollments', ['student_id' => $student->id, 'class_id' => $this->classModel->id]);
         $this->assertEquals(12000000, (float) StudentTuition::where('student_id', $student->id)->value('final_amount'));
@@ -123,6 +125,28 @@ class ClosingWizardRulesTest extends TestCase
         $this->assertSame('new', $task->status);
         $this->assertTrue($task->due_date->isSameDay(today()->addDays(3)));
         $this->assertStringContainsString($lead->code, $task->description);
+    }
+
+    public function test_closing_with_class_but_unpaid_goes_won_and_creates_fee_reminder_task(): void
+    {
+        // Q6: không có khái niệm "cọc" — chốt không bắt buộc đóng phí, chưa đóng thì tạo task nhắc thu.
+        $lead = $this->lead('result_sent');
+
+        $this->actingAs($this->sales)->post(route('crm.closing-wizard.store'), $this->payload($lead, [
+            'class_id' => $this->classModel->id,
+            'fee_paid_at_closing' => 0,
+            'paid_amount' => 0,
+        ]))->assertRedirect(route('crm.customers.won'))->assertSessionHasNoErrors();
+
+        $lead->refresh();
+        $student = Student::findOrFail($lead->converted_student_id);
+        $this->assertSame('won', $lead->stage);
+        $this->assertSame(Student::INITIAL_STATUS, $student->status);
+        $this->assertFalse((bool) $lead->fee_paid_at_closing);
+        $this->assertSame(0, TuitionReceipt::count());
+        $task = WorkTask::firstOrFail();
+        $this->assertStringContainsString('Nhắc thu học phí', $task->title);
+        $this->assertSame($lead->assigned_user_id, $task->assignee_id);
     }
 
     public function test_closing_is_allowed_only_from_consulting_tested_or_result_sent(): void

@@ -126,7 +126,7 @@
                                 <td class="py-3 px-4 text-center font-mono font-bold text-rose-600">{{ $sub->speaking_score }}</td>
                                 <td class="py-3 px-4 text-center">
                                     <span class="px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 font-mono font-black text-xs">
-                                        @if ($sub->isPending()) Chờ chấm @else {{ $sub->overall_score ?? '—' }} ({{ $sub->cefr_level ?? '—' }}) @endif
+                                        @if ($sub->isPending()) Chờ chấm @else {{ $sub->scoreSummary() ?? '—' }} @endif
                                     </span>
                                 </td>
                                 <td class="py-3 px-4 font-semibold text-orange-600">{{ $sub->recommended_course }}</td>

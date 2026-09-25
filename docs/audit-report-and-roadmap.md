@@ -731,6 +731,20 @@
 - [ ] "In phiếu" (lịch sử thu, phiếu lương cá nhân, bảng điểm Big Test, bảng đánh giá test) vẫn dùng in của trình duyệt (đúng nhãn "In").
 **Test:** `tests/Feature/UiSweepTest.php`.
 
+#### BA 25/09 — Test đầu vào theo khối lớp, luật CRM, học thử (nhánh `feat/ba-placement-crm`)
+**Đã làm:**
+- [x] Q2: chấm test theo **khối lớp** (Khối 1-2, 2 lên 3, 3 lên 4, 4 lên 5) theo "Thang điểm + hướng dẫn nhận xét" (nguồn: file HTML trong `ui-full-tinh-nang-menglish`, khớp xlsx gốc): Tổng = Nghe + Đọc&Viết + Nói (điểm thô), tra tổng → lớp đề xuất, nhận xét từng kỹ năng gợi ý theo băng (sửa được), Nói luôn nhập tay, **chọn lại lớp** (lưu cả lớp đề xuất và lớp chọn). Bỏ "trung bình 4 kỹ năng thang 10 → CEFR" và hai thang 0–100 / 0–9: màn nhập điểm CRM và màn chấm bài dùng chung form, validate điểm tối đa từng kỹ năng theo khối. Khối chưa có thang (lớp 5–9, IELTS, người đi làm, mầm non) → "Chưa có thang điểm — Học thuật chọn lớp thủ công", bắt buộc nhập lớp. Kết quả hiện trên hồ sơ khách, bản in, scorecard.
+- [x] Q1 (bản sửa): kiểm tra + test luật CM tiến 1 bước, chỉ Admin lùi (bắt buộc lý do, ghi lịch sử), không hủy chốt, chỉ khách chưa chốt sang Thất bại; khách Thất bại không mở lại, không xóa được (giữ đối soát), vẫn nằm trong "Khách không chốt".
+- [x] Q1 học thử: trang "Nhận xét học thử" (`/teacher/trial-guests`, sắp tới / đã diễn ra) — GV buổi đó điểm danh + nhận xét như học sinh (ngữ pháp, tinh thần, kết quả, nhận xét chi tiết), lưu theo khách (`crm_trial_bookings.remarks`), ghi nhật ký tuyển sinh; chỉ nhận xét từ ngày học. Tối đa 2 buổi/khách; buổi của lớp khớp trình độ test được gắn nhãn và xếp đầu.
+- [x] Q5/Q6: hồ sơ học viên không còn trạng thái "Học thử" (đã gỡ trước đó, thêm test khởi tạo "Chờ khai giảng"); chốt chưa đóng phí → task "Nhắc thu học phí", chốt chưa có lớp → "Chờ xếp lớp" (bổ sung test chốt có lớp nhưng chưa đóng phí).
+
+**Chưa làm / chuyển phase sau:**
+- [ ] Khớp trình độ lớp học thử chỉ là gợi ý (so từ khóa lớp xếp với tên lớp/khóa/trình độ), chưa chặn cứng.
+- [ ] Màn cũ `classes/trial-booking` (lưu AcademicRecord, không gắn khách CRM) vẫn còn → nên chuyển về đặt học thử từ hồ sơ khách.
+- [ ] Khối 1-2 tổng > 25: file HTML (bộ mô phỏng) xếp "STARTERS (FAM 1 _ NÂNG CAO)" nhưng bảng quy chuẩn không có dòng này → cần BA xác nhận.
+
+**Triển khai:** chạy `php artisan migrate` (`2026_09_29_100000` thêm cột chấm theo khối vào `placement_test_submissions`, `2026_09_29_100100` thêm `crm_trial_bookings.remarks`). Bài đã chấm theo cách cũ giữ nguyên điểm và hiển thị "chấm theo cách cũ" cho tới khi Học vụ sửa điểm. Chạy lại `npm run build` nếu CSS thiếu class mới.
+
 ---
 
 ## Phụ lục — Vị trí kỹ thuật các lỗi P0 (cho dev)

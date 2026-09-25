@@ -247,20 +247,18 @@ class CrmWorkflowHardeningTest extends TestCase
             'code' => 'RETEST-01', 'title' => 'Đề kiểm tra lại', 'is_active' => true,
         ]);
         $payload = [
-            'placement_test_id' => $test->id,
-            'listening_score' => 60, 'reading_score' => 60,
-            'speaking_score' => 60, 'writing_score' => 60,
-            'cefr_level' => 'B1',
+            'placement_test_id' => $test->id, 'grade_group' => 'khoi_3_4',
+            'listening_score' => 6, 'reading_writing_score' => 10, 'speaking_score' => 5,
         ];
 
         $this->actingAs($academic)->post(route('crm.customers.save-test-score', $lead), $payload)->assertRedirect();
         $this->assertSame('tested', $lead->fresh()->stage);
 
-        $payload['listening_score'] = 80;
+        $payload['listening_score'] = 12;
         $this->actingAs($academic)->post(route('crm.customers.save-test-score', $lead), $payload)->assertRedirect();
 
         $this->assertSame(2, PlacementTestSubmission::where('customer_id', $lead->id)->count());
-        $this->assertEquals([60.0, 65.0], PlacementTestSubmission::where('customer_id', $lead->id)->oldest()->pluck('overall_score')->map(fn ($score) => (float) $score)->all());
+        $this->assertEquals([21.0, 27.0], PlacementTestSubmission::where('customer_id', $lead->id)->oldest()->pluck('total_score')->map(fn ($score) => (float) $score)->all());
     }
 
     public function test_closing_validates_and_decrements_merchandise_stock(): void
@@ -318,15 +316,15 @@ class CrmWorkflowHardeningTest extends TestCase
         $this->actingAs($academic)->post(route('crm.customers.save-test-score', $lead), [
             'submission_id' => $submission->id,
             'placement_test_id' => $test->id,
-            'listening_score' => 80,
-            'reading_score' => 80,
-            'speaking_score' => 80,
-            'writing_score' => 80,
-            'cefr_level' => 'B2',
+            'grade_group' => 'khoi_4_5',
+            'listening_score' => 12,
+            'reading_writing_score' => 12,
+            'speaking_score' => 8,
         ])->assertRedirect();
 
         $this->assertSame(1, PlacementTestSubmission::where('customer_id', $lead->id)->count());
-        $this->assertEquals(80.0, (float) $submission->fresh()->overall_score);
+        $this->assertEquals(32.0, (float) $submission->fresh()->total_score);
+        $this->assertSame('Luyện MOVERS', $submission->fresh()->suggested_class);
     }
 
     public function test_sales_receipt_requires_accounting_approval_before_invoice_and_collection(): void
@@ -451,19 +449,20 @@ class CrmWorkflowHardeningTest extends TestCase
 
         $this->actingAs($academic)->post(route('crm.customers.save-test-score', $lead->id), [
             'placement_test_id' => $test->id,
+            'grade_group' => 'khoi_2_3',
             'listening_score' => 6,
-            'reading_score' => 7,
+            'reading_writing_score' => 7,
             'speaking_score' => 6,
         ])->assertRedirect()->assertSessionHasNoErrors();
 
-        // Writing không nhập -> null (không lấy điểm Reading thay thế); Overall = TB các kỹ năng có điểm
+        // Tổng = 6 + 7 + 6 = 19 (< 20) → PRE STARTERS _ FAM 1; không ghi CEFR, không bịa ghi chú chung.
         $lead->refresh();
-        $this->assertSame('6.3', $lead->test_score);
+        $this->assertSame('19/40 · PRE STARTERS _ FAM 1 (TỪ ĐẦU _ DƯỚI U5)', $lead->test_score);
 
         $submission = PlacementTestSubmission::where('customer_id', $lead->id)->firstOrFail();
         $this->assertNull($submission->writing_score);
         $this->assertNull($submission->cefr_level);
         $this->assertNull($submission->teacher_comments);
-        $this->assertNull($submission->recommended_course);
+        $this->assertSame($submission->suggested_class, $submission->chosen_class);
     }
 }

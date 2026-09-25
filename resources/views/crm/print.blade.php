@@ -62,24 +62,37 @@
 
     <h2>Kết quả test đầu vào</h2>
     @if ($latestSubmission)
+        @php($fmt = fn ($v) => $v === null ? '—' : rtrim(rtrim(number_format((float) $v, 1, '.', ''), '0'), '.'))
         <table class="grid">
-            <tr>
-                <td>Đề: <strong>{{ $latestSubmission->test?->title ?? '—' }}</strong></td>
-                <td>Nghe: {{ $latestSubmission->listening_score ?? '—' }}</td>
-                <td>Đọc: {{ $latestSubmission->reading_score ?? '—' }}</td>
-                <td>Viết: {{ $latestSubmission->writing_score ?? '—' }}</td>
-                <td>Nói: {{ $latestSubmission->speaking_score ?? '—' }}</td>
-                <td>Tổng: <strong>{{ $latestSubmission->overall_score ?? '—' }}</strong></td>
-            </tr>
-            @if ($rubric)
+            @if ($rubric && ! $rubric['legacy'])
                 <tr>
-                    <td colspan="2">Khối lớp: {{ $rubric['grade_group'] }}</td>
-                    <td colspan="2">CEFR: {{ $rubric['cefr_level'] }}</td>
-                    <td colspan="2">Gợi ý lớp: <strong>{{ $rubric['recommended_course'] }}</strong></td>
+                    <td>Đề: <strong>{{ $latestSubmission->test?->title ?? '—' }}</strong></td>
+                    <td>Khối: {{ $rubric['grade_group_label'] }}</td>
+                    <td>Nghe: {{ $fmt($latestSubmission->listening_score) }}/{{ $rubric['max']['listening'] }}</td>
+                    <td>Đọc &amp; Viết: {{ $fmt($latestSubmission->reading_writing_score) }}/{{ $rubric['max']['reading_writing'] }}</td>
+                    <td>Nói: {{ $fmt($latestSubmission->speaking_score) }}/{{ $rubric['max']['speaking'] }}</td>
+                    <td>Tổng: <strong>{{ $fmt($rubric['total']) }}/{{ $rubric['max_total'] }}</strong></td>
+                </tr>
+                <tr>
+                    <td colspan="3">Lớp đề xuất theo thang điểm: {{ $rubric['suggested_class'] ?? \App\Services\PlacementRubricService::noRubricNotice() }}</td>
+                    <td colspan="3">Lớp xếp: <strong>{{ $rubric['chosen_class'] ?? '—' }}</strong></td>
+                </tr>
+                @foreach (\App\Services\PlacementRubricService::SKILLS as $skill => $label)
+                    @if (filled($rubric['comments'][$skill]))
+                        <tr><td colspan="6"><strong>{{ $label }}:</strong> {{ $rubric['comments'][$skill] }}</td></tr>
+                    @endif
+                @endforeach
+            @else
+                <tr>
+                    <td>Đề: <strong>{{ $latestSubmission->test?->title ?? '—' }}</strong></td>
+                    <td>Nghe: {{ $fmt($latestSubmission->listening_score) }}</td>
+                    <td>Đọc: {{ $fmt($latestSubmission->reading_score) }}</td>
+                    <td>Viết: {{ $fmt($latestSubmission->writing_score) }}</td>
+                    <td>Nói: {{ $fmt($latestSubmission->speaking_score) }}</td>
+                    <td>Tổng: <strong>{{ $latestSubmission->overall_score ?? '—' }}</strong></td>
                 </tr>
             @endif
         </table>
-        <p class="muted">Thang điểm theo nơi nhập (CRM 0–100, chấm bài online 0–9); cách tính chính thức chờ BA chốt (Q2).</p>
     @else
         <p class="muted">Chưa có kết quả test.</p>
     @endif

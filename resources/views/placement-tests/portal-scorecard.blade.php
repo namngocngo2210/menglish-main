@@ -160,17 +160,23 @@
                     'IELTS FOUNDATION',
                     'IELTS ACADEMIC'
                 ];
-                $overall = (float)$submission->overall_score;
-                $activeLevelName = $submission->overall_score === null ? null : match(true) {
-                    $overall >= 7.0 => 'IELTS ACADEMIC',
-                    $overall >= 6.0 => 'IELTS FOUNDATION',
-                    $overall >= 5.0 => 'PET',
-                    $overall >= 4.0 => 'KET',
-                    $overall >= 3.0 => 'FLYERS',
-                    $overall >= 2.0 => 'MOVERS',
-                    $overall >= 1.0 => 'STARTERS',
-                    default => 'PRE STARTERS'
+                // Level theo lớp xếp (thang điểm khối lớp — BA Q2), không quy đổi từ điểm trung bình.
+                $finalClass = mb_strtoupper((string) $submission->finalClass());
+                $activeLevelName = match (true) {
+                    $finalClass === '' || $submission->isPending() => null,
+                    str_contains($finalClass, 'PRE STARTERS') => 'PRE STARTERS',
+                    str_contains($finalClass, 'STARTERS') => 'STARTERS',
+                    str_contains($finalClass, 'MOVERS'), str_contains($finalClass, 'FAM 2') => 'MOVERS',
+                    str_contains($finalClass, 'FLYERS') => 'FLYERS',
+                    str_contains($finalClass, 'KET') => 'KET',
+                    str_contains($finalClass, 'PET') => 'PET',
+                    str_contains($finalClass, 'IELTS FOUNDATION') => 'IELTS FOUNDATION',
+                    str_contains($finalClass, 'IELTS') => 'IELTS ACADEMIC',
+                    default => null,
                 };
+                $rubricGraded = $submission->hasRubricGrade();
+                $maxScores = \App\Services\PlacementRubricService::maxScores($submission->grade_group);
+                $fmtScore = fn ($v) => $v === null ? '—' : rtrim(rtrim(number_format((float) $v, 1, '.', ''), '0'), '.');
             @endphp
             <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1.5 text-center">
                 @foreach ($levels as $lvl)
@@ -189,26 +195,43 @@
             <!-- 4 Skills Scores Table (Light Theme) -->
             <div class="bg-slate-50/80 rounded-2xl p-2 border border-slate-200 overflow-hidden">
                 <table class="w-full text-center border-collapse">
-                    <thead>
-                        <tr class="text-[11px] font-black uppercase text-slate-600 border-b border-slate-200">
-                            <th class="py-2.5 px-2">LISTENING</th>
-                            <th class="py-2.5 px-2">SPEAKING</th>
-                            <th class="py-2.5 px-2">READING</th>
-                            <th class="py-2.5 px-2">WRITING</th>
-                            <th class="py-2.5 px-2 bg-orange-100 text-orange-950 rounded-t-xl">TOTAL (OVERALL)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr class="font-mono text-xl sm:text-2xl font-black">
-                            <td class="py-3 px-2 text-indigo-700">{{ $submission->listening_score ?? '—' }}</td>
-                            <td class="py-3 px-2 text-rose-700">{{ $submission->speaking_score ?? '—' }}</td>
-                            <td class="py-3 px-2 text-emerald-700">{{ $submission->reading_score ?? '—' }}</td>
-                            <td class="py-3 px-2 text-purple-700">{{ $submission->writing_score ?? '—' }}</td>
-                            <td class="py-3 px-2 bg-gradient-to-br from-orange-500 to-amber-600 text-white rounded-b-xl text-3xl font-black shadow-inner">
-                                {{ $submission->overall_score ?? '—' }}
-                            </td>
-                        </tr>
-                    </tbody>
+                    @if ($rubricGraded)
+                        <thead>
+                            <tr class="text-[11px] font-black uppercase text-slate-600 border-b border-slate-200">
+                                <th class="py-2.5 px-2">LISTENING /{{ $maxScores['listening'] }}</th>
+                                <th class="py-2.5 px-2">READING &amp; WRITING /{{ $maxScores['reading_writing'] }}</th>
+                                <th class="py-2.5 px-2">SPEAKING /{{ $maxScores['speaking'] }}</th>
+                                <th class="py-2.5 px-2 bg-orange-100 text-orange-950 rounded-t-xl">TOTAL /{{ array_sum($maxScores) }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="font-mono text-xl sm:text-2xl font-black">
+                                <td class="py-3 px-2 text-indigo-700">{{ $fmtScore($submission->listening_score) }}</td>
+                                <td class="py-3 px-2 text-emerald-700">{{ $fmtScore($submission->reading_writing_score) }}</td>
+                                <td class="py-3 px-2 text-rose-700">{{ $fmtScore($submission->speaking_score) }}</td>
+                                <td class="py-3 px-2 bg-gradient-to-br from-orange-500 to-amber-600 text-white rounded-b-xl text-3xl font-black shadow-inner">{{ $fmtScore($submission->total_score) }}</td>
+                            </tr>
+                        </tbody>
+                    @else
+                        <thead>
+                            <tr class="text-[11px] font-black uppercase text-slate-600 border-b border-slate-200">
+                                <th class="py-2.5 px-2">LISTENING</th>
+                                <th class="py-2.5 px-2">SPEAKING</th>
+                                <th class="py-2.5 px-2">READING</th>
+                                <th class="py-2.5 px-2">WRITING</th>
+                                <th class="py-2.5 px-2 bg-orange-100 text-orange-950 rounded-t-xl">TOTAL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="font-mono text-xl sm:text-2xl font-black">
+                                <td class="py-3 px-2 text-indigo-700">{{ $submission->listening_score ?? '—' }}</td>
+                                <td class="py-3 px-2 text-rose-700">{{ $submission->speaking_score ?? '—' }}</td>
+                                <td class="py-3 px-2 text-emerald-700">{{ $submission->reading_score ?? '—' }}</td>
+                                <td class="py-3 px-2 text-purple-700">{{ $submission->writing_score ?? '—' }}</td>
+                                <td class="py-3 px-2 bg-gradient-to-br from-orange-500 to-amber-600 text-white rounded-b-xl text-3xl font-black shadow-inner">{{ $submission->overall_score ?? '—' }}</td>
+                            </tr>
+                        </tbody>
+                    @endif
                 </table>
             </div>
         </div>
@@ -220,23 +243,29 @@
                 <div class="p-4 rounded-2xl bg-indigo-50/80 border border-indigo-200 space-y-1">
                     <div class="text-[11px] font-bold text-indigo-700 uppercase tracking-wider flex items-center gap-1">
                         <span class="material-symbols-outlined text-base">verified</span>
-                        <span>Level Đạt Được:</span>
+                        <span>Khối lớp / thang điểm:</span>
                     </div>
-                    <div class="text-lg font-black text-indigo-950 font-mono">{{ $submission->cefr_level ?? '—' }}</div>
+                    <div class="text-lg font-black text-indigo-950">{{ $submission->grade_group ? \App\Services\PlacementRubricService::groupLabel($submission->grade_group) : '—' }}</div>
                 </div>
 
                 <div class="p-4 rounded-2xl bg-orange-50/80 border border-orange-200 space-y-1">
                     <div class="text-[11px] font-bold text-orange-800 uppercase tracking-wider flex items-center gap-1">
                         <span class="material-symbols-outlined text-base">school</span>
-                        <span>Kết quả xếp lớp đề xuất:</span>
+                        <span>Kết quả xếp lớp:</span>
                     </div>
-                    <div class="text-lg font-black text-orange-950">{{ $submission->recommended_course ?? '—' }}</div>
+                    <div class="text-lg font-black text-orange-950">{{ $submission->isPending() ? 'Chờ Học vụ chấm' : ($submission->finalClass() ?? '—') }}</div>
                 </div>
             </div>
 
             <!-- Nhận xét chi tiết của GV theo từng đầu mục kỹ năng -->
             @php
-                $rawComments = $submission->teacher_comments ?? '';
+                $rawComments = $rubricGraded
+                    ? \App\Services\PlacementRubricService::composeComments([
+                        'listening' => $submission->listening_comment,
+                        'reading_writing' => $submission->reading_writing_comment,
+                        'speaking' => $submission->speaking_comment,
+                    ], $submission->finalClass(), $submission->teacher_comments ? '【Ghi chú của giáo viên】: '.$submission->teacher_comments : null)
+                    : ($submission->teacher_comments ?? '');
                 $parsedComments = [];
                 if (preg_match_all('/【(.*?)】\s*:\s*(.*?)(?=(?:【|$))/us', $rawComments, $matches, PREG_SET_ORDER)) {
                     foreach ($matches as $m) {

@@ -54,18 +54,28 @@ class PlacementTestModuleTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $gradeResponse = $this->actingAs($user)->post("/placement-tests/results/{$submission->id}", [
+        // Đề IELTS / người lớn: chưa có thang điểm khối lớp → Học thuật chọn lớp thủ công.
+        $this->actingAs($user)->post("/placement-tests/results/{$submission->id}", [
+            'grade_group' => 'khac',
             'listening_score' => 6.5,
-            'reading_score' => 6.5,
-            'writing_score' => 6.0,
+            'reading_writing_score' => 6.5,
             'speaking_score' => 7.0,
-            'cefr_level' => 'B2',
-            'recommended_course' => 'IELTS 6.5 Intensive',
             'teacher_comments' => 'Rất tốt, đủ điều kiện vào học ngay.',
-        ]);
+        ])->assertSessionHasErrors('chosen_class');
+
+        $this->actingAs($user)->post("/placement-tests/results/{$submission->id}", [
+            'grade_group' => 'khac',
+            'listening_score' => 6.5,
+            'reading_writing_score' => 6.5,
+            'speaking_score' => 7.0,
+            'chosen_class' => 'IELTS 6.5 Intensive',
+            'teacher_comments' => 'Rất tốt, đủ điều kiện vào học ngay.',
+        ])->assertSessionHasNoErrors();
 
         $submission->refresh();
-        $this->assertEquals(6.5, $submission->overall_score);
+        $this->assertEquals(20.0, (float) $submission->total_score);
+        $this->assertNull($submission->suggested_class);
+        $this->assertSame('IELTS 6.5 Intensive', $submission->chosen_class);
         $this->assertEquals('graded', $submission->status);
     }
 
@@ -153,18 +163,15 @@ class PlacementTestModuleTest extends TestCase
             'is_preset' => true,
         ]);
 
-        $eval = PlacementRubricService::evaluate(
-            'TEST-SPEAKING-G3-G4',
-            8.0,
-            7.5,
-            7.0,
-            8.5,
-            7.8
-        );
+        $group = PlacementRubricService::detectGradeGroup('TEST-SPEAKING-G3-G4');
+        $this->assertSame('khoi_3_4', $group);
+        $eval = PlacementRubricService::evaluate($group, 13, 17, 8);
 
-        $this->assertStringContainsString('Kỹ năng Nghe', $eval['teacher_comments']);
-        $this->assertStringContainsString('Kỹ năng Nói', $eval['teacher_comments']);
-        $this->assertEquals('Luyện MOVERS', $eval['recommended_course']);
+        $this->assertEquals(38.0, $eval['total']);
+        $this->assertSame(45, $eval['max_total']);
+        $this->assertSame('Luyện MOVERS', $eval['suggested_class']);
+        $this->assertStringContainsString('level Movers', $eval['comments']['listening']);
+        $this->assertStringContainsString('mô tả tranh khá', $eval['comments']['speaking']);
     }
 
     public function test_portal_submit_speaking_pre_g1_and_redirect_to_scorecard(): void

@@ -404,7 +404,8 @@ class CrmController extends Controller
 
         $user = $request->user();
         $canBookTrial = $stages->canMoveForward($user) && in_array($customer->stage, CrmCustomer::TRIAL_BOOKABLE_STAGES, true);
-        $trialSessions = $canBookTrial ? $this->upcomingTrialSessions($customer) : collect();
+        $trialSessions = $canBookTrial ? $this->upcomingTrialSessions($customer, $latestSubmission) : collect();
+        $trialRemaining = max(0, CrmTrialBooking::MAX_ACTIVE_PER_LEAD - $customer->trialBookings->where('status', '!=', 'cancelled')->count());
         $stageControls = [
             'next' => $stages->manualNextStage($customer, $user),
             'backward' => $stages->backwardTargets($customer, $user),
@@ -429,35 +430,38 @@ class CrmController extends Controller
         $reassignUsers = $canReassign ? $this->assignableUsers($customer->branch_id) : collect();
 
         return view('crm.show', compact('customer', 'placementTests', 'examiners', 'latestSubmission', 'courses', 'branches', 'portalTestLink', 'canBookTrial', 'trialSessions', 'stageControls',
-            'histories', 'logType', 'rubric', 'statusCard', 'canReassign', 'reassignUsers'));
+            'histories', 'logType', 'rubric', 'statusCard', 'canReassign', 'reassignUsers', 'trialRemaining'));
     }
 
     /**
-     * Khối thang điểm test (PlacementRubricService): khối lớp, tổng điểm, gợi ý lớp.
-     * Q2 (thang điểm) còn chờ BA — rubric đang dùng thang /10, điểm bài nộp giữ nguyên thang nhập.
+     * Khối kết quả test theo thang điểm khối lớp (BA Q2) cho hồ sơ khách / bản in.
      *
-     * @return array{grade_group: string, overall: ?float, recommended_course: string, cefr_level: string}|null
+     * @return array<string, mixed>|null
      */
     protected function rubricSummary(?PlacementTestSubmission $submission): ?array
     {
-        if (! $submission || $submission->overall_score === null) {
+        if (! $submission || ($submission->total_score === null && $submission->overall_score === null)) {
             return null;
         }
-        $code = $submission->test?->code ?? 'TEST-GENERAL';
-        $evaluation = PlacementRubricService::evaluate(
-            $code,
-            (float) $submission->listening_score,
-            (float) $submission->reading_score,
-            (float) $submission->writing_score,
-            (float) $submission->speaking_score,
-            (float) $submission->overall_score
-        );
+        $group = $submission->grade_group;
 
         return [
-            'grade_group' => PlacementRubricService::gradeGroupLabel($code),
-            'overall' => (float) $submission->overall_score,
-            'recommended_course' => $submission->recommended_course ?: $evaluation['recommended_course'],
-            'cefr_level' => $submission->cefr_level ?: $evaluation['cefr_level'],
+            'legacy' => ! $submission->hasRubricGrade(),
+            'grade_group' => $group,
+            'grade_group_label' => PlacementRubricService::groupLabel($group),
+            'has_rubric' => PlacementRubricService::hasRubric($group),
+            'max' => PlacementRubricService::maxScores($group),
+            'max_total' => PlacementRubricService::maxTotal($group),
+            'total' => $submission->total_score !== null ? (float) $submission->total_score : (float) $submission->overall_score,
+            'suggested_class' => $submission->suggested_class,
+            'chosen_class' => $submission->finalClass(),
+            'overridden' => $submission->classWasOverridden(),
+            'comments' => [
+                'listening' => $submission->listening_comment,
+                'reading_writing' => $submission->reading_writing_comment,
+                'speaking' => $submission->speaking_comment,
+            ],
+            'note' => $submission->teacher_comments,
         ];
     }
 
@@ -496,20 +500,56 @@ class CrmController extends Controller
             ->get(['id', 'name', 'email']);
     }
 
-    /** Buổi học sắp tới của lớp đang mở tại chi nhánh của lead (ứng viên cho học thử). */
-    protected function upcomingTrialSessions(CrmCustomer $customer)
+    /**
+     * Buổi học sắp tới của lớp đang mở tại chi nhánh của lead (ứng viên cho học thử).
+     * Buổi của lớp khớp trình độ (theo lớp xếp sau test / khóa quan tâm) được đánh dấu `matches_level` và xếp lên đầu.
+     */
+    protected function upcomingTrialSessions(CrmCustomer $customer, ?PlacementTestSubmission $submission = null)
     {
+        $keywords = $this->trialLevelKeywords($customer, $submission);
+
         return ClassSession::query()
-            ->with(['classModel.course', 'teacher'])
+            ->with(['classModel.course.level', 'teacher'])
             ->where('status', 'scheduled')
             ->whereDate('date', '>=', today())
             ->when($customer->branch_id, fn (Builder $query, int $branchId) => $query->where('branch_id', $branchId))
             ->whereHas('classModel', fn (Builder $query) => $query->whereIn('status', ['active', 'upcoming']))
             ->orderBy('date')->orderBy('start_time')
             ->limit(60)
-            ->get();
+            ->get()
+            ->each(function (ClassSession $session) use ($keywords) {
+                $haystack = Str::upper(implode(' ', array_filter([
+                    $session->classModel?->name, $session->classModel?->level,
+                    $session->classModel?->course?->name, $session->classModel?->course?->level?->name,
+                ])));
+                $session->setAttribute('matches_level', $keywords !== [] && collect($keywords)->contains(fn (string $k) => str_contains($haystack, $k)));
+            })
+            ->sortByDesc('matches_level')
+            ->values();
     }
 
+    /**
+     * Từ khóa trình độ của khách để gợi ý lớp học thử cùng trình độ: lớp xếp sau test (vd "STARTERS (FAM 1 …)")
+     * hoặc khóa quan tâm.
+     *
+     * @return array<int, string>
+     */
+    protected function trialLevelKeywords(CrmCustomer $customer, ?PlacementTestSubmission $submission): array
+    {
+        $source = Str::upper(trim(($submission?->finalClass() ?? '').' '.($customer->course_interest ?? '')));
+        if ($source === '') {
+            return [];
+        }
+
+        return collect(['PRE STARTERS', 'STARTERS', 'MOVERS', 'FLYERS', 'FAM 0', 'FAM 1', 'FAM 2', 'KET', 'PET', 'IELTS'])
+            ->filter(fn (string $keyword) => str_contains($source, $keyword))
+            ->values()->all();
+    }
+
+    /**
+     * Nhập điểm test đầu vào từ hồ sơ khách (Học vụ / Quản lý cơ sở / Admin — quyền entrance_test.grade),
+     * cùng thang điểm khối lớp với màn chấm bài (PlacementRubricService).
+     */
     public function saveTestScore(Request $request, $id)
     {
         $customer = $this->findScopedCustomer($id);
@@ -517,24 +557,11 @@ class CrmController extends Controller
             throw ValidationException::withMessages(['placement_test_id' => 'Lead phải ở bước tư vấn hoặc luồng test để nhập điểm.']);
         }
 
-        $validated = $request->validate([
-            'listening_score' => 'required|numeric|min:0|max:100',
-            'reading_score' => 'required|numeric|min:0|max:100',
-            'speaking_score' => 'required|numeric|min:0|max:100',
-            'writing_score' => 'nullable|numeric|min:0|max:100',
-            'cefr_level' => 'nullable|string|max:50',
-            'recommended_course' => 'nullable|string|max:255',
-            'teacher_comments' => 'nullable|string|max:1000',
+        $group = (string) $request->input('grade_group');
+        $validated = $request->validate(PlacementRubricService::scoreRules($group) + [
             'placement_test_id' => 'nullable|exists:placement_tests,id',
             'submission_id' => 'nullable|integer|exists:placement_test_submissions,id',
-        ]);
-
-        $listening = (float) $validated['listening_score'];
-        $reading = (float) $validated['reading_score'];
-        $speaking = (float) $validated['speaking_score'];
-        // Kỹ năng không nhập giữ null — không lấy điểm kỹ năng khác thay thế.
-        $writing = isset($validated['writing_score']) ? (float) $validated['writing_score'] : null;
-        $overall = PlacementTestSubmission::averageOf([$listening, $reading, $speaking, $writing]);
+        ], PlacementRubricService::scoreMessages($group));
 
         $submission = null;
         if (! empty($validated['submission_id'])) {
@@ -561,30 +588,21 @@ class CrmController extends Controller
                 ->latest()
                 ->first();
         }
-        $submissionData = [
+        $submission ??= new PlacementTestSubmission;
+        $submission->fill([
             'placement_test_id' => $testId,
             'customer_id' => $customer->id,
             'candidate_name' => $customer->name,
             'candidate_phone' => $customer->phone,
             'candidate_email' => $customer->email,
-            'listening_score' => $listening,
-            'reading_score' => $reading,
-            'writing_score' => $writing,
-            'speaking_score' => $speaking,
-            'overall_score' => $overall,
-            'cefr_level' => $validated['cefr_level'] ?? null,
-            'recommended_course' => $validated['recommended_course'] ?? null,
-            'teacher_comments' => $validated['teacher_comments'] ?? null,
-            'grader_id' => Auth::id() ?? $customer->assigned_user_id,
-            'status' => 'graded',
-        ];
-        $submission = $submission
-            ? tap($submission)->update($submissionData)
-            : PlacementTestSubmission::create($submissionData);
+        ]);
+        $submission->applyRubricGrade($validated);
+        $submission->grader_id = Auth::id() ?? $customer->assigned_user_id;
+        $submission->status = PlacementTestSubmission::STATUS_GRADED;
+        $submission->save();
 
-        $cefr = $validated['cefr_level'] ?? null;
         $customer->update([
-            'test_score' => $cefr ? "{$overall} ({$cefr})" : (string) $overall,
+            'test_score' => $submission->scoreSummary(),
             'test_decision' => 'test',
         ]);
         app(CrmStageService::class)->advanceTo($customer, 'tested', $request->user(), "Học vụ nhập điểm test đầu vào (bài #{$submission->id}).");
@@ -593,10 +611,18 @@ class CrmController extends Controller
             'customer_id' => $customer->id,
             'user_id' => Auth::id(),
             'type' => 'test',
-            'content' => 'Đã ghi nhận kết quả điểm test đầu vào: '.$overall.' Band'.($cefr ? " ({$cefr})" : '').' · Khóa đề xuất: '.($validated['recommended_course'] ?? 'Chưa đề xuất'),
+            'content' => 'Đã ghi nhận kết quả test đầu vào ('.PlacementRubricService::groupLabel($submission->grade_group).'): '
+                ."Nghe {$this->trimScore($submission->listening_score)} · Đọc & Viết {$this->trimScore($submission->reading_writing_score)} · Nói {$this->trimScore($submission->speaking_score)}"
+                .' → Tổng '.$submission->scoreSummary()
+                .($submission->classWasOverridden() ? " (lớp đề xuất theo thang điểm: {$submission->suggested_class})" : ''),
         ]);
 
         return redirect()->back()->with('status', 'Đã ghi nhận và cập nhật điểm test đầu vào thành công!');
+    }
+
+    private function trimScore(mixed $score): string
+    {
+        return $score === null ? '—' : rtrim(rtrim(number_format((float) $score, 1, '.', ''), '0'), '.');
     }
 
     public function schedulePlacementTest(Request $request, $id)
@@ -992,6 +1018,12 @@ class CrmController extends Controller
         if ($customer->stage === 'won' || $customer->converted_student_id) {
             throw ValidationException::withMessages([
                 'customer' => 'Lead đã chốt phải được lưu để bảo toàn lịch sử tuyển sinh, học phí và hoa hồng.',
+            ]);
+        }
+        if ($customer->stage === CrmCustomer::STAGE_LOST) {
+            // BA Q1 (bản sửa): khách Thất bại không mở lại và được giữ nguyên để đối soát / audit.
+            throw ValidationException::withMessages([
+                'customer' => 'Khách Thất bại được giữ để đối soát, không xóa được.',
             ]);
         }
         $name = $customer->name;

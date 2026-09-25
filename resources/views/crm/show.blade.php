@@ -28,7 +28,7 @@
                     <!-- Nút ĐÃ LÀM BÀI TEST -->
                     <a href="{{ $sub ? \Illuminate\Support\Facades\URL::signedRoute('portal.test.scorecard', ['id' => $sub->id]) : route('placement-tests.index') }}" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition whitespace-nowrap shrink-0">
                         <span class="material-symbols-outlined text-[16px] text-emerald-200">task_alt</span>
-                        <span>Đã Làm Bài Test ({{ $sub?->overall_score ?? $customer->test_score }})</span>
+                        <span>Đã Làm Bài Test ({{ $sub?->scoreSummary() ?? $customer->test_score }})</span>
                     </a>
 
                     @can('entrance_test.grade')
@@ -135,7 +135,7 @@
                 @endif
 
                 @can('lead.delete')
-                @if ($customer->stage !== 'won' && !$customer->converted_student_id)
+                @if (! in_array($customer->stage, ['won', 'lost'], true) && !$customer->converted_student_id)
                 <form action="{{ route('crm.customers.destroy', $customer->id) }}" method="POST" class="inline shrink-0" data-confirm="Bạn có chắc chắn muốn xóa lead {{ $customer->name }} ({{ $customer->code }})? Thao tác này không thể hoàn tác.">
                     @csrf
                     @method('DELETE')
@@ -208,7 +208,8 @@
     <div id="scheduleTrialModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl">
             <h3 class="font-bold text-sm mb-1">Đặt lịch học thử</h3>
-            <p class="text-xs text-gray-500 mb-4">Chọn 1–2 buổi học thật của lớp cùng trình độ tại {{ $customer->branch?->name ?? 'chi nhánh của khách' }}. Giáo viên của buổi sẽ thấy khách và gửi phản hồi.</p>
+            <p class="text-xs text-gray-500 mb-2">Chọn 1–2 buổi học thật của lớp cùng trình độ tại {{ $customer->branch?->name ?? 'chi nhánh của khách' }}. Giáo viên của buổi sẽ thấy khách trong trang "Nhận xét học thử" và nhận xét như học sinh chính thức.</p>
+            <p class="text-xs mb-4 {{ $trialRemaining > 0 ? 'text-fuchsia-700' : 'text-rose-700' }} font-semibold">Còn đặt được {{ $trialRemaining }}/{{ \App\Models\CrmTrialBooking::MAX_ACTIVE_PER_LEAD }} buổi học thử.@if ($latestSubmission?->finalClass()) Trình độ theo test: {{ $latestSubmission->finalClass() }}.@endif</p>
             <form action="{{ route('crm.customers.trial-bookings.store', $customer->id) }}" method="POST" class="space-y-3 text-xs">
                 @csrf
                 <div class="max-h-64 overflow-y-auto border border-gray-100 rounded-xl divide-y divide-gray-100">
@@ -217,6 +218,7 @@
                             <input type="checkbox" name="class_session_ids[]" value="{{ $session->id }}" class="mt-0.5 rounded border-gray-300 text-fuchsia-600" />
                             <span>
                                 <span class="font-bold text-gray-900">{{ $session->classModel?->name }}</span>
+                                @if ($session->matches_level)<span class="ml-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold text-[10px]">Khớp trình độ</span>@endif
                                 <span class="text-gray-500">· {{ $session->classModel?->course?->name ?? 'Chưa gán khóa' }}{{ $session->classModel?->level ? ' · '.$session->classModel->level : '' }}</span>
                                 <span class="block text-gray-500">{{ $session->date->format('d/m/Y') }} · {{ $session->start_time?->format('H:i') }}–{{ $session->end_time?->format('H:i') }} · GV: {{ $session->teacher?->name ?? 'Chưa gán' }}</span>
                             </span>
@@ -302,7 +304,7 @@
 
     <!-- Enter / Edit Test Score Modal -->
     <div id="editTestScoreModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-gray-200">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border border-gray-200 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center pb-2 border-b border-gray-100">
                 <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary-container">military_tech</span>
@@ -326,8 +328,7 @@
                     <span class="material-symbols-outlined text-primary-container text-base mt-0.5">info</span>
                     <div>
                         <strong>Học viên:</strong> {{ $customer->name }} ({{ $customer->phone }})<br>
-                        <span>Nhập điểm 4 kỹ năng để hệ thống tự động tính Overall &amp; cập nhật giai đoạn CRM.</span><br>
-                        <strong>Thang điểm màn này: 0 – 100 / kỹ năng</strong> <span class="text-orange-700">(khác màn chấm bài online dùng thang 0 – 9; cách tính đang chờ BA chốt — Q2).</span>
+                        <span>Chấm theo <strong>thang điểm khối lớp</strong>: Tổng = Nghe + Đọc &amp; Viết + Nói → lớp đề xuất. Lưu điểm sẽ tự chuyển khách sang "Đã test".</span>
                     </div>
                 </div>
 
@@ -343,51 +344,10 @@
                     </div>
                 @endunless
 
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Nghe (Listening) · 0–100 <span class="text-rose-500">*</span></label>
-                        <input type="number" step="0.5" min="0" max="100" name="listening_score" value="{{ old('listening_score', $editSub?->listening_score) }}" required class="w-full text-xs font-mono font-bold text-indigo-700 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
-                    </div>
-                    <div>
-                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Đọc (Reading) · 0–100 <span class="text-rose-500">*</span></label>
-                        <input type="number" step="0.5" min="0" max="100" name="reading_score" value="{{ old('reading_score', $editSub?->reading_score) }}" required class="w-full text-xs font-mono font-bold text-emerald-700 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Viết (Writing) · 0–100</label>
-                        <input type="number" step="0.5" min="0" max="100" name="writing_score" value="{{ old('writing_score', $editSub?->writing_score) }}" class="w-full text-xs font-mono font-bold text-amber-700 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
-                    </div>
-                    <div>
-                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Nói (Speaking) · 0–100 <span class="text-rose-500">*</span></label>
-                        <input type="number" step="0.5" min="0" max="100" name="speaking_score" value="{{ old('speaking_score', $editSub?->speaking_score) }}" required class="w-full text-xs font-mono font-bold text-rose-700 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Trình độ CEFR</label>
-                        <select name="cefr_level" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 bg-white font-bold text-gray-900 shadow-2xs">
-                            @php $cefrValue = old('cefr_level', $editSub?->cefr_level); @endphp
-                            <option value="" @selected(empty($cefrValue))>— Chưa xác định —</option>
-                            <option value="A1" @selected($cefrValue === 'A1')>A1 - Mất gốc (Beginner)</option>
-                            <option value="A2" @selected($cefrValue === 'A2')>A2 - Sơ cấp (Elementary)</option>
-                            <option value="B1" @selected($cefrValue === 'B1')>B1 - Trung cấp (Intermediate)</option>
-                            <option value="B2" @selected($cefrValue === 'B2')>B2 - Khá (Upper-Inter)</option>
-                            <option value="C1" @selected($cefrValue === 'C1')>C1 - Cao cấp (Advanced)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Khóa học đề xuất</label>
-                        <input type="text" name="recommended_course" value="{{ old('recommended_course', $editSub?->recommended_course) }}" class="w-full text-xs font-bold text-gray-900 rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Nhận xét &amp; Lời phê của Giáo viên</label>
-                    <textarea name="teacher_comments" rows="2" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs leading-relaxed" placeholder="VD: Học viên phát âm tự nhiên, phản xạ nói tốt, cần luyện thêm ngữ pháp...">{{ old('teacher_comments', $editSub?->teacher_comments) }}</textarea>
-                </div>
+                @include('placement-tests.partials.rubric-score-fields', [
+                    'submission' => $editSub,
+                    'defaultGroup' => \App\Services\PlacementRubricService::detectGradeGroup($editSub?->test?->code ?? $customer->assignedTest?->code),
+                ])
 
                 <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
                     <button type="button" onclick="document.getElementById('editTestScoreModal').classList.add('hidden')" class="px-3 py-1.5 rounded-lg border text-xs text-gray-600 hover:bg-gray-50">Hủy</button>
@@ -398,6 +358,16 @@
     </div>
 
     <!-- Success flash banner -->
+
+    @if ($customer->stage === \App\Models\CrmCustomer::STAGE_LOST)
+        <div class="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 flex items-start gap-2" data-testid="lost-banner">
+            <span class="material-symbols-outlined text-[18px]">block</span>
+            <div>
+                <div class="font-bold">Khách Thất bại{{ $customer->lost_at ? ' từ '.$customer->lost_at->format('d/m/Y') : '' }} — không mở lại, giữ để đối soát.</div>
+                @if ($customer->lost_reason)<div>Lý do: {{ $customer->lost_reason }}</div>@endif
+            </div>
+        </div>
+    @endif
 
     @if ($customer->trialBookings->isNotEmpty() || $customer->stage === 'waiting_class')
         <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
@@ -410,8 +380,8 @@
                                 <span class="font-semibold text-gray-900">{{ $booking->classModel?->name }} · {{ $booking->session?->date?->format('d/m/Y') }} {{ $booking->session?->start_time?->format('H:i') }}</span>
                                 <span class="px-2 py-0.5 rounded-full font-bold {{ $booking->status === 'attended' ? 'bg-emerald-50 text-emerald-700' : ($booking->status === 'scheduled' ? 'bg-sky-50 text-sky-700' : 'bg-rose-50 text-rose-700') }}">{{ $booking->status_label }}</span>
                             </div>
-                            @if ($booking->feedback)
-                                <div class="mt-1 text-gray-700">{{ $booking->rating ? $booking->rating.'/5 · ' : '' }}{{ $booking->feedback }}</div>
+                            @if ($booking->feedback || $booking->remarks)
+                                <div class="mt-1 text-gray-700"><span class="font-semibold">Nhận xét của GV:</span> {{ $booking->rating ? $booking->rating.'/5 · ' : '' }}{{ $booking->remarksSummary() !== '' ? $booking->remarksSummary().' · ' : '' }}{{ $booking->feedback }}</div>
                                 <div class="text-[11px] text-gray-400">{{ $booking->feedbackBy?->name }} · {{ $booking->feedback_at?->format('d/m/Y H:i') }}</div>
                             @endif
                             @if ($booking->status === 'scheduled' && $canBookTrial)
@@ -553,9 +523,6 @@
             <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden" x-data="crmOnlineTestEngine({
                 hasResult: {{ $hasResult ? 'true' : 'false' }},
                 hasScheduled: {{ $hasScheduled ? 'true' : 'false' }},
-                scoreL: {{ (float)($submission->listening_score ?? 0) }},
-                scoreR: {{ (float)($submission->reading_score ?? 0) }},
-                scoreS: {{ (float)($submission->speaking_score ?? 0) }},
                 testLink: {{ Js::from($portalTestLink) }}
             })">
                 <!-- Header with State Badges -->
@@ -572,7 +539,7 @@
                                 </span>
                                 <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-200 flex items-center gap-0.5">
                                     <span class="material-symbols-outlined text-[12px]">military_tech</span>
-                                    <span>{{ $submission->overall_score ?? $customer->test_score }} Band</span>
+                                    <span>{{ $submission?->scoreSummary() ?? $customer->test_score }}</span>
                                 </span>
                             </div>
                         @elseif ($hasScheduled)
@@ -683,98 +650,7 @@
                 <!-- STATE 3: ĐÃ CÓ KẾT QUẢ & THANG ĐIỂM TỰ ĐỘNG -->
                 @else
                     <div class="p-5 space-y-4">
-                        <!-- Score Header Summary -->
-                        <div class="p-4 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl flex items-center justify-between gap-4 flex-wrap">
-                            <div class="flex items-center gap-3">
-                                <div class="w-12 h-12 rounded-xl bg-primary-container text-white flex flex-col items-center justify-center font-black shadow-sm">
-                                    <span class="text-sm leading-none">{{ $submission->overall_score ?? $customer->test_score ?? '—' }}</span>
-                                    <span class="text-[9px] uppercase tracking-wider font-semibold opacity-90">Band</span>
-                                </div>
-                                <div>
-                                    <div class="flex items-center gap-2">
-                                        <h4 class="font-black text-gray-900 text-sm">Điểm Đánh Giá Năng Lực</h4>
-                                        <span class="px-2 py-0.5 bg-white border border-amber-300 text-amber-900 rounded-md text-[10px] font-black uppercase font-mono shadow-2xs">
-                                            CEFR: {{ $submission->cefr_level ?? '—' }}
-                                        </span>
-                                    </div>
-                                    <p class="text-xs text-amber-950 font-semibold mt-0.5">
-                                        Khóa đề xuất: <span class="text-primary-container font-bold">{{ $submission->recommended_course ?? '—' }}</span>
-                                    </p>
-                                </div>
-                            </div>
-                            @if ($submission)
-                                <div class="shrink-0 flex items-center gap-2">
-                                    <a href="{{ \Illuminate\Support\Facades\URL::signedRoute('portal.test.scorecard', ['id' => $submission->id]) }}" target="_blank" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs">
-                                        <span class="material-symbols-outlined text-[15px] text-amber-400">military_tech</span>
-                                        <span>Xem Scorecard</span>
-                                    </a>
-                                </div>
-                            @endif
-                        </div>
-
-                        <!-- 4 Skill Scores Details -->
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                            <!-- Listening -->
-                            <div class="p-2.5 bg-indigo-50/50 rounded-xl border border-indigo-100 text-center space-y-1">
-                                <span class="font-bold text-indigo-900 uppercase text-[10px] block">Nghe (Listening)</span>
-                                <span class="text-lg font-black font-mono text-indigo-700 block">{{ $submission->listening_score ?? '—' }}</span>
-                            </div>
-
-                            <!-- Reading -->
-                            <div class="p-2.5 bg-emerald-50/50 rounded-xl border border-emerald-100 text-center space-y-1">
-                                <span class="font-bold text-emerald-900 uppercase text-[10px] block">Đọc (Reading)</span>
-                                <span class="text-lg font-black font-mono text-emerald-700 block">{{ $submission->reading_score ?? '—' }}</span>
-                            </div>
-
-                            <!-- Writing -->
-                            <div class="p-2.5 bg-amber-50/50 rounded-xl border border-amber-100 text-center space-y-1">
-                                <span class="font-bold text-amber-900 uppercase text-[10px] block">Viết (Writing)</span>
-                                <span class="text-lg font-black font-mono text-amber-700 block">{{ $submission->writing_score ?? '—' }}</span>
-                            </div>
-
-                            <!-- Speaking -->
-                            <div class="p-2.5 bg-rose-50/50 rounded-xl border border-rose-100 text-center space-y-1">
-                                <span class="font-bold text-rose-900 uppercase text-[10px] block">Nói (Speaking)</span>
-                                <span class="text-lg font-black font-mono text-rose-700 block">{{ $submission->speaking_score ?? '—' }}</span>
-                            </div>
-                        </div>
-
-                        @if ($rubric)
-                            <!-- Thang điểm rubric (PlacementRubricService) -->
-                            <div class="p-3 bg-amber-50/60 border border-amber-200 rounded-xl text-xs space-y-2">
-                                <div class="font-bold text-amber-900 flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-[14px]">grading</span>
-                                    Thang điểm &amp; gợi ý xếp lớp
-                                </div>
-                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                    <div class="p-2 bg-white rounded-lg border border-amber-100">
-                                        <div class="text-[10px] uppercase font-bold text-gray-500">Khối lớp</div>
-                                        <div class="font-bold text-gray-900">{{ $rubric['grade_group'] }}</div>
-                                    </div>
-                                    <div class="p-2 bg-white rounded-lg border border-amber-100">
-                                        <div class="text-[10px] uppercase font-bold text-gray-500">Tổng điểm (overall)</div>
-                                        <div class="font-black font-mono text-primary-container">{{ rtrim(rtrim(number_format($rubric['overall'], 1, '.', ''), '0'), '.') }}</div>
-                                    </div>
-                                    <div class="p-2 bg-white rounded-lg border border-amber-100">
-                                        <div class="text-[10px] uppercase font-bold text-gray-500">Gợi ý lớp</div>
-                                        <div class="font-bold text-gray-900">{{ $rubric['recommended_course'] }}</div>
-                                        <div class="text-[10px] text-gray-500">{{ $rubric['cefr_level'] }}</div>
-                                    </div>
-                                </div>
-                                <p class="text-[10px] text-amber-800">Tổng điểm giữ nguyên thang đã nhập (CRM: 0–100; chấm bài online: 0–9). Gợi ý lớp theo rubric thang /10 — cách tính chính thức đang chờ BA chốt (Q2).</p>
-                            </div>
-                        @endif
-
-                        <!-- Teacher Comments -->
-                        @if ($submission?->teacher_comments)
-                            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-xs">
-                                <div class="flex items-center gap-1 text-[11px] font-bold text-slate-700">
-                                    <span class="material-symbols-outlined text-[14px] text-primary">rate_review</span>
-                                    <span>Nhận xét của Giáo viên / Giám thị:</span>
-                                </div>
-                                <p class="text-gray-800 leading-relaxed italic text-[11px]">"{{ $submission->teacher_comments }}"</p>
-                            </div>
-                        @endif
+                        @include('placement-tests.partials.rubric-result', ['submission' => $submission, 'rubric' => $rubric, 'fallbackScore' => $customer->test_score])
 
                         <!-- Action Buttons -->
                         <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-gray-100">
@@ -807,78 +683,7 @@
 
             <script>
                 function crmOnlineTestEngine(cfg) {
-                    return {
-                        hasResult: cfg.hasResult,
-                        hasScheduled: cfg.hasScheduled,
-                        khoiKey: 'khoi2_3',
-                        scoreL: cfg.scoreL,
-                        scoreR: cfg.scoreR,
-                        scoreS: cfg.scoreS,
-                        maxL: 15, maxR: 15, maxS: 10,
-                        totalScore: 0,
-                        placementCourse: 'STARTERS (FAM 1 _ UNIT 7 - 12)',
-                        generatedComment: '',
-                        testLink: cfg.testLink,
-
-                        init() {
-                            this.recalc();
-                        },
-
-                        recalc() {
-                            const RUBRICS = {
-                                khoi1_2: {
-                                    maxL: 10, maxR: 15, maxS: 10,
-                                    listening: s => s>=8 ? "Con nghe tốt, nắm được từ vựng các chủ đề đời sống." : (s>=5 ? "Đã có kĩ năng nghe cơ bản, nhận diện từ qua tranh." : "Bắt đầu hình thành kĩ năng nghe cơ bản."),
-                                    reading: s => s>=11 ? "Vốn từ cơ bản tốt, nhớ chính tả, hiểu câu đơn." : (s>=6 ? "Nhận diện từ vựng tốt, cần củng cố chính tả." : "Chưa có nền từ tốt."),
-                                    speaking: s => s>=8 ? "Nói trôi chảy, phản xạ nhanh với câu hỏi Starters." : (s>=5 ? "Phát âm rõ ràng, nhận diện câu hỏi cơ bản." : "Chưa hình thành kĩ năng nghe nói cơ bản."),
-                                    placement: t => t<10 ? "PRE STARTERS (FAM 0)" : (t<=15 ? "STARTERS (FAM 1 _ BÀI ĐẦU)" : (t<=25 ? "STARTERS (FAM 1 _ BÀI 5 - 10)" : "STARTERS (FAM 1 _ NÂNG CAO)"))
-                                },
-                                khoi2_3: {
-                                    maxL: 15, maxR: 15, maxS: 10,
-                                    listening: s => s>=11 ? "Nghe khá, phân biệt được thông tin gây nhiễu." : (s>=6 ? "Nghe trung bình khá, nhận diện thông tin 1 chiều." : "Nghe cơ bản, chưa quen bài nghe đa dạng."),
-                                    reading: s => s>=11 ? "Nền từ khá tốt, đọc hiểu câu cơ bản linh hoạt." : (s>=6 ? "Nhận diện cơ bản từ vựng, cần trau dồi sắp xếp câu." : "Cần củng cố ngữ pháp và vốn từ vựng."),
-                                    speaking: s => s>=8 ? "Nói trôi chảy, tự tin trả lời câu dài." : (s>=5 ? "Có kĩ năng nghe nói cơ bản, phát âm tương đối rõ." : "Chưa hình thành kĩ năng giao tiếp cơ bản."),
-                                    placement: t => t<20 ? "PRE STARTERS _ FAM 1 (DƯỚI U5)" : (t<=30 ? "STARTERS (FAM 1 _ UNIT 6 - 10)" : "STARTERS (FAM 1 _ UNIT 7 - 12)")
-                                },
-                                khoi3_4: {
-                                    maxL: 15, maxR: 20, maxS: 10,
-                                    listening: s => s>=11 ? "Nghe khá/tốt, nắm trọn vẹn nội dung Movers." : (s>=6 ? "Nghe hiểu câu ngắn 1 chiều." : "Kĩ năng nghe ở mức hình thành cơ bản."),
-                                    reading: s => s>=15 ? "Nền từ vựng Movers phong phú, xử lý bài đọc tốt." : (s>=7 ? "Đọc hiểu câu ngắn và kết nối thông tin tốt." : "Nhận diện từ đơn cơ bản, ngữ pháp cần nâng cao."),
-                                    speaking: s => s>=8 ? "Nói trôi chảy, mô tả tranh và so sánh chi tiết." : (s>=5 ? "Phản xạ giao tiếp tự tin, phát âm rõ ràng." : "Nghe hiểu cơ bản, nền từ còn yếu."),
-                                    placement: t => t<20 ? "FAM 2 (NỬA ĐẦU)" : (t<=35 ? "FAM 2 (NỬA SAU)" : "LUYỆN THI MOVERS")
-                                },
-                                khoi4_5: {
-                                    maxL: 15, maxR: 15, maxS: 10,
-                                    listening: s => s>=11 ? "Nghe xuất sắc, xử lý nhanh các bẫy thông tin." : (s>=6 ? "Nghe hiểu tốt các hội thoại thông thường." : "Kỹ năng nghe hình thành cơ bản."),
-                                    reading: s => s>=11 ? "Nền từ vựng vững vàng, đọc hiểu nhanh." : (s>=6 ? "Nắm từ vựng trọng tâm, đọc hiểu đoạn văn ngắn." : "Cần củng cố cấu trúc câu và các thì căn bản."),
-                                    speaking: s => s>=8 ? "Phản xạ tự nhiên, mô tả tranh sinh động." : (s>=5 ? "Nói lưu loát, tự tin trình bày câu hoàn chỉnh." : "Giao tiếp câu đơn, cần mở rộng câu."),
-                                    placement: t => t<20 ? "FAM 2 (NỬA ĐẦU)" : (t<=30 ? "FAM 2 (NỬA SAU)" : "LUYỆN THI MOVERS")
-                                }
-                            };
-
-                            const r = RUBRICS[this.khoiKey];
-                            this.maxL = r.maxL;
-                            this.maxR = r.maxR;
-                            this.maxS = r.maxS;
-
-                            let l = parseFloat(this.scoreL) || 0;
-                            let rd = parseFloat(this.scoreR) || 0;
-                            let s = parseFloat(this.scoreS) || 0;
-
-                            l = Math.min(Math.max(l, 0), r.maxL);
-                            rd = Math.min(Math.max(rd, 0), r.maxR);
-                            s = Math.min(Math.max(s, 0), r.maxS);
-
-                            this.totalScore = Math.round((l + rd + s) * 10) / 10;
-                            this.placementCourse = r.placement(this.totalScore);
-
-                            this.generatedComment = 
-                                `【Kỹ năng Nghe】: ${r.listening(l)}\n` +
-                                `【Kỹ năng Đọc & Viết】: ${r.reading(rd)}\n` +
-                                `【Kỹ năng Nói】: ${r.speaking(s)}\n` +
-                                `【Đề xuất Xếp lớp】: ${this.placementCourse}`;
-                        }
-                    };
+                    return { hasResult: cfg.hasResult, hasScheduled: cfg.hasScheduled, testLink: cfg.testLink };
                 }
             </script>
         </div>

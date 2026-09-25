@@ -9,6 +9,7 @@ use App\Models\Course;
 use App\Models\CrmCustomer;
 use App\Models\CrmTrialBooking;
 use App\Models\PlacementTest;
+use App\Models\PlacementTestSubmission;
 use App\Models\User;
 use App\Services\CrmStageService;
 use App\Services\PlacementPortalLinkService;
@@ -322,6 +323,7 @@ class CrmPipelineTest extends TestCase
     public function test_session_teacher_sees_trial_guest_and_writes_feedback_on_the_lead(): void
     {
         [, $sessions, $teacher] = $this->classWithSessions(1);
+        $sessions[0]->update(['date' => today()->toDateString()]);
         $lead = $this->lead('consulting');
         $booking = CrmTrialBooking::create([
             'customer_id' => $lead->id,
@@ -354,6 +356,159 @@ class CrmPipelineTest extends TestCase
 
         $this->actingAs($this->academic)->get(route('crm.customers.show', $lead))->assertOk()
             ->assertSee('Phát âm tốt, cần luyện nghe.');
+    }
+
+    public function test_academic_staff_and_manager_cannot_move_backward_even_with_reason(): void
+    {
+        $lead = $this->lead('result_sent');
+
+        foreach ([$this->academic, $this->manager] as $user) {
+            $this->actingAs($user)->postJson(route('crm.customers.stage', $lead), ['stage' => 'tested', 'reason' => 'Sửa nhầm'])
+                ->assertForbidden();
+        }
+        $this->assertSame('result_sent', $lead->fresh()->stage);
+        $this->assertSame(0, $lead->histories()->where('type', 'stage_change')->count());
+
+        $this->actingAs($this->academic)->get(route('crm.customers.show', $lead))->assertOk()
+            ->assertViewHas('stageControls', fn (array $c) => $c['backward'] === [] && $c['canLose'] === true);
+        $this->actingAs($this->admin)->get(route('crm.customers.show', $lead))->assertOk()
+            ->assertViewHas('stageControls', fn (array $c) => in_array('tested', $c['backward'], true));
+    }
+
+    public function test_only_not_yet_closed_leads_can_fail_from_any_active_stage(): void
+    {
+        foreach (['new', 'consulting', 'test_scheduled', 'testing', 'tested', 'result_sent'] as $stage) {
+            $lead = $this->lead($stage);
+            $this->actingAs($this->academic)->postJson(route('crm.customers.stage', $lead), ['stage' => 'lost', 'lost_reason' => 'Chưa phù hợp học phí'])
+                ->assertOk();
+            $this->assertSame('lost', $lead->fresh()->stage);
+            $this->assertNotNull($lead->fresh()->lost_at);
+        }
+
+        foreach (['waiting_class', 'won'] as $stage) {
+            $closed = $this->lead($stage);
+            $this->actingAs($this->academic)->get(route('crm.customers.show', $closed))->assertOk()
+                ->assertViewHas('stageControls', fn (array $c) => $c['canLose'] === false && $c['backward'] === [])
+                ->assertDontSee('Hủy chốt');
+        }
+    }
+
+    public function test_lost_lead_has_no_reopen_action_stays_listed_and_cannot_be_deleted(): void
+    {
+        $lead = $this->lead('consulting');
+        $this->actingAs($this->manager)->postJson(route('crm.customers.stage', $lead), ['stage' => 'lost', 'lost_reason' => 'Không liên hệ được'])
+            ->assertOk();
+
+        // Không có thao tác mở lại trên hồ sơ; mọi đường chuyển giai đoạn đều bị server từ chối.
+        $this->actingAs($this->admin)->get(route('crm.customers.show', $lead))->assertOk()
+            ->assertViewHas('stageControls', fn (array $c) => $c['next'] === null && $c['backward'] === [] && $c['canLose'] === false)
+            ->assertSee('không mở lại, giữ để đối soát');
+        $this->actingAs($this->admin)->postJson(route('crm.customers.next-stage', $lead))->assertUnprocessable();
+        foreach (['new', 'consulting', 'tested'] as $target) {
+            $this->actingAs($this->admin)->postJson(route('crm.customers.stage', $lead), ['stage' => $target, 'reason' => 'Mở lại'])
+                ->assertUnprocessable();
+        }
+        $this->assertFalse(app(CrmStageService::class)->advanceTo($lead->fresh(), 'consulting', $this->admin, 'Tự động'));
+
+        // Không đặt học thử / không xóa (giữ để audit), vẫn nằm trong danh sách khách không chốt.
+        [, $sessions] = $this->classWithSessions(1);
+        $this->actingAs($this->admin)->post(route('crm.customers.trial-bookings.store', $lead), ['class_session_ids' => [$sessions[0]->id]])
+            ->assertSessionHasErrors('class_session_ids');
+        $this->actingAs($this->admin)->delete(route('crm.customers.destroy', $lead))->assertSessionHasErrors('customer');
+        $this->assertNotSoftDeleted('crm_customers', ['id' => $lead->id]);
+        $this->actingAs($this->manager)->get(route('crm.lost-deals'))->assertOk()->assertSee($lead->name);
+
+        $this->assertSame('lost', $lead->fresh()->stage);
+        $this->assertSame(1, $lead->histories()->where('type', 'stage_change')->count());
+    }
+
+    public function test_trial_can_be_booked_for_any_not_closed_consulting_stage_and_cancel_frees_a_slot(): void
+    {
+        [, $sessions] = $this->classWithSessions(3);
+        $lead = $this->lead('tested');
+
+        $this->actingAs($this->academic)->post(route('crm.customers.trial-bookings.store', $lead), [
+            'class_session_ids' => [$sessions[0]->id, $sessions[1]->id],
+        ])->assertSessionHasNoErrors();
+        // Một lần gửi quá 2 buổi cũng bị chặn.
+        $other = $this->lead('consulting');
+        $this->actingAs($this->academic)->post(route('crm.customers.trial-bookings.store', $other), [
+            'class_session_ids' => [$sessions[0]->id, $sessions[1]->id, $sessions[2]->id],
+        ])->assertSessionHasErrors('class_session_ids');
+
+        $booking = CrmTrialBooking::where('customer_id', $lead->id)->firstOrFail();
+        $this->actingAs($this->academic)->post(route('crm.customers.trial-bookings.cancel', [$lead->id, $booking->id]), ['reason' => 'Khách bận'])
+            ->assertSessionHasNoErrors();
+        $this->actingAs($this->academic)->post(route('crm.customers.trial-bookings.store', $lead), [
+            'class_session_ids' => [$sessions[2]->id],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(2, CrmTrialBooking::where('customer_id', $lead->id)->where('status', '!=', 'cancelled')->count());
+        $this->assertSame('tested', $lead->fresh()->stage);
+    }
+
+    public function test_trial_sessions_of_matching_level_are_flagged_first(): void
+    {
+        $teacher = $this->userWithRole('teacher', $this->branch);
+        $movers = Course::create(['code' => 'MOV', 'name' => 'Movers FAM 2', 'tuition_fee' => 1, 'is_active' => true]);
+        $starters = Course::create(['code' => 'STA', 'name' => 'Starters FAM 1', 'tuition_fee' => 1, 'is_active' => true]);
+        $sessionFor = function (Course $course, string $code, int $days) use ($teacher) {
+            $class = ClassModel::create(['code' => $code, 'name' => 'Lớp '.$code, 'course_id' => $course->id, 'branch_id' => $this->branch->id, 'teacher_id' => $teacher->id, 'max_capacity' => 10, 'status' => 'active']);
+
+            return ClassSession::create(['class_id' => $class->id, 'branch_id' => $this->branch->id, 'date' => now()->addDays($days)->toDateString(), 'shift_name' => 'Ca', 'start_time' => '18:00', 'end_time' => '19:30', 'teacher_id' => $teacher->id, 'status' => 'scheduled']);
+        };
+        $moversSession = $sessionFor($movers, 'MV1', 1);
+        $startersSession = $sessionFor($starters, 'ST1', 2);
+
+        $lead = $this->lead('tested');
+        $test = PlacementTest::create(['code' => 'TEST-G2-G3', 'title' => 'Đề', 'is_active' => true, 'duration_minutes' => 30]);
+        $submission = new PlacementTestSubmission(['placement_test_id' => $test->id, 'customer_id' => $lead->id, 'candidate_name' => $lead->name, 'candidate_phone' => $lead->phone, 'status' => 'graded']);
+        $submission->applyRubricGrade(['grade_group' => 'khoi_2_3', 'listening_score' => 12, 'reading_writing_score' => 12, 'speaking_score' => 8]);
+        $submission->save();
+
+        $sessions = $this->actingAs($this->academic)->get(route('crm.customers.show', $lead))->assertOk()
+            ->assertSee('Khớp trình độ')->viewData('trialSessions');
+        $this->assertSame([$startersSession->id, $moversSession->id], $sessions->pluck('id')->all());
+        $this->assertTrue($sessions->first()->matches_level);
+        $this->assertFalse($sessions->last()->matches_level);
+    }
+
+    public function test_teacher_records_structured_remark_for_trial_guest_after_the_session_only(): void
+    {
+        [, $sessions, $teacher] = $this->classWithSessions(1);
+        $lead = $this->lead('consulting');
+        $booking = CrmTrialBooking::create([
+            'customer_id' => $lead->id, 'class_id' => $sessions[0]->class_id, 'class_session_id' => $sessions[0]->id,
+            'booked_by' => $this->academic->id, 'status' => 'scheduled',
+        ]);
+        $payload = [
+            'status' => 'attended', 'rating' => 5,
+            'remarks' => ['grammar' => 'Khá', 'attitude' => 'Hăng hái', 'result' => 'Đạt mục tiêu', 'monsters' => 'bỏ qua'],
+            'feedback' => 'Bé hòa nhập nhanh, hợp lớp Starters.',
+        ];
+
+        // Buổi ngày mai: GV thấy khách ở mục "sắp tới" nhưng chưa được nhận xét.
+        $this->actingAs($teacher)->get(route('teacher.trial-guests'))->assertOk()->assertSee($lead->name)->assertSee('Nhận xét được mở từ ngày học thử');
+        $this->actingAs($teacher)->post(route('teacher.trial-guests.feedback', $booking), $payload)->assertSessionHasErrors('feedback');
+        $this->assertNull($booking->fresh()->feedback_at);
+
+        $sessions[0]->update(['date' => now()->subDay()->toDateString()]);
+        $this->actingAs($teacher)->get(route('teacher.trial-guests', ['scope' => 'past']))->assertOk()->assertSee($lead->name);
+        $this->actingAs($teacher)->get(route('teacher.trial-guests'))->assertOk()->assertDontSee($lead->name);
+
+        $this->actingAs($teacher)->post(route('teacher.trial-guests.feedback', $booking), $payload)->assertSessionHasNoErrors();
+
+        $booking->refresh();
+        $this->assertSame(['grammar' => 'Khá', 'attitude' => 'Hăng hái', 'result' => 'Đạt mục tiêu'], $booking->remarks);
+        $this->assertSame($lead->id, $booking->customer_id);
+        $history = $lead->histories()->where('type', 'trial')->latest('id')->firstOrFail();
+        $this->assertSame($teacher->id, $history->user_id);
+        $this->assertStringContainsString('Thực hành ngữ pháp: Khá', $history->content);
+        $this->assertStringContainsString('Bé hòa nhập nhanh', $history->content);
+
+        $this->actingAs($this->academic)->get(route('crm.customers.show', $lead))->assertOk()
+            ->assertSee('Tinh thần học tập: Hăng hái')->assertSee('Bé hòa nhập nhanh, hợp lớp Starters.');
+        $this->assertDatabaseMissing('students', ['name' => $lead->name]);
     }
 
     private function classWithSessions(int $count): array

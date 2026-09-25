@@ -9,7 +9,7 @@
                     <div class="flex items-center gap-2 flex-wrap">
                         <h1 class="text-xl font-black text-gray-900 tracking-tight">Chi Tiết Bài Làm &amp; Chấm Điểm Thí Sinh</h1>
                         <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-primary-container border border-orange-200">
-                            {{ $submission->overall_score ?? '—' }} Band ({{ $submission->cefr_level ?? '—' }})
+                            {{ $submission->scoreSummary() ?? 'Chưa có điểm' }}
                         </span>
                         <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase border {{ $submission->isPending() ? 'bg-sky-50 text-sky-700 border-sky-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200' }}">
                             {{ $submission->isPending() ? 'Chờ Chấm' : 'Đã Chấm Điểm' }}
@@ -56,77 +56,32 @@
             <div class="flex items-center justify-between border-b border-gray-100 pb-3 flex-wrap gap-2">
                 <div class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary-container text-xl">fact_check</span>
-                    <h2 class="font-black text-gray-900 text-sm uppercase tracking-wide">Điểm Số 4 Kỹ Năng &amp; Đánh Giá Năng Lực</h2>
+                    <h2 class="font-black text-gray-900 text-sm uppercase tracking-wide">Chấm điểm theo thang điểm khối lớp</h2>
                 </div>
-                <span class="px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-bold" title="Cách tính điểm test (Q2) đang chờ BA chốt">Thang điểm màn này: 0 – 9 (band) / kỹ năng</span>
+                <span class="px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-bold">Tổng = Nghe + Đọc &amp; Viết + Nói → lớp đề xuất</span>
                 <div class="text-xs text-gray-500 font-mono">
                     Nộp bài lúc: {{ $submission->created_at ? $submission->created_at->format('H:i, d/m/Y') : date('H:i, d/m/Y') }}
                 </div>
             </div>
 
-            <!-- Score Summary Cards -->
-            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                <div class="p-3.5 bg-indigo-50/60 rounded-xl border border-indigo-100 text-center space-y-1">
-                    <label class="text-[11px] text-indigo-900 font-black uppercase tracking-wider block">Nghe (Listening) · 0–9</label>
-                    <input type="number" step="0.5" min="0" max="9" name="listening_score" value="{{ $submission->listening_score }}" required class="w-full text-center font-mono font-black text-xl rounded-lg border border-indigo-200 bg-white text-indigo-700 p-1 shadow-2xs" />
+            @if ($submission->isPending() && ($submission->listening_score !== null || $submission->reading_score !== null))
+                <div class="p-3 rounded-xl bg-sky-50 border border-sky-200 text-xs text-sky-900">
+                    Điểm tự chấm từ bài online (đã quy về thang của khối): Nghe {{ $submission->listening_score ?? '—' }} · Phần Đọc trắc nghiệm {{ $submission->reading_score ?? '—' }}.
+                    Học vụ kiểm tra lại, cộng phần Viết vào ô Đọc &amp; Viết và nhập điểm Nói.
                 </div>
-                <div class="p-3.5 bg-emerald-50/60 rounded-xl border border-emerald-100 text-center space-y-1">
-                    <label class="text-[11px] text-emerald-900 font-black uppercase tracking-wider block">Đọc &amp; Ngữ pháp · 0–9</label>
-                    <input type="number" step="0.5" min="0" max="9" name="reading_score" value="{{ $submission->reading_score }}" required class="w-full text-center font-mono font-black text-xl rounded-lg border border-emerald-200 bg-white text-emerald-700 p-1 shadow-2xs" />
-                </div>
-                <div class="p-3.5 bg-amber-50/60 rounded-xl border border-amber-100 text-center space-y-1">
-                    <label class="text-[11px] text-amber-900 font-black uppercase tracking-wider block">Viết (Writing) · 0–9</label>
-                    <input type="number" step="0.5" min="0" max="9" name="writing_score" value="{{ $submission->writing_score }}" required class="w-full text-center font-mono font-black text-xl rounded-lg border border-amber-200 bg-white text-amber-700 p-1 shadow-2xs" />
-                </div>
-                <div class="p-3.5 bg-rose-50/60 rounded-xl border border-rose-100 text-center space-y-1">
-                    <label class="text-[11px] text-rose-900 font-black uppercase tracking-wider block">Nói (Speaking) · 0–9</label>
-                    <input type="number" step="0.5" min="0" max="9" name="speaking_score" value="{{ $submission->speaking_score }}" required class="w-full text-center font-mono font-black text-xl rounded-lg border border-rose-200 bg-white text-rose-700 p-1 shadow-2xs" />
-                </div>
-                <div class="p-3.5 bg-gradient-to-br from-primary-container/10 to-orange-100 rounded-xl border border-orange-300 text-center space-y-1 col-span-2 sm:col-span-1">
-                    <label class="text-[11px] text-primary-container font-black uppercase tracking-wider block">CEFR Band</label>
-                    <select name="cefr_level" required class="w-full text-center font-mono font-black text-base rounded-lg border border-orange-300 bg-white text-gray-900 p-1 shadow-2xs">
-                        <option value="" @selected(empty($submission->cefr_level))>— Chọn —</option>
-                        <option value="A1" @selected($submission->cefr_level === 'A1')>A1 (Mất gốc)</option>
-                        <option value="A2" @selected($submission->cefr_level === 'A2')>A2 (Sơ cấp)</option>
-                        <option value="B1" @selected($submission->cefr_level === 'B1')>B1 (Trung cấp)</option>
-                        <option value="B2" @selected($submission->cefr_level === 'B2')>B2 (Khá)</option>
-                        <option value="C1" @selected($submission->cefr_level === 'C1')>C1 (Cao cấp)</option>
-                    </select>
-                </div>
-            </div>
+            @endif
 
-            <!-- Recommended Course & Teacher Feedback -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                <div>
-                    <label class="block font-bold text-gray-700 uppercase tracking-wider text-[10px] mb-1">Khóa học đề xuất cho học viên</label>
-                    <input type="text" name="recommended_course" value="{{ $submission->recommended_course }}" class="w-full text-xs font-bold text-primary-container rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
-                </div>
-                <div>
-                    <label class="block font-bold text-gray-700 uppercase tracking-wider text-[10px] mb-1">Giáo viên / Giám thị phụ trách chấm</label>
-                    <select name="grader_id" class="w-full text-xs font-semibold rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs">
-                        @foreach ($graders ?? [] as $grader)
-                            <option value="{{ $grader->id }}" @selected(($submission->grader_id ?? Auth::id()) == $grader->id)>{{ $grader->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="block font-bold text-gray-700 uppercase tracking-wider text-[10px] mb-1">Trạng thái bài thi</label>
-                    <select name="status" class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 bg-white text-emerald-700 shadow-2xs">
-                        <option value="graded" @selected($submission->status === 'graded')>Đã hoàn thành chấm điểm</option>
-                        <option value="pending" @selected($submission->status === 'pending')>Chờ giáo viên chấm thêm</option>
-                    </select>
-                </div>
-
-                <div class="md:col-span-3">
-                    <label class="block font-bold text-gray-700 uppercase tracking-wider text-[10px] mb-1">Nhận xét &amp; Lời khuyên chuyên môn của Giáo viên chấm bài</label>
-                    <textarea name="teacher_comments" rows="3" class="w-full text-xs text-gray-800 rounded-xl border border-gray-200 p-3 bg-white shadow-2xs leading-relaxed" placeholder="Nhận xét chi tiết về phát âm, ngữ pháp, độ lưu loát và định hướng lộ trình học tập...">{{ $submission->teacher_comments }}</textarea>
-                </div>
+            <div class="max-w-3xl">
+                @include('placement-tests.partials.rubric-score-fields', [
+                    'submission' => $submission,
+                    'defaultGroup' => $submission->resolvedGradeGroup(),
+                ])
             </div>
 
             <div class="flex items-center justify-between pt-4 border-t border-gray-100 flex-wrap gap-3">
                 <div class="flex items-center gap-2 text-xs text-gray-500">
                     <span class="material-symbols-outlined text-[16px] text-primary">info</span>
-                    <span>Khi lưu điểm, hệ thống sẽ tự động cập nhật Overall Band và đồng bộ sang CRM Lead tương ứng.</span>
+                    <span>Khi lưu điểm, hệ thống tính tổng điểm, tra lớp đề xuất và đồng bộ kết quả sang hồ sơ khách CRM.</span>
                 </div>
                 <button type="submit" class="px-6 py-2.5 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
                     <span class="material-symbols-outlined text-base">save</span>
