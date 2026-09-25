@@ -126,4 +126,37 @@ class Phase2MockupClassesTest extends TestCase
         // Giáo viên không có quyền sửa → không sắp xếp được.
         $this->actingAs($this->teacher)->postJson(route('course-levels.reorder'), ['ids' => [$kids->id, $ielts->id]])->assertForbidden();
     }
+
+    // ── 2. TKB ─────────────────────────────────────────────────────────────
+
+    public function test_schedule_config_matches_mockup_with_year_select_server_search_and_conflict_banner(): void
+    {
+        $other = ClassModel::create([
+            'name' => 'TOEIC Fast MK2', 'code' => 'MK2-02', 'branch_id' => $this->branch->id, 'teacher_id' => $this->teacher->id,
+            'room' => 'Phòng 204', 'status' => 'active', 'start_date' => '2026-09-01', 'end_date' => '2026-12-31',
+        ]);
+
+        $this->actingAs($this->admin)->get(route('tasks.schedule-config'))->assertOk()
+            ->assertSee('TKB — Quản lý lớp học')->assertSee('Xuất Excel')->assertSee('Tạo lớp mới')
+            ->assertSee('Năm học 2026 - 2027')
+            ->assertSee('Slot 1')->assertSee('Slot 2')->assertSee('Hủy thay đổi')
+            ->assertSee('Danh sách lớp hiện tại')->assertSee('GV: Nguyễn Văn Giáo')
+            ->assertSee('Báo cáo phòng / nhân sự')->assertSee('Giá trị tự động tính toán từ số ca')
+            ->assertSee('Lưu báo cáo nhân sự');
+
+        // Tìm lớp chạy phía server.
+        $this->actingAs($this->admin)->get(route('tasks.schedule-config', ['class_q' => 'toeic']))->assertOk()
+            ->assertSee('name="class_q" value="toeic"', false)
+            ->assertSeeInOrder(['Danh sách lớp hiện tại', 'TOEIC Fast MK2'])
+            ->assertDontSee('<span class="font-semibold">Kids Explorer MK2</span>', false);
+
+        // Trùng phòng với lớp khác → banner "Cảnh báo xung đột lịch".
+        $this->makeSession('2026-10-12', '18:00', '19:30', ['class_id' => $other->id, 'teacher_id' => null, 'assistant_id' => null]);
+        $this->actingAs($this->admin)->from(route('tasks.schedule-config'))->post(route('tasks.schedule-config.update'), [
+            'class_id' => $this->classModel->id, 'academic_year' => '2026 - 2027', 'start_date' => '2026-10-08', 'end_date' => '2026-10-20',
+            'slot1_day' => 'Thứ 2', 'slot1_start' => '18:00', 'slot1_end' => '19:30',
+        ])->assertSessionHasErrors('class_id');
+        $this->actingAs($this->admin)->withSession(['errors' => session('errors')])->get(route('tasks.schedule-config'))
+            ->assertSee('Cảnh báo xung đột lịch')->assertSee('data-testid="schedule-conflict"', false);
+    }
 }

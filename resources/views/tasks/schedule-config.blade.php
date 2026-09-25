@@ -19,8 +19,7 @@
 <x-app-layout title="TKB — Quản lý lớp học">
     <x-ui.page-header title="TKB — Quản lý lớp học" description="Cấu hình thời khóa biểu lớp học và báo cáo phòng / nhân sự theo buổi học thực tế.">
         <x-slot:actions>
-            <x-ui.button variant="secondary" icon="download" :href="request()->fullUrlWithQuery(['export' => 1])">Xuất báo cáo phòng / nhân sự</x-ui.button>
-            <x-ui.button variant="secondary" icon="dashboard" :href="route('tasks.classes-dashboard')">Dashboard lớp</x-ui.button>
+            <x-ui.button variant="secondary" icon="download" :href="request()->fullUrlWithQuery(['export' => 1])" title="Xuất báo cáo phòng / nhân sự 7 ngày">Xuất Excel</x-ui.button>
             @can('class.create')
                 <x-ui.button icon="add" :href="route('classes.create')">Tạo lớp mới</x-ui.button>
             @endcan
@@ -34,6 +33,12 @@
     <div class="grid grid-cols-1 items-start gap-lg lg:grid-cols-12">
         {{-- ─── Cấu hình lịch lớp ─── --}}
         <section class="space-y-lg lg:col-span-7">
+            @php $conflictError = $errors->first('class_id') ?: $errors->first('slot2_start') ?: $errors->first('slot1_day') ?: $errors->first('start_date') ?: $errors->first('end_date'); @endphp
+            @if ($conflictError)
+                <x-ui.alert type="error" :title="str_contains($conflictError, 'Xung đột') || str_contains($conflictError, 'trùng') ? 'Cảnh báo xung đột lịch' : 'Không lưu được lịch lớp'" data-testid="schedule-conflict">
+                    Lỗi: {{ $conflictError }}
+                </x-ui.alert>
+            @endif
             <div class="rounded-xl border border-outline-variant bg-surface-container-lowest p-md"
                  x-data="scheduleForm(@js($scheduleData), @js($initial))">
                 <div class="mb-md flex items-center gap-sm border-b border-surface-container pb-sm">
@@ -68,7 +73,12 @@
 
                         <div class="grid grid-cols-1 gap-md sm:grid-cols-3">
                             <x-ui.field label="Năm học áp dụng" name="academic_year" for="tkb_year">
-                                <input id="tkb_year" name="academic_year" x-model="form.academic_year" class="w-full rounded-lg border border-outline-variant px-md py-sm font-body-base text-body-base">
+                                <select id="tkb_year" name="academic_year" x-model="form.academic_year"
+                                        class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base">
+                                    @foreach ($academicYears as $year)
+                                        <option value="{{ $year }}">Năm học {{ $year }}</option>
+                                    @endforeach
+                                </select>
                             </x-ui.field>
                             <x-ui.field label="Khai giảng" name="start_date" for="tkb_start" required>
                                 <input id="tkb_start" type="date" name="start_date" x-model="form.start_date" required class="w-full rounded-lg border border-outline-variant px-md py-sm font-body-base text-body-base">
@@ -153,23 +163,29 @@
             @endif
 
             {{-- Danh sách lớp --}}
-            <div x-data="{ q: '' }">
+            <div id="danh-sach-lop">
                 <x-ui.data-table>
                     <x-slot:header>
                         <h3 class="font-h3 text-h3 text-on-surface">Danh sách lớp hiện tại</h3>
-                        <input type="search" x-model="q" placeholder="Tìm lớp..." aria-label="Tìm lớp"
-                               class="w-48 rounded-lg border border-outline-variant px-md py-xs font-body-small text-body-small">
+                        <form method="GET" action="{{ route('tasks.schedule-config') }}#danh-sach-lop" role="search" class="relative">
+                            @foreach (request()->except(['class_q', 'page']) as $key => $value)
+                                @if (is_scalar($value))<input type="hidden" name="{{ $key }}" value="{{ $value }}">@endif
+                            @endforeach
+                            <span class="material-symbols-outlined pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant" aria-hidden="true">search</span>
+                            <input type="search" name="class_q" value="{{ $classSearch }}" placeholder="Tìm lớp..." aria-label="Tìm lớp"
+                                   class="w-52 rounded-lg border border-outline-variant py-xs pl-8 pr-md font-body-small text-body-small focus:border-primary-container focus:ring-2 focus:ring-primary-container/20">
+                        </form>
                     </x-slot:header>
                     <table>
                         <thead><tr><th>Tên lớp</th><th>Giảng viên</th><th>Trạng thái</th><th class="text-right">Thao tác</th></tr></thead>
                         <tbody>
-                            @forelse ($classes as $c)
-                                <tr x-show="q === '' || @js(mb_strtolower($c->name.' '.$c->code)).includes(q.toLowerCase())">
+                            @forelse ($listClasses as $c)
+                                <tr>
                                     <td>
                                         <span class="font-semibold">{{ $c->name }}</span>
                                         <span class="block font-code text-caption text-on-surface-variant">{{ $c->code }} · {{ $c->schedule_text ?: 'Chưa có TKB' }}</span>
                                     </td>
-                                    <td>{{ $c->teacher?->name ?? $c->foreignTeacher?->name ?? 'Chưa phân công' }}</td>
+                                    <td class="whitespace-nowrap">@if ($c->teacher || $c->foreignTeacher) GV: {{ $c->teacher?->name ?? $c->foreignTeacher?->name }} @else <span class="text-on-surface-variant">Chưa phân công</span> @endif</td>
                                     <td>
                                         @switch($c->status)
                                             @case('active') <x-ui.badge color="success">Đang học</x-ui.badge> @break
@@ -193,7 +209,13 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="4"><x-ui.empty-state icon="school" title="Chưa có lớp nào" description="Bạn chưa phụ trách lớp học nào." /></td></tr>
+                                <tr><td colspan="4">
+                                    @if ($classSearch !== '')
+                                        <x-ui.empty-state icon="search_off" title="Không tìm thấy lớp" :description="'Không có lớp nào khớp “'.$classSearch.'”.'" />
+                                    @else
+                                        <x-ui.empty-state icon="school" title="Chưa có lớp nào" description="Bạn chưa phụ trách lớp học nào." />
+                                    @endif
+                                </td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -246,9 +268,14 @@
                                         <td class="text-center font-code">{{ $row['rooms'] }}</td>
                                         <td class="text-center font-code">{{ $row['assistants'] }}</td>
                                         <td class="text-center">
-                                            <input type="number" name="demands[{{ $row['date']->toDateString() }}]" value="{{ $row['staff_needed'] }}" min="0" max="50"
-                                                   @disabled(! $canSchedule) aria-label="Nhân sự cần {{ $row['date']->format('d/m') }}"
-                                                   class="w-16 rounded-lg border px-xs py-xs text-center font-code {{ $row['saved'] ? 'border-outline-variant' : 'border-dashed border-outline-variant text-on-surface-variant' }}">
+                                            <div class="inline-flex items-center gap-xs">
+                                                <input type="number" name="demands[{{ $row['date']->toDateString() }}]" value="{{ $row['staff_needed'] }}" min="0" max="50"
+                                                       @disabled(! $canSchedule) aria-label="Nhân sự cần {{ $row['date']->format('d/m') }}"
+                                                       class="w-16 rounded-lg border px-xs py-xs text-center font-code {{ $row['saved'] ? 'border-outline-variant' : 'border-dashed border-outline-variant text-on-surface-variant' }}">
+                                                @unless ($row['saved'])
+                                                    <span class="material-symbols-outlined cursor-help text-[16px] text-on-surface-variant" title="Giá trị tự động tính toán từ số ca">info</span>
+                                                @endunless
+                                            </div>
                                         </td>
                                     </tr>
                                 @endforeach
