@@ -23,16 +23,29 @@ class MediaManagerService
     ];
 
     /**
-     * Danh sách các thư mục gốc được phép quản lý file
+     * Thư mục con (tính từ public/) do Media Manager sở hữu. Chỉ file trong thư mục này
+     * mới được liệt kê/di chuyển/xóa. File của module khác (CV ứng viên, minh chứng công việc,
+     * bài nộp, ghi âm phát âm, báo cáo lớp, học phí, ticket, tài liệu giáo trình...) nằm ngoài
+     * vùng này nên Media Manager không thể đụng tới.
+     */
+    public const MEDIA_DIRECTORY = 'uploads/media';
+
+    /**
+     * Danh sách các thư mục gốc được phép quản lý file (whitelist).
      */
     protected array $managedRoots = [];
 
     public function __construct()
     {
         $this->managedRoots = [
-            'uploads' => public_path('uploads'),
-            'storage_public' => storage_path('app/public'),
+            'media' => public_path(self::MEDIA_DIRECTORY),
         ];
+    }
+
+    /** Đường dẫn tuyệt đối tới thư mục gốc của Media Manager (có thể kèm thư mục con đã chuẩn hóa). */
+    public function mediaRootPath(string $relative = ''): string
+    {
+        return public_path(self::MEDIA_DIRECTORY.($relative !== '' ? '/'.$relative : ''));
     }
 
     /**
@@ -93,29 +106,13 @@ class MediaManagerService
         $mtime = $file->getMTime();
         $createdAt = Carbon::createFromTimestamp($mtime);
 
-        // Tính toán relative path và URL
-        if ($rootKey === 'uploads') {
-            $relFromPublic = str_replace(public_path().DIRECTORY_SEPARATOR, '', $absPath);
-            $relFromPublic = str_replace('\\', '/', $relFromPublic);
-            $url = asset($relFromPublic);
-
-            $relDir = dirname($relFromPublic);
-            if (str_starts_with($relDir, 'uploads/')) {
-                $folder = substr($relDir, 8);
-            } elseif ($relDir === 'uploads' || $relDir === '.') {
-                $folder = '';
-            } else {
-                $folder = $relDir;
-            }
-            $folder = trim($folder, '/');
-        } else {
-            $relFromStorage = str_replace($rootPath.DIRECTORY_SEPARATOR, '', $absPath);
-            $relFromStorage = str_replace('\\', '/', $relFromStorage);
-            $url = asset('storage/'.$relFromStorage);
-            $folder = trim(dirname($relFromStorage), '/');
-            if ($folder === '.') {
-                $folder = '';
-            }
+        // Tính toán URL (tính từ public/) và thư mục (tính từ gốc Media Manager)
+        $realRoot = realpath($rootPath) ?: $rootPath;
+        $relFromRoot = str_replace('\\', '/', ltrim(substr($absPath, strlen($realRoot)), DIRECTORY_SEPARATOR));
+        $url = asset(self::MEDIA_DIRECTORY.'/'.$relFromRoot);
+        $folder = trim(dirname($relFromRoot), '/');
+        if ($folder === '.') {
+            $folder = '';
         }
 
         $type = $this->classifyFileType($extension);
@@ -392,7 +389,7 @@ class MediaManagerService
         return $realPath;
     }
 
-    /** Normalize a user supplied path relative to public/uploads. */
+    /** Chuẩn hóa đường dẫn người dùng nhập, tính từ thư mục gốc Media Manager (public/uploads/media). */
     protected function normalizeUploadDirectory(string $relativeDir): ?string
     {
         $relativeDir = str_replace('\\', '/', trim($relativeDir));
@@ -442,20 +439,16 @@ class MediaManagerService
         $savedFiles = [];
         $errors = [];
 
-        // Xác định thư mục lưu trữ: uploads/YYYY/MM hoặc uploads/custom_folder
+        // Xác định thư mục lưu trữ: uploads/media/YYYY/MM hoặc uploads/media/custom_folder
         $now = Carbon::now();
         if (! $targetFolder || $targetFolder === 'auto_date' || $targetFolder === 'all') {
-            $relDir = 'uploads/'.$now->format('Y').'/'.$now->format('m');
+            $relDir = self::MEDIA_DIRECTORY.'/'.$now->format('Y').'/'.$now->format('m');
         } else {
             $cleanFolder = $this->normalizeUploadDirectory($targetFolder);
             if ($cleanFolder === null) {
                 return ['success' => false, 'uploaded' => [], 'count' => 0, 'errors' => ['Thư mục đích không hợp lệ.'], 'message' => 'Thư mục đích không hợp lệ.'];
             }
-            if (str_starts_with($cleanFolder, 'uploads/')) {
-                $relDir = $cleanFolder;
-            } else {
-                $relDir = 'uploads/'.$cleanFolder;
-            }
+            $relDir = self::MEDIA_DIRECTORY.($cleanFolder !== '' ? '/'.$cleanFolder : '');
         }
 
         $destDir = public_path($relDir);
@@ -488,7 +481,7 @@ class MediaManagerService
 
             $absPath = $filePath->getRealPath();
             $fileInfo = new SplFileInfo($absPath, $relDir, $relDir.'/'.$fileName);
-            $meta = $this->buildFileMetadata($fileInfo, 'uploads', public_path('uploads'));
+            $meta = $this->buildFileMetadata($fileInfo, 'media', $this->mediaRootPath());
 
             if ($meta) {
                 $savedFiles[] = $meta;
@@ -515,7 +508,7 @@ class MediaManagerService
         if ($cleanRel === null) {
             return collect();
         }
-        $baseUploads = public_path('uploads'.($cleanRel ? '/'.$cleanRel : ''));
+        $baseUploads = $this->mediaRootPath($cleanRel);
 
         if (! File::isDirectory($baseUploads)) {
             return collect();
@@ -563,7 +556,7 @@ class MediaManagerService
         if ($cleanParent === null) {
             return ['success' => false, 'message' => 'Thư mục cha không hợp lệ!'];
         }
-        $relPath = 'uploads'.($cleanParent ? '/'.$cleanParent : '').'/'.$cleanName;
+        $relPath = self::MEDIA_DIRECTORY.($cleanParent ? '/'.$cleanParent : '').'/'.$cleanName;
         $targetDir = public_path($relPath);
 
         if (File::isDirectory($targetDir)) {
@@ -589,11 +582,11 @@ class MediaManagerService
         if ($cleanRel === null) {
             return ['success' => false, 'message' => 'Đường dẫn thư mục không hợp lệ!'];
         }
-        if (empty($cleanRel) || $cleanRel === 'uploads') {
+        if (empty($cleanRel)) {
             return ['success' => false, 'message' => 'Không được phép xóa thư mục gốc của hệ thống!'];
         }
 
-        $targetDir = public_path('uploads/'.$cleanRel);
+        $targetDir = $this->mediaRootPath($cleanRel);
         if (! File::isDirectory($targetDir)) {
             return ['success' => false, 'message' => 'Thư mục không tồn tại hoặc đã bị xóa trước đó.'];
         }
@@ -616,7 +609,7 @@ class MediaManagerService
         if ($cleanTarget === null) {
             return ['success' => false, 'moved_count' => 0, 'message' => 'Thư mục đích không hợp lệ!'];
         }
-        $destDir = public_path('uploads'.($cleanTarget ? '/'.$cleanTarget : ''));
+        $destDir = $this->mediaRootPath($cleanTarget);
         File::ensureDirectoryExists($destDir);
 
         $movedCount = 0;
@@ -635,7 +628,7 @@ class MediaManagerService
         return [
             'success' => $movedCount > 0,
             'moved_count' => $movedCount,
-            'message' => "Đã di chuyển thành công {$movedCount} tệp tin vào thư mục /uploads/{$cleanTarget}!",
+            'message' => "Đã di chuyển thành công {$movedCount} tệp tin vào thư mục /".self::MEDIA_DIRECTORY."/{$cleanTarget}!",
         ];
     }
 
