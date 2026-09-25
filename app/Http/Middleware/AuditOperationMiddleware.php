@@ -2,30 +2,54 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Audit;
 use App\Support\SensitiveData;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Spatie\Activitylog\LogBatch;
+use Spatie\Activitylog\Models\Activity;
 use Symfony\Component\HttpFoundation\Response;
 
 class AuditOperationMiddleware
 {
+    /**
+     * Mỗi request thay đổi dữ liệu (POST/PUT/PATCH/DELETE) được gom vào một
+     * "batch" nhật ký. Nếu trong request đã có dòng nhật ký (model được audit
+     * tự ghi trước/sau, hoặc controller gọi activity()), middleware KHÔNG ghi
+     * thêm dòng chung nữa -> hết cảnh mỗi thao tác bị ghi 2 lần. Chỉ khi request
+     * không sinh dòng nào, middleware mới ghi một dòng mô tả theo route.
+     */
     public function handle(Request $request, Closure $next): Response
     {
-        $response = $next($request);
-
-        // Only log state-changing HTTP requests (POST, PUT, PATCH, DELETE)
-        if (in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'])) {
-            try {
-                $this->logActivity($request, $response);
-            } catch (\Throwable $e) {
-                // Fail silently to never break the application flow
-                report($e);
-            }
+        if (! in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+            return $next($request);
         }
 
-        return $response;
+        $batch = app(LogBatch::class);
+        $batch->startBatch();
+        $batchUuid = $batch->getUuid();
+        Audit::clearDescription();
+
+        try {
+            $response = $next($request);
+
+            try {
+                $alreadyLogged = $batchUuid && Activity::query()->where('batch_uuid', $batchUuid)->exists();
+                if (! $alreadyLogged) {
+                    $this->logActivity($request, $response);
+                }
+            } catch (\Throwable $e) {
+                // Không bao giờ để lỗi ghi nhật ký làm hỏng luồng nghiệp vụ.
+                report($e);
+            }
+
+            return $response;
+        } finally {
+            $batch->endBatch();
+            Audit::clearDescription();
+        }
     }
 
     protected function logActivity(Request $request, Response $response): void

@@ -482,6 +482,9 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('holidays', HolidayController::class)->except('show')->middleware('can:holiday.manage');
     Route::get('/activity-logs', [ActivityLogController::class, 'index'])->middleware('can:activity_log.view')->name('activity-logs.index');
+    Route::get('/activity-logs/export', [ActivityLogController::class, 'export'])->middleware('can:activity_log.view')->name('activity-logs.export');
+    // Hoàn tác chỉ dành cho Admin (kiểm tra trong controller).
+    Route::post('/activity-logs/{id}/undo', [ActivityLogController::class, 'undo'])->middleware('can:activity_log.view')->name('activity-logs.undo');
 
     // ─────────────────────────────────────────────
     // 11. Trung Tâm Thông Báo & Cảnh Báo Lead Sót (Notifications)

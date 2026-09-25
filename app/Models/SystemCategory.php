@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AuditsChanges;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SystemCategory extends Model
 {
-    use HasFactory, SoftDeletes;
+    use AuditsChanges, HasFactory, SoftDeletes;
 
     // Nhóm danh mục theo đúng các tab trong màn "Quản lý Danh mục hệ thống".
     public const TYPE_LEAD_SOURCE = 'lead_source';
