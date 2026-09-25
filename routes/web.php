@@ -318,6 +318,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/timesheets/teachers/bulk-review', [PayrollController::class, 'bulkReviewTimesheets'])->middleware('can:attendance_staff.view')->name('timesheets.bulk-review');
         Route::put('/timesheets/teachers/{id}/adjust', [PayrollController::class, 'adjustTimesheet'])->whereNumber('id')->middleware('can:attendance_staff.manual_record')->name('timesheets.adjust');
         Route::get('/timesheets/sync-history', [PayrollController::class, 'syncHistory'])->middleware('can:attendance_staff.sync')->name('timesheets.sync-history');
+        Route::get('/timesheets/sync-history/{id}/errors', [PayrollController::class, 'exportSyncErrors'])->whereNumber('id')->middleware('can:attendance_staff.sync')->name('timesheets.sync-history.errors');
         Route::get('/kpi-leaderboard', [PayrollController::class, 'kpiLeaderboard'])->middleware('can:kpi.view')->name('kpi-leaderboard');
         Route::get('/config/settings', [PayrollController::class, 'configSettings'])->middleware('can:teacher_rate.manage')->name('config.settings');
         Route::post('/config/settings', [PayrollController::class, 'storeSettings'])->middleware('can:teacher_rate.manage')->name('config.settings.store');

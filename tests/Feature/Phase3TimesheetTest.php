@@ -204,7 +204,7 @@ class Phase3TimesheetTest extends TestCase
 
         $this->actingAs($admin)->get(route('payroll.timesheets.sync-history'))
             ->assertOk()
-            ->assertSee('Chưa kết nối máy chấm công')
+            ->assertSee('Chưa kết nối nguồn đồng bộ')
             ->assertDontSee('Đồng bộ thành công');
     }
 

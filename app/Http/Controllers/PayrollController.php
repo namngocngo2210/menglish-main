@@ -644,11 +644,42 @@ class PayrollController extends Controller
      * Lịch sử đồng bộ máy chấm công. Hiện chưa có tích hợp thiết bị nào ghi
      * TimesheetSyncLog → trang hiển thị trạng thái trống trung thực thay vì giả lập.
      */
-    public function syncHistory()
+    public function syncHistory(Request $request)
     {
-        $syncLogs = TimesheetSyncLog::with('branch')->latest()->get();
+        $from = $request->filled('from') ? Carbon::parse($request->query('from'))->startOfDay() : null;
+        $to = $request->filled('to') ? Carbon::parse($request->query('to'))->endOfDay() : null;
+        $status = array_key_exists((string) $request->query('status'), TimesheetSyncLog::STATUS_LABELS) ? $request->query('status') : null;
 
-        return view('payroll.timesheets-sync', compact('syncLogs'));
+        $syncLogs = TimesheetSyncLog::with('branch')
+            ->when($from, fn ($q) => $q->where('created_at', '>=', $from))
+            ->when($to, fn ($q) => $q->where('created_at', '<=', $to))
+            ->when($status === 'failed', fn ($q) => $q->whereIn('status', ['failed', 'error']))
+            ->when($status && $status !== 'failed', fn ($q) => $q->where('status', $status))
+            ->latest()->latest('id')
+            ->paginate($request->perPage(10))
+            ->withQueryString();
+        $hasAnyLog = TimesheetSyncLog::exists();
+
+        return view('payroll.timesheets-sync', compact('syncLogs', 'hasAnyLog'));
+    }
+
+    /** "Xuất file Excel lỗi" của một đợt đồng bộ: các dòng lỗi (Mã NV, Tên, Mã lỗi, Nội dung). */
+    public function exportSyncErrors(Request $request, int $id)
+    {
+        $log = TimesheetSyncLog::findOrFail($id);
+        $rows = collect($log->error_rows ?? [])->map(fn ($row) => [
+            $row['employee_code'] ?? '', $row['employee_name'] ?? '', $row['code'] ?? '', $row['message'] ?? '',
+        ])->all();
+        if ($rows === [] && filled($log->error_message)) {
+            $rows[] = ['', '', $log->error_code, $log->error_message];
+        }
+
+        return \App\Exports\ArrayExport::download(
+            'loi-dong-bo-cham-cong-'.$log->id,
+            ['Mã NV', 'Tên nhân viên', 'Mã lỗi', 'Nội dung chi tiết'],
+            $rows,
+            $request->query('format', 'xlsx')
+        );
     }
 
     /**

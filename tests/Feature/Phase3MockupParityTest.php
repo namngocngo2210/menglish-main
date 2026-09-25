@@ -184,4 +184,41 @@ class Phase3MockupParityTest extends TestCase
         $this->actingAs($this->teacher)->get(route('payroll.timesheets.teachers', ['month' => '2026-08']))
             ->assertOk()->assertSee('Chấm công của tôi')->assertDontSee('Chốt bảng công');
     }
+
+    /** Màn "Lịch sử đồng bộ" (epic-7/lich-su-dong-bo-cham-cong). */
+    public function test_sync_history_screen_matches_mockup(): void
+    {
+        $this->actingAs($this->admin)->get(route('payroll.timesheets.sync-history'))
+            ->assertOk()
+            ->assertSee('Lịch sử đồng bộ chấm công')
+            ->assertSee('Chưa kết nối nguồn đồng bộ')
+            ->assertSee('Đồng bộ ngay')
+            ->assertSee('Lọc dữ liệu');
+
+        $partial = \App\Models\TimesheetSyncLog::create([
+            'device_name' => 'AppSheet', 'records_count' => 200, 'matched_count' => 180, 'failed_count' => 10, 'skipped_count' => 10,
+            'status' => 'partial', 'error_rows' => [
+                ['employee_code' => 'NV0125', 'employee_name' => 'Nguyễn Văn A', 'code' => 'DATA_MISMATCH', 'message' => 'Thiếu dữ liệu chi nhánh'],
+            ],
+        ]);
+        $failed = \App\Models\TimesheetSyncLog::create([
+            'device_name' => 'AppSheet', 'records_count' => 100, 'matched_count' => 0, 'failed_count' => 100,
+            'status' => 'failed', 'error_code' => 'API_TIMEOUT', 'error_message' => 'Không thể kết nối đến máy chủ AppSheet sau 30 giây.',
+        ]);
+
+        $this->actingAs($this->admin)->get(route('payroll.timesheets.sync-history'))
+            ->assertOk()
+            ->assertSee('Tổng số dòng')->assertSee('Bỏ qua')
+            ->assertSee('Hệ thống bỏ qua không ghi đè dữ liệu của các nhân sự đã chốt kỳ lương.')
+            ->assertSee('Lỗi một phần')->assertSee('10 dòng lỗi')
+            ->assertSee('Lỗi toàn bộ')->assertSee('API_TIMEOUT')
+            ->assertSee('Xem chi tiết lỗi')->assertSee('DATA_MISMATCH')
+            ->assertSee('Xuất file Excel lỗi');
+
+        $this->actingAs($this->admin)->get(route('payroll.timesheets.sync-history', ['status' => 'failed']))
+            ->assertOk()->assertSee('API_TIMEOUT')->assertDontSee('DATA_MISMATCH');
+
+        $this->actingAs($this->admin)->get(route('payroll.timesheets.sync-history.errors', $partial->id))->assertOk();
+        $this->assertNotNull($failed->id);
+    }
 }

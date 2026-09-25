@@ -477,9 +477,9 @@ class PayrollP0FixesTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('payroll.timesheets.sync-history'))
             ->assertOk()
-            ->assertSee('42 lượt')
-            ->assertSee('40 / 42')
-            ->assertSee('Thất bại')
+            ->assertSee('FaceID-01')
+            ->assertSeeInOrder(['42', '40'])
+            ->assertSee('Lỗi toàn bộ')
             ->assertDontSee('Đồng bộ thành công');
     }
 }
