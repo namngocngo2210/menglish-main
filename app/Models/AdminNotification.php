@@ -36,7 +36,7 @@ class AdminNotification extends Model
     public function getIconAttribute(): string
     {
         return match ($this->type) {
-            'stale_lead_24h' => 'person_alert',
+            'stale_lead_24h', 'stale_lead_care' => 'person_alert',
             'receipt_pending' => 'receipt_long',
             'receipt_approved' => 'verified',
             'test_today' => 'event',
@@ -51,7 +51,7 @@ class AdminNotification extends Model
     public function getBadgeColorAttribute(): string
     {
         return match ($this->type) {
-            'stale_lead_24h' => 'bg-rose-50 text-rose-700 border-rose-200',
+            'stale_lead_24h', 'stale_lead_care' => 'bg-rose-50 text-rose-700 border-rose-200',
             'receipt_pending' => 'bg-amber-50 text-amber-700 border-amber-200',
             'receipt_approved' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
             'test_today' => 'bg-indigo-50 text-indigo-700 border-indigo-200',
@@ -67,6 +67,7 @@ class AdminNotification extends Model
     {
         return match ($this->type) {
             'stale_lead_24h' => 'Lead sót >24h',
+            'stale_lead_care' => 'Khách bị bỏ quên',
             'receipt_pending' => 'Phiếu thu chờ duyệt',
             'test_today' => 'Lịch test trong ngày',
             'urgent_ticket' => 'Ticket khẩn cấp',

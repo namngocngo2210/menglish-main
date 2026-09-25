@@ -20,10 +20,99 @@ use Illuminate\Support\Str;
 
 class NotificationService
 {
+    /** Số ngày không có hoạt động chăm sóc thì coi là khách bị bỏ quên (mặc định; cấu hình qua system_settings). */
+    public const DEFAULT_NEGLECT_DAYS = 3;
+
+    public const NEGLECT_SETTING_KEY = 'crm_neglect_days';
+
+    public function neglectThresholdDays(): int
+    {
+        $days = (int) SystemSetting::get(self::NEGLECT_SETTING_KEY, self::DEFAULT_NEGLECT_DAYS);
+
+        return $days > 0 ? $days : self::DEFAULT_NEGLECT_DAYS;
+    }
+
     /**
-     * Quét và tạo thông báo cho các Lead bị sót quá 24h chưa chuyển trạng thái
+     * Quét khách bị bỏ quên, trả về số khách được cảnh báo mới:
+     * - Khách "Mới" quá 24h chưa được tiếp nhận (stale_lead_24h — giữ hành vi cũ, mỗi khách 1 lần).
+     * - Khách đang chăm sóc (Đang tư vấn → Gửi kết quả; không gồm Chờ xếp lớp / Đã chốt / Thất bại)
+     *   không có hoạt động nào trong N ngày (stale_lead_care). Cảnh báo lại nếu sau đó có hoạt động rồi lại bị bỏ quên.
+     * Mỗi cảnh báo gửi cho Admin / Quản lý (thông báo chung) và thông báo cá nhân cho Sales phụ trách.
      */
     public function scanAndSyncStaleLeads(): int
+    {
+        return $this->scanNewStaleLeads() + $this->scanNeglectedActiveLeads();
+    }
+
+    protected function scanNeglectedActiveLeads(): int
+    {
+        $days = $this->neglectThresholdDays();
+        $cutoff = Carbon::now()->subDays($days);
+        $careStages = array_values(array_diff(CrmCustomer::ACTIVE_STAGES, ['new']));
+
+        $leads = CrmCustomer::with('assignedUser')
+            ->whereIn('stage', $careStages)
+            ->where('created_at', '<=', $cutoff)
+            ->withMax('histories as last_activity_at', 'created_at')
+            ->get();
+
+        $generated = 0;
+        foreach ($leads as $lead) {
+            $lastActivity = $lead->last_activity_at ? Carbon::parse($lead->last_activity_at) : $lead->created_at;
+            if ($lastActivity->gt($cutoff)) {
+                continue;
+            }
+            $marker = $lastActivity->toDateTimeString();
+            $exists = AdminNotification::where('type', 'stale_lead_care')
+                ->where('data->customer_id', $lead->id)
+                ->where('data->last_activity_at', $marker)
+                ->exists();
+            if ($exists) {
+                continue;
+            }
+
+            $idleDays = (int) $lastActivity->diffInDays(now());
+            $title = "⚠️ Khách {$lead->code} bị bỏ quên {$idleDays} ngày ({$lead->stage_label})";
+            $message = "Khách hàng {$lead->name} (SĐT: {$lead->phone}) đang ở giai đoạn '{$lead->stage_label}' nhưng không có hoạt động chăm sóc nào từ "
+                .$lastActivity->format('d/m/Y H:i')." (ngưỡng {$days} ngày). Sales phụ trách: ".($lead->assignedUser?->name ?? 'Chưa phân công').'.';
+            $data = [
+                'customer_id' => $lead->id,
+                'customer_code' => $lead->code,
+                'customer_name' => $lead->name,
+                'customer_phone' => $lead->phone,
+                'hours_elapsed' => (int) $lastActivity->diffInHours(now()),
+                'stage' => $lead->stage,
+                'idle_days' => $idleDays,
+                'last_activity_at' => $marker,
+                'assigned_user' => $lead->assignedUser?->name ?? 'Chưa phân công',
+                'link' => route('crm.customers.show', $lead->id),
+            ];
+
+            $this->notifyNeglect($lead, 'stale_lead_care', $title, $message, $data);
+            $generated++;
+        }
+
+        return $generated;
+    }
+
+    /** Thông báo chung (Admin / Quản lý) + thông báo cá nhân cho Sales phụ trách. */
+    protected function notifyNeglect(CrmCustomer $lead, string $type, string $title, string $message, array $data): void
+    {
+        AdminNotification::create(['type' => $type, 'title' => $title, 'message' => $message, 'data' => $data, 'is_read' => false]);
+
+        if ($lead->assigned_user_id && $lead->assignedUser?->is_active) {
+            AdminNotification::create([
+                'user_id' => $lead->assigned_user_id,
+                'type' => $type,
+                'title' => $title,
+                'message' => "Bạn đang phụ trách khách này. {$message}",
+                'data' => $data + ['personal' => true],
+                'is_read' => false,
+            ]);
+        }
+    }
+
+    protected function scanNewStaleLeads(): int
     {
         $cutoffTime = Carbon::now()->subHours(24);
 
@@ -46,11 +135,12 @@ class NotificationService
                 ->exists();
 
             if (! $existingNotif) {
-                AdminNotification::create([
-                    'type' => 'stale_lead_24h',
-                    'title' => "⚠️ Cảnh báo: Lead {$lead->code} bị sót quá {$hoursElapsed}h chưa xử lý!",
-                    'message' => "Khách hàng {$lead->name} (SĐT: {$lead->phone}) được tiếp nhận từ {$lead->created_at->format('d/m/Y H:i')} ({$hoursElapsed} giờ trước) nhưng vẫn ở trạng thái 'Mới tiếp nhận' và chưa được liên hệ chăm sóc.",
-                    'data' => [
+                $this->notifyNeglect(
+                    $lead,
+                    'stale_lead_24h',
+                    "⚠️ Cảnh báo: Lead {$lead->code} bị sót quá {$hoursElapsed}h chưa xử lý!",
+                    "Khách hàng {$lead->name} (SĐT: {$lead->phone}) được tiếp nhận từ {$lead->created_at->format('d/m/Y H:i')} ({$hoursElapsed} giờ trước) nhưng vẫn ở trạng thái 'Mới tiếp nhận' và chưa được liên hệ chăm sóc.",
+                    [
                         'customer_id' => $lead->id,
                         'customer_code' => $lead->code,
                         'customer_name' => $lead->name,
@@ -58,9 +148,8 @@ class NotificationService
                         'hours_elapsed' => $hoursElapsed,
                         'assigned_user' => $lead->assignedUser?->name ?? 'Chưa phân công',
                         'link' => route('crm.customers.show', $lead->id),
-                    ],
-                    'is_read' => false,
-                ]);
+                    ]
+                );
                 $generatedCount++;
 
                 // Bắn email cảnh báo vận hành cho danh sách email nhận thông báo
