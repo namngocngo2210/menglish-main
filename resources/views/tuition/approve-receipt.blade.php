@@ -278,14 +278,16 @@
                                 <div class="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-y-1 gap-x-3">
                                     <span>Thời gian gửi: <strong>{{ $selectedReceipt->created_at?->format('H:i - d/m/Y') ?? now()->format('H:i - d/m/Y') }}</strong></span>
                                     <span>•</span>
-                                    <span>Người lập: <strong>{{ $selectedReceipt->creator?->name ?? 'Chưa cập nhật' }}</strong> (Tư vấn viên / {{ $branchName }})</span>
+                                    <span>Người lập: <strong>{{ $selectedReceipt->creator?->name ?? 'Chưa cập nhật' }}</strong> ({{ $branchName }})</span>
                                 </div>
                             </div>
 
-                            <a href="{{ $selectedReceipt->student_tuition_id ? route('crm.tuition-bill', $selectedReceipt->student_tuition_id) : '#' }}" target="_blank" class="text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 px-3.5 py-2 rounded-lg inline-flex items-center gap-1.5 transition">
-                                <span class="material-symbols-outlined text-slate-500 text-base">print</span>
-                                Xem trước mẫu in
-                            </a>
+                            @if ($selectedReceipt->student_tuition_id)
+                                <a href="{{ route('crm.tuition-bill', $selectedReceipt->student_tuition_id) }}" target="_blank" class="text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 px-3.5 py-2 rounded-lg inline-flex items-center gap-1.5 transition">
+                                    <span class="material-symbols-outlined text-slate-500 text-base">print</span>
+                                    Xem trước mẫu in
+                                </a>
+                            @endif
                         </div>
 
                         <div class="p-5 lg:p-6 flex flex-col gap-6">
