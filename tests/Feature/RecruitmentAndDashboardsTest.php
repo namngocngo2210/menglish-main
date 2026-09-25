@@ -106,7 +106,7 @@ class RecruitmentAndDashboardsTest extends TestCase
         ]);
     }
 
-    public function test_can_update_payroll_record_foreign_teacher_deduction(): void
+    public function test_can_update_payroll_record_foreign_session_pay(): void
     {
         $user = User::factory()->create();
         $user->assignRole('admin');
@@ -129,17 +129,17 @@ class RecruitmentAndDashboardsTest extends TestCase
             'net_salary' => 15000000,
         ]);
 
+        // Q3: "Buổi có GVNN" là khoản CỘNG Kế toán nhập tay (chờ BA chốt), thay quy tắc trừ 50k/buổi
         $response = $this->actingAs($user)->post(route('payroll.records.update', $record->id), [
-            'foreign_teacher_sessions_count' => 3,
-            'foreign_teacher_deduction_rate' => 50000,
+            'foreign_session_pay' => 150000,
             'notes' => '3 buổi có GVNN cùng dạy',
         ]);
 
         $response->assertSessionHas('status');
         $record->refresh();
 
-        $this->assertEquals(3, $record->foreign_teacher_sessions_count);
-        $this->assertEquals(150000, $record->foreign_teacher_deduction);
-        $this->assertEquals(14850000, $record->net_salary);
+        $this->assertEquals(150000, $record->foreign_session_pay);
+        $this->assertEquals(0, $record->foreign_teacher_deduction);
+        $this->assertEquals(15150000, $record->net_salary);
     }
 }

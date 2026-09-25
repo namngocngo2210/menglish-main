@@ -107,21 +107,21 @@ class PayrollBusinessTest extends TestCase
 
     public function test_can_create_and_configure_commission_tiers(): void
     {
+        // Phase 3 Q3 (A6 bản sửa): bậc theo SỐ HS CHỐT trong kỳ
         $payload = [
-            'tier_name' => 'Diamond Tối Thượng (>= 150M)',
-            'min_revenue' => 150000000,
+            'tier_name' => 'Diamond Tối Thượng (>= 15 HS)',
+            'min_students' => 15,
             'new_sale_percent' => 8.5,
-            'renew_percent' => 4.0,
         ];
 
         $response = $this->actingAs($this->hrManager)->post(route('payroll.config.commission-tiers.store'), $payload);
-        $response->assertRedirect();
+        $response->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('commission_tiers', [
-            'tier_name' => 'Diamond Tối Thượng (>= 150M)',
-            'min_revenue' => 150000000,
+            'tier_name' => 'Diamond Tối Thượng (>= 15 HS)',
+            'min_students' => 15,
+            'max_students' => null,
             'new_sale_percent' => 8.5,
-            'renew_percent' => 4.0,
         ]);
     }
 
@@ -142,8 +142,8 @@ class PayrollBusinessTest extends TestCase
             'new_sale_percent' => '',
             'renew_percent' => '',
         ]);
-        // Phase 3 (A6): không còn % tái tục bắt buộc — không tính hoa hồng tái tục
-        $responseComm->assertSessionHasErrors(['tier_name', 'min_revenue', 'new_sale_percent']);
+        // Phase 3 (A6): không còn % tái tục bắt buộc — không tính hoa hồng tái tục; bậc theo số HS chốt
+        $responseComm->assertSessionHasErrors(['tier_name', 'min_students', 'new_sale_percent']);
         $responseComm->assertSessionDoesntHaveErrors('renew_percent');
     }
 
@@ -151,6 +151,7 @@ class PayrollBusinessTest extends TestCase
     {
         $tier = CommissionTier::create([
             'tier_name' => 'Bậc Vàng Cũ',
+            'min_students' => 5,
             'min_revenue' => 50000000,
             'new_sale_percent' => 5.0,
             'renew_percent' => 3.0,
@@ -178,7 +179,7 @@ class PayrollBusinessTest extends TestCase
         // 2. Update commission tier with new higher percentage
         $updateResponse = $this->actingAs($this->hrManager)->put(route('payroll.config.commission-tiers.update', $tier), [
             'tier_name' => 'Bậc Vàng Mới (Điều chỉnh tăng %)',
-            'min_revenue' => 60000000,
+            'min_students' => 6,
             'new_sale_percent' => 8.0,
             'renew_percent' => 5.0,
             'bonus_amount' => 2000000,
@@ -460,23 +461,25 @@ class PayrollBusinessTest extends TestCase
         // 6. Verify PayrollRecord for teacher
         $record = PayrollRecord::where('payroll_period_id', $period->id)->where('user_id', $teacher->id)->first();
         $this->assertNotNull($record);
+        // Q3: có lương cơ bản → Full-time: lương cơ bản thay cho thù lao giờ dạy, không còn phụ cấp cố định 500k
+        $this->assertSame('fulltime', $record->employee_type);
         $this->assertEquals(20.0, $record->actual_hours);
-        $this->assertEquals(6000000, $record->teaching_salary); // 20h * 300.000 = 6.000.000đ
+        $this->assertSame(2, $record->teaching_sessions);
+        $this->assertEquals(0, $record->teaching_salary);
         $this->assertEquals(12000000, $record->base_salary);
         $this->assertEquals(200000, $record->penalty_deduction);
+        $this->assertEquals(1260000, $record->insurance_deduction); // BHXH 10,5%
+        $this->assertEquals(60000, $record->union_deduction);       // Công đoàn 0,5%
 
-        // Gross = 12M (base) + 6M (teaching) + 500k (allowance) = 18.5M
-        // Deductions = 200k (penalty) + 1.26M (BH 10.5%) = 1.46M
-        // Net = 18.5M - 1.46M = 17.04M
-        $this->assertEquals(17040000, $record->net_salary);
+        // Net = 12M − 1.26M − 60k − 200k = 10.48M
+        $this->assertEquals(10480000, $record->net_salary);
     }
 
     public function test_payroll_settings_override_calculation_constants(): void
     {
-        \App\Models\SystemSetting::set('payroll_allowance_amount', 1000000);
-        \App\Models\SystemSetting::set('payroll_kpi_bonus_amount', 2000000);
-        \App\Models\SystemSetting::set('payroll_kpi_bonus_hours_threshold', 10);
+        // Q3: tham số còn lại là BHXH / Công đoàn (trên lương cơ bản Full-time) và quỹ KPI Học vụ
         \App\Models\SystemSetting::set('payroll_insurance_rate_percent', 21);
+        \App\Models\SystemSetting::set('payroll_union_rate_percent', 1);
 
         $teacher = User::factory()->create([
             'name' => 'GV Tham Số Mới', 'base_salary' => 10000000,
@@ -496,12 +499,13 @@ class PayrollBusinessTest extends TestCase
         $period->calculatePayrollForPeriod();
 
         $record = PayrollRecord::where('payroll_period_id', $period->id)->where('user_id', $teacher->id)->firstOrFail();
-        $this->assertEquals(1000000, $record->allowance);   // theo cấu hình mới, không phải 500k mặc định
-        $this->assertEquals(2000000, $record->kpi_bonus);   // 12h >= ngưỡng 10h mới
+        $this->assertEquals(0, $record->allowance);                 // bỏ phụ cấp cố định
+        $this->assertEquals(0, $record->kpi_bonus);                 // bỏ "+1 triệu khi ≥ 40 giờ"
         $this->assertEquals(2100000, $record->insurance_deduction); // 21% của 10M
+        $this->assertEquals(100000, $record->union_deduction);      // 1% của 10M
 
-        // Gross = 10M + 3.6M (12h x 300k) + 2M KPI + 1M phụ cấp = 16.6M; Net = 16.6M - 2.1M = 14.5M
-        $this->assertEquals(14500000, $record->net_salary);
+        // Net = 10M − 2.1M − 100k = 7.8M
+        $this->assertEquals(7800000, $record->net_salary);
     }
 
     public function test_payroll_settings_ui_is_gated_and_persists_values(): void
@@ -511,23 +515,23 @@ class PayrollBusinessTest extends TestCase
 
         // academic_staff không có teacher_rate.manage → bị chặn cả xem lẫn lưu
         $this->actingAs($staff)->get(route('payroll.config.settings'))->assertForbidden();
-        $this->actingAs($staff)->post(route('payroll.config.settings.store'), ['allowance_amount' => 1])->assertForbidden();
+        $this->actingAs($staff)->post(route('payroll.config.settings.store'), ['insurance_rate_percent' => 1])->assertForbidden();
 
         $this->actingAs($this->hrManager)->get(route('payroll.config.settings'))->assertOk();
         $this->actingAs($this->hrManager)->post(route('payroll.config.settings.store'), [
-            'allowance_amount' => 700000,
-            'kpi_bonus_amount' => 1500000,
-            'kpi_bonus_hours_threshold' => 30,
             'insurance_rate_percent' => 11.5,
-            'foreign_teacher_deduction_rate' => 60000,
+            'union_rate_percent' => 1,
+            'academic_kpi_fund' => 2500000,
+            'renewal' => [['quits' => 0, 'percent' => 1.2, 'pending' => 0], ['quits' => 1, 'percent' => 0.8, 'pending' => 1]],
+            'renewal_beyond_percent' => 0.1,
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $settings = PayrollPeriod::payrollSettings();
-        $this->assertSame(700000.0, $settings['allowance_amount']);
-        $this->assertSame(1500000.0, $settings['kpi_bonus_amount']);
-        $this->assertSame(30.0, $settings['kpi_bonus_hours_threshold']);
         $this->assertSame(11.5, $settings['insurance_rate_percent']);
-        $this->assertSame(60000.0, $settings['foreign_teacher_deduction_rate']);
+        $this->assertSame(1.0, $settings['union_rate_percent']);
+        $this->assertSame(2500000.0, $settings['academic_kpi_fund']);
+        $this->assertSame([0 => ['percent' => 1.2, 'pending' => false], 1 => ['percent' => 0.8, 'pending' => true]], $settings['renewal_table']);
+        $this->assertSame(0.1, $settings['renewal_beyond_percent']);
     }
 
     public function test_mark_paid_locks_period_and_records(): void
@@ -598,9 +602,9 @@ class PayrollBusinessTest extends TestCase
         ])->assertRedirect()->assertSessionHasNoErrors();
     }
 
-    public function test_foreign_teacher_deduction_uses_configured_rate_and_skips_the_foreign_teacher(): void
+    public function test_foreign_teacher_sessions_are_counted_but_no_longer_deducted(): void
     {
-        \App\Models\SystemSetting::set('payroll_foreign_teacher_deduction_rate', 90000);
+        // Q3: "lương buổi có GVNN" là khoản CỘNG nhập tay (chờ BA chốt) — bỏ quy tắc trừ tiền mỗi buổi có GVNN.
 
         $foreignTeacher = User::factory()->create([
             'branch_id' => $this->branch->id, 'name' => 'GVNN David', 'is_active' => true,
@@ -629,10 +633,11 @@ class PayrollBusinessTest extends TestCase
         $period->calculatePayrollForPeriod();
 
         $mainRecord = PayrollRecord::where('payroll_period_id', $period->id)->where('user_id', $this->teacherUser->id)->firstOrFail();
-        $this->assertSame(2, $mainRecord->foreign_teacher_sessions_count);
-        $this->assertEquals(180000, $mainRecord->foreign_teacher_deduction); // 2 buổi × 90.000đ cấu hình mới
+        $this->assertSame(2, $mainRecord->foreign_teacher_sessions_count);   // gợi ý cho dòng "Buổi có GVNN"
+        $this->assertEquals(0, $mainRecord->foreign_teacher_deduction);
+        $this->assertEquals(1200000, $mainRecord->net_salary);              // 4h × 300.000đ (chưa có đơn giá buổi)
 
-        // Chính GVNN không bị trừ theo chính mình.
+        // Chính GVNN không được đếm theo chính mình.
         $foreignRecord = PayrollRecord::where('payroll_period_id', $period->id)->where('user_id', $foreignTeacher->id)->firstOrFail();
         $this->assertSame(0, $foreignRecord->foreign_teacher_sessions_count);
         $this->assertEquals(0, $foreignRecord->foreign_teacher_deduction);

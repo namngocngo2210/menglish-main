@@ -26,6 +26,10 @@ use Tests\TestCase;
  * Phase 3 — Hoa hồng tuyển sinh theo A6: tiền thực thu (phiếu duyệt), chỉ khách mới
  * (khoản học phí đầu tiên), tính vào tháng duyệt phiếu, thu hồi khi hoàn phí do người
  * duyệt quyết định; mốc hoa hồng có phiên bản theo ngày hiệu lực.
+ *
+ * Q3 (bản sửa): bậc theo số HS chốt (ở đây một bậc 5% cho mọi số HS) và gate kép — khách
+ * trong các test này chốt 01/08 và đã tick đủ 3/3 mốc nên hoa hồng trả ngay trong kỳ phát sinh.
+ * Hoãn / trả kỳ sau: xem Phase3FormulaTest.
  */
 class Phase3CommissionTest extends TestCase
 {
@@ -58,8 +62,9 @@ class Phase3CommissionTest extends TestCase
             'branch_id' => $this->branch->id, 'status' => 'active',
         ]);
 
-        // Mốc: 5% cho mọi doanh thu thực thu ≥ 0, thưởng vượt mốc 0
-        CommissionTier::create(['tier_name' => 'Mức 5%', 'min_revenue' => 0, 'new_sale_percent' => 5, 'renew_percent' => 10, 'bonus_amount' => 0]);
+        // Mốc: 5% cho mọi số HS chốt (thay 3 bậc mặc định)
+        CommissionTier::query()->delete();
+        CommissionTier::create(['tier_name' => 'Mức 5%', 'min_revenue' => 0, 'min_students' => 0, 'new_sale_percent' => 5, 'renew_percent' => 10, 'bonus_amount' => 0]);
     }
 
     private function userWithRole(string $role, array $attributes = []): User
@@ -82,6 +87,8 @@ class Phase3CommissionTest extends TestCase
             'deal_value' => $dealValue, 'branch_id' => $this->branch->id,
             'assigned_user_id' => ($sale ?? $this->sales)->id, 'commission_user_id' => ($sale ?? $this->sales)->id,
             'converted_student_id' => $student->id, 'converted_at' => '2026-08-01 09:00:00',
+            // Gate kép: đủ 3/3 mốc chăm sóc tháng đầu (đủ 30 ngày tính tới 31/08)
+            'care_checklist' => ['session_1' => ['done_at' => '2026-08-03'], 'session_4_5' => ['done_at' => '2026-08-12'], 'day_30' => ['done_at' => '2026-08-31']],
         ]);
 
         return [$student, $this->tuition($student)];
@@ -222,7 +229,7 @@ class Phase3CommissionTest extends TestCase
     {
         CommissionTier::query()->update(['effective_to' => '2026-08-31']);
         CommissionTier::create([
-            'tier_name' => 'Mức 8% từ T9', 'min_revenue' => 0, 'new_sale_percent' => 8, 'bonus_amount' => 0,
+            'tier_name' => 'Mức 8% từ T9', 'min_revenue' => 0, 'min_students' => 0, 'new_sale_percent' => 8, 'bonus_amount' => 0,
             'effective_from' => '2026-09-01',
         ]);
 
@@ -245,7 +252,7 @@ class Phase3CommissionTest extends TestCase
         $tier = CommissionTier::firstOrFail();
 
         $this->actingAs($this->admin)->put(route('payroll.config.commission-tiers.update', $tier), [
-            'tier_name' => 'Mức 7%', 'min_revenue' => 0, 'new_sale_percent' => 7, 'bonus_amount' => 0,
+            'tier_name' => 'Mức 7%', 'min_students' => 0, 'new_sale_percent' => 7,
             'effective_from' => '2026-10-01',
         ])->assertSessionHasNoErrors();
 
@@ -256,12 +263,12 @@ class Phase3CommissionTest extends TestCase
         $this->assertEquals(7, $new->new_sale_percent);
         $this->assertSame('2026-10-01', $new->effective_from->toDateString());
 
-        $this->assertSame($tier->id, CommissionTier::matchForRevenue(1000000, '2026-09-30')->id);
-        $this->assertSame($new->id, CommissionTier::matchForRevenue(1000000, '2026-10-01')->id);
+        $this->assertSame($tier->id, CommissionTier::matchForStudents(3, '2026-09-30')->id);
+        $this->assertSame($new->id, CommissionTier::matchForStudents(3, '2026-10-01')->id);
 
         // Ngày hiệu lực mới không được trước phiên bản hiện tại
         $this->actingAs($this->admin)->put(route('payroll.config.commission-tiers.update', $new), [
-            'tier_name' => 'Mức 9%', 'min_revenue' => 0, 'new_sale_percent' => 9, 'effective_from' => '2026-09-15',
+            'tier_name' => 'Mức 9%', 'min_students' => 0, 'new_sale_percent' => 9, 'effective_from' => '2026-09-15',
         ])->assertSessionHasErrors('effective_from');
 
         // Ngừng áp dụng giữ lại lịch sử, không xoá
@@ -315,7 +322,7 @@ class Phase3CommissionTest extends TestCase
         $this->assertEquals(200000, $refund->clawback_amount);
         $this->assertSame($this->sales->id, $refund->clawback_user_id);
 
-        // Kỳ tháng 9: không có thu mới, bị trừ 200k thu hồi hoa hồng
+        // Kỳ tháng 9: không có thu mới, bị trừ 200k thu hồi hoa hồng (sale = Full-time theo Q3)
         $this->sales->update(['base_salary' => 5000000]);
         $this->travelTo(Carbon::parse('2026-09-30 10:00:00'));
         $september = $this->period(9);
@@ -323,8 +330,8 @@ class Phase3CommissionTest extends TestCase
         $record = $this->salesRecord($september);
         $this->assertEquals(0, $record->commission_bonus);
         $this->assertEquals(200000, $record->commission_clawback);
-        // 5M + 500k phụ cấp − 525k BHXH − 200k thu hồi
-        $this->assertEquals(4775000, $record->net_salary);
+        // 5M − 525k BHXH − 25k Công đoàn − 200k thu hồi (Q3: bỏ phụ cấp cố định 500k)
+        $this->assertEquals(4250000, $record->net_salary);
 
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $september->id))->assertSessionHasNoErrors();
         $this->assertNotNull(CommissionAdjustment::firstOrFail()->settled_at);
