@@ -13,13 +13,13 @@
         
 
         <form method="GET" class="flex flex-wrap items-center gap-3 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-            <select name="month" class="text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
+            <select name="month" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
                 @for ($m = 1; $m <= 12; $m++)
                     <option value="{{ $m }}" @selected($m == $month)>Tháng {{ $m }}</option>
                 @endfor
             </select>
-            <input type="number" name="year" value="{{ $year }}" class="w-24 text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
-            <button type="submit" class="px-4 py-2 rounded-lg bg-primary text-white text-xs font-bold">Xem</button>
+            <input type="number" name="year" value="{{ $year }}" class="w-24 text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
+            <button type="submit" class="px-4 py-2 rounded-lg bg-primary-container text-white text-xs font-bold">Xem</button>
             <a href="{{ route('kpi.criteria') }}" class="ml-auto text-xs font-semibold text-primary hover:underline flex items-center gap-1">
                 <span class="material-symbols-outlined text-[16px]">tune</span> Cấu hình chỉ số
             </a>

@@ -8,7 +8,7 @@
                 <div>
                     <div class="flex items-center gap-2 flex-wrap">
                         <h1 class="text-xl font-black text-gray-900 tracking-tight">Chi Tiết Bài Làm &amp; Chấm Điểm Thí Sinh</h1>
-                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-[#F5691A] border border-orange-200">
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-primary-container border border-orange-200">
                             {{ $submission->overall_score ?? '—' }} Band ({{ $submission->cefr_level ?? '—' }})
                         </span>
                         <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase border {{ $submission->isPending() ? 'bg-sky-50 text-sky-700 border-sky-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200' }}">
@@ -32,7 +32,7 @@
                     <span class="material-symbols-outlined text-[16px] text-amber-400">military_tech</span>
                     <span>Xem Bảng Điểm Scorecard</span>
                 </a>
-                <a href="{{ route('placement-tests.rubric-guide') }}" class="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 hover:bg-orange-100 text-[#F5691A] text-xs font-bold transition">
+                <a href="{{ route('placement-tests.rubric-guide') }}" class="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 hover:bg-orange-100 text-primary-container text-xs font-bold transition">
                     <span class="material-symbols-outlined text-[16px]">menu_book</span>
                     <span>Thang Điểm Rubric</span>
                 </a>
@@ -40,12 +40,6 @@
         </div>
     </x-slot>
 
-    @if (session('status'))
-        <div class="max-w-6xl mx-auto mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs font-semibold text-emerald-800 flex items-center gap-2 shadow-sm">
-            <span class="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
-            <span>{{ session('status') }}</span>
-        </div>
-    @endif
 
     <div class="max-w-6xl mx-auto space-y-6" x-data="placementResultEngine({
         questions: {{ Js::from($questions) }},
@@ -61,7 +55,7 @@
 
             <div class="flex items-center justify-between border-b border-gray-100 pb-3 flex-wrap gap-2">
                 <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[#F5691A] text-xl">fact_check</span>
+                    <span class="material-symbols-outlined text-primary-container text-xl">fact_check</span>
                     <h2 class="font-black text-gray-900 text-sm uppercase tracking-wide">Điểm Số 4 Kỹ Năng &amp; Đánh Giá Năng Lực</h2>
                 </div>
                 <div class="text-xs text-gray-500 font-mono">
@@ -87,8 +81,8 @@
                     <label class="text-[11px] text-rose-900 font-black uppercase tracking-wider block">Nói (Speaking)</label>
                     <input type="number" step="0.5" min="0" max="9" name="speaking_score" value="{{ $submission->speaking_score }}" required class="w-full text-center font-mono font-black text-xl rounded-lg border border-rose-200 bg-white text-rose-700 p-1 shadow-2xs" />
                 </div>
-                <div class="p-3.5 bg-gradient-to-br from-[#F5691A]/10 to-orange-100 rounded-xl border border-orange-300 text-center space-y-1 col-span-2 sm:col-span-1">
-                    <label class="text-[11px] text-[#F5691A] font-black uppercase tracking-wider block">CEFR Band</label>
+                <div class="p-3.5 bg-gradient-to-br from-primary-container/10 to-orange-100 rounded-xl border border-orange-300 text-center space-y-1 col-span-2 sm:col-span-1">
+                    <label class="text-[11px] text-primary-container font-black uppercase tracking-wider block">CEFR Band</label>
                     <select name="cefr_level" required class="w-full text-center font-mono font-black text-base rounded-lg border border-orange-300 bg-white text-gray-900 p-1 shadow-2xs">
                         <option value="" @selected(empty($submission->cefr_level))>— Chọn —</option>
                         <option value="A1" @selected($submission->cefr_level === 'A1')>A1 (Mất gốc)</option>
@@ -104,7 +98,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                 <div>
                     <label class="block font-bold text-gray-700 uppercase tracking-wider text-[10px] mb-1">Khóa học đề xuất cho học viên</label>
-                    <input type="text" name="recommended_course" value="{{ $submission->recommended_course }}" class="w-full text-xs font-bold text-[#F5691A] rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
+                    <input type="text" name="recommended_course" value="{{ $submission->recommended_course }}" class="w-full text-xs font-bold text-primary-container rounded-xl border border-gray-200 p-2.5 bg-white shadow-2xs" />
                 </div>
                 <div>
                     <label class="block font-bold text-gray-700 uppercase tracking-wider text-[10px] mb-1">Giáo viên / Giám thị phụ trách chấm</label>
@@ -133,7 +127,7 @@
                     <span class="material-symbols-outlined text-[16px] text-primary">info</span>
                     <span>Khi lưu điểm, hệ thống sẽ tự động cập nhật Overall Band và đồng bộ sang CRM Lead tương ứng.</span>
                 </div>
-                <button type="submit" class="px-6 py-2.5 bg-[#F5691A] hover:bg-[#d85a15] text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                <button type="submit" class="px-6 py-2.5 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
                     <span class="material-symbols-outlined text-base">save</span>
                     <span>Lưu &amp; Cập Nhật Kết Quả Chấm Điểm</span>
                 </button>
@@ -454,7 +448,7 @@
                         <!-- EXPLANATION & TRANSCRIPT EVIDENCE -->
                         @if (!empty($q['explanation']))
                             <div class="mt-3 p-3 bg-amber-50/60 border border-amber-200/80 rounded-xl flex items-start gap-2 text-xs">
-                                <span class="material-symbols-outlined text-[#F5691A] text-base shrink-0 mt-0.5">lightbulb</span>
+                                <span class="material-symbols-outlined text-primary-container text-base shrink-0 mt-0.5">lightbulb</span>
                                 <div>
                                     <strong class="text-amber-950">Giải thích chi tiết &amp; Dẫn chứng bài làm:</strong>
                                     <p class="text-amber-900 leading-relaxed mt-0.5">{{ $q['explanation'] }}</p>

@@ -6,7 +6,7 @@
                 <p class="text-sm text-gray-500 mt-0.5">Quản lý, phân công và theo dõi tiến độ công việc toàn diện</p>
             </div>
             <div class="flex items-center gap-3">
-                <button @click="$dispatch('open-create-task-modal')" class="bg-[#F5691A] text-white hover:bg-[#d95a14] transition-colors px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-sm">
+                <button @click="$dispatch('open-create-task-modal')" class="bg-primary-container text-white hover:bg-primary transition-colors px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-sm">
                     <span class="material-symbols-outlined text-[20px]">add</span>
                     Giao việc
                 </button>
@@ -83,15 +83,15 @@
                 <!-- Tab bar -->
                 <div class="flex items-center gap-6 overflow-x-auto">
                     <a href="{{ route('tasks.index', array_merge(request()->query(), ['tab' => 'all'])) }}"
-                       class="pb-2 text-sm font-semibold transition border-b-2 {{ $tab === 'all' ? 'text-primary border-primary' : 'text-gray-500 border-transparent hover:text-gray-900' }}">
+                       class="pb-2 text-sm font-semibold transition border-b-2 {{ $tab === 'all' ? 'text-primary border-primary-container' : 'text-gray-500 border-transparent hover:text-gray-900' }}">
                         Tất cả <span class="ml-1 px-1.5 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{{ $counts['all'] }}</span>
                     </a>
                     <a href="{{ route('tasks.index', array_merge(request()->query(), ['tab' => 'mine'])) }}"
-                       class="pb-2 text-sm font-semibold transition border-b-2 {{ $tab === 'mine' ? 'text-primary border-primary' : 'text-gray-500 border-transparent hover:text-gray-900' }}">
+                       class="pb-2 text-sm font-semibold transition border-b-2 {{ $tab === 'mine' ? 'text-primary border-primary-container' : 'text-gray-500 border-transparent hover:text-gray-900' }}">
                         Của tôi <span class="ml-1 px-1.5 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{{ $counts['mine'] }}</span>
                     </a>
                     <a href="{{ route('tasks.index', array_merge(request()->query(), ['tab' => 'assigned'])) }}"
-                       class="pb-2 text-sm font-semibold transition border-b-2 {{ $tab === 'assigned' ? 'text-primary border-primary' : 'text-gray-500 border-transparent hover:text-gray-900' }}">
+                       class="pb-2 text-sm font-semibold transition border-b-2 {{ $tab === 'assigned' ? 'text-primary border-primary-container' : 'text-gray-500 border-transparent hover:text-gray-900' }}">
                         Tôi giao <span class="ml-1 px-1.5 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{{ $counts['assigned'] }}</span>
                     </a>
                 </div>
@@ -102,7 +102,7 @@
                     <div class="relative w-full sm:w-64">
                         <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
                         <input type="text" name="q" value="{{ $search }}" placeholder="Tìm công việc, nhân sự..."
-                               class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-xs rounded-lg pl-9 pr-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary">
+                               class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-xs rounded-lg pl-9 pr-3 py-2 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
                     </div>
                     @if(!empty($search))
                         <a href="{{ route('tasks.index', ['tab' => $tab]) }}" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
@@ -129,7 +129,7 @@
                 @endphp
                 @foreach($statuses as $stKey => $stLabel)
                     <a href="{{ route('tasks.index', array_merge(request()->query(), ['status' => $stKey])) }}"
-                       class="px-2.5 py-1 rounded-full border transition {{ $status === $stKey ? 'bg-primary text-white border-primary font-semibold' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100' }}">
+                       class="px-2.5 py-1 rounded-full border transition {{ $status === $stKey ? 'bg-primary-container text-white border-primary-container font-semibold' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100' }}">
                         {{ $stLabel }}
                     </a>
                 @endforeach
@@ -185,7 +185,7 @@
                                 </td>
                                 <td class="p-4">
                                     <div class="flex items-center gap-2">
-                                        <div class="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+                                        <div class="w-7 h-7 rounded-full bg-primary-container/10 text-primary flex items-center justify-center font-bold text-xs">
                                             {{ Str::substr($task->assignee?->name ?? 'U', 0, 1) }}
                                         </div>
                                         <span class="text-gray-900 font-medium text-xs">{{ $task->assignee?->name ?? 'Chưa phân công' }}</span>
@@ -265,7 +265,7 @@
                             Tiêu đề công việc <span class="text-rose-500">*</span>
                         </label>
                         <input type="text" id="taskTitle" name="taskTitle" required placeholder="Nhập tiêu đề công việc..."
-                               class="w-full rounded-lg border-gray-200 text-sm focus:border-primary focus:ring-primary">
+                               class="w-full rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container">
                     </div>
 
                     <!-- Mô tả chi tiết -->
@@ -274,7 +274,7 @@
                             Mô tả chi tiết
                         </label>
                         <textarea id="taskDescription" name="taskDescription" rows="3" placeholder="Mô tả nội dung công việc chi tiết..."
-                                  class="w-full rounded-lg border-gray-200 text-sm focus:border-primary focus:ring-primary"></textarea>
+                                  class="w-full rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container"></textarea>
                     </div>
 
                     <!-- Người nhận & Hạn hoàn thành -->
@@ -283,7 +283,7 @@
                             <label class="block text-xs font-semibold text-gray-700 uppercase mb-1" for="assignee">
                                 Người nhận <span class="text-rose-500">*</span>
                             </label>
-                            <select id="assignee" name="assignee" required class="w-full rounded-lg border-gray-200 text-sm focus:border-primary focus:ring-primary">
+                            <select id="assignee" name="assignee" required class="w-full rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container">
                                 <option value="" disabled selected>-- Chọn nhân sự --</option>
                                 @foreach($users as $u)
                                     <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->getRoleNames()->implode(', ') ?: 'Nhân viên' }})</option>
@@ -295,7 +295,7 @@
                                 Hạn hoàn thành <span class="text-rose-500">*</span>
                             </label>
                             <input type="date" id="dueDate" name="dueDate" required value="{{ now()->addDays(2)->format('Y-m-d') }}"
-                                   class="w-full rounded-lg border-gray-200 text-sm focus:border-primary focus:ring-primary">
+                                   class="w-full rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container">
                         </div>
                     </div>
 
@@ -305,7 +305,7 @@
                             <label class="block text-xs font-semibold text-gray-700 uppercase mb-1" for="branch_id">
                                 Chi nhánh
                             </label>
-                            <select id="branch_id" name="branch_id" class="w-full rounded-lg border-gray-200 text-sm focus:border-primary focus:ring-primary">
+                            <select id="branch_id" name="branch_id" class="w-full rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container">
                                 <option value="">-- Không chỉ định --</option>
                                 @foreach($branches as $b)
                                     <option value="{{ $b->id }}">{{ $b->name }}</option>
@@ -316,7 +316,7 @@
                             <label class="block text-xs font-semibold text-gray-700 uppercase mb-1" for="class_id">
                                 Gắn lớp (Nếu có)
                             </label>
-                            <select id="class_id" name="class_id" class="w-full rounded-lg border-gray-200 text-sm focus:border-primary focus:ring-primary">
+                            <select id="class_id" name="class_id" class="w-full rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container">
                                 <option value="">-- Không gắn lớp --</option>
                                 @foreach($classes as $c)
                                     <option value="{{ $c->id }}">{{ $c->name }} ({{ $c->code }})</option>
@@ -330,11 +330,11 @@
                         <span class="block text-xs font-semibold text-gray-700 uppercase">Loại công việc</span>
                         <div class="flex items-center gap-6">
                             <label class="inline-flex items-center gap-2 cursor-pointer">
-                                <input type="radio" name="taskType" value="one-time" checked @change="isRecurring = false" class="text-primary focus:ring-primary">
+                                <input type="radio" name="taskType" value="one-time" checked @change="isRecurring = false" class="text-primary focus:ring-primary-container">
                                 <span class="text-sm text-gray-800">Phát sinh</span>
                             </label>
                             <label class="inline-flex items-center gap-2 cursor-pointer">
-                                <input type="radio" name="taskType" value="recurring" @change="isRecurring = true" class="text-primary focus:ring-primary">
+                                <input type="radio" name="taskType" value="recurring" @change="isRecurring = true" class="text-primary focus:ring-primary-container">
                                 <span class="text-sm text-gray-800">Lặp đi lặp lại</span>
                             </label>
                         </div>
@@ -342,7 +342,7 @@
                         <!-- Tần suất -->
                         <div x-show="isRecurring" x-cloak class="pt-2 border-t border-gray-200">
                             <label class="block text-xs font-semibold text-gray-600 uppercase mb-1" for="frequency">Tần suất</label>
-                            <select id="frequency" name="frequency" class="w-full sm:w-1/2 rounded-lg border-gray-200 text-sm focus:border-primary focus:ring-primary">
+                            <select id="frequency" name="frequency" class="w-full sm:w-1/2 rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container">
                                 <option value="daily">Hàng ngày</option>
                                 <option value="weekly" selected>Hàng tuần</option>
                                 <option value="monthly">Hàng tháng</option>
@@ -356,7 +356,7 @@
                     <button type="button" @click="createModalOpen = false" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm">
                         Hủy
                     </button>
-                    <button type="submit" form="createTaskForm" class="px-5 py-2 bg-[#F5691A] text-white rounded-lg hover:bg-[#d95a14] font-medium text-sm flex items-center gap-2 shadow-sm">
+                    <button type="submit" form="createTaskForm" class="px-5 py-2 bg-primary-container text-white rounded-lg hover:bg-primary font-medium text-sm flex items-center gap-2 shadow-sm">
                         <span class="material-symbols-outlined text-[18px]">send</span>
                         Lưu và Giao việc
                     </button>
@@ -385,7 +385,7 @@
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Trạng thái mới</label>
-                        <select name="status" x-model="newStatus" class="w-full rounded-lg border-gray-200 text-sm focus:border-primary focus:ring-primary">
+                        <select name="status" x-model="newStatus" class="w-full rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container">
                             <option value="new">Mới</option>
                             <option value="in_progress">Đang thực hiện</option>
                             <option value="pending_confirmation">Chờ xác nhận</option>
@@ -398,14 +398,14 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 uppercase mb-1" for="reason">Ghi chú lý do / Kết quả</label>
                         <textarea name="reason" id="reason" x-model="statusReason" rows="3" placeholder="Nhập lý do chi tiết hoặc kết quả..."
-                                  class="w-full rounded-lg border-gray-200 text-sm focus:border-primary focus:ring-primary"></textarea>
+                                  class="w-full rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container"></textarea>
                     </div>
 
                     <div class="pt-2 flex justify-end gap-3">
                         <button type="button" @click="statusModalOpen = false" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-xs">
                             Hủy
                         </button>
-                        <button type="submit" class="px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-tint font-medium text-xs shadow-sm">
+                        <button type="submit" class="px-5 py-2 bg-primary-container text-white rounded-lg hover:bg-primary-tint font-medium text-xs shadow-sm">
                             Xác nhận cập nhật
                         </button>
                     </div>

@@ -4,12 +4,12 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">layers</span>
-                    Khung Trình Độ &amp; Cấp Độ Đào Tạo (Database)
+                    Khung Trình Độ &amp; Cấp Độ Đào Tạo
                 </h1>
                 <p class="text-xs text-gray-500">Chuẩn hóa các cấp độ đào tạo theo thang đo CEFR quốc tế và IELTS Target</p>
             </div>
             <div class="flex items-center gap-2">
-                <button type="button" onclick="document.getElementById('newLevelModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
+                <button type="button" onclick="document.getElementById('newLevelModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
                     <span class="material-symbols-outlined text-[18px]">add_circle</span>
                     <span>Thêm cấp độ mới</span>
                 </button>
@@ -18,13 +18,13 @@
     </x-slot>
 
     <!-- Navigation Sub-Tabs -->
-    <div class="border-b border-gray-200 bg-white -mt-4 -mx-4 sm:-mt-6 sm:-mx-6 px-6 pt-3 mb-5">
+    <div class="border-b border-gray-200 bg-white -mt-md -mx-md lg:-mt-lg lg:-mx-lg px-6 pt-3 mb-5">
         <div class="flex items-center gap-6 overflow-x-auto text-xs font-semibold scrollbar-none">
             <a href="{{ route('courses.index') }}" class="pb-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 transition whitespace-nowrap flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[17px]">sell</span>
                 <span>Bảng giá &amp; Danh mục Khóa học</span>
             </a>
-            <a href="{{ route('course-levels.index') }}" class="pb-3 border-b-2 border-primary text-primary font-bold transition whitespace-nowrap flex items-center gap-1.5">
+            <a href="{{ route('course-levels.index') }}" class="pb-3 border-b-2 border-primary-container text-primary font-bold transition whitespace-nowrap flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[17px]">layers</span>
                 <span>Khung Trình Độ CEFR / IELTS</span>
             </a>
@@ -70,7 +70,7 @@
                 </div>
                 <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
                     <button type="button" onclick="document.getElementById('newLevelModal').classList.add('hidden')" class="px-3 py-1.5 rounded-lg border text-xs text-gray-600">Hủy</button>
-                    <button type="submit" class="px-4 py-1.5 bg-primary text-white text-xs font-bold rounded-lg shadow-sm">Lưu vào CSDL</button>
+                    <button type="submit" class="px-4 py-1.5 bg-primary-container text-white text-xs font-bold rounded-lg shadow-sm">Lưu vào CSDL</button>
                 </div>
             </form>
         </div>

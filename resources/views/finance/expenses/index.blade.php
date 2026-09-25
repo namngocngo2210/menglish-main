@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-[#f5691a]">
+                <div class="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-primary-container">
                     <span class="material-symbols-outlined text-[24px]">payments</span>
                 </div>
                 <div>
@@ -16,7 +16,7 @@
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     Quyền thao tác: <span class="font-semibold text-slate-800">Quản trị nhân sự &amp; Tài chính</span>
                 </div>
-                <button type="button" onclick="openCreateModal()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-[#f5691a] hover:bg-[#d9530b] text-white font-semibold rounded-xl text-sm transition-all shadow-sm shadow-orange-500/20 active:scale-[0.98]">
+                <button type="button" onclick="openCreateModal()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-container hover:bg-primary-dark text-white font-semibold rounded-xl text-sm transition-all shadow-sm shadow-orange-500/20 active:scale-[0.98]">
                     <span class="material-symbols-outlined text-[20px]">add_circle</span>
                     Thêm khoản chi mới
                 </button>
@@ -26,17 +26,6 @@
 
     <div class="space-y-6">
 
-        @if (session('status'))
-            <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-sm text-emerald-800 flex items-center justify-between shadow-xs">
-                <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-emerald-600">check_circle</span>
-                    <span>{{ session('status') }}</span>
-                </div>
-                <button type="button" onclick="this.parentElement.remove()" class="text-emerald-500 hover:text-emerald-700">
-                    <span class="material-symbols-outlined text-lg">close</span>
-                </button>
-            </div>
-        @endif
 
         <!-- 1. Thống kê KPI tóm tắt 4 thẻ -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -44,7 +33,7 @@
             <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs relative overflow-hidden">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Tổng chi kỳ này</span>
-                    <span class="p-2 rounded-lg bg-orange-50 text-[#f5691a] material-symbols-outlined text-[20px]">account_balance_wallet</span>
+                    <span class="p-2 rounded-lg bg-orange-50 text-primary-container material-symbols-outlined text-[20px]">account_balance_wallet</span>
                 </div>
                 <div class="mt-3">
                     <div class="text-2xl font-extrabold text-slate-900 tracking-tight">
@@ -132,7 +121,7 @@
                     <div class="flex items-center gap-2">
                         <label for="monthSelect" class="text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">Kỳ tháng:</label>
                         <div class="relative">
-                            <select id="monthSelect" name="month" onchange="this.form.submit()" class="appearance-none bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 text-sm font-semibold rounded-xl pl-3 pr-8 py-2 focus:ring-2 focus:ring-[#f5691a]/20 focus:border-[#f5691a] focus:outline-none transition-all cursor-pointer">
+                            <select id="monthSelect" name="month" onchange="this.form.submit()" class="appearance-none bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 text-sm font-semibold rounded-xl pl-3 pr-8 py-2 focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container focus:outline-none transition-all cursor-pointer">
                                 @foreach ($monthOptions as $val => $lbl)
                                     <option value="{{ $val }}" {{ $month === $val ? 'selected' : '' }}>{{ $lbl }}</option>
                                 @endforeach
@@ -145,7 +134,7 @@
                     <div class="flex items-center gap-2">
                         <label for="branchSelect" class="text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">Chi nhánh:</label>
                         <div class="relative">
-                            <select id="branchSelect" name="branch_id" onchange="this.form.submit()" class="appearance-none bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 text-sm font-medium rounded-xl pl-3 pr-8 py-2 focus:ring-2 focus:ring-[#f5691a]/20 focus:border-[#f5691a] focus:outline-none transition-all cursor-pointer">
+                            <select id="branchSelect" name="branch_id" onchange="this.form.submit()" class="appearance-none bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 text-sm font-medium rounded-xl pl-3 pr-8 py-2 focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container focus:outline-none transition-all cursor-pointer">
                                 <option value="all" {{ $branchId === 'all' ? 'selected' : '' }}>Tất cả chi nhánh</option>
                                 @foreach ($branches as $b)
                                     <option value="{{ $b->id }}" {{ (string)$branchId === (string)$b->id ? 'selected' : '' }}>{{ $b->name }}</option>
@@ -164,7 +153,7 @@
                 <!-- Tìm kiếm & Xuất Excel -->
                 <div class="flex items-center gap-2 w-full md:w-auto justify-end">
                     <div class="relative w-full sm:w-64">
-                        <input type="text" name="search" value="{{ $search }}" placeholder="Tìm theo nội dung, người lập..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#f5691a]/20 focus:border-[#f5691a] transition-all">
+                        <input type="text" name="search" value="{{ $search }}" placeholder="Tìm theo nội dung, người lập..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition-all">
                         <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
                     </div>
                     <button type="submit" class="hidden"></button>
@@ -291,7 +280,7 @@
                                 </td>
                                 <td class="py-3.5 px-4 text-center">
                                     <div class="flex items-center justify-center gap-1">
-                                        <button type="button" onclick='openEditModal(@json($exp))' title="Sửa khoản chi" class="p-1.5 text-slate-500 hover:text-[#f5691a] hover:bg-orange-50 rounded-lg transition-colors">
+                                        <button type="button" onclick='openEditModal(@json($exp))' title="Sửa khoản chi" class="p-1.5 text-slate-500 hover:text-primary-container hover:bg-orange-50 rounded-lg transition-colors">
                                             <span class="material-symbols-outlined text-[18px]">edit</span>
                                         </button>
                                         <form method="POST" action="{{ route('finance.expenses.destroy', $exp->id) }}" onsubmit="return confirm('Bạn có chắc chắn muốn xóa khoản chi: \'{{ addslashes($exp->title) }}\' khỏi sổ chi vận hành?')" class="inline">
@@ -331,7 +320,7 @@
                 </div>
                 <div class="flex items-center gap-1">
                     <button type="button" disabled class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-not-allowed">Trang trước</button>
-                    <button type="button" class="px-3 py-1.5 rounded-lg border border-[#f5691a] bg-[#f5691a] text-white font-bold">1</button>
+                    <button type="button" class="px-3 py-1.5 rounded-lg border border-primary-container bg-primary-container text-white font-bold">1</button>
                     <button type="button" disabled class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-not-allowed">Trang sau</button>
                 </div>
             </div>
@@ -357,7 +346,7 @@
             <!-- Modal Header -->
             <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-orange-100 text-[#f5691a] flex items-center justify-center">
+                    <div class="w-8 h-8 rounded-lg bg-orange-100 text-primary-container flex items-center justify-center">
                         <span id="modalIcon" class="material-symbols-outlined text-[20px]">post_add</span>
                     </div>
                     <div>
@@ -380,7 +369,7 @@
                     <label for="formExpenseDate" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                         Ngày chi <span class="text-red-500">*</span>
                     </label>
-                    <input type="date" id="formExpenseDate" name="expense_date" value="{{ date('Y-m-d') }}" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:ring-2 focus:ring-[#f5691a]/20 focus:border-[#f5691a] focus:outline-none transition-all">
+                    <input type="date" id="formExpenseDate" name="expense_date" value="{{ date('Y-m-d') }}" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container focus:outline-none transition-all">
                 </div>
 
                 <!-- Ô 2: Nội dung (text tự do, bắt buộc) -->
@@ -388,7 +377,7 @@
                     <label for="formTitle" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                         Nội dung khoản chi <span class="text-red-500">*</span>
                     </label>
-                    <input type="text" id="formTitle" name="title" placeholder="Ví dụ: Mua rèm cửa phòng học, Nạp mực máy in..." required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-[#f5691a]/20 focus:border-[#f5691a] focus:outline-none transition-all">
+                    <input type="text" id="formTitle" name="title" placeholder="Ví dụ: Mua rèm cửa phòng học, Nạp mực máy in..." required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container focus:outline-none transition-all">
                 </div>
 
                 <!-- Grid 2 cột: Số tiền & Hình thức -->
@@ -399,7 +388,7 @@
                             Số tiền (VNĐ) <span class="text-red-500">*</span>
                         </label>
                         <div class="relative">
-                            <input type="number" id="formAmount" name="amount" min="1000" step="1000" placeholder="0" required class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-10 py-2.5 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-[#f5691a]/20 focus:border-[#f5691a] focus:outline-none transition-all">
+                            <input type="number" id="formAmount" name="amount" min="1000" step="1000" placeholder="0" required class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-10 py-2.5 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container focus:outline-none transition-all">
                             <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">đ</span>
                         </div>
                     </div>
@@ -410,7 +399,7 @@
                             Hình thức chi <span class="text-red-500">*</span>
                         </label>
                         <div class="relative">
-                            <select id="formPaymentMethod" name="payment_method" required class="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:ring-2 focus:ring-[#f5691a]/20 focus:border-[#f5691a] focus:outline-none transition-all cursor-pointer">
+                            <select id="formPaymentMethod" name="payment_method" required class="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container focus:outline-none transition-all cursor-pointer">
                                 <option value="chuyen_khoan">Chuyển khoản</option>
                                 <option value="tien_mat">Tiền mặt</option>
                             </select>
@@ -425,7 +414,7 @@
                         Chi nhánh áp dụng <span class="text-red-500">*</span>
                     </label>
                     <div class="relative">
-                        <select id="formBranchId" name="branch_id" required class="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:ring-2 focus:ring-[#f5691a]/20 focus:border-[#f5691a] focus:outline-none transition-all cursor-pointer">
+                        <select id="formBranchId" name="branch_id" required class="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container focus:outline-none transition-all cursor-pointer">
                             <option value="" disabled selected>-- Chọn chi nhánh cơ sở --</option>
                             @foreach ($branches as $b)
                                 <option value="{{ $b->id }}">{{ $b->name }}</option>
@@ -441,7 +430,7 @@
                         Phân loại chi phí <span class="text-slate-400 font-normal text-[11px]">(Tự động nhận diện nếu để trống)</span>
                     </label>
                     <div class="relative">
-                        <select id="formCategory" name="category" class="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:ring-2 focus:ring-[#f5691a]/20 focus:border-[#f5691a] focus:outline-none transition-all cursor-pointer">
+                        <select id="formCategory" name="category" class="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container focus:outline-none transition-all cursor-pointer">
                             <option value="">Tự động theo nội dung</option>
                             <option value="mat_bang_tien_ich">Mặt bằng &amp; Tiện ích (Thuê nhà, điện, nước, internet...)</option>
                             <option value="giao_trinh_van_hanh">In ấn &amp; Vận hành lớp (Giáo trình, VPP, điều hòa, nước uống...)</option>
@@ -456,7 +445,7 @@
                     <label for="formNotes" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                         Ghi chú &amp; Thông tin chứng từ <span class="text-slate-400 font-normal text-[11px]">(Tùy chọn)</span>
                     </label>
-                    <textarea id="formNotes" name="notes" rows="3" placeholder="Nhập mã hóa đơn, thông tin nhà cung cấp hoặc lưu ý nội bộ..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-[#f5691a]/20 focus:border-[#f5691a] focus:outline-none transition-all resize-none"></textarea>
+                    <textarea id="formNotes" name="notes" rows="3" placeholder="Nhập mã hóa đơn, thông tin nhà cung cấp hoặc lưu ý nội bộ..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container focus:outline-none transition-all resize-none"></textarea>
                 </div>
 
                 <!-- Thông tin tự động -->
@@ -470,7 +459,7 @@
                     <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-semibold text-sm transition-colors">
                         Hủy bỏ
                     </button>
-                    <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#f5691a] hover:bg-[#d9530b] text-white font-bold text-sm transition-all shadow-sm shadow-orange-500/20 active:scale-[0.98]">
+                    <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary-container hover:bg-primary-dark text-white font-bold text-sm transition-all shadow-sm shadow-orange-500/20 active:scale-[0.98]">
                         <span class="material-symbols-outlined text-[18px]">save</span>
                         <span id="submitBtnText">Lưu khoản chi</span>
                     </button>

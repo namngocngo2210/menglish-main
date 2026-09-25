@@ -13,7 +13,7 @@
                     <span class="material-symbols-outlined text-[18px]">edit_document</span>
                     <span>Soạn Syllabus (Bước #2)</span>
                 </a>
-                <a href="{{ route('teacher-portal.shortcut', '08_xem_tai_lieu_giao_trinh') }}" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
+                <a href="{{ route('teacher-portal.shortcut', '08_xem_tai_lieu_giao_trinh') }}" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
                     <span class="material-symbols-outlined text-[18px]">menu_book</span>
                     <span>Xem bài giảng GV (Bước #4)</span>
                 </a>
@@ -39,24 +39,24 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 mb-1">Mã giáo trình <span class="text-rose-500">*</span></label>
-                            <input type="text" name="code" value="CUR-{{ strtoupper(Str::random(4)) }}" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-mono focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="CUR-GTB2" />
+                            <input type="text" name="code" value="CUR-{{ strtoupper(Str::random(4)) }}" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-mono focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none" placeholder="CUR-GTB2" />
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 mb-1">Phiên bản <span class="text-rose-500">*</span></label>
-                            <input type="text" name="version" value="v1.0" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-mono focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                            <input type="text" name="version" value="v1.0" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-mono focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none" />
                         </div>
                     </div>
 
                     <!-- Tên tài liệu / Giáo trình -->
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Tên tài liệu / Giáo trình <span class="text-rose-500">*</span></label>
-                        <input type="text" name="title" placeholder="IELTS Reading Masterclass - Student Book" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-medium focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                        <input type="text" name="title" placeholder="IELTS Reading Masterclass - Student Book" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-medium focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none" />
                     </div>
 
                     <!-- Chọn khóa học -->
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Chọn khóa học áp dụng <span class="text-rose-500">*</span></label>
-                        <select name="course_id" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 bg-white focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                        <select name="course_id" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none">
                             <option value="">-- Chọn khóa học --</option>
                             @foreach ($courses as $c)
                                 <option value="{{ $c->id }}">{{ $c->name }} ({{ $c->code }})</option>
@@ -67,7 +67,7 @@
                     <!-- Chọn chặng học -->
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Chọn chặng học <span class="text-rose-500">*</span></label>
-                        <select class="w-full text-xs rounded-xl border border-gray-200 p-2.5 bg-white focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                        <select class="w-full text-xs rounded-xl border border-gray-200 p-2.5 bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none">
                             <option value="phase1">Chặng 1 (0 - 3.0: Xây dựng nền tảng)</option>
                             <option value="phase2">Chặng 2 (3.0 - 5.0: Kỹ năng chuyên sâu)</option>
                             <option value="phase3">Chặng 3 (5.0 - 6.5: Luyện đề &amp; Bứt phá)</option>
@@ -79,19 +79,19 @@
                         <label class="block text-xs font-semibold text-gray-700 mb-1.5">Chọn đối tượng xem <span class="text-rose-500">*</span></label>
                         <div class="grid grid-cols-2 gap-2 bg-gray-50 p-3 rounded-xl border border-gray-100 text-xs">
                             <label class="flex items-center gap-2 cursor-pointer">
-                                <input checked type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4" />
+                                <input checked type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary-container h-4 w-4" />
                                 <span class="font-medium text-gray-700">Admin</span>
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer">
-                                <input checked type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4" />
+                                <input checked type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary-container h-4 w-4" />
                                 <span class="font-medium text-gray-700">Học vụ</span>
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer">
-                                <input checked type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4" />
+                                <input checked type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary-container h-4 w-4" />
                                 <span class="font-medium text-gray-700">Học thuật</span>
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer">
-                                <input id="teacher-checkbox" type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4" />
+                                <input id="teacher-checkbox" type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary-container h-4 w-4" />
                                 <span class="font-medium text-gray-700">Giáo viên</span>
                             </label>
                         </div>
@@ -100,7 +100,7 @@
                     <!-- Vùng kéo thả file -->
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Tài liệu đính kèm (File PDF/DOCX) <span class="text-rose-500">*</span></label>
-                        <div class="border-2 border-dashed border-gray-200 hover:border-primary/50 rounded-xl p-5 flex flex-col items-center justify-center text-center bg-gray-50/50 hover:bg-orange-50/20 transition-all cursor-pointer">
+                        <div class="border-2 border-dashed border-gray-200 hover:border-primary-container/50 rounded-xl p-5 flex flex-col items-center justify-center text-center bg-gray-50/50 hover:bg-orange-50/20 transition-all cursor-pointer">
                             <span class="material-symbols-outlined text-3xl text-gray-400 mb-1">cloud_upload</span>
                             <p class="text-xs font-semibold text-gray-700">Kéo thả file vào đây hoặc</p>
                             <span class="mt-1.5 px-3 py-1 bg-white border border-gray-200 rounded-lg text-[11px] font-semibold text-gray-700 shadow-2xs hover:bg-gray-50">Chọn file từ máy tính</span>
@@ -116,7 +116,7 @@
 
                     <!-- Submit Button -->
                     <div class="pt-2 border-t border-gray-100">
-                        <button type="submit" class="w-full bg-primary hover:bg-primary-hover text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 text-xs">
+                        <button type="submit" class="w-full bg-primary-container hover:bg-primary-hover text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 text-xs">
                             <span class="material-symbols-outlined text-[18px]">save</span>
                             <span>Lưu tài liệu giáo trình</span>
                         </button>
@@ -139,7 +139,7 @@
                     <div class="flex items-center gap-2">
                         <div class="relative">
                             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
-                            <input type="text" id="docSearchInput" onkeyup="filterDocsTable()" placeholder="Tìm kiếm tài liệu..." class="pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs w-56 focus:border-primary focus:ring-1 focus:ring-primary outline-none bg-white" />
+                            <input type="text" id="docSearchInput" onkeyup="filterDocsTable()" placeholder="Tìm kiếm tài liệu..." class="pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs w-56 focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none bg-white" />
                         </div>
                         <a href="{{ route('teacher-portal.shortcut', '08_xem_tai_lieu_giao_trinh') }}" target="_blank" class="p-2 rounded-xl border border-gray-200 text-gray-600 hover:text-primary hover:bg-orange-50/30 transition" title="Mở Trình đọc PDF Cổng Giáo viên (Step #4)">
                             <span class="material-symbols-outlined text-[18px]">preview</span>
@@ -234,7 +234,7 @@
                         <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-white disabled:opacity-40" disabled>
                             <span class="material-symbols-outlined text-[18px]">chevron_left</span>
                         </button>
-                        <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-white text-xs font-bold shadow-2xs">1</button>
+                        <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-primary-container text-white text-xs font-bold shadow-2xs">1</button>
                         <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-white text-xs font-medium">2</button>
                         <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-white">
                             <span class="material-symbols-outlined text-[18px]">chevron_right</span>

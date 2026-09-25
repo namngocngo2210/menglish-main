@@ -34,7 +34,7 @@
 
             <div class="flex items-center gap-2">
                 <span class="text-xs text-gray-500 font-medium">Chọn lớp dạy:</span>
-                <select class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
+                <select class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container cursor-pointer"
                         onchange="window.location.href = '{{ route('portal.teacher.submissions') }}/' + this.value">
                     @foreach($classes as $c)
                         <option value="{{ $c->id }}" {{ ($class && $class->id === $c->id) ? 'selected' : '' }}>
@@ -59,7 +59,7 @@
 
             @foreach($types as $k => $v)
                 <a href="{{ route('portal.teacher.submissions', ['classId' => $class?->id]) }}?type={{ $k }}"
-                   class="px-4 py-2 rounded-full text-xs font-bold transition flex items-center gap-1.5 {{ $activeTab === $k ? 'bg-primary text-white shadow-2xs' : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200' }}">
+                   class="px-4 py-2 rounded-full text-xs font-bold transition flex items-center gap-1.5 {{ $activeTab === $k ? 'bg-primary-container text-white shadow-2xs' : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200' }}">
                     <span class="material-symbols-outlined text-[16px]">{{ $v['icon'] }}</span>
                     <span>{{ $v['label'] }}</span>
                 </a>
@@ -81,7 +81,7 @@
                 @foreach($submissions as $sub)
                     <div class="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-orange-50/20 transition">
                         <div class="flex items-center gap-3 flex-1">
-                            <div class="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0 border border-primary/20">
+                            <div class="w-12 h-12 rounded-full bg-primary-container/10 text-primary flex items-center justify-center font-bold text-sm shrink-0 border border-primary-container/20">
                                 {{ mb_substr($sub->data['student_name'] ?? 'HV', 0, 2) }}
                             </div>
                             <div>

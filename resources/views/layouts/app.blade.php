@@ -1,3 +1,18 @@
+{{--
+    Layout ứng dụng (App Shell theo mockup crm-ui-mockup/app-shell-layout).
+    Dùng: <x-app-layout title="Tiêu đề trang"> ... </x-app-layout>
+      - slot `header` (tuỳ chọn): nội dung tiêu đề trên topbar (mặc định = title).
+      - thuộc tính `title`: <title> của tab trình duyệt + tiêu đề topbar.
+      - thuộc tính `hide-errors`: tắt alert lỗi validate toàn cục (khi trang tự hiển thị danh sách lỗi).
+--}}
+@php
+    $pageTitle = $attributes->get('title');
+    $currentUser = Auth::user();
+    $menu = app(\App\Support\Navigation\SidebarMenu::class);
+    $quickCreate = $menu->quickCreateFor($currentUser);
+    $canSearchLeads = $currentUser?->can('lead.view') && Route::has('crm.customers.index');
+    $canViewNotifications = (bool) $currentUser?->can('notification.view');
+@endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
@@ -5,103 +20,99 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+        <title>{{ $pageTitle ? $pageTitle . ' · ' : '' }}{{ config('app.name', 'MEnglish') }}</title>
 
-        <!-- Favicon -->
         <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
         <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
         <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
         <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
-
-        <!-- Scripts -->
+        {{-- Font & icon được tự host qua Vite (resources/css/app.css) --}}
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans antialiased bg-gray-100 text-gray-900">
-        <div class="min-h-screen bg-gray-100 flex flex-col" x-data="{ sidebarOpen: false }">
+    <body class="bg-background font-body-base text-body-base text-on-surface antialiased">
+        <div class="flex min-h-screen flex-col" x-data="{ sidebarOpen: false }" @keydown.escape.window="sidebarOpen = false">
             @include('layouts.navigation')
 
-            <div class="flex-1 flex flex-col min-w-0 lg:pl-[280px]">
-                <!-- Top bar -->
-                <header class="min-h-[64px] py-2 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 sticky top-0 z-30 gap-4">
-                    <div class="flex items-center gap-3 min-w-0 flex-1">
-                        <button class="lg:hidden text-gray-500 hover:text-gray-700 p-1.5 rounded-lg border border-gray-200 bg-gray-50 shrink-0" @click="sidebarOpen = true">
-                            <span class="material-symbols-outlined text-2xl">menu</span>
+            <div class="flex min-w-0 flex-1 flex-col md:pl-sidebar-collapsed desktop:pl-sidebar-width">
+                {{-- Topbar --}}
+                <header class="sticky top-0 z-30 flex h-header-height shrink-0 items-center justify-between gap-md border-b border-surface-container-highest bg-surface px-md lg:px-lg">
+                    <div class="flex min-w-0 flex-1 items-center gap-md lg:gap-lg">
+                        <button type="button" class="shrink-0 rounded-lg p-xs text-on-surface-variant hover:bg-surface-container-high md:hidden" @click="sidebarOpen = true" aria-label="Mở menu">
+                            <span class="material-symbols-outlined">menu</span>
                         </button>
-                        <div class="min-w-0 flex-1">
+
+                        <div class="min-w-0 truncate font-h3 text-h3 text-on-surface">
                             @isset($header)
-                                <div class="min-w-0">{{ $header }}</div>
+                                {{ $header }}
                             @else
-                                <div class="flex items-center gap-2 text-sm text-gray-500 font-medium">
-                                    <a href="{{ route('dashboard') }}" class="text-gray-900 font-bold hover:text-primary transition-colors flex items-center gap-1.5">
-                                        <span>MEnglish Admin Portal</span>
-                                    </a>
-                                </div>
+                                {{ $pageTitle ?? 'MEnglish' }}
                             @endisset
                         </div>
+
+                        @if ($canSearchLeads)
+                            <form method="GET" action="{{ route('crm.customers.index') }}" role="search" class="relative hidden w-[300px] shrink-0 lg:block">
+                                <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
+                                <input type="search" name="search" value="{{ request()->routeIs('crm.customers.index') ? request('search') : '' }}"
+                                       placeholder="Tìm kiếm Lead, SĐT..." aria-label="Tìm kiếm Lead, SĐT"
+                                       class="w-full rounded-full border-none bg-surface-container-low py-2 pl-10 pr-md font-body-small text-body-small text-on-surface placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-primary-container/20">
+                            </form>
+                        @endif
                     </div>
 
-                    <!-- Right header items -->
-                    <div class="flex items-center gap-3 shrink-0">
-
-                        <!-- Notification Bell with Scoped Alerts -->
+                    <div class="flex shrink-0 items-center gap-xs sm:gap-md">
+                        {{-- Thông báo --}}
                         @php
                             $notifService = app(\App\Services\NotificationService::class);
-                            $currentUser = Auth::user();
                             $unreadNotifsCount = $notifService->getUnreadCount($currentUser);
                             $headerNotifs = $notifService->getUserNotifications($currentUser, 6);
                         @endphp
                         <x-dropdown align="right" width="notification">
                             <x-slot name="trigger">
-                                <button class="relative p-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition focus:outline-none" title="Thông báo & Cảnh báo">
-                                    <span class="material-symbols-outlined text-2xl">notifications</span>
+                                <button type="button" class="relative rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-primary" title="Thông báo & Cảnh báo" aria-label="Thông báo">
+                                    <span class="material-symbols-outlined">notifications</span>
                                     @if ($unreadNotifsCount > 0)
-                                        <span class="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 bg-rose-600 text-white font-mono font-bold text-[10px] rounded-full flex items-center justify-center animate-pulse border-2 border-white shadow-sm">
+                                        <span class="absolute right-1 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-surface bg-error px-1 font-code text-[10px] font-bold text-white">
                                             {{ $unreadNotifsCount > 9 ? '9+' : $unreadNotifsCount }}
                                         </span>
                                     @endif
                                 </button>
                             </x-slot>
                             <x-slot name="content">
-                                <div class="p-3.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                                    <div class="font-bold text-xs text-gray-900 flex items-center gap-1.5">
-                                        <span class="material-symbols-outlined text-rose-600 text-base">notifications_active</span>
-                                        <span>Cảnh Báo Quản Trị</span>
+                                <div class="flex items-center justify-between border-b border-surface-container bg-surface-container-low p-md">
+                                    <div class="flex items-center gap-xs font-body-semibold text-body-semibold text-on-surface">
+                                        <span class="material-symbols-outlined text-[18px] text-error">notifications_active</span>
+                                        <span>Cảnh báo quản trị</span>
                                         @if ($unreadNotifsCount > 0)
-                                            <span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px]">{{ $unreadNotifsCount }} chưa đọc</span>
+                                            <x-ui.badge color="error" :dot="false" pill>{{ $unreadNotifsCount }} chưa đọc</x-ui.badge>
                                         @endif
                                     </div>
-                                    @if ($unreadNotifsCount > 0)
+                                    @if ($unreadNotifsCount > 0 && $canViewNotifications)
                                         <form action="{{ route('notifications.read-all') }}" method="POST" class="inline">
                                             @csrf
-                                            <button type="submit" class="text-[11px] font-semibold text-primary hover:underline">Đã đọc tất cả</button>
+                                            <button type="submit" class="font-caption text-caption font-semibold text-primary hover:underline">Đã đọc tất cả</button>
                                         </form>
                                     @endif
                                 </div>
 
-                                <div class="max-h-[380px] overflow-y-auto divide-y divide-gray-100">
+                                <div class="max-h-[380px] divide-y divide-surface-container overflow-y-auto">
                                     @forelse ($headerNotifs as $hn)
-                                        <div class="p-3.5 hover:bg-gray-50 transition flex items-start gap-3 {{ !$hn->is_read ? 'bg-rose-50/20' : '' }}">
-                                            <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 {{ $hn->badge_color }}">
-                                                <span class="material-symbols-outlined text-lg">{{ $hn->icon }}</span>
+                                        <div class="flex items-start gap-sm p-md transition-colors hover:bg-surface-container-low {{ ! $hn->is_read ? 'bg-error-container/20' : '' }}">
+                                            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg {{ $hn->badge_color }}">
+                                                <span class="material-symbols-outlined text-[18px]">{{ $hn->icon }}</span>
                                             </div>
-                                            <div class="flex-1 min-w-0 space-y-1">
-                                                <div class="flex items-center justify-between gap-2">
-                                                    <span class="font-bold text-xs text-gray-900 truncate">{{ $hn->title }}</span>
-                                                    @if (!$hn->is_read)
-                                                        <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                                            <div class="min-w-0 flex-1 space-y-xs">
+                                                <div class="flex items-center justify-between gap-sm">
+                                                    <span class="truncate font-body-semibold text-body-small text-on-surface">{{ $hn->title }}</span>
+                                                    @if (! $hn->is_read)
+                                                        <span class="h-2 w-2 shrink-0 rounded-full bg-error"></span>
                                                     @endif
                                                 </div>
-                                                <p class="text-[11px] text-gray-600 leading-snug line-clamp-2">{{ $hn->message }}</p>
-                                                <div class="flex items-center justify-between pt-1">
-                                                    <span class="text-[10px] text-gray-400 font-mono">{{ $hn->created_at->diffForHumans() }}</span>
+                                                <p class="line-clamp-2 font-caption text-caption text-on-surface-variant">{{ $hn->message }}</p>
+                                                <div class="flex items-center justify-between">
+                                                    <span class="font-code text-[10px] text-on-surface-variant/70">{{ $hn->created_at->diffForHumans() }}</span>
                                                     @if ($hn->data && isset($hn->data['link']))
-                                                        <a href="{{ $hn->data['link'] }}" class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline inline-flex items-center gap-0.5">
+                                                        <a href="{{ $hn->data['link'] }}" class="inline-flex items-center gap-0.5 font-caption text-caption font-semibold text-secondary hover:underline">
                                                             <span>Xử lý ngay</span>
                                                             <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
                                                         </a>
@@ -110,135 +121,107 @@
                                             </div>
                                         </div>
                                     @empty
-                                        <div class="p-8 text-center text-xs text-gray-400 space-y-1">
-                                            <span class="material-symbols-outlined text-3xl text-gray-300 block mx-auto">notifications_paused</span>
-                                            <div>Không có thông báo hoặc cảnh báo nào.</div>
-                                        </div>
+                                        <x-ui.empty-state icon="notifications_paused" title="Không có thông báo" description="Chưa có thông báo hoặc cảnh báo nào." class="!py-lg" />
                                     @endforelse
                                 </div>
 
-                                <div class="p-3 border-t border-gray-100 bg-gray-50 text-center">
-                                    <a href="{{ route('notifications.index') }}" class="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1">
-                                        <span>Xem tất cả cảnh báo &amp; Lead tồn đọng</span>
-                                        <span class="material-symbols-outlined text-sm">chevron_right</span>
-                                    </a>
-                                </div>
+                                @if ($canViewNotifications)
+                                    <div class="border-t border-surface-container bg-surface-container-low p-sm text-center">
+                                        <a href="{{ route('notifications.index') }}" class="inline-flex items-center gap-xs font-body-small text-body-small font-semibold text-primary hover:underline">
+                                            <span>Xem tất cả cảnh báo &amp; Lead tồn đọng</span>
+                                            <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+                                        </a>
+                                    </div>
+                                @endif
                             </x-slot>
                         </x-dropdown>
 
-                        <!-- User Profile Dropdown -->
+                        {{-- Tạo mới --}}
+                        @if ($quickCreate !== [])
+                            <x-dropdown align="right" width="56">
+                                <x-slot name="trigger">
+                                    <button type="button" class="inline-flex shrink-0 items-center gap-xs whitespace-nowrap rounded-lg bg-primary-container px-sm py-2 font-body-medium text-body-medium text-white shadow-md shadow-primary-container/20 transition-colors hover:bg-primary sm:px-md" aria-haspopup="menu">
+                                        <span class="material-symbols-outlined text-[20px]">add</span>
+                                        <span class="hidden sm:inline">Tạo mới</span>
+                                    </button>
+                                </x-slot>
+                                <x-slot name="content">
+                                    <div class="py-xs" role="menu">
+                                        @foreach ($quickCreate as $qc)
+                                            <a href="{{ $qc['url'] }}" role="menuitem" class="flex items-center gap-sm px-md py-sm font-body-medium text-body-medium text-on-surface transition-colors hover:bg-surface-container-low hover:text-primary">
+                                                <span class="material-symbols-outlined text-[20px] text-on-surface-variant">{{ $qc['icon'] }}</span>
+                                                {{ $qc['label'] }}
+                                            </a>
+                                        @endforeach
+                                    </div>
+                                </x-slot>
+                            </x-dropdown>
+                        @endif
+
+                        {{-- Tài khoản --}}
                         <x-dropdown align="right" width="56">
                             <x-slot name="trigger">
-                                <button class="inline-flex items-center gap-1.5 p-1 text-sm font-medium text-gray-700 hover:text-gray-900 rounded-lg">
-                                    <span class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">{{ Str::substr(Auth::user()?->name ?? 'A', 0, 1) }}</span>
-                                    <span class="hidden md:inline font-semibold">{{ Auth::user()?->name ?? 'Admin User' }}</span>
-                                    <span class="material-symbols-outlined text-sm text-gray-400">expand_more</span>
+                                <button type="button" class="flex items-center gap-sm rounded-lg p-xs text-left transition-colors hover:bg-surface-container-low sm:border-l sm:border-surface-container-highest sm:pl-md" aria-label="Tài khoản">
+                                    <span class="hidden text-right lg:block">
+                                        <span class="block max-w-[160px] truncate font-body-medium text-body-medium leading-tight text-on-surface">{{ $currentUser?->name }}</span>
+                                        <span class="block font-caption text-caption text-on-surface-variant">{{ $currentUser?->email }}</span>
+                                    </span>
+                                    <span class="rounded-full border-2 border-primary-container/20 p-0.5">
+                                        <x-ui.avatar :name="$currentUser?->name ?? '?'" size="sm" />
+                                    </span>
                                 </button>
                             </x-slot>
                             <x-slot name="content">
-                                <div class="px-4 py-2 border-b border-gray-100">
-                                    <div class="text-xs font-bold text-gray-900">{{ Auth::user()?->name ?? 'Admin User' }}</div>
-                                    <div class="text-[11px] text-gray-500">{{ Auth::user()?->email ?? 'admin@menglish.edu.vn' }}</div>
+                                <div class="border-b border-surface-container px-md py-sm">
+                                    <div class="truncate font-body-semibold text-body-small text-on-surface">{{ $currentUser?->name }}</div>
+                                    <div class="truncate font-caption text-caption text-on-surface-variant">{{ $currentUser?->email }}</div>
                                 </div>
-                                <x-dropdown-link :href="route('profile.edit')">
-                                    <div class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px]">account_circle</span> {{ __('Hồ sơ cá nhân') }}</div>
-                                </x-dropdown-link>
+                                <a href="{{ route('profile.edit') }}" class="flex items-center gap-sm px-md py-sm font-body-medium text-body-medium text-on-surface hover:bg-surface-container-low">
+                                    <span class="material-symbols-outlined text-[20px] text-on-surface-variant">account_circle</span> Hồ sơ cá nhân
+                                </a>
                                 <form method="POST" action="{{ route('logout') }}">
                                     @csrf
-                                    <x-dropdown-link :href="route('logout')" onclick="event.preventDefault(); this.closest('form').submit();">
-                                        <div class="flex items-center gap-2 text-rose-600"><span class="material-symbols-outlined text-[18px]">logout</span> {{ __('Đăng xuất') }}</div>
-                                    </x-dropdown-link>
+                                    <button type="submit" class="flex w-full items-center gap-sm px-md py-sm font-body-medium text-body-medium text-error hover:bg-error-container/40">
+                                        <span class="material-symbols-outlined text-[20px]">logout</span> Đăng xuất
+                                    </button>
                                 </form>
                             </x-slot>
                         </x-dropdown>
                     </div>
                 </header>
 
-                @if (session('status'))
-                    <div class="m-4 sm:m-6 mb-0 p-4 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-3">
-                        <span class="material-symbols-outlined text-emerald-600">check_circle</span>
-                        <span class="text-sm font-medium">{{ session('status') }}</span>
-                    </div>
-                @endif
+                {{-- Nội dung trang --}}
+                <main class="flex-1 p-md lg:p-lg">
+                    @if ($errors->any() && ! $attributes->get('hide-errors'))
+                        <x-ui.alert type="error" title="Vui lòng kiểm tra lại thông tin" class="mb-lg" dismissible data-global-errors>
+                            <ul class="list-inside list-disc space-y-0.5">
+                                @foreach ($errors->all() as $message)
+                                    <li>{{ $message }}</li>
+                                @endforeach
+                            </ul>
+                        </x-ui.alert>
+                    @endif
 
-                <!-- Page Content -->
-                <main class="flex-1 p-4 sm:p-6 lg:p-8">
                     {{ $slot }}
                 </main>
 
-                <!-- Footer -->
-                <footer class="mt-auto py-4 px-4 sm:px-6 lg:px-8 border-t border-gray-200/80 bg-white/70 backdrop-blur-xs text-xs text-gray-500 flex flex-col sm:flex-row items-center justify-between gap-2 select-none">
-                    <div class="flex items-center gap-2">
-                        <span class="font-semibold text-gray-700">MENGLISH Admin</span>
-                        <span class="text-gray-300">&bull;</span>
-                        <span>Hệ thống Quản trị Giáo dục &amp; Học vụ</span>
+                <footer class="mt-auto flex select-none flex-col items-center justify-between gap-xs border-t border-surface-container-highest bg-surface px-md py-md font-caption text-caption text-on-surface-variant sm:flex-row lg:px-lg">
+                    <div class="flex items-center gap-xs">
+                        <span class="font-semibold text-on-surface">MENGLISH</span>
+                        <span aria-hidden="true">&bull;</span>
+                        <span>Hệ thống quản trị giáo dục &amp; học vụ</span>
                     </div>
-                    <div class="flex items-center gap-1.5 text-gray-500">
+                    <div class="flex items-center gap-xs">
                         <span>Phát triển bởi</span>
-                        <a 
-                            href="https://vmst.vn" 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            class="font-bold text-[#ea580c] hover:text-[#c2410c] hover:underline transition inline-flex items-center gap-0.5"
-                            title="Truy cập website VMST Media"
-                        >
-                            <span>VMST Media</span>
-                            <span class="material-symbols-outlined text-[13px] opacity-70">open_in_new</span>
+                        <a href="https://vmst.vn" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-0.5 font-semibold text-primary hover:underline">
+                            VMST Media <span class="material-symbols-outlined text-[13px] opacity-70">open_in_new</span>
                         </a>
                     </div>
                 </footer>
             </div>
 
-            <!-- Global Floating Toast Notification System -->
-            <div x-data="{
-                toasts: [],
-                add(message, type = 'success') {
-                    const id = Date.now();
-                    this.toasts.push({ id, message, type });
-                    setTimeout(() => this.remove(id), 4500);
-                },
-                remove(id) {
-                    this.toasts = this.toasts.filter(t => t.id !== id);
-                }
-            }"
-            x-init="
-                @if (session('success') || session('status'))
-                    add('{{ session('success') ?? session('status') }}', 'success');
-                @endif
-                @if (session('error'))
-                    add('{{ session('error') }}', 'error');
-                @endif
-                @if (session('warning'))
-                    add('{{ session('warning') }}', 'warning');
-                @endif
-                window.addEventListener('toast', e => add(e.detail.message, e.detail.type || 'success'));
-            "
-            class="fixed top-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none">
-                <template x-for="toast in toasts" :key="toast.id">
-                    <div class="pointer-events-auto flex items-center justify-between p-4 rounded-2xl shadow-xl border text-xs font-semibold transform transition-all duration-300 translate-y-0"
-                         :class="{
-                             'bg-emerald-600 text-white border-emerald-500 shadow-emerald-600/20': toast.type === 'success',
-                             'bg-rose-600 text-white border-rose-500 shadow-rose-600/20': toast.type === 'error',
-                             'bg-amber-500 text-white border-amber-400 shadow-amber-500/20': toast.type === 'warning',
-                             'bg-blue-600 text-white border-blue-500 shadow-blue-600/20': toast.type === 'info'
-                         }"
-                         x-transition:enter="transition ease-out duration-300"
-                         x-transition:enter-start="opacity-0 translate-x-8"
-                         x-transition:enter-end="opacity-100 translate-x-0"
-                         x-transition:leave="transition ease-in duration-200"
-                         x-transition:leave-start="opacity-100 translate-x-0"
-                         x-transition:leave-end="opacity-0 translate-x-8">
-                        <div class="flex items-center gap-2.5">
-                            <span class="material-symbols-outlined text-lg"
-                                  x-text="toast.type === 'success' ? 'check_circle' : (toast.type === 'error' ? 'error' : (toast.type === 'warning' ? 'warning' : 'info'))"></span>
-                            <span x-text="toast.message" class="leading-snug"></span>
-                        </div>
-                        <button type="button" @click="remove(toast.id)" class="ml-3 text-white/80 hover:text-white p-0.5 rounded-lg">
-                            <span class="material-symbols-outlined text-sm">close</span>
-                        </button>
-                    </div>
-                </template>
-            </div>
+            {{-- Toast toàn cục: flash session + event "toast" --}}
+            <x-ui.toast />
 
             @stack('scripts')
         </div>

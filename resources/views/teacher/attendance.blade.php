@@ -60,13 +60,13 @@
                             <input type="text" name="note[{{ $student->id }}]"
                                    value="{{ $existing->get($student->id)?->note }}"
                                    placeholder="Ghi chú..."
-                                   class="w-full sm:w-48 text-xs rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
+                                   class="w-full sm:w-48 text-xs rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
                         </div>
                     @endforeach
                 </div>
 
                 <div class="flex justify-end">
-                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
                         <span class="material-symbols-outlined text-[18px]">save</span>
                         Lưu điểm danh
                     </button>

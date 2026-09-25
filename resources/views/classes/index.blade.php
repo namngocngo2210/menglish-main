@@ -16,7 +16,7 @@
                     <span>Đặt lịch học thử</span>
                 </a>
                 @can('class.create')
-                <a href="{{ route('classes.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary-dark transition">
+                <a href="{{ route('classes.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-dark transition">
                     <span class="material-symbols-outlined text-[18px]">add</span>
                     <span>Tạo lớp mới</span>
                 </a>
@@ -31,7 +31,7 @@
         <!-- Stat Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-2xs flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                <div class="w-10 h-10 rounded-xl bg-primary-container/10 text-primary flex items-center justify-center">
                     <span class="material-symbols-outlined text-[22px]">school</span>
                 </div>
                 <div>
@@ -73,22 +73,22 @@
             <div class="flex-1 relative">
                 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
                 <input type="text" name="search" value="{{ $search }}" placeholder="Tìm tên lớp hoặc mã lớp..."
-                    class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl bg-gray-50 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                    class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl bg-gray-50 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
             </div>
-            <select name="branch_id" class="px-3 py-2 border border-gray-200 rounded-xl bg-gray-50 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition cursor-pointer">
+            <select name="branch_id" class="px-3 py-2 border border-gray-200 rounded-xl bg-gray-50 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition cursor-pointer">
                 <option value="">Tất cả chi nhánh</option>
                 @foreach($branches as $b)
                     <option value="{{ $b->id }}" {{ $branchFilter == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
                 @endforeach
             </select>
-            <select name="status" class="px-3 py-2 border border-gray-200 rounded-xl bg-gray-50 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition cursor-pointer">
+            <select name="status" class="px-3 py-2 border border-gray-200 rounded-xl bg-gray-50 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition cursor-pointer">
                 <option value="all" {{ $statusFilter === 'all' || !$statusFilter ? 'selected' : '' }}>Tất cả trạng thái</option>
                 <option value="active" {{ $statusFilter === 'active' ? 'selected' : '' }}>Đang hoạt động</option>
                 <option value="pending_schedule" {{ $statusFilter === 'pending_schedule' ? 'selected' : '' }}>Chờ lịch</option>
                 <option value="completed" {{ $statusFilter === 'completed' ? 'selected' : '' }}>Đã kết thúc</option>
                 <option value="cancelled" {{ $statusFilter === 'cancelled' ? 'selected' : '' }}>Đã hủy</option>
             </select>
-            <button type="submit" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-dark transition flex items-center gap-1.5">
+            <button type="submit" class="px-4 py-2 rounded-xl bg-primary-container text-white text-xs font-bold hover:bg-primary-dark transition flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[16px]">filter_list</span>
                 Lọc
             </button>
@@ -178,7 +178,7 @@
                                     <div class="flex flex-col items-center gap-3 text-gray-400">
                                         <span class="material-symbols-outlined text-5xl text-gray-200">school</span>
                                         <p class="text-sm font-medium">Không tìm thấy lớp học nào</p>
-                                        <a href="{{ route('classes.create') }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-dark transition">
+                                        <a href="{{ route('classes.create') }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-container text-white text-xs font-bold hover:bg-primary-dark transition">
                                             <span class="material-symbols-outlined text-[16px]">add</span>
                                             Tạo lớp mới
                                         </a>

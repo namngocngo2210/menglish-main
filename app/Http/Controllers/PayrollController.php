@@ -14,8 +14,11 @@ use App\Models\TeacherTimesheet;
 use App\Models\TimesheetSyncLog;
 use App\Models\SystemSetting;
 use App\Models\User;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class PayrollController extends Controller
@@ -74,14 +77,23 @@ class PayrollController extends Controller
     public function approvePeriod($id)
     {
         $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
-        abort_if(in_array($period->status, ['approved', 'paid'], true), 422, 'Kỳ lương đã khóa.');
-        $period->update(['status' => 'approved']);
-        $period->records()->update(['status' => 'confirmed']);
+        abort_if($period->isLocked(), 422, 'Kỳ lương đã khóa.');
 
-        // Đóng dấu các biên bản phạt của kỳ đã được trừ vào lương để không double-count
-        Penalty::whereIn('status', Penalty::payableStatuses())
-            ->whereBetween('violation_date', [$period->start_date, $period->end_date])
-            ->update(['status' => 'deducted']);
+        if ($period->hasChangesSinceCalculation()) {
+            $message = 'Chấm công hoặc biên bản phạt của kỳ đã thay đổi sau lần tính gần nhất — vui lòng bấm "Đồng bộ & Tính lại" trước khi duyệt.';
+
+            return redirect()->back()->withErrors(['period' => $message])->with('error', $message);
+        }
+
+        DB::transaction(function () use ($period) {
+            $period->update(['status' => 'approved']);
+            $period->records()->update(['status' => 'confirmed']);
+
+            // Chỉ đóng dấu "deducted" các biên bản thực sự đã trừ vào bản ghi lương của kỳ này
+            Penalty::whereIn('payroll_record_id', $period->records()->select('id'))
+                ->whereIn('status', Penalty::payableStatuses())
+                ->update(['status' => 'deducted']);
+        });
 
         return redirect()->back()->with('status', "Đã phê duyệt bảng lương {$period->title}!");
     }
@@ -102,8 +114,13 @@ class PayrollController extends Controller
     public function calculatePeriod($id)
     {
         $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
-        abort_if(in_array($period->status, ['approved', 'paid'], true), 422, 'Không thể tính lại kỳ lương đã duyệt hoặc đã chi trả.');
-        $period->calculatePayrollForPeriod();
+        abort_if($period->isLocked(), 422, 'Không thể tính lại kỳ lương đã duyệt hoặc đã chi trả.');
+
+        try {
+            $period->calculatePayrollForPeriod();
+        } catch (LockTimeoutException) {
+            return redirect()->back()->with('error', 'Kỳ lương đang được tính bởi phiên khác — vui lòng thử lại sau ít phút.');
+        }
 
         return redirect()->back()->with('status', "Đã đồng bộ và tính toán lại bảng lương {$period->title} từ Chấm công, KPI và Phạt!");
     }
@@ -128,6 +145,7 @@ class PayrollController extends Controller
             $validated['foreign_teacher_sessions_count'] * $validated['foreign_teacher_deduction_rate'];
         $record->calculateNetSalary();
         $record->save();
+        $record->period->refreshTotals();
 
         return redirect()->back()->with('status', 'Đã cập nhật điều chỉnh và tính lại lương thực lĩnh.');
     }
@@ -175,17 +193,22 @@ class PayrollController extends Controller
             'class_id' => 'required|exists:classes,id',
             'teaching_date' => 'required|date',
             'hours' => 'required|numeric|min:0.5',
-            'hourly_rate' => 'required|numeric|min:1000',
+            // Bỏ trống = dùng đơn giá của nhân sự (users.hourly_rate) rồi tới mức mặc định
+            'hourly_rate' => 'nullable|numeric|min:1000',
             'type' => ['required', 'in:regular,sub,1on1,grading,workshop'],
             'notes' => 'nullable|string|max:500',
         ]);
+
+        if (PayrollPeriod::isLockedFor($validated['teaching_date'])) {
+            return $this->rejectLockedDate('teaching_date', $validated['teaching_date']);
+        }
 
         TeacherTimesheet::create([
             'user_id' => $validated['user_id'],
             'class_id' => $validated['class_id'],
             'teaching_date' => $validated['teaching_date'],
             'hours' => $validated['hours'],
-            'hourly_rate' => $validated['hourly_rate'],
+            'hourly_rate' => $validated['hourly_rate'] ?? null,
             'type' => $validated['type'],
             'status' => 'pending_review',
             'notes' => $validated['notes'] ?? null,
@@ -218,6 +241,9 @@ class PayrollController extends Controller
             'rejection_reason' => ['nullable', 'required_if:decision,invalid', 'string', 'max:1000'],
         ]);
         $timesheet = TeacherTimesheet::findOrFail($id);
+        if (PayrollPeriod::isLockedFor($timesheet->teaching_date)) {
+            return $this->rejectLockedDate('teaching_date', $timesheet->teaching_date);
+        }
         $timesheet->update([
             'status' => $validated['decision'],
             'reviewed_by' => Auth::id(),
@@ -388,12 +414,32 @@ class PayrollController extends Controller
         return redirect()->back()->with('status', 'Đã xóa bậc cấu hình hoa hồng: '.$name);
     }
 
-    public function mySalary()
+    /**
+     * Phiếu lương cá nhân: chỉ các kỳ đã duyệt/đã chi trả (bản nháp có thể còn thay đổi).
+     */
+    public function mySalary(Request $request)
     {
         $user = Auth::user();
-        $record = PayrollRecord::with('period')->where('user_id', $user->id)->latest()->first();
+        $records = PayrollRecord::with('period')
+            ->where('user_id', $user->id)
+            ->whereHas('period', fn ($query) => $query->whereIn('status', PayrollPeriod::LOCKED_STATUSES))
+            ->get()
+            ->sortByDesc(fn (PayrollRecord $record) => $record->period->start_date)
+            ->values();
 
-        return view('payroll.my-salary', compact('user', 'record'));
+        $record = $request->filled('period_id')
+            ? $records->firstWhere('payroll_period_id', (int) $request->query('period_id'))
+            : $records->first();
+        abort_if($request->filled('period_id') && $record === null, 404);
+
+        return view('payroll.my-salary', compact('user', 'record', 'records'));
+    }
+
+    private function rejectLockedDate(string $field, $date): RedirectResponse
+    {
+        $message = PayrollPeriod::lockedMessage($date);
+
+        return redirect()->back()->withInput()->withErrors([$field => $message])->with('error', $message);
     }
 
     public function appsheetTimesheet()

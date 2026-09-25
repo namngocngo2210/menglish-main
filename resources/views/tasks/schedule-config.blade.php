@@ -10,7 +10,7 @@
                     <span class="material-symbols-outlined text-[18px]">download</span>
                     Xuất Excel
                 </button>
-                <a href="{{ route('tasks.classes-dashboard') }}" class="bg-[#F5691A] text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-[#d85a15] transition shadow-sm flex items-center gap-1.5">
+                <a href="{{ route('tasks.classes-dashboard') }}" class="bg-primary-container text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-primary transition shadow-sm flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-[18px]">dashboard</span>
                     Xem Dashboard Lớp
                 </a>
@@ -36,7 +36,7 @@
                 <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 space-y-5">
                     <div class="flex items-center justify-between border-b border-gray-100 pb-3">
                         <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
-                            <span class="material-symbols-outlined text-[#F5691A]">calendar_month</span>
+                            <span class="material-symbols-outlined text-primary-container">calendar_month</span>
                             Cấu hình lịch lớp mẫu
                         </h2>
                     </div>
@@ -45,7 +45,7 @@
                         @csrf
                         <div>
                             <label class="block font-bold uppercase text-gray-600 mb-1">Chọn lớp học (Chưa có TKB)</label>
-                            <select name="class_id" class="w-full rounded-xl border-gray-200 text-xs focus:ring-primary focus:border-primary">
+                            <select name="class_id" class="w-full rounded-xl border-gray-200 text-xs focus:ring-primary-container focus:border-primary-container">
                                 <option value="">-- Chọn lớp học --</option>
                                 @foreach($classes as $c)
                                     @if(empty($c->schedule_text))
@@ -101,6 +101,7 @@
                                 <div>
                                     <label class="block text-gray-500 mb-1">Ngày trong tuần</label>
                                     <select name="slot2_day" class="w-full rounded-lg border-gray-200 text-xs bg-white">
+                                        <option value="">-- Không học ca 2 --</option>
                                         <option>Thứ 2</option>
                                         <option>Thứ 3</option>
                                         <option>Thứ 4</option>
@@ -123,8 +124,12 @@
                             </div>
                         </div>
 
-                        <div class="pt-3 border-t border-gray-100 flex justify-end gap-2">
-                            <button type="submit" class="bg-[#F5691A] text-white px-4 py-2 rounded-xl font-bold hover:bg-[#d85a15] transition shadow-xs">
+                        <div class="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
+                            <label class="mr-auto inline-flex items-center gap-1.5 text-gray-600">
+                                <input type="checkbox" name="activate" value="1" class="rounded border-gray-300">
+                                Kích hoạt lớp nếu đang "Sắp khai giảng"
+                            </label>
+                            <button type="submit" class="bg-primary-container text-white px-4 py-2 rounded-xl font-bold hover:bg-primary transition shadow-xs">
                                 Cập nhật lịch
                             </button>
                         </div>
@@ -136,7 +141,7 @@
                     <div class="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
                         <h3 class="font-bold text-gray-900 text-sm">Danh sách lớp hiện tại</h3>
                         <input type="text" x-model="searchQuery" placeholder="Tìm lớp..."
-                               class="rounded-lg border-gray-200 text-xs py-1.5 px-3 w-44 bg-white focus:ring-primary focus:border-primary">
+                               class="rounded-lg border-gray-200 text-xs py-1.5 px-3 w-44 bg-white focus:ring-primary-container focus:border-primary-container">
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse text-xs">
@@ -168,6 +173,7 @@
                                             @endif
                                         </td>
                                         <td class="p-3 text-right">
+                                            @if(in_array($c->status, ['active', 'completed'], true) && auth()->user()->can('class.update'))
                                             <form action="{{ route('tasks.schedule-config.update') }}" method="POST" class="inline">
                                                 @csrf
                                                 <input type="hidden" name="toggle_class_id" value="{{ $c->id }}">
@@ -175,6 +181,7 @@
                                                     {{ $c->status === 'active' ? 'Kết thúc lớp' : 'Mở lại lớp' }}
                                                 </button>
                                             </form>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach
@@ -189,7 +196,7 @@
                 <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 flex flex-col space-y-4">
                     <div class="flex items-center justify-between border-b border-gray-100 pb-3">
                         <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
-                            <span class="material-symbols-outlined text-[#F5691A]">groups</span>
+                            <span class="material-symbols-outlined text-primary-container">groups</span>
                             Báo cáo phòng / nhân sự
                         </h2>
                     </div>
@@ -238,7 +245,7 @@
                                             <td class="p-3 text-center font-bold text-gray-700 font-mono">{{ $dm->shift_count }}</td>
                                             <td class="p-2 text-center">
                                                 <input type="number" name="demands[{{ $dm->id }}]" value="{{ $dm->staff_needed }}" min="0" max="20"
-                                                       class="w-16 text-center rounded-lg border-gray-200 text-xs py-1 font-bold text-gray-900 focus:ring-primary focus:border-primary">
+                                                       class="w-16 text-center rounded-lg border-gray-200 text-xs py-1 font-bold text-gray-900 focus:ring-primary-container focus:border-primary-container">
                                             </td>
                                         </tr>
                                     @endforeach
@@ -246,7 +253,7 @@
                             </table>
                         </div>
 
-                        <button type="submit" class="w-full bg-[#F5691A] text-white hover:bg-[#d85a15] font-bold text-xs py-3 rounded-xl transition shadow-xs flex items-center justify-center gap-1.5">
+                        <button type="submit" class="w-full bg-primary-container text-white hover:bg-primary font-bold text-xs py-3 rounded-xl transition shadow-xs flex items-center justify-center gap-1.5">
                             <span class="material-symbols-outlined text-[16px]">save</span>
                             Lưu báo cáo nhân sự
                         </button>

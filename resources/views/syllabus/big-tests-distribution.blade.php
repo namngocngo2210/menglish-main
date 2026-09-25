@@ -9,7 +9,7 @@
                 <p class="text-xs text-gray-500">Phân phối bộ đề thi đồng loạt, cấp mã bảo mật thi và chỉ định phòng thi / giám thị</p>
             </div>
             <div class="flex items-center gap-2">
-                <button type="button" onclick="document.getElementById('newBigTestModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
+                <button type="button" onclick="document.getElementById('newBigTestModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
                     <span class="material-symbols-outlined text-[18px]">add_circle</span>
                     <span>Tạo Đợt Big Test mới</span>
                 </button>
@@ -61,7 +61,7 @@
                 </div>
                 <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
                     <button type="button" onclick="document.getElementById('newBigTestModal').classList.add('hidden')" class="px-3 py-1.5 rounded-lg border text-xs text-gray-600">Hủy</button>
-                    <button type="submit" class="px-4 py-1.5 bg-primary text-white text-xs font-bold rounded-lg shadow-sm">Lưu bản nháp</button>
+                    <button type="submit" class="px-4 py-1.5 bg-primary-container text-white text-xs font-bold rounded-lg shadow-sm">Lưu bản nháp</button>
                 </div>
             </form>
         </div>
@@ -93,7 +93,7 @@
                                 <div class="text-[10px] text-gray-400">{{ $bt->room }}</div>
                             </td>
                             <td class="py-3.5 px-4">{{ $bt->proctor?->name ?? 'Admin' }}</td>
-                            <td class="py-3.5 px-4 font-mono font-bold text-emerald-600">{{ $bt->passcode }}</td>
+                            <td class="py-3.5 px-4 font-mono font-bold text-emerald-600">{{ $bt->passcodeVisibleTo(auth()->user()) ? $bt->passcode : '••••••' }}</td>
                             <td class="py-3.5 px-4 text-right">
                                 <div class="flex justify-end items-center gap-2">
                                     @if(!$bt->is_distributed)

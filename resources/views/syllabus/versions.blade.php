@@ -18,7 +18,7 @@
                     <span class="material-symbols-outlined text-[18px]">edit_attributes</span>
                     <span>Cổng GV gửi đề xuất (Bước #5)</span>
                 </a>
-                <a href="{{ route('syllabus.adjustment-requests') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
+                <a href="{{ route('syllabus.adjustment-requests') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-hover transition">
                     <span class="material-symbols-outlined text-[18px]">rule</span>
                     <span>Duyệt tiến độ (Bước #8)</span>
                 </a>
@@ -171,7 +171,7 @@
                             <div class="space-y-1.5">
                                 <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Người phê duyệt (Admin)</label>
                                 <div class="flex items-center gap-2.5 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
-                                    <div class="w-8 h-8 rounded-full bg-primary text-white font-bold flex items-center justify-center text-xs shadow-2xs">
+                                    <div class="w-8 h-8 rounded-full bg-primary-container text-white font-bold flex items-center justify-center text-xs shadow-2xs">
                                         {{ substr(Auth::user()->name ?? 'A', 0, 1) }}
                                     </div>
                                     <div>
@@ -184,7 +184,7 @@
                             <!-- Ghi chú phản hồi -->
                             <div class="space-y-1.5">
                                 <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Phản hồi / Ghi chú từ người duyệt</label>
-                                <textarea rows="3" placeholder="Nhập lý do phê duyệt hoặc yêu cầu chỉnh sửa thêm trước khi xuất bản..." class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none"></textarea>
+                                <textarea rows="3" placeholder="Nhập lý do phê duyệt hoặc yêu cầu chỉnh sửa thêm trước khi xuất bản..." class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none"></textarea>
                             </div>
 
                             <!-- Timeline -->
@@ -192,7 +192,7 @@
                                 <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Lịch sử xử lý</label>
                                 <div class="relative pl-5 space-y-3 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200 text-xs">
                                     <div class="relative">
-                                        <div class="absolute -left-[17px] top-1 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-white"></div>
+                                        <div class="absolute -left-[17px] top-1 w-2.5 h-2.5 rounded-full bg-primary-container ring-2 ring-white"></div>
                                         <p class="font-bold text-gray-900">Đã gửi đề xuất sửa</p>
                                         <p class="text-[10px] text-gray-400">10:30, Hôm nay - Nguyễn Văn An</p>
                                     </div>
@@ -208,7 +208,7 @@
 
                     <!-- Action Buttons -->
                     <div class="pt-5 mt-5 border-t border-gray-100 flex flex-col gap-2">
-                        <button type="button" onclick="alert('Đã phê duyệt đề xuất sửa giáo trình thành công!')" class="w-full py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-1.5">
+                        <button type="button" onclick="alert('Đã phê duyệt đề xuất sửa giáo trình thành công!')" class="w-full py-2.5 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-1.5">
                             <span class="material-symbols-outlined text-[18px]">check_circle</span>
                             <span>Phê duyệt xuất bản v1.1</span>
                         </button>

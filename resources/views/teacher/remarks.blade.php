@@ -50,7 +50,7 @@
                                 <tr class="hover:bg-gray-50 {{ $isAbsent ? 'bg-gray-50/50 opacity-75' : '' }}">
                                     <td class="px-4 py-3 sticky left-0 bg-white {{ $isAbsent ? 'bg-gray-50' : '' }} z-10 border-r border-gray-200">
                                         <div class="flex items-center gap-3">
-                                            <div class="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+                                            <div class="h-8 w-8 rounded-full bg-primary-container/10 text-primary flex items-center justify-center font-bold text-xs">
                                                 {{ substr($student->name, 0, 1) }}
                                             </div>
                                             <span class="text-sm font-medium text-gray-900">{{ $student->name }}</span>
@@ -76,19 +76,19 @@
                                         @endif
                                     </td>
                                     <td class="px-4 py-3">
-                                        <input name="remarks[{{ $student->id }}][monsters]" value="{{ $remark['monsters'] ?? '' }}" type="text" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm" placeholder="+5" {{ $isAbsent ? 'disabled' : '' }}>
+                                        <input name="remarks[{{ $student->id }}][monsters]" value="{{ $remark['monsters'] ?? '' }}" type="text" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-container focus:ring focus:ring-primary-container focus:ring-opacity-50 text-sm" placeholder="+5" {{ $isAbsent ? 'disabled' : '' }}>
                                     </td>
                                     <td class="px-4 py-3">
-                                        <input name="remarks[{{ $student->id }}][grammar]" value="{{ $remark['grammar'] ?? '' }}" type="text" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm" placeholder="Khá" {{ $isAbsent ? 'disabled' : '' }}>
+                                        <input name="remarks[{{ $student->id }}][grammar]" value="{{ $remark['grammar'] ?? '' }}" type="text" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-container focus:ring focus:ring-primary-container focus:ring-opacity-50 text-sm" placeholder="Khá" {{ $isAbsent ? 'disabled' : '' }}>
                                     </td>
                                     <td class="px-4 py-3">
-                                        <input name="remarks[{{ $student->id }}][attitude]" value="{{ $remark['attitude'] ?? '' }}" type="text" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm" placeholder="Hăng hái" {{ $isAbsent ? 'disabled' : '' }}>
+                                        <input name="remarks[{{ $student->id }}][attitude]" value="{{ $remark['attitude'] ?? '' }}" type="text" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-container focus:ring focus:ring-primary-container focus:ring-opacity-50 text-sm" placeholder="Hăng hái" {{ $isAbsent ? 'disabled' : '' }}>
                                     </td>
                                     <td class="px-4 py-3">
-                                        <input name="remarks[{{ $student->id }}][result]" value="{{ $remark['result'] ?? '' }}" type="text" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm" placeholder="Đạt mục tiêu" {{ $isAbsent ? 'disabled' : '' }}>
+                                        <input name="remarks[{{ $student->id }}][result]" value="{{ $remark['result'] ?? '' }}" type="text" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-container focus:ring focus:ring-primary-container focus:ring-opacity-50 text-sm" placeholder="Đạt mục tiêu" {{ $isAbsent ? 'disabled' : '' }}>
                                     </td>
                                     <td class="px-4 py-3">
-                                        <textarea name="remarks[{{ $student->id }}][comment]" rows="1" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 text-sm" placeholder="{{ $isAbsent ? 'Học sinh vắng mặt' : 'Nhận xét chi tiết...' }}" {{ $isAbsent ? 'disabled' : '' }}>{{ $remark['comment'] ?? '' }}</textarea>
+                                        <textarea name="remarks[{{ $student->id }}][comment]" rows="1" class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-container focus:ring focus:ring-primary-container focus:ring-opacity-50 text-sm" placeholder="{{ $isAbsent ? 'Học sinh vắng mặt' : 'Nhận xét chi tiết...' }}" {{ $isAbsent ? 'disabled' : '' }}>{{ $remark['comment'] ?? '' }}</textarea>
                                     </td>
                                 </tr>
                             @endforeach
@@ -96,7 +96,7 @@
                     </table>
                 </div>
                 <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3">
-                    <button type="submit" class="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2">
+                    <button type="submit" class="px-4 py-2 bg-primary-container text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2">
                         <span class="material-symbols-outlined text-[18px]">check_circle</span>
                         Lưu nhận xét
                     </button>

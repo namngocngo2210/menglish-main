@@ -66,32 +66,32 @@
         <!-- State Demo Switcher Bar (Exact Match Prototype for Testing 4 Business States) -->
         <div class="bg-gray-900 text-white px-3 py-2 text-[11px] flex items-center justify-between sticky top-0 z-50 shadow-md">
             <div class="flex items-center gap-1.5 font-medium text-gray-300">
-                <span class="inline-block w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                <span class="inline-block w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
                 <span>Trạng thái:</span>
             </div>
             <div class="flex gap-1 overflow-x-auto">
                 <button type="button"
                         @click="viewState = 'form-new'; serverError = null;"
                         class="px-2 py-0.5 rounded text-[10px] font-medium transition"
-                        :class="viewState === 'form-new' ? 'bg-primary text-white font-bold' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'">
+                        :class="viewState === 'form-new' ? 'bg-primary-container text-white font-bold' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'">
                     Lần đầu
                 </button>
                 <button type="button"
                         @click="viewState = 'form-updated'; serverError = null;"
                         class="px-2 py-0.5 rounded text-[10px] font-medium transition"
-                        :class="viewState === 'form-updated' ? 'bg-primary text-white font-bold' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'">
+                        :class="viewState === 'form-updated' ? 'bg-primary-container text-white font-bold' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'">
                     Đã gửi (sửa)
                 </button>
                 <button type="button"
                         @click="viewState = 'state-closed'; serverError = null;"
                         class="px-2 py-0.5 rounded text-[10px] font-medium transition"
-                        :class="viewState === 'state-closed' ? 'bg-primary text-white font-bold' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'">
+                        :class="viewState === 'state-closed' ? 'bg-primary-container text-white font-bold' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'">
                     Đợt đóng
                 </button>
                 <button type="button"
                         @click="viewState = 'state-empty'; serverError = null;"
                         class="px-2 py-0.5 rounded text-[10px] font-medium transition"
-                        :class="viewState === 'state-empty' ? 'bg-primary text-white font-bold' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'">
+                        :class="viewState === 'state-empty' ? 'bg-primary-container text-white font-bold' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'">
                     Chưa mở
                 </button>
             </div>
@@ -114,7 +114,7 @@
                 <span>Khảo sát định kỳ</span>
             </a>
             <a href="{{ route('portal.student.feedback', ['studentId' => $student?->id]) }}"
-               class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-primary text-primary font-bold text-xs">
+               class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-primary-container text-primary font-bold text-xs">
                 <span class="material-symbols-outlined text-[16px]">rate_review</span>
                 <span>Feedback chặng học (MH6)</span>
             </a>
@@ -230,22 +230,22 @@
                         <div class="grid grid-cols-3 gap-2">
                             <!-- Checkbox 1: fb_hoc_thuat -->
                             <label class="cursor-pointer flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all"
-                                   :class="fbHocThuat ? 'border-primary bg-orange-50/50 shadow-2xs' : 'border-gray-200 hover:border-gray-300'">
-                                <input type="checkbox" name="fb_hoc_thuat" value="1" x-model="fbHocThuat" @change="showValidationError = false" class="rounded border-gray-300 text-primary focus:ring-primary mb-1">
+                                   :class="fbHocThuat ? 'border-primary-container bg-orange-50/50 shadow-2xs' : 'border-gray-200 hover:border-gray-300'">
+                                <input type="checkbox" name="fb_hoc_thuat" value="1" x-model="fbHocThuat" @change="showValidationError = false" class="rounded border-gray-300 text-primary focus:ring-primary-container mb-1">
                                 <span class="text-xs font-semibold text-gray-700 select-none">Học thuật</span>
                             </label>
 
                             <!-- Checkbox 2: fb_giao_vien -->
                             <label class="cursor-pointer flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all"
-                                   :class="fbGiaoVien ? 'border-primary bg-orange-50/50 shadow-2xs' : 'border-gray-200 hover:border-gray-300'">
-                                <input type="checkbox" name="fb_giao_vien" value="1" x-model="fbGiaoVien" @change="showValidationError = false" class="rounded border-gray-300 text-primary focus:ring-primary mb-1">
+                                   :class="fbGiaoVien ? 'border-primary-container bg-orange-50/50 shadow-2xs' : 'border-gray-200 hover:border-gray-300'">
+                                <input type="checkbox" name="fb_giao_vien" value="1" x-model="fbGiaoVien" @change="showValidationError = false" class="rounded border-gray-300 text-primary focus:ring-primary-container mb-1">
                                 <span class="text-xs font-semibold text-gray-700 select-none">Giáo viên</span>
                             </label>
 
                             <!-- Checkbox 3: fb_khac -->
                             <label class="cursor-pointer flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all"
-                                   :class="fbKhac ? 'border-primary bg-orange-50/50 shadow-2xs' : 'border-gray-200 hover:border-gray-300'">
-                                <input type="checkbox" name="fb_khac" value="1" x-model="fbKhac" @change="showValidationError = false" class="rounded border-gray-300 text-primary focus:ring-primary mb-1">
+                                   :class="fbKhac ? 'border-primary-container bg-orange-50/50 shadow-2xs' : 'border-gray-200 hover:border-gray-300'">
+                                <input type="checkbox" name="fb_khac" value="1" x-model="fbKhac" @change="showValidationError = false" class="rounded border-gray-300 text-primary focus:ring-primary-container mb-1">
                                 <span class="text-xs font-semibold text-gray-700 select-none">Khác</span>
                             </label>
                         </div>
@@ -265,7 +265,7 @@
                                   x-model="noiDung"
                                   @input="showValidationError = false"
                                   placeholder="Chia sẻ cảm nhận của phụ huynh/học sinh về giáo trình, phương pháp giảng dạy hoặc điểm cần hỗ trợ thêm..."
-                                  class="w-full text-xs text-gray-800 placeholder-gray-400 border border-gray-300 rounded-xl p-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-none transition-all"></textarea>
+                                  class="w-full text-xs text-gray-800 placeholder-gray-400 border border-gray-300 rounded-xl p-3 focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container resize-none transition-all"></textarea>
                         <p class="text-[10px] text-gray-400 mt-1">Ý kiến chân thực giúp trung tâm nâng cao chất lượng dạy học.</p>
                     </div>
 
@@ -280,7 +280,7 @@
                     <!-- Nút Gửi / Cập nhật feedback -->
                     <div>
                         <button type="submit"
-                                class="w-full py-3.5 px-4 bg-primary hover:bg-[#e0560b] text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95">
+                                class="w-full py-3.5 px-4 bg-primary-container hover:bg-primary text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95">
                             <span class="material-symbols-outlined text-[18px]">send</span>
                             <span x-text="viewState === 'form-updated' ? 'Cập nhật feedback' : 'Gửi feedback'"></span>
                         </button>

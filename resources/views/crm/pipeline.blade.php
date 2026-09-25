@@ -49,7 +49,7 @@
         <div class="flex gap-4 overflow-x-auto pb-6 items-start min-h-[calc(100vh-280px)]">
             @foreach ($stages as $index => $stage)
                 <div 
-                    class="kanban-column w-80 shrink-0 bg-[#f8fafc] rounded-2xl p-3 border border-gray-200/90 flex flex-col gap-3 transition-colors duration-200"
+                    class="kanban-column w-80 shrink-0 bg-slate-50 rounded-2xl p-3 border border-gray-200/90 flex flex-col gap-3 transition-colors duration-200"
                     data-stage-id="{{ $stage['id'] }}"
                     data-stage-index="{{ $index }}"
                     @dragover.prevent="onDragOver($event, @js($stage['id']))"
@@ -73,7 +73,7 @@
                             @php($draggable = ($stagePermissions['canForward'] && $stage['next'] && ! in_array($stage['next'], $stagePermissions['closed'], true))
                                 || ($stagePermissions['canBackward'] && $index > 0 && ! in_array($stage['id'], $stagePermissions['closed'], true)))
                             <div 
-                                class="kanban-card bg-white rounded-xl p-3.5 border border-gray-200 shadow-xs hover:shadow-md hover:border-[#ea580c]/50 transition duration-150 {{ $draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer' }} group relative"
+                                class="kanban-card bg-white rounded-xl p-3.5 border border-gray-200 shadow-xs hover:shadow-md hover:border-primary-container/50 transition duration-150 {{ $draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer' }} group relative"
                                 draggable="{{ $draggable ? 'true' : 'false' }}"
                                 data-customer-id="{{ $lead['id'] }}"
                                 data-stage-id="{{ $stage['id'] }}"
@@ -84,7 +84,7 @@
                             >
                                 <div class="flex items-start justify-between gap-2 mb-1.5">
                                     <div class="min-w-0">
-                                        <h4 class="font-bold text-xs text-gray-900 group-hover:text-[#ea580c] transition line-clamp-1">
+                                        <h4 class="font-bold text-xs text-gray-900 group-hover:text-primary-container transition line-clamp-1">
                                             {{ $lead['name'] }}
                                         </h4>
                                         @if ($lead['parent_name'])
@@ -94,7 +94,7 @@
                                     <span class="text-[10px] text-gray-400 whitespace-nowrap shrink-0">{{ $lead['days'] }}</span>
                                 </div>
 
-                                <div class="text-xs font-bold text-[#ea580c] mb-2 flex items-center justify-between">
+                                <div class="text-xs font-bold text-primary-container mb-2 flex items-center justify-between">
                                     <span>{{ $lead['tuition'] }}</span>
                                     <span class="text-[10px] font-mono font-normal text-gray-400">{{ $lead['code'] }}</span>
                                 </div>
@@ -183,7 +183,7 @@
                     @can('lead.create')
                     @if ($stage['id'] === 'new')
                     <!-- Add button -->
-                    <a href="{{ route('crm.customers.create') }}" class="w-full py-2.5 border-2 border-dashed border-gray-200 hover:border-[#ea580c]/50 hover:bg-orange-50/40 rounded-xl text-xs font-bold text-gray-500 hover:text-[#ea580c] transition flex items-center justify-center gap-1.5 bg-white/70">
+                    <a href="{{ route('crm.customers.create') }}" class="w-full py-2.5 border-2 border-dashed border-gray-200 hover:border-primary-container/50 hover:bg-orange-50/40 rounded-xl text-xs font-bold text-gray-500 hover:text-primary-container transition flex items-center justify-center gap-1.5 bg-white/70">
                         <span class="material-symbols-outlined text-sm">add</span>
                         <span>Thêm deal mới</span>
                     </a>
@@ -271,7 +271,7 @@
                         this.draggedCard.element.classList.remove('opacity-40', 'scale-95');
                     }
                     document.querySelectorAll('.kanban-column').forEach(col => {
-                        col.classList.remove('ring-2', 'ring-primary', 'bg-orange-50/40');
+                        col.classList.remove('ring-2', 'ring-primary-container', 'bg-orange-50/40');
                     });
                 },
 
@@ -282,16 +282,16 @@
                         return;
                     }
                     event.dataTransfer.dropEffect = 'move';
-                    event.currentTarget.classList.add('ring-2', 'ring-primary', 'bg-orange-50/40');
+                    event.currentTarget.classList.add('ring-2', 'ring-primary-container', 'bg-orange-50/40');
                 },
 
                 onDragLeave(event) {
-                    event.currentTarget.classList.remove('ring-2', 'ring-primary', 'bg-orange-50/40');
+                    event.currentTarget.classList.remove('ring-2', 'ring-primary-container', 'bg-orange-50/40');
                 },
 
                 async onDrop(event, targetStageId) {
                     event.preventDefault();
-                    event.currentTarget.classList.remove('ring-2', 'ring-primary', 'bg-orange-50/40');
+                    event.currentTarget.classList.remove('ring-2', 'ring-primary-container', 'bg-orange-50/40');
                     if (!this.draggedCard) return;
 
                     const { customerId, stageId: sourceStageId, name } = this.draggedCard;

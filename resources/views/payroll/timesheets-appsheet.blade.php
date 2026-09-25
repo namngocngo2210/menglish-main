@@ -21,7 +21,7 @@
                 </a>
                 <button 
                     onclick="toggleAppsheetFullscreen()" 
-                    class="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition inline-flex items-center gap-1.5"
+                    class="px-3.5 py-1.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition inline-flex items-center gap-1.5"
                 >
                     <span class="material-symbols-outlined text-sm">fullscreen</span>
                     <span>Toàn màn hình</span>

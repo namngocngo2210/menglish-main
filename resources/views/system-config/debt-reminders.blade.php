@@ -4,7 +4,7 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-amber-600">notifications_active</span>
-                    Mẫu Tin Nhắn Nhắc Nợ Học Phí Tự Động (Database)
+                    Mẫu Tin Nhắn Nhắc Nợ Học Phí Tự Động
                 </h1>
                 <p class="text-xs text-gray-500">Cấu hình mẫu tin nhắn gửi qua Zalo ZNS / SMS Brandname theo các mốc T-3, T0, T+3</p>
             </div>
@@ -24,7 +24,7 @@
 
             <a 
                 href="{{ route('system-config.debt-reminders') }}"
-                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-[#ea580c] bg-[#ea580c] text-white font-bold shadow-xs shrink-0"
+                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-primary-container bg-primary-container text-white font-bold shadow-xs shrink-0"
             >
                 <span class="material-symbols-outlined text-base">notifications_active</span>
                 <span>Mẫu nhắc nợ</span>
@@ -65,11 +65,11 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 mb-1">Nội dung mẫu thông điệp (Message Template):</label>
                     <textarea name="template_content" rows="3" class="w-full text-xs rounded-xl border border-gray-200 p-3 leading-relaxed text-gray-800 font-mono">{{ $rule->template_content }}</textarea>
-                    <p class="text-[11px] text-gray-400 mt-1">Các biến tự động thay thế: <code>{TEN_HOC_VIEN}</code>, <code>{TEN_LOP}</code>, <code>{HAN_NOP}</code>, <code>{SO_TIEN}</code></p>
+                    <p class="text-[11px] text-gray-400 mt-1">Các biến tự động thay thế: <code>{TEN_HOC_VIEN}</code>, <code>{TEN_LOP}</code>, <code>{HAN_NOP}</code>, <code>{SO_TIEN}</code> (hoặc dạng thường <code>{ten_hoc_vien}</code>, <code>{lop_hoc}</code>, <code>{han_dong}</code>, <code>{so_tien}</code>)</p>
                 </div>
 
                 <div class="flex items-center justify-end pt-2">
-                    <button type="submit" class="px-5 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition">
+                    <button type="submit" class="px-5 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition">
                         Lưu mẫu tin nhắn
                     </button>
                 </div>

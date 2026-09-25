@@ -7,7 +7,7 @@
                 </a>
                 <div>
                     <div class="flex items-center gap-2">
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-xl bg-orange-100 text-[#c2410c] border border-orange-300 font-mono font-bold text-xs shadow-2xs">#{{ $ticket->code }}</span>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-xl bg-orange-100 text-primary border border-orange-300 font-mono font-bold text-xs shadow-2xs">#{{ $ticket->code }}</span>
                         <h1 class="text-xl font-bold text-gray-900 tracking-tight">{{ $ticket->title }}</h1>
                     </div>
                     <p class="text-xs text-gray-500">Tạo bởi {{ $ticket->creator?->name }} vào lúc {{ $ticket->created_at->format('d/m/Y H:i') }} · {{ $ticket->category_label }}</p>
@@ -38,7 +38,7 @@
                     <div class="bg-white rounded-2xl border {{ $msg->is_internal_note ? 'border-amber-200 bg-amber-50/20' : 'border-gray-200' }} shadow-sm p-5 space-y-3">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2.5">
-                                <div class="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center">
+                                <div class="w-8 h-8 rounded-full bg-primary-container/10 text-primary font-bold text-xs flex items-center justify-center">
                                     {{ substr($msg->user?->name ?? 'U', 0, 1) }}
                                 </div>
                                 <div>
@@ -110,13 +110,13 @@
                 </h3>
                 <form action="{{ route('tickets.messages.store', $ticket->id) }}" method="POST" enctype="multipart/form-data" class="space-y-3">
                     @csrf
-                    <textarea name="message" rows="3" required placeholder="Nhập câu trả lời hoặc tiến độ giải quyết vấn đề..." class="w-full text-xs rounded-xl border border-gray-200 p-3 focus:border-primary focus:ring-primary"></textarea>
+                    <textarea name="message" rows="3" required placeholder="Nhập câu trả lời hoặc tiến độ giải quyết vấn đề..." class="w-full text-xs rounded-xl border border-gray-200 p-3 focus:border-primary-container focus:ring-primary-container"></textarea>
 
                     <!-- Compact Drag & Drop Upload Zone for Reply -->
                     <div class="space-y-2">
                         <div 
                             class="border border-dashed rounded-xl p-3 text-center transition cursor-pointer flex items-center justify-center gap-2 bg-gray-50/50 hover:bg-orange-50/30"
-                            :class="isDragging ? 'border-primary bg-orange-50/60 ring-2 ring-primary/20' : 'border-gray-300 hover:border-primary'"
+                            :class="isDragging ? 'border-primary-container bg-orange-50/60 ring-2 ring-primary-container/20' : 'border-gray-300 hover:border-primary-container'"
                             @dragover.prevent="isDragging = true"
                             @dragleave.prevent="isDragging = false"
                             @drop.prevent="handleDrop($event)"
@@ -169,7 +169,7 @@
                             <input type="checkbox" name="is_internal_note" value="1" class="rounded border-gray-300 text-amber-600 focus:ring-amber-500">
                             <span>Chỉ hiển thị nội bộ giữa các phòng ban</span>
                         </label>
-                        <button type="submit" class="px-4 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
+                        <button type="submit" class="px-4 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-[16px]">send</span>
                             <span>Gửi phản hồi</span>
                         </button>

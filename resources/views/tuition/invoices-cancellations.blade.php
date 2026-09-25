@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-app-layout hide-errors>
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -27,13 +27,9 @@
         </div>
     </x-slot>
 
+    @include('tuition.partials.errors')
+
     <div class="max-w-[1520px] mx-auto space-y-5" x-data="{ showConfirmModal: false, showRejectModal: false, zoomProof: false }">
-        @if (session('status'))
-            <div class="p-4 bg-emerald-50 border-l-4 border-emerald-500 rounded-r-xl text-xs text-emerald-800 flex items-center gap-2 shadow-xs">
-                <span class="material-symbols-outlined text-emerald-600 text-lg">check_circle</span>
-                <span>{{ session('status') }}</span>
-            </div>
-        @endif
 
         @if (isset($errors) && $errors->any())
             <div class="p-4 bg-rose-50 border-l-4 border-rose-500 rounded-r-xl text-xs text-rose-800 space-y-1 shadow-xs">
@@ -90,7 +86,7 @@
             <div class="flex flex-wrap items-center gap-3">
                 <div class="relative w-72">
                     <span class="material-symbols-outlined absolute left-3 top-2 text-slate-400 text-base pointer-events-none">search</span>
-                    <input type="text" name="q" value="{{ request('q') }}" placeholder="Tìm theo mã phiếu, số hóa đơn, học viên..." class="pl-9 pr-8 py-2 text-xs border border-slate-200 rounded-lg w-full focus:ring-primary focus:border-primary" />
+                    <input type="text" name="q" value="{{ request('q') }}" placeholder="Tìm theo mã phiếu, số hóa đơn, học viên..." class="pl-9 pr-8 py-2 text-xs border border-slate-200 rounded-lg w-full focus:ring-primary-container focus:border-primary-container" />
                     @if (request('q'))
                         <a href="{{ route('tuition.invoices.cancellations', request()->except('q')) }}" class="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600">
                             <span class="material-symbols-outlined text-base">close</span>
@@ -138,9 +134,9 @@
                             $isSelected = $selectedCancellation && $selectedCancellation->id === $can->id;
                             $st = $can->student ?? $can->receipt?->tuition?->student ?? $can->receipt?->student;
                         @endphp
-                        <a href="{{ route('tuition.invoices.cancellations', array_merge(request()->all(), ['selected_id' => $can->id])) }}" class="block bg-white rounded-2xl p-4 shadow-sm relative cursor-pointer transition border {{ $isSelected ? 'border-primary ring-2 ring-primary/20 shadow-md' : 'border-slate-200 hover:border-slate-300' }}">
+                        <a href="{{ route('tuition.invoices.cancellations', array_merge(request()->all(), ['selected_id' => $can->id])) }}" class="block bg-white rounded-2xl p-4 shadow-sm relative cursor-pointer transition border {{ $isSelected ? 'border-primary-container ring-2 ring-primary-container/20 shadow-md' : 'border-slate-200 hover:border-slate-300' }}">
                             @if ($isSelected)
-                                <div class="absolute -left-1 top-6 bottom-6 w-1 bg-primary rounded-r"></div>
+                                <div class="absolute -left-1 top-6 bottom-6 w-1 bg-primary-container rounded-r"></div>
                             @endif
 
                             <div class="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-100">
@@ -257,8 +253,8 @@
                             <div class="flex flex-col items-end gap-1 text-xs">
                                 <div class="flex items-center gap-2">
                                     <span class="text-slate-500">Trạng thái phiếu thu:</span>
-                                    <span class="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
-                                        Đã duyệt (MH3)
+                                    <span class="font-bold px-2 py-0.5 rounded border text-[11px] {{ $rc?->status_badge ?? 'bg-gray-50 text-gray-600 border-gray-200' }}">
+                                        {{ $rc?->status_label ?? 'Không xác định phiếu thu' }}
                                     </span>
                                 </div>
                                 <div class="flex items-center gap-2">
@@ -376,7 +372,7 @@
                                         @if ($rc && $rc->surcharge_amount > 0)
                                             <tr>
                                                 <td class="py-2.5 px-3 font-semibold text-primary flex items-center gap-1">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-primary"></span> Phụ thu phát sinh
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span> Phụ thu phát sinh
                                                 </td>
                                                 <td class="py-2.5 px-3 text-slate-600">{{ $rc->surcharge_reason ?: 'Phụ thu giáo trình & học liệu' }}</td>
                                                 <td class="py-2.5 px-3 text-right font-mono font-semibold text-primary">+{{ number_format($rc->surcharge_amount) }} VNĐ</td>
@@ -573,11 +569,14 @@
                 @csrf
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Số Hóa đơn / Biên lai cần hủy <span class="text-rose-500">*</span></label>
-                    <input type="text" name="invoice_number" placeholder="Ví dụ: HĐ-0824/PTM-042..." required class="w-full text-xs rounded-xl border border-slate-200 p-2.5 font-mono font-bold text-slate-900" />
+                    <input type="text" name="invoice_number" value="{{ old('invoice_number') }}" placeholder="Ví dụ: C26MEN-0001001" required class="w-full text-xs rounded-xl border border-slate-200 p-2.5 font-mono font-bold text-slate-900" />
+                    <p class="text-[11px] text-slate-400 mt-1">Nhập đúng số HĐĐT của phiếu thu <strong>đã duyệt</strong>; hệ thống tự đối chiếu phiếu thu và hoàn tác công nợ khi được duyệt hủy.</p>
+                    @error('invoice_number') <p class="text-[11px] text-rose-600 mt-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Số tiền trên hóa đơn (VNĐ) <span class="text-rose-500">*</span></label>
-                    <input type="number" name="amount" placeholder="13500000" required class="w-full text-xs rounded-xl border border-slate-200 p-2.5 font-mono font-bold text-rose-600" />
+                    <input type="number" name="amount" value="{{ old('amount') }}" placeholder="13500000" required class="w-full text-xs rounded-xl border border-slate-200 p-2.5 font-mono font-bold text-rose-600" />
+                    @error('amount') <p class="text-[11px] text-rose-600 mt-1">Số tiền phải khớp giá trị hóa đơn. {{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Đính kèm ảnh hóa đơn hỏng / gạch chéo</label>

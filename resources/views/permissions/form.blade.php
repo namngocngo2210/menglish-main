@@ -16,7 +16,7 @@
 
             <div class="pt-4 flex justify-end gap-3">
                 <a href="{{ route('permissions.index') }}" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm">Hủy</a>
-                <button type="submit" class="px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-medium">Lưu permission</button>
+                <button type="submit" class="px-4 py-2 rounded-lg bg-primary-container hover:bg-primary-hover text-white text-sm font-medium">Lưu permission</button>
             </div>
         </form>
     </div>

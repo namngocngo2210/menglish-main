@@ -28,16 +28,16 @@
             @csrf
             <h2 class="text-sm font-bold text-gray-900">Thêm chỉ số KPI</h2>
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <input type="text" name="name" required placeholder="Tên chỉ số *" class="sm:col-span-2 text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary" value="{{ old('name') }}">
-                <input type="number" name="weight" required step="0.5" min="0" max="100" placeholder="Trọng số %" class="text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary" value="{{ old('weight') }}">
-                <input type="text" name="unit" placeholder="Đơn vị (vd: %, buổi)" class="text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary" value="{{ old('unit') }}">
+                <input type="text" name="name" required placeholder="Tên chỉ số *" class="sm:col-span-2 text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container" value="{{ old('name') }}">
+                <input type="number" name="weight" required step="0.5" min="0" max="100" placeholder="Trọng số %" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container" value="{{ old('weight') }}">
+                <input type="text" name="unit" placeholder="Đơn vị (vd: %, buổi)" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container" value="{{ old('unit') }}">
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input type="text" name="target" placeholder="Mục tiêu (vd: >= 95%)" class="text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary" value="{{ old('target') }}">
-                <input type="text" name="description" placeholder="Mô tả" class="text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary" value="{{ old('description') }}">
+                <input type="text" name="target" placeholder="Mục tiêu (vd: >= 95%)" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container" value="{{ old('target') }}">
+                <input type="text" name="description" placeholder="Mô tả" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container" value="{{ old('description') }}">
             </div>
             <div class="flex justify-end">
-                <button type="submit" class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
                     <span class="material-symbols-outlined text-[18px]">add</span> Thêm chỉ số
                 </button>
             </div>
@@ -49,13 +49,13 @@
                 <form method="POST" action="{{ route('kpi.criteria.update', $cr->id) }}" class="bg-white rounded-2xl p-4 border {{ $cr->is_active ? 'border-gray-200' : 'border-gray-200 opacity-60' }} shadow-sm">
                     @csrf @method('PUT')
                     <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-                        <input type="text" name="name" value="{{ $cr->name }}" class="sm:col-span-4 text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
-                        <input type="number" name="weight" step="0.5" min="0" max="100" value="{{ rtrim(rtrim(number_format($cr->weight,2),'0'),'.') }}" class="sm:col-span-1 text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary" title="Trọng số %">
-                        <input type="text" name="target" value="{{ $cr->target }}" placeholder="Mục tiêu" class="sm:col-span-2 text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
-                        <input type="text" name="unit" value="{{ $cr->unit }}" placeholder="Đơn vị" class="sm:col-span-1 text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
-                        <input type="text" name="description" value="{{ $cr->description }}" placeholder="Mô tả" class="sm:col-span-2 text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
+                        <input type="text" name="name" value="{{ $cr->name }}" class="sm:col-span-4 text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
+                        <input type="number" name="weight" step="0.5" min="0" max="100" value="{{ rtrim(rtrim(number_format($cr->weight,2),'0'),'.') }}" class="sm:col-span-1 text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container" title="Trọng số %">
+                        <input type="text" name="target" value="{{ $cr->target }}" placeholder="Mục tiêu" class="sm:col-span-2 text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
+                        <input type="text" name="unit" value="{{ $cr->unit }}" placeholder="Đơn vị" class="sm:col-span-1 text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
+                        <input type="text" name="description" value="{{ $cr->description }}" placeholder="Mô tả" class="sm:col-span-2 text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
                         <label class="sm:col-span-1 flex items-center gap-1 text-[11px] text-gray-600">
-                            <input type="checkbox" name="is_active" value="1" @checked($cr->is_active) class="rounded border-gray-300 text-primary focus:ring-primary"> Bật
+                            <input type="checkbox" name="is_active" value="1" @checked($cr->is_active) class="rounded border-gray-300 text-primary focus:ring-primary-container"> Bật
                         </label>
                         <div class="sm:col-span-1 flex items-center justify-end gap-1">
                             <button type="submit" class="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50" title="Lưu"><span class="material-symbols-outlined text-[18px]">save</span></button>

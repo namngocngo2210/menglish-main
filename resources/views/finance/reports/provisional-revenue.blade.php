@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div class="flex items-center gap-3">
-                <div class="w-11 h-11 rounded-xl bg-orange-100 flex items-center justify-center text-[#f5691a]">
+                <div class="w-11 h-11 rounded-xl bg-orange-100 flex items-center justify-center text-primary-container">
                     <span class="material-symbols-outlined text-2xl font-semibold">query_stats</span>
                 </div>
                 <div>
@@ -20,7 +20,7 @@
             <!-- Filters & Actions -->
             <form id="revenueFilterForm" method="GET" action="{{ route('finance.reports.revenue') }}" class="flex flex-wrap items-center gap-3">
                 <!-- Filter Kỳ tháng -->
-                <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-[#f5691a]/20 focus-within:border-[#f5691a] transition-all">
+                <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-primary-container/20 focus-within:border-primary-container transition-all">
                     <span class="material-symbols-outlined text-slate-400 text-lg mr-2">calendar_month</span>
                     <label for="filter-month" class="text-xs font-semibold text-slate-500 mr-2 uppercase">KỲ THÁNG:</label>
                     <select id="filter-month" name="month" onchange="this.form.submit()" class="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer text-sm">
@@ -31,7 +31,7 @@
                 </div>
 
                 <!-- Filter Chi nhánh -->
-                <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-[#f5691a]/20 focus-within:border-[#f5691a] transition-all">
+                <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-primary-container/20 focus-within:border-primary-container transition-all">
                     <span class="material-symbols-outlined text-slate-400 text-lg mr-2">storefront</span>
                     <label for="filter-branch" class="text-xs font-semibold text-slate-500 mr-2 uppercase">CƠ SỞ:</label>
                     <select id="filter-branch" name="branch_id" onchange="this.form.submit()" class="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer text-sm">
@@ -129,7 +129,7 @@
             </div>
 
             <!-- THẺ 3: DOANH THU TẠM TÍNH (NỔI BẬT NHẤT = THU - CHI) -->
-            <div class="bg-gradient-to-br from-[#f5691a] via-[#ea580c] to-[#111A2B] rounded-2xl p-6 text-white shadow-lg shadow-orange-500/15 relative overflow-hidden flex flex-col justify-between border border-orange-400/30">
+            <div class="bg-gradient-to-br from-primary-container via-primary-container to-sidebar rounded-2xl p-6 text-white shadow-lg shadow-orange-500/15 relative overflow-hidden flex flex-col justify-between border border-orange-400/30">
                 <!-- Glow accents -->
                 <div class="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
                 <div class="absolute -left-6 -top-6 w-32 h-32 bg-orange-300/20 rounded-full blur-xl pointer-events-none"></div>
@@ -345,7 +345,7 @@
                             <tr class="hover:bg-slate-50/60 transition-colors">
                                 <td class="py-4 px-6 font-semibold text-slate-800">
                                     <div class="flex items-center gap-2.5">
-                                        <span class="w-2 h-2 rounded-full bg-[#f5691a]"></span>
+                                        <span class="w-2 h-2 rounded-full bg-primary-container"></span>
                                         <span>{{ $row['branch']->name }}</span>
                                     </div>
                                 </td>
@@ -377,7 +377,7 @@
                             <td class="py-4 px-6 uppercase text-xs tracking-wider">Tổng cộng toàn hệ thống</td>
                             <td class="py-4 px-6 text-right text-emerald-600 text-base font-extrabold">{{ number_format($totalMatrixRevenue, 0, ',', '.') }} đ</td>
                             <td class="py-4 px-6 text-right text-rose-600 text-base font-extrabold">{{ number_format($totalMatrixExpense, 0, ',', '.') }} đ</td>
-                            <td class="py-4 px-6 text-right text-[#f5691a] text-base font-black">{{ $totalMatrixProfit >= 0 ? '+' : '' }}{{ number_format($totalMatrixProfit, 0, ',', '.') }} đ</td>
+                            <td class="py-4 px-6 text-right text-primary-container text-base font-black">{{ $totalMatrixProfit >= 0 ? '+' : '' }}{{ number_format($totalMatrixProfit, 0, ',', '.') }} đ</td>
                             <td class="py-4 px-6 text-center text-xs font-black">{{ $totalMatrixMargin }}%</td>
                             <td class="py-4 px-6 text-center text-xs font-semibold text-emerald-700">Tăng trưởng</td>
                         </tr>

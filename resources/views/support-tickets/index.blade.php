@@ -13,7 +13,7 @@
                     <span class="material-symbols-outlined text-[18px] text-gray-500">settings</span>
                     <span>Cấu hình Email nhận</span>
                 </a>
-                <a href="{{ route('tickets.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
+                <a href="{{ route('tickets.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
                     <span class="material-symbols-outlined text-[18px]">add_circle</span>
                     <span>Tạo Ticket Mới</span>
                 </a>
@@ -100,7 +100,7 @@
                     @forelse ($tickets as $ticket)
                         <tr class="hover:bg-purple-50/10 transition">
                             <td class="py-3.5 px-4">
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-orange-50 text-[#c2410c] border border-orange-200 font-mono font-bold text-xs shadow-2xs">
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-orange-50 text-primary border border-orange-200 font-mono font-bold text-xs shadow-2xs">
                                     #{{ $ticket->code }}
                                 </span>
                             </td>

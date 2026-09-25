@@ -93,7 +93,7 @@
                 <a href="{{ route('tuition.students') }}" class="px-4 py-2 border border-gray-200 text-xs font-semibold text-gray-700 rounded-xl hover:bg-gray-50">
                     Hủy bỏ
                 </a>
-                <button type="submit" class="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
+                <button type="submit" class="px-6 py-2.5 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-base">print</span>
                     <span>Tạo Phiếu Thu &amp; Xuất Biên Lai</span>
                 </button>

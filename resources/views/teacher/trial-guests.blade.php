@@ -10,13 +10,6 @@
     </x-slot>
 
     <div class="space-y-4">
-        @if (session('status'))
-            <div class="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 text-sm font-medium">{{ session('status') }}</div>
-        @endif
-        @if ($errors->any())
-            <div class="rounded-xl bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 text-sm font-medium">{{ $errors->first() }}</div>
-        @endif
-
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-x-auto">
             <table class="w-full text-xs text-left min-w-[900px]">
                 <thead class="bg-gray-50 text-[11px] uppercase text-gray-500">
@@ -69,7 +62,7 @@
                                         </select>
                                     </div>
                                     <textarea name="feedback" rows="2" placeholder="Mức độ phù hợp, tương tác, đề xuất lớp..." class="w-full rounded-lg border-gray-200 text-xs">{{ $booking->feedback }}</textarea>
-                                    <button type="submit" class="px-3 py-1.5 rounded-lg bg-primary text-white font-bold">Lưu phản hồi</button>
+                                    <x-ui.button type="submit" size="sm" icon="rate_review">Lưu phản hồi</x-ui.button>
                                 </form>
                             </td>
                         </tr>

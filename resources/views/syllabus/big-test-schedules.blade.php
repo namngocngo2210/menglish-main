@@ -8,13 +8,13 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">alarm</span>
-                        Nhắc Lịch &amp; Giám Sát Tổ Chức Big Test (Database)
+                        Nhắc Lịch &amp; Giám Sát Tổ Chức Big Test
                     </h1>
                     <p class="text-xs text-gray-500">Lịch thi giữa kỳ, phân công phòng thi, giám thị coi thi và gửi nhắc lịch cho học viên</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('syllabus.big-tests.distribution') }}" class="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                <a href="{{ route('syllabus.big-tests.distribution') }}" class="px-3.5 py-1.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-[16px]">add_circle</span>
                     <span>Tạo Đợt Big Test</span>
                 </a>
@@ -45,7 +45,7 @@
                             <td class="py-3.5 px-4 font-mono font-medium text-gray-600">{{ $bt->scheduled_at ? $bt->scheduled_at->format('d/m/Y H:i') : '—' }}</td>
                             <td class="py-3.5 px-4">{{ $bt->room }} · {{ $bt->classModel?->branch?->name ?? 'Cơ sở 1' }}</td>
                             <td class="py-3.5 px-4 font-medium text-gray-800">{{ $bt->proctor?->name ?? 'Giám thị MEnglish' }}</td>
-                            <td class="py-3.5 px-4 font-mono font-bold text-emerald-600">{{ $bt->passcode }}</td>
+                            <td class="py-3.5 px-4 font-mono font-bold text-emerald-600">{{ $bt->passcodeVisibleTo(auth()->user()) ? $bt->passcode : '••••••' }}</td>
                             <td class="py-3.5 px-4 text-right">
                                 @can('syllabus.approve_adjustment')
                                 <form action="{{ route('syllabus.big-tests.remind', $bt->id) }}" method="POST" class="inline" data-confirm="Gửi nhắc lịch {{ $bt->title }} tới toàn bộ học viên của lớp {{ $bt->classModel?->name }}?">

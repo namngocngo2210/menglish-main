@@ -52,9 +52,7 @@
                                                 <option value="{{ $class->id }}">{{ $class->name }} · còn {{ $class->max_capacity > 0 ? max(0, $class->max_capacity - $class->active_enrollments_count) : '∞' }} chỗ</option>
                                             @endforeach
                                         </select>
-                                        <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-primary text-white font-bold whitespace-nowrap">
-                                            <span class="material-symbols-outlined text-[16px]">assignment_turned_in</span>Gán lớp
-                                        </button>
+                                        <x-ui.button type="submit" size="sm" icon="assignment_turned_in">Gán lớp</x-ui.button>
                                     </form>
                                 @else
                                     <span class="text-amber-600 font-semibold">Chưa có lớp phù hợp</span>

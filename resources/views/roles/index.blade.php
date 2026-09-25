@@ -10,7 +10,7 @@
             </div>
             @can('role.create')
                 <div class="flex items-center gap-2">
-                    <a href="{{ route('roles.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
+                    <a href="{{ route('roles.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
                         <span class="material-symbols-outlined text-[18px]">add_circle</span>
                         <span>Thêm Vai Trò Mới</span>
                     </a>
@@ -20,12 +20,6 @@
     </x-slot>
 
     <div class="max-w-5xl mx-auto space-y-4">
-        @if (session('status'))
-            <div class="p-4 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center gap-2">
-                <span class="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
-                <span>{{ session('status') }}</span>
-            </div>
-        @endif
 
         @if ($errors->any())
             <div class="p-4 rounded-2xl bg-rose-50 text-rose-800 border border-rose-200 text-xs font-semibold flex items-center gap-2">

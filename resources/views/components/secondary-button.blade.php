@@ -1,3 +1,4 @@
-<button {{ $attributes->merge(['type' => 'button', 'class' => 'inline-flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-500 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-25 transition ease-in-out duration-150']) }}>
+{{-- Legacy Breeze button — cùng style với <x-ui.button variant="secondary">. Ưu tiên dùng <x-ui.button> cho màn mới. --}}
+<button {{ $attributes->merge(['type' => 'button', 'class' => 'inline-flex shrink-0 items-center justify-center gap-xs whitespace-nowrap rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-medium text-body-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container-low focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container/40 disabled:opacity-50']) }}>
     {{ $slot }}
 </button>

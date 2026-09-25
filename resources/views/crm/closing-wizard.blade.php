@@ -16,7 +16,7 @@
 
             <div class="flex items-center gap-2">
                 <a href="{{ route('system-config.bank-accounts') }}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold shadow-xs transition" title="Cài đặt tài khoản ngân hàng thụ hưởng & SePay">
-                    <span class="material-symbols-outlined text-sm text-[#ea580c]">account_balance</span>
+                    <span class="material-symbols-outlined text-sm text-primary-container">account_balance</span>
                     <span>Cài đặt STK &amp; SePay</span>
                 </a>
             </div>
@@ -48,7 +48,7 @@
         <!-- Wizard Step Indicator -->
         <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-xs flex items-center justify-between">
             <div class="flex items-center gap-3 cursor-pointer" @click="step = 1">
-                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" :class="step >= 1 ? 'bg-[#ea580c] text-white' : 'bg-gray-100 text-gray-500'">1</div>
+                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" :class="step >= 1 ? 'bg-primary-container text-white' : 'bg-gray-100 text-gray-500'">1</div>
                 <div class="hidden sm:block text-left">
                     <div class="text-xs font-bold text-gray-900">Chọn Khách hàng Lead</div>
                     <div class="text-[10px] text-gray-400">Từ Database CRM</div>
@@ -57,7 +57,7 @@
             <div class="h-0.5 w-12 bg-gray-200"></div>
 
             <div class="flex items-center gap-3 cursor-pointer" @click="step = 2">
-                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" :class="step >= 2 ? 'bg-[#ea580c] text-white' : 'bg-gray-100 text-gray-500'">2</div>
+                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" :class="step >= 2 ? 'bg-primary-container text-white' : 'bg-gray-100 text-gray-500'">2</div>
                 <div class="hidden sm:block text-left">
                     <div class="text-xs font-bold text-gray-900">Học phí &amp; Ưu đãi</div>
                     <div class="text-[10px] text-gray-400">Thu trước &amp; Thu khác</div>
@@ -66,7 +66,7 @@
             <div class="h-0.5 w-12 bg-gray-200"></div>
 
             <div class="flex items-center gap-3 cursor-pointer" @click="step = 3">
-                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" :class="step >= 3 ? 'bg-[#ea580c] text-white' : 'bg-gray-100 text-gray-500'">3</div>
+                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" :class="step >= 3 ? 'bg-primary-container text-white' : 'bg-gray-100 text-gray-500'">3</div>
                 <div class="hidden sm:block text-left">
                     <div class="text-xs font-bold text-gray-900">Xếp lớp &amp; Lịch học</div>
                     <div class="text-[10px] text-gray-400">Lớp học khả dụng</div>
@@ -110,14 +110,14 @@
                  ═════════════════════════════════════════════════════════════════ -->
             <div x-show="step === 1" class="bg-white rounded-2xl p-6 border border-gray-200 shadow-xs space-y-6">
                 <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider pb-2 border-b border-gray-100 flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[#ea580c] text-base">person_search</span>
+                    <span class="material-symbols-outlined text-primary-container text-base">person_search</span>
                     Bước 1: Chọn Khách hàng Lead trong Pipeline
                 </h2>
 
                 <div class="space-y-4">
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Chọn Khách hàng cần chốt hợp đồng <span class="text-rose-500">*</span></label>
-                        <select class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 focus:border-[#ea580c] focus:ring-[#ea580c]" @change="updateCustomer($event)">
+                        <select class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container" @change="updateCustomer($event)">
                             @foreach ($customers as $c)
                                 <option
                                     value="{{ $c->id }}" 
@@ -138,7 +138,7 @@
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Khóa học đăng ký</label>
-                        <select x-model="courseId" @change="updateCourse($event)" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold text-[#ea580c] focus:border-[#ea580c] focus:ring-[#ea580c]">
+                        <select x-model="courseId" @change="updateCourse($event)" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold text-primary-container focus:border-primary-container focus:ring-primary-container">
                             @foreach ($courses as $crs)
                                 <option value="{{ $crs->id }}" data-name="{{ $crs->name }}" data-tuition="{{ (float) $crs->tuition_fee }}">{{ $crs->name }} (Học phí niêm yết: {{ number_format($crs->tuition_fee) }}đ)</option>
                             @endforeach
@@ -148,7 +148,7 @@
                 </div>
 
                 <div class="flex items-center justify-end pt-4 border-t border-gray-100">
-                    <button type="button" @click="step = 2" class="px-6 py-2.5 bg-[#ea580c] hover:bg-[#c2410c] text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
+                    <button type="button" @click="step = 2" class="px-6 py-2.5 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
                         <span>Tiếp tục: Tính học phí &amp; Ưu đãi</span>
                         <span class="material-symbols-outlined text-base">arrow_forward</span>
                     </button>
@@ -161,14 +161,14 @@
             <div x-show="step === 2" class="bg-white rounded-2xl p-6 border border-gray-200 shadow-xs space-y-6">
                 <div class="flex items-center justify-between pb-2 border-b border-gray-100">
                     <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[#ea580c] text-base">percent</span>
+                        <span class="material-symbols-outlined text-primary-container text-base">percent</span>
                         Bước 2: Học phí, Ưu đãi, Thu trước &amp; Thu khác
                     </h2>
                     @can('promotion.manage')
                     <button 
                         type="button" 
                         @click="showCreatePromoModal = true" 
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#ea580c] text-xs font-bold transition border border-orange-200"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-primary-container text-xs font-bold transition border border-orange-200"
                     >
                         <span class="material-symbols-outlined text-sm">add_circle</span>
                         <span>Tạo mới ưu đãi</span>
@@ -198,7 +198,7 @@
                         <select 
                             x-model="selectedPromotionId" 
                             @change="applyPromotion($event)" 
-                            class="w-full text-xs font-semibold rounded-xl border border-gray-200 p-2.5 focus:border-[#ea580c] focus:ring-[#ea580c]"
+                            class="w-full text-xs font-semibold rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container"
                         >
                             <option value="">-- Tùy chỉnh / Không áp dụng --</option>
                             <template x-for="p in availablePromotions" :key="p.id">
@@ -245,7 +245,7 @@
                         <input 
                             type="number" 
                             x-model.number="prepaidAmount" 
-                            class="w-full text-xs font-mono font-bold text-amber-600 rounded-xl border border-gray-200 p-2.5 focus:border-[#ea580c] focus:ring-[#ea580c]" 
+                            class="w-full text-xs font-mono font-bold text-amber-600 rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container" 
                             placeholder="0"
                         />
                     </div>
@@ -334,7 +334,7 @@
                     </div>
                     <div class="flex justify-between items-center font-bold text-gray-900 pt-2 border-t border-gray-200">
                         <span>= Tổng giá trị hợp đồng (Thành tiền):</span>
-                        <span class="font-mono text-sm text-[#ea580c]" x-text="formatVND(contractTotal)"></span>
+                        <span class="font-mono text-sm text-primary-container" x-text="formatVND(contractTotal)"></span>
                     </div>
                     <div class="flex justify-between items-center text-amber-700 pt-1">
                         <span>- Thu trước (Đã cọc / thanh toán trước):</span>
@@ -350,7 +350,7 @@
                     <button type="button" @click="step = 1" class="px-4 py-2 border border-gray-200 text-xs font-semibold text-gray-700 rounded-xl hover:bg-gray-50 transition">
                         Quay lại
                     </button>
-                    <button type="button" @click="paidAmount = amountDue; syncSplitAmounts(); step = 3" class="px-6 py-2.5 bg-[#ea580c] hover:bg-[#c2410c] text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
+                    <button type="button" @click="paidAmount = amountDue; syncSplitAmounts(); step = 3" class="px-6 py-2.5 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
                         <span>Tiếp tục: Xếp lớp</span>
                         <span class="material-symbols-outlined text-base">arrow_forward</span>
                     </button>
@@ -362,17 +362,17 @@
                  ═════════════════════════════════════════════════════════════════ -->
             <div x-show="step === 3" class="bg-white rounded-2xl p-6 border border-gray-200 shadow-xs space-y-6">
                 <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider pb-2 border-b border-gray-100 flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[#ea580c] text-base">meeting_room</span>
+                    <span class="material-symbols-outlined text-primary-container text-base">meeting_room</span>
                     Bước 3: Chọn Lớp học &amp; Bàn giao Học viên
                 </h2>
 
                 <div class="space-y-4">
                     <div class="flex flex-wrap gap-3 text-xs font-semibold">
-                        <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer" :class="!assignLater ? 'border-[#ea580c] bg-orange-50 text-[#ea580c]' : 'border-gray-200 text-gray-600'">
+                        <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer" :class="!assignLater ? 'border-primary-container bg-orange-50 text-primary-container' : 'border-gray-200 text-gray-600'">
                             <input type="radio" name="class_mode" value="class" :checked="!assignLater" @change="setAssignLater(false)" @disabled($classes->isEmpty()) />
                             <span>Chọn lớp</span>
                         </label>
-                        <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer" :class="assignLater ? 'border-[#ea580c] bg-orange-50 text-[#ea580c]' : 'border-gray-200 text-gray-600'">
+                        <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer" :class="assignLater ? 'border-primary-container bg-orange-50 text-primary-container' : 'border-gray-200 text-gray-600'">
                             <input type="radio" name="class_mode" value="later" :checked="assignLater" @change="setAssignLater(true)" />
                             <span>Xếp lớp sau</span>
                         </label>
@@ -384,7 +384,7 @@
 
                     <div x-show="!assignLater">
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Chọn Lớp học đang mở tiếp nhận <span class="text-rose-500">*</span></label>
-                        <select data-class-select class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 text-[#ea580c] focus:border-[#ea580c] focus:ring-[#ea580c]" @change="updateClass($event)">
+                        <select data-class-select class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 text-primary-container focus:border-primary-container focus:ring-primary-container" @change="updateClass($event)">
                             @foreach ($classes as $cl)
                                 <option 
                                     value="{{ $cl->id }}"
@@ -419,7 +419,7 @@
                     <button type="button" @click="step = 2" class="px-4 py-2 border border-gray-200 text-xs font-semibold text-gray-700 rounded-xl hover:bg-gray-50 transition">
                         Quay lại
                     </button>
-                    <button type="button" @click="step = 4; syncSplitAmounts()" class="px-6 py-2.5 bg-[#ea580c] hover:bg-[#c2410c] text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
+                    <button type="button" @click="step = 4; syncSplitAmounts()" class="px-6 py-2.5 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
                         <span>Tiếp tục: Xác nhận &amp; Thu tiền</span>
                         <span class="material-symbols-outlined text-base">arrow_forward</span>
                     </button>
@@ -439,7 +439,7 @@
 
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                     <!-- Cột Trái: Tóm tắt hợp đồng & Phương thức thanh toán (7 cols) -->
-                    <div class="lg:col-span-7 bg-[#f8fafc] rounded-2xl p-5 border border-gray-200/90 space-y-4 text-xs">
+                    <div class="lg:col-span-7 bg-slate-50 rounded-2xl p-5 border border-gray-200/90 space-y-4 text-xs">
                         <h3 class="font-bold text-gray-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-gray-500 text-sm">receipt_long</span>
                             <span>Tóm tắt hợp đồng đào tạo</span>
@@ -456,7 +456,7 @@
                             </div>
                             <div class="flex justify-between py-1">
                                 <span class="text-gray-500">Lớp học:</span>
-                                <span class="font-bold text-[#ea580c]" x-text="className"></span>
+                                <span class="font-bold text-primary-container" x-text="className"></span>
                             </div>
                             <div class="flex justify-between py-1">
                                 <span class="text-gray-500">Tổng giá trị hợp đồng:</span>
@@ -505,7 +505,7 @@
                                 type="number" 
                                 x-model.number="paidAmount" 
                                 @input="syncSplitAmounts()"
-                                class="w-full text-sm font-mono font-black text-emerald-600 rounded-xl border border-gray-200 p-2.5 focus:border-[#ea580c] focus:ring-[#ea580c] bg-white" 
+                                class="w-full text-sm font-mono font-black text-emerald-600 rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container bg-white" 
                             />
                         </div>
 
@@ -513,11 +513,11 @@
                         <div x-show="needsBankAccount" x-cloak>
                             <label class="block text-xs font-bold text-gray-800 mb-1 flex items-center justify-between">
                                 <span>Tài khoản Ngân hàng nhận tiền <span class="text-rose-500">*</span></span>
-                                <a href="{{ route('system-config.bank-accounts') }}" target="_blank" class="text-[10px] text-[#ea580c] hover:underline font-normal">Đổi STK trong Admin &rarr;</a>
+                                <a href="{{ route('system-config.bank-accounts') }}" target="_blank" class="text-[10px] text-primary-container hover:underline font-normal">Đổi STK trong Admin &rarr;</a>
                             </label>
                             <select 
                                 x-model="selectedBankAccountId" 
-                                class="w-full text-xs font-semibold rounded-xl border border-gray-200 p-2.5 focus:border-[#ea580c] focus:ring-[#ea580c] bg-white"
+                                class="w-full text-xs font-semibold rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container bg-white"
                             >
                                 <template x-for="bank in bankAccounts" :key="bank.id">
                                     <option :value="bank.id" x-text="bank.bank_name + ' - ' + bank.account_number + ' (' + bank.account_holder + ')'"></option>
@@ -530,18 +530,18 @@
                             <div>
                                 <label class="block text-xs font-bold text-gray-800 mb-1.5">Phương thức thanh toán giao dịch</label>
                                 <div class="grid grid-cols-2 gap-2">
-                                    <label class="flex items-center gap-2 p-2.5 rounded-xl border bg-white cursor-pointer transition text-xs font-semibold" :class="paymentMethod === 'transfer' ? 'border-[#ea580c] text-[#ea580c] bg-orange-50/30' : 'border-gray-200 text-gray-700'">
-                                        <input type="radio" name="pay_mode" value="transfer" x-model="paymentMethod" class="text-[#ea580c] focus:ring-[#ea580c]" />
+                                    <label class="flex items-center gap-2 p-2.5 rounded-xl border bg-white cursor-pointer transition text-xs font-semibold" :class="paymentMethod === 'transfer' ? 'border-primary-container text-primary-container bg-orange-50/30' : 'border-gray-200 text-gray-700'">
+                                        <input type="radio" name="pay_mode" value="transfer" x-model="paymentMethod" class="text-primary-container focus:ring-primary-container" />
                                         <span>Chuyển khoản (VietQR)</span>
                                     </label>
 
-                                    <label class="flex items-center gap-2 p-2.5 rounded-xl border bg-white cursor-pointer transition text-xs font-semibold" :class="paymentMethod === 'cash' ? 'border-[#ea580c] text-[#ea580c] bg-orange-50/30' : 'border-gray-200 text-gray-700'">
-                                        <input type="radio" name="pay_mode" value="cash" x-model="paymentMethod" class="text-[#ea580c] focus:ring-[#ea580c]" />
+                                    <label class="flex items-center gap-2 p-2.5 rounded-xl border bg-white cursor-pointer transition text-xs font-semibold" :class="paymentMethod === 'cash' ? 'border-primary-container text-primary-container bg-orange-50/30' : 'border-gray-200 text-gray-700'">
+                                        <input type="radio" name="pay_mode" value="cash" x-model="paymentMethod" class="text-primary-container focus:ring-primary-container" />
                                         <span>Tiền mặt tại quầy</span>
                                     </label>
 
-                                    <label class="flex items-center gap-2 p-2.5 rounded-xl border bg-white cursor-pointer transition text-xs font-semibold" :class="paymentMethod === 'pos' ? 'border-[#ea580c] text-[#ea580c] bg-orange-50/30' : 'border-gray-200 text-gray-700'">
-                                        <input type="radio" name="pay_mode" value="pos" x-model="paymentMethod" class="text-[#ea580c] focus:ring-[#ea580c]" />
+                                    <label class="flex items-center gap-2 p-2.5 rounded-xl border bg-white cursor-pointer transition text-xs font-semibold" :class="paymentMethod === 'pos' ? 'border-primary-container text-primary-container bg-orange-50/30' : 'border-gray-200 text-gray-700'">
+                                        <input type="radio" name="pay_mode" value="pos" x-model="paymentMethod" class="text-primary-container focus:ring-primary-container" />
                                         <span>Quẹt thẻ máy POS</span>
                                     </label>
 
@@ -570,7 +570,7 @@
 
                                     <div>
                                         <label class="block text-[11px] font-semibold text-gray-700 mb-1">Chuyển khoản (QR)</label>
-                                        <input type="number" x-model.number="splitTransfer" class="w-full text-xs font-mono font-bold rounded-lg border border-purple-200 p-2 focus:border-purple-600 bg-white text-[#ea580c]" placeholder="0" />
+                                        <input type="number" x-model.number="splitTransfer" class="w-full text-xs font-mono font-bold rounded-lg border border-purple-200 p-2 focus:border-purple-600 bg-white text-primary-container" placeholder="0" />
                                     </div>
 
                                     <div>
@@ -585,7 +585,7 @@
                         <!-- Ghi chú hóa đơn -->
                         <div>
                             <label class="block text-xs font-bold text-gray-800 mb-1">Ghi chú trên Phiếu thu / Hóa đơn</label>
-                            <input type="text" name="bill_notes" x-model="billNotes" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-[#ea580c] focus:ring-[#ea580c] bg-white" placeholder="Ghi chú thêm về học viên, phụ huynh hoặc cam kết..." />
+                            <input type="text" name="bill_notes" x-model="billNotes" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container bg-white" placeholder="Ghi chú thêm về học viên, phụ huynh hoặc cam kết..." />
                         </div>
                     </div>
 
@@ -593,7 +593,7 @@
                     <div class="lg:col-span-5 bg-white rounded-2xl p-5 border border-orange-200/80 shadow-xs space-y-4 text-center flex flex-col items-center">
                         <div x-show="needsBankAccount" class="w-full flex items-center justify-between pb-2 border-b border-gray-100">
                             <div class="text-xs font-black text-gray-900 flex items-center gap-1.5">
-                                <span class="material-symbols-outlined text-[#ea580c] text-lg">qr_code_scanner</span>
+                                <span class="material-symbols-outlined text-primary-container text-lg">qr_code_scanner</span>
                                 <span>MÃ VIETQR CHUYỂN KHOẢN</span>
                             </div>
                             <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -602,7 +602,7 @@
                         </div>
 
                         <!-- VietQR Image with Dynamic Amount & Bank Details -->
-                        <div x-show="needsBankAccount" class="relative bg-white p-2.5 rounded-2xl border-2 border-[#ea580c]/20 shadow-md group">
+                        <div x-show="needsBankAccount" class="relative bg-white p-2.5 rounded-2xl border-2 border-primary-container/20 shadow-md group">
                             <img 
                                 :src="vietQrUrl" 
                                 alt="Mã VietQR Chuyển khoản" 
@@ -640,7 +640,7 @@
 
                             <div class="flex justify-between items-center">
                                 <span class="text-gray-500">Số tiền QR:</span>
-                                <span class="font-mono font-black text-[#ea580c] text-xs" x-text="formatVND(effectiveTransferAmount)"></span>
+                                <span class="font-mono font-black text-primary-container text-xs" x-text="formatVND(effectiveTransferAmount)"></span>
                             </div>
 
                             <!-- NỘI DUNG CHUYỂN KHOẢN THEO CẤU TRÚC: Mã hs + ten học sinh + tenlop + CN + xxx -->
@@ -650,7 +650,7 @@
                                     <button 
                                         type="button" 
                                         @click="copyText(transferMemo, 'memo')" 
-                                        class="text-xs text-[#ea580c] hover:text-[#c2410c] font-bold inline-flex items-center gap-0.5"
+                                        class="text-xs text-primary-container hover:text-primary font-bold inline-flex items-center gap-0.5"
                                         title="Sao chép nội dung CK"
                                     >
                                         <span class="material-symbols-outlined text-sm" x-text="copiedField === 'memo' ? 'check' : 'content_copy'"></span>
@@ -682,7 +682,7 @@
                             <button 
                                 type="button" 
                                 @click="openBillModal()" 
-                                class="flex-1 py-2 px-3 bg-[#ea580c] hover:bg-[#c2410c] text-white text-xs font-bold rounded-xl shadow-xs transition inline-flex items-center justify-center gap-1"
+                                class="flex-1 py-2 px-3 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition inline-flex items-center justify-center gap-1"
                             >
                                 <span class="material-symbols-outlined text-base">print</span>
                                 <span>Xem &amp; In Bill</span>
@@ -711,7 +711,7 @@
             <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
                 <div class="flex justify-between items-center pb-2 border-b border-gray-100">
                     <h3 class="font-bold text-sm text-gray-900 flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[#ea580c] text-lg">card_giftcard</span>
+                        <span class="material-symbols-outlined text-primary-container text-lg">card_giftcard</span>
                         <span>Tạo Mới Chương Trình Ưu Đãi / Voucher</span>
                     </h3>
                     <button type="button" @click="showCreatePromoModal = false" class="text-gray-400 hover:text-gray-600">
@@ -722,13 +722,13 @@
                 <div class="space-y-3.5">
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Tên chương trình ưu đãi <span class="text-rose-500">*</span></label>
-                        <input type="text" x-model="newPromo.name" placeholder="Voucher khai giảng / Ưu đãi bạn mới" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold focus:border-[#ea580c] focus:ring-[#ea580c]" />
+                        <input type="text" x-model="newPromo.name" placeholder="Voucher khai giảng / Ưu đãi bạn mới" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold focus:border-primary-container focus:ring-primary-container" />
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 mb-1">Loại giảm giá</label>
-                            <select x-model="newPromo.type" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold focus:border-[#ea580c] focus:ring-[#ea580c]">
+                            <select x-model="newPromo.type" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold focus:border-primary-container focus:ring-primary-container">
                                 <option value="fixed">Số tiền cố định (VNĐ)</option>
                                 <option value="percent">Phần trăm (%)</option>
                             </select>
@@ -736,13 +736,13 @@
 
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 mb-1">Giá trị <span class="text-rose-500">*</span></label>
-                            <input type="number" x-model.number="newPromo.value" placeholder="1000000 hoặc 10" class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2.5 focus:border-[#ea580c] focus:ring-[#ea580c]" />
+                            <input type="number" x-model.number="newPromo.value" placeholder="1000000 hoặc 10" class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container" />
                         </div>
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Mô tả / Điều kiện áp dụng</label>
-                        <textarea x-model="newPromo.description" rows="2" placeholder="Áp dụng cho học viên đăng ký sớm..." class="w-full text-xs rounded-xl border border-gray-200 p-2 focus:border-[#ea580c] focus:ring-[#ea580c]"></textarea>
+                        <textarea x-model="newPromo.description" rows="2" placeholder="Áp dụng cho học viên đăng ký sớm..." class="w-full text-xs rounded-xl border border-gray-200 p-2 focus:border-primary-container focus:ring-primary-container"></textarea>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <select x-model="newPromo.branch_id" class="w-full text-xs rounded-xl border-gray-200">
@@ -762,7 +762,7 @@
 
                     <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
                         <button type="button" @click="showCreatePromoModal = false" class="px-4 py-2 rounded-xl border text-xs font-semibold text-gray-600 hover:bg-gray-50">Hủy</button>
-                        <button type="button" @click="saveNewPromotion()" class="px-5 py-2 bg-[#ea580c] hover:bg-[#c2410c] text-white text-xs font-bold rounded-xl shadow-xs transition">Lưu &amp; Áp Dụng Ngay</button>
+                        <button type="button" @click="saveNewPromotion()" class="px-5 py-2 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition">Lưu &amp; Áp Dụng Ngay</button>
                     </div>
                 </div>
             </div>
@@ -776,11 +776,11 @@
                 <!-- Modal Header -->
                 <div class="p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[#ea580c]">print</span>
+                        <span class="material-symbols-outlined text-primary-container">print</span>
                         <h3 class="font-bold text-sm text-gray-900">Xem trước Thông Báo Nộp Học Phí (Chuẩn A4)</h3>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button type="button" @click="printBill()" class="px-3.5 py-1.5 bg-[#ea580c] text-white rounded-lg text-xs font-bold shadow-xs hover:bg-[#c2410c] flex items-center gap-1">
+                        <button type="button" @click="printBill()" class="px-3.5 py-1.5 bg-primary-container text-white rounded-lg text-xs font-bold shadow-xs hover:bg-primary flex items-center gap-1">
                             <span class="material-symbols-outlined text-sm">print</span>
                             <span>In Ngay</span>
                         </button>

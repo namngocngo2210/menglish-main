@@ -47,7 +47,7 @@
                         <label class="block text-xs font-bold uppercase text-gray-600 mb-1.5" for="assistant_id">
                             Chọn Trợ giảng <span class="text-rose-500">*</span>
                         </label>
-                        <select name="assistant_id" id="assistant_id" required class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary focus:border-primary p-3">
+                        <select name="assistant_id" id="assistant_id" required class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container p-3">
                             <option value="" disabled selected>-- Chọn Trợ giảng --</option>
                             @foreach($assistants as $ta)
                                 <option value="{{ $ta->id }}">{{ $ta->name }} ({{ $ta->email }})</option>
@@ -61,7 +61,7 @@
                             Ngày giao việc <span class="text-rose-500">*</span>
                         </label>
                         <input type="date" name="assign_date" id="assign_date" required value="{{ now()->format('Y-m-d') }}"
-                               class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary focus:border-primary p-3">
+                               class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container p-3">
                     </div>
 
                     <!-- Branch -->
@@ -69,7 +69,7 @@
                         <label class="block text-xs font-bold uppercase text-gray-600 mb-1.5" for="branch_id">
                             Chi nhánh
                         </label>
-                        <select name="branch_id" id="branch_id" class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary focus:border-primary p-3">
+                        <select name="branch_id" id="branch_id" class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container p-3">
                             <option value="">-- Chọn Chi nhánh --</option>
                             @foreach($branches as $b)
                                 <option value="{{ $b->id }}">{{ $b->name }}</option>
@@ -84,7 +84,7 @@
                 <div>
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
-                            <span class="material-symbols-outlined text-[#F5691A]">checklist</span>
+                            <span class="material-symbols-outlined text-primary-container">checklist</span>
                             Danh sách nhiệm vụ cần giao
                         </h2>
                         <span class="text-xs text-gray-500" x-text="tasks.length + ' đầu việc'"></span>
@@ -104,7 +104,7 @@
                                     <div class="md:col-span-3">
                                         <label class="block text-[11px] font-bold uppercase text-gray-500 mb-1">Nhóm đầu mục</label>
                                         <select :name="'tasks[' + index + '][category]'" x-model="item.category"
-                                                class="w-full rounded-lg border-gray-200 text-xs focus:ring-primary focus:border-primary bg-white py-2">
+                                                class="w-full rounded-lg border-gray-200 text-xs focus:ring-primary-container focus:border-primary-container bg-white py-2">
                                             <option value="before">Trước giờ học</option>
                                             <option value="during">Trong giờ học</option>
                                             <option value="after">Sau giờ học</option>
@@ -115,14 +115,14 @@
                                     <div class="md:col-span-6">
                                         <label class="block text-[11px] font-bold uppercase text-gray-500 mb-1">Nội dung công việc</label>
                                         <input type="text" :name="'tasks[' + index + '][content]'" x-model="item.content" required placeholder="Nhập nội dung công việc..."
-                                               class="w-full rounded-lg border-gray-200 text-xs focus:ring-primary focus:border-primary bg-white py-2">
+                                               class="w-full rounded-lg border-gray-200 text-xs focus:ring-primary-container focus:border-primary-container bg-white py-2">
                                     </div>
 
                                     <!-- Gắn lớp toggle -->
                                     <div class="md:col-span-3 flex items-center pt-2 md:pt-5">
                                         <label class="inline-flex items-center gap-2 cursor-pointer">
                                             <input type="checkbox" :name="'tasks[' + index + '][attach_class]'" x-model="item.attach_class" value="1"
-                                                   class="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4">
+                                                   class="rounded border-gray-300 text-primary focus:ring-primary-container h-4 w-4">
                                             <span class="text-xs font-medium text-gray-700">Gắn lớp học?</span>
                                         </label>
                                     </div>
@@ -133,7 +133,7 @@
                                     <div>
                                         <label class="block text-[11px] font-bold uppercase text-gray-500 mb-1">Lớp học</label>
                                         <select :name="'tasks[' + index + '][class_id]'" x-model="item.class_id"
-                                                class="w-full rounded-lg border-gray-200 text-xs focus:ring-primary focus:border-primary bg-white py-2">
+                                                class="w-full rounded-lg border-gray-200 text-xs focus:ring-primary-container focus:border-primary-container bg-white py-2">
                                             <option value="">-- Chọn lớp học --</option>
                                             @foreach($classes as $c)
                                                 <option value="{{ $c->id }}">{{ $c->name }} ({{ $c->code }})</option>
@@ -143,7 +143,7 @@
                                     <div>
                                         <label class="block text-[11px] font-bold uppercase text-gray-500 mb-1">Buổi học</label>
                                         <input type="text" :name="'tasks[' + index + '][session]'" x-model="item.session" placeholder="VD: Buổi 5 - Listening Practice"
-                                               class="w-full rounded-lg border-gray-200 text-xs focus:ring-primary focus:border-primary bg-white py-2">
+                                               class="w-full rounded-lg border-gray-200 text-xs focus:ring-primary-container focus:border-primary-container bg-white py-2">
                                     </div>
                                 </div>
                             </div>
@@ -151,7 +151,7 @@
                     </div>
 
                     <!-- Add row button -->
-                    <button type="button" @click="addTask()" class="mt-4 w-full py-3 border-2 border-dashed border-gray-300 hover:border-primary text-primary rounded-xl font-medium text-xs hover:bg-orange-50/50 transition flex items-center justify-center gap-2">
+                    <button type="button" @click="addTask()" class="mt-4 w-full py-3 border-2 border-dashed border-gray-300 hover:border-primary-container text-primary rounded-xl font-medium text-xs hover:bg-orange-50/50 transition flex items-center justify-center gap-2">
                         <span class="material-symbols-outlined text-[18px]">add</span>
                         Thêm đầu việc
                     </button>
@@ -159,7 +159,7 @@
 
                 <!-- Submission Footer -->
                 <div class="pt-6 border-t border-gray-200 flex flex-col items-center gap-2">
-                    <button type="submit" class="bg-[#F5691A] text-white hover:bg-[#d85a15] transition px-8 py-3 rounded-xl font-semibold text-sm shadow-md hover:shadow-lg w-full sm:w-auto min-w-[220px] flex items-center justify-center gap-2">
+                    <button type="submit" class="bg-primary-container text-white hover:bg-primary transition px-8 py-3 rounded-xl font-semibold text-sm shadow-md hover:shadow-lg w-full sm:w-auto min-w-[220px] flex items-center justify-center gap-2">
                         <span class="material-symbols-outlined text-[18px]">send</span>
                         Gửi nhiệm vụ cho Trợ giảng
                     </button>

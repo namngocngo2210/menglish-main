@@ -93,27 +93,27 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                         <div>
                             <label class="block font-bold text-gray-700 mb-1 text-[11px]">Họ và tên <span class="text-rose-500">*</span></label>
-                            <input type="text" name="name" value="{{ old('name', $student->name) }}" required class="w-full text-xs font-bold rounded-xl border border-gray-300 p-2.5 bg-slate-50/50 focus:ring-primary focus:border-primary" />
+                            <input type="text" name="name" value="{{ old('name', $student->name) }}" required class="w-full text-xs font-bold rounded-xl border border-gray-300 p-2.5 bg-slate-50/50 focus:ring-primary-container focus:border-primary-container" />
                         </div>
                         <div>
                             <label class="block font-bold text-gray-700 mb-1 text-[11px]">Số điện thoại <span class="text-rose-500">*</span></label>
-                            <input type="tel" name="phone" value="{{ old('phone', $student->phone) }}" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-300 p-2.5 bg-slate-50/50 focus:ring-primary focus:border-primary" />
+                            <input type="tel" name="phone" value="{{ old('phone', $student->phone) }}" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-300 p-2.5 bg-slate-50/50 focus:ring-primary-container focus:border-primary-container" />
                         </div>
                         <div>
                             <label class="block font-bold text-gray-700 mb-1 text-[11px]">Email liên hệ</label>
-                            <input type="email" name="email" value="{{ old('email', $student->email) }}" placeholder="hocvien@menglish.edu.vn" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 bg-slate-50/50 focus:ring-primary focus:border-primary" />
+                            <input type="email" name="email" value="{{ old('email', $student->email) }}" placeholder="hocvien@menglish.edu.vn" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 bg-slate-50/50 focus:ring-primary-container focus:border-primary-container" />
                         </div>
                         <div>
                             <label class="block font-bold text-gray-700 mb-1 text-[11px]">Mục tiêu học tập</label>
-                            <input type="text" name="target" value="{{ old('target', $student->target) }}" placeholder="VD: IELTS 6.5, Cambridge Starters..." class="w-full text-xs font-semibold rounded-xl border border-gray-300 p-2.5 bg-slate-50/50 focus:ring-primary focus:border-primary" />
+                            <input type="text" name="target" value="{{ old('target', $student->target) }}" placeholder="VD: IELTS 6.5, Cambridge Starters..." class="w-full text-xs font-semibold rounded-xl border border-gray-300 p-2.5 bg-slate-50/50 focus:ring-primary-container focus:border-primary-container" />
                         </div>
                         <div class="sm:col-span-2">
                             <label class="block font-bold text-gray-700 mb-1 text-[11px]">Địa chỉ liên hệ</label>
-                            <textarea name="address" rows="2" placeholder="Nhập địa chỉ của học viên..." class="w-full text-xs rounded-xl border border-gray-300 p-2.5 bg-slate-50/50 focus:ring-primary focus:border-primary">{{ old('address', $student->address) }}</textarea>
+                            <textarea name="address" rows="2" placeholder="Nhập địa chỉ của học viên..." class="w-full text-xs rounded-xl border border-gray-300 p-2.5 bg-slate-50/50 focus:ring-primary-container focus:border-primary-container">{{ old('address', $student->address) }}</textarea>
                         </div>
                         <div class="sm:col-span-2">
                             <label class="block font-bold text-gray-700 mb-1 text-[11px]">Ghi chú đặc biệt / Lời dặn phụ huynh</label>
-                            <textarea name="notes" rows="2" placeholder="Nhập ghi chú về học sinh (ví dụ: dị ứng, sở thích, mục tiêu học tập...)" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 bg-slate-50/50 focus:ring-primary focus:border-primary">{{ old('notes', $student->notes) }}</textarea>
+                            <textarea name="notes" rows="2" placeholder="Nhập ghi chú về học sinh (ví dụ: dị ứng, sở thích, mục tiêu học tập...)" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 bg-slate-50/50 focus:ring-primary-container focus:border-primary-container">{{ old('notes', $student->notes) }}</textarea>
                         </div>
                     </div>
 
@@ -162,7 +162,7 @@
 
                 <div class="flex items-center gap-2">
                     <label class="text-[11px] font-bold text-gray-600 uppercase">Đổi trạng thái:</label>
-                    <select name="status" onchange="this.form.submit()" class="text-xs font-bold rounded-xl border border-gray-300 bg-slate-50 py-2 px-3 focus:ring-primary focus:border-primary cursor-pointer">
+                    <select name="status" onchange="this.form.submit()" class="text-xs font-bold rounded-xl border border-gray-300 bg-slate-50 py-2 px-3 focus:ring-primary-container focus:border-primary-container cursor-pointer">
                         @foreach (\App\Models\Student::STATUSES as $statusKey => $statusLabel)
                             <option value="{{ $statusKey }}" @selected($student->status === $statusKey)>{{ $statusLabel }}</option>
                         @endforeach

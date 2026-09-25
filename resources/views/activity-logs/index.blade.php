@@ -4,7 +4,7 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-indigo-600">history_edu</span>
-                    Nhật Ký Vận Hành Toàn Hệ Thống (Audit Log)
+                    Nhật Ký Vận Hành Toàn Hệ Thống
                 </h1>
                 <p class="text-xs text-gray-500">Ghi lại chi tiết 100% mọi thao tác: CRM, Học phí, Điểm danh, Đề thi, Giáo trình, Lương, Công việc, Ticket, Media và Phân quyền</p>
             </div>

@@ -10,6 +10,16 @@ class BigTestResult extends Model
 {
     use HasFactory;
 
+    public const STATUS_LABELS = [
+        'draft' => 'Nháp',
+        'pending_review' => 'Chờ duyệt',
+        'approved' => 'Đã duyệt',
+        'sent' => 'Đã gửi phụ huynh',
+    ];
+
+    /** Kết quả đã duyệt/đã gửi phụ huynh thì không được chấm lại. */
+    public const LOCKED_STATUSES = ['approved', 'sent'];
+
     protected $table = 'big_test_results';
 
     protected $fillable = [
@@ -63,5 +73,15 @@ class BigTestResult extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function isLocked(): bool
+    {
+        return in_array($this->status, self::LOCKED_STATUSES, true);
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return self::STATUS_LABELS[$this->status] ?? (string) $this->status;
     }
 }

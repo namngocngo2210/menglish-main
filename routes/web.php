@@ -147,6 +147,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/import', [TuitionController::class, 'importTuition'])->name('import.store');
         Route::get('/receipts/create', [TuitionController::class, 'createReceipt'])->name('receipts.create');
         Route::post('/receipts', [TuitionController::class, 'storeReceipt'])->middleware('can:tuition.create')->name('receipts.store');
+        Route::put('/receipts/{id}', [TuitionController::class, 'updateReceipt'])->middleware('can:tuition.create')->name('receipts.update');
         Route::get('/receipts/approve', [TuitionController::class, 'approveReceipt'])->name('receipts.approve');
         Route::post('/receipts/{id}/approve', [TuitionController::class, 'approveReceiptAction'])->middleware('can:tuition.approve')->name('receipts.approve.action');
         Route::post('/receipts/{id}/reject', [TuitionController::class, 'rejectReceiptAction'])->middleware('can:tuition.reject')->name('receipts.reject.action');
@@ -599,7 +600,6 @@ Route::prefix('portal/placement-test')->name('portal.test.')->group(function () 
 Route::middleware(['auth'])->group(function () {
     Route::get('/academic/reports', [AcademicDashboardController::class, 'reports'])->name('academic.reports');
     Route::get('/academic/incidents', [AcademicDashboardController::class, 'incidents'])->name('academic.incidents');
-    Route::get('/payroll/my-salary', [PayrollController::class, 'mySalary'])->name('payroll.my-salary');
     Route::get('/syllabus', [SyllabusController::class, 'documents'])->name('syllabus.index');
     Route::get('/portal/student/home', [StudentPortalController::class, 'studentHome'])->name('portal.student.home2');
     Route::get('/portal/student/homework', [StudentPortalController::class, 'studentHomework'])->name('portal.student.homework2');

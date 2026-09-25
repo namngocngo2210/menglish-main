@@ -23,7 +23,7 @@
                 @endforeach
             </div>
             @can('system_category.manage')
-                <a href="{{ route('system-categories.create', ['type' => $type]) }}" class="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-white text-sm font-medium px-4 py-2 rounded-lg">
+                <a href="{{ route('system-categories.create', ['type' => $type]) }}" class="inline-flex items-center gap-2 bg-primary-container hover:bg-primary-hover text-white text-sm font-medium px-4 py-2 rounded-lg">
                     <span class="material-symbols-outlined text-[18px]">add</span> Thêm danh mục mới
                 </a>
             @endcan

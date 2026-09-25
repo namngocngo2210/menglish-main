@@ -9,7 +9,7 @@
     <div x-data="{ activeTab: 'operations' }" class="space-y-6">
         <!-- Top Profile Banner & User Identity -->
         <div class="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
-            <div class="h-28 sm:h-32 bg-gradient-to-r from-[#0d1527] via-[#1a2c4e] to-[#2563eb] relative p-6">
+            <div class="h-28 sm:h-32 bg-gradient-to-r from-[#0d1527] via-[#1a2c4e] to-blue-600 relative p-6">
                 <div class="absolute inset-0 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px] opacity-10"></div>
             </div>
 
@@ -18,7 +18,7 @@
                     <div class="flex items-end gap-4">
                         <!-- Avatar -->
                         <div class="relative">
-                            <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-br from-primary via-orange-500 to-amber-400 text-white flex items-center justify-center text-3xl sm:text-4xl font-black border-4 border-white shadow-xl">
+                            <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-br from-primary-container via-orange-500 to-amber-400 text-white flex items-center justify-center text-3xl sm:text-4xl font-black border-4 border-white shadow-xl">
                                 {{ Str::substr($user->name ?? 'A', 0, 1) }}
                             </div>
                             <span class="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full title='Đang hoạt động'"></span>
@@ -57,7 +57,7 @@
                             <span class="material-symbols-outlined text-[18px] text-rose-500">bug_report</span>
                             <span>Báo lỗi / Ticket</span>
                         </a>
-                        <button @click="activeTab = 'settings'" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition">
+                        <button @click="activeTab = 'settings'" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition">
                             <span class="material-symbols-outlined text-[18px]">manage_accounts</span>
                             <span>Cài đặt tài khoản</span>
                         </button>
@@ -132,7 +132,7 @@
                     <button 
                         @click="activeTab = 'operations'"
                         class="pb-3 px-2 text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 border-b-2"
-                        :class="activeTab === 'operations' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-900'"
+                        :class="activeTab === 'operations' ? 'border-primary-container text-primary' : 'border-transparent text-gray-500 hover:text-gray-900'"
                     >
                         <span class="material-symbols-outlined text-[18px]">dashboard</span>
                         <span>Vận hành &amp; Nhiệm vụ</span>
@@ -141,7 +141,7 @@
                     <button 
                         @click="activeTab = 'payroll'"
                         class="pb-3 px-2 text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 border-b-2"
-                        :class="activeTab === 'payroll' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-900'"
+                        :class="activeTab === 'payroll' ? 'border-primary-container text-primary' : 'border-transparent text-gray-500 hover:text-gray-900'"
                     >
                         <span class="material-symbols-outlined text-[18px]">payments</span>
                         <span>Lương &amp; Phiếu lương cá nhân</span>
@@ -150,7 +150,7 @@
                     <button 
                         @click="activeTab = 'tickets'"
                         class="pb-3 px-2 text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 border-b-2"
-                        :class="activeTab === 'tickets' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-900'"
+                        :class="activeTab === 'tickets' ? 'border-primary-container text-primary' : 'border-transparent text-gray-500 hover:text-gray-900'"
                     >
                         <span class="material-symbols-outlined text-[18px]">bug_report</span>
                         <span>Báo lỗi &amp; Ticket ({{ count($myTickets) }})</span>
@@ -159,7 +159,7 @@
                     <button 
                         @click="activeTab = 'settings'"
                         class="pb-3 px-2 text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 border-b-2"
-                        :class="activeTab === 'settings' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-900'"
+                        :class="activeTab === 'settings' ? 'border-primary-container text-primary' : 'border-transparent text-gray-500 hover:text-gray-900'"
                     >
                         <span class="material-symbols-outlined text-[18px]">settings</span>
                         <span>Cài đặt tài khoản &amp; Bảo mật</span>
@@ -329,7 +329,7 @@
                         <span class="px-3 py-1 rounded-xl bg-blue-50 text-blue-700 text-xs font-bold">
                             Kỳ: {{ $latestPayroll?->period?->name ?? 'Tháng ' . now()->format('m/Y') }}
                         </span>
-                        <a href="{{ route('portal.my-salary') }}" class="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition inline-flex items-center gap-1">
+                        <a href="{{ route('portal.my-salary') }}" class="px-3.5 py-1.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition inline-flex items-center gap-1">
                             <span class="material-symbols-outlined text-[16px]">visibility</span>
                             <span>Mở Cổng Lương</span>
                         </a>
@@ -387,7 +387,7 @@
                     </div>
 
                     <!-- Net Salary Banner -->
-                    <div class="p-6 rounded-2xl bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#2563eb] text-white flex flex-col sm:flex-row sm:items-center justify-between shadow-xl gap-4">
+                    <div class="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-blue-600 text-white flex flex-col sm:flex-row sm:items-center justify-between shadow-xl gap-4">
                         <div>
                             <span class="text-xs text-white/70 block uppercase tracking-wider font-bold">Tổng thực lĩnh chuyển khoản:</span>
                             <span class="text-2xl sm:text-3xl font-black font-mono text-primary">{{ number_format($latestPayroll->net_salary) }}đ</span>
@@ -461,7 +461,7 @@
                         <p class="text-xs text-gray-500">Theo dõi tiến trình xử lý các sự cố kỹ thuật, yêu cầu nghiệp vụ</p>
                     </div>
 
-                    <a href="{{ route('tickets.create') }}" class="px-4 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition inline-flex items-center gap-1.5">
+                    <a href="{{ route('tickets.create') }}" class="px-4 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition inline-flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-base">add</span>
                         <span>Tạo Ticket Mới</span>
                     </a>

@@ -65,15 +65,15 @@
                 <!-- Tabs -->
                 <div class="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
                     <a href="{{ route('academic.dashboards.reports', ['tab' => 'daily']) }}"
-                       class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap {{ $tab === 'daily' ? 'bg-primary text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                       class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap {{ $tab === 'daily' ? 'bg-primary-container text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
                         1. Báo cáo ngày Học vụ (Daily)
                     </a>
                     <a href="{{ route('academic.dashboards.reports', ['tab' => 'weekly']) }}"
-                       class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap {{ $tab === 'weekly' ? 'bg-primary text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                       class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap {{ $tab === 'weekly' ? 'bg-primary-container text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
                         2. Báo cáo tuần Học thuật (Weekly)
                     </a>
                     <a href="{{ route('academic.dashboards.reports', ['tab' => 'monthly']) }}"
-                       class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap {{ $tab === 'monthly' ? 'bg-primary text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                       class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap {{ $tab === 'monthly' ? 'bg-primary-container text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
                         3. Báo cáo tháng Giáo viên (Monthly)
                     </a>
                 </div>

@@ -37,13 +37,13 @@
             </div>
 
             <label class="flex items-center gap-2 text-sm">
-                <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $category->is_active ?? true)) class="rounded border-gray-300 text-primary focus:ring-primary">
+                <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $category->is_active ?? true)) class="rounded border-gray-300 text-primary focus:ring-primary-container">
                 Đang sử dụng
             </label>
 
             <div class="pt-4 flex justify-end gap-3">
                 <a href="{{ route('system-categories.index') }}" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm">Hủy</a>
-                <button type="submit" class="px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-medium">Lưu thông tin</button>
+                <button type="submit" class="px-4 py-2 rounded-lg bg-primary-container hover:bg-primary-hover text-white text-sm font-medium">Lưu thông tin</button>
             </div>
         </form>
     </div>

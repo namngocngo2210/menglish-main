@@ -101,7 +101,9 @@ class ModuleCompletionTest extends TestCase
         $this->assertEquals(200000, $record->penalty_deduction);
 
         // Duyệt kỳ lương: phạt bị đóng dấu "deducted" để không trừ lần nữa
-        $this->actingAs($manager)->post(route('payroll.periods.approve', $period->id))->assertRedirect();
+        $admin = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
+        $admin->assignRole('admin');
+        $this->actingAs($admin)->post(route('payroll.periods.approve', $period->id))->assertRedirect();
         $this->assertSame('deducted', $penalty->fresh()->status);
     }
 

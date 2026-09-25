@@ -14,7 +14,7 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('portal.student.homework', ['studentId' => $student?->id]) }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition shadow-sm">
+                <a href="{{ route('portal.student.homework', ['studentId' => $student?->id]) }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold hover:bg-primary-dark transition shadow-sm">
                     <span class="material-symbols-outlined text-[18px]">upload_file</span>
                     <span>Nộp bài tập</span>
                 </a>
@@ -23,7 +23,7 @@
     </x-slot>
 
     <!-- Outer Mobile Mockup Frame (Matches 04_Cong_Phu_Huynh_Hoc_Sinh/02_trang_chu_phu_huynh_hoc_sinh) -->
-    <div class="max-w-[430px] mx-auto bg-[#F9F9FF] min-h-[844px] shadow-2xl rounded-3xl border border-gray-200 overflow-hidden flex flex-col relative pb-20 my-4"
+    <div class="max-w-[430px] mx-auto bg-background min-h-[844px] shadow-2xl rounded-3xl border border-gray-200 overflow-hidden flex flex-col relative pb-20 my-4"
          x-data="{ historyOpen: false, editProfileOpen: false, tuitionReqOpen: false }">
 
         <!-- Portal Header -->
@@ -39,7 +39,7 @@
 
             <!-- Student Info Card (Bento style) -->
             <div class="bg-white rounded-2xl border border-gray-200/80 p-4 flex flex-col gap-4 shadow-sm relative overflow-hidden">
-                <div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full pointer-events-none"></div>
+                <div class="absolute top-0 right-0 w-24 h-24 bg-primary-container/5 rounded-bl-full pointer-events-none"></div>
 
                 <div class="flex items-center justify-between border-b border-gray-100 pb-3">
                     <h2 class="text-base font-bold text-gray-900 flex items-center gap-1.5">
@@ -98,7 +98,7 @@
             </div>
 
             <!-- Tuition Info Card (Glassmorphism inspired) -->
-            <div class="bg-gradient-to-br from-primary to-[#d94e00] text-white rounded-2xl p-4 flex flex-col gap-4 shadow-lg relative overflow-hidden">
+            <div class="bg-gradient-to-br from-primary-container to-primary text-white rounded-2xl p-4 flex flex-col gap-4 shadow-lg relative overflow-hidden">
                 <!-- Decorative background elements -->
                 <div class="absolute top-[-20%] right-[-10%] w-32 h-32 bg-white/15 rounded-full blur-2xl pointer-events-none"></div>
                 <div class="absolute bottom-[-20%] left-[-10%] w-24 h-24 bg-black/10 rounded-full blur-xl pointer-events-none"></div>
@@ -129,7 +129,7 @@
                     </div>
                     <div class="flex flex-col gap-0.5 pl-3 border-l border-white/20">
                         <span class="text-[10px] text-white/80 uppercase tracking-wider font-semibold">Còn nợ</span>
-                        <span class="text-lg font-bold font-mono text-[#ffdad6]">{{ number_format($debtAmount, 0, ',', '.') }}đ</span>
+                        <span class="text-lg font-bold font-mono text-error-container">{{ number_format($debtAmount, 0, ',', '.') }}đ</span>
                     </div>
                 </div>
 
@@ -141,7 +141,7 @@
 
             <!-- Quick Action Cards to Other Steps -->
             <div class="grid grid-cols-2 gap-3">
-                <a href="{{ route('portal.student.homework', ['studentId' => $student?->id]) }}" class="bg-white p-3 rounded-xl border border-gray-200 hover:border-primary transition shadow-2xs flex items-center gap-2.5">
+                <a href="{{ route('portal.student.homework', ['studentId' => $student?->id]) }}" class="bg-white p-3 rounded-xl border border-gray-200 hover:border-primary-container transition shadow-2xs flex items-center gap-2.5">
                     <div class="w-8 h-8 rounded-lg bg-orange-50 text-primary flex items-center justify-center shrink-0">
                         <span class="material-symbols-outlined text-[20px]">upload_file</span>
                     </div>
@@ -151,7 +151,7 @@
                     </div>
                 </a>
 
-                <a href="{{ route('portal.student.pronunciation', ['studentId' => $student?->id]) }}" class="bg-white p-3 rounded-xl border border-gray-200 hover:border-primary transition shadow-2xs flex items-center gap-2.5">
+                <a href="{{ route('portal.student.pronunciation', ['studentId' => $student?->id]) }}" class="bg-white p-3 rounded-xl border border-gray-200 hover:border-primary-container transition shadow-2xs flex items-center gap-2.5">
                     <div class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
                         <span class="material-symbols-outlined text-[20px]">mic</span>
                     </div>
@@ -237,23 +237,23 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Số điện thoại liên hệ</label>
                         <input type="text" name="phone" value="{{ $student?->phone }}" required
-                               class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                               class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Địa chỉ</label>
                         <input type="text" name="address" value="{{ $student?->address }}"
-                               class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                               class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Ghi chú cho trung tâm / giáo viên</label>
                         <textarea name="notes" rows="3" placeholder="Ví dụ: Bé hay dị ứng phấn, xin phép vào muộn 5p..."
-                                  class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">{{ $student?->notes }}</textarea>
+                                  class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container">{{ $student?->notes }}</textarea>
                     </div>
                     <div class="flex justify-end gap-2 pt-2">
                         <button type="button" @click="editProfileOpen = false" class="px-3 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-200 transition">
                             Hủy
                         </button>
-                        <button type="submit" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-dark transition shadow-sm">
+                        <button type="submit" class="px-4 py-2 rounded-xl bg-primary-container text-white text-xs font-bold hover:bg-primary-dark transition shadow-sm">
                             Lưu thay đổi
                         </button>
                     </div>
@@ -282,18 +282,18 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Số tiền đã chuyển (VNĐ)</label>
                         <input type="number" name="amount" value="{{ $debtAmount > 0 ? $debtAmount : 5000000 }}" required
-                               class="w-full px-3 py-2 text-xs font-bold font-mono border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                               class="w-full px-3 py-2 text-xs font-bold font-mono border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Nội dung chuyển khoản / Ghi chú</label>
                         <textarea name="content" rows="3" placeholder="Nhập mã giao dịch ngân hàng hoặc nội dung chuyển tiền..." required
-                                  class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">Phụ huynh {{ $student?->name }} chuyển khoản học phí qua Vietcombank</textarea>
+                                  class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container">Phụ huynh {{ $student?->name }} chuyển khoản học phí qua Vietcombank</textarea>
                     </div>
                     <div class="flex justify-end gap-2 pt-2">
                         <button type="button" @click="tuitionReqOpen = false" class="px-3 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-200 transition">
                             Hủy
                         </button>
-                        <button type="submit" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-dark transition shadow-sm">
+                        <button type="submit" class="px-4 py-2 rounded-xl bg-primary-container text-white text-xs font-bold hover:bg-primary-dark transition shadow-sm">
                             Gửi xác nhận
                         </button>
                     </div>

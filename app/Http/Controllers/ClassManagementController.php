@@ -10,6 +10,7 @@ use App\Models\Course;
 use App\Models\CourseLevel;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\SessionScheduleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,8 @@ use Illuminate\Validation\ValidationException;
 
 class ClassManagementController extends Controller
 {
+    public function __construct(private readonly SessionScheduleService $schedule) {}
+
     /**
      * Flow 1 - Bước #1: Đặt lịch khách học thử vào buổi popup
      * Khớp 100% UI: 01_Web_Admin/12_dat_lich_hoc_thu_popup
@@ -161,6 +164,15 @@ class ClassManagementController extends Controller
             throw ValidationException::withMessages(['chi_nhanh' => 'Chi nhánh không tồn tại, vui lòng chọn lại.']);
         }
         $branchId = (int) $branchId;
+
+        // TKB do client render chưa biết lịch nghỉ lễ: loại các buổi rơi vào ngày nghỉ
+        // toàn hệ thống hoặc ngày nghỉ riêng của chi nhánh trước khi tạo buổi học.
+        if ($scheduleSessions) {
+            $scheduleSessions = $this->schedule->withoutHolidays($scheduleSessions, $branchId);
+            if (! $scheduleSessions) {
+                throw ValidationException::withMessages(['schedule_sessions_json' => 'Tất cả buổi học đều rơi vào ngày nghỉ lễ, vui lòng chọn lại lịch.']);
+            }
+        }
 
         $this->assertValidTeachingStaff($validated);
 
@@ -352,31 +364,54 @@ class ClassManagementController extends Controller
      */
     protected function assertNoScheduleConflicts(array $sessions, int $branchId, array $resourceIds, ?string $defaultRoom): void
     {
-        foreach ($sessions as $session) {
-            $room = $session['room'] ?? $defaultRoom;
-            if (! $room && empty($resourceIds)) {
-                continue;
-            }
+        $conflict = $this->schedule->findConflict($sessions, $branchId, $resourceIds, $defaultRoom);
+        if ($conflict) {
+            [$session, $existing] = $conflict;
+            throw ValidationException::withMessages([
+                'schedule_sessions_json' => "Xung đột lịch {$session['date']} {$session['start']}-{$session['end']} với lớp {$existing->classModel?->name} ({$existing->classModel?->code}).",
+            ]);
+        }
+    }
 
-            $conflict = ClassSession::query()
-                ->where('status', '!=', 'cancelled')
-                ->whereDate('date', $session['date'])
-                ->where('start_time', '<', $session['end'])
-                ->where('end_time', '>', $session['start'])
-                ->where(function ($query) use ($branchId, $resourceIds, $room) {
-                    if ($room) {
-                        $query->orWhere(fn ($roomQuery) => $roomQuery->where('branch_id', $branchId)->where('room', $room));
-                    }
-                    foreach ($resourceIds as $userId) {
-                        $query->orWhere('teacher_id', $userId)->orWhere('assistant_id', $userId);
-                    }
-                })
-                ->with('classModel:id,name,code')
-                ->first();
+    /**
+     * Đổi GV/TA/phòng của lớp sẽ áp lên các buổi sắp tới: chạy cùng kiểm tra xung đột
+     * như khi tạo lớp để không xếp một người/phòng vào hai lớp cùng giờ.
+     */
+    protected function assertStaffChangeHasNoConflicts(ClassModel $class, $futureSessions, int $branchId, array $new): void
+    {
+        if ($futureSessions->isEmpty()) {
+            return;
+        }
 
+        $toArray = fn (ClassSession $session) => [
+            'date' => $session->date->toDateString(),
+            'start' => substr((string) $session->getRawOriginal('start_time'), 0, 5),
+            'end' => substr((string) $session->getRawOriginal('end_time'), 0, 5),
+            'room' => $session->room,
+        ];
+        $sessions = $futureSessions->map($toArray)->all();
+
+        $checks = [];
+        if ($new['teacher'] && (int) $new['teacher'] !== (int) ($class->teacher_id ?? $class->foreign_teacher_id)) {
+            $checks[$new['teacher_field']] = [$sessions, [$new['teacher']]];
+        }
+        if ($new['assistant'] && (int) $new['assistant'] !== (int) $class->assistant_id) {
+            $checks['tro_giang'] = [$sessions, [$new['assistant']]];
+        }
+        if ($new['room'] && $new['room'] !== $new['previous_room']) {
+            $roomSessions = $futureSessions
+                ->filter(fn (ClassSession $session) => $session->room === null || $session->room === $new['previous_room'])
+                ->map(fn (ClassSession $session) => ['room' => $new['room']] + $toArray($session))
+                ->values()->all();
+            $checks['phong_hoc'] = [$roomSessions, []];
+        }
+
+        foreach ($checks as $field => [$candidateSessions, $resourceIds]) {
+            $conflict = $this->schedule->findConflict($candidateSessions, $branchId, $resourceIds, null, $class->id);
             if ($conflict) {
+                [$session, $existing] = $conflict;
                 throw ValidationException::withMessages([
-                    'schedule_sessions_json' => "Xung đột lịch {$session['date']} {$session['start']}-{$session['end']} với lớp {$conflict->classModel?->name} ({$conflict->classModel?->code}).",
+                    $field => "Xung đột lịch {$session['date']} {$session['start']}-{$session['end']} với lớp {$existing->classModel?->name} ({$existing->classModel?->code}).",
                 ]);
             }
         }
@@ -574,42 +609,57 @@ class ClassManagementController extends Controller
             ? (filled($validated[$field]) ? (int) $validated[$field] : null)
             : $current;
         $previousRoom = $class->room;
+        $newTeacherId = $resolveId('giao_vien_chinh', $class->teacher_id);
+        $newAssistantId = $resolveId('tro_giang', $class->assistant_id);
+        $newForeignTeacherId = $resolveId('giao_vien_nn', $class->foreign_teacher_id);
+        $newRoom = array_key_exists('phong_hoc', $validated) ? $validated['phong_hoc'] : $class->room;
 
-        $class->update([
-            'code' => $code,
-            'name' => $validated['ten_lop'],
-            'branch_id' => $branchId,
-            'course_id' => $course?->id,
-            'program' => $validated['chuong_trinh'],
-            'level' => $validated['cap_do'],
-            'max_capacity' => $validated['si_so_toi_da'],
-            'room' => array_key_exists('phong_hoc', $validated) ? $validated['phong_hoc'] : $class->room,
-            'teacher_id' => $resolveId('giao_vien_chinh', $class->teacher_id),
-            'assistant_id' => $resolveId('tro_giang', $class->assistant_id),
-            'foreign_teacher_id' => $resolveId('giao_vien_nn', $class->foreign_teacher_id),
-            'tuition_fee' => $validated['hoc_phi'] ?? $class->tuition_fee,
-            'notes' => $validated['ghi_chu'] ?? $class->notes,
-            'status' => $validated['status'] ?? $class->status,
-            'start_date' => $validated['start_date'] ?? $class->start_date,
-            'end_date' => $validated['end_date'] ?? $class->end_date,
-            'schedule_text' => $validated['schedule_text'] ?? $class->schedule_text,
+        // Chỉ buổi chưa diễn ra, chưa điểm danh/check-in mới được đồng bộ nhân sự/phòng;
+        // buổi quá khứ là dữ liệu lịch sử (bảng công, điểm danh khớp theo buổi).
+        $futureSessions = ClassSession::where('class_id', $class->id)->replaceable()->get();
+        $this->assertStaffChangeHasNoConflicts($class, $futureSessions, $branchId, [
+            'teacher' => $newTeacherId ?? $newForeignTeacherId,
+            'teacher_field' => $newTeacherId ? 'giao_vien_chinh' : 'giao_vien_nn',
+            'assistant' => $newAssistantId,
+            'room' => $newRoom,
+            'previous_room' => $previousRoom,
         ]);
 
-        // Đồng bộ các buổi chưa diễn ra khi đội ngũ/phòng của lớp thay đổi để
-        // lớp và ClassSession không lệch dữ liệu (buổi đã hoàn tất giữ nguyên).
-        $scheduledSessionQuery = ClassSession::where('class_id', $class->id)->where('status', 'scheduled');
-        if ($class->wasChanged('teacher_id') || $class->wasChanged('foreign_teacher_id')) {
-            $scheduledSessionQuery->clone()->update(['teacher_id' => $class->teacher_id ?? $class->foreign_teacher_id]);
-        }
-        if ($class->wasChanged('assistant_id')) {
-            $scheduledSessionQuery->clone()->update(['assistant_id' => $class->assistant_id]);
-        }
-        if ($class->wasChanged('room')) {
-            // Chỉ đụng phòng của buổi chưa có phòng riêng hoặc đang dùng phòng cũ của lớp.
-            $scheduledSessionQuery->clone()
-                ->where(fn ($query) => $query->whereNull('room')->orWhere('room', $previousRoom))
-                ->update(['room' => $class->room]);
-        }
+        DB::transaction(function () use ($class, $validated, $code, $branchId, $course, $newTeacherId, $newAssistantId, $newForeignTeacherId, $newRoom, $previousRoom, $futureSessions) {
+            $class->update([
+                'code' => $code,
+                'name' => $validated['ten_lop'],
+                'branch_id' => $branchId,
+                'course_id' => $course?->id,
+                'program' => $validated['chuong_trinh'],
+                'level' => $validated['cap_do'],
+                'max_capacity' => $validated['si_so_toi_da'],
+                'room' => $newRoom,
+                'teacher_id' => $newTeacherId,
+                'assistant_id' => $newAssistantId,
+                'foreign_teacher_id' => $newForeignTeacherId,
+                'tuition_fee' => $validated['hoc_phi'] ?? $class->tuition_fee,
+                'notes' => $validated['ghi_chu'] ?? $class->notes,
+                'status' => $validated['status'] ?? $class->status,
+                'start_date' => $validated['start_date'] ?? $class->start_date,
+                'end_date' => $validated['end_date'] ?? $class->end_date,
+                'schedule_text' => $validated['schedule_text'] ?? $class->schedule_text,
+            ]);
+
+            $futureQuery = fn () => ClassSession::whereKey($futureSessions->modelKeys());
+            if ($class->wasChanged('teacher_id') || $class->wasChanged('foreign_teacher_id')) {
+                $futureQuery()->update(['teacher_id' => $class->teacher_id ?? $class->foreign_teacher_id]);
+            }
+            if ($class->wasChanged('assistant_id')) {
+                $futureQuery()->update(['assistant_id' => $class->assistant_id]);
+            }
+            if ($class->wasChanged('room')) {
+                // Chỉ đụng phòng của buổi chưa có phòng riêng hoặc đang dùng phòng cũ của lớp.
+                $futureQuery()
+                    ->where(fn ($query) => $query->whereNull('room')->orWhere('room', $previousRoom))
+                    ->update(['room' => $class->room]);
+            }
+        });
 
         return redirect()->route('classes.profile', ['id' => $class->id])
             ->with('success', "Đã cập nhật lớp học '{$class->name}' ({$class->code}) thành công!");

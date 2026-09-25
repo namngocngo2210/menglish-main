@@ -9,7 +9,7 @@
                 <p class="text-xs text-gray-500">Quản lý số tài khoản thụ hưởng học phí, cấu hình mã VietQR và tích hợp Webhook SePay tự động gạch nợ</p>
             </div>
             <div class="flex items-center gap-2">
-                <button type="button" onclick="document.getElementById('newBankModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#ea580c] hover:bg-[#c2410c] text-white text-xs font-semibold shadow-xs transition">
+                <button type="button" onclick="document.getElementById('newBankModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary text-white text-xs font-semibold shadow-xs transition">
                     <span class="material-symbols-outlined text-[18px]">add_circle</span>
                     <span>Thêm tài khoản ngân hàng</span>
                 </button>
@@ -22,7 +22,7 @@
         <div class="flex items-center gap-2 border-b border-gray-200 pb-2 overflow-x-auto">
             <a 
                 href="{{ route('system-config.bank-accounts') }}"
-                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-[#ea580c] bg-[#ea580c] text-white font-bold shadow-xs shrink-0"
+                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-primary-container bg-primary-container text-white font-bold shadow-xs shrink-0"
             >
                 <span class="material-symbols-outlined text-base">account_balance_wallet</span>
                 <span>Tài khoản Ngân hàng &amp; SePay</span>
@@ -58,7 +58,7 @@
             <button 
                 type="button" 
                 @click="activeTab = 'banks'"
-                :class="activeTab === 'banks' ? 'bg-[#ea580c] text-white font-bold shadow-xs' : 'bg-white text-gray-600 hover:bg-gray-100 font-semibold'"
+                :class="activeTab === 'banks' ? 'bg-primary-container text-white font-bold shadow-xs' : 'bg-white text-gray-600 hover:bg-gray-100 font-semibold'"
                 class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-gray-200"
             >
                 <span class="material-symbols-outlined text-base">account_balance_wallet</span>
@@ -69,7 +69,7 @@
             <button
                 type="button"
                 @click="activeTab = 'sepay'"
-                :class="activeTab === 'sepay' ? 'bg-[#ea580c] text-white font-bold shadow-xs' : 'bg-white text-gray-600 hover:bg-gray-100 font-semibold'"
+                :class="activeTab === 'sepay' ? 'bg-primary-container text-white font-bold shadow-xs' : 'bg-white text-gray-600 hover:bg-gray-100 font-semibold'"
                 class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-gray-200"
             >
                 <span class="material-symbols-outlined text-base">webhook</span>
@@ -82,7 +82,7 @@
             <button
                 type="button"
                 @click="activeTab = 'logs'"
-                :class="activeTab === 'logs' ? 'bg-[#ea580c] text-white font-bold shadow-xs' : 'bg-white text-gray-600 hover:bg-gray-100 font-semibold'"
+                :class="activeTab === 'logs' ? 'bg-primary-container text-white font-bold shadow-xs' : 'bg-white text-gray-600 hover:bg-gray-100 font-semibold'"
                 class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-gray-200"
             >
                 <span class="material-symbols-outlined text-base">receipt_long</span>
@@ -110,10 +110,10 @@
             <!-- Bank Accounts Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 @forelse ($accounts as $acc)
-                    <div class="bg-white rounded-2xl p-5 border {{ $acc->is_default_vietqr ? 'border-[#ea580c] ring-2 ring-[#ea580c]/10' : 'border-gray-200' }} shadow-xs space-y-4 flex flex-col justify-between">
+                    <div class="bg-white rounded-2xl p-5 border {{ $acc->is_default_vietqr ? 'border-primary-container ring-2 ring-primary-container/10' : 'border-gray-200' }} shadow-xs space-y-4 flex flex-col justify-between">
                         <div>
                             <div class="flex items-center justify-between gap-2">
-                                <span class="px-2.5 py-1 rounded-lg bg-orange-50 text-[#ea580c] font-mono font-black text-xs border border-orange-100">{{ $acc->bank_code }}</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-orange-50 text-primary-container font-mono font-black text-xs border border-orange-100">{{ $acc->bank_code }}</span>
                                 <div class="flex items-center gap-1.5">
                                     @if ($acc->is_default_vietqr)
                                         <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
@@ -122,7 +122,7 @@
                                     @else
                                         <form action="{{ route('system-config.bank-accounts.default', $acc->id) }}" method="POST" class="inline">
                                             @csrf
-                                            <button type="submit" class="text-[10px] text-gray-500 hover:text-[#ea580c] underline">Đặt làm mặc định</button>
+                                            <button type="submit" class="text-[10px] text-gray-500 hover:text-primary-container underline">Đặt làm mặc định</button>
                                         </form>
                                     @endif
                                 </div>
@@ -183,7 +183,7 @@
                 <div class="flex items-center justify-between pb-4 border-b border-gray-100">
                     <div>
                         <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                            <span class="material-symbols-outlined text-[#ea580c]">lock_reset</span>
+                            <span class="material-symbols-outlined text-primary-container">lock_reset</span>
                             <span>Cấu hình Webhook SePay Gateway (Tự động Gạch Nợ &amp; Xác Thực)</span>
                         </h2>
                         <p class="text-xs text-gray-500 mt-0.5">Copy đường dẫn URL Webhook và Secret Key này lên trang quản trị SePay để kết nối</p>
@@ -213,7 +213,7 @@
                                     name="webhook_name" 
                                     value="{{ old('webhook_name', $sepayConfig->webhook_name) }}" 
                                     required 
-                                    class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold text-gray-800 focus:border-[#ea580c] focus:ring-[#ea580c]" 
+                                    class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold text-gray-800 focus:border-primary-container focus:ring-primary-container" 
                                     placeholder="Xác Thực Thanh Toán Meducation" 
                                 />
                                 <p class="text-[11px] text-gray-400 mt-1">Đặt tên dễ nhớ để phân biệt các webhook trong danh sách SePay.</p>
@@ -223,7 +223,7 @@
                                 <label class="block text-xs font-semibold text-gray-700 mb-1">
                                     Loại giao dịch <span class="text-rose-500">*</span>
                                 </label>
-                                <select name="transaction_type" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold text-gray-800 focus:border-[#ea580c] focus:ring-[#ea580c]">
+                                <select name="transaction_type" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold text-gray-800 focus:border-primary-container focus:ring-primary-container">
                                     <option value="in" {{ $sepayConfig->transaction_type === 'in' ? 'selected' : '' }}>Tiền vào (Thu học phí - Khuyên dùng)</option>
                                     <option value="out" {{ $sepayConfig->transaction_type === 'out' ? 'selected' : '' }}>Tiền ra</option>
                                     <option value="all" {{ $sepayConfig->transaction_type === 'all' ? 'selected' : '' }}>Tất cả (Tiền vào &amp; Tiền ra)</option>
@@ -269,7 +269,7 @@
                                     name="webhook_url" 
                                     value="{{ old('webhook_url', $sepayConfig->webhook_url ?: $currentEndpoint) }}" 
                                     required 
-                                    class="flex-1 text-xs font-mono font-bold text-[#ea580c] bg-orange-50/50 rounded-xl border border-orange-200 p-2.5 focus:border-[#ea580c] focus:ring-[#ea580c]" 
+                                    class="flex-1 text-xs font-mono font-bold text-primary-container bg-orange-50/50 rounded-xl border border-orange-200 p-2.5 focus:border-primary-container focus:ring-primary-container" 
                                 />
                                 <button 
                                     type="button" 
@@ -301,7 +301,7 @@
                                 <label class="block text-xs font-semibold text-gray-700 mb-1">
                                     Định dạng dữ liệu <span class="text-rose-500">*</span>
                                 </label>
-                                <select name="data_format" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold text-gray-800 focus:border-[#ea580c] focus:ring-[#ea580c]">
+                                <select name="data_format" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold text-gray-800 focus:border-primary-container focus:ring-primary-container">
                                     <option value="json" selected>JSON (khuyến nghị) — application/json</option>
                                     <option value="form">Form (hỗ trợ tệp đính kèm) — multipart/form-data</option>
                                     <option value="urlencoded">Form (URL-encoded) — application/x-www-form-urlencoded</option>
@@ -310,7 +310,7 @@
 
                             <div class="flex items-center gap-2 pt-6">
                                 <label class="relative flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700">
-                                    <input type="checkbox" name="auto_retry" value="1" {{ $sepayConfig->auto_retry ? 'checked' : '' }} class="rounded text-[#ea580c] focus:ring-[#ea580c]" />
+                                    <input type="checkbox" name="auto_retry" value="1" {{ $sepayConfig->auto_retry ? 'checked' : '' }} class="rounded text-primary-container focus:ring-primary-container" />
                                     <span>Tự động gửi lại khi server trả lỗi (tối đa 7 lần)</span>
                                 </label>
                             </div>
@@ -332,7 +332,7 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-700 mb-1">Phương thức xác thực <span class="text-rose-500">*</span></label>
-                                <select name="auth_method" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold text-gray-800 focus:border-[#ea580c] focus:ring-[#ea580c]">
+                                <select name="auth_method" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold text-gray-800 focus:border-primary-container focus:ring-primary-container">
                                     <option value="hmac_sha256" {{ $sepayConfig->auth_method === 'hmac_sha256' ? 'selected' : '' }}>HMAC-SHA256 (Khuyến nghị)</option>
                                     <option value="api_key" {{ $sepayConfig->auth_method === 'api_key' ? 'selected' : '' }}>API Key</option>
                                     <option value="none" {{ $sepayConfig->auth_method === 'none' ? 'selected' : '' }}>Không xác thực</option>
@@ -353,7 +353,7 @@
                                         name="secret_key" 
                                         value="{{ old('secret_key', $sepayConfig->secret_key) }}" 
                                         required 
-                                        class="flex-1 text-xs font-mono font-bold text-gray-900 rounded-xl border border-gray-200 p-2.5 focus:border-[#ea580c] focus:ring-[#ea580c] bg-white" 
+                                        class="flex-1 text-xs font-mono font-bold text-gray-900 rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container bg-white" 
                                         placeholder="whsec_..."
                                     />
                                     <button 
@@ -371,7 +371,7 @@
 
                         <div class="pt-2">
                             <label class="relative flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-800">
-                                <input type="checkbox" name="is_active" value="1" {{ $sepayConfig->is_active ? 'checked' : '' }} class="rounded text-[#ea580c] focus:ring-[#ea580c]" />
+                                <input type="checkbox" name="is_active" value="1" {{ $sepayConfig->is_active ? 'checked' : '' }} class="rounded text-primary-container focus:ring-primary-container" />
                                 <span>Kích hoạt Webhook (Bật tính năng tự động gạch nợ khi có thông báo tiền về)</span>
                             </label>
                         </div>
@@ -379,7 +379,7 @@
 
                     <div class="flex items-center justify-between pt-4 border-t border-gray-100">
                         <span class="text-[11px] text-gray-400">Sau khi lưu, vui lòng đối soát URL và Secret Key khớp với trang SePay.vn</span>
-                        <button type="submit" class="px-6 py-2.5 bg-[#ea580c] hover:bg-[#c2410c] text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
+                        <button type="submit" class="px-6 py-2.5 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-base">save</span>
                             <span>Lưu Cấu Hình SePay Webhook</span>
                         </button>
@@ -473,7 +473,7 @@
             <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
                 <div class="flex justify-between items-center pb-2 border-b border-gray-100">
                     <h3 class="font-bold text-sm text-gray-900 flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[#ea580c] text-lg">account_balance</span>
+                        <span class="material-symbols-outlined text-primary-container text-lg">account_balance</span>
                         <span>Thêm Tài Khoản Ngân Hàng Mới</span>
                     </h3>
                     <button type="button" onclick="document.getElementById('newBankModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
@@ -485,24 +485,24 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 mb-1">Mã ngân hàng (NAPAS)</label>
-                            <input type="text" name="bank_code" placeholder="HDB / VCB / TCB" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-mono font-bold uppercase focus:border-[#ea580c] focus:ring-[#ea580c]" />
+                            <input type="text" name="bank_code" placeholder="HDB / VCB / TCB" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-mono font-bold uppercase focus:border-primary-container focus:ring-primary-container" />
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 mb-1">Tên ngân hàng</label>
-                            <input type="text" name="bank_name" placeholder="HDBank / Vietcombank" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-[#ea580c] focus:ring-[#ea580c]" />
+                            <input type="text" name="bank_name" placeholder="HDBank / Vietcombank" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container" />
                         </div>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Số tài khoản (STK)</label>
-                        <input type="text" name="account_number" placeholder="108704070014516" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-mono font-bold text-[#ea580c] focus:border-[#ea580c] focus:ring-[#ea580c]" />
+                        <input type="text" name="account_number" placeholder="108704070014516" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-mono font-bold text-primary-container focus:border-primary-container focus:ring-primary-container" />
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Tên chủ tài khoản (In hoa không dấu)</label>
-                        <input type="text" name="account_holder" placeholder="CTCP PTGD MS KATY&DTXD ML" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold uppercase focus:border-[#ea580c] focus:ring-[#ea580c]" />
+                        <input type="text" name="account_holder" placeholder="CTCP PTGD MS KATY&DTXD ML" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold uppercase focus:border-primary-container focus:ring-primary-container" />
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Chi nhánh / Cơ sở áp dụng</label>
-                        <select name="branch_id" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-[#ea580c] focus:ring-[#ea580c]">
+                        <select name="branch_id" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container">
                             <option value="">Toàn hệ thống (Mọi chi nhánh)</option>
                             @foreach ($branches as $b)
                                 <option value="{{ $b->id }}">{{ $b->name }}</option>
@@ -511,13 +511,13 @@
                     </div>
                     <div class="pt-1">
                         <label class="relative flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-800">
-                            <input type="checkbox" name="is_default_vietqr" value="1" class="rounded text-[#ea580c] focus:ring-[#ea580c]" />
+                            <input type="checkbox" name="is_default_vietqr" value="1" class="rounded text-primary-container focus:ring-primary-container" />
                             <span>Đặt làm tài khoản mặc định sinh mã VietQR</span>
                         </label>
                     </div>
                     <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
                         <button type="button" onclick="document.getElementById('newBankModal').classList.add('hidden')" class="px-4 py-2 rounded-xl border text-xs font-semibold text-gray-600 hover:bg-gray-50">Hủy</button>
-                        <button type="submit" class="px-5 py-2 bg-[#ea580c] hover:bg-[#c2410c] text-white text-xs font-bold rounded-xl shadow-xs transition">Lưu Tài Khoản</button>
+                        <button type="submit" class="px-5 py-2 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition">Lưu Tài Khoản</button>
                     </div>
                 </form>
             </div>
@@ -543,24 +543,24 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 mb-1">Mã ngân hàng (NAPAS)</label>
-                            <input type="text" name="bank_code" x-model="editForm.bank_code" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-mono font-bold uppercase focus:border-[#ea580c] focus:ring-[#ea580c]" />
+                            <input type="text" name="bank_code" x-model="editForm.bank_code" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-mono font-bold uppercase focus:border-primary-container focus:ring-primary-container" />
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 mb-1">Tên ngân hàng</label>
-                            <input type="text" name="bank_name" x-model="editForm.bank_name" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-[#ea580c] focus:ring-[#ea580c]" />
+                            <input type="text" name="bank_name" x-model="editForm.bank_name" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container" />
                         </div>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Số tài khoản (STK)</label>
-                        <input type="text" name="account_number" x-model="editForm.account_number" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-mono font-bold text-[#ea580c] focus:border-[#ea580c] focus:ring-[#ea580c]" />
+                        <input type="text" name="account_number" x-model="editForm.account_number" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-mono font-bold text-primary-container focus:border-primary-container focus:ring-primary-container" />
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Tên chủ tài khoản (In hoa không dấu)</label>
-                        <input type="text" name="account_holder" x-model="editForm.account_holder" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold uppercase focus:border-[#ea580c] focus:ring-[#ea580c]" />
+                        <input type="text" name="account_holder" x-model="editForm.account_holder" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold uppercase focus:border-primary-container focus:ring-primary-container" />
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Chi nhánh / Cơ sở áp dụng</label>
-                        <select name="branch_id" x-model="editForm.branch_id" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-[#ea580c] focus:ring-[#ea580c]">
+                        <select name="branch_id" x-model="editForm.branch_id" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container">
                             <option value="">Toàn hệ thống (Mọi chi nhánh)</option>
                             @foreach ($branches as $b)
                                 <option value="{{ $b->id }}">{{ $b->name }}</option>
@@ -569,7 +569,7 @@
                     </div>
                     <div class="pt-1 space-y-2">
                         <label class="relative flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-800">
-                            <input type="checkbox" name="is_default_vietqr" value="1" x-model="editForm.is_default_vietqr" class="rounded text-[#ea580c] focus:ring-[#ea580c]" />
+                            <input type="checkbox" name="is_default_vietqr" value="1" x-model="editForm.is_default_vietqr" class="rounded text-primary-container focus:ring-primary-container" />
                             <span>Đặt làm tài khoản mặc định sinh mã VietQR</span>
                         </label>
                     </div>

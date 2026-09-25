@@ -12,9 +12,6 @@
     </x-slot>
 
     <div class="space-y-4">
-        @if (session('status'))
-            <div class="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-xs font-semibold text-emerald-900">{{ session('status') }}</div>
-        @endif
 
         <!-- Tạo khảo sát mới -->
         <form action="{{ route('surveys.store') }}" method="POST" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
@@ -37,7 +34,7 @@
                     @error('deadline') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
                 </div>
                 <div class="md:col-span-3 flex items-end">
-                    <button type="submit" class="w-full px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition">
+                    <button type="submit" class="w-full px-4 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition">
                         Tạo khảo sát
                     </button>
                 </div>

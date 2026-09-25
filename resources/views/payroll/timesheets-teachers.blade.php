@@ -4,12 +4,12 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">more_time</span>
-                    Nhật ký Chấm công Giáo viên (Database)
+                    Nhật ký Chấm công Giáo viên
                 </h1>
                 <p class="text-xs text-gray-500">Tra cứu ca dạy thực tế, đối soát giờ dạy FaceID và tính thù lao</p>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('payroll.timesheets.manual') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
+                <a href="{{ route('payroll.timesheets.manual') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
                     <span class="material-symbols-outlined text-[18px]">add_circle</span>
                     <span>Thêm ca dạy thủ công</span>
                 </a>
@@ -41,9 +41,14 @@
                             <td class="py-3.5 px-4 font-mono text-gray-500">{{ $ts->teaching_date->format('d/m/Y') }}</td>
                             <td class="py-3.5 px-4">{{ $ts->type_label }}</td>
                             <td class="py-3.5 px-4 text-center font-mono font-bold">{{ $ts->hours }}h</td>
-                            <td class="py-3.5 px-4 text-right font-mono">{{ number_format($ts->hourly_rate) }}đ</td>
+                            <td class="py-3.5 px-4 text-right font-mono">
+                                {{ number_format($ts->effectiveHourlyRate()) }}đ
+                                @if ($ts->hourly_rate === null)
+                                    <span class="block text-[10px] text-gray-400 font-sans">theo hồ sơ GV</span>
+                                @endif
+                            </td>
                             <td class="py-3.5 px-4 text-right font-mono font-bold text-emerald-600 text-sm">
-                                {{ number_format($ts->hours * $ts->hourly_rate) }}đ
+                                {{ number_format($ts->hours * $ts->effectiveHourlyRate()) }}đ
                             </td>
                             <td class="py-3.5 px-4">
                                 <span class="px-2.5 py-1 rounded-full text-[10px] font-bold {{ $ts->status === 'valid' ? 'bg-emerald-50 text-emerald-700' : ($ts->status === 'invalid' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700') }}">{{ $ts->status }}</span>

@@ -64,6 +64,13 @@
 
     <div class="space-y-6">
 
+        @error('period')
+            <div class="p-4 rounded-xl bg-rose-50 text-rose-800 border border-rose-200 flex items-center gap-3 text-sm font-medium">
+                <span class="material-symbols-outlined text-rose-600">error</span>
+                <span>{{ $message }}</span>
+            </div>
+        @enderror
+
         <!-- Department / Role Sub-navigation Tabs -->
         <div class="flex flex-wrap gap-2 border-b border-gray-200 pb-2 text-xs">
             <a href="{{ route('payroll.periods.show', $period->id) }}" class="px-4 py-2 font-bold rounded-xl bg-orange-600 text-white shadow-xs flex items-center gap-1.5">
@@ -106,8 +113,8 @@
 
             <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-1">
                 <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tổng khấu trừ &amp; Phạt</span>
-                <div class="text-xl font-black text-rose-600 font-mono">-{{ number_format($period->records->sum('penalty_deduction') + $period->records->sum('insurance_deduction')) }}đ</div>
-                <p class="text-[11px] text-rose-600 font-medium">Bao gồm vi phạm quy chế &amp; bảo hiểm</p>
+                <div class="text-xl font-black text-rose-600 font-mono">-{{ number_format($period->records->sum('total_deductions')) }}đ</div>
+                <p class="text-[11px] text-rose-600 font-medium">Bao gồm phạt, bảo hiểm, thuế &amp; giảm trừ GVNN</p>
             </div>
         </div>
 
@@ -130,6 +137,7 @@
                             <th class="py-3 px-4 text-right">Thù lao dạy</th>
                             <th class="py-3 px-4 text-right">Thưởng KPI</th>
                             <th class="py-3 px-4 text-right">Phụ cấp</th>
+                            <th class="py-3 px-4 text-right">Hoa hồng</th>
                             <th class="py-3 px-4 text-right">Giảm trừ</th>
                             <th class="py-3 px-4 text-right font-black">Thực lĩnh</th>
                             <th class="py-3 px-4 text-center">Trạng thái</th>
@@ -155,8 +163,11 @@
                                 <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">{{ number_format($r->teaching_salary) }}đ</td>
                                 <td class="py-3.5 px-4 text-right font-mono text-amber-600 font-semibold">{{ number_format($r->kpi_bonus) }}đ</td>
                                 <td class="py-3.5 px-4 text-right font-mono">{{ number_format($r->allowance) }}đ</td>
+                                <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">
+                                    {{ number_format($r->commission_bonus + $r->renew_bonus) }}đ
+                                </td>
                                 <td class="py-3.5 px-4 text-right font-mono text-rose-600">
-                                    <div>-{{ number_format($r->insurance_deduction + $r->tax_deduction + $r->penalty_deduction + $r->foreign_teacher_deduction) }}đ</div>
+                                    <div>-{{ number_format($r->total_deductions) }}đ</div>
                                     @if($r->foreign_teacher_deduction > 0 || $r->foreign_teacher_sessions_count > 0)
                                         <div class="text-[10px] text-amber-700 bg-amber-50 rounded px-1.5 py-0.5 mt-0.5 inline-block font-semibold">
                                             GVNN: -{{ number_format($r->foreign_teacher_deduction) }}đ ({{ $r->foreign_teacher_sessions_count }}b)
@@ -167,11 +178,18 @@
                                     {{ number_format($r->net_salary) }}đ
                                 </td>
                                 <td class="py-3.5 px-4 text-center">
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $period->status === 'approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-blue-50 text-blue-700 border border-blue-200' }}">
-                                        {{ $period->status === 'approved' ? 'Đã duyệt' : 'Đang tính' }}
-                                    </span>
+                                    @php
+                                        [$rowBadge, $rowLabel] = match ($period->status) {
+                                            'paid' => ['bg-purple-50 text-purple-700 border border-purple-200', 'Đã trả'],
+                                            'approved' => ['bg-emerald-50 text-emerald-700 border border-emerald-200', 'Đã duyệt'],
+                                            default => ['bg-blue-50 text-blue-700 border border-blue-200', 'Đang tính'],
+                                        };
+                                    @endphp
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $rowBadge }}">{{ $rowLabel }}</span>
                                 </td>
                                 <td class="py-3.5 px-4 text-right">
+                                    @if (! $period->isLocked())
+                                    @can('payroll.edit')
                                     <button type="button" @click="openDeductionModal = true" class="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-gray-300 hover:bg-gray-50 text-gray-700 transition">
                                         Trừ GVNN
                                     </button>
@@ -221,16 +239,18 @@
 
                                                 <div class="flex items-center justify-end gap-2 pt-2 border-t">
                                                     <button type="button" @click="openDeductionModal = false" class="px-3 py-1.5 border rounded-lg text-gray-600 hover:bg-gray-50">Hủy</button>
-                                                    <button type="submit" class="px-4 py-1.5 bg-primary text-white font-bold rounded-lg shadow-sm hover:bg-primary-hover">Lưu giảm trừ</button>
+                                                    <button type="submit" class="px-4 py-1.5 bg-primary-container text-white font-bold rounded-lg shadow-sm hover:bg-primary-hover">Lưu giảm trừ</button>
                                                 </div>
                                             </form>
                                         </div>
                                     </div>
+                                    @endcan
+                                    @endif
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="text-center py-8 text-gray-400 text-xs">Chưa có chi tiết lương nhân sự cho kỳ này.</td>
+                                <td colspan="11" class="text-center py-8 text-gray-400 text-xs">Chưa có chi tiết lương nhân sự cho kỳ này.</td>
                             </tr>
                         @endforelse
                     </tbody>

@@ -43,8 +43,9 @@
                     <input type="number" step="0.5" name="hours" value="2.0" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2" />
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Đơn giá giờ dạy (VNĐ/h) <span class="text-rose-500">*</span></label>
-                    <input type="number" name="hourly_rate" value="300000" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2 text-emerald-600" />
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Đơn giá giờ dạy riêng (VNĐ/h)</label>
+                    <input type="number" name="hourly_rate" value="{{ old('hourly_rate') }}" min="1000" step="1000" placeholder="Bỏ trống = đơn giá của giáo viên" class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2 text-emerald-600" />
+                    <p class="text-[10px] text-gray-400 mt-1">Bỏ trống để dùng đơn giá trong hồ sơ nhân sự (mặc định 250.000đ/h).</p>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 mb-1">Loại ca dạy</label>
@@ -63,7 +64,7 @@
             </div>
 
             <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                <button type="submit" class="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5">
+                <button type="submit" class="px-6 py-2.5 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-base">save</span>
                     <span>Lưu Chấm công vào CSDL</span>
                 </button>

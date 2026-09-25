@@ -601,7 +601,8 @@ class NotificationService
             return null;
         }
 
-        $diff = Carbon::parse($tuition->due_date)->startOfDay()->diffInDays(now()->startOfDay(), false);
+        // Carbon 3 trả về float -> ép int, nếu không `$diff === 0` không bao giờ đúng và mốc T0 bị bỏ qua.
+        $diff = (int) round(Carbon::parse($tuition->due_date)->startOfDay()->diffInDays(now()->startOfDay(), false));
 
         return match (true) {
             $diff < 0 => 'T-3',
@@ -658,6 +659,18 @@ class NotificationService
             '{so_tien}' => number_format((float) $tuition->debt_amount, 0, ',', '.').' VNĐ',
             '{han_dong}' => Carbon::parse($tuition->due_date)->format('d/m/Y'),
             '{moc_nhac}' => $rule->title,
+        ];
+        // Màn cấu hình hiển thị placeholder IN HOA ({TEN_HOC_VIEN} {TEN_LOP} {HAN_NOP} {SO_TIEN}) -> hỗ trợ cả hai bộ.
+        $replacements += [
+            '{TEN_HOC_VIEN}' => $replacements['{ten_hoc_vien}'],
+            '{MA_HOC_VIEN}' => $replacements['{ma_hoc_vien}'],
+            '{SO_DIEN_THOAI}' => $replacements['{so_dien_thoai}'],
+            '{TEN_LOP}' => $replacements['{lop_hoc}'],
+            '{LOP_HOC}' => $replacements['{lop_hoc}'],
+            '{SO_TIEN}' => $replacements['{so_tien}'],
+            '{HAN_NOP}' => $replacements['{han_dong}'],
+            '{HAN_DONG}' => $replacements['{han_dong}'],
+            '{MOC_NHAC}' => $replacements['{moc_nhac}'],
         ];
         $content = strtr($rule->template_content, $replacements);
 

@@ -11,14 +11,14 @@
 
     <div class="space-y-6">
         <form method="GET" class="flex flex-wrap items-center gap-3 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-            <input type="date" name="date" value="{{ $date }}" class="text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
-            <select name="class_id" class="text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
+            <input type="date" name="date" value="{{ $date }}" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
+            <select name="class_id" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
                 <option value="">Tất cả lớp</option>
                 @foreach ($classes as $c)
                     <option value="{{ $c->id }}" @selected($classId == $c->id)>{{ $c->name }}</option>
                 @endforeach
             </select>
-            <button type="submit" class="px-4 py-2 rounded-lg bg-primary text-white text-xs font-bold">Lọc</button>
+            <button type="submit" class="px-4 py-2 rounded-lg bg-primary-container text-white text-xs font-bold">Lọc</button>
         </form>
 
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">

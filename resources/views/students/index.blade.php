@@ -4,7 +4,7 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">school</span>
-                    Danh sách Hồ sơ Học viên (Database)
+                    Danh sách Hồ sơ Học viên
                 </h1>
                 <p class="text-xs text-gray-500">Quản lý toàn bộ thông tin học tập, chuyên cần, bài tập về nhà và tiến độ điểm số</p>
             </div>
@@ -23,7 +23,7 @@
             <div class="flex flex-wrap items-center gap-2 flex-1">
                 <div class="relative min-w-[240px]">
                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
-                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Tìm theo tên học viên, mã HV, SĐT..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary focus:border-primary" />
+                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Tìm theo tên học viên, mã HV, SĐT..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container" />
                 </div>
                 <select name="branch_id" class="text-xs rounded-xl border border-gray-200 py-1.5 px-3" onchange="this.form.submit()">
                     <option value="">Tất cả cơ sở</option>
@@ -65,7 +65,7 @@
                             <tr class="hover:bg-orange-50/20 transition">
                                 <td class="py-3.5 px-4 font-medium whitespace-nowrap">
                                     <a href="{{ route('students.show', $st->id) }}" class="font-bold text-gray-900 text-sm hover:text-primary transition flex items-center gap-2 whitespace-nowrap">
-                                        <span class="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                                        <span class="w-7 h-7 rounded-full bg-primary-container/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
                                             {{ Str::substr($st->name, 0, 1) }}
                                         </span>
                                         <span class="whitespace-nowrap">{{ $st->name }}</span>

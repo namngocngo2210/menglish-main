@@ -46,25 +46,25 @@
                             <div class="flex items-center gap-1">
                                 <input type="number" name="score[{{ $cr->id }}]" value="{{ $item?->score !== null ? rtrim(rtrim(number_format($item->score,2),'0'),'.') : '' }}"
                                        min="0" max="100" step="1" placeholder="0-100"
-                                       class="w-24 text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary text-center font-bold">
+                                       class="w-24 text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container text-center font-bold">
                                 <span class="text-xs text-gray-400">%</span>
                             </div>
                             <input type="text" name="note[{{ $cr->id }}]" value="{{ $item?->note }}" placeholder="Ghi chú..."
-                                   class="w-full sm:w-56 text-xs rounded-lg border-gray-200 focus:border-primary focus:ring-primary">
+                                   class="w-full sm:w-56 text-xs rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
                         </div>
                     @endforeach
                 </div>
 
                 <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
                     <label class="block text-xs font-semibold text-gray-500 mb-1">Nhận xét tổng quan</label>
-                    <textarea name="comment" rows="3" class="w-full text-sm rounded-lg border-gray-200 focus:border-primary focus:ring-primary">{{ $evaluation?->comment }}</textarea>
+                    <textarea name="comment" rows="3" class="w-full text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">{{ $evaluation?->comment }}</textarea>
                 </div>
 
                 <div class="flex items-center justify-between">
                     @if ($evaluation)
                         <span class="text-sm text-gray-500">Điểm tổng hiện tại: <span class="font-black text-primary">{{ rtrim(rtrim(number_format($evaluation->total_score,2),'0'),'.') }}%</span></span>
                     @else <span></span> @endif
-                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
                         <span class="material-symbols-outlined text-[18px]">save</span> Lưu đánh giá
                     </button>
                 </div>

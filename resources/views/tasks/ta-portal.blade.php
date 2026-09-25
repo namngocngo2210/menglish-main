@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-orange-100 text-[#F5691A] flex items-center justify-center font-bold text-sm">
+                <div class="w-10 h-10 rounded-xl bg-orange-100 text-primary-container flex items-center justify-center font-bold text-sm">
                     {{ Str::substr($taUser->name ?? 'TA', 0, 2) }}
                 </div>
                 <div>
@@ -11,7 +11,7 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('tasks.class-reports.create') }}" class="bg-[#F5691A] text-white px-4 py-2 rounded-xl text-xs font-semibold hover:bg-[#d85a15] transition shadow-sm flex items-center gap-1.5">
+                <a href="{{ route('tasks.class-reports.create') }}" class="bg-primary-container text-white px-4 py-2 rounded-xl text-xs font-semibold hover:bg-primary transition shadow-sm flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-[16px]">assignment</span>
                     Nộp báo cáo trực lớp
                 </a>
@@ -36,7 +36,7 @@
         <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs" x-data="{ open: true }">
             <button @click="open = !open" class="w-full px-6 py-4 flex items-center justify-between bg-white hover:bg-gray-50/80 transition">
                 <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-[#F5691A]">schedule</span>
+                    <span class="material-symbols-outlined text-primary-container">schedule</span>
                     <h2 class="text-base font-bold text-gray-900">Trước giờ học</h2>
                     <span class="text-xs text-gray-500 font-normal">({{ $beforeTasks->count() }} nhiệm vụ)</span>
                 </div>
@@ -67,7 +67,7 @@
                             </div>
 
                             @if($task->status === 'new' || $task->status === 'in_progress')
-                                <button @click="openCompleteModal({{ json_encode($task) }})" class="bg-[#F5691A] text-white hover:bg-[#d85a15] font-semibold text-xs px-4 py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs">
+                                <button @click="openCompleteModal({{ json_encode($task) }})" class="bg-primary-container text-white hover:bg-primary font-semibold text-xs px-4 py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs">
                                     <span class="material-symbols-outlined text-[16px]">check_circle</span>
                                     Hoàn thành
                                 </button>
@@ -97,7 +97,7 @@
         <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs" x-data="{ open: true }">
             <button @click="open = !open" class="w-full px-6 py-4 flex items-center justify-between bg-white hover:bg-gray-50/80 transition">
                 <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-[#F5691A]">play_circle</span>
+                    <span class="material-symbols-outlined text-primary-container">play_circle</span>
                     <h2 class="text-base font-bold text-gray-900">Trong giờ học</h2>
                     <span class="text-xs text-gray-500 font-normal">({{ $duringTasks->count() }} nhiệm vụ)</span>
                 </div>
@@ -136,7 +136,7 @@
                                 @endif
 
                                 @if($task->status === 'new' || $task->status === 'in_progress')
-                                    <button @click="openCompleteModal({{ json_encode($task) }})" class="bg-[#F5691A] text-white hover:bg-[#d85a15] font-semibold text-xs px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
+                                    <button @click="openCompleteModal({{ json_encode($task) }})" class="bg-primary-container text-white hover:bg-primary font-semibold text-xs px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
                                         <span class="material-symbols-outlined text-[16px]">check_circle</span>
                                         Hoàn thành
                                     </button>
@@ -154,7 +154,7 @@
         <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs" x-data="{ open: true }">
             <button @click="open = !open" class="w-full px-6 py-4 flex items-center justify-between bg-white hover:bg-gray-50/80 transition">
                 <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-[#F5691A]">task_alt</span>
+                    <span class="material-symbols-outlined text-primary-container">task_alt</span>
                     <h2 class="text-base font-bold text-gray-900">Sau giờ học</h2>
                     <span class="text-xs text-gray-500 font-normal">({{ $afterTasks->count() }} nhiệm vụ)</span>
                 </div>
@@ -185,7 +185,7 @@
                             </div>
 
                             @if($task->status === 'new' || $task->status === 'in_progress')
-                                <button @click="openCompleteModal({{ json_encode($task) }})" class="bg-[#F5691A] text-white hover:bg-[#d85a15] font-semibold text-xs px-4 py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs">
+                                <button @click="openCompleteModal({{ json_encode($task) }})" class="bg-primary-container text-white hover:bg-primary font-semibold text-xs px-4 py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs">
                                     <span class="material-symbols-outlined text-[16px]">check_circle</span>
                                     Hoàn thành
                                 </button>
@@ -244,14 +244,14 @@
                     <div>
                         <label class="block text-xs font-bold uppercase text-gray-700 mb-1.5" for="note">Ghi chú (Tùy chọn)</label>
                         <textarea name="note" id="note" x-model="note" rows="3" placeholder="Nhập ghi chú kết quả hoặc vấn đề phát sinh..."
-                                  class="w-full rounded-xl border-gray-200 text-xs focus:ring-primary focus:border-primary"></textarea>
+                                  class="w-full rounded-xl border-gray-200 text-xs focus:ring-primary-container focus:border-primary-container"></textarea>
                     </div>
 
                     <div class="pt-2 flex justify-end gap-3 border-t border-gray-100">
                         <button type="button" @click="modalOpen = false" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 font-medium text-xs">
                             Hủy bỏ
                         </button>
-                        <button type="submit" class="px-5 py-2 bg-[#F5691A] text-white rounded-xl hover:bg-[#d85a15] font-semibold text-xs shadow-sm flex items-center gap-1.5">
+                        <button type="submit" class="px-5 py-2 bg-primary-container text-white rounded-xl hover:bg-primary font-semibold text-xs shadow-sm flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-[16px]">send</span>
                             Xác nhận nộp
                         </button>

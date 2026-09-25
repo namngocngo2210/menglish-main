@@ -23,10 +23,6 @@
                 <div class="mt-1 text-xs">Yêu cầu học viên đổi mật khẩu ngay lần đăng nhập đầu tiên.</div>
             </div>
         @endif
-        @if ($errors->any())
-            <div class="rounded-xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-800">{{ $errors->first() }}</div>
-        @endif
-
         @include('crm.partials.waiting-class-table')
 
         <!-- Stats summary -->
