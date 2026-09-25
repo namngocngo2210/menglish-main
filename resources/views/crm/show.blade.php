@@ -135,7 +135,7 @@
                 @endif
 
                 @can('lead.delete')
-                @if ($customer->stage !== 'won' && !$customer->converted_student_id)
+                @if (! in_array($customer->stage, ['won', 'lost'], true) && !$customer->converted_student_id)
                 <form action="{{ route('crm.customers.destroy', $customer->id) }}" method="POST" class="inline shrink-0" data-confirm="Bạn có chắc chắn muốn xóa lead {{ $customer->name }} ({{ $customer->code }})? Thao tác này không thể hoàn tác.">
                     @csrf
                     @method('DELETE')
@@ -356,6 +356,16 @@
     </div>
 
     <!-- Success flash banner -->
+
+    @if ($customer->stage === \App\Models\CrmCustomer::STAGE_LOST)
+        <div class="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 flex items-start gap-2" data-testid="lost-banner">
+            <span class="material-symbols-outlined text-[18px]">block</span>
+            <div>
+                <div class="font-bold">Khách Thất bại{{ $customer->lost_at ? ' từ '.$customer->lost_at->format('d/m/Y') : '' }} — không mở lại, giữ để đối soát.</div>
+                @if ($customer->lost_reason)<div>Lý do: {{ $customer->lost_reason }}</div>@endif
+            </div>
+        </div>
+    @endif
 
     @if ($customer->trialBookings->isNotEmpty() || $customer->stage === 'waiting_class')
         <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">

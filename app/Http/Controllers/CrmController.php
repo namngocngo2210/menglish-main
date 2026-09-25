@@ -517,6 +517,10 @@ class CrmController extends Controller
      * Nhập điểm test đầu vào từ hồ sơ khách (Học vụ / Quản lý cơ sở / Admin — quyền entrance_test.grade),
      * cùng thang điểm khối lớp với màn chấm bài (PlacementRubricService).
      */
+    /**
+     * Nhập điểm test đầu vào từ hồ sơ khách (Học vụ / Quản lý cơ sở / Admin — quyền entrance_test.grade),
+     * cùng thang điểm khối lớp với màn chấm bài (PlacementRubricService).
+     */
     public function saveTestScore(Request $request, $id)
     {
         $customer = $this->findScopedCustomer($id);
@@ -985,6 +989,12 @@ class CrmController extends Controller
         if ($customer->stage === 'won' || $customer->converted_student_id) {
             throw ValidationException::withMessages([
                 'customer' => 'Lead đã chốt phải được lưu để bảo toàn lịch sử tuyển sinh, học phí và hoa hồng.',
+            ]);
+        }
+        if ($customer->stage === CrmCustomer::STAGE_LOST) {
+            // BA Q1 (bản sửa): khách Thất bại không mở lại và được giữ nguyên để đối soát / audit.
+            throw ValidationException::withMessages([
+                'customer' => 'Khách Thất bại được giữ để đối soát, không xóa được.',
             ]);
         }
         $name = $customer->name;
