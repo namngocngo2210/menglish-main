@@ -10,7 +10,9 @@
     $currentUser = Auth::user();
     $menu = app(\App\Support\Navigation\SidebarMenu::class);
     $quickCreate = $menu->quickCreateFor($currentUser);
-    $canSearchLeads = $currentUser?->can('lead.view') && Route::has('crm.customers.index');
+    // Ô tìm kiếm chung: khách CRM / học viên / lớp (trang /search tự lọc theo quyền từng nhóm).
+    $canGlobalSearch = $currentUser && Route::has('search')
+        && ($currentUser->can('lead.view') || $currentUser->can('student.view') || $currentUser->can('class.view'));
     $canViewNotifications = (bool) $currentUser?->can('notification.view');
 @endphp
 <!DOCTYPE html>
@@ -50,13 +52,16 @@
                             @endisset
                         </div>
 
-                        @if ($canSearchLeads)
-                            <form method="GET" action="{{ route('crm.customers.index') }}" role="search" class="relative hidden w-[300px] shrink-0 lg:block">
+                        @if ($canGlobalSearch)
+                            <form method="GET" action="{{ route('search') }}" role="search" class="relative hidden w-[300px] shrink-0 lg:block">
                                 <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
-                                <input type="search" name="search" value="{{ request()->routeIs('crm.customers.index') ? request('search') : '' }}"
-                                       placeholder="Tìm kiếm Lead, SĐT..." aria-label="Tìm kiếm Lead, SĐT"
+                                <input type="search" name="q" value="{{ request()->routeIs('search') ? request('q') : '' }}" minlength="2"
+                                       placeholder="Tìm khách, học viên, lớp, SĐT..." aria-label="Tìm kiếm khách hàng, học viên, lớp học"
                                        class="w-full rounded-full border-none bg-surface-container-low py-2 pl-10 pr-md font-body-small text-body-small text-on-surface placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-primary-container/20">
                             </form>
+                            <a href="{{ route('search') }}" class="shrink-0 rounded-lg p-2 text-on-surface-variant hover:bg-surface-container-high lg:hidden" aria-label="Tìm kiếm">
+                                <span class="material-symbols-outlined">search</span>
+                            </a>
                         @endif
                     </div>
 

@@ -38,6 +38,7 @@ use App\Http\Controllers\TrialGuestController;
 use App\Http\Controllers\TuitionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserPermissionOverrideController;
+use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\WorkTaskController;
 use Illuminate\Support\Facades\Route;
 
@@ -47,6 +48,9 @@ Route::get('/', function () {
 
 // Dashboard theo vai trò (BPMN 22): Admin / Quản lý cơ sở / Học thuật có số liệu riêng.
 Route::get('/dashboard', DashboardController::class)->middleware(['auth'])->name('dashboard');
+
+// Tìm kiếm chung trên topbar (khách CRM, học viên, lớp) — mỗi nhóm tự kiểm tra quyền + phạm vi dữ liệu.
+Route::get('/search', GlobalSearchController::class)->middleware(['auth'])->name('search');
 
 // Interactive Mockup Hub Navigator (Admin / Manager)
 Route::get('/mockup-hub', [MockupHubController::class, 'index'])->middleware(['auth', 'can:system_category.manage'])->name('mockup-hub.index');
