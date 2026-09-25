@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\SalesCommissionService;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -91,7 +92,13 @@ class PayrollPeriod extends Model
             // Biên bản đổi trạng thái sau lần tính (quyết phạt/nộp) hoặc vừa quá hạn nộp mà chưa được trừ
             || Penalty::whereIn('payroll_record_id', $this->records()->select('id'))->where('updated_at', '>', $this->calculated_at)->exists()
             || Penalty::deductibleFor($this)->whereNull('payroll_record_id')
-                ->whereIn('user_id', $this->records()->select('user_id'))->exists();
+                ->whereIn('user_id', $this->records()->select('user_id'))->exists()
+            // Phiếu thu được duyệt / thu hồi hoa hồng phát sinh sau lần tính
+            || TuitionReceipt::whereBetween('approved_at', [$this->start_date->copy()->startOfDay(), $this->end_date->copy()->endOfDay()])
+                ->where('updated_at', '>', $this->calculated_at)->exists()
+            || CommissionAdjustment::whereNull('settled_at')->whereNull('payroll_record_id')
+                ->where('created_at', '<=', $this->end_date->copy()->endOfDay())
+                ->where('created_at', '>', $this->calculated_at)->exists();
     }
 
     /**
@@ -166,13 +173,24 @@ class PayrollPeriod extends Model
         $settings = self::payrollSettings();
         $users = User::where('is_active', true)->get();
         $producedUserIds = [];
+        $commissionService = app(SalesCommissionService::class);
+        $existingRecords = $this->records()->get()->keyBy('user_id');
 
-        // Gỡ liên kết phạt của lần tính trước; lần tính này sẽ gắn lại đúng các biên bản đã trừ.
+        // Gỡ liên kết phạt / điều chỉnh hoa hồng của lần tính trước; lần tính này gắn lại đúng khoản đã trừ.
         Penalty::whereIn('payroll_record_id', $this->records()->select('id'))
             ->toBase()
             ->update(['payroll_record_id' => null]);
+        CommissionAdjustment::whereIn('payroll_record_id', $this->records()->select('id'))
+            ->whereNull('settled_at')
+            ->toBase()
+            ->update(['payroll_record_id' => null]);
+
+        // Doanh thu thực thu làm căn cứ hoa hồng của cả kỳ (xem SalesCommissionService).
+        $collectedBySales = $commissionService->collectedBySales($this->start_date, $this->end_date);
 
         foreach ($users as $user) {
+            $existing = $existingRecords->get($user->id);
+
             // 1. Giờ dạy thực tế từ bảng chấm công
             $timesheets = TeacherTimesheet::where('user_id', $user->id)
                 ->whereBetween('teaching_date', [$this->start_date, $this->end_date])
@@ -185,30 +203,17 @@ class PayrollPeriod extends Model
                 fn (TeacherTimesheet $ts) => (float) $ts->hours * $ts->effectiveHourlyRate($user)
             );
 
-            // 2. Hoa hồng tuyển sinh CRM (Deal Won trong kỳ; lead cũ chưa có
-            //     converted_at thì lùi về created_at để khớp Báo cáo CRM)
-            $wonRevenue = (float) CrmCustomer::where(function ($query) use ($user) {
-                $query->where('commission_user_id', $user->id)
-                    ->orWhere(function ($legacy) use ($user) {
-                        $legacy->whereNull('commission_user_id')
-                            ->where('assigned_user_id', $user->id);
-                    });
-            })
-                ->where('stage', 'won')
-                ->where(function ($query) {
-                    $query->whereBetween('converted_at', [$this->start_date->copy()->startOfDay(), $this->end_date->copy()->endOfDay()])
-                        ->orWhere(fn ($legacy) => $legacy
-                            ->whereNull('converted_at')
-                            ->whereBetween('created_at', [$this->start_date->copy()->startOfDay(), $this->end_date->copy()->endOfDay()]));
-                })
-                ->sum('deal_value');
+            // 2. Hoa hồng tuyển sinh: % theo bậc hiệu lực tại cuối kỳ × tiền thực thu của khách mới
+            //    (phiếu duyệt trong kỳ). Thu hồi hoa hồng do hoàn phí trừ riêng ở mục khấu trừ.
+            $commissionBase = (float) ($collectedBySales->get($user->id) ?? 0);
+            $commissionBonus = $commissionService->commissionFor($commissionBase, $this->end_date)['amount'];
 
-            $tier = CommissionTier::matchForRevenue($wonRevenue);
-
-            $commissionBonus = 0;
-            if ($wonRevenue > 0 && $tier) {
-                $commissionBonus = ($wonRevenue * (float) $tier->new_sale_percent / 100) + (float) ($tier->bonus_amount ?? 0);
-            }
+            $adjustments = CommissionAdjustment::where('user_id', $user->id)
+                ->whereNull('settled_at')
+                ->whereNull('payroll_record_id')
+                ->where('created_at', '<=', $this->end_date->copy()->endOfDay())
+                ->get(['id', 'amount']);
+            $commissionClawback = (float) max(0, -$adjustments->sum('amount'));
 
             // 3. Giảm trừ vi phạm kỷ luật: chỉ biên bản đã quyết phạt mà QUÁ HẠN NỘP (2 ngày)
             //     chưa nộp; đã nộp trực tiếp (paid) thì không trừ. Xem Penalty::scopeDeductibleFor.
@@ -236,19 +241,22 @@ class PayrollPeriod extends Model
             }
             $foreignTeacherDeduction = $foreignTeacherSessionsCount * $foreignTeacherRate;
 
-            // 4. Lương cơ bản và phụ cấp từ User
+            // 4. Lương cơ bản và phụ cấp từ User (công thức lương Q3 chờ BA chốt — giữ công thức hiện tại)
             $baseSalary = (float) ($user->base_salary > 0 ? $user->base_salary : 0);
-            $allowance = ($baseSalary > 0) ? $settings['allowance_amount'] : 0;
+            $allowance = $existing?->allowance_override !== null
+                ? (float) $existing->allowance_override
+                : (($baseSalary > 0) ? $settings['allowance_amount'] : 0);
             $kpiBonus = ($actualHours >= $settings['kpi_bonus_hours_threshold']) ? $settings['kpi_bonus_amount'] : 0;
             $insuranceDeduction = ($baseSalary > 0) ? ($baseSalary * $settings['insurance_rate_percent'] / 100) : 0;
             $taxDeduction = 0;
 
-            // 5. Thực lĩnh
-            $gross = $baseSalary + $teachingSalary + $kpiBonus + $commissionBonus + $allowance;
-            $netSalary = max(0, $gross - $penaltyDeduction - $foreignTeacherDeduction - $insuranceDeduction - $taxDeduction);
+            // Khoản Kế toán điều chỉnh tay trên phiếu lương được giữ qua các lần tính lại.
+            $otherBonus = (float) ($existing?->other_bonus ?? 0);
+            $otherDeduction = (float) ($existing?->other_deduction ?? 0);
 
-            // Bỏ qua nếu nhân sự không có lương cứng, không có giờ dạy và không có hoa hồng
-            if ($baseSalary == 0 && $actualHours == 0 && $commissionBonus == 0) {
+            // Bỏ qua nếu nhân sự không có khoản nào phát sinh trong kỳ
+            if ($baseSalary == 0 && $actualHours == 0 && $commissionBonus == 0 && $commissionClawback == 0
+                && $otherBonus == 0 && $otherDeduction == 0) {
                 continue;
             }
 
@@ -264,8 +272,11 @@ class PayrollPeriod extends Model
                     'actual_hours' => $actualHours,
                     'teaching_salary' => $teachingSalary,
                     'kpi_bonus' => $kpiBonus,
+                    // A6: không tính hoa hồng tái tục. Thưởng tái tục (nếu có) chờ BA chốt Q3 → giữ 0.
                     'renew_bonus' => 0,
                     'commission_bonus' => $commissionBonus,
+                    'commission_base' => $commissionBase,
+                    'commission_clawback' => $commissionClawback,
                     'allowance' => $allowance,
                     'penalty_deduction' => $penaltyDeduction,
                     'foreign_teacher_sessions_count' => $foreignTeacherSessionsCount,
@@ -273,13 +284,22 @@ class PayrollPeriod extends Model
                     'foreign_teacher_deduction' => $foreignTeacherDeduction,
                     'insurance_deduction' => $insuranceDeduction,
                     'tax_deduction' => $taxDeduction,
-                    'net_salary' => $netSalary,
-                    'notes' => "Tự động tính: {$actualHours}h dạy (".number_format($teachingSalary).'đ) + Hoa hồng '.number_format($commissionBonus).'đ - Phạt '.number_format($penaltyDeduction).'đ'.($foreignTeacherDeduction > 0 ? ' - Trừ GVNN '.number_format($foreignTeacherDeduction).'đ' : ''),
+                    'notes' => "Tự động tính: {$actualHours}h dạy (".number_format($teachingSalary).'đ) + Hoa hồng '.number_format($commissionBonus).'đ'
+                        .($commissionClawback > 0 ? ' - Thu hồi HH '.number_format($commissionClawback).'đ' : '')
+                        .' - Phạt '.number_format($penaltyDeduction).'đ'
+                        .($foreignTeacherDeduction > 0 ? ' - Trừ GVNN '.number_format($foreignTeacherDeduction).'đ' : ''),
                 ]
             );
+            $record->calculateNetSalary();
+            $record->save();
 
             if ($penalties->isNotEmpty()) {
                 Penalty::whereKey($penalties->modelKeys())
+                    ->toBase()
+                    ->update(['payroll_record_id' => $record->id]);
+            }
+            if ($adjustments->isNotEmpty()) {
+                CommissionAdjustment::whereKey($adjustments->modelKeys())
                     ->toBase()
                     ->update(['payroll_record_id' => $record->id]);
             }

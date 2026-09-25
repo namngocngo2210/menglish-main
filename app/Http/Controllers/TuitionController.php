@@ -13,8 +13,10 @@ use App\Models\Student;
 use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
+use App\Models\User;
 use App\Services\NotificationService;
 use App\Services\SafeUploadService;
+use App\Services\SalesCommissionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -773,10 +775,19 @@ class TuitionController extends Controller
 
     public function refunds()
     {
-        $refundRequests = TuitionRefundRequest::with(['student.currentClass', 'targetStudent.currentClass', 'requester', 'approver'])->latest()->get();
+        $refundRequests = TuitionRefundRequest::with(['student.currentClass', 'targetStudent.currentClass', 'requester', 'approver', 'clawbackUser'])->latest()->get();
+        // Gợi ý thu hồi hoa hồng cho hồ sơ hoàn phí đang chờ duyệt (học < 1 tháng → có).
+        $commissionService = app(SalesCommissionService::class);
+        $clawbackHints = $refundRequests->where('status', 'pending')->where('type', 'refund')
+            ->mapWithKeys(fn (TuitionRefundRequest $refund) => [$refund->id => [
+                'suggest' => $commissionService->suggestClawback($refund),
+                'amount' => $commissionService->suggestedClawbackAmount($refund),
+                'owner' => ($ownerId = $commissionService->ownerOfStudent((int) $refund->student_id)) ? User::find($ownerId)?->name : null,
+                'start' => $commissionService->studyStartDate((int) $refund->student_id),
+            ]]);
         $students = Student::with(['currentClass', 'tuition'])->get();
 
-        return view('tuition.refunds', compact('refundRequests', 'students'));
+        return view('tuition.refunds', compact('refundRequests', 'students', 'clawbackHints'));
     }
 
     public function storeRefundRequest(Request $request)
@@ -817,9 +828,15 @@ class TuitionController extends Controller
         return redirect()->back()->with('status', "Đã lập hồ sơ {$typeLabel} và gửi lên cấp Quản lý/Kế toán phê duyệt!");
     }
 
-    public function approveRefundRequest($id)
+    public function approveRefundRequest(Request $request, $id)
     {
-        $result = DB::transaction(function () use ($id) {
+        // Phase 3 (A6): người duyệt hoàn phí chọn có thu hồi hoa hồng của sale hay không.
+        $clawbackInput = $request->validate([
+            'clawback_commission' => ['nullable', 'boolean'],
+            'clawback_amount' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $result = DB::transaction(function () use ($id, $clawbackInput) {
             $refund = TuitionRefundRequest::query()->lockForUpdate()->findOrFail($id);
             $refund->load(['student', 'targetStudent']);
 
@@ -871,6 +888,13 @@ class TuitionController extends Controller
             }
 
             $refund->update(['status' => 'approved', 'approver_id' => Auth::id()]);
+            // Chuyển nhượng phí không bao giờ thu hồi; hoàn phí theo lựa chọn (mặc định: gợi ý theo thời gian đã học).
+            app(SalesCommissionService::class)->recordRefundDecision(
+                $refund,
+                array_key_exists('clawback_commission', $clawbackInput) && $clawbackInput['clawback_commission'] !== null ? (bool) $clawbackInput['clawback_commission'] : null,
+                isset($clawbackInput['clawback_amount']) ? (float) $clawbackInput['clawback_amount'] : null,
+                Auth::user(),
+            );
 
             $isTransfer = $refund->type === 'transfer';
             $amountLabel = number_format($amount, 0, ',', '.').' VNĐ';

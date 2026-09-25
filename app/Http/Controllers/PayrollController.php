@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClassModel;
+use App\Models\CommissionAdjustment;
 use App\Models\CommissionTier;
-use App\Models\CrmCustomer;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
 use App\Models\Penalty;
@@ -15,6 +15,7 @@ use App\Models\TeacherTimesheet;
 use App\Models\TimesheetSyncLog;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Services\SalesCommissionService;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -95,6 +96,11 @@ class PayrollController extends Controller
             Penalty::whereIn('payroll_record_id', $period->records()->select('id'))
                 ->whereIn('status', Penalty::payableStatuses())
                 ->update(['status' => 'deducted']);
+
+            // Thu hồi hoa hồng đã trừ trong kỳ → tất toán, không trừ lại ở kỳ sau
+            CommissionAdjustment::whereIn('payroll_record_id', $period->records()->select('id'))
+                ->whereNull('settled_at')
+                ->update(['settled_at' => now()]);
         });
 
         return redirect()->back()->with('status', "Đã phê duyệt bảng lương {$period->title}!");
@@ -317,44 +323,45 @@ class PayrollController extends Controller
         return view('payroll.timesheets-sync', compact('syncLogs'));
     }
 
-    public function kpiLeaderboard()
+    /**
+     * BXH KPI & hoa hồng tuyển sinh theo tháng: cùng căn cứ với bảng lương
+     * (tiền thực thu của khách mới, phiếu duyệt trong tháng — SalesCommissionService).
+     */
+    public function kpiLeaderboard(Request $request)
     {
+        $month = min(12, max(1, $request->integer('month') ?: now()->month));
+        $year = min(2100, max(2020, $request->integer('year') ?: now()->year));
+        $start = Carbon::create($year, $month, 1)->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+
         $salesUsers = User::role('sales_consultant')->get();
         if ($salesUsers->isEmpty()) {
             $salesUsers = User::whereHas('crmCustomers')->get();
         }
 
-        // Doanh số chốt trọn đời theo người nhận hoa hồng (commission_user_id,
-        // fallback assigned_user_id cho lead cũ) — khớp luật tính lương PayrollPeriod.
-        $wonByUser = CrmCustomer::query()
-            ->where('stage', 'won')
-            ->whereNotNull('assigned_user_id')
-            ->get(['commission_user_id', 'assigned_user_id', 'deal_value'])
-            ->groupBy(fn (CrmCustomer $lead) => $lead->commission_user_id ?? $lead->assigned_user_id)
-            ->map(fn ($group) => ['revenue' => (float) $group->sum('deal_value'), 'deals' => $group->count()]);
+        $service = app(SalesCommissionService::class);
+        $receiptsBySales = $service->commissionableReceipts($start, $end)->groupBy('commission_owner_id');
 
-        $usersWithSales = $salesUsers->map(function (User $user) use ($wonByUser) {
-            $wonRevenue = (float) ($wonByUser[$user->id]['revenue'] ?? 0);
-            $dealsCount = $wonByUser[$user->id]['deals'] ?? 0;
-            $tier = CommissionTier::matchForRevenue($wonRevenue);
-            $percent = $tier ? (float) $tier->new_sale_percent : 0;
-            $commission = ($wonRevenue * $percent) / 100 + (float) ($tier->bonus_amount ?? 0);
+        $usersWithSales = $salesUsers->map(function (User $user) use ($receiptsBySales, $service, $end) {
+            $receipts = $receiptsBySales->get($user->id, collect());
+            $revenue = (float) $receipts->sum('amount');
+            $commission = $service->commissionFor($revenue, $end);
             $studentsRetained = $user->branch_id
                 ? Student::where('branch_id', $user->branch_id)->where('status', 'studying')->count()
                 : 0;
 
             return [
                 'user' => $user,
-                'revenue' => $wonRevenue,
-                'deals' => $dealsCount,
+                'revenue' => $revenue,
+                'deals' => $receipts->pluck('student_id')->unique()->count(),
                 'retained_students' => $studentsRetained,
-                'tier_name' => $tier?->tier_name ?? 'Mức cơ bản',
-                'commission' => $commission,
+                'tier_name' => $commission['tier']?->tier_name ?? 'Mức cơ bản',
+                'commission' => $commission['amount'],
                 'branch_name' => $user->branch?->name ?? 'Hệ thống MEnglish',
             ];
         })->sortByDesc('revenue')->values();
 
-        return view('payroll.kpi-leaderboard', compact('usersWithSales'));
+        return view('payroll.kpi-leaderboard', compact('usersWithSales', 'month', 'year'));
     }
 
     public function configSettings()
@@ -469,63 +476,112 @@ class PayrollController extends Controller
         return redirect()->back()->with('status', 'Đã lưu đơn giá giờ dạy mới!');
     }
 
-    public function commissionTiers()
+    public function commissionTiers(Request $request)
     {
-        $tiers = CommissionTier::all();
+        $asOf = $request->filled('as_of') ? Carbon::parse($request->query('as_of')) : today();
+        $tiers = CommissionTier::effectiveAt($asOf)->orderBy('min_revenue')->get();
+        $history = CommissionTier::with(['creator', 'replaces'])
+            ->orderByDesc('effective_from')->orderByDesc('id')
+            ->paginate($request->perPage(15))
+            ->withQueryString();
 
-        return view('payroll.config-commissions', compact('tiers'));
+        return view('payroll.config-commissions', compact('tiers', 'history', 'asOf'));
+    }
+
+    /** Luật validate chung cho bậc hoa hồng. renew_percent không còn dùng (A6: không tính tái tục). */
+    private function commissionTierRules(): array
+    {
+        return [
+            'tier_name' => 'required|string|max:255',
+            'min_revenue' => 'required|numeric|min:0',
+            'max_revenue' => 'nullable|numeric|gt:min_revenue',
+            'new_sale_percent' => 'required|numeric|min:0|max:100',
+            'renew_percent' => 'nullable|numeric|min:0|max:100',
+            'bonus_amount' => 'nullable|numeric|min:0',
+            'effective_from' => 'nullable|date',
+        ];
     }
 
     public function storeCommissionTier(Request $request)
     {
-        $validated = $request->validate([
-            'tier_name' => 'required|string',
-            'min_revenue' => 'required|numeric|min:0',
-            'new_sale_percent' => 'required|numeric|min:0|max:100',
-            'renew_percent' => 'required|numeric|min:0|max:100',
-            'bonus_amount' => 'nullable|numeric|min:0',
-        ]);
+        $validated = $request->validate($this->commissionTierRules());
+        $validated['effective_from'] ??= today()->toDateString();
+        $validated['renew_percent'] ??= 0;
+        $validated['bonus_amount'] ??= 0;
 
-        $tier = CommissionTier::create($validated);
+        $tier = CommissionTier::create($validated + ['created_by' => $request->user()->id]);
 
         activity('commission_tier')->causedBy($request->user())->performedOn($tier)
             ->withProperties(['new' => $validated])
             ->log('Tạo mới bậc hoa hồng: '.$tier->tier_name);
 
-        return redirect()->back()->with('status', 'Đã lưu mức cấu hình hoa hồng mới!');
+        return redirect()->back()->with('status', 'Đã lưu mốc hoa hồng mới, hiệu lực từ '.Carbon::parse($validated['effective_from'])->format('d/m/Y').'!');
     }
 
+    /**
+     * Sửa bậc = tạo PHIÊN BẢN MỚI có hiệu lực từ ngày chọn và đóng phiên bản cũ vào hôm trước,
+     * không ghi đè — kỳ lương cũ tính lại vẫn ra đúng mốc đã áp dụng.
+     */
     public function updateCommissionTier(Request $request, CommissionTier $commissionTier)
     {
-        $validated = $request->validate([
-            'tier_name' => 'required|string',
-            'min_revenue' => 'required|numeric|min:0',
-            'new_sale_percent' => 'required|numeric|min:0|max:100',
-            'renew_percent' => 'required|numeric|min:0|max:100',
-            'bonus_amount' => 'nullable|numeric|min:0',
-        ]);
+        $validated = $request->validate($this->commissionTierRules());
+        abort_if($commissionTier->effective_to !== null, 422, 'Phiên bản này đã hết hiệu lực — hãy sửa phiên bản đang hiệu lực.');
 
-        $before = $commissionTier->only(['tier_name', 'min_revenue', 'new_sale_percent', 'renew_percent', 'bonus_amount']);
+        $effectiveFrom = Carbon::parse($validated['effective_from'] ?? today())->startOfDay();
+        $validated['effective_from'] = $effectiveFrom->toDateString();
+        $validated['renew_percent'] ??= (float) $commissionTier->renew_percent;
+        $validated['bonus_amount'] ??= 0;
+        $before = $commissionTier->only(['tier_name', 'min_revenue', 'max_revenue', 'new_sale_percent', 'bonus_amount', 'effective_from']);
 
-        $commissionTier->update($validated);
+        // Phiên bản chưa tới ngày hiệu lực (chưa từng áp dụng) thì được sửa trực tiếp.
+        if ($commissionTier->effective_from !== null && $commissionTier->effective_from->isAfter(today())
+            && $effectiveFrom->equalTo($commissionTier->effective_from)) {
+            $commissionTier->update($validated);
+            $version = $commissionTier;
+        } else {
+            if ($commissionTier->effective_from !== null && ! $effectiveFrom->isAfter($commissionTier->effective_from)) {
+                throw ValidationException::withMessages([
+                    'effective_from' => 'Ngày hiệu lực mới phải sau ngày hiệu lực của phiên bản hiện tại ('.$commissionTier->effective_from->format('d/m/Y').').',
+                ]);
+            }
 
-        activity('commission_tier')->causedBy($request->user())->performedOn($commissionTier)
+            $version = DB::transaction(function () use ($commissionTier, $validated, $effectiveFrom, $request) {
+                $commissionTier->update(['effective_to' => $effectiveFrom->copy()->subDay()->toDateString()]);
+
+                return CommissionTier::create($validated + [
+                    'replaces_id' => $commissionTier->id,
+                    'created_by' => $request->user()->id,
+                ]);
+            });
+        }
+
+        activity('commission_tier')->causedBy($request->user())->performedOn($version)
             ->withProperties(['before' => $before, 'after' => $validated])
-            ->log('Cập nhật bậc hoa hồng: '.$commissionTier->tier_name.' (Chỉ áp dụng cho các kỳ và giao dịch phát sinh từ thời điểm này trở đi)');
+            ->log('Cập nhật bậc hoa hồng: '.$version->tier_name.' (phiên bản mới hiệu lực từ '.$effectiveFrom->format('d/m/Y').')');
 
-        return redirect()->back()->with('status', 'Đã cập nhật mức cấu hình hoa hồng thành công! (Mức % mới chỉ áp dụng cho các phát sinh sau thời điểm sửa)');
+        return redirect()->back()->with('status', 'Đã tạo phiên bản mới của mốc hoa hồng, hiệu lực từ '.$effectiveFrom->format('d/m/Y').' — các kỳ trước giữ nguyên mốc cũ.');
     }
 
+    /**
+     * Ngừng áp dụng một bậc: đóng hiệu lực (giữ lịch sử). Phiên bản chưa từng có hiệu lực thì xoá hẳn.
+     */
     public function destroyCommissionTier(CommissionTier $commissionTier, Request $request)
     {
         $name = $commissionTier->tier_name;
-        $commissionTier->delete();
+
+        if ($commissionTier->effective_from !== null && $commissionTier->effective_from->isAfter(today())) {
+            $commissionTier->delete();
+            $message = 'Đã xoá mốc hoa hồng chưa có hiệu lực: '.$name;
+        } else {
+            $commissionTier->update(['effective_to' => today()->subDay()->toDateString()]);
+            $message = 'Đã ngừng áp dụng mốc hoa hồng '.$name.' từ hôm nay (giữ lại lịch sử).';
+        }
 
         activity('commission_tier')->causedBy($request->user())
-            ->withProperties(['deleted_tier' => $name])
-            ->log('Xóa bậc hoa hồng: '.$name);
+            ->withProperties(['retired_tier' => $name])
+            ->log('Ngừng áp dụng bậc hoa hồng: '.$name);
 
-        return redirect()->back()->with('status', 'Đã xóa bậc cấu hình hoa hồng: '.$name);
+        return redirect()->back()->with('status', $message);
     }
 
     /**

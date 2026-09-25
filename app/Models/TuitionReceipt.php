@@ -49,6 +49,7 @@ class TuitionReceipt extends Model
         'payment_date',
         'creator_id',
         'approver_id',
+        'approved_at',
         'status',
         'notes',
         'rejection_reason',
@@ -63,6 +64,7 @@ class TuitionReceipt extends Model
         'discount_amount' => 'decimal:2',
         'is_vat_invoice' => 'boolean',
         'payment_date' => 'date',
+        'approved_at' => 'datetime',
         'split_details' => 'array',
         'collected_items' => 'array',
     ];
@@ -125,6 +127,14 @@ class TuitionReceipt extends Model
 
     protected static function booted(): void
     {
+        // Mốc duyệt phiếu = tháng tính hoa hồng tuyển sinh (A6). Ghi tự động ở mọi
+        // luồng duyệt (duyệt tay, SePay, phiếu hoàn/chuyển nhượng) mà không phải sửa từng controller.
+        static::saving(function (TuitionReceipt $receipt) {
+            if ($receipt->status === self::STATUS_APPROVED && $receipt->approved_at === null) {
+                $receipt->approved_at = now();
+            }
+        });
+
         static::created(function (TuitionReceipt $receipt) {
             // Không tự động gửi email khi đang chạy Seeder / Artisan Console (tránh spam mail)
             if (app()->runningInConsole() && ! app()->runningUnitTests()) {

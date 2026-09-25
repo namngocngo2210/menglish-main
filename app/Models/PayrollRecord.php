@@ -24,7 +24,12 @@ class PayrollRecord extends Model
         'kpi_bonus',
         'renew_bonus',
         'commission_bonus',
+        'commission_base',
+        'commission_clawback',
         'allowance',
+        'allowance_override',
+        'other_bonus',
+        'other_deduction',
         'insurance_deduction',
         'tax_deduction',
         'penalty_deduction',
@@ -34,6 +39,7 @@ class PayrollRecord extends Model
         'net_salary',
         'status',
         'notes',
+        'adjustment_notes',
     ];
 
     protected $casts = [
@@ -45,7 +51,12 @@ class PayrollRecord extends Model
         'kpi_bonus' => 'decimal:2',
         'renew_bonus' => 'decimal:2',
         'commission_bonus' => 'decimal:2',
+        'commission_base' => 'decimal:2',
+        'commission_clawback' => 'decimal:2',
         'allowance' => 'decimal:2',
+        'allowance_override' => 'decimal:2',
+        'other_bonus' => 'decimal:2',
+        'other_deduction' => 'decimal:2',
         'insurance_deduction' => 'decimal:2',
         'tax_deduction' => 'decimal:2',
         'penalty_deduction' => 'decimal:2',
@@ -71,16 +82,24 @@ class PayrollRecord extends Model
     public function getGrossIncomeAttribute(): float
     {
         return (float) $this->base_salary + (float) $this->teaching_salary + (float) $this->kpi_bonus
-            + (float) $this->renew_bonus + (float) $this->commission_bonus + (float) $this->allowance;
+            + (float) $this->renew_bonus + (float) $this->commission_bonus + (float) $this->allowance
+            + (float) $this->other_bonus;
     }
 
     /**
-     * Tổng khấu trừ: BHXH + thuế TNCN + phạt + giảm trừ GVNN.
+     * Tổng khấu trừ: BHXH + thuế TNCN + phạt + giảm trừ GVNN + thu hồi hoa hồng + khấu trừ khác.
      */
     public function getTotalDeductionsAttribute(): float
     {
         return (float) $this->insurance_deduction + (float) $this->tax_deduction
-            + (float) $this->penalty_deduction + (float) $this->foreign_teacher_deduction;
+            + (float) $this->penalty_deduction + (float) $this->foreign_teacher_deduction
+            + (float) $this->commission_clawback + (float) $this->other_deduction;
+    }
+
+    /** Kỳ lương của bản ghi đã duyệt/đã chi trả → không được sửa. */
+    public function isLocked(): bool
+    {
+        return in_array($this->period?->status, PayrollPeriod::LOCKED_STATUSES, true);
     }
 
     public function calculateNetSalary(): void

@@ -15,8 +15,13 @@
         </div>
     </x-slot>
 
-    <div class="space-y-6" x-data="{ selectedBranch: 'all', selectedPeriod: '08/2026' }">
-        
+    <div class="space-y-6">
+        <form method="GET" class="flex flex-wrap items-end gap-2 text-xs">
+            <x-ui.select name="month" inline-label="Tháng:" :value="$month" :options="collect(range(1, 12))->mapWithKeys(fn ($m) => [$m => 'Tháng '.$m])->all()" />
+            <x-ui.input type="number" name="year" inline-label="Năm:" :value="$year" min="2020" max="2100" class="w-28" />
+            <x-ui.button type="submit" variant="secondary" icon="filter_list">Xem</x-ui.button>
+        </form>
+
         <!-- Header Info Notice -->
         <div class="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 flex items-start gap-3 text-xs">
             <span class="material-symbols-outlined text-blue-600 text-xl shrink-0 mt-0.5">info</span>
@@ -28,9 +33,12 @@
             </div>
         </div>
 
-        {{-- $usersWithSales được tính ở PayrollController::kpiLeaderboard():
-             doanh số theo commission_user_id (fallback assigned_user_id), bậc hoa hồng
-             qua CommissionTier::matchForRevenue — cùng luật với tính lương. --}}
+        {{-- $usersWithSales được tính ở PayrollController::kpiLeaderboard() qua SalesCommissionService:
+             doanh số = tiền THỰC THU của khách mới (phiếu thu duyệt trong tháng, gồm giáo trình/đồ dùng),
+             bậc hoa hồng hiệu lực tại cuối tháng — cùng luật với tính lương. --}}
+        <p class="text-[11px] text-gray-500">
+            Doanh số tháng {{ $month }}/{{ $year }} = tiền thực thu (phiếu thu đã duyệt trong tháng) của khách mới, gồm cả tiền giáo trình / đồ dùng. Không tính tái tục.
+        </p>
 
         <!-- Top 3 Podium Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -114,8 +122,8 @@
                             <th class="py-3.5 px-4 text-center w-16">Hạng</th>
                             <th class="py-3.5 px-4">Nhân viên / Giáo viên</th>
                             <th class="py-3.5 px-4">Chi nhánh</th>
-                            <th class="py-3.5 px-4 text-right">Số HS Giữ / Deals</th>
-                            <th class="py-3.5 px-4 text-right">Doanh số chốt</th>
+                            <th class="py-3.5 px-4 text-right">Số HS Giữ / HV mới đóng phí</th>
+                            <th class="py-3.5 px-4 text-right">Thực thu khách mới</th>
                             <th class="py-3.5 px-4 text-right font-black">Tổng KPI / Hoa hồng (VNĐ)</th>
                         </tr>
                     </thead>
@@ -145,7 +153,7 @@
                                     </div>
                                 </td>
                                 <td class="py-3.5 px-4 text-gray-600 font-medium">{{ $item['branch_name'] }}</td>
-                                <td class="py-3.5 px-4 text-right font-mono font-bold text-gray-900">{{ $item['retained_students'] }} HS ({{ $item['deals'] }} deals)</td>
+                                <td class="py-3.5 px-4 text-right font-mono font-bold text-gray-900">{{ $item['retained_students'] }} HS ({{ $item['deals'] }} HV mới)</td>
                                 <td class="py-3.5 px-4 text-right font-mono font-semibold text-indigo-700">{{ number_format($item['revenue']) }}đ</td>
                                 <td class="py-3.5 px-4 text-right font-mono font-black text-orange-600 text-sm">
                                     {{ number_format($item['commission']) }}đ
