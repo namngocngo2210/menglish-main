@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\InvoiceRangeExhaustedException;
+use App\Exports\TuitionImportTemplateExport;
 use App\Models\AcademicRecord;
 use App\Models\AdminNotification;
 use App\Models\BankAccount;
@@ -18,15 +19,18 @@ use App\Models\TuitionContactLog;
 use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
-use App\Exports\TuitionImportTemplateExport;
 use App\Services\NotificationService;
 use App\Services\SafeUploadService;
 use App\Services\TuitionImportService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
 
 class TuitionController extends Controller
 {
@@ -113,7 +117,7 @@ class TuitionController extends Controller
             return redirect()->route('tuition.import')->withErrors(['excel_file' => 'File không có dòng dữ liệu nào.']);
         }
 
-        $token = (string) \Illuminate\Support\Str::uuid();
+        $token = (string) Str::uuid();
         $request->session()->put('tuition_import.'.$token, [
             'branch_id' => (int) $validated['branch_id'],
             'file_name' => $request->file('excel_file')->getClientOriginalName(),
@@ -147,7 +151,7 @@ class TuitionController extends Controller
 
     public function downloadImportTemplate()
     {
-        return \Maatwebsite\Excel\Facades\Excel::download(new TuitionImportTemplateExport, 'mau-nhap-hoc-phi.xlsx');
+        return Excel::download(new TuitionImportTemplateExport, 'mau-nhap-hoc-phi.xlsx');
     }
 
     public function createReceipt(Request $request)
@@ -314,28 +318,28 @@ class TuitionController extends Controller
 
         try {
             $receipt = TuitionReceipt::create([
-            'receipt_number' => $receiptNumber,
-            'invoice_number' => null,
-            'student_tuition_id' => $tuition?->id,
-            'student_id' => $studentId,
-            'amount' => $validated['amount'],
-            'tuition_amount' => (float) $validated['amount'] - $surcharge,
-            'discount_amount' => $discount,
-            'surcharge_amount' => $surcharge,
-            'surcharge_reason' => $validated['surcharge_reason'] ?? null,
-            'payment_method' => $validated['payment_method'],
-            'transaction_code' => $validated['transaction_code'] ?? null,
-            'paper_invoice_number' => $validated['paper_invoice_number'] ?? null,
-            'payer_name' => $validated['payer_name'] ?? $tuition?->student?->parent_name ?? $tuition?->student?->name,
-            'payer_phone' => $validated['payer_phone'] ?? $tuition?->student?->phone,
-            'is_vat_invoice' => $request->boolean('is_vat_invoice'),
-            'proof_image' => $proofPath,
-            'collected_items' => $collectedItems,
-            'payment_date' => now(),
-            'creator_id' => Auth::id(),
-            'approver_id' => null,
-            'status' => $status,
-            'notes' => $validated['notes'] ?? 'Lập phiếu thu học phí & phụ thu',
+                'receipt_number' => $receiptNumber,
+                'invoice_number' => null,
+                'student_tuition_id' => $tuition?->id,
+                'student_id' => $studentId,
+                'amount' => $validated['amount'],
+                'tuition_amount' => (float) $validated['amount'] - $surcharge,
+                'discount_amount' => $discount,
+                'surcharge_amount' => $surcharge,
+                'surcharge_reason' => $validated['surcharge_reason'] ?? null,
+                'payment_method' => $validated['payment_method'],
+                'transaction_code' => $validated['transaction_code'] ?? null,
+                'paper_invoice_number' => $validated['paper_invoice_number'] ?? null,
+                'payer_name' => $validated['payer_name'] ?? $tuition?->student?->parent_name ?? $tuition?->student?->name,
+                'payer_phone' => $validated['payer_phone'] ?? $tuition?->student?->phone,
+                'is_vat_invoice' => $request->boolean('is_vat_invoice'),
+                'proof_image' => $proofPath,
+                'collected_items' => $collectedItems,
+                'payment_date' => now(),
+                'creator_id' => Auth::id(),
+                'approver_id' => null,
+                'status' => $status,
+                'notes' => $validated['notes'] ?? 'Lập phiếu thu học phí & phụ thu',
             ]);
         } catch (UniqueConstraintViolationException) {
             return redirect()->back()->withErrors([
@@ -868,7 +872,7 @@ class TuitionController extends Controller
     /**
      * Giao dịch SePay đã gạch nợ cho cùng học viên / hợp đồng, cùng số tiền, trong khoảng thời gian gần ngày nộp.
      *
-     * @return \Illuminate\Support\Collection<int, SepayTransaction>
+     * @return Collection<int, SepayTransaction>
      */
     private function similarSepayTransactions(TuitionReceipt $receipt)
     {
@@ -1261,7 +1265,7 @@ class TuitionController extends Controller
         }
 
         if ($type === TuitionRefundRequest::TYPE_EXTENSION && $student->tuition->due_date
-            && \Illuminate\Support\Carbon::parse($validated['extended_due_date'])->lte($student->tuition->due_date)) {
+            && Carbon::parse($validated['extended_due_date'])->lte($student->tuition->due_date)) {
             return redirect()->back()->withErrors(['extended_due_date' => 'Hạn mới phải sau hạn đóng hiện tại ('.$student->tuition->due_date->format('d/m/Y').').'])->withInput();
         }
 

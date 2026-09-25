@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 class StudentTuition extends Model
 {
@@ -59,7 +60,7 @@ class StudentTuition extends Model
     /** Nhắc nợ đang tạm dừng (khất nợ / bảo lưu) tại ngày $on (mặc định hôm nay). */
     public function remindersPausedOn($on = null): bool
     {
-        $day = ($on ? \Illuminate\Support\Carbon::parse($on) : now())->startOfDay();
+        $day = ($on ? Carbon::parse($on) : now())->startOfDay();
 
         return $this->reminder_paused_until !== null && $this->reminder_paused_until->copy()->startOfDay()->gt($day);
     }
@@ -67,7 +68,7 @@ class StudentTuition extends Model
     /** Đang trong thời gian bảo lưu (công nợ & số buổi được đóng băng). */
     public function isDeferredOn($on = null): bool
     {
-        $day = ($on ? \Illuminate\Support\Carbon::parse($on) : now())->startOfDay();
+        $day = ($on ? Carbon::parse($on) : now())->startOfDay();
 
         return $this->deferred_from !== null && $this->deferred_until !== null
             && $this->deferred_from->copy()->startOfDay()->lte($day)

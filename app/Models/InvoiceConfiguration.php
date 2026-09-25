@@ -6,6 +6,7 @@ use App\Exceptions\InvoiceRangeExhaustedException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -176,7 +177,7 @@ class InvoiceConfiguration extends Model
     /**
      * Thứ tự dải được thử: dải đang hiệu lực của chi nhánh (số bắt đầu nhỏ trước), rồi dải mặc định.
      *
-     * @return \Illuminate\Support\Collection<int, int>
+     * @return Collection<int, int>
      */
     private static function candidatesFor(?int $branchId)
     {

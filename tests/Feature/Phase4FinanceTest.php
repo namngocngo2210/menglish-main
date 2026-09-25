@@ -2,14 +2,25 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademicRecord;
+use App\Models\BankAccount;
 use App\Models\Branch;
+use App\Models\ClassModel;
+use App\Models\Course;
+use App\Models\DebtReminderRule;
 use App\Models\InvoiceConfiguration;
+use App\Models\SepayTransaction;
 use App\Models\Student;
+use App\Models\StudentAttendance;
 use App\Models\StudentTuition;
+use App\Models\SystemSetting;
 use App\Models\TuitionReceipt;
+use App\Models\TuitionRefundRequest;
 use App\Models\User;
+use App\Services\NotificationService;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -138,7 +149,7 @@ class Phase4FinanceTest extends TestCase
     {
         $this->pendingReceipt($this->tuition, 1000000, ['invoice_number' => 'C26MEN-0000001']);
 
-        $this->expectException(\Illuminate\Database\UniqueConstraintViolationException::class);
+        $this->expectException(UniqueConstraintViolationException::class);
         $this->pendingReceipt($this->tuition, 1000000, ['invoice_number' => 'C26MEN-0000001']);
     }
 
@@ -304,23 +315,23 @@ class Phase4FinanceTest extends TestCase
 
     public function test_create_receipt_shows_real_session_counts_and_branch_bank_account(): void
     {
-        $course = \App\Models\Course::create(['code' => 'P4-C', 'name' => 'Khóa P4', 'total_lessons' => 24, 'is_active' => true]);
-        $class = \App\Models\ClassModel::create([
+        $course = Course::create(['code' => 'P4-C', 'name' => 'Khóa P4', 'total_lessons' => 24, 'is_active' => true]);
+        $class = ClassModel::create([
             'code' => 'P4-CLASS', 'name' => 'Lớp P4', 'course_id' => $course->id, 'branch_id' => $this->branch->id, 'status' => 'active',
         ]);
         $this->tuition->update(['class_id' => $class->id]);
         foreach (['present', 'late', 'absent'] as $i => $status) {
-            \App\Models\StudentAttendance::create([
+            StudentAttendance::create([
                 'class_id' => $class->id, 'student_id' => $this->student->id,
                 'session_date' => now()->subDays(10 - $i)->toDateString(), 'status' => $status,
             ]);
         }
 
-        \App\Models\BankAccount::create([
+        BankAccount::create([
             'bank_code' => 'VCB', 'bank_name' => 'Vietcombank', 'account_number' => '1111222233',
             'account_holder' => 'MENGLISH HQ', 'is_default_vietqr' => true, 'is_active' => true,
         ]);
-        \App\Models\BankAccount::create([
+        BankAccount::create([
             'bank_code' => 'TCB', 'bank_name' => 'Techcombank', 'account_number' => '9999888877',
             'account_holder' => 'MENGLISH CAU GIAY', 'branch_id' => $this->branch->id, 'is_active' => true,
         ]);
@@ -341,7 +352,7 @@ class Phase4FinanceTest extends TestCase
         $this->assertSame('1111222233', $this->makeTuition($other, 1000000)->resolveBankAccount()->account_number);
 
         // Tài khoản gắn trên hợp đồng được ưu tiên.
-        $contractAccount = \App\Models\BankAccount::create([
+        $contractAccount = BankAccount::create([
             'bank_code' => 'ACB', 'bank_name' => 'ACB', 'account_number' => '5555666677',
             'account_holder' => 'MENGLISH HD', 'is_active' => true,
         ]);
@@ -377,8 +388,8 @@ class Phase4FinanceTest extends TestCase
         $this->assertDatabaseHas('admin_notifications', ['user_id' => $hqAccountant->id, 'type' => 'receipt_pending']);
         $this->assertDatabaseMissing('admin_notifications', ['user_id' => $otherBranchAccountant->id]);
 
-        $this->assertSame(1, app(\App\Services\NotificationService::class)->getUnreadCount($this->accountant));
-        $this->assertSame(0, app(\App\Services\NotificationService::class)->getUnreadCount($otherBranchAccountant));
+        $this->assertSame(1, app(NotificationService::class)->getUnreadCount($this->accountant));
+        $this->assertSame(0, app(NotificationService::class)->getUnreadCount($otherBranchAccountant));
     }
 
     // ---------------------------------------------------------------------
@@ -396,7 +407,7 @@ class Phase4FinanceTest extends TestCase
 
         $this->assertSame(1, TuitionReceipt::count());
 
-        $this->expectException(\Illuminate\Database\UniqueConstraintViolationException::class);
+        $this->expectException(UniqueConstraintViolationException::class);
         $this->pendingReceipt($this->tuition, 1000000, ['payment_method' => 'vietqr', 'transaction_code' => 'FT-DUP-9']);
     }
 
@@ -405,7 +416,7 @@ class Phase4FinanceTest extends TestCase
         $sepayReceipt = $this->pendingReceipt($this->tuition, 2000000, [
             'payment_method' => 'transfer', 'transaction_code' => 'SEPAY-777', 'status' => 'approved', 'invoice_number' => 'C26MEN-0000100',
         ]);
-        \App\Models\SepayTransaction::create([
+        SepayTransaction::create([
             'sepay_id' => 'SEPAY-777', 'reference_code' => 'FT-BANK-777', 'transfer_type' => 'in', 'transfer_amount' => 2000000,
             'transaction_date' => now(), 'status' => 'matched', 'matched_student_id' => $this->student->id,
             'matched_tuition_id' => $this->tuition->id, 'matched_receipt_id' => $sepayReceipt->id,
@@ -432,7 +443,7 @@ class Phase4FinanceTest extends TestCase
         $sepayReceipt = $this->pendingReceipt($this->tuition, 2000000, [
             'payment_method' => 'transfer', 'transaction_code' => 'SEPAY-888', 'status' => 'approved', 'invoice_number' => 'C26MEN-0000200',
         ]);
-        \App\Models\SepayTransaction::create([
+        SepayTransaction::create([
             'sepay_id' => 'SEPAY-888', 'transfer_type' => 'in', 'transfer_amount' => 2000000,
             'transaction_date' => now()->subDay(), 'status' => 'matched', 'matched_student_id' => $this->student->id,
             'matched_tuition_id' => $this->tuition->id, 'matched_receipt_id' => $sepayReceipt->id,
@@ -475,7 +486,7 @@ class Phase4FinanceTest extends TestCase
             'extended_due_date' => $newDue, 'reason' => 'Phụ huynh xin lùi 10 ngày',
         ])->assertSessionHasNoErrors();
 
-        $request = \App\Models\TuitionRefundRequest::firstOrFail();
+        $request = TuitionRefundRequest::firstOrFail();
         $this->assertSame($newDue, $request->extended_due_date->toDateString());
 
         $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $request->id))->assertSessionHasNoErrors();
@@ -490,12 +501,12 @@ class Phase4FinanceTest extends TestCase
         // Mốc T-3 của hạn mới rơi vào thời gian tạm dừng -> lệnh nhắc nợ bỏ qua.
         $this->travelTo(now()->addDays(7));
         $this->artisan('tuition:send-debt-reminders')->assertSuccessful();
-        $this->assertSame(0, \App\Models\AcademicRecord::where('record_code', 'like', 'DEBTREMIND-%')->count());
+        $this->assertSame(0, AcademicRecord::where('record_code', 'like', 'DEBTREMIND-%')->count());
 
         // Tới đúng hạn mới -> mốc T0 được gửi.
         $this->travelTo(now()->addDays(3));
         $this->artisan('tuition:send-debt-reminders')->assertSuccessful();
-        $this->assertSame(1, \App\Models\AcademicRecord::where('record_code', 'like', 'DEBTREMIND-T0-'.$this->tuition->id.'-%')->count());
+        $this->assertSame(1, AcademicRecord::where('record_code', 'like', 'DEBTREMIND-T0-'.$this->tuition->id.'-%')->count());
     }
 
     public function test_extension_requires_new_due_date_after_current(): void
@@ -512,13 +523,13 @@ class Phase4FinanceTest extends TestCase
 
     public function test_approved_deferral_sets_student_reserved_and_freezes_sessions_and_debt(): void
     {
-        $course = \App\Models\Course::create(['code' => 'P4-D', 'name' => 'Khóa bảo lưu', 'total_lessons' => 20, 'is_active' => true]);
-        $class = \App\Models\ClassModel::create([
+        $course = Course::create(['code' => 'P4-D', 'name' => 'Khóa bảo lưu', 'total_lessons' => 20, 'is_active' => true]);
+        $class = ClassModel::create([
             'code' => 'P4-DEF', 'name' => 'Lớp bảo lưu', 'course_id' => $course->id, 'branch_id' => $this->branch->id, 'status' => 'active',
         ]);
         $this->tuition->update(['class_id' => $class->id, 'due_date' => now()->addDays(3)->toDateString()]);
         foreach (range(1, 5) as $i) {
-            \App\Models\StudentAttendance::create([
+            StudentAttendance::create([
                 'class_id' => $class->id, 'student_id' => $this->student->id,
                 'session_date' => now()->subDays(30 - $i)->toDateString(), 'status' => 'present',
             ]);
@@ -531,7 +542,7 @@ class Phase4FinanceTest extends TestCase
             'reason' => 'Đi du lịch hè',
         ])->assertSessionHasNoErrors();
 
-        $request = \App\Models\TuitionRefundRequest::where('type', 'deferral')->firstOrFail();
+        $request = TuitionRefundRequest::where('type', 'deferral')->firstOrFail();
         $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $request->id))->assertSessionHasNoErrors();
 
         $this->assertSame('deferred', $this->student->fresh()->status);
@@ -548,7 +559,7 @@ class Phase4FinanceTest extends TestCase
         $this->assertSame(now()->addMonth()->addDay()->toDateString(), $tuition->due_date->toDateString());
 
         $this->artisan('tuition:send-debt-reminders')->assertSuccessful();
-        $this->assertSame(0, \App\Models\AcademicRecord::where('record_code', 'like', 'DEBTREMIND-%')->count());
+        $this->assertSame(0, AcademicRecord::where('record_code', 'like', 'DEBTREMIND-%')->count());
 
         $this->actingAs($this->accountant)->get(route('tuition.overdue'))->assertOk()->assertSee('Bảo lưu tới');
     }
@@ -572,7 +583,7 @@ class Phase4FinanceTest extends TestCase
             'template_content' => 'Chào {TEN_HOC_VIEN}, học phí lớp {ten_lop} ({so_tien}) đến hạn {han_dong}.',
         ])->assertSessionHasNoErrors();
 
-        $rule = \App\Models\DebtReminderRule::where('milestone_key', 'T-7')->firstOrFail();
+        $rule = DebtReminderRule::where('milestone_key', 'T-7')->firstOrFail();
         $this->assertSame(-7, $rule->offset_days);
         $this->assertSame(['portal'], $rule->channels);
 
@@ -580,12 +591,12 @@ class Phase4FinanceTest extends TestCase
             ->assertSessionHasErrors('must_contact_days');
         $this->actingAs($this->accountant)->post(route('system-config.debt-reminders.settings'), ['must_contact_days' => 10])
             ->assertSessionHasNoErrors();
-        $this->assertEquals(10, \App\Models\SystemSetting::get('debt_reminder.must_contact_days'));
+        $this->assertEquals(10, SystemSetting::get('debt_reminder.must_contact_days'));
 
         // Lệnh nhắc nợ chạy theo mốc đã cấu hình, chỉ kênh in-app, không còn biến chưa thay.
         $this->tuition->update(['due_date' => now()->addDays(7)->toDateString()]);
         $this->artisan('tuition:send-debt-reminders')->assertSuccessful();
-        $record = \App\Models\AcademicRecord::where('record_code', 'like', 'DEBTREMIND-T-7-%')->firstOrFail();
+        $record = AcademicRecord::where('record_code', 'like', 'DEBTREMIND-T-7-%')->firstOrFail();
         $this->assertSame('04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao', $record->screen_key);
         $this->assertStringNotContainsString('{', $record->data['content']);
         $this->assertStringContainsString('Phạm Bốn', $record->data['content']);
@@ -644,15 +655,15 @@ class Phase4FinanceTest extends TestCase
 
     public function test_refund_screen_uses_real_tuition_and_attendance_data(): void
     {
-        $course = \App\Models\Course::create(['code' => 'P4-R', 'name' => 'Khóa hoàn', 'total_lessons' => 20, 'is_active' => true]);
-        $class = \App\Models\ClassModel::create([
+        $course = Course::create(['code' => 'P4-R', 'name' => 'Khóa hoàn', 'total_lessons' => 20, 'is_active' => true]);
+        $class = ClassModel::create([
             'code' => 'P4-REF', 'name' => 'Lớp hoàn', 'course_id' => $course->id, 'branch_id' => $this->branch->id, 'status' => 'active',
         ]);
         $this->tuition->update(['class_id' => $class->id]);
         $this->pendingReceipt($this->tuition, 3000000, ['status' => 'approved', 'invoice_number' => 'C26MEN-0000301']);
         $this->tuition->recalculateDebt();
         foreach (range(1, 4) as $i) {
-            \App\Models\StudentAttendance::create([
+            StudentAttendance::create([
                 'class_id' => $class->id, 'student_id' => $this->student->id,
                 'session_date' => now()->subDays(10 - $i)->toDateString(), 'status' => 'present',
             ]);

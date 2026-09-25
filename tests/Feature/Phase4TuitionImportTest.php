@@ -10,11 +10,15 @@ use App\Models\Student;
 use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Services\TuitionImportService;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
 
 /**
@@ -127,20 +131,20 @@ class Phase4TuitionImportTest extends TestCase
 
     public function test_xlsx_with_numeric_and_date_cells_is_parsed(): void
     {
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->fromArray([
             ['Mã học viên', 'Học phí niêm yết', 'Hạn đóng', 'Số tiền đã đóng', 'Hình thức'],
             ['HV-IMP-1', 8000000, null, 2000000, 'Tiền mặt'],
         ]);
-        $sheet->setCellValue('C2', \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel(new \DateTime('2026-11-20')));
+        $sheet->setCellValue('C2', Date::PHPToExcel(new \DateTime('2026-11-20')));
         $sheet->getStyle('C2')->getNumberFormat()->setFormatCode('dd/mm/yyyy');
         $path = tempnam(sys_get_temp_dir(), 'imp').'.xlsx';
-        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet))->save($path);
+        (new Xlsx($spreadsheet))->save($path);
 
         try {
             $file = new UploadedFile($path, 'hoc-phi.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
-            $parsed = app(\App\Services\TuitionImportService::class)->parse($file, $this->branch->id);
+            $parsed = app(TuitionImportService::class)->parse($file, $this->branch->id);
         } finally {
             @unlink($path);
         }
