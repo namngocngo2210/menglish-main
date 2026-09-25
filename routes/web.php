@@ -329,6 +329,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/config/commission-tiers', [PayrollController::class, 'storeCommissionTier'])->middleware('can:commission_config.manage')->name('config.commission-tiers.store');
         Route::put('/config/commission-tiers/{commissionTier}', [PayrollController::class, 'updateCommissionTier'])->middleware('can:commission_config.manage')->name('config.commission-tiers.update');
         Route::delete('/config/commission-tiers/{commissionTier}', [PayrollController::class, 'destroyCommissionTier'])->middleware('can:commission_config.manage')->name('config.commission-tiers.destroy');
+        Route::post('/config/renewal-bonus', [PayrollController::class, 'storeRenewalTable'])->middleware('can:commission_config.manage')->name('config.renewal.store');
     });
 
     Route::get('/portal/my-salary', [PayrollController::class, 'mySalary'])->name('portal.my-salary');

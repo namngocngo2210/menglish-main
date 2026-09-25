@@ -883,7 +883,10 @@ class PayrollController extends Controller
             ->paginate($request->perPage(15))
             ->withQueryString();
 
-        return view('payroll.config-commissions', compact('tiers', 'history', 'asOf'));
+        $tab = $request->query('tab') === 'renewal' ? 'renewal' : 'commission';
+        $settings = PayrollPeriod::payrollSettings();
+
+        return view('payroll.config-commissions', compact('tiers', 'history', 'asOf', 'tab', 'settings'));
     }
 
     /**
@@ -893,7 +896,8 @@ class PayrollController extends Controller
     private function commissionTierRules(): array
     {
         return [
-            'tier_name' => 'required|string|max:255',
+            // Mockup không có ô tên bậc: bỏ trống thì tự đặt theo ngưỡng số HS.
+            'tier_name' => 'nullable|string|max:255',
             'min_students' => 'required|integer|min:0',
             'max_students' => 'nullable|integer|gte:min_students',
             'min_revenue' => 'nullable|numeric|min:0',
@@ -905,9 +909,54 @@ class PayrollController extends Controller
         ];
     }
 
+    private function tierName(array $validated): string
+    {
+        if (filled($validated['tier_name'] ?? null)) {
+            return trim($validated['tier_name']);
+        }
+        $max = $validated['max_students'] ?? null;
+
+        return 'Bậc '.$validated['min_students'].($max !== null && $max !== '' ? '–'.$max : '+').' HS';
+    }
+
+    /**
+     * Tab "Thưởng tái tục" của màn Mốc hoa hồng & thưởng tái tục: bảng % doanh thu lớp theo số HS nghỉ trong kỳ
+     * (A6) + mức khi nghỉ nhiều hơn bảng; các mốc chưa được BA chốt gắn cờ "chờ BA". Áp dụng cho lần tính / tính lại sau.
+     */
+    public function storeRenewalTable(Request $request)
+    {
+        $validated = $request->validate([
+            'renewal' => ['required', 'array', 'min:1', 'max:20'],
+            'renewal.*.quits' => ['required', 'integer', 'min:0', 'max:50', 'distinct'],
+            'renewal.*.percent' => ['required', 'numeric', 'min:0', 'max:100'],
+            'renewal.*.pending' => ['nullable', 'boolean'],
+            'renewal_beyond_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+        ], [
+            'renewal.required' => 'Cần ít nhất một mốc thưởng tái tục.',
+            'renewal.*.quits.distinct' => 'Mỗi mức số HS nghỉ chỉ được khai báo một lần.',
+        ]);
+
+        $before = PayrollPeriod::payrollSettings()['renewal_table'];
+        $table = collect($validated['renewal'])
+            ->mapWithKeys(fn ($row) => [(int) $row['quits'] => ['percent' => (float) $row['percent'], 'pending' => (bool) ($row['pending'] ?? false)]])
+            ->sortKeys()->all();
+        SystemSetting::set('payroll_renewal_table', $table, 'Thưởng tái tục: % doanh thu lớp theo số HS nghỉ trong kỳ');
+        if (($validated['renewal_beyond_percent'] ?? null) !== null) {
+            SystemSetting::set('payroll_renewal_beyond_percent', $validated['renewal_beyond_percent'], 'Thưởng tái tục khi số HS nghỉ vượt bảng (%)');
+        }
+
+        activity('payroll_settings')->causedBy($request->user())
+            ->withProperties(['before' => $before, 'after' => $table])
+            ->log('Cập nhật bảng thưởng tái tục');
+
+        return redirect()->route('payroll.config.commission-tiers', ['tab' => 'renewal'])
+            ->with('status', 'Đã lưu bảng thưởng tái tục — áp dụng cho các lần tính / tính lại kỳ lương sau.');
+    }
+
     public function storeCommissionTier(Request $request)
     {
         $validated = $request->validate($this->commissionTierRules());
+        $validated['tier_name'] = $this->tierName($validated);
         $validated['effective_from'] ??= today()->toDateString();
         $validated['min_revenue'] ??= 0;
         $validated['renew_percent'] ??= 0;
@@ -929,6 +978,7 @@ class PayrollController extends Controller
     public function updateCommissionTier(Request $request, CommissionTier $commissionTier)
     {
         $validated = $request->validate($this->commissionTierRules());
+        $validated['tier_name'] = $this->tierName($validated);
         abort_if($commissionTier->effective_to !== null, 422, 'Phiên bản này đã hết hiệu lực — hãy sửa phiên bản đang hiệu lực.');
 
         $effectiveFrom = Carbon::parse($validated['effective_from'] ?? today())->startOfDay();

@@ -308,4 +308,44 @@ class Phase3MockupParityTest extends TestCase
             ->assertSee('Đang áp dụng')
             ->assertSee('Đã hết hạn');
     }
+
+    /** Màn "Mốc hoa hồng & thưởng tái tục" (epic-7/cau-hinh-moc-hoa-hong-thuong-tai-tuc). */
+    public function test_commission_and_renewal_config_screen_matches_mockup(): void
+    {
+        // Mockup không có ô tên bậc: tên tự đặt theo ngưỡng.
+        $this->actingAs($this->admin)->post(route('payroll.config.commission-tiers.store'), [
+            'min_students' => 51, 'new_sale_percent' => 6, 'effective_from' => now()->toDateString(),
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('commission_tiers', ['tier_name' => 'Bậc 51+ HS', 'min_students' => 51, 'max_students' => null]);
+
+        $this->actingAs($this->admin)->get(route('payroll.config.commission-tiers'))
+            ->assertOk()
+            ->assertSee('Cấu hình mốc hoa hồng &amp; thưởng tái tục', false)
+            ->assertSee('Hoa hồng tuyển sinh')->assertSee('Thưởng tái tục')
+            ->assertSee('Thêm mốc mới')
+            ->assertSee('Thay đổi cấu hình sẽ được áp dụng cho các kỳ tính lương tiếp theo kể từ ngày hiệu lực.')
+            ->assertSeeInOrder(['Ngưỡng từ (HV)', 'Ngưỡng đến (HV)', 'Tỷ lệ (%)', 'Ngày hiệu lực từ'])
+            ->assertSee('Không giới hạn')
+            ->assertSee('Thêm mốc cấu hình mới')
+            ->assertSee('Từ (số học viên)')->assertSee('Để trống = Max')
+            ->assertSee('Lưu cấu hình');
+
+        // Tab thưởng tái tục: bảng % theo số HS nghỉ (A6), lưu riêng.
+        $this->actingAs($this->admin)->get(route('payroll.config.commission-tiers', ['tab' => 'renewal']))
+            ->assertOk()
+            ->assertSee('Thưởng tái tục — % doanh thu lớp theo số HS nghỉ trong kỳ')
+            ->assertSee('Số HS nghỉ trong lớp')
+            ->assertSee('chờ BA');
+        $this->actingAs($this->admin)->post(route('payroll.config.renewal.store'), [
+            'renewal' => [
+                ['quits' => 0, 'percent' => 1, 'pending' => 0],
+                ['quits' => 1, 'percent' => 0.7, 'pending' => 0],
+                ['quits' => 2, 'percent' => 0.5, 'pending' => 1],
+            ],
+            'renewal_beyond_percent' => 0,
+        ])->assertRedirect(route('payroll.config.commission-tiers', ['tab' => 'renewal']));
+        $table = PayrollPeriod::payrollSettings()['renewal_table'];
+        $this->assertEquals(0.5, $table[2]['percent']);
+        $this->assertTrue($table[2]['pending']);
+    }
 }

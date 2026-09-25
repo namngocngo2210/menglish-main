@@ -143,8 +143,9 @@ class PayrollBusinessTest extends TestCase
             'renew_percent' => '',
         ]);
         // Phase 3 (A6): không còn % tái tục bắt buộc — không tính hoa hồng tái tục; bậc theo số HS chốt
-        $responseComm->assertSessionHasErrors(['tier_name', 'min_students', 'new_sale_percent']);
-        $responseComm->assertSessionDoesntHaveErrors('renew_percent');
+        // Mockup Mốc hoa hồng không có ô tên bậc → tên tự đặt theo ngưỡng, không bắt buộc.
+        $responseComm->assertSessionHasErrors(['min_students', 'new_sale_percent']);
+        $responseComm->assertSessionDoesntHaveErrors(['renew_percent', 'tier_name']);
     }
 
     public function test_can_update_and_delete_commission_tier_and_preserve_past_settled_records(): void
