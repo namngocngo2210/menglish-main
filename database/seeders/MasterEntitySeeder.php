@@ -604,6 +604,7 @@ class MasterEntitySeeder extends Seeder
         SyllabusUnit::query()->updateOrCreate(
             ['curriculum_id' => $curriculum->id, 'unit_number' => 4],
             [
+                'stage_id' => $curriculum->stages()->value('id'),
                 'title' => '# Unit 04: Environment & Climate Change',
                 'objectives' => 'Nắm 20 từ vựng chủ đề môi trường, câu điều kiện hỗn hợp và phản xạ Speaking Part 3',
                 'vocabulary_focus' => 'Deforestation, greenhouse effect, carbon footprint, renewable energy...',

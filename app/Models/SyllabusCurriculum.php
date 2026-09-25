@@ -27,6 +27,21 @@ class SyllabusCurriculum extends Model
         'description',
     ];
 
+    /**
+     * Mỗi giáo trình luôn có ít nhất 1 chặng: tạo giáo trình là tạo sẵn "Chặng 1"
+     * (tên lấy từ ô Chặng học khi tạo, nếu có).
+     */
+    protected static function booted(): void
+    {
+        static::created(function (self $curriculum) {
+            $curriculum->stages()->create([
+                'position' => 1,
+                'name' => trim((string) $curriculum->stage_name) !== '' ? $curriculum->stage_name : 'Chặng 1',
+                'overview_link' => $curriculum->overview_link,
+            ]);
+        });
+    }
+
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class, 'course_id');
@@ -35,6 +50,24 @@ class SyllabusCurriculum extends Model
     public function units(): HasMany
     {
         return $this->hasMany(SyllabusUnit::class, 'curriculum_id')->orderBy('unit_number');
+    }
+
+    /** Chặng theo thứ tự học. */
+    public function stages(): HasMany
+    {
+        return $this->hasMany(SyllabusStage::class, 'curriculum_id')->orderBy('position')->orderBy('id');
+    }
+
+    /** Toàn bộ buổi của giáo trình theo số buổi. */
+    public function lessons(): HasMany
+    {
+        return $this->hasMany(SyllabusLesson::class, 'curriculum_id')->orderBy('session_no');
+    }
+
+    /** Trình độ dùng giáo trình này (course_levels.syllabus_curriculum_id). */
+    public function levels(): HasMany
+    {
+        return $this->hasMany(CourseLevel::class, 'syllabus_curriculum_id');
     }
 
     public const UNLOCK_POLICIES = [
