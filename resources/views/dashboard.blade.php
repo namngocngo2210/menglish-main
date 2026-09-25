@@ -230,8 +230,8 @@
                         </div>
                         <div class="grid grid-cols-2 gap-1.5 text-xs">
                             <a href="{{ route('students.index') }}" class="p-2 rounded-lg bg-gray-50 hover:bg-emerald-50 hover:text-emerald-700 transition font-medium">DS &amp; Liên kết lớp</a>
-                            <a href="{{ route('students.show', 'HV-01') }}" class="p-2 rounded-lg bg-gray-50 hover:bg-emerald-50 hover:text-emerald-700 transition font-medium">Hồ sơ Desktop</a>
-                            <a href="{{ route('students.scoped', 'HV-01') }}" class="p-2 rounded-lg bg-gray-50 hover:bg-emerald-50 hover:text-emerald-700 transition font-medium">Xem phân quyền</a>
+                            <a href="{{ route('students.index', ['status' => 'waiting_start']) }}" class="p-2 rounded-lg bg-gray-50 hover:bg-emerald-50 hover:text-emerald-700 transition font-medium">Chờ khai giảng</a>
+                            <a href="{{ route('students.index', ['status' => 'studying']) }}" class="p-2 rounded-lg bg-gray-50 hover:bg-emerald-50 hover:text-emerald-700 transition font-medium">Đang học</a>
                             <a href="{{ route('students.enrollments') }}" class="p-2 rounded-lg bg-gray-50 hover:bg-emerald-50 hover:text-emerald-700 transition font-medium">Xác nhận nhập học</a>
                         </div>
                     </div>
