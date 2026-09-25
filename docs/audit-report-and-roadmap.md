@@ -183,13 +183,23 @@
 | 25/09/2026 | Q6 — Chốt khi chưa có lớp | Chốt luôn tạo hồ sơ học viên + tài khoản + học phí. Có lớp → **Đã chốt**. "Xếp lớp sau" → **Chờ xếp lớp** → Học vụ **gán lớp** → **Đã chốt** |
 | 25/09/2026 | Q6 — Học phí khi chưa có lớp | Tính theo **khóa học** đã chọn (giá niêm yết − ưu đãi), không phụ thuộc lớp |
 | 25/09/2026 | Q5 — Trạng thái học viên | **6 trạng thái**: Chờ khai giảng, Đang học, Bảo lưu, Nghỉ hè, Hoàn thành khóa học, Thôi học (không có Học thử, Blacklist; Chuyển lớp không phải trạng thái). Khởi tạo khi chốt = **Chờ khai giảng** |
+| 25/09/2026 | Q1 — Học thử (bổ sung) | Khách **chưa chốt** vẫn được học thử 1–2 buổi của lớp thật đúng trình độ. GV nhận xét như học sinh chính thức, nhận xét lưu theo **khách** (khach_id → tuyen_sinh), không theo hoc_sinh_id. Hồ sơ học sinh chỉ tồn tại **sau khi chốt**; bỏ trạng thái "Học thử" khỏi hồ sơ học sinh (Epic 6) |
+| 25/09/2026 | Q1 — Lùi bước / Hủy chốt / Thất bại (bản sửa) | CM chỉ chuyển **tiến từng bước**. Chỉ **Admin** sửa lùi, bắt buộc lý do, ghi nhat_ky_tuyen_sinh. **Không có Hủy chốt**. Chỉ khách **chưa chốt** mới chuyển sang Thất bại; khách đã chốt không có luồng quay ngược. Khách Thất bại **không mở lại**, giữ để audit |
+| 25/09/2026 | Q2 — Cách chấm test đầu vào | Theo file "Thang điểm + hướng dẫn nhận xét" (dữ liệu: `database/scripts/rubric_dump.json`). **Chấm theo khối lớp**: cộng Listening + Reading&Writing + Speaking, tra **tổng điểm** ra lớp đề xuất (Pre-Starters FAM 0, Starters FAM 1, FAM 2, Luyện Movers…). Speaking luôn nhập tay. Nhận xét **gợi ý tự động theo băng điểm**, GV/CM sửa được. Cho phép **chọn lại lớp đề xuất** khi đánh giá. **Bỏ** cách "trung bình 4 kỹ năng thang 10 → A1–C1" (không có trong tài liệu) |
+| 25/09/2026 | Q6 — Cọc lớp chờ | Không có khái niệm "cọc". Chốt không bắt buộc đã đóng phí; da_dong_hoc_phi = false → tự tạo task nhắc thu phí cho người phụ trách. Được chốt khi chưa có lớp rồi xếp lớp sau |
+| 25/09/2026 | Q4 — Mô hình giáo trình | Phân cấp **Giáo trình** (gắn Trình độ) → **Chặng** (có Big Test cuối chặng) → **Unit** → **Buổi**. Mỗi lớp chỉ mở **1 chặng** tại một thời điểm. Chặng **đóng khi Big Test được duyệt và gửi**, chặng kế tiếp **tự mở** |
+| 25/09/2026 | Q3 — Công thức lương Part-time | Tổng = **số buổi × đơn giá riêng từng GV** + **KPI theo số HS giữ được** (15k / 20k / 25k mỗi HS mỗi tháng, Admin chọn bậc tay) + lương buổi có GVNN (chờ làm rõ) + phụ cấp tự do (hỗ trợ thỏa thuận, gửi xe, thưởng khác) − các khoản trừ. Part-time **không** trừ BHXH/Công đoàn. Bỏ quy tắc "+1 triệu khi ≥ 40 giờ, phụ cấp 500k" (không có trong spec) |
+| 25/09/2026 | Q3 — Công thức lương Full-time | GV Full-time / Học vụ / Học thuật: **Lương cơ bản + các khoản cộng − BHXH 10,5% − Công đoàn 0,5% − Thuế TNCN − trừ vi phạm**. BHXH, Công đoàn tính tự động trên lương cơ bản; Thuế TNCN Admin nhập tay. KPI: GV Full-time & Học thuật **nhập tự do**; Học vụ **tự động theo KPI 6 nhóm / 15 mục, quỹ 2 triệu/tháng** |
+| 25/09/2026 | Hoa hồng tuyển sinh (bản sửa) | Hoa hồng = **% theo bậc** (bậc theo **số HS chốt trong kỳ**, Admin cấu hình, mặc định 3% / 4% / 5%) × **doanh thu tuyển sinh thật**. Hệ thống tự tính, Admin không sửa tay. **Gate kép**: đủ **30 ngày từ ngày chốt** và **tick đủ 3/3 mốc chăm sóc** (buổi 1, buổi 4–5, đủ 30 ngày); thiếu điều kiện → **hoãn sang kỳ sau**, không mất |
+| 25/09/2026 | Thưởng tái tục | Khoản **riêng**: % theo số HS nghỉ trong lớp phụ trách (giữ đủ 100% → 1%, nghỉ 1 HS → 0,7%…) × doanh thu lớp |
+| 25/09/2026 | Hoàn phí | Xử lý **trong 1 tuần** và **trong cùng tháng phát sinh**. **Admin** duyệt. **Ưu tiên chuyển nhượng** buổi dư, hoàn tiền là phương án cuối. Hoàn tiền **bắt buộc ảnh bằng chứng**. Quá hạn → gắn cờ **"Quá hạn xử lý"**, không chặn nút duyệt |
+| 25/09/2026 | Q8 — Báo cáo trực lớp | Ảnh **không bắt buộc**. Có ≥ 1 ảnh → đầu việc "Trực lớp" tự **Hoàn thành**. Không ảnh → **Chờ xác nhận**, GV chính của lớp xác nhận; lớp chưa có GV chính thì **người giao việc** xác nhận |
 
 **Còn chờ trả lời:**
-- **Q2:** cách tính điểm test đầu vào; thang cho học viên lớn (THCS, IELTS, người đi làm).
-- **Q3:** công thức lương.
-- **Q4:** mô hình giáo trình.
-- **Hoa hồng:** "lần đầu" là mọi đợt đóng của khóa đầu tiên, hay chỉ đợt đóng đầu tiên? Hoa hồng tính vào tháng thực thu? "Hoàn phí ngay" là trong bao nhiêu ngày?
-- **Q8:** báo cáo trực lớp.
+- **Q2 — Học viên lớn:** chưa có thang điểm. File thang điểm chỉ có 4 khối (Khối 1-2 → Khối 4 lên 5); "Phân loại bài test" có bài cho lớp 5–9 (lớp 8–9 chỉ 3 kỹ năng, không nói) nhưng chưa có băng điểm / mapping lớp. Chờ Học thuật / chị Kiều Liên bổ sung.
+- **Q4 — Cấu trúc bảng:** chang_buoi_hoc / buoi_giao_trinh có cần bảng UNIT riêng không; NOI_DUNG_BUOI_HOC đang tự đánh số (so_unit, so_buoi), chưa nối buoi_giao_trinh_id — hai hệ đánh số phải khớp. Chờ Mai Le Quel Owen / Nam Ngo xác nhận.
+- **Q3 — Lương buổi có GVNN** (Part-time): chờ làm rõ với Mai Le Quel Owen.
+- **Thưởng tái tục:** bảng % đầy đủ theo số HS nghỉ (mới có ví dụ 100% → 1%, nghỉ 1 → 0,7%).
 
 ---
 
