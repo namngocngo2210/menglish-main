@@ -52,6 +52,22 @@ class SupportSession extends Model
         return $this->belongsTo(User::class, 'scheduled_by');
     }
 
+    /** Dòng trong danh sách bổ trợ mà buổi này xử lý (nếu xếp từ danh sách). */
+    public function supportItem(): BelongsTo
+    {
+        return $this->belongsTo(ClassReportStudentSupport::class, 'class_report_student_support_id');
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            'scheduled' => 'Đã xếp lịch',
+            'completed' => 'Hoàn thành',
+            'cancelled' => 'Đã hủy',
+            default => (string) $this->status,
+        };
+    }
+
     public function classSession(): BelongsTo
     {
         return $this->belongsTo(ClassSession::class);

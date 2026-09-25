@@ -79,7 +79,7 @@
                     </div>
                     <div>
                         <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Sĩ số</span>
-                        <span class="font-bold text-primary font-mono">{{ $class?->students?->count() ?? 0 }}/{{ $class?->max_capacity ?? 15 }}</span>
+                        <span class="font-bold text-primary font-mono">{{ $class?->roster_count ?? 0 }}/{{ $class?->max_capacity ?? 15 }}</span>
                     </div>
                     <div>
                         <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Ngày khai giảng</span>

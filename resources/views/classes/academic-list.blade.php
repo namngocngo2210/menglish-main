@@ -88,7 +88,7 @@
                     <tbody class="divide-y divide-gray-100">
                         @forelse($classes as $c)
                             @php
-                                $studentCount = $c->students->count();
+                                $studentCount = $c->roster_count;
                                 $capacity = $c->max_capacity ?? 15;
                                 $isFull = $studentCount >= $capacity;
                                 $progress = min(100, max(20, ($loop->iteration * 15) % 95));

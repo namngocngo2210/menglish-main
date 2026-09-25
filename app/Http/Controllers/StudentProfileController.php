@@ -10,6 +10,7 @@ use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\User;
 use App\Services\DocumentCodeGenerator;
+use App\Services\FirstMonthCareService;
 use App\Services\StudentDeferralService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -282,7 +283,9 @@ class StudentProfileController extends Controller
                 ->get();
         }
 
-        return view('students.show', compact('student', 'classes', 'sessions', 'attendances', 'attendanceBySession', 'attendanceStats', 'linkableClasses'));
+        $care = app(FirstMonthCareService::class)->checklist($student);
+
+        return view('students.show', compact('student', 'classes', 'sessions', 'attendances', 'attendanceBySession', 'attendanceStats', 'linkableClasses', 'care'));
     }
 
     public function updateStudent(Request $request, $id)

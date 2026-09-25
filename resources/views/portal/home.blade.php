@@ -34,7 +34,7 @@
             <!-- Header Welcome -->
             <div class="flex flex-col gap-1 pt-1">
                 <span class="text-sm font-normal text-gray-600">Xin chào,</span>
-                <h1 class="text-2xl font-bold text-primary">{{ $student?->name ?? 'Nguyễn Văn A' }}</h1>
+                <h1 class="text-2xl font-bold text-primary">{{ $student?->name ?? 'Học viên' }}</h1>
             </div>
 
             <!-- Student Info Card (Bento style) -->
@@ -51,7 +51,7 @@
                             <span class="material-symbols-outlined text-[13px]">edit</span> Sửa
                         </button>
                         <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-[11px] font-bold border border-emerald-200">
-                            {{ $student?->status_label ?? 'Đang học' }}
+                            {{ $student?->status_label ?? '—' }}
                         </span>
                     </div>
                 </div>
@@ -59,25 +59,25 @@
                 <div class="grid grid-cols-2 gap-y-3 gap-x-3 text-xs">
                     <div class="flex flex-col gap-0.5">
                         <span class="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Ngày sinh</span>
-                        <span class="font-medium text-gray-800">{{ $student?->dob ? $student->dob->format('d/m/Y') : '15/06/2015' }}</span>
+                        <span class="font-medium text-gray-800">{{ $student?->dob ? $student->dob->format('d/m/Y') : '—' }}</span>
                     </div>
                     <div class="flex flex-col gap-0.5">
                         <span class="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Lớp đang học</span>
-                        <span class="font-bold text-secondary">{{ $student?->currentClass?->name ?? 'IELTS Starter - M01' }}</span>
+                        <span class="font-bold text-secondary">{{ $studentClasses->isNotEmpty() ? $studentClasses->pluck('name')->implode(', ') : 'Chưa xếp lớp' }}</span>
                     </div>
                     <div class="flex flex-col gap-0.5">
                         <span class="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Giáo viên chính</span>
                         <span class="font-medium text-gray-800 flex items-center gap-1">
-                            {{ $student?->currentClass?->teacher?->name ?? 'Cô Huyền' }}
+                            {{ $student?->currentClass?->teacher?->name ?? '—' }}
                         </span>
                     </div>
                     <div class="flex flex-col gap-0.5">
                         <span class="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Số điện thoại</span>
-                        <span class="font-mono font-medium text-gray-800">{{ $student?->phone ?? '0987654321' }}</span>
+                        <span class="font-mono font-medium text-gray-800">{{ $student?->phone ?? '—' }}</span>
                     </div>
                     <div class="col-span-2 flex flex-col gap-0.5 border-t border-gray-50 pt-2">
                         <span class="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Địa chỉ</span>
-                        <span class="text-gray-700 text-[12px]">{{ $student?->address ?? '123 Đường ABC, Quận Cầu Giấy, Hà Nội' }}</span>
+                        <span class="text-gray-700 text-[12px]">{{ $student?->address ?? '—' }}</span>
                     </div>
                     @if($student?->notes)
                     <div class="col-span-2 flex flex-col gap-0.5 bg-amber-50 p-2 rounded-lg border border-amber-200/60">
@@ -94,6 +94,79 @@
                     <div class="bg-emerald-50 rounded-xl p-2"><div class="text-lg font-black text-emerald-700">{{ $learningProgress['attendance_present'] }}/{{ $learningProgress['attendance_total'] }}</div><div class="text-[10px] text-gray-500">Chuyên cần</div></div>
                     <div class="bg-blue-50 rounded-xl p-2"><div class="text-lg font-black text-blue-700">{{ $learningProgress['homework_submitted'] }}/{{ $learningProgress['homework_total'] }}</div><div class="text-[10px] text-gray-500">Bài tập</div></div>
                     <div class="bg-purple-50 rounded-xl p-2"><div class="text-lg font-black text-purple-700">{{ $learningProgress['latest_big_test']?->overall_score ?? '—' }}</div><div class="text-[10px] text-gray-500">Big Test mới nhất</div></div>
+                </div>
+            </div>
+
+            <!-- Lịch học sắp tới (buổi học thật của các lớp + buổi phụ đạo) -->
+            <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm" data-section="upcoming-schedule">
+                <h2 class="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-primary text-[18px]">calendar_month</span>
+                    Lịch học sắp tới
+                </h2>
+                <div class="flex flex-col gap-2">
+                    @forelse($upcomingSessions as $s)
+                        @php $cancelled = $s->status === 'cancelled'; @endphp
+                        <div class="flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs {{ $cancelled ? 'border-gray-200 bg-gray-50 text-gray-400' : 'border-gray-100' }}">
+                            <div>
+                                <div class="font-bold {{ $cancelled ? 'line-through' : 'text-gray-900' }}">{{ ['', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][$s->date->isoWeekday()] }}, {{ $s->date->format('d/m') }} · {{ $s->start_time?->format('H:i') }}-{{ $s->end_time?->format('H:i') }}</div>
+                                <div class="text-[11px] text-gray-500">{{ $s->classModel?->name }}@if($s->room) · Phòng {{ $s->room }}@endif</div>
+                            </div>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ $cancelled ? 'bg-gray-100 text-gray-500' : ($s->type === 'regular' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700') }}">
+                                {{ $cancelled ? 'Nghỉ' : ($s->type === 'makeup' ? 'Học bù' : ($s->type === 'support' ? 'Phụ đạo' : 'Buổi học')) }}
+                            </span>
+                        </div>
+                    @empty
+                        <p class="text-xs text-gray-500">Chưa có buổi học nào trong {{ 14 }} ngày tới.</p>
+                    @endforelse
+                </div>
+            </div>
+
+            <!-- Điểm danh gần đây -->
+            <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm" data-section="attendance-history">
+                <h2 class="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-primary text-[18px]">fact_check</span>
+                    Lịch sử điểm danh
+                </h2>
+                <div class="divide-y divide-gray-100">
+                    @forelse($attendanceHistory as $a)
+                        <div class="flex items-center justify-between py-2 text-xs">
+                            <div>
+                                <div class="font-semibold text-gray-900">{{ ($a->classSession?->date ?? $a->session_date)?->format('d/m/Y') }}</div>
+                                <div class="text-[11px] text-gray-500">{{ $a->classModel?->name }}@if($a->note) · {{ $a->note }}@endif</div>
+                            </div>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ in_array($a->status, ['present', 'late'], true) ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700' }}">{{ $a->status_label }}</span>
+                        </div>
+                    @empty
+                        <p class="text-xs text-gray-500">Chưa có dữ liệu điểm danh.</p>
+                    @endforelse
+                </div>
+            </div>
+
+            <!-- Kết quả Big Test (đã duyệt / đã gửi phụ huynh) -->
+            <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm" data-section="big-test-results">
+                <h2 class="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-primary text-[18px]">workspace_premium</span>
+                    Kết quả Big Test
+                </h2>
+                <div class="flex flex-col gap-2">
+                    @forelse($bigTestResults as $r)
+                        <div class="rounded-xl border border-gray-100 px-3 py-2 text-xs">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-gray-900">{{ $r->bigTest?->title ?? 'Big Test' }}</span>
+                                <span class="font-black font-mono text-primary">{{ $r->is_absent ? 'Vắng thi' : $r->overall_score }}</span>
+                            </div>
+                            @unless($r->is_absent)
+                                <div class="mt-1 grid grid-cols-4 gap-1 text-[10px] text-gray-500 text-center">
+                                    <span>Nghe {{ $r->listening_score ?? '—' }}</span><span>Đọc {{ $r->reading_score ?? '—' }}</span><span>Viết {{ $r->writing_score ?? '—' }}</span><span>Nói {{ $r->speaking_score ?? '—' }}</span>
+                                </div>
+                            @endunless
+                            @if($r->progress_note)
+                                <p class="mt-1 text-[11px] text-gray-600">{{ $r->progress_note }}</p>
+                            @endif
+                        </div>
+                    @empty
+                        <p class="text-xs text-gray-500">Chưa có kết quả Big Test đã duyệt.</p>
+                    @endforelse
                 </div>
             </div>
 
@@ -194,7 +267,7 @@
                             <div class="flex justify-between items-start">
                                 <div class="flex flex-col">
                                     <span class="text-[11px] font-bold text-primary font-mono">{{ $rc->receipt_number ?? ('PT-' . $rc->id) }}</span>
-                                    <span class="text-xs font-semibold text-gray-900">{{ $rc->title ?? ('Học phí ' . ($student?->currentClass?->name ?? 'IELTS')) }}</span>
+                                    <span class="text-xs font-semibold text-gray-900">{{ $rc->title ?? trim('Học phí ' . ($student?->currentClass?->name ?? '')) }}</span>
                                 </div>
                                 <div class="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-bold flex items-center gap-1 border border-emerald-200">
                                     <span class="material-symbols-outlined text-[12px]">check_circle</span> Đã duyệt
@@ -203,13 +276,13 @@
                             <div class="flex justify-between items-end border-t border-gray-200 pt-2 mt-1 text-xs">
                                 <div class="flex flex-col gap-0.5 text-gray-500 text-[11px]">
                                     <span class="flex items-center gap-1">
-                                        <span class="material-symbols-outlined text-[13px]">calendar_today</span> {{ is_string($rc->payment_date) ? $rc->payment_date : ($rc->payment_date?->format('d/m/Y') ?? '10/08/2026') }}
+                                        <span class="material-symbols-outlined text-[13px]">calendar_today</span> {{ is_string($rc->payment_date) ? $rc->payment_date : ($rc->payment_date?->format('d/m/Y') ?? '—') }}
                                     </span>
                                     <span class="flex items-center gap-1">
-                                        <span class="material-symbols-outlined text-[13px]">payments</span> {{ $rc->payment_method ?? 'Chuyển khoản' }}
+                                        <span class="material-symbols-outlined text-[13px]">payments</span> {{ $rc->payment_method ?? '—' }}
                                     </span>
                                 </div>
-                                <span class="text-sm font-bold font-mono text-gray-900">{{ number_format($rc->amount ?? 5000000, 0, ',', '.') }}đ</span>
+                                <span class="text-sm font-bold font-mono text-gray-900">{{ number_format((float) $rc->amount, 0, ',', '.') }}đ</span>
                             </div>
                         </div>
                     @endforeach
@@ -232,7 +305,7 @@
                         <span class="material-symbols-outlined text-[20px]">close</span>
                     </button>
                 </div>
-                <form action="{{ route('portal.student.profile.update', $student?->id ?? 1) }}" method="POST" class="space-y-3">
+                <form action="{{ route('portal.student.profile.update', $student?->id ?? 0) }}" method="POST" class="space-y-3">
                     @csrf
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Số điện thoại liên hệ</label>
@@ -278,16 +351,16 @@
                 </div>
                 <form action="{{ route('portal.student.tuition.request') }}" method="POST" class="space-y-3">
                     @csrf
-                    <input type="hidden" name="student_id" value="{{ $student?->id ?? 1 }}">
+                    <input type="hidden" name="student_id" value="{{ $student?->id }}">
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Số tiền đã chuyển (VNĐ)</label>
-                        <input type="number" name="amount" value="{{ $debtAmount > 0 ? $debtAmount : 5000000 }}" required
+                        <input type="number" name="amount" value="{{ $debtAmount > 0 ? (int) $debtAmount : '' }}" min="1000" required
                                class="w-full px-3 py-2 text-xs font-bold font-mono border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Nội dung chuyển khoản / Ghi chú</label>
                         <textarea name="content" rows="3" placeholder="Nhập mã giao dịch ngân hàng hoặc nội dung chuyển tiền..." required
-                                  class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container">Phụ huynh {{ $student?->name }} chuyển khoản học phí qua Vietcombank</textarea>
+                                  class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container"></textarea>
                     </div>
                     <div class="flex justify-end gap-2 pt-2">
                         <button type="button" @click="tuitionReqOpen = false" class="px-3 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-200 transition">
