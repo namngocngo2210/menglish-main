@@ -256,7 +256,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
         ];
 
         foreach ($allowedRoutes as $url) {
-            $response = $this->actingAs($this->accountant)->get($url);
+            $response = $this->actingAs($this->accountant)->followingRedirects()->get($url);
             $response->assertOk();
         }
 
@@ -296,7 +296,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
         ];
 
         foreach ($allowedRoutes as $url) {
-            $response = $this->actingAs($this->teacher)->get($url);
+            $response = $this->actingAs($this->teacher)->followingRedirects()->get($url);
             $response->assertOk();
         }
 
@@ -336,7 +336,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
         ];
 
         foreach ($allowedRoutes as $url) {
-            $response = $this->actingAs($this->academicStaff)->get($url);
+            $response = $this->actingAs($this->academicStaff)->followingRedirects()->get($url);
             $response->assertOk();
         }
     }
@@ -359,7 +359,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
         ];
 
         foreach ($allowedRoutes as $url) {
-            $response = $this->actingAs($this->academicLead)->get($url);
+            $response = $this->actingAs($this->academicLead)->followingRedirects()->get($url);
             $response->assertOk();
         }
     }
@@ -454,21 +454,23 @@ class MultiRoleComprehensiveQaTest extends TestCase
 
     // =========================================================================
     // c. ĐỐI SOÁT CÁC MÀN HÌNH HIỂN THỊ VỚI PROTOTYPE ROUNDCUOI-KIEULIEN
+    // Từ P0 #3: chỉ Admin xem bản mockup; vai trò khác được chuyển sang màn thật.
     // =========================================================================
 
     public function test_teacher_screens_verification(): void
     {
         // 1. Màn check-in ca dạy nhiều ca (03_Cong_Giao_Vien/15_check_in_cua_toi)
-        $resCheckin = $this->actingAs($this->teacher)->get(route('academic-system.show', [
+        $resCheckin = $this->actingAs($this->teacher)->followingRedirects()->get(route('academic-system.show', [
             'category' => '03_Cong_Giao_Vien',
             'screen' => '15_check_in_cua_toi',
         ]));
         $resCheckin->assertOk();
         $this->assertStringContainsString('Check-in', $resCheckin->getContent());
-        $this->assertStringContainsString('menglish-real-data-engine.js', $resCheckin->getContent());
+        // Không phải Admin: được chuyển sang màn thật, không nhận bản mockup kèm dữ liệu thô
+        $this->assertStringNotContainsString('menglish-real-data-engine.js', $resCheckin->getContent());
 
         // 2. Cổng điểm danh lớp (03_Cong_Giao_Vien/02_diem_danh_lop_giao_vien)
-        $resAttendance = $this->actingAs($this->teacher)->get(route('academic-system.show', [
+        $resAttendance = $this->actingAs($this->teacher)->followingRedirects()->get(route('academic-system.show', [
             'category' => '03_Cong_Giao_Vien',
             'screen' => '02_diem_danh_lop_giao_vien',
         ]));
@@ -518,7 +520,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
         $res7->assertOk();
 
         // Đối soát các prototype tương ứng ở academic-system
-        $prototypeRes = $this->actingAs($this->studentUser)->get(route('academic-system.show', [
+        $prototypeRes = $this->actingAs($this->studentUser)->followingRedirects()->get(route('academic-system.show', [
             'category' => '04_Cong_Phu_Huynh_Hoc_Sinh',
             'screen' => '02_trang_chu_phu_huynh_hoc_sinh',
         ]));
@@ -538,7 +540,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
     public function test_academic_staff_screens_verification(): void
     {
         // 1. Màn Báo cáo ngày (02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu/06_bao_cao_ngay_hoc_vu)
-        $resDayReport = $this->actingAs($this->academicStaff)->get(route('academic-system.show', [
+        $resDayReport = $this->actingAs($this->academicStaff)->followingRedirects()->get(route('academic-system.show', [
             'category' => '02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu',
             'screen' => '06_bao_cao_ngay_hoc_vu',
         ]));
@@ -546,7 +548,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
         $this->assertStringContainsString('Báo cáo ngày', $resDayReport->getContent());
 
         // 2. Nhật ký sự vụ (02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu/05_nhat_ky_hoc_vu)
-        $resIncident = $this->actingAs($this->academicStaff)->get(route('academic-system.show', [
+        $resIncident = $this->actingAs($this->academicStaff)->followingRedirects()->get(route('academic-system.show', [
             'category' => '02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu',
             'screen' => '05_nhat_ky_hoc_vu',
         ]));
@@ -562,12 +564,14 @@ class MultiRoleComprehensiveQaTest extends TestCase
     public function test_accountant_screens_verification(): void
     {
         // 1. Màn Chốt bảng công (01_Web_Admin/10_doi_soat_chot_bang_cong)
-        $resPayrollReview = $this->actingAs($this->accountant)->get(route('academic-system.show', [
+        $resPayrollReview = $this->actingAs($this->accountant)->followingRedirects()->get(route('academic-system.show', [
             'category' => '01_Web_Admin',
             'screen' => '10_doi_soat_chot_bang_cong',
         ]));
         $resPayrollReview->assertOk();
-        $this->assertStringContainsString('bảng công', $resPayrollReview->getContent());
+        // Được chuyển sang màn kỳ lương thật (payroll.periods.index), không phải mockup
+        $this->assertStringNotContainsString('menglish-real-data-engine.js', $resPayrollReview->getContent());
+        $this->assertStringContainsString('lương', mb_strtolower($resPayrollReview->getContent()));
 
         // 2. Thu phí (/tuition/students)
         $resTuition = $this->actingAs($this->accountant)->get(route('tuition.students'));
@@ -594,7 +598,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
         // 1. Soạn Syllabus chặng
         $resSyllabusNative = $this->actingAs($this->academicLead)->get(route('syllabus.builder'));
         $resSyllabusNative->assertOk();
-        $resSyllabusProto = $this->actingAs($this->academicLead)->get(route('academic-system.show', [
+        $resSyllabusProto = $this->actingAs($this->academicLead)->followingRedirects()->get(route('academic-system.show', [
             'category' => '01_Web_Admin',
             'screen' => '02_soan_syllabus_theo_chang',
         ]));
@@ -603,7 +607,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
         // 2. Giao chặng GV
         $resAssignNative = $this->actingAs($this->academicLead)->get(route('syllabus.assignments'));
         $resAssignNative->assertOk();
-        $resAssignProto = $this->actingAs($this->academicLead)->get(route('academic-system.show', [
+        $resAssignProto = $this->actingAs($this->academicLead)->followingRedirects()->get(route('academic-system.show', [
             'category' => '01_Web_Admin',
             'screen' => '03_giao_chang_cho_giao_vien',
         ]));
@@ -612,7 +616,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
         // 3. Duyệt sửa GT
         $resVersionsNative = $this->actingAs($this->academicLead)->get(route('syllabus.versions'));
         $resVersionsNative->assertOk();
-        $resVersionsProto = $this->actingAs($this->academicLead)->get(route('academic-system.show', [
+        $resVersionsProto = $this->actingAs($this->academicLead)->followingRedirects()->get(route('academic-system.show', [
             'category' => '01_Web_Admin',
             'screen' => '05_chi_tiet_de_xuat_sua_giao_trinh',
         ]));
@@ -621,7 +625,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
         // 4. Duyệt Big Test
         $resBigTestDist = $this->actingAs($this->academicLead)->get(route('syllabus.big-tests.distribution'));
         $resBigTestDist->assertOk();
-        $resBigTestProto = $this->actingAs($this->academicLead)->get(route('academic-system.show', [
+        $resBigTestProto = $this->actingAs($this->academicLead)->followingRedirects()->get(route('academic-system.show', [
             'category' => '01_Web_Admin',
             'screen' => '06_duyet_phan_phoi_de_big_test',
         ]));
@@ -630,7 +634,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
         // 5. Sơ đồ khối lớp
         $resOverviewNative = $this->actingAs($this->academicLead)->get(route('classes.academic-overview'));
         $resOverviewNative->assertOk();
-        $resOverviewProto = $this->actingAs($this->academicLead)->get(route('academic-system.show', [
+        $resOverviewProto = $this->actingAs($this->academicLead)->followingRedirects()->get(route('academic-system.show', [
             'category' => '02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu',
             'screen' => '13_tong_quan_danh_sach_lop_hoc_thuat',
         ]));

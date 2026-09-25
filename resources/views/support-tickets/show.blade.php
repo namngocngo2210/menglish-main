@@ -165,10 +165,14 @@
                     </div>
 
                     <div class="flex items-center justify-between pt-1">
-                        <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
-                            <input type="checkbox" name="is_internal_note" value="1" class="rounded border-gray-300 text-amber-600 focus:ring-amber-500">
-                            <span>Chỉ hiển thị nội bộ giữa các phòng ban</span>
-                        </label>
+                        @if ($canPostInternal ?? false)
+                            <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                                <input type="checkbox" name="is_internal_note" value="1" class="rounded border-gray-300 text-amber-600 focus:ring-amber-500">
+                                <span>Chỉ hiển thị nội bộ giữa các phòng ban</span>
+                            </label>
+                        @else
+                            <span></span>
+                        @endif
                         <button type="submit" class="px-4 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-[16px]">send</span>
                             <span>Gửi phản hồi</span>

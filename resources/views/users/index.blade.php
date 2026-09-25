@@ -140,7 +140,7 @@
                                         <div>
                                             <div class="font-bold text-gray-900 text-sm flex items-center gap-1.5">
                                                 <span>{{ $user->name }}</span>
-                                                <button @click="openProfile({{ json_encode($user->load(['branch', 'roles'])) }})" class="text-gray-400 hover:text-primary-container transition" title="Xem hồ sơ nhanh">
+                                                <button @click="openProfile({{ json_encode(\App\Http\Controllers\UserController::profilePayload($user, auth()->user())) }})" class="text-gray-400 hover:text-primary-container transition" title="Xem hồ sơ nhanh">
                                                     <span class="material-symbols-outlined text-[15px]">info</span>
                                                 </button>
                                             </div>
@@ -174,7 +174,7 @@
                                 <td class="py-3.5 px-4 text-right whitespace-nowrap">
                                     <div class="flex items-center justify-end gap-1">
                                         <!-- Nút Xem chi tiết hồ sơ (Slide-over drawer) -->
-                                        <button @click="openProfile({{ json_encode($user->load(['branch', 'roles'])) }})" class="p-1 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition cursor-pointer" title="Xem hồ sơ chi tiết">
+                                        <button @click="openProfile({{ json_encode(\App\Http\Controllers\UserController::profilePayload($user, auth()->user())) }})" class="p-1 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition cursor-pointer" title="Xem hồ sơ chi tiết">
                                             <span class="material-symbols-outlined text-[18px]">visibility</span>
                                         </button>
 

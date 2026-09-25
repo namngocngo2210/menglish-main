@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\SensitiveData;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -10,19 +11,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AuditOperationMiddleware
 {
-    /**
-     * List of sensitive keys to filter out from activity log parameters.
-     */
-    protected array $sensitiveKeys = [
-        'password',
-        'password_confirmation',
-        'current_password',
-        'new_password',
-        '_token',
-        '_method',
-        'remember_token',
-    ];
-
     public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
@@ -60,21 +48,13 @@ class AuditOperationMiddleware
         // 3. Generate Human-Readable Description
         $description = $this->generateDescription($request, $module, $event);
 
-        // 4. Sanitize parameters
-        $filteredParams = collect($request->all())
-            ->except($this->sensitiveKeys)
-            ->map(function ($val) {
-                if (is_string($val) && strlen($val) > 500) {
-                    return Str::limit($val, 500);
-                }
-                return $val;
-            })
-            ->toArray();
+        // 4. Sanitize parameters (che mật khẩu, khóa bí mật, token... kể cả trong mảng lồng)
+        $filteredParams = SensitiveData::mask($request->all());
 
         $properties = [
             'ip' => $request->ip(),
             'user_agent' => Str::limit($request->userAgent(), 255),
-            'url' => $request->fullUrl(),
+            'url' => SensitiveData::maskUrl($request->fullUrl()),
             'method' => $method,
             'route' => $routeName,
             'status_code' => $response->getStatusCode(),

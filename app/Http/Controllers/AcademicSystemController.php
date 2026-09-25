@@ -609,6 +609,8 @@ class AcademicSystemController extends Controller
      */
     public function index(Request $request)
     {
+        abort_unless(self::canViewPrototypes($request->user()), 403);
+
         $screens = self::getScreens();
         $selectedCat = $request->query('cat', 'all');
 
@@ -727,10 +729,13 @@ class AcademicSystemController extends Controller
             '02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu/20_bao_cao_quy_hoc_thuat' => route('reports.all'),
         ];
 
-        if ($request->has('native')) {
+        // Chỉ Admin được xem bản mockup (nhúng AcademicRecord của mọi học viên).
+        // Vai trò khác được chuyển sang màn thật; màn thật tự kiểm tra quyền.
+        if ($request->has('native') || ! self::canViewPrototypes($request->user())) {
             if (isset($nativeRouteMap[$screenKey])) {
                 return redirect()->to($nativeRouteMap[$screenKey]);
             }
+            abort_unless(self::canViewPrototypes($request->user()), 403);
         }
 
         if ($request->has('embed')) {
@@ -994,5 +999,13 @@ class AcademicSystemController extends Controller
         }
 
         return redirect()->route('academic-system.index', ['cat' => '04_Cong_Phu_Huynh_Hoc_Sinh']);
+    }
+
+    /**
+     * Bộ màn mockup cũ chỉ dành cho Admin (quản trị danh mục hệ thống).
+     */
+    public static function canViewPrototypes(?\App\Models\User $user): bool
+    {
+        return (bool) $user?->can('system_category.manage');
     }
 }

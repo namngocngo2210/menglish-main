@@ -8,7 +8,6 @@ use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\Course;
 use App\Models\CourseLevel;
-use App\Models\Student;
 use App\Models\User;
 use App\Services\SessionScheduleService;
 use Illuminate\Http\Request;
@@ -30,7 +29,8 @@ class ClassManagementController extends Controller
         $branches = Branch::where('is_active', true)->get();
         $selectedBranchId = $request->query('branch_id', $branches->first()?->id);
 
-        $classesQuery = ClassModel::with(['course', 'branch', 'teacher'])->where('status', '!=', 'cancelled');
+        $this->ensureCanBrowseClasses();
+        $classesQuery = ClassModel::with(['course', 'branch', 'teacher'])->visibleTo(auth()->user())->where('status', '!=', 'cancelled');
         if ($selectedBranchId) {
             $classesQuery->where('branch_id', $selectedBranchId);
         }
@@ -423,23 +423,16 @@ class ClassManagementController extends Controller
      */
     public function profile(Request $request, $id = null)
     {
-        $classes = ClassModel::with(['course', 'branch', 'teacher', 'assistant', 'foreignTeacher', 'students'])->get();
+        $this->ensureCanBrowseClasses();
+        $classes = ClassModel::with(['course', 'branch', 'teacher', 'assistant', 'foreignTeacher', 'students'])->visibleTo(auth()->user())->get();
 
         $class = $id ? $classes->firstWhere('id', $id) : $classes->first();
         if (! $class && $classes->isNotEmpty()) {
             $class = $classes->first();
         }
 
-        // Lấy danh sách học sinh của lớp
+        // Lấy danh sách học sinh của lớp (không nạp học sinh lớp khác khi lớp trống)
         $students = $class ? $class->students : collect();
-
-        // Nếu lớp thực tế chưa có học sinh, nạp học sinh mẫu thực tế để bảng hiển thị đẹp chuẩn như BA
-        if ($students->isEmpty()) {
-            $sampleStudents = Student::take(12)->get();
-            if ($sampleStudents->isNotEmpty()) {
-                $students = $sampleStudents;
-            }
-        }
 
         return view('classes.profile', compact('class', 'classes', 'students'));
     }
@@ -453,14 +446,12 @@ class ClassManagementController extends Controller
         $branches = Branch::where('is_active', true)->get();
         $selectedBranch = $request->query('branch', 'all');
 
-        $classesQuery = ClassModel::query();
+        $this->ensureCanBrowseClasses();
+        $classesQuery = ClassModel::query()->visibleTo(auth()->user());
         if ($selectedBranch !== 'all' && is_numeric($selectedBranch)) {
             $classesQuery->where('branch_id', $selectedBranch);
         }
         $totalActive = $classesQuery->where('status', '!=', 'cancelled')->count();
-        if ($totalActive === 0) {
-            $totalActive = 42;
-        } // baseline from BA mockup
 
         return view('classes.academic-overview', compact('branches', 'selectedBranch', 'totalActive'));
     }
@@ -476,7 +467,8 @@ class ClassManagementController extends Controller
         $branchFilter = $request->query('branch_id');
         $programFilter = $request->query('program');
 
-        $classesQuery = ClassModel::with(['branch', 'teacher', 'assistant', 'students'])->where('status', '!=', 'cancelled');
+        $this->ensureCanBrowseClasses();
+        $classesQuery = ClassModel::with(['branch', 'teacher', 'assistant', 'students'])->visibleTo(auth()->user())->where('status', '!=', 'cancelled');
         if ($search) {
             // Phải bọc closure: orWhere viết thẳng sẽ thoát cả filter status lẫn chi nhánh.
             $classesQuery->where(function ($query) use ($search) {
@@ -498,7 +490,8 @@ class ClassManagementController extends Controller
      */
     public function academicDetail(Request $request, $id = null)
     {
-        $classes = ClassModel::with(['branch', 'teacher', 'assistant', 'course', 'students'])->get();
+        $this->ensureCanBrowseClasses();
+        $classes = ClassModel::with(['branch', 'teacher', 'assistant', 'course', 'students'])->visibleTo(auth()->user())->get();
         $class = $id ? $classes->firstWhere('id', $id) : $classes->first();
         if (! $class && $classes->isNotEmpty()) {
             $class = $classes->first();
@@ -517,15 +510,17 @@ class ClassManagementController extends Controller
         $branchFilter = $request->query('branch_id');
         $statusFilter = $request->query('status');
 
+        $this->ensureCanBrowseClasses();
         $query = ClassModel::with(['branch', 'teacher', 'students'])
-            ->when($search, fn ($q) => $q->where('name', 'LIKE', "%{$search}%")->orWhere('code', 'LIKE', "%{$search}%"))
+            ->visibleTo(auth()->user())
+            ->when($search, fn ($q) => $q->where(fn ($q) => $q->where('name', 'LIKE', "%{$search}%")->orWhere('code', 'LIKE', "%{$search}%")))
             ->when($branchFilter, fn ($q) => $q->where('branch_id', $branchFilter))
             ->when($statusFilter && $statusFilter !== 'all', fn ($q) => $q->where('status', $statusFilter))
             ->latest();
 
         $classes = $query->paginate(15)->withQueryString();
-        $totalCount = ClassModel::count();
-        $activeCount = ClassModel::where('status', 'active')->count();
+        $totalCount = ClassModel::visibleTo(auth()->user())->count();
+        $activeCount = ClassModel::visibleTo(auth()->user())->where('status', 'active')->count();
 
         return view('classes.index', compact('classes', 'branches', 'search', 'branchFilter', 'statusFilter', 'totalCount', 'activeCount'));
     }
@@ -728,5 +723,15 @@ class ClassManagementController extends Controller
             'occupied_rooms' => $occupiedRooms,
             'occupied_teachers' => $occupiedTeachers,
         ]);
+    }
+
+    /**
+     * Học viên (và vai trò không phụ trách lớp) không được mở màn quản lý lớp;
+     * họ xem lớp của mình qua cổng học viên.
+     */
+    private function ensureCanBrowseClasses(): void
+    {
+        $user = auth()->user();
+        abort_if(! $user || (! ClassModel::userManagesAll($user) && $user->hasRole('student')), 403);
     }
 }

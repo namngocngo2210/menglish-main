@@ -2,9 +2,11 @@
     <x-slot name="header">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div class="flex items-center gap-3">
+                @can('system_category.manage')
                 <a href="{{ route('academic-system.index', ['cat' => '04_Cong_Phu_Huynh_Hoc_Sinh']) }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
                     <span class="material-symbols-outlined text-[18px]">arrow_back</span>
                 </a>
+                @endcan
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">smartphone</span>

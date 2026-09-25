@@ -82,6 +82,7 @@ class UserController extends Controller
 
     public function show(User $user, Request $request)
     {
+        $this->ensureCanManageTarget($user);
         $user->load(['branch', 'roles']);
 
         if ($request->wantsJson() || $request->ajax()) {
@@ -89,11 +90,13 @@ class UserController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'phone' => $user->phone ?? '0912 345 678',
+                'phone' => $user->phone,
                 'employee_code' => $user->employee_code ?? ('NV-'.str_pad($user->id, 4, '0', STR_PAD_LEFT)),
-                'branch_name' => $user->branch?->name ?? 'Cơ sở Cầu Giấy',
+                'branch_name' => $user->branch?->name,
                 'role_name' => $user->roles->first()?->name ? AclHelper::roleLabel($user->roles->first()->name) : 'Nhân viên',
-                'base_salary' => $user->base_salary ? number_format($user->base_salary).' VND' : '15,000,000 VND',
+                'base_salary' => self::canViewSensitive($request->user()) && $user->base_salary
+                    ? number_format($user->base_salary).' VND'
+                    : null,
                 'is_locked' => $user->isLocked(),
                 'created_at' => $user->created_at->format('d/m/Y'),
             ]);
@@ -133,6 +136,7 @@ class UserController extends Controller
 
     public function edit(User $user): View
     {
+        $this->ensureCanManageTarget($user);
         return view('users.form', [
             'user' => $user,
             'branches' => Branch::query()->active()->orderBy('name')->get(),
@@ -142,6 +146,7 @@ class UserController extends Controller
 
     public function update(UserRequest $request, User $user): RedirectResponse
     {
+        $this->ensureCanManageTarget($user);
         $before = $user->only(['name', 'email', 'branch_id', 'phone', 'employee_code']);
 
         $this->ensureCanAssignRole($request->validated('role'));
@@ -164,6 +169,7 @@ class UserController extends Controller
 
     public function destroy(User $user): RedirectResponse
     {
+        $this->ensureCanManageTarget($user);
         if ($user->id === auth()->id()) {
             return back()->withErrors(['user' => 'Bạn không thể tự xóa tài khoản của chính mình.']);
         }
@@ -179,6 +185,7 @@ class UserController extends Controller
 
     public function lock(User $user): RedirectResponse
     {
+        $this->ensureCanManageTarget($user);
         if ($user->id === auth()->id()) {
             return back()->withErrors(['user' => 'Bạn không thể khóa tài khoản của chính mình.']);
         }
@@ -192,6 +199,7 @@ class UserController extends Controller
 
     public function unlock(User $user): RedirectResponse
     {
+        $this->ensureCanManageTarget($user);
         $user->forceFill(['locked_at' => null])->save();
 
         activity('user')->causedBy(auth()->user())->performedOn($user)->log('Kích hoạt lại tài khoản');
@@ -201,6 +209,7 @@ class UserController extends Controller
 
     public function resetPassword(User $user): RedirectResponse
     {
+        $this->ensureCanManageTarget($user);
         $temporaryPassword = Str::password(12);
         $user->forceFill(['password' => Hash::make($temporaryPassword)])->save();
 
@@ -212,6 +221,7 @@ class UserController extends Controller
 
     public function editRoles(User $user): View
     {
+        $this->ensureCanManageTarget($user);
         return view('users.roles', [
             'user' => $user,
             'roles' => Role::query()->orderBy('name')->get(),
@@ -220,6 +230,7 @@ class UserController extends Controller
 
     public function updateRoles(AssignRoleRequest $request, User $user): RedirectResponse
     {
+        $this->ensureCanManageTarget($user);
         foreach ((array) $request->validated('roles') as $roleName) {
             $this->ensureCanAssignRole($roleName);
         }
@@ -261,6 +272,60 @@ class UserController extends Controller
         }
 
         return [];
+    }
+
+    /**
+     * Chặn thao tác lên tài khoản có vai trò vượt phân cấp của người thực hiện
+     * (ví dụ Học vụ/Quản lý đổi mật khẩu, hạ quyền hoặc khóa tài khoản Admin).
+     * Admin quản lý được mọi tài khoản; vai trò khác chỉ quản lý được tài khoản
+     * mà mọi vai trò hiện có đều nằm trong danh sách mình được phép tạo.
+     */
+    private function ensureCanManageTarget(User $target): void
+    {
+        $actor = auth()->user();
+        if ($actor?->hasRole('admin')) {
+            return;
+        }
+
+        $manageable = $this->creatableRoles($actor);
+        $outOfScope = $target->getRoleNames()->diff($manageable);
+
+        abort_if($target->hasRole('admin') || $outOfScope->isNotEmpty(), 403, 'Bạn không có quyền thao tác trên tài khoản này.');
+    }
+
+    /**
+     * Dữ liệu hồ sơ nhanh nhúng vào danh sách nhân sự. Chỉ gồm các trường hiển
+     * thị; CCCD, lương, đơn giá, địa chỉ, liên hệ khẩn chỉ gửi cho người được xem.
+     */
+    public static function profilePayload(User $user, ?User $viewer): array
+    {
+        $payload = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone' => $user->phone,
+            'branch' => $user->branch ? ['name' => $user->branch->name] : null,
+            'certificates' => $user->certificates,
+            'graduation_school' => $user->graduation_school,
+            'teaching_level' => $user->teaching_level,
+            'contract_type' => $user->contract_type,
+            'contract_start_date' => $user->contract_start_date?->format('Y-m-d'),
+            'contract_end_date' => $user->contract_end_date?->format('Y-m-d'),
+        ];
+
+        if (self::canViewSensitive($viewer)) {
+            $payload += $user->only(['id_card_number', 'base_salary', 'hourly_rate', 'hometown', 'current_address', 'emergency_contact']);
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Người được xem CCCD, lương cơ bản, đơn giá của nhân sự.
+     */
+    public static function canViewSensitive(?User $actor): bool
+    {
+        return (bool) $actor && ($actor->hasRole('admin') || $actor->can('payroll.view'));
     }
 
     /**

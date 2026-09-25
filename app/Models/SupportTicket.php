@@ -30,6 +30,28 @@ class SupportTicket extends Model
         'resolved_at' => 'datetime',
     ];
 
+    /**
+     * Người xử lý ticket (có quyền cập nhật / phân công / đóng ticket).
+     */
+    public static function userCanManage(?User $user): bool
+    {
+        return (bool) $user && (
+            $user->can('support_ticket.update')
+            || $user->can('support_ticket.assign')
+            || $user->can('support_ticket.close')
+        );
+    }
+
+    /**
+     * Ghi chú nội bộ chỉ dành cho người xử lý ticket và người được phân công,
+     * không hiển thị / gửi cho người tạo ticket (ví dụ học viên).
+     */
+    public function userCanSeeInternalNotes(?User $user): bool
+    {
+        return self::userCanManage($user)
+            || ($user && (int) $this->assignee_id === (int) $user->id);
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'creator_id');

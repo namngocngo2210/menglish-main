@@ -14,6 +14,7 @@ use App\Models\SupportSession;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\SafeUploadService;
 use App\Services\SessionScheduleService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -300,12 +301,16 @@ class WorkTaskController extends Controller
     {
         $task = WorkTask::findOrFail($id);
         abort_unless((int) $task->assignee_id === (int) Auth::id() || $request->user()->can('work_task.approve'), 403);
+        $request->validate([
+            'proof_image' => 'nullable|file|max:10240|mimes:'.implode(',', SafeUploadService::IMAGES),
+            'proof_image_url' => 'nullable|url:http,https|max:2048',
+        ]);
         $note = $request->input('note');
         $hasImage = $request->hasFile('proof_image') || ! empty($request->input('proof_image_url'));
 
         $imagePath = null;
         if ($request->hasFile('proof_image')) {
-            $imagePath = $request->file('proof_image')->store('task_proofs', 'public');
+            $imagePath = SafeUploadService::store($request->file('proof_image'), 'task_proofs', SafeUploadService::IMAGES, 'proof_image');
         } elseif ($request->filled('proof_image_url')) {
             $imagePath = $request->input('proof_image_url');
         }
@@ -358,6 +363,8 @@ class WorkTaskController extends Controller
             'supports.*.absence_session' => 'nullable|string',
             'supports.*.reason' => 'nullable|string',
             'supports.*.action_plan' => 'nullable|string',
+            'board_image' => 'nullable|file|max:10240|mimes:'.implode(',', SafeUploadService::IMAGES),
+            'board_image_url' => 'nullable|url:http,https|max:2048',
         ]);
 
         $class = ClassModel::findOrFail($validated['class_id']);
@@ -370,7 +377,7 @@ class WorkTaskController extends Controller
         $hasImage = $request->hasFile('board_image') || ! empty($request->input('board_image_url'));
         $imagePath = null;
         if ($request->hasFile('board_image')) {
-            $imagePath = $request->file('board_image')->store('class_reports', 'public');
+            $imagePath = SafeUploadService::store($request->file('board_image'), 'class_reports', SafeUploadService::IMAGES, 'board_image');
         } elseif ($request->filled('board_image_url')) {
             $imagePath = $request->input('board_image_url');
         }

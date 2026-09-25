@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Branch;
 use App\Models\CandidateCv;
 use App\Models\JobPosting;
+use App\Services\SafeUploadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -166,7 +167,7 @@ class RecruitmentController extends Controller
 
         $cvPath = null;
         if ($request->hasFile('cv_file')) {
-            $cvPath = $request->file('cv_file')->store('candidate_cvs', 'public');
+            $cvPath = SafeUploadService::store($request->file('cv_file'), 'candidate_cvs', ['pdf', 'doc', 'docx'], 'cv_file');
         }
 
         CandidateCv::create([

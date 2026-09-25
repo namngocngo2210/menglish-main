@@ -1,3 +1,4 @@
+@php($canViewSensitive = \App\Http\Controllers\UserController::canViewSensitive(auth()->user()))
 <x-app-layout>
     <x-slot name="header">
         <div class="flex items-center justify-between">
@@ -61,7 +62,7 @@
                 <div class="h-8 w-px bg-gray-200"></div>
                 <div>
                     <span class="block text-[11px] font-bold text-gray-400 uppercase">Lương cơ bản</span>
-                    <span class="text-sm font-bold font-mono text-primary-container">{{ $user->base_salary ? number_format($user->base_salary) . 'đ' : '15,000,000đ' }}</span>
+                    <span class="text-sm font-bold font-mono text-primary-container">{{ ! $canViewSensitive ? 'Ẩn' : ($user->base_salary ? number_format($user->base_salary) . 'đ' : 'Chưa cập nhật') }}</span>
                 </div>
             </div>
         </div>
@@ -79,7 +80,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                         <div class="p-3 bg-gray-50 rounded-xl border border-gray-100">
                             <span class="text-[11px] text-gray-400 font-bold uppercase block mb-1">Số CCCD (12 số)</span>
-                            <span class="font-semibold text-gray-900 font-mono">{{ $user->id_card_number ?? 'Chưa cập nhật' }}</span>
+                            <span class="font-semibold text-gray-900 font-mono">{{ $canViewSensitive ? ($user->id_card_number ?? 'Chưa cập nhật') : 'Không có quyền xem' }}</span>
                         </div>
                         <div class="p-3 bg-gray-50 rounded-xl border border-gray-100">
                             <span class="text-[11px] text-gray-400 font-bold uppercase block mb-1">Email cá nhân / hệ thống</span>
@@ -87,15 +88,15 @@
                         </div>
                         <div class="p-3 bg-gray-50 rounded-xl border border-gray-100">
                             <span class="text-[11px] text-gray-400 font-bold uppercase block mb-1">Quê quán</span>
-                            <span class="font-semibold text-gray-900">{{ $user->hometown ?? 'Chưa cập nhật' }}</span>
+                            <span class="font-semibold text-gray-900">{{ $canViewSensitive ? ($user->hometown ?? 'Chưa cập nhật') : 'Không có quyền xem' }}</span>
                         </div>
                         <div class="p-3 bg-gray-50 rounded-xl border border-gray-100">
                             <span class="text-[11px] text-gray-400 font-bold uppercase block mb-1">Nơi ở hiện tại</span>
-                            <span class="font-semibold text-gray-900">{{ $user->current_address ?? 'Chưa cập nhật' }}</span>
+                            <span class="font-semibold text-gray-900">{{ $canViewSensitive ? ($user->current_address ?? 'Chưa cập nhật') : 'Không có quyền xem' }}</span>
                         </div>
                         <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 md:col-span-2">
                             <span class="text-[11px] text-gray-400 font-bold uppercase block mb-1">Liên lạc khẩn cấp</span>
-                            <span class="font-semibold text-gray-900">{{ $user->emergency_contact ?? 'Chưa cập nhật' }}</span>
+                            <span class="font-semibold text-gray-900">{{ $canViewSensitive ? ($user->emergency_contact ?? 'Chưa cập nhật') : 'Không có quyền xem' }}</span>
                         </div>
                     </div>
 
@@ -134,11 +135,11 @@
                         </div>
                         <div>
                             <span class="text-[11px] text-gray-400 font-bold uppercase block mb-0.5">Lương cơ bản</span>
-                            <span class="font-bold text-gray-900 font-mono">{{ $user->base_salary ? number_format($user->base_salary) . 'đ' : 'Chưa cập nhật' }}</span>
+                            <span class="font-bold text-gray-900 font-mono">{{ ! $canViewSensitive ? 'Không có quyền xem' : ($user->base_salary ? number_format($user->base_salary) . 'đ' : 'Chưa cập nhật') }}</span>
                         </div>
                         <div>
                             <span class="text-[11px] text-gray-400 font-bold uppercase block mb-0.5">Lương theo giờ dạy</span>
-                            <span class="font-bold text-primary-container font-mono">{{ $user->hourly_rate ? number_format($user->hourly_rate) . 'đ' : 'Chưa cập nhật' }}</span>
+                            <span class="font-bold text-primary-container font-mono">{{ ! $canViewSensitive ? 'Không có quyền xem' : ($user->hourly_rate ? number_format($user->hourly_rate) . 'đ' : 'Chưa cập nhật') }}</span>
                         </div>
                         <div>
                             <span class="text-[11px] text-gray-400 font-bold uppercase block mb-0.5">Ngày bắt đầu</span>
