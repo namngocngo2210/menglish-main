@@ -76,6 +76,28 @@ class Phase1MockupParityTest extends TestCase
         $this->actingAs($this->admin)->get(route('crm.pipeline'))->assertOk()->assertSee('Chi nhánh:');
     }
 
+    // ── 2. Danh sách khách ───────────────────────────────────────────────
+
+    public function test_customer_list_matches_mockup_columns_and_filters(): void
+    {
+        $this->lead('consulting', ['name' => 'Nguyễn Minh Anh', 'parent_name' => 'Trần Thu Hà', 'source' => 'Tiktok']);
+        $this->lead('new', ['name' => 'Phạm Hoàng Nam', 'source' => 'Facebook']);
+
+        $this->actingAs($this->manager)->get(route('crm.customers.index'))->assertOk()
+            ->assertSee('Từ khóa (Tên/SĐT)')->assertSee('Nguồn')->assertSee('Người phụ trách')
+            ->assertSee('Giai đoạn')->assertSee('Chi nhánh')->assertSee('Lọc dữ liệu')
+            ->assertSee('Tên phụ huynh')->assertSee('Cập nhật gần nhất')
+            ->assertSee('Trần Thu Hà')->assertSee('trong tổng số', false);
+
+        // Lọc nguồn / người phụ trách chạy phía server.
+        $this->actingAs($this->manager)->get(route('crm.customers.index', ['source' => 'Tiktok']))
+            ->assertSee('Nguyễn Minh Anh')->assertDontSee('Phạm Hoàng Nam');
+        $this->actingAs($this->manager)->get(route('crm.customers.index', ['search' => 'Thu Hà']))
+            ->assertSee('Nguyễn Minh Anh')->assertDontSee('Phạm Hoàng Nam');
+        $this->actingAs($this->manager)->get(route('crm.customers.index', ['assigned_user_id' => $this->admin->id]))
+            ->assertDontSee('Nguyễn Minh Anh');
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────
 
     private function lead(string $stage, array $attributes = []): CrmCustomer

@@ -217,7 +217,10 @@ class CrmController extends Controller
                         ->orWhere('parent_phone', 'like', "%{$search}%"));
             });
         }
-        if ($request->filled('branch_id') && $request->user()->hasRole('admin')) {
+        // Admin lọc mọi chi nhánh; Quản lý / Học vụ nhiều chi nhánh chỉ lọc trong chi nhánh của mình (ngoài phạm vi → bỏ qua).
+        if ($request->filled('branch_id') && ($request->user()->hasRole('admin')
+            || in_array($request->integer('branch_id'), CrmCustomer::branchIdsOf($request->user()), true)
+                && $request->user()->hasAnyRole(['manager', 'academic_staff', 'academic_lead']))) {
             $query->where('branch_id', $request->integer('branch_id'));
         }
         if ($request->filled('assigned_user_id')) {
@@ -243,7 +246,14 @@ class CrmController extends Controller
         $scopedIds = $this->scopeCustomerQuery()->select('id');
 
         return [
-            'filterBranches' => $user?->hasRole('admin') ? Branch::orderBy('name')->get(['id', 'name']) : collect(),
+            'filterBranches' => match (true) {
+                ! $user => collect(),
+                $user->hasRole('admin') => Branch::orderBy('name')->get(['id', 'name']),
+                // Quản lý / Học vụ phụ trách nhiều chi nhánh: chỉ lọc trong các chi nhánh của mình.
+                $user->hasAnyRole(['manager', 'academic_staff', 'academic_lead']) && count(CrmCustomer::branchIdsOf($user)) > 1
+                    => Branch::whereIn('id', CrmCustomer::branchIdsOf($user))->orderBy('name')->get(['id', 'name']),
+                default => collect(),
+            },
             'filterSales' => User::query()
                 ->whereIn('id', CrmCustomer::query()->whereIn('id', $scopedIds)->whereNotNull('assigned_user_id')->select('assigned_user_id'))
                 ->orderBy('name')->get(['id', 'name']),
@@ -253,36 +263,17 @@ class CrmController extends Controller
 
     public function customers(Request $request)
     {
-        $query = $this->scopeCustomerQuery()->with(['branch', 'assignedUser'])->latest();
-
-        if ($search = $request->input('search')) {
-            // Tìm thêm trên phone_normalized để gõ SĐT có khoảng trắng/gạch vẫn khớp.
-            $digits = $this->normalizePhone($search);
-            $query->where(function ($q) use ($search, $digits) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%")
-                    ->orWhere('code', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->when($digits !== '', fn (Builder $phoneQuery) => $phoneQuery
-                        ->orWhere('phone_normalized', 'like', "%{$digits}%"));
-            });
-        }
+        // Mockup danh-sach-khach: lọc Từ khóa (tên / SĐT / phụ huynh), Nguồn, Người phụ trách, Giai đoạn, Chi nhánh.
+        $query = $this->scopeCustomerQuery()->with(['branch', 'assignedUser'])->latest('updated_at')->latest('id');
+        $this->applyListFilters($query, $request, 'created_at');
 
         if ($stage = $request->input('stage')) {
             $query->where('stage', $stage);
         }
 
-        if ($branchId = $request->input('branch_id')) {
-            $query->where('branch_id', $branchId);
-        }
-
         $dbCustomers = $query->paginate($request->perPage(15))->withQueryString();
-        $branches = Branch::all();
 
-        return view('crm.customers', [
-            'customers' => $dbCustomers,
-            'branches' => $branches,
-        ]);
+        return view('crm.customers', ['customers' => $dbCustomers] + $this->listFilterOptions());
     }
 
     /** Danh sách học viên đã chốt nhưng chưa có lớp (Chờ xếp lớp) để Học vụ gán lớp. */
