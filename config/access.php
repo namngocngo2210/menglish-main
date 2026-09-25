@@ -32,6 +32,8 @@ return [
         'attendance_student' => ['view', 'record'],
         'level' => ['view', 'create', 'update', 'delete'],
         'syllabus' => ['view', 'update', 'manage', 'upload', 'propose_adjustment', 'approve_adjustment'],
+        // Học thuật duyệt order đề / phân phối đề / duyệt kết quả Big Test / gửi kết quả cho phụ huynh.
+        'big_test' => ['approve'],
         'tuition' => ['view', 'create', 'approve', 'reject', 'mark_contacted', 'report_overdue'],
         'invoice' => ['request_cancel', 'approve_cancel'],
         'refund_transfer' => ['request', 'approve'],
@@ -71,7 +73,8 @@ return [
             'role.view',
             'lead.*', 'entrance_test.*', 'student.*', 'class.*', 'attendance_student.*',
             'placement_test.view', 'placement_test.grade',
-            'level.*', 'syllabus.*',
+            // Duyệt đề xuất sửa giáo trình / giãn tiến độ / Big Test là việc của Học thuật (academic_lead) — BPMN.
+            'level.*', 'syllabus.view', 'syllabus.update', 'syllabus.manage', 'syllabus.upload', 'syllabus.propose_adjustment',
             'tuition.*', 'invoice.*', 'refund_transfer.*',
             // Flow §15: chỉ Admin duyệt/chi trả lương; Kế toán tính & soát; Manager chỉ xem.
             'payroll.view', 'payroll.view_own', 'kpi.*', 'teacher_rate.manage', 'commission_config.manage',
@@ -95,7 +98,8 @@ return [
             'lead.view',
             'student.*', 'class.*', 'attendance_student.*',
             'attendance_staff.view', 'attendance_staff.manual_record',
-            'level.*', 'syllabus.*',
+            // Học vụ không duyệt (syllabus.approve_adjustment, big_test.approve chỉ dành cho Học thuật + Admin).
+            'level.*', 'syllabus.view', 'syllabus.update', 'syllabus.manage', 'syllabus.upload', 'syllabus.propose_adjustment',
             'entrance_test.*',
             'placement_test.view', 'placement_test.grade',
             'kpi.view', 'kpi.confirm',
@@ -109,7 +113,7 @@ return [
             'user.view', 'user.create', 'user.update', 'user.assign_role',
             'lead.view',
             'student.view', 'class.*', 'attendance_student.*',
-            'level.*', 'syllabus.*',
+            'level.*', 'syllabus.*', 'big_test.*',
             'entrance_test.*', 'placement_test.*',
             'kpi.view', 'kpi.confirm',
             // HT chốt biên bản lỗi chuyên môn / giảng dạy (Phase 3)

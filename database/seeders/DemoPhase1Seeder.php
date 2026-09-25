@@ -253,6 +253,8 @@ class DemoPhase1Seeder extends Seeder
                 $student = Student::query()->firstOrCreate(['code' => sprintf('HV-DEMO-%s-%02d', $code, $n + 1)], [
                     'name' => '# '.$names[$n % count($names)],
                     'phone' => sprintf('035%d%06d', $digit, $n + 1),
+                    'parent_name' => 'PH em '.$names[$n % count($names)],
+                    'parent_phone' => sprintf('036%d%06d', $digit, $n + 1),
                     'branch_id' => $this->branch->id,
                     'current_class_id' => $class->id,
                     'target' => trim(str_replace('#', '', $class->course?->name ?? '')),

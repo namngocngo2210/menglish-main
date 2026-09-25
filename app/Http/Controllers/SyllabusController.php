@@ -10,7 +10,6 @@ use App\Models\BigTestResult;
 use App\Models\ClassModel;
 use App\Models\Course;
 use App\Models\CourseLevel;
-use App\Models\CrmCustomer;
 use App\Models\Student;
 use App\Models\SyllabusAdjustmentRequest;
 use App\Models\SyllabusAssignment;
@@ -38,6 +37,9 @@ use Illuminate\Validation\ValidationException;
 
 class SyllabusController extends Controller
 {
+    /** Trạng thái khi không gửi được kết quả Big Test: hồ sơ HV và khách CRM đều không có SĐT phụ huynh. */
+    public const MISSING_PARENT_PHONE = 'Thiếu SĐT phụ huynh';
+
     // ─────────────────────────────────────────────
     // 1. Kho tài liệu giáo trình (file thật, phân quyền xem)
     // ─────────────────────────────────────────────
@@ -879,11 +881,16 @@ class SyllabusController extends Controller
         $user = $request->user();
         $class = ClassModel::findOrFail($validated['class_id']);
         abort_unless(ClassModel::visibleTo($user)->whereKey($class->id)->exists(), 403, 'Bạn không phụ trách lớp này.');
+        // Giãn tiến độ luôn gắn chặng đang mở (Q4); lớp chưa mở chặng thì không nhận yêu cầu.
+        $openAssignmentId = SyllabusAssignment::open()->where('class_id', $class->id)->value('id');
+        if (! $openAssignmentId) {
+            throw ValidationException::withMessages(['class_id' => "Lớp {$class->name} không có chặng học nào đang mở — không thể xin điều chỉnh tiến độ."]);
+        }
 
         SyllabusAdjustmentRequest::create([
             'class_id' => $class->id,
             // Gắn chặng đang mở để biết giãn tiến độ cho chặng nào.
-            'syllabus_assignment_id' => SyllabusAssignment::open()->where('class_id', $class->id)->value('id'),
+            'syllabus_assignment_id' => $openAssignmentId,
             'user_id' => $user->id,
             'request_type' => $validated['request_type'],
             'reason' => $validated['reason'],
@@ -1121,46 +1128,99 @@ class SyllabusController extends Controller
             : "Đã bỏ gắn chặng của đợt thi {$test->code}.");
     }
 
+    /**
+     * Duyệt & phân phối order đề (Học thuật). Kèm link đề (bắt buộc) và link phần Speaking (GV chỉ xem phần này).
+     * Order Big Test: gắn vào đợt thi có sẵn của lớp (big_test_id) hoặc — khi không chọn — hệ thống tự tạo đợt
+     * Big Test từ ngày giờ thi + phòng thi nhập ở form duyệt, gắn chặng đang mở của lớp (Big Test cuối chặng) và
+     * phân phối luôn để GV nhập kết quả.
+     */
     public function approveBigTestOrder(Request $request, int $id)
     {
         $order = BigTestOrder::with('classModel')->findOrFail($id);
         $this->ensurePending($order->status);
+        $isBig = $order->test_type === 'big';
         $validated = $request->validate([
             'test_link' => ['required', 'url', 'max:500'],
+            'speaking_link' => ['nullable', 'url', 'max:500'],
             'big_test_id' => ['nullable', Rule::exists('big_tests', 'id')->where('class_id', $order->class_id)],
+            'scheduled_at' => [Rule::requiredIf($isBig && ! $request->filled('big_test_id')), 'nullable', 'date'],
+            'room' => [Rule::requiredIf($isBig && ! $request->filled('big_test_id')), 'nullable', 'string', 'max:255'],
+            'title' => ['nullable', 'string', 'max:255'],
         ], [
             'test_link.required' => 'Vui lòng nhập link đề trước khi phê duyệt.',
             'big_test_id.exists' => 'Đợt Big Test không thuộc lớp của order.',
+            'scheduled_at.required' => 'Vui lòng chọn ngày giờ thi để tạo đợt Big Test (hoặc gắn đợt thi có sẵn).',
+            'room.required' => 'Vui lòng nhập phòng thi để tạo đợt Big Test (hoặc gắn đợt thi có sẵn).',
         ]);
 
-        $order->update([
-            'status' => 'approved',
-            'test_link' => $validated['test_link'],
-            'big_test_id' => $validated['big_test_id'] ?? null,
-            'reviewed_by' => Auth::id(),
-            'reviewed_at' => now(),
-            'rejection_reason' => null,
-        ]);
-        if ($order->big_test_id) {
-            BigTest::whereKey($order->big_test_id)->whereNull('content_url')->update(['content_url' => $order->test_link]);
-            // Đợt thi chưa gắn chặng → gắn chặng của order (Big Test cuối chặng).
-            if ($order->syllabus_stage_id) {
-                BigTest::whereKey($order->big_test_id)->whereNull('syllabus_stage_id')->update(['syllabus_stage_id' => $order->syllabus_stage_id]);
+        $created = null;
+        DB::transaction(function () use ($order, $validated, $isBig, &$created) {
+            $bigTestId = $validated['big_test_id'] ?? null;
+            if (! $bigTestId && $isBig) {
+                $created = $this->createBigTestForOrder($order, $validated);
+                $bigTestId = $created->id;
             }
-            // "Duyệt & phân phối đề" cho đợt thi đã gắn: đợt thi được phân phối luôn (trước đây vẫn ở nháp nên GV
-            // không nhập được kết quả dù order đã duyệt).
-            BigTest::whereKey($order->big_test_id)->where('is_distributed', false)->update([
-                'status' => 'distributed',
-                'is_distributed' => true,
-                'approved_by' => Auth::id(),
-                'approved_at' => now(),
-                'distributed_at' => now(),
+
+            $order->update([
+                'status' => 'approved',
+                'test_link' => $validated['test_link'],
+                'speaking_link' => $validated['speaking_link'] ?? null,
+                'big_test_id' => $bigTestId,
+                'reviewed_by' => Auth::id(),
+                'reviewed_at' => now(),
+                'rejection_reason' => null,
             ]);
-        }
-        $this->notifyUser($order->teacher_id, 'Order đề đã được duyệt', "Đề {$order->type_label} chặng \"{$order->stage_name}\" lớp {$order->classModel?->name} đã được phân phối.", route('syllabus.big-tests.distribution', ['order' => $order->id, 'order_status' => 'approved']));
+            if ($order->big_test_id) {
+                BigTest::whereKey($order->big_test_id)->whereNull('content_url')->update(['content_url' => $order->test_link]);
+                if ($order->speaking_link) {
+                    BigTest::whereKey($order->big_test_id)->update(['speaking_url' => $order->speaking_link]);
+                }
+                // Đợt thi chưa gắn chặng → gắn chặng của order (Big Test cuối chặng).
+                if ($order->syllabus_stage_id) {
+                    BigTest::whereKey($order->big_test_id)->whereNull('syllabus_stage_id')->update(['syllabus_stage_id' => $order->syllabus_stage_id]);
+                }
+                // "Duyệt & phân phối đề" cho đợt thi đã gắn: đợt thi được phân phối luôn (GV nhập được kết quả).
+                BigTest::whereKey($order->big_test_id)->where('is_distributed', false)->update([
+                    'status' => 'distributed',
+                    'is_distributed' => true,
+                    'approved_by' => Auth::id(),
+                    'approved_at' => now(),
+                    'distributed_at' => now(),
+                ]);
+            }
+        });
+
+        $createdNote = $created ? " Đã tạo đợt thi {$created->code} lúc ".$created->scheduled_at->format('H:i d/m/Y')." tại {$created->room}." : '';
+        $this->notifyUser($order->teacher_id, 'Order đề đã được duyệt', "Đề {$order->type_label} chặng \"{$order->stage_name}\" lớp {$order->classModel?->name} đã được phân phối.".$createdNote, route('syllabus.big-tests.distribution', ['order' => $order->id, 'order_status' => 'approved']));
 
         return redirect()->route('syllabus.big-tests.distribution', ['order' => $order->id, 'order_status' => 'approved'])
-            ->with('status', "Đã duyệt và phân phối đề cho order {$order->code}.");
+            ->with('status', "Đã duyệt và phân phối đề cho order {$order->code}.".$createdNote);
+    }
+
+    /** Tạo đợt Big Test cho order vừa duyệt: gắn chặng đang mở của lớp (không có thì chặng của order), phân phối ở bước duyệt. */
+    private function createBigTestForOrder(BigTestOrder $order, array $validated): BigTest
+    {
+        $open = SyllabusAssignment::open()->with('stage')->where('class_id', $order->class_id)->first();
+        $stageId = $open?->stage_id ?? $order->syllabus_stage_id;
+        $stageLabel = $open ? ($open->stage?->label ?? $open->stage_name) : $order->stage_label;
+        $title = trim((string) ($validated['title'] ?? ''))
+            ?: trim(($open?->stage?->big_test_title ?: 'Big Test '.$stageLabel).' · '.$order->classModel?->name, ' ·');
+
+        return BigTest::create([
+            'code' => app(DocumentCodeGenerator::class)->bigTestCode(),
+            'title' => mb_substr($title, 0, 255),
+            'class_id' => $order->class_id,
+            'syllabus_stage_id' => $stageId,
+            'test_type' => 'stage_end',
+            'scheduled_at' => $validated['scheduled_at'],
+            'room' => $validated['room'],
+            'proctor_id' => $order->classModel?->teacher_id ?? $order->teacher_id,
+            'passcode' => 'MEN'.random_int(1000, 9999),
+            'content_url' => $validated['test_link'],
+            'speaking_url' => $validated['speaking_link'] ?? null,
+            'is_distributed' => false,
+            'status' => 'draft',
+        ]);
     }
 
     public function rejectBigTestOrder(Request $request, int $id)
@@ -1322,7 +1382,11 @@ class SyllabusController extends Controller
                 ->whereNotIn('id', $test->classModel->roster()->pluck('id'))->orderBy('name')->get())
             : collect();
 
-        return view('syllabus.big-tests-results', compact('test', 'allTests', 'results', 'students', 'selectedResult'));
+        // Học viên chưa gửi được kết quả vì không có SĐT phụ huynh (hồ sơ HV → khách CRM).
+        $missingParentPhone = $results->filter(fn ($r) => ! $r->parent_notified && ! $r->is_absent && $r->student && ! $r->student->parentContactPhone())
+            ->pluck('student_id')->map(fn ($id) => (int) $id)->all();
+
+        return view('syllabus.big-tests-results', compact('test', 'allTests', 'results', 'students', 'selectedResult', 'missingParentPhone'));
     }
 
     /**
@@ -1354,19 +1418,26 @@ class SyllabusController extends Controller
         return match ($this->deliverZaloResult($res, $test)) {
             'sent' => redirect()->back()->with('status', "Đã duyệt và gửi kết quả em {$studentName} cho phụ huynh qua Zalo ZNS."
                 .$progression->describe($progression->syncBigTest($test->fresh(), Auth::user()))),
-            'skipped' => redirect()->back()->with('warning', "Đã duyệt kết quả em {$studentName}, nhưng chưa gửi được: học viên chưa có số điện thoại liên hệ."),
+            'skipped' => redirect()->back()->with('warning', "Đã duyệt kết quả em {$studentName}, nhưng chưa gửi được: ".self::MISSING_PARENT_PHONE.' (nhập SĐT phụ huynh ở hồ sơ học viên).'),
             default => redirect()->back()->with('warning', "Đã duyệt kết quả em {$studentName}, nhưng gửi Zalo ZNS thất bại — vui lòng bấm Gửi PH lại."),
         };
     }
 
+    /**
+     * GV nhập kết quả Big Test. "Lưu nháp" (action=draft): kết quả ở trạng thái Nháp, sửa tiếp được, chưa vào hàng chờ
+     * duyệt của Học thuật, cho phép nhập dở (thiếu kỹ năng). "Gửi duyệt" (mặc định): bắt buộc đủ 4 kỹ năng (hoặc Vắng thi),
+     * chuyển sang Chờ duyệt — kèm các bản nháp còn lại đã đủ điểm của đợt thi.
+     */
     public function storeBigTestResults(Request $request, int $id)
     {
         $test = BigTest::with('classModel')->findOrFail($id);
         abort_unless($test->isAccessibleBy($request->user()), 404);
         abort_unless($test->is_distributed, 422, 'Đề thi chưa được duyệt và phân phối.');
+        $isDraft = $request->input('action') === 'draft';
 
         $skills = ['listening_score', 'reading_score', 'writing_score', 'speaking_score'];
         $rules = [
+            'action' => ['nullable', 'in:draft,submit'],
             'results' => ['required', 'array'],
             'results.*.student_id' => ['required', 'exists:students,id'],
             'results.*.progress_note' => ['nullable', 'string', 'max:2000'],
@@ -1374,9 +1445,11 @@ class SyllabusController extends Controller
             'results.*.is_absent' => ['nullable', 'boolean'],
         ];
         foreach ($skills as $skill) {
-            // Dòng để trống toàn bộ được bỏ qua; đã nhập một kỹ năng thì phải nhập đủ 4. Vắng thi đánh dấu riêng.
+            // Dòng để trống toàn bộ được bỏ qua; gửi duyệt thì đã nhập một kỹ năng phải nhập đủ 4. Vắng thi đánh dấu riêng.
             $others = collect($skills)->reject(fn ($s) => $s === $skill)->map(fn ($s) => "results.*.{$s}")->implode(',');
-            $rules["results.*.{$skill}"] = ['nullable', "required_with:{$others}", 'numeric', 'between:0,10'];
+            $rules["results.*.{$skill}"] = $isDraft
+                ? ['nullable', 'numeric', 'between:0,10']
+                : ['nullable', "required_with:{$others}", 'numeric', 'between:0,10'];
         }
         $validated = $request->validate($rules);
 
@@ -1397,7 +1470,8 @@ class SyllabusController extends Controller
             'Học viên không thuộc lớp thi.'
         );
 
-        if ($rows->isEmpty()) {
+        $pendingDrafts = BigTestResult::where('big_test_id', $test->id)->where('status', 'draft')->whereNotIn('student_id', $rows->pluck('student_id'))->get();
+        if ($rows->isEmpty() && ($isDraft || $pendingDrafts->isEmpty())) {
             return redirect()->back()->with('error', 'Chưa nhập điểm (hoặc đánh dấu vắng thi) cho học viên nào.');
         }
 
@@ -1411,28 +1485,48 @@ class SyllabusController extends Controller
                 .$locked->map(fn ($r) => $r->student?->name ?? '#'.$r->student_id)->implode(', ').'.');
         }
 
-        DB::transaction(function () use ($rows, $test, $skills, $isAbsent) {
+        $status = $isDraft ? 'draft' : 'pending_review';
+        $promoted = 0;
+        DB::transaction(function () use ($rows, $test, $skills, $isAbsent, $status, $isDraft, $pendingDrafts, &$promoted) {
             foreach ($rows as $row) {
                 $absent = $isAbsent($row);
                 // Vắng thi: không lưu điểm (null) thay vì 0 để không kéo điểm trung bình.
-                $scores = collect($skills)->mapWithKeys(fn ($s) => [$s => $absent ? null : $row[$s]]);
+                $scores = collect($skills)->mapWithKeys(fn ($s) => [$s => $absent || ! isset($row[$s]) || $row[$s] === '' ? null : $row[$s]]);
+                $complete = $scores->filter(fn ($v) => $v !== null)->count() === count($skills);
                 BigTestResult::updateOrCreate(
                     ['big_test_id' => $test->id, 'student_id' => $row['student_id']],
                     $scores->all() + [
                         'is_absent' => $absent,
                         'progress_note' => $row['progress_note'] ?? null,
                         'video_url' => $row['video_url'] ?? null,
-                        'overall_score' => $absent ? null : round($scores->avg(), 1),
-                        'status' => 'pending_review',
+                        'overall_score' => $absent || ! $complete ? null : round($scores->avg(), 1),
+                        'status' => $status,
                         'graded_by' => Auth::id(),
                         'approved_by' => null,
                         'approved_at' => null,
                     ]
                 );
             }
+
+            // Gửi duyệt: các bản nháp còn lại của đợt thi đã đủ điểm (hoặc vắng thi) cũng được gửi luôn.
+            if (! $isDraft) {
+                foreach ($pendingDrafts as $draft) {
+                    $complete = $draft->is_absent || collect($skills)->every(fn ($s) => $draft->$s !== null);
+                    if ($complete) {
+                        $draft->update(['status' => 'pending_review', 'graded_by' => $draft->graded_by ?? Auth::id()]);
+                        $promoted++;
+                    }
+                }
+            }
         });
 
-        return redirect()->back()->with('status', "Đã lưu kết quả {$rows->count()} học viên; kết quả đang chờ Học thuật duyệt.");
+        $count = $rows->count() + $promoted;
+        $leftDrafts = BigTestResult::where('big_test_id', $test->id)->where('status', 'draft')->count();
+
+        return redirect()->back()->with('status', $isDraft
+            ? "Đã lưu nháp kết quả {$rows->count()} học viên (chưa gửi Học thuật duyệt)."
+            : "Đã gửi duyệt kết quả {$count} học viên; kết quả đang chờ Học thuật duyệt."
+                .($leftDrafts > 0 ? " Còn {$leftDrafts} bản nháp chưa đủ điểm." : ''));
     }
 
     public function approveBigTestResults(int $id, SyllabusProgressionService $progression)
@@ -1486,7 +1580,7 @@ class SyllabusController extends Controller
             $message .= '; gửi lỗi '.count($failed).' ('.implode(', ', $failed).')';
         }
         if ($skipped !== []) {
-            $message .= '; bỏ qua '.count($skipped).' do thiếu số điện thoại ('.implode(', ', $skipped).')';
+            $message .= '; bỏ qua '.count($skipped).' — '.self::MISSING_PARENT_PHONE.' ('.implode(', ', $skipped).')';
         }
 
         return redirect()->back()->with('warning', $message.'.'.$stageNote);
@@ -1508,7 +1602,7 @@ class SyllabusController extends Controller
         return match ($this->deliverZaloResult($res, $res->bigTest)) {
             'sent' => redirect()->back()->with('status', "Đã gửi thông báo điểm qua Zalo ZNS đến Phụ huynh em {$studentName} thành công!"
                 .$progression->describe($progression->syncBigTest($res->bigTest, Auth::user()))),
-            'skipped' => redirect()->back()->with('error', "Không gửi được: học viên {$studentName} chưa có số điện thoại liên hệ."),
+            'skipped' => redirect()->back()->with('error', "Không gửi được cho em {$studentName}: ".self::MISSING_PARENT_PHONE.' (nhập SĐT phụ huynh ở hồ sơ học viên).'),
             default => redirect()->back()->with('error', "Gửi Zalo ZNS cho phụ huynh em {$studentName} thất bại, vui lòng thử lại."),
         };
     }
@@ -1521,12 +1615,7 @@ class SyllabusController extends Controller
     private function deliverZaloResult(BigTestResult $res, ?BigTest $test): string
     {
         $student = $res->student;
-        // Gửi phụ huynh: SĐT phụ huynh trong hồ sơ khách CRM đã chốt ra học viên này; hồ sơ học viên chưa có cột
-        // SĐT phụ huynh riêng nên không có thì dùng SĐT liên hệ của học viên; không có số nào thì bỏ qua.
-        $parentPhone = $student
-            ? CrmCustomer::where('converted_student_id', $student->id)->whereNotNull('parent_phone')->latest('id')->value('parent_phone')
-            : null;
-        $phone = trim((string) ($parentPhone ?: $student?->phone));
+        $phone = $student ? (string) $student->parentContactPhone() : '';
         if ($phone === '') {
             return 'skipped';
         }

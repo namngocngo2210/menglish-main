@@ -385,7 +385,7 @@
                     @csrf
                     <div class="flex items-center justify-between gap-sm">
                         <h3 class="font-h3 text-h3 text-on-surface">Chăm sóc tháng đầu</h3>
-                        <span class="font-caption text-caption text-on-surface-variant">{{ collect($careState)->filter()->count() }}/{{ count(\App\Models\CrmCustomer::CARE_CHECKLIST_ITEMS) }} việc</span>
+                        <span class="font-caption text-caption text-on-surface-variant">{{ collect($careState)->only(array_keys(\App\Models\CrmCustomer::CARE_CHECKLIST_ITEMS))->filter()->count() }}/{{ count(\App\Models\CrmCustomer::CARE_CHECKLIST_ITEMS) }} mốc</span>
                     </div>
                     <div class="space-y-sm">
                         @foreach (\App\Models\CrmCustomer::CARE_CHECKLIST_ITEMS as $key => $label)

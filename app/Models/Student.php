@@ -52,6 +52,8 @@ class Student extends Model
         'user_id',
         'name',
         'phone',
+        'parent_name',
+        'parent_phone',
         'email',
         'dob',
         'gender',
@@ -256,5 +258,21 @@ class Student extends Model
             'dropped' => 'bg-rose-50 text-rose-700 border-rose-200',
             default => 'bg-gray-50 text-gray-700 border-gray-200',
         };
+    }
+
+    /**
+     * SĐT phụ huynh để gửi kết quả (Zalo ZNS): SĐT phụ huynh trên hồ sơ học viên → SĐT phụ huynh của khách CRM
+     * đã chốt ra học viên này (khách mới nhất) → không có (null). Không dùng SĐT của chính học viên.
+     */
+    public function parentContactPhone(): ?string
+    {
+        $phone = trim((string) $this->parent_phone);
+        if ($phone === '') {
+            $phone = trim((string) CrmCustomer::where('converted_student_id', $this->id)
+                ->whereNotNull('parent_phone')->where('parent_phone', '!=', '')
+                ->latest('id')->value('parent_phone'));
+        }
+
+        return $phone !== '' ? $phone : null;
     }
 }

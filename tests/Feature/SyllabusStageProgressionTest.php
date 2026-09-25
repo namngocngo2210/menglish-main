@@ -89,7 +89,7 @@ class SyllabusStageProgressionTest extends TestCase
 
     private function student(string $code): Student
     {
-        return Student::create(['code' => $code, 'name' => 'HV '.$code, 'phone' => '0912345678', 'current_class_id' => $this->class->id, 'status' => 'studying']);
+        return Student::create(['code' => $code, 'name' => 'HV '.$code, 'phone' => '0912345678', 'parent_phone' => '0987123456', 'current_class_id' => $this->class->id, 'status' => 'studying']);
     }
 
     private function bigTestFor(SyllabusStage $stage, string $code = 'BT-Q4-1'): BigTest

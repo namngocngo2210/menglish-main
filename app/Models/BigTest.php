@@ -34,6 +34,7 @@ class BigTest extends Model
         'proctor_id',
         'passcode',
         'content_url',
+        'speaking_url',
         'is_distributed',
         'status',
         'approved_by',
@@ -137,10 +138,35 @@ class BigTest extends Model
             return false;
         }
 
-        if ($user->can('syllabus.approve_adjustment')) {
+        if ($user->can('big_test.approve')) {
             return true;
         }
 
+        $class = $this->classModel;
+
+        return $this->is_distributed && $class !== null && in_array((int) $user->id, array_map('intval', array_filter([
+            $class->teacher_id, $class->foreign_teacher_id,
+        ])), true);
+    }
+
+    /** Link đề đầy đủ chỉ người duyệt đề (Học thuật / Admin) xem. */
+    public function contentLinkVisibleTo(?User $user): bool
+    {
+        return $user !== null && $user->can('big_test.approve');
+    }
+
+    /**
+     * Link phần Speaking: GV chính / GVNN của lớp xem được sau khi đề đã phân phối (ghi chú nghiệp vụ mockup
+     * "GV chỉ được quyền xem phần Speaking của đề sau khi phân phối"); người duyệt đề luôn xem được.
+     */
+    public function speakingLinkVisibleTo(?User $user): bool
+    {
+        if ($user === null || ! $this->speaking_url) {
+            return false;
+        }
+        if ($user->can('big_test.approve')) {
+            return true;
+        }
         $class = $this->classModel;
 
         return $this->is_distributed && $class !== null && in_array((int) $user->id, array_map('intval', array_filter([

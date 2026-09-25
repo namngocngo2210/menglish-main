@@ -337,6 +337,8 @@ class Phase2SyllabusTest extends TestCase
             'code' => 'HL-P2', 'name' => 'Nghỉ lễ', 'start_date' => $nextMonday->toDateString(),
             'end_date' => $nextMonday->toDateString(), 'is_system_wide' => true,
         ]);
+        // Giãn tiến độ gắn chặng đang mở (lớp chưa mở chặng thì server từ chối).
+        app(\App\Services\SyllabusProgressionService::class)->open($this->class, $this->curriculum()->stages()->firstOrFail(), $this->teacher->id, $this->academic);
 
         $this->actingAs($this->teacher)->post(route('syllabus.adjustment-requests.store'), [
             'class_id' => $this->class->id, 'request_type' => 'Giãn tiến độ 2 buổi', 'reason' => 'Lớp tiếp thu chậm', 'extra_sessions' => 2,

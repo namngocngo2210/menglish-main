@@ -367,13 +367,15 @@ class StudentProfileController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|max:20',
+            'parent_name' => 'nullable|string|max:255',
+            'parent_phone' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\s().-]{8,20}$/'],
             'email' => 'nullable|email|max:255',
             'target' => 'nullable|string|max:100',
             'address' => 'nullable|string|max:255',
             'school' => 'nullable|string|max:255',
             'status' => ['nullable', Rule::in(array_keys(Student::STATUSES))],
             'notes' => 'nullable|string|max:500',
-        ]);
+        ], ['parent_phone.regex' => 'Số điện thoại phụ huynh không hợp lệ.']);
 
         // Form sửa hồ sơ không gửi trạng thái; đổi trạng thái cần quyền riêng (student.change_status).
         if (! $request->user()->can('student.change_status') || empty($validated['status'])) {

@@ -89,6 +89,7 @@ class SyllabusModuleTest extends TestCase
             'code' => 'HV-999',
             'name' => 'Lê Bảo Nam',
             'phone' => '0988 999 888',
+            'parent_phone' => '0988 111 222',
             'current_class_id' => $class->id,
             'status' => 'studying',
         ]);

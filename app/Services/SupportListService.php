@@ -79,7 +79,8 @@ class SupportListService
     {
         $classId = (int) ($result->bigTest?->class_id ?? 0);
         $overall = $result->overall_score;
-        if (! $classId || $result->is_absent || $overall === null || (float) $overall >= self::SCORE_THRESHOLD) {
+        // Kết quả nháp (GV chưa gửi duyệt) chưa tính vào danh sách bổ trợ.
+        if (! $classId || $result->status === 'draft' || $result->is_absent || $overall === null || (float) $overall >= self::SCORE_THRESHOLD) {
             $this->forget(self::SOURCE_BIG_TEST, $result->id);
 
             return;

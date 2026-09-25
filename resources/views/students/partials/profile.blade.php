@@ -74,6 +74,8 @@
                         <x-ui.input name="phone" type="tel" label="Số điện thoại" required :value="$student->phone" />
                         <x-ui.input name="email" type="email" label="Email liên hệ" :value="$student->email" placeholder="hocvien@menglish.edu.vn" />
                         <x-ui.input name="target" label="Mục tiêu học tập" :value="$student->target" placeholder="VD: IELTS 6.5, Cambridge Starters..." />
+                        <x-ui.input name="parent_name" label="Họ tên phụ huynh" :value="$student->parent_name" placeholder="VD: Nguyễn Thị Hoa" />
+                        <x-ui.input name="parent_phone" type="tel" label="SĐT phụ huynh (nhận kết quả Zalo)" :value="$student->parent_phone" placeholder="VD: 0987 654 321" />
                     </div>
                     <x-ui.input name="school" label="Trường học" :value="$student->school" placeholder="VD: Trường THCS Đoàn Thị Điểm" />
                     <x-ui.textarea name="address" label="Địa chỉ liên hệ" rows="2" :value="$student->address" placeholder="Nhập địa chỉ của học viên..." />
@@ -87,6 +89,10 @@
                 <div class="space-y-md">
                     <x-ui.field label="Trường học"><input type="text" value="{{ $student->school }}" disabled class="{{ $inputClass }}"></x-ui.field>
                     @if ($canViewContact)
+                        <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
+                            <x-ui.field label="Họ tên phụ huynh"><input type="text" value="{{ $student->parent_name }}" disabled class="{{ $inputClass }}"></x-ui.field>
+                            <x-ui.field label="SĐT phụ huynh"><input type="text" value="{{ $student->parent_phone }}" disabled class="{{ $inputClass }}"></x-ui.field>
+                        </div>
                         <x-ui.field label="Địa chỉ liên hệ"><textarea rows="2" disabled class="{{ $inputClass }}">{{ $student->address }}</textarea></x-ui.field>
                     @endif
                     <x-ui.field label="Ghi chú đặc biệt"><textarea rows="3" disabled class="{{ $inputClass }}">{{ $student->notes }}</textarea></x-ui.field>
@@ -432,18 +438,22 @@
     </div>
 
     @if ($canViewAcademic && $care)
-        {{-- Chăm sóc tháng đầu: mốc ngày 3/7/14/30 (việc tự tạo cho Học vụ + checklist CRM) --}}
+        {{-- Chăm sóc tháng đầu: 3 mốc gate hoa hồng A6 — Buổi 1, Buổi 4–5, Đủ 30 ngày (việc tự tạo cho Học vụ + checklist CRM) --}}
         <section class="{{ $cardClass }} overflow-hidden" data-section="first-month-care">
             <div class="flex flex-col justify-between gap-sm border-b border-surface-container p-md sm:flex-row sm:items-center">
                 <div class="flex items-center gap-sm">
                     <span class="material-symbols-outlined text-primary" aria-hidden="true">volunteer_activism</span>
                     <h3 class="font-h3 text-h3 text-on-surface">Chăm sóc tháng đầu</h3>
+                    <x-ui.badge :color="$care['completed'] >= 3 ? 'success' : 'warning'" pill>{{ $care['completed'] }}/3 mốc</x-ui.badge>
                 </div>
                 <div class="font-caption text-caption text-on-surface-variant">
+                    @if ($care['closing'])
+                        Ngày chốt: <strong class="text-on-surface">{{ $care['closing']->format('d/m/Y') }}</strong> ·
+                    @endif
                     @if ($care['start'])
                         Bắt đầu học: <strong class="text-on-surface">{{ $care['start']->format('d/m/Y') }}</strong>
                     @else
-                        Chưa có buổi học/xếp lớp để tính mốc chăm sóc
+                        Chưa có buổi học/xếp lớp
                     @endif
                     @if ($care['customer'])
                         @can('lead.view')
@@ -458,9 +468,13 @@
                         <div class="flex items-start gap-sm">
                             <span class="material-symbols-outlined text-[18px] {{ $item['done'] ? 'text-tertiary' : 'text-outline-variant' }}" aria-hidden="true">{{ $item['done'] ? 'check_circle' : 'radio_button_unchecked' }}</span>
                             <div>
-                                <div class="font-semibold text-on-surface">Ngày {{ $item['day'] }} — {{ $item['label'] }}</div>
+                                <div class="font-semibold text-on-surface">{{ $item['label'] }}</div>
                                 <div class="font-caption text-caption text-on-surface-variant">
-                                    Hạn: {{ $item['due']?->format('d/m/Y') ?? '—' }}
+                                    @if ($item['due'])
+                                        Hạn: {{ $item['due']->format('d/m/Y') }}
+                                    @else
+                                        {{ $item['milestone'] === \App\Services\FirstMonthCareService::MILESTONE_DAY_30 ? 'Chưa có ngày chốt' : 'Chờ học viên có mặt đủ '.($item['milestone'] === \App\Services\FirstMonthCareService::MILESTONE_SESSION_1 ? '1 buổi' : '4 buổi') }}
+                                    @endif
                                     @if ($item['crm_done']) · Đã đánh dấu bên CRM {{ \Illuminate\Support\Carbon::parse($item['crm_done']['done_at'] ?? now())->format('d/m/Y') }} @endif
                                 </div>
                             </div>

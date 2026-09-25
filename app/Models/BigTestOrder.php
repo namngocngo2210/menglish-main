@@ -38,6 +38,7 @@ class BigTestOrder extends Model
         'note',
         'status',
         'test_link',
+        'speaking_link',
         'big_test_id',
         'reviewed_by',
         'reviewed_at',

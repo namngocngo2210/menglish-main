@@ -38,6 +38,7 @@ class SyllabusAssignment extends Model
         'stage_name',
         'deadline',
         'expected_big_test_date',
+        'big_test_reminded_for',
         'progress_percent',
         'status',
         'opened_at',
@@ -54,6 +55,7 @@ class SyllabusAssignment extends Model
     protected $casts = [
         'deadline' => 'date',
         'expected_big_test_date' => 'date',
+        'big_test_reminded_for' => 'date',
         'progress_percent' => 'integer',
         'opened_at' => 'datetime',
         'closed_at' => 'datetime',
