@@ -95,71 +95,6 @@ class StudentPortalController extends Controller
         return [$students, $student];
     }
 
-    /**
-     * Helper khởi tạo thông báo mẫu vào DB cho học viên nếu chưa có
-     */
-    protected function ensureStudentNotifications($student)
-    {
-        if (! $student) {
-            return;
-        }
-
-        $defaultNotifs = [
-            [
-                'type' => 'fee',
-                'title' => 'Nhắc nhở học phí tháng 9',
-                'content' => 'Học phí của học viên '.$student->name.' đã đến kỳ đóng. Vui lòng thanh toán để không gián đoạn quá trình học.',
-                'unread' => true,
-                'icon' => 'payments',
-                'bg_color' => 'bg-orange-100',
-                'text_color' => 'text-orange-600',
-                'created_at' => now()->subHours(2)->format('d/m/Y H:i'),
-            ],
-            [
-                'type' => 'survey',
-                'title' => 'Khảo sát chất lượng giảng dạy tháng',
-                'content' => 'Vui lòng dành 3 phút để đánh giá chất lượng giảng dạy của giáo viên phụ trách lớp. Ý kiến của phụ huynh rất quan trọng.',
-                'unread' => false,
-                'icon' => 'edit_document',
-                'bg_color' => 'bg-emerald-100',
-                'text_color' => 'text-emerald-600',
-                'created_at' => now()->subDay()->format('d/m/Y H:i'),
-            ],
-            [
-                'type' => 'holiday',
-                'title' => 'Lịch nghỉ lễ Quốc Khánh 2/9',
-                'content' => 'Trung tâm thông báo lịch nghỉ lễ cho toàn thể học viên. Các lớp sẽ được sắp xếp lịch học bù theo thông báo của giáo vụ.',
-                'unread' => false,
-                'icon' => 'campaign',
-                'bg_color' => 'bg-purple-100',
-                'text_color' => 'text-purple-600',
-                'created_at' => now()->subDays(3)->format('d/m/Y H:i'),
-            ],
-        ];
-
-        foreach ($defaultNotifs as $notif) {
-            $exists = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao')
-                ->where('data->student_id', (string) $student->id)
-                ->where('data->type', $notif['type'])
-                ->exists();
-            if ($exists) {
-                continue;
-            }
-            AcademicRecord::create([
-                'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao',
-                'module' => 'student_portal',
-                'record_code' => 'NOTIF-'.strtoupper(Str::random(6)),
-                'title' => $notif['title'],
-                'status' => 'active',
-                'data' => array_merge($notif, [
-                    'student_id' => (string) $student->id,
-                    'student_name' => $student->name,
-                ]),
-                'user_id' => Auth::id(),
-            ]);
-        }
-    }
-
     // ─────────────────────────────────────────────
     // MÀN HÌNH #1: App Shell Phụ huynh / Học sinh
     // ─────────────────────────────────────────────
@@ -175,8 +110,7 @@ class StudentPortalController extends Controller
         $hasFeedback = false;
 
         if ($student) {
-            $this->ensureStudentNotifications($student);
-
+            // Chỉ hiển thị thông báo thật (không còn tự tạo thông báo mẫu mỗi lần mở trang).
             $submittedHomeworksCount = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap')
                 ->where('data->student_id', (string) $student->id)
                 ->count();
@@ -494,28 +428,27 @@ class StudentPortalController extends Controller
             $audioPath = SafeUploadService::store($file, 'pronunciation_records', SafeUploadService::AUDIO, 'audio_file');
         }
 
-        $scoreNum = rand(88, 98);
-
+        // Chưa có dịch vụ chấm phát âm tự động: bài nộp chờ giáo viên chấm
+        // (màn "Chấm bài nộp" của giáo viên, tab Phát âm). Không sinh điểm ngẫu nhiên.
         AcademicRecord::create([
             'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/04_luyen_phat_am',
             'module' => 'student_portal',
             'record_code' => 'AUDIO-'.strtoupper(Str::random(6)),
             'title' => 'Bản ghi âm: '.$validated['unit_title'].' - '.$studentName,
-            'status' => 'completed',
+            'status' => 'pending_review',
             'data' => [
                 'student_id' => (string) $validated['student_id'],
                 'student_name' => $studentName,
                 'unit_title' => $validated['unit_title'],
-                'duration' => $validated['duration'] ?? '00:42',
+                'duration' => $validated['duration'] ?? null,
                 'audio_path' => $audioPath ? '/storage/'.$audioPath : null,
-                'score' => $scoreNum.'/100 (AI phát âm chuẩn)',
-                'score_num' => $scoreNum,
+                'score' => null,
                 'submitted_at' => now()->format('d/m/Y H:i'),
             ],
             'user_id' => Auth::id(),
         ]);
 
-        return back()->with('success', 'Đã nộp bài ghi âm phát âm thành công! AI đã chấm '.$scoreNum.'/100 điểm.');
+        return back()->with('success', 'Đã nộp bài ghi âm! Bài đang chờ giáo viên chấm.');
     }
 
     /**
@@ -543,11 +476,7 @@ class StudentPortalController extends Controller
     {
         [$students, $student] = $this->getActiveStudent($studentId);
 
-        if ($student) {
-            $this->ensureStudentNotifications($student);
-        }
-
-        // Lấy danh sách thông báo từ CSDL
+        // Lấy danh sách thông báo thật từ CSDL (không tự tạo thông báo mẫu).
         $notifications = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao')
             ->when($student, function ($q) use ($student) {
                 $q->where('data->student_id', (string) $student->id);
@@ -834,7 +763,11 @@ class StudentPortalController extends Controller
         $studentIds = $classes->flatMap(fn ($assignedClass) => $assignedClass->students->pluck('id'))->unique();
 
         // Chỉ lấy bài nộp của học viên thuộc các lớp được phân công.
-        $submissions = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap')
+        // Tab "Phát âm": bản ghi âm học viên nộp, chờ giáo viên chấm.
+        $screenKey = $activeTab === 'pronunciation'
+            ? '04_Cong_Phu_Huynh_Hoc_Sinh/04_luyen_phat_am'
+            : '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap';
+        $submissions = AcademicRecord::where('screen_key', $screenKey)
             ->whereIn('data->student_id', $studentIds->map(fn ($id) => (string) $id))
             ->latest()
             ->get();
@@ -845,14 +778,27 @@ class StudentPortalController extends Controller
     public function markSubmission(Request $request, $id)
     {
         $record = AcademicRecord::findOrFail($id);
-        abort_unless($record->screen_key === '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap', 404);
+        $isPronunciation = $record->screen_key === '04_Cong_Phu_Huynh_Hoc_Sinh/04_luyen_phat_am';
+        abort_unless($isPronunciation || $record->screen_key === '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap', 404);
         $student = Student::findOrFail(data_get($record->data, 'student_id'));
         $this->teacherClassesQuery()->whereKey($student->current_class_id)->firstOrFail();
+
+        $request->validate([
+            // Bài phát âm bắt buộc giáo viên nhập điểm thật (thang 100).
+            'score' => [$isPronunciation ? 'required' : 'nullable', 'string', 'max:20'],
+            'feedback' => ['nullable', 'string', 'max:1000'],
+        ]);
+
         $data = $record->data ?? [];
         $data['reviewed_at'] = now()->format('d/m/Y H:i');
         $data['reviewer_id'] = Auth::id();
-        $data['score'] = $request->input('score', '10/10');
-        $data['feedback'] = $request->input('feedback', 'Giáo viên đã xem và ghi nhận bài làm rất tốt!');
+        if ($isPronunciation) {
+            $data['score'] = trim((string) $request->input('score'));
+            $data['feedback'] = $request->input('feedback');
+        } else {
+            $data['score'] = $request->input('score', '10/10');
+            $data['feedback'] = $request->input('feedback', 'Giáo viên đã xem và ghi nhận bài làm rất tốt!');
+        }
 
         $record->status = 'reviewed';
         $record->data = $data;

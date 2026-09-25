@@ -54,6 +54,7 @@
                     'workbook' => ['label' => 'Workbook', 'icon' => 'menu_book'],
                     'extra_book' => ['label' => 'Sách bổ trợ', 'icon' => 'library_books'],
                     'bgd_book' => ['label' => 'Sách bộ giáo dục', 'icon' => 'import_contacts'],
+                    'pronunciation' => ['label' => 'Phát âm', 'icon' => 'mic'],
                 ];
             @endphp
 
@@ -114,8 +115,15 @@
                             @if($sub->status === 'reviewed')
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
                                     <span class="material-symbols-outlined text-[14px] mr-0.5">done_all</span>
-                                    Đã chấm: {{ $sub->data['score'] ?? '10/10' }}
+                                    Đã chấm: {{ $sub->data['score'] ?? '—' }}
                                 </span>
+                            @elseif($activeTab === 'pronunciation')
+                                <form action="{{ route('portal.teacher.submissions.mark', ['id' => $sub->id]) }}" method="POST" class="flex items-center gap-2">
+                                    @csrf
+                                    <input type="text" name="score" required maxlength="20" placeholder="Điểm /100" class="w-24 rounded-xl border-gray-200 text-xs py-1.5">
+                                    <input type="text" name="feedback" maxlength="1000" placeholder="Nhận xét" class="w-40 rounded-xl border-gray-200 text-xs py-1.5">
+                                    <button type="submit" class="px-3 py-1.5 bg-primary-container text-white rounded-xl text-xs font-semibold">Chấm</button>
+                                </form>
                             @else
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-50 text-secondary text-[10px] font-bold border border-blue-200">
                                     Đã nộp
