@@ -503,12 +503,14 @@
 
 > Cập nhật cuối mỗi phase. Trạng thái: ⬜ Chưa làm · 🟦 Đang làm · ✅ Xong · ⚠️ Trễ/Rủi ro
 
-| Phase | Nội dung | Trạng thái | % hoàn thành | Ghi chú |
+| Phase | Nội dung | Trạng thái | % hoàn thành (ước lượng) | Ghi chú |
 |---|---|---|---|---|
-| 1 | Chặn rủi ro khẩn + Tuyển sinh → vào lớp | ⬜ | 0% | Chờ chốt Q1, Q2, cọc lớp chờ |
-| 2 | Vận hành lớp học | ⬜ | 0% | Chờ chốt Q4, Q5 |
-| 3 | Chấm công → Lương | ⬜ | 0% | Chờ chốt Q3, hoa hồng; cần bảng lương Excel để đối chiếu |
-| 4 | Thu học phí, hỗ trợ, nghiệm thu | ⬜ | 0% | Chờ chốt Q8 |
+| 1 | Chặn rủi ro khẩn + Tuyển sinh → vào lớp | 🟦 | ~75% | Xong: toàn bộ 23 P0, CRM pipeline 8 bước, chốt & xếp lớp, xác nhận chính thức, hồ sơ học viên, bộ sinh mã. Đang làm: chấm test theo khối lớp (Q2), quy tắc lùi bước/Thất bại/học thử, quét dữ liệu giả & nút giả (B2). Còn: đối chiếu 12 màn mockup Phase 1, test nghiệm thu trọn luồng, build assets |
+| 2 | Vận hành lớp học | 🟦 | ~60% | Xong: lịch/TKB/dashboard lớp, GVNN, nghỉ lễ, trình độ, giáo trình, Big Test, portal trợ giảng, KPI board. Đang làm: điểm danh theo buổi, bổ trợ, portal học viên, mô hình Giáo trình → Chặng → Unit → Buổi (Q4). Chờ tới lượt: đối chiếu mockup màn Phase 2 |
+| 3 | Chấm công → Lương | 🟦 | ~45% | Xong: chấm công tay, quy trình phạt, đơn giá theo GV, phiếu lương từng người, hoa hồng theo tiền thực thu. Chờ tới lượt: công thức lương PT/FT (Q3 mới chốt), KPI Học vụ, gate kép hoa hồng, thưởng tái tục. Cần bảng lương Excel để đối chiếu |
+| 4 | Thu học phí, hỗ trợ, nghiệm thu | 🟦 | ~55% | Xong: học phí (dải số theo chi nhánh, bảo lưu/khất nợ, quá hạn, chống trùng chuyển khoản), nhật ký, phân quyền cá nhân, giao việc, ticket, dashboard vai trò, dọn view chết. Chờ tới lượt: hoàn phí 1 tuần, trực lớp (Q8), đối chiếu mockup, nghiệm thu |
+
+> Cập nhật 25/09/2026. Cách làm đã chốt: **làm trọn từng phase theo thứ tự**; chỉ làm việc của phase sau khi phase trước phụ thuộc vào nó.
 
 ### Nhật ký phase (điền sau mỗi phase)
 
@@ -522,6 +524,17 @@
 **Lỗi còn tồn:** ...
 **MR:** #...
 ```
+
+#### Phase 1 — Sửa P0 bảo mật #1–#6 + B3 (nhánh `fix/p0-security`)
+**Đã làm:**
+- [x] #1 Học vụ/Quản lý không thao tác được trên tài khoản có vai trò cao hơn (Admin): sửa, khóa, reset, đổi vai trò, xóa, xem
+- [x] B3 Danh sách/chi tiết nhân sự không còn nhúng CCCD, lương, đơn giá cho người không có quyền xem lương
+- [x] #2 `SafeUploadService` (đuôi theo nội dung, danh sách cho phép, tên ngẫu nhiên) cho bài tập, ghi âm, minh chứng, ảnh bảng, phiếu thu, hủy HĐ, CV; `.htaccess` chặn chạy code trong thư mục upload
+- [x] #3 Màn mockup cũ: chỉ Admin xem bản mockup; vai trò khác chuyển sang màn thật hoặc 403; API mockup chỉ Admin, bỏ miễn CSRF
+- [x] #4 Ghi chú nội bộ ticket ẩn với người tạo, không gửi thông báo/email cho họ
+- [x] #5 Giáo viên/trợ giảng chỉ thấy lớp mình dạy; học viên không vào màn quản lý lớp
+- [x] #6 Nhật ký che mật khẩu/khóa/token/CCCD (đệ quy); migration che log cũ
+**Việc vận hành:** sau deploy phải **đổi khóa SePay và mật khẩu email** (đã lộ trong log cũ).
 
 #### Phase 1 — Hồ sơ học viên + bộ sinh mã dùng chung (nhánh `feat/phase1-students`)
 **Đã làm:**
