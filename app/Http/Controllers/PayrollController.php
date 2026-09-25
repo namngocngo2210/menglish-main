@@ -222,6 +222,21 @@ class PayrollController extends Controller
                 ->update(['settled_at' => now(), 'status' => CommissionItem::STATUS_PAID]);
         });
 
+        // "Chốt bảng lương để khóa dữ liệu và gửi thông báo cho giáo viên" (mockup phiếu lương): báo trong app cho từng người.
+        foreach ($period->records()->with('user')->get() as $record) {
+            if (! $record->user) {
+                continue;
+            }
+            \App\Models\AdminNotification::create([
+                'user_id' => $record->user_id,
+                'type' => 'payroll_approved',
+                'title' => "Phiếu lương {$period->title} đã được duyệt",
+                'message' => 'Thực nhận '.number_format((float) $record->net_salary, 0, ',', '.').'đ — xem chi tiết tại "Lương của tôi".',
+                'data' => ['payroll_period_id' => $period->id, 'link' => route('portal.my-salary', ['period_id' => $period->id])],
+                'is_read' => false,
+            ]);
+        }
+
         return redirect()->back()->with('status', "Đã phê duyệt bảng lương {$period->title}!");
     }
 
@@ -310,10 +325,31 @@ class PayrollController extends Controller
         $lostStudents = app(PayrollFormulaService::class)->studentNames((array) data_get($record->calculation_details, 'retention.lost_ids', []));
         $settings = PayrollPeriod::payrollSettings();
 
+        // Mẫu phiếu theo loại nhân sự (4 mockup chi tiết lương): GV Part-time, GV Full-time, Học vụ, Học thuật; Sale / khác dùng mẫu Full-time.
+        $variant = self::payslipVariant($record);
+        $currentRate = TeacherHourlyRate::effectiveFor((int) $record->user_id, $period->end_date);
+        // Bậc hoa hồng hiệu lực tại ngày cuối kỳ ("Chi tiết bậc áp dụng").
+        $commissionTiers = ($record->salary_role === 'sales' || (float) $record->commission_bonus > 0 || (float) $record->commission_deferred > 0)
+            ? CommissionTier::byStudents()->effectiveAt($period->end_date)->orderBy('min_students')->get()
+            : collect();
+
         return view('payroll.record-show', compact(
             'record', 'period', 'timesheets', 'penalties', 'clawbacks', 'commissionReceipts',
-            'paidCommission', 'deferredCommission', 'lostStudents', 'settings'
+            'paidCommission', 'deferredCommission', 'lostStudents', 'settings', 'variant', 'currentRate', 'commissionTiers'
         ));
+    }
+
+    /** @return array{key: string, title: string, type: string} */
+    public static function payslipVariant(PayrollRecord $record): array
+    {
+        return match (true) {
+            ! $record->usesQ3Formula() => ['key' => 'legacy', 'title' => 'Chi tiết bảng lương', 'type' => 'Phiếu trước Q3'],
+            $record->isPartTime() => ['key' => 'parttime', 'title' => 'Chi tiết bảng lương GV Part-time', 'type' => 'Giáo viên (Part-time)'],
+            $record->salary_role === 'academic_staff' => ['key' => 'academic_staff', 'title' => 'Chi tiết bảng lương Học vụ', 'type' => 'Học vụ (Full-time)'],
+            $record->salary_role === 'academic_lead' => ['key' => 'academic_lead', 'title' => 'Chi tiết bảng lương Học thuật', 'type' => 'Học thuật (Full-time)'],
+            $record->salary_role === 'teacher_fulltime' => ['key' => 'fulltime', 'title' => 'Chi tiết bảng lương GV Full-time', 'type' => 'Giáo viên (Full-time)'],
+            default => ['key' => 'fulltime', 'title' => 'Chi tiết bảng lương '.$record->salary_role_label, 'type' => $record->salary_role_label.' (Full-time)'],
+        };
     }
 
     /**

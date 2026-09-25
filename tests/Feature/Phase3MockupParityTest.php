@@ -406,4 +406,96 @@ class Phase3MockupParityTest extends TestCase
         $this->assertStringContainsString('9/10', $csv);
         $this->assertStringContainsString('Gửi xe: 100.000', $csv);
     }
+
+    /** 4 màn "Chi tiết lương" (epic-7/chi-tiet-bang-luong*, roundcuoi 02/11): phiếu lương theo loại nhân sự + bản in. */
+    public function test_four_payslip_variants_match_mockups(): void
+    {
+        $period = $this->period();
+        $lead = $this->userWithRole('academic_lead', ['name' => 'Học thuật P3', 'base_salary' => 15000000]);
+        $ftTeacher = $this->userWithRole('teacher_fulltime', ['name' => 'GV Fulltime P3', 'base_salary' => 15000000]);
+        \App\Models\TeacherHourlyRate::create(['user_id' => $this->teacher->id, 'hourly_rate' => 150000, 'rate_unit' => 'session', 'effective_from' => '2026-01-01']);
+        $this->timesheet(['status' => 'valid', 'teaching_date' => '2026-08-05', 'type' => 'sub', 'scheduled_time' => '17:30-19:00']);
+
+        $pt = \App\Models\PayrollRecord::create([
+            'payroll_period_id' => $period->id, 'user_id' => $this->teacher->id, 'department' => 'teacher', 'employee_type' => 'parttime',
+            'salary_role' => 'teacher_parttime', 'kpi_source' => 'retention', 'retention_base_students' => 10, 'retention_students' => 9,
+            'teaching_sessions' => 1, 'teaching_salary' => 150000, 'net_salary' => 150000,
+        ]);
+        $ft = \App\Models\PayrollRecord::create([
+            'payroll_period_id' => $period->id, 'user_id' => $ftTeacher->id, 'department' => 'fulltime', 'employee_type' => 'fulltime',
+            'salary_role' => 'teacher_fulltime', 'kpi_source' => 'manual', 'base_salary' => 15000000, 'insurance_deduction' => 1575000,
+            'union_deduction' => 75000, 'net_salary' => 13350000,
+        ]);
+        $hv = \App\Models\PayrollRecord::create([
+            'payroll_period_id' => $period->id, 'user_id' => $this->academicStaff->id, 'department' => 'operations', 'employee_type' => 'fulltime',
+            'salary_role' => 'academic_staff', 'kpi_source' => 'academic_kpi', 'kpi_score' => 87.5, 'kpi_bonus' => 1750000, 'base_salary' => 6500000,
+            'calculation_details' => ['kpi' => ['fund' => 2000000, 'items' => [
+                ['code' => '1.1', 'name' => 'Tỷ lệ chuyên cần', 'group' => 'Chăm sóc học viên', 'weight' => 50, 'score' => 100, 'amount' => 1000000],
+                ['code' => '2.1', 'name' => 'Dự giờ', 'group' => 'Chất lượng giảng dạy', 'weight' => 50, 'score' => 75, 'amount' => 750000],
+            ]]],
+            'net_salary' => 8250000,
+        ]);
+        $ht = \App\Models\PayrollRecord::create([
+            'payroll_period_id' => $period->id, 'user_id' => $lead->id, 'department' => 'academic', 'employee_type' => 'fulltime',
+            'salary_role' => 'academic_lead', 'kpi_source' => 'manual', 'base_salary' => 15000000, 'net_salary' => 15000000,
+        ]);
+
+        // GV Part-time
+        $this->actingAs($this->admin)->get(route('payroll.records.show', $pt->id))
+            ->assertOk()
+            ->assertSee('Chi tiết bảng lương GV Part-time')
+            ->assertSee('GV-0492')->assertSee('Kỳ lương 08/2026')->assertSee('Giáo viên (Part-time)')->assertSee('Đang tính')
+            ->assertSee('Chốt bảng lương')
+            ->assertSee('Số buổi dạy')->assertSee('Đơn giá cơ bản')->assertSee('150.000đ')->assertSee('Thành tiền')
+            ->assertSee('Bậc KPI giữ học sinh')->assertSee('Đơn giá KPI (đ/hs/tháng)')->assertSee('Gợi ý: 15.000 / 20.000 / 25.000đ/hs/tháng')
+            ->assertSee('Số học sinh duy trì')->assertSee('9 / 10 HS')->assertSee('Chốt KPI')
+            ->assertSee('Phụ cấp mở rộng')->assertSee('Lớp GVNN đan xen')->assertSee('Hỗ trợ thỏa thuận')->assertSee('Phụ cấp gửi xe')->assertSee('Thưởng khác')
+            ->assertSee('Chi tiết buổi dạy')->assertSee('Ca 17:30-19:00')->assertSee('Dạy thay')
+            ->assertSee('Các khoản trừ')->assertSee('Thêm khoản trừ')
+            ->assertSee('Tổng kết thực nhận')->assertSee('Thực nhận')
+            ->assertSee('In phiếu lương / Xuất PDF')
+            ->assertSee('PHIẾU LƯƠNG THÁNG 08/2026')->assertSee('BẢN TẠM TÍNH (chưa duyệt)')->assertSee('Người nhận')
+            ->assertDontSee('Công đoàn (');
+
+        // "Chốt KPI" = chọn bậc trên cùng form phiếu lương.
+        $this->actingAs($this->admin)->post(route('payroll.records.adjust', $pt->id), ['retention_tier' => 20000, 'intent' => 'kpi', 'lines' => []])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('done', $pt->fresh()->kpi_state[0]);
+        $this->assertEquals(180000, (float) $pt->fresh()->kpi_bonus);
+
+        // GV Full-time
+        $this->actingAs($this->admin)->get(route('payroll.records.show', $ft->id))
+            ->assertOk()
+            ->assertSee('Chi tiết bảng lương GV Full-time')
+            ->assertSee('Thu nhập chính')->assertSee('Lương cơ bản (VNĐ)')->assertSee('Lương KPI (VNĐ)')
+            ->assertSee('Phụ cấp mở rộng')->assertSee('Thêm phụ cấp mới')
+            ->assertSee('Trừ vi phạm')->assertSee('Thêm khoản trừ')
+            ->assertSee('Khấu trừ bắt buộc')->assertSee('BHXH (10,5% lương CB)')->assertSee('Phí Công đoàn (0,5% lương CB)')->assertSee('Thuế TNCN (VNĐ)')
+            ->assertSee('Tổng kết thực nhận')->assertSee('13.350.000');
+
+        // Học vụ: KPI tự động 6 nhóm / 15 mục, chỉ đọc
+        $this->actingAs($this->admin)->get(route('payroll.records.show', $hv->id))
+            ->assertOk()
+            ->assertSee('Chi tiết bảng lương Học vụ')
+            ->assertSee('Thu nhập cố định &amp; KPI', false)
+            ->assertSee('Lương KPI (tự động theo 6 nhóm / 15 mục)')
+            ->assertSee('87,5% điểm KPI')
+            ->assertSee('Xem bảng kê chi tiết 6 nhóm / 15 mục')
+            ->assertSee('1. Chăm sóc học viên (trọng số 50%)')
+            ->assertDontSee('name="kpi_manual_amount"', false);
+
+        // Học thuật
+        $this->actingAs($this->admin)->get(route('payroll.records.show', $ht->id))
+            ->assertOk()
+            ->assertSee('Chi tiết bảng lương Học thuật')
+            ->assertSee('Thành phần Học thuật')->assertSee('Lương cứng (VNĐ)')->assertSee('Lương giảng dạy')->assertSee('Hỗ trợ')
+            ->assertSee('Thuế TNCN (VNĐ)');
+
+        // Chốt bảng lương → thông báo cho nhân sự; phiếu khóa, bản in không còn "tạm tính".
+        $period->update(['calculated_at' => now()->addMinute()]);
+        $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->teacher->id, 'type' => 'payroll_approved']);
+        $this->actingAs($this->admin)->get(route('payroll.records.show', $pt->id))
+            ->assertOk()->assertSee('Đã chốt')->assertDontSee('BẢN TẠM TÍNH')->assertDontSee('Lưu điều chỉnh');
+    }
 }
