@@ -521,7 +521,7 @@
 - [x] Chi tiết học viên: lộ trình = buổi học thật của lớp học viên + điểm danh của chính học viên, có trạng thái trống; form sửa chỉ hiện khi có `student.update`; badge vai trò thật; khối học phí chỉ hiện khi có `tuition.view`; "Liên kết lớp khác" (kiểm tra cùng chi nhánh, trùng lớp, sĩ số) cho người có `student.assign_class`.
 - [x] Q5 — Tạo hồ sơ mới khởi tạo "Chờ khai giảng". Thôi học → bỏ `current_class_id`, lượt xếp lớp chuyển `dropped` (không tính sĩ số), giữ điểm danh/học phí.
 **Chưa làm / chuyển phase sau:**
-- [ ] Biên bản phạt (`Penalty::generateCode`) và số hóa đơn chưa dùng bộ sinh mã → nhóm lương/học phí chuyển sang.
+- [ ] Biên bản phạt (`Penalty::generateCode`) và số hóa đơn chưa dùng bộ sinh mã → nhóm lương/học phí chuyển sang. ✅ Vòng 2
 - [ ] Mã học viên khi chốt khách (CRM) vẫn dạng ULID `HV-01J…` — giữ nguyên, nhóm CRM quyết định.
 - [ ] A4.7 (lớp lưu ở 2 nơi): danh sách lớp/điểm danh vẫn đọc `current_class_id`, nên học viên "liên kết lớp khác" chưa hiện trong điểm danh của lớp liên kết → Phase 2.
 **Quyết định phát sinh:** Accountant/Trưởng học vụ được coi là vai trò theo chi nhánh (như Quản lý cơ sở) khi xem học viên.
@@ -560,7 +560,7 @@
 **Chưa làm / chuyển phase sau:**
 - [ ] Chặn sĩ số trong `StudentProfileController::storeEnrollment` → màn này thuộc nhóm Hồ sơ học viên (việc khác đang làm). Chỉ cần gọi `$class->hasSeatsFor()`.
 - [ ] Điểm danh theo từng buổi (`teacher.attendance` hiện vẫn lấy buổi hôm nay) → thuộc việc điểm danh/chấm công. Link từ dashboard đã gửi sẵn `session` và `date`.
-- [ ] Buổi học bù (type `makeup`) chưa tự đổi GV/TA/phòng khi sửa lớp (scope `replaceable` chỉ áp buổi chính khóa).
+- [ ] Buổi học bù (type `makeup`) chưa tự đổi GV/TA/phòng khi sửa lớp (scope `replaceable` chỉ áp buổi chính khóa). ✅ Vòng 2
 
 **Quyết định phát sinh (tạm theo nguyên tắc BPMN + mockup, cần BA xác nhận):**
 - Ngày nghỉ thêm sau → **hủy + tự xếp bù cuối lịch** (không dồn lịch). Không đổi số buổi của khóa.
@@ -583,7 +583,7 @@
 - [ ] Công thức lương (Q3): giữ công thức hiện tại (lương cứng + giờ dạy + KPI theo ngưỡng giờ + phụ cấp − BHXH); thưởng tái tục để 0 → chờ BA chốt Q3.
 - [ ] Đối chiếu với bảng lương Excel đang dùng → cần file Excel thật từ Kế toán.
 - [ ] Tích hợp máy chấm công (FaceID) thật → chưa có thiết bị/API.
-- [ ] Phiếu thu bị hủy hóa đơn sau khi kỳ lương đã duyệt: chưa tự thu hồi hoa hồng (cần quy tắc từ BA).
+- [ ] Phiếu thu bị hủy hóa đơn sau khi kỳ lương đã duyệt: chưa tự thu hồi hoa hồng (cần quy tắc từ BA). ✅ Vòng 2
 **Quyết định phát sinh (tạm, chờ BA xác nhận):**
 - "Lần đầu / khách mới" = mọi phiếu thu thuộc **khoản học phí đầu tiên** (`student_tuitions` id nhỏ nhất) của học viên được chuyển đổi từ khách CRM; khoản học phí sau là tái tục, không có hoa hồng. Phiếu không gắn khoản học phí chỉ tính nếu lập trước khi có khoản học phí thứ hai.
 - "Tháng thực thu" = tháng phiếu thu được **duyệt**.
@@ -609,7 +609,7 @@
 - [x] Nhập khách hàng loạt từ Excel / CSV: xem trước, lỗi từng dòng (thiếu tên, SĐT sai / trùng trong file / trùng CRM, email), chọn chi nhánh + Sales, nhập các dòng hợp lệ. Màn nhập học phí giữ nguyên.
 **Chưa làm / chuyển phase sau:**
 - [ ] Q2 (thang 0–100 ở CRM vs 0–9 ở màn chấm bài online) → chờ BA; hiện chỉ ghi rõ thang trên từng màn.
-- [ ] Ô "Ngưỡng khai giảng" trong form tạo / sửa lớp → thuộc nhóm lớp học (cột đã có, mặc định 6).
+- [ ] Ô "Ngưỡng khai giảng" trong form tạo / sửa lớp → thuộc nhóm lớp học (cột đã có, mặc định 6). ✅ Vòng 2
 **Quyết định phát sinh:** Trường hợp đồng bị khóa sau chốt = Giá trị hợp đồng, Cơ sở, Khóa đăng ký. Xác nhận chính thức chỉ áp dụng ghi danh tạo từ CRM (có `customer_id`).
 **Lỗi còn tồn:** —
 **Test:** thêm `tests/Feature/Phase1CrmTest.php`, `Phase1EnrollmentTest.php`. Cập nhật `AcademicSystemTest`, `PlacementPortalSecurityTest`: khách trong test được gán chi nhánh của người chấm (hành vi cũ cho chấm khách ngoài phạm vi là sai theo A6).
@@ -652,11 +652,28 @@
 - [x] Chống ghi nhận chuyển khoản 2 lần: mã giao dịch chuyển khoản duy nhất (`transfer_reference`), chặn phiếu tay trùng giao dịch SePay, cảnh báo cùng tiền/cùng học viên ±3 ngày (phải tick xác nhận); SePay bỏ qua giao dịch đã có phiếu tay; webhook chỉ gạch nợ khi tiền vào tài khoản ngân hàng đã cấu hình.
 
 **Chưa làm / chuyển phase sau:**
-- [ ] Hết thời gian bảo lưu chưa tự chuyển học viên về "Đang học" (nhắc nợ tự chạy lại) → cần job/luồng trạng thái học viên (nhóm Học viên).
-- [ ] Phiếu hoàn/chuyển nhượng vẫn lấy số HĐ ở dải mặc định (hàm duyệt hoàn phí do nhánh lương sửa song song, tránh xung đột).
+- [ ] Hết thời gian bảo lưu chưa tự chuyển học viên về "Đang học" (nhắc nợ tự chạy lại) → cần job/luồng trạng thái học viên (nhóm Học viên). ✅ Vòng 2
+- [ ] Phiếu hoàn/chuyển nhượng vẫn lấy số HĐ ở dải mặc định (hàm duyệt hoàn phí do nhánh lương sửa song song, tránh xung đột). ✅ Vòng 2
 - [ ] Kênh Zalo ZNS/SMS cho nhắc nợ chưa tích hợp (màn cấu hình ghi rõ "chưa tích hợp").
 
 **Triển khai:** chạy `php artisan migrate` (5 migration `2026_09_28_2000xx`); migration đã gán `finance.view` cho admin/accountant/manager, hoặc chạy lại `db:seed --class=PermissionSeeder` + `RoleSeeder`. Phải cấu hình số tài khoản ngân hàng nhận tiền trước khi bật SePay, nếu không webhook sẽ không gạch nợ.
+
+#### Vòng 2 — Việc còn tồn vòng 1 (nhánh `feat/round2-leftovers`)
+**Đã làm:**
+- [x] Mã biên bản phạt `BB-YYYY-NNN` sinh qua `DocumentCodeGenerator::penaltyCode()` (dãy `penalty` theo năm, khởi tạo từ mã lớn nhất đang có, giữ 3 chữ số).
+- [x] Phiếu hoàn phí / chuyển nhượng lấy số HĐ theo dải của chi nhánh học viên (bên nhận: chi nhánh học viên nhận), hết/không có dải → dải mặc định — như phiếu thu thường.
+- [x] Kết thúc bảo lưu: lệnh `students:end-deferrals` chạy 06:50 hằng ngày — học viên "Bảo lưu" có `deferred_until` < hôm nay → "Đang học" (lớp đã khai giảng) hoặc "Chờ khai giảng"; bỏ đóng băng số buổi/công nợ, nhắc nợ chạy lại; báo Học vụ cùng chi nhánh (không có → Quản lý cơ sở → Admin), không trùng. Nút "Kết thúc bảo lưu" trên hồ sơ học viên (`student.change_status`). Đổi trạng thái tay khỏi "Bảo lưu" cũng bỏ đóng băng học phí.
+- [x] Sửa lớp (GV/TA/GVNN/phòng) đồng bộ cả buổi học bù (`type = makeup`) chưa diễn ra, cùng điều kiện bảo vệ (chưa điểm danh/chấm công, không gắn phụ đạo) — scope `ClassSession::staffSyncable()`; `replaceable()` (xóa khi xếp lại TKB) giữ nguyên chỉ buổi chính khóa.
+- [x] Form tạo/sửa lớp có "Ngưỡng khai giảng" (`min_students`, mặc định 6, không vượt sĩ số tối đa). Danh sách lớp và hồ sơ lớp hiện sĩ số giữ chỗ thật, "Còn N chỗ"/"Đã đủ", ngưỡng và số học viên còn thiếu để khai giảng (`ClassModel::seatSummary()`).
+- [x] Hủy hóa đơn sau khi kỳ lương chứa phiếu đã duyệt/trả: tạo khoản thu hồi hoa hồng (CommissionAdjustment âm, cơ chế như hoàn phí) = tiền phiếu × % hoa hồng sale đã hưởng kỳ đó, trừ ở lần tính lương kế tiếp. Kỳ chưa duyệt → không tạo gì, tính lại tự loại phiếu đã hủy.
+- [x] Phạm vi chi nhánh màn Học phí (danh sách học phí, lập phiếu, duyệt phiếu, lịch sử, hủy HĐ, hoàn phí/chuyển nhượng, quá hạn + các thao tác duyệt/từ chối/liên hệ/nhắc): `App\Support\TuitionBranchScope`.
+**Quyết định phát sinh (tạm, chờ BA):**
+- Phạm vi Học phí: Admin toàn hệ thống; Quản lý cơ sở / Học vụ / Học thuật chỉ chi nhánh mình; **Kế toán không gán chi nhánh = kế toán tổng, thấy tất cả**; kế toán có gán chi nhánh chỉ thấy các chi nhánh đó (cấp thêm qua chi nhánh phụ). Không có cờ "đa chi nhánh" riêng.
+- Thu hồi khi hủy HĐ không tính phần thưởng vượt mốc và không xét việc sale tụt bậc hoa hồng (như hoàn phí).
+- Hết bảo lưu mà học viên không có lớp → "Chờ khai giảng".
+**Chưa làm:** màn Báo cáo thu chi (FinanceController) vẫn cho kế toán thấy toàn hệ thống như cũ; phạm vi chi nhánh ở nhập học phí Excel chưa áp.
+**Test:** `tests/Feature/Round2LeftoversTest.php`.
+**Triển khai:** không có migration. Đảm bảo cron `schedule:run` chạy (lệnh mới `students:end-deferrals` 06:50). Kế toán chi nhánh (có `branch_id`) từ nay chỉ thấy học phí chi nhánh mình — kiểm tra lại gán chi nhánh của tài khoản kế toán tổng (để trống chi nhánh).
 
 ---
 
