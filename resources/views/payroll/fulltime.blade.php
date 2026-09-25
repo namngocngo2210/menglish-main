@@ -86,7 +86,7 @@
                                                     {{ Str::substr($r->user?->name ?? 'G', 0, 1) }}
                                                 </div>
                                                 <div>
-                                                    <p class="text-xs font-bold text-gray-900">{{ $r->user?->name }}</p>
+                                                    <a href="{{ route('payroll.records.show', $r->id) }}" class="text-xs font-bold text-gray-900 hover:text-orange-600 hover:underline" title="Xem phiếu lương">{{ $r->user?->name }}</a>
                                                     <p class="text-[10px] text-gray-400 font-mono">{{ $r->user?->email }}</p>
                                                 </div>
                                             </div>
@@ -97,7 +97,7 @@
                                         <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">{{ number_format($r->teaching_salary) }}đ</td>
                                         <td class="py-3.5 px-4 text-right font-mono text-amber-600 font-semibold">{{ number_format($r->kpi_bonus) }}đ</td>
                                         <td class="py-3.5 px-4 text-right font-mono">{{ number_format($r->allowance) }}đ</td>
-                                        <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">{{ number_format($r->commission_bonus + $r->renew_bonus) }}đ</td>
+                                        <td class="py-3.5 px-4 text-right font-mono text-emerald-600 font-semibold">{{ number_format($r->commission_bonus) }}đ</td>
                                         <td class="py-3.5 px-4 text-right font-mono text-rose-600">-{{ number_format($r->total_deductions) }}đ</td>
                                         <td class="py-3.5 px-4 text-right font-mono font-black text-orange-600 text-sm">
                                             {{ number_format($r->net_salary) }}đ
@@ -120,17 +120,18 @@
                         <span>Quy Chế Tính Lương GV Cơ Hữu MEnglish</span>
                     </h4>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {{-- Công thức đang áp dụng trong PayrollPeriod::calculatePayrollForPeriod(); công thức chính thức chờ BA chốt Q3. --}}
                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                            <span class="font-bold text-gray-800">1. Lương Cứng &amp; Định Mức</span>
-                            <p class="text-gray-500 text-[11px]">Định mức 60 giờ/tháng. Đạt định mức nhận 100% lương cứng đã cam kết theo hợp đồng lao động.</p>
+                            <span class="font-bold text-gray-800">1. Lương cứng &amp; phụ cấp</span>
+                            <p class="text-gray-500 text-[11px]">Lương cứng theo hồ sơ nhân sự; có lương cứng thì được phụ cấp và trừ BHXH theo cấu hình tham số lương.</p>
                         </div>
                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                            <span class="font-bold text-gray-800">2. Giờ Dạy Vượt Định Mức</span>
-                            <p class="text-gray-500 text-[11px]">Số giờ vượt định mức được tính hệ số 1.2x - 1.5x theo đơn giá chuẩn Cambridge / IELTS.</p>
+                            <span class="font-bold text-gray-800">2. Thù lao giờ dạy</span>
+                            <p class="text-gray-500 text-[11px]">Số giờ chấm công hợp lệ × đơn giá hiệu lực tại ngày dạy (đơn giá riêng ca dạy → đơn giá GV → hồ sơ nhân sự).</p>
                         </div>
                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                            <span class="font-bold text-gray-800">3. Thưởng KPI Giữ Học Sinh</span>
-                            <p class="text-gray-500 text-[11px]">Thưởng trực tiếp theo số lượng học sinh tái tục duy trì lớp học và kết quả kiểm tra định kỳ.</p>
+                            <span class="font-bold text-gray-800">3. Thưởng KPI</span>
+                            <p class="text-gray-500 text-[11px]">Đạt ngưỡng giờ dạy trong kỳ thì nhận thưởng KPI theo cấu hình. Thưởng tái tục chưa áp dụng (chờ BA chốt Q3).</p>
                         </div>
                     </div>
                 </div>

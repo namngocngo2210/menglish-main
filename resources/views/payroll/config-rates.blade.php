@@ -1,176 +1,171 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('payroll.periods.index') }}" class="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-orange-600">price_change</span>
-                        <span>Cấu Hình Đơn Giá Giáo Viên</span>
-                    </h1>
-                    <p class="text-xs text-gray-500">Quản lý và cập nhật định mức thù lao giảng dạy theo giờ/buổi cho từng cấp bậc và giáo viên</p>
-                </div>
-            </div>
-            <a href="{{ route('payroll.config.commission-tiers') }}" class="px-3.5 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold shadow-2xs transition flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-[16px]">percent</span>
-                <span>Cấu hình Hoa hồng</span>
-            </a>
+    <x-ui.page-header title="Cấu hình đơn giá giáo viên"
+                      description="Đơn giá giờ dạy riêng từng giáo viên theo ngày hiệu lực. Đổi giá = thêm phiên bản mới, ca dạy cũ vẫn tính theo giá cũ.">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="percent" :href="route('payroll.config.commission-tiers')">Cấu hình hoa hồng</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    @if ($errors->any())
+        <x-ui.alert type="error" class="mb-md">{{ $errors->first() }}</x-ui.alert>
+    @endif
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-lg items-start">
+        {{-- 1. Thêm đơn giá mới cho một GV --}}
+        <div class="lg:col-span-4 space-y-md">
+            <form action="{{ route('payroll.config.teacher-rates.personal.store') }}" method="POST"
+                  class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg space-y-md shadow-sm">
+                @csrf
+                <h3 class="font-h3 text-h3 text-on-surface flex items-center gap-xs">
+                    <span class="material-symbols-outlined text-primary-container">edit_calendar</span>
+                    Thêm đơn giá mới
+                </h3>
+
+                <x-ui.select name="user_id" label="Giáo viên" required placeholder="-- Chọn giáo viên --"
+                             :value="old('user_id', $selectedTeacher?->id)"
+                             :options="$teachers->mapWithKeys(fn ($t) => [$t->id => $t->name.' ('.$t->email.')'])" />
+                <x-ui.input type="number" name="hourly_rate" label="Đơn giá (VNĐ/giờ)" required min="1000" step="1000" placeholder="VD: 300000" />
+                <x-ui.date name="effective_from" label="Hiệu lực từ ngày" required :value="old('effective_from', now()->toDateString())"
+                           hint="Áp dụng cho các ca dạy từ ngày này cho tới khi có đơn giá mới hơn." />
+                <x-ui.textarea name="note" label="Ghi chú" rows="2" placeholder="VD: Tăng bậc sau đánh giá quý 3" />
+
+                <x-ui.button type="submit" icon="save" class="w-full">Lưu phiên bản đơn giá</x-ui.button>
+
+                <p class="font-caption text-caption text-on-surface-variant">
+                    Thứ tự áp dụng khi tính lương: đơn giá ghi riêng trên ca dạy → đơn giá GV hiệu lực tại ngày dạy
+                    → đơn giá trong hồ sơ nhân sự → mặc định {{ number_format(\App\Models\TeacherTimesheet::DEFAULT_HOURLY_RATE, 0, ',', '.') }}đ/h.
+                </p>
+            </form>
         </div>
-    </x-slot>
 
-    <div class="space-y-6" x-data="{
-        selectedTeacherName: 'Nguyễn Văn A',
-        selectedTeacherCode: 'GV-2026-045',
-        currentRate: '350.000',
-        teacherType: 'gv_vietnam'
-    }">
-        
-        <!-- Bento Grid Layout -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            
-            <!-- Left Column: Search & Current Rate Status (Col 4) -->
-            <div class="lg:col-span-4 space-y-6">
-                <!-- 1. Chọn giáo viên -->
-                <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
-                    <h3 class="font-bold text-xs uppercase tracking-wider text-gray-900 flex items-center gap-1.5 pb-2 border-b border-gray-100">
-                        <span class="material-symbols-outlined text-orange-600 text-base">person_search</span>
-                        <span>1. Chọn giáo viên</span>
+        <div class="lg:col-span-8 space-y-lg">
+            {{-- 2. Đơn giá đang hiệu lực --}}
+            <x-ui.data-table min-width="560px">
+                <x-slot:header>
+                    <h3 class="font-h3 text-h3 text-on-surface">Đơn giá đang hiệu lực ({{ now()->format('d/m/Y') }})</h3>
+                </x-slot:header>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Giáo viên</th>
+                            <th class="text-right">Đơn giá / giờ</th>
+                            <th>Hiệu lực từ</th>
+                            <th class="text-right">Lịch sử</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($teachers as $teacher)
+                            @php $current = $currentRates->get($teacher->id); @endphp
+                            <tr>
+                                <td>
+                                    <p class="font-semibold">{{ $teacher->name }}</p>
+                                    <p class="font-caption text-caption text-on-surface-variant">{{ $teacher->getRoleNames()->implode(', ') }}</p>
+                                </td>
+                                <td>
+                                    @if ($current)
+                                        <x-ui.money :value="$current->hourly_rate" suffix="đ" />
+                                    @elseif ((float) $teacher->hourly_rate > 0)
+                                        <x-ui.money :value="$teacher->hourly_rate" suffix="đ" />
+                                        <span class="block text-right font-caption text-caption text-on-surface-variant">theo hồ sơ nhân sự</span>
+                                    @else
+                                        <span class="block text-right font-caption text-caption text-on-surface-variant">Mặc định</span>
+                                    @endif
+                                </td>
+                                <td class="font-code text-code">{{ $current?->effective_from?->format('d/m/Y') ?? '—' }}</td>
+                                <td class="text-right">
+                                    <x-ui.button variant="ghost" size="sm" icon="history" :href="route('payroll.config.teacher-rates', ['teacher_id' => $teacher->id])">Xem</x-ui.button>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="4"><x-ui.empty-state icon="person_off" title="Chưa có nhân sự giảng dạy" /></td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </x-ui.data-table>
+
+            {{-- 3. Lịch sử thay đổi đơn giá --}}
+            <x-ui.data-table min-width="640px">
+                <x-slot:header>
+                    <h3 class="font-h3 text-h3 text-on-surface">
+                        Lịch sử đơn giá{{ $selectedTeacher ? ': '.$selectedTeacher->name : '' }}
                     </h3>
+                    @if ($selectedTeacher)
+                        <x-ui.button variant="ghost" size="sm" icon="filter_alt_off" :href="route('payroll.config.teacher-rates')">Xem tất cả</x-ui.button>
+                    @endif
+                </x-slot:header>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Giáo viên</th>
+                            <th class="text-right">Đơn giá / giờ</th>
+                            <th>Hiệu lực từ</th>
+                            <th>Ghi chú</th>
+                            <th>Người tạo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($history as $row)
+                            <tr>
+                                <td class="font-semibold">{{ $row->user?->name ?? '—' }}</td>
+                                <td><x-ui.money :value="$row->hourly_rate" suffix="đ" /></td>
+                                <td class="font-code text-code">{{ $row->effective_from->format('d/m/Y') }}</td>
+                                <td>{{ $row->note ?? '—' }}</td>
+                                <td>
+                                    {{ $row->creator?->name ?? 'Hệ thống' }}
+                                    <span class="block font-caption text-caption text-on-surface-variant">{{ $row->created_at?->format('d/m/Y H:i') }}</span>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="5"><x-ui.empty-state icon="history" title="Chưa có lịch sử đơn giá" description="Thêm đơn giá mới ở khung bên trái." /></td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+                <x-slot:footer><x-ui.pagination :paginator="$history" /></x-slot:footer>
+            </x-ui.data-table>
 
-                    <div class="relative">
-                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
-                        <input type="text" placeholder="Tìm tên hoặc mã giáo viên..." class="w-full text-xs rounded-xl border border-gray-300 pl-9 pr-3 py-2 bg-slate-50 focus:bg-white focus:ring-primary-container focus:border-primary-container transition" />
-                    </div>
-
-                    <!-- Selected Teacher Profile Box -->
-                    <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-full bg-orange-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-sm">
-                            NA
-                        </div>
-                        <div class="space-y-0.5">
-                            <p class="font-bold text-gray-900 text-xs" x-text="selectedTeacherName">Nguyễn Văn A</p>
-                            <p class="text-[10px] text-gray-400 font-mono" x-text="'Mã NV: ' + selectedTeacherCode">Mã NV: GV-2026-045</p>
-                            <div class="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-extrabold uppercase">
-                                Đang giảng dạy
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Đơn giá hiện hành -->
-                <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-3 relative overflow-hidden">
-                    <div class="absolute -right-6 -top-6 w-24 h-24 bg-orange-100/60 rounded-full blur-xl pointer-events-none"></div>
-                    
-                    <h3 class="font-bold text-xs uppercase tracking-wider text-gray-900 flex items-center gap-1.5 pb-2 border-b border-gray-100">
-                        <span class="material-symbols-outlined text-orange-600 text-base">receipt</span>
-                        <span>Đơn giá hiện hành</span>
-                    </h3>
-
-                    <div class="space-y-3 text-xs">
-                        <div>
-                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Phân loại giảng viên</span>
-                            <p class="font-bold text-gray-900 flex items-center gap-1 mt-0.5">
-                                <span class="material-symbols-outlined text-orange-600 text-[16px]">school</span>
-                                <span>Giáo viên Tiêu chuẩn (Senior Trainer)</span>
-                            </p>
-                        </div>
-
-                        <div>
-                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Mức thù lao đang áp dụng</span>
-                            <div class="flex items-baseline gap-1 mt-0.5">
-                                <span class="text-2xl font-black text-orange-600 font-mono" x-text="currentRate">350.000</span>
-                                <span class="text-xs font-semibold text-gray-500">VNĐ / giờ</span>
-                            </div>
-                        </div>
-
-                        <div class="pt-2 border-t border-gray-100 text-[11px] text-gray-500 font-mono">
-                            Hiệu lực từ: 01/01/2026
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right Column: Update Rate Form & Global Matrix (Col 8) -->
-            <div class="lg:col-span-8 space-y-6">
-                <!-- 2. Cập nhật đơn giá mới Form -->
-                <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
-                    <h3 class="font-bold text-xs uppercase tracking-wider text-gray-900 flex items-center gap-1.5 pb-2 border-b border-gray-100">
-                        <span class="material-symbols-outlined text-orange-600 text-base">edit_calendar</span>
-                        <span>2. Thiết lập &amp; Cập nhật đơn giá mới</span>
-                    </h3>
-
-                    <form action="{{ route('payroll.config.teacher-rates.store') }}" method="POST" class="space-y-4">
-                        @csrf
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                            <div>
-                                <label class="block font-bold text-gray-700 mb-1 text-[11px]">Cấp bậc / Bậc xếp hạng <span class="text-rose-500">*</span></label>
-                                <input type="text" name="rank_title" value="Senior IELTS Trainer" required placeholder="VD: Lead Trainer, Master Trainer" class="w-full text-xs font-bold rounded-xl border border-gray-300 p-2.5 bg-slate-50 focus:bg-white focus:ring-primary-container focus:border-primary-container" />
-                            </div>
-                            <div>
-                                <label class="block font-bold text-gray-700 mb-1 text-[11px]">Yêu cầu chứng chỉ &amp; Kinh nghiệm</label>
-                                <input type="text" name="criteria" value="IELTS 8.0+, TESOL, 3 năm KN" placeholder="IELTS 8.0+, 3 năm KN" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 bg-slate-50 focus:bg-white focus:ring-primary-container focus:border-primary-container" />
-                            </div>
-                            <div>
-                                <label class="block font-bold text-gray-700 mb-1 text-[11px]">Đơn giá lớp Giao tiếp (VNĐ/giờ) <span class="text-rose-500">*</span></label>
-                                <input type="number" name="communication_rate" value="300000" step="10000" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-300 p-2.5 bg-slate-50 focus:bg-white focus:ring-primary-container focus:border-primary-container" />
-                            </div>
-                            <div>
-                                <label class="block font-bold text-gray-700 mb-1 text-[11px]">Đơn giá lớp IELTS / Cambridge (VNĐ/giờ) <span class="text-rose-500">*</span></label>
-                                <input type="number" name="ielts_rate" value="400000" step="10000" required class="w-full text-xs font-mono font-bold text-orange-600 rounded-xl border border-gray-300 p-2.5 bg-slate-50 focus:bg-white focus:ring-primary-container focus:border-primary-container" />
-                            </div>
-                        </div>
-
-                        <div class="pt-2 border-t border-gray-100 flex items-center justify-end gap-2">
-                            <button type="submit" class="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer">
-                                <span class="material-symbols-outlined text-[16px]">save</span>
-                                <span>Lưu &amp; Áp Dụng Đơn Giá Mới</span>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- 3. Bảng Ma Trận Đơn Giá Toàn Hệ Thống -->
-                <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                    <div class="p-4 border-b border-gray-100 bg-slate-50/70 flex justify-between items-center">
-                        <h3 class="font-bold text-xs uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-orange-600 text-base">table_chart</span>
-                            <span>Bảng Ma Trận Cấp Bậc Đơn Giá Giảng Dạy MEnglish</span>
-                        </h3>
-                    </div>
-
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse text-xs">
+            {{-- 4. Khung đơn giá theo cấp bậc (tham khảo khi đặt giá cho GV) --}}
+            <details class="rounded-xl border border-outline-variant bg-surface-container-lowest">
+                <summary class="cursor-pointer px-lg py-md font-body-medium text-body-medium text-on-surface">
+                    Khung đơn giá tham khảo theo cấp bậc ({{ $rates->count() }} bậc)
+                </summary>
+                <div class="border-t border-surface-container p-lg space-y-md">
+                    <x-ui.data-table>
+                        <table>
                             <thead>
-                                <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
-                                    <th class="py-3 px-4">Cấp bậc Giáo viên</th>
-                                    <th class="py-3 px-4">Yêu cầu chứng chỉ / Kinh nghiệm</th>
-                                    <th class="py-3 px-4 text-right">Lớp Giao tiếp</th>
-                                    <th class="py-3 px-4 text-right">Lớp IELTS / Cambridge</th>
+                                <tr>
+                                    <th>Cấp bậc</th>
+                                    <th>Yêu cầu</th>
+                                    <th class="text-right">Lớp Giao tiếp</th>
+                                    <th class="text-right">Lớp IELTS / Cambridge</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
+                            <tbody>
                                 @forelse ($rates as $r)
-                                    <tr class="hover:bg-orange-50/20 transition">
-                                        <td class="py-3.5 px-4 font-bold text-gray-900">{{ $r->rank_title }}</td>
-                                        <td class="py-3.5 px-4 text-gray-600">{{ $r->criteria }}</td>
-                                        <td class="py-3.5 px-4 text-right font-mono font-bold text-gray-800">{{ number_format($r->communication_rate) }}đ / h</td>
-                                        <td class="py-3.5 px-4 text-right font-mono font-black text-orange-600">{{ number_format($r->ielts_rate) }}đ / h</td>
+                                    <tr>
+                                        <td class="font-semibold">{{ $r->rank_title }}</td>
+                                        <td>{{ $r->criteria }}</td>
+                                        <td><x-ui.money :value="$r->communication_rate" suffix="đ" /></td>
+                                        <td><x-ui.money :value="$r->ielts_rate" suffix="đ" /></td>
                                     </tr>
                                 @empty
-                                    <tr>
-                                        <td colspan="4" class="text-center py-6 text-gray-400 text-xs">Chưa có bảng đơn giá.</td>
-                                    </tr>
+                                    <tr><td colspan="4"><x-ui.empty-state title="Chưa có khung đơn giá" /></td></tr>
                                 @endforelse
                             </tbody>
                         </table>
-                    </div>
+                    </x-ui.data-table>
+
+                    <form action="{{ route('payroll.config.teacher-rates.store') }}" method="POST" class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                        @csrf
+                        <x-ui.input name="rank_title" label="Cấp bậc" required placeholder="VD: Senior IELTS Trainer" />
+                        <x-ui.input name="criteria" label="Yêu cầu chứng chỉ & kinh nghiệm" placeholder="IELTS 8.0+, 3 năm KN" />
+                        <x-ui.input type="number" name="communication_rate" label="Lớp Giao tiếp (VNĐ/giờ)" required step="10000" />
+                        <x-ui.input type="number" name="ielts_rate" label="Lớp IELTS / Cambridge (VNĐ/giờ)" required step="10000" />
+                        <div class="sm:col-span-2 flex justify-end">
+                            <x-ui.button type="submit" variant="secondary" icon="add">Thêm cấp bậc tham khảo</x-ui.button>
+                        </div>
+                    </form>
                 </div>
-
-            </div>
-
+            </details>
         </div>
-
     </div>
 </x-app-layout>

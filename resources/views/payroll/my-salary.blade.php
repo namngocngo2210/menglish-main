@@ -119,26 +119,12 @@
                         <span>1. Chi tiết các khoản thu nhập</span>
                     </h3>
                     <div class="space-y-2">
-                        <div class="flex justify-between py-1 border-b border-gray-200">
-                            <span class="text-gray-600">Lương cơ bản / Cứng:</span>
-                            <span class="font-mono font-bold text-gray-900">{{ number_format($record?->base_salary ?? 0) }}đ</span>
-                        </div>
-                        <div class="flex justify-between py-1 border-b border-gray-200">
-                            <span class="text-gray-600">Thù lao giờ dạy ({{ $hoursTaught }}h):</span>
-                            <span class="font-mono font-bold text-emerald-600">+{{ number_format($record?->teaching_salary ?? 0) }}đ</span>
-                        </div>
-                        <div class="flex justify-between py-1 border-b border-gray-200">
-                            <span class="text-gray-600">Thưởng KPI:</span>
-                            <span class="font-mono font-bold text-emerald-600">+{{ number_format($record?->kpi_bonus ?? 0) }}đ</span>
-                        </div>
-                        <div class="flex justify-between py-1 border-b border-gray-200">
-                            <span class="text-gray-600">Phụ cấp:</span>
-                            <span class="font-mono font-bold text-emerald-600">+{{ number_format($record?->allowance ?? 0) }}đ</span>
-                        </div>
-                        <div class="flex justify-between pt-1">
-                            <span class="text-gray-600">Hoa hồng tuyển sinh:</span>
-                            <span class="font-mono font-bold text-emerald-600">+{{ number_format(($record?->commission_bonus ?? 0) + ($record?->renew_bonus ?? 0)) }}đ</span>
-                        </div>
+                        @foreach ($record?->earningLines() ?? [] as $line)
+                            <div class="flex justify-between py-1 border-b border-gray-200 last:border-0">
+                                <span class="text-gray-600">{{ $line['label'] }}:</span>
+                                <span class="font-mono font-bold {{ $line['key'] === 'base_salary' ? 'text-gray-900' : 'text-emerald-600' }}">{{ $line['key'] === 'base_salary' ? '' : '+' }}{{ number_format($line['amount']) }}đ</span>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
 
@@ -149,22 +135,15 @@
                         <span>2. Chi tiết các khoản giảm trừ</span>
                     </h3>
                     <div class="space-y-2">
-                        <div class="flex justify-between py-1 border-b border-gray-200">
-                            <span class="text-gray-600">Bảo hiểm xã hội &amp; Y tế:</span>
-                            <span class="font-mono font-bold text-rose-600">-{{ number_format($record?->insurance_deduction ?? 0) }}đ</span>
-                        </div>
-                        <div class="flex justify-between py-1 border-b border-gray-200">
-                            <span class="text-gray-600">Thuế thu nhập cá nhân (TNCN):</span>
-                            <span class="font-mono font-bold text-rose-600">-{{ number_format($record?->tax_deduction ?? 0) }}đ</span>
-                        </div>
-                        <div class="flex justify-between py-1 border-b border-gray-200">
-                            <span class="text-gray-600">Phạt vi phạm quy chế chấm công / Điểm danh:</span>
-                            <span class="font-mono font-bold text-rose-600">-{{ number_format($record?->penalty_deduction ?? 0) }}đ</span>
-                        </div>
-                        <div class="flex justify-between pt-1">
-                            <span class="text-gray-600">Giảm trừ ca có GVNN cùng dạy ({{ $record?->foreign_teacher_sessions_count ?? 0 }} buổi):</span>
-                            <span class="font-mono font-bold text-rose-600">-{{ number_format($record?->foreign_teacher_deduction ?? 0) }}đ</span>
-                        </div>
+                        @foreach ($record?->deductionLines() ?? [] as $line)
+                            <div class="flex justify-between py-1 border-b border-gray-200 last:border-0">
+                                <span class="text-gray-600">{{ $line['label'] }}:</span>
+                                <span class="font-mono font-bold text-rose-600">-{{ number_format($line['amount']) }}đ</span>
+                            </div>
+                        @endforeach
+                        @if ($record?->adjustment_notes)
+                            <p class="pt-1 text-[11px] text-gray-500 italic">Ghi chú kế toán: {{ $record->adjustment_notes }}</p>
+                        @endif
                     </div>
                 </div>
 

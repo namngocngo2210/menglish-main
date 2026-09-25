@@ -1574,30 +1574,10 @@ class CrmController extends Controller
         // 3. Lấy cấu hình Hoa hồng từ bảng commission_tiers (cùng luật chọn bậc với tính lương)
         $commissionTiers = CommissionTier::orderByDesc('min_revenue')->get();
 
-        $calculateCommission = function (float $revenue) {
-            $matchedTier = CommissionTier::matchForRevenue($revenue);
-
-            if ($matchedTier) {
-                $percent = (float) $matchedTier->new_sale_percent;
-                $bonus = (float) $matchedTier->bonus_amount;
-                $commission = ($revenue * ($percent / 100)) + $bonus;
-
-                return [
-                    'tier_name' => $matchedTier->tier_name,
-                    'percent' => $percent,
-                    'bonus' => $bonus,
-                    'amount' => $commission,
-                ];
-            }
-
-            // Mức cơ bản nếu chưa đạt mốc tối thiểu (2%)
-            return [
-                'tier_name' => 'Chưa đạt định mức',
-                'percent' => 2.0,
-                'bonus' => 0,
-                'amount' => $revenue * 0.02,
-            ];
-        };
+        // Cùng căn cứ với bảng lương (SalesCommissionService): bậc hiệu lực tại cuối kỳ báo cáo,
+        // chưa đạt mốc nào thì không có hoa hồng.
+        $commissionService = app(\App\Services\SalesCommissionService::class);
+        $calculateCommission = fn (float $revenue) => $commissionService->commissionFor($revenue, $endDate);
 
         // 4. Bảng hiệu suất theo nhân viên tư vấn tuyển sinh (100% Real from Users in Database)
         try {
@@ -1610,18 +1590,8 @@ class CrmController extends Controller
             $salesUsers = User::whereHas('crmCustomers')->get();
         }
 
-        $studentOwners = (clone $query)->whereNotNull('converted_student_id')
-            ->get(['converted_student_id', 'commission_user_id', 'assigned_user_id'])
-            ->mapWithKeys(fn (CrmCustomer $customer) => [
-                $customer->converted_student_id => $customer->commission_user_id ?? $customer->assigned_user_id,
-            ]);
-        $collectedBySales = TuitionReceipt::query()
-            ->where('status', 'approved')
-            ->whereBetween('payment_date', [$startDate, $endDate])
-            ->whereIn('student_id', $studentOwners->keys())
-            ->get()
-            ->groupBy(fn (TuitionReceipt $receipt) => $studentOwners->get($receipt->student_id))
-            ->map->sum('amount');
+        // Doanh số = tiền thực thu của khách mới (phiếu duyệt trong kỳ, gồm giáo trình/đồ dùng) — A6.
+        $collectedBySales = $commissionService->collectedBySales($startDate, $endDate, null, $query);
 
         $repsData = [];
         foreach ($salesUsers as $user) {

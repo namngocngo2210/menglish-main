@@ -24,6 +24,10 @@ class TuitionRefundRequest extends Model
         'requester_id',
         'approver_id',
         'status',
+        'clawback_commission',
+        'clawback_amount',
+        'clawback_user_id',
+        'approved_at',
     ];
 
     protected $casts = [
@@ -31,6 +35,9 @@ class TuitionRefundRequest extends Model
         'admin_fee' => 'decimal:2',
         'refund_amount' => 'decimal:2',
         'attended_lessons' => 'integer',
+        'clawback_commission' => 'boolean',
+        'clawback_amount' => 'decimal:2',
+        'approved_at' => 'datetime',
     ];
 
     public function student(): BelongsTo
@@ -51,5 +58,11 @@ class TuitionRefundRequest extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approver_id');
+    }
+
+    /** Sale bị thu hồi hoa hồng (nếu người duyệt chọn thu hồi). */
+    public function clawbackUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'clawback_user_id');
     }
 }

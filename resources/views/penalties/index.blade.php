@@ -1,165 +1,214 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-rose-600">gavel</span>
-                    Biên bản Vi phạm &amp; Kỷ luật Nhân sự
-                </h1>
-                <p class="text-xs text-gray-500">Ghi nhận vi phạm quy chế đào tạo, trừ thưởng KPI và chế tài bảng lương</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <button type="button" onclick="document.getElementById('newPenaltyModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-sm transition">
-                    <span class="material-symbols-outlined text-[18px]">add_alert</span>
-                    <span>Lập Biên bản Vi phạm mới</span>
-                </button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Biên bản vi phạm & kỷ luật"
+                      description="Ghi nhận vi phạm → nhân sự giải trình → HT/CM chốt theo loại lỗi → nộp phạt trong 2 ngày → quá hạn trừ vào kỳ lương.">
+        <x-slot:actions>
+            @can('violation.create')
+                <x-ui.button icon="add_alert" @click="$dispatch('open-modal', 'new-penalty')">Ghi nhận vi phạm</x-ui.button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <!-- Create Penalty Modal -->
-    <div id="newPenaltyModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div class="flex justify-between items-center pb-2 border-b border-gray-100">
-                <h3 class="font-bold text-sm text-gray-900">Lập Biên Bản Vi Phạm Mới</h3>
-                <button type="button" onclick="document.getElementById('newPenaltyModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
-            </div>
-            <form action="{{ route('penalties.store') }}" method="POST" class="space-y-3">
-                @csrf
-                <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Nhân sự vi phạm <span class="text-rose-500">*</span></label>
-                    <select name="user_id" required class="w-full text-xs rounded-xl border border-gray-200 p-2 font-bold">
-                        @foreach ($users as $u)
-                            <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->email }})</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Lỗi vi phạm <span class="text-rose-500">*</span></label>
-                    <select name="violation_type" class="w-full text-xs rounded-xl border border-gray-200 p-2">
-                        <option value="Đến muộn > 15 phút không báo trước">Đến muộn > 15 phút không báo trước</option>
-                        <option value="Chậm nộp nhận xét buổi học (> 24h)">Chậm nộp nhận xét buổi học (> 24h)</option>
-                        <option value="Không nộp giáo án / bài tập đúng hạn">Không nộp giáo án / bài tập đúng hạn</option>
-                        <option value="Nghỉ dạy không phép">Nghỉ dạy không phép</option>
-                    </select>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Ngày vi phạm</label>
-                        <input type="date" name="violation_date" value="{{ date('Y-m-d') }}" required class="w-full text-xs rounded-xl border border-gray-200 p-2" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Mức phạt (VNĐ)</label>
-                        <input type="number" name="amount" value="200000" required class="w-full text-xs font-mono font-bold text-rose-600 rounded-xl border border-gray-200 p-2" />
-                    </div>
-                </div>
-                <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
-                    <button type="button" onclick="document.getElementById('newPenaltyModal').classList.add('hidden')" class="px-3 py-1.5 rounded-lg border text-xs text-gray-600">Hủy</button>
-                    <button type="submit" class="px-4 py-1.5 bg-rose-600 text-white text-xs font-bold rounded-lg shadow-sm">Lập biên bản</button>
-                </div>
-            </form>
-        </div>
+    @if ($errors->any())
+        <x-ui.alert type="error" class="mb-md">{{ $errors->first() }}</x-ui.alert>
+    @endif
+
+    <div class="mb-lg grid grid-cols-2 gap-md lg:grid-cols-4">
+        <x-ui.stat-card label="Chờ giải trình" :value="$counts['pending'] ?? 0" icon="edit_note" tone="warning" />
+        <x-ui.stat-card label="Chờ HT/CM chốt" :value="($counts['explained'] ?? 0) + ($counts['confirmed'] ?? 0)" icon="gavel" tone="secondary" />
+        <x-ui.stat-card label="Đã quyết phạt (trong hạn nộp)" :value="max(0, ($counts['fined'] ?? 0) - $overdueCount)" icon="schedule" tone="primary" />
+        <x-ui.stat-card label="Quá hạn — sẽ trừ lương" :value="$overdueCount" icon="money_off" tone="error" />
     </div>
 
-    <div class="space-y-4">
-        <!-- Penalty Table -->
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <table class="w-full text-left border-collapse text-xs">
-                <thead>
-                    <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
-                        <th class="py-3 px-4">Mã biên bản</th>
-                        <th class="py-3 px-4">Nhân sự vi phạm</th>
-                        <th class="py-3 px-4">Lỗi vi phạm</th>
-                        <th class="py-3 px-4">Ngày vi phạm</th>
-                        <th class="py-3 px-4 text-right">Số tiền phạt</th>
-                        <th class="py-3 px-4">Người lập</th>
-                        <th class="py-3 px-4">Trạng thái</th>
-                        <th class="py-3 px-4 text-right">Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
-                    @forelse ($penalties as $pen)
-                        <tr class="hover:bg-rose-50/20 transition">
-                            <td class="py-3.5 px-4 font-mono font-bold text-gray-900">{{ $pen->code }}</td>
-                            <td class="py-3.5 px-4 font-bold text-gray-900">{{ $pen->user?->name }}</td>
-                            <td class="py-3.5 px-4 font-medium text-rose-700">{{ $pen->violation_type }}</td>
-                            <td class="py-3.5 px-4 font-mono text-gray-500">{{ $pen->violation_date->format('d/m/Y') }}</td>
-                            <td class="py-3.5 px-4 text-right font-mono font-bold text-rose-600 text-sm">
-                                -{{ number_format($pen->amount) }}đ
-                            </td>
-                            <td class="py-3.5 px-4">{{ $pen->reporter?->name ?? 'Hệ thống' }}</td>
-                            <td class="py-3.5 px-4">
-                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border {{ $pen->status_badge }}">
-                                    {{ $pen->status_label }}
-                                </span>
-                            </td>
-                            <td class="py-3.5 px-4 text-right whitespace-nowrap">
-                                @can('violation.confirm_error')
-                                    @if (in_array($pen->status, ['pending', 'confirmed']))
-                                        <form action="{{ route('penalties.confirm', $pen->id) }}" method="POST" class="inline">
-                                            @csrf
-                                            <input type="hidden" name="decision" value="error" />
-                                            <button type="submit" class="px-2.5 py-1 bg-rose-600 text-white rounded-lg text-[11px] font-bold hover:bg-rose-700 transition" title="Xác nhận lỗi (chưa quyết phạt)">
-                                                Xác nhận lỗi
-                                            </button>
-                                        </form>
-                                    @endif
-                                @endcan
-                                @can('violation.confirm_fine')
-                                    @if (in_array($pen->status, ['pending', 'confirmed']))
-                                        <form action="{{ route('penalties.confirm', $pen->id) }}" method="POST" class="inline">
-                                            @csrf
-                                            <input type="hidden" name="decision" value="fine" />
-                                            <button type="submit" class="px-2.5 py-1 bg-orange-600 text-white rounded-lg text-[11px] font-bold hover:bg-orange-700 transition" title="Quyết định phạt tiền — sẽ trừ bảng lương">
-                                                Quyết phạt
-                                            </button>
-                                        </form>
-                                    @endif
-                                @endcan
+    <x-ui.filter-bar placeholder="Tìm mã biên bản, nhân sự, lỗi vi phạm...">
+        <x-ui.select name="status" placeholder="Tất cả bước" inline-label="Bước:"
+                     :options="['open' => 'Đang xử lý (chưa đóng)', 'overdue' => 'Quá hạn nộp'] + \App\Models\Penalty::statusLabels()" />
+        <x-ui.select name="category" placeholder="Tất cả loại lỗi" inline-label="Loại lỗi:"
+                     :options="collect(\App\Models\Penalty::CATEGORIES)->map(fn ($c) => $c['label'])->all()" />
+    </x-ui.filter-bar>
+
+    <x-ui.data-table min-width="1100px">
+        <table>
+            <thead>
+                <tr>
+                    <th>Mã biên bản</th>
+                    <th>Nhân sự vi phạm</th>
+                    <th>Lỗi vi phạm</th>
+                    <th>Ngày vi phạm</th>
+                    <th class="text-right">Số tiền phạt</th>
+                    <th>Hạn nộp</th>
+                    <th>Trạng thái</th>
+                    <th class="text-right">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($penalties as $pen)
+                    @php
+                        $canDecide = auth()->user()->can('violation.confirm_fine') && $pen->canBeDecidedBy(auth()->user())
+                            && in_array($pen->status, ['pending', 'explained', 'confirmed'], true);
+                        $canExplain = $pen->user_id === auth()->id() && $pen->status === 'pending';
+                    @endphp
+                    <tr class="align-top">
+                        <td class="font-code text-code font-semibold">{{ $pen->code }}</td>
+                        <td>
+                            <p class="font-semibold">{{ $pen->user?->name }}</p>
+                            <p class="font-caption text-caption text-on-surface-variant">Lập bởi {{ $pen->reporter?->name ?? 'Hệ thống' }}</p>
+                        </td>
+                        <td class="max-w-xs">
+                            <p class="font-medium text-error">{{ $pen->violation_type }}</p>
+                            <p class="font-caption text-caption text-on-surface-variant">{{ $pen->category_label }} · chốt bởi {{ $pen->confirmer_label }}</p>
+                            @if ($pen->explanation)
+                                <p class="mt-xs rounded bg-surface-container-low p-xs font-caption text-caption text-on-surface" title="Giải trình">
+                                    <span class="font-semibold">Giải trình:</span> {{ $pen->explanation }}
+                                </p>
+                            @endif
+                            @if ($pen->decision_note)
+                                <p class="mt-xs font-caption text-caption text-on-surface-variant">
+                                    <span class="font-semibold">Kết luận ({{ $pen->decider?->name }}):</span> {{ $pen->decision_note }}
+                                </p>
+                            @endif
+                        </td>
+                        <td class="font-code text-code">{{ $pen->violation_date->format('d/m/Y') }}</td>
+                        <td>
+                            @if ((float) $pen->amount > 0)
+                                <x-ui.money :value="-$pen->amount" suffix="đ" />
+                                @if (in_array($pen->status, ['pending', 'explained', 'confirmed'], true))
+                                    <span class="block text-right font-caption text-caption text-on-surface-variant">đề xuất</span>
+                                @endif
+                            @else
+                                <span class="block text-right text-on-surface-variant">—</span>
+                            @endif
+                        </td>
+                        <td class="font-code text-code">
+                            {{ $pen->due_date?->format('d/m/Y') ?? '—' }}
+                            @if ($pen->paid_at)
+                                <span class="block font-caption text-caption text-tertiary">Nộp {{ $pen->paid_at->format('d/m/Y') }}</span>
+                            @endif
+                        </td>
+                        <td>
+                            <span class="inline-block rounded-full border px-2.5 py-1 text-[10px] font-bold {{ $pen->status_badge }}">{{ $pen->status_label }}</span>
+                        </td>
+                        <td class="text-right">
+                            <div class="flex flex-wrap justify-end gap-xs">
+                                @if ($canExplain)
+                                    <x-ui.button size="sm" icon="edit_note" @click="$dispatch('open-modal', 'explain-{{ $pen->id }}')">Giải trình</x-ui.button>
+                                @endif
+                                @if ($canDecide)
+                                    <x-ui.button size="sm" icon="gavel" @click="$dispatch('open-modal', 'decide-{{ $pen->id }}')">Chốt biên bản</x-ui.button>
+                                @endif
                                 @can('violation.mark_paid')
                                     @if ($pen->status === 'fined')
-                                        <form action="{{ route('penalties.mark-paid', $pen->id) }}" method="POST" class="inline">
+                                        <form action="{{ route('penalties.mark-paid', $pen->id) }}" method="POST">
                                             @csrf
-                                            <button type="submit" class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[11px] font-bold hover:bg-emerald-700 transition" title="Nhân sự đã nộp phạt trực tiếp">
-                                                Đã nộp phạt
-                                            </button>
+                                            <x-ui.button type="submit" size="sm" variant="secondary" icon="payments">Đã nộp phạt</x-ui.button>
                                         </form>
                                     @endif
                                 @endcan
                                 @can('violation.mark_resolved')
-                                    @if (in_array($pen->status, ['pending', 'confirmed', 'fined']))
-                                        <form action="{{ route('penalties.resolve', $pen->id) }}" method="POST" class="inline">
+                                    @if (in_array($pen->status, \App\Models\Penalty::OPEN_STATUSES, true))
+                                        <form action="{{ route('penalties.resolve', $pen->id) }}" method="POST" data-confirm="Đóng vụ, miễn phạt tiền biên bản {{ $pen->code }}?">
                                             @csrf
-                                            <button type="submit" class="px-2.5 py-1 bg-sky-600 text-white rounded-lg text-[11px] font-bold hover:bg-sky-700 transition" title="Đóng vụ, miễn phạt tiền">
-                                                Đóng vụ
-                                            </button>
+                                            <x-ui.button type="submit" size="sm" variant="ghost">Đóng vụ</x-ui.button>
                                         </form>
                                     @endif
                                 @endcan
                                 @can('violation.cancel')
-                                    @if (in_array($pen->status, ['pending', 'confirmed']))
-                                        <form action="{{ route('penalties.cancel', $pen->id) }}" method="POST" class="inline" data-confirm="Hủy biên bản {{ $pen->code }}?">
+                                    @if (in_array($pen->status, ['pending', 'explained', 'confirmed'], true))
+                                        <form action="{{ route('penalties.cancel', $pen->id) }}" method="POST" data-confirm="Hủy biên bản {{ $pen->code }}?">
                                             @csrf
-                                            <button type="submit" class="px-2.5 py-1 bg-gray-200 text-gray-700 rounded-lg text-[11px] font-bold hover:bg-gray-300 transition">
-                                                Hủy
-                                            </button>
+                                            <x-ui.button type="submit" size="sm" variant="danger-text">Hủy</x-ui.button>
                                         </form>
                                     @endif
                                 @endcan
-                                @if (! in_array($pen->status, ['pending', 'confirmed', 'fined']))
-                                    <span class="text-gray-400 font-mono text-[11px]">—</span>
-                                @endif
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="8" class="text-center py-8 text-gray-400 text-xs">Không có biên bản vi phạm nào.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
+                            </div>
+
+                            @if ($canExplain)
+                                <x-ui.modal name="explain-{{ $pen->id }}" title="Giải trình biên bản {{ $pen->code }}" class="text-left">
+                                    <form id="explain-form-{{ $pen->id }}" action="{{ route('penalties.explain', $pen->id) }}" method="POST" class="space-y-md">
+                                        @csrf
+                                        <p>Lỗi: <strong>{{ $pen->violation_type }}</strong> ngày {{ $pen->violation_date->format('d/m/Y') }}.</p>
+                                        <x-ui.textarea name="explanation" label="Nội dung giải trình" required rows="4" placeholder="Trình bày lý do, hoàn cảnh..." />
+                                    </form>
+                                    <x-slot:footer>
+                                        <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'explain-{{ $pen->id }}')">Hủy</x-ui.button>
+                                        <x-ui.button type="submit" form="explain-form-{{ $pen->id }}" icon="send">Gửi giải trình</x-ui.button>
+                                    </x-slot:footer>
+                                </x-ui.modal>
+                            @endif
+
+                            @if ($canDecide)
+                                <x-ui.modal name="decide-{{ $pen->id }}" title="Chốt biên bản {{ $pen->code }}" class="text-left">
+                                    <form id="decide-form-{{ $pen->id }}" action="{{ route('penalties.confirm', $pen->id) }}" method="POST" class="space-y-md"
+                                          x-data="{ decision: 'fine' }">
+                                        @csrf
+                                        <div class="rounded-lg bg-surface-container-low p-sm font-body-small text-body-small">
+                                            <p><strong>{{ $pen->user?->name }}</strong> — {{ $pen->violation_type }} ({{ $pen->category_label }})</p>
+                                            <p class="mt-xs">{{ $pen->explanation ? 'Giải trình: '.$pen->explanation : 'Nhân sự chưa gửi giải trình.' }}</p>
+                                        </div>
+                                        <x-ui.select name="decision" label="Kết luận" required x-model="decision"
+                                                     :options="['fine' => 'Quyết phạt tiền (nộp trong 2 ngày, quá hạn trừ lương)', 'error' => 'Xác nhận lỗi, chưa phạt tiền']" />
+                                        <div x-show="decision === 'fine'">
+                                            <x-ui.input type="number" name="amount" label="Số tiền phạt (VNĐ)" min="1000" step="1000"
+                                                        :value="(float) $pen->amount > 0 ? (int) $pen->amount : null" />
+                                        </div>
+                                        <x-ui.textarea name="decision_note" label="Ghi chú kết luận" rows="2" />
+                                    </form>
+                                    <x-slot:footer>
+                                        <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'decide-{{ $pen->id }}')">Hủy</x-ui.button>
+                                        <x-ui.button type="submit" form="decide-form-{{ $pen->id }}" icon="gavel">Chốt</x-ui.button>
+                                    </x-slot:footer>
+                                </x-ui.modal>
+                            @endif
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="8">
+                            <x-ui.empty-state icon="gavel" title="Không có biên bản vi phạm nào"
+                                              :description="$canViewAll ? 'Thử đổi từ khoá hoặc xoá bộ lọc.' : 'Bạn không có biên bản vi phạm nào.'" />
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+        <x-slot:footer><x-ui.pagination :paginator="$penalties" /></x-slot:footer>
+    </x-ui.data-table>
+
+    @can('violation.create')
+        <x-ui.modal name="new-penalty" title="Ghi nhận vi phạm" :show="$errors->hasAny(['user_id', 'violation_type', 'violation_date'])">
+            <form id="new-penalty-form" action="{{ route('penalties.store') }}" method="POST" class="space-y-md"
+                  x-data="{ category: @js(old('error_category', 'operations')) }">
+                @csrf
+                <x-ui.select name="user_id" label="Nhân sự vi phạm" required placeholder="-- Chọn nhân sự --"
+                             :options="$users->mapWithKeys(fn ($u) => [$u->id => $u->name.' ('.$u->email.')'])" />
+                <x-ui.select name="error_category" label="Loại lỗi" required x-model="category"
+                             hint="Lỗi chuyên môn do Học thuật (HT) chốt; lỗi vận hành do Học vụ / Quản lý (CM) chốt."
+                             :options="collect(\App\Models\Penalty::CATEGORIES)->map(fn ($c) => $c['label'].' — '.$c['confirmer'])->all()" />
+                <x-ui.field label="Lỗi vi phạm" name="violation_type" required for="f_violation_type">
+                    <input list="violation-types" id="f_violation_type" name="violation_type" required value="{{ old('violation_type') }}"
+                           placeholder="Chọn lỗi thường gặp hoặc nhập mô tả"
+                           class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
+                    <datalist id="violation-types">
+                        @foreach (\App\Models\Penalty::COMMON_VIOLATIONS as $types)
+                            @foreach ($types as $type)
+                                <option value="{{ $type }}"></option>
+                            @endforeach
+                        @endforeach
+                    </datalist>
+                </x-ui.field>
+                <div class="grid grid-cols-2 gap-md">
+                    <x-ui.date name="violation_date" label="Ngày vi phạm" required :value="old('violation_date', date('Y-m-d'))" />
+                    <x-ui.select name="class_id" label="Lớp liên quan" placeholder="— Không —"
+                                 :options="$classes->pluck('name', 'id')" />
+                </div>
+                <x-ui.textarea name="notes" label="Mô tả sự việc" rows="2" />
+                <p class="font-caption text-caption text-on-surface-variant">
+                    Chưa cần nhập số tiền: mức phạt do HT/CM chốt sau khi nhân sự giải trình.
+                </p>
+            </form>
+            <x-slot:footer>
+                <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'new-penalty')">Hủy</x-ui.button>
+                <x-ui.button type="submit" form="new-penalty-form" icon="save">Ghi nhận</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
+    @endcan
 </x-app-layout>

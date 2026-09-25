@@ -17,6 +17,14 @@
     </x-slot>
 
     <div class="space-y-4">
+        @if ($syncLogs->isEmpty())
+            <x-ui.alert type="info" title="Chưa kết nối máy chấm công">
+                Hệ thống hiện <strong>chưa tích hợp</strong> thiết bị vân tay / FaceID nào, nên chưa có lần đồng bộ nào.
+                Chấm công giáo viên đang được ghi nhận qua <strong>check-in theo buổi học</strong> trên cổng giáo viên
+                và <strong>chấm công tay</strong> của Học vụ (xem tại
+                <a href="{{ route('payroll.timesheets.teachers') }}" class="font-semibold underline">Nhật ký chấm công</a>).
+            </x-ui.alert>
+        @endif
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <table class="w-full text-left border-collapse text-xs">
                 <thead>
@@ -51,7 +59,10 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center py-8 text-gray-400 text-xs">Chưa có lịch sử đồng bộ máy chấm công.</td>
+                            <td colspan="6">
+                                <x-ui.empty-state icon="sync_disabled" title="Chưa có lịch sử đồng bộ"
+                                                  description="Màn này sẽ hiển thị các lần đồng bộ thật khi có tích hợp máy chấm công." />
+                            </td>
                         </tr>
                     @endforelse
                 </tbody>

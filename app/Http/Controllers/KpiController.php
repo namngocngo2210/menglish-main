@@ -106,14 +106,17 @@ class KpiController extends Controller
         $evaluation = KpiEvaluation::with('items')
             ->where('user_id', $userId)->where('month', $month)->where('year', $year)->first();
         $scores = $evaluation ? $evaluation->items->keyBy('kpi_criterion_id') : collect();
+        $isSelf = $userId === (int) $request->user()->id;
 
-        return view('kpi.evaluate', compact('staff', 'criteria', 'evaluation', 'scores', 'month', 'year'));
+        return view('kpi.evaluate', compact('staff', 'criteria', 'evaluation', 'scores', 'month', 'year', 'isSelf'));
     }
 
     public function evaluateStore(Request $request, int $userId)
     {
         $this->guard('kpi.confirm');
         User::findOrFail($userId);
+        // Nhân viên không tự chấm KPI của chính mình (A3 / Phase 3)
+        abort_if($userId === (int) $request->user()->id, 403, 'Bạn không được tự chấm KPI của chính mình.');
         $validated = $request->validate([
             'month' => 'required|integer|min:1|max:12',
             'year' => 'required|integer|min:2020|max:2100',

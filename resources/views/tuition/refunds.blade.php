@@ -229,8 +229,24 @@
                                 <td class="py-3.5 px-4 text-right whitespace-nowrap">
                                     @if ($rq->status === 'pending')
                                         <div class="flex items-center justify-end gap-1">
-                                            <form action="{{ route('tuition.refunds.approve', $rq->id) }}" method="POST">
+                                            <form action="{{ route('tuition.refunds.approve', $rq->id) }}" method="POST" class="flex items-center gap-1">
                                                 @csrf
+                                                @if ($rq->type === 'refund' && isset($clawbackHints[$rq->id]))
+                                                    @php $hint = $clawbackHints[$rq->id]; @endphp
+                                                    {{-- A6: người duyệt chọn thu hồi hoa hồng; gợi ý "Có" nếu học viên học chưa tới 1 tháng --}}
+                                                    <div class="text-left text-[10px] text-gray-500 space-y-0.5" x-data="{ claw: '{{ $hint['suggest'] ? '1' : '0' }}' }">
+                                                        <label class="block font-bold text-gray-700">Thu hồi hoa hồng{{ $hint['owner'] ? ' ('.$hint['owner'].')' : '' }}</label>
+                                                        <select name="clawback_commission" x-model="claw" class="text-[11px] rounded-lg border border-gray-200 py-0.5 pl-1.5 pr-6">
+                                                            <option value="1" @selected($hint['suggest'])>Có thu hồi</option>
+                                                            <option value="0" @selected(! $hint['suggest'])>Không thu hồi</option>
+                                                        </select>
+                                                        <input type="number" name="clawback_amount" min="0" step="1000" value="{{ (int) $hint['amount'] }}" x-show="claw === '1'"
+                                                               class="w-24 text-[11px] rounded-lg border border-gray-200 py-0.5 px-1.5 font-mono" title="Số hoa hồng thu hồi (VNĐ)">
+                                                        <span class="block">{{ $hint['start'] ? 'Bắt đầu học '.$hint['start']->format('d/m/Y') : 'Chưa bắt đầu học' }} · gợi ý: {{ $hint['suggest'] ? 'có' : 'không' }}</span>
+                                                    </div>
+                                                @elseif ($rq->type === 'transfer')
+                                                    <span class="text-[10px] text-gray-400" title="Chuyển nhượng phí không thu hồi hoa hồng">Không thu hồi HH</span>
+                                                @endif
                                                 <button type="submit" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-xs transition cursor-pointer">
                                                     Duyệt
                                                 </button>
@@ -242,6 +258,10 @@
                                                 </button>
                                             </form>
                                         </div>
+                                    @elseif ($rq->status === 'approved' && $rq->type === 'refund' && $rq->clawback_commission !== null)
+                                        <span class="text-[10px] {{ $rq->clawback_commission ? 'text-rose-600 font-bold' : 'text-gray-400' }}">
+                                            {{ $rq->clawback_commission ? 'Thu hồi HH '.number_format($rq->clawback_amount).'đ'.($rq->clawbackUser ? ' ('.$rq->clawbackUser->name.')' : '') : 'Không thu hồi HH' }}
+                                        </span>
                                     @else
                                         <span class="text-gray-400 font-mono text-[11px]">—</span>
                                     @endif

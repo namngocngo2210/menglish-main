@@ -142,7 +142,9 @@ class PayrollBusinessTest extends TestCase
             'new_sale_percent' => '',
             'renew_percent' => '',
         ]);
-        $responseComm->assertSessionHasErrors(['tier_name', 'min_revenue', 'new_sale_percent', 'renew_percent']);
+        // Phase 3 (A6): không còn % tái tục bắt buộc — không tính hoa hồng tái tục
+        $responseComm->assertSessionHasErrors(['tier_name', 'min_revenue', 'new_sale_percent']);
+        $responseComm->assertSessionDoesntHaveErrors('renew_percent');
     }
 
     public function test_can_update_and_delete_commission_tier_and_preserve_past_settled_records(): void
@@ -183,21 +185,30 @@ class PayrollBusinessTest extends TestCase
         ]);
 
         $updateResponse->assertRedirect();
+        // Phase 3: sửa mốc = tạo phiên bản mới, phiên bản cũ giữ nguyên và được đóng hiệu lực
         $this->assertDatabaseHas('commission_tiers', [
             'id' => $tier->id,
+            'tier_name' => 'Bậc Vàng Cũ',
+            'new_sale_percent' => 5.0,
+        ]);
+        $this->assertNotNull($tier->fresh()->effective_to);
+        $this->assertDatabaseHas('commission_tiers', [
+            'replaces_id' => $tier->id,
             'tier_name' => 'Bậc Vàng Mới (Điều chỉnh tăng %)',
             'new_sale_percent' => 8.0,
-            'renew_percent' => 5.0,
         ]);
 
         // 3. Verify past record is NEVER touched or modified
         $this->assertEquals(2500000, $pastRecord->fresh()->renew_bonus);
         $this->assertEquals(15000000, $pastRecord->fresh()->net_salary);
 
-        // 4. Delete commission tier
-        $deleteResponse = $this->actingAs($this->hrManager)->delete(route('payroll.config.commission-tiers.destroy', $tier));
+        // 4. "Xoá" phiên bản đang áp dụng = ngừng áp dụng, vẫn giữ lịch sử
+        $current = \App\Models\CommissionTier::where('replaces_id', $tier->id)->firstOrFail();
+        $this->travelTo(now()->addDays(3));
+        $deleteResponse = $this->actingAs($this->hrManager)->delete(route('payroll.config.commission-tiers.destroy', $current));
         $deleteResponse->assertRedirect();
-        $this->assertDatabaseMissing('commission_tiers', ['id' => $tier->id]);
+        $this->assertDatabaseHas('commission_tiers', ['id' => $current->id]);
+        $this->assertNotNull($current->fresh()->effective_to);
     }
 
     // =========================================================================
@@ -284,7 +295,8 @@ class PayrollBusinessTest extends TestCase
             'user_id' => $this->teacherUser->id,
             'class_id' => $this->classModel->id,
             'teaching_date' => '2026-08-15',
-            'hours' => 2.5,
+            'time_in' => '18:00',
+            'time_out' => '20:30',
             'hourly_rate' => 450000,
             'type' => 'regular',
             'notes' => 'Ca dạy IELTS Writing Task 2 chuyên sâu',
@@ -315,12 +327,14 @@ class PayrollBusinessTest extends TestCase
             'user_id' => $this->teacherUser->id,
             'class_id' => $this->classModel->id,
             'teaching_date' => '2026-08-15',
-            'hours' => 0.1, // < 0.5 min
+            'time_in' => '18:00',
+            'time_out' => '17:00', // giờ ra trước giờ vào
             'hourly_rate' => 500, // < 1000 min
             'type' => '',
         ]);
 
-        $response->assertSessionHasErrors(['hours', 'hourly_rate', 'type']);
+        // Phase 3: số giờ tính từ giờ vào/ra, lý do chấm tay bắt buộc
+        $response->assertSessionHasErrors(['time_out', 'hourly_rate', 'type', 'notes']);
     }
 
     // =========================================================================
@@ -354,7 +368,7 @@ class PayrollBusinessTest extends TestCase
         $penalty = Penalty::where('user_id', $this->teacherUser->id)->first();
         $this->assertNotNull($penalty);
         $this->assertStringStartsWith('BB-', $penalty->code);
-        $this->assertEquals('Chờ xác nhận', $penalty->status_label);
+        $this->assertEquals('Chờ giải trình', $penalty->status_label); // Phase 3: bước đầu là nhân sự giải trình
         $this->assertStringContainsString('bg-amber-50', $penalty->status_badge);
 
         // 2. Confirm penalty
@@ -576,9 +590,11 @@ class PayrollBusinessTest extends TestCase
             'user_id' => $this->teacherUser->id,
             'class_id' => $this->classModel->id,
             'teaching_date' => now()->toDateString(),
-            'hours' => 2,
+            'time_in' => '08:00',
+            'time_out' => '10:00',
             'hourly_rate' => 300000,
             'type' => 'regular',
+            'notes' => 'Chấm công tay do GV quên check-in',
         ])->assertRedirect()->assertSessionHasNoErrors();
     }
 
@@ -629,10 +645,20 @@ class PayrollBusinessTest extends TestCase
         $student = User::factory()->create(['branch_id' => $this->branch->id, 'name' => 'Học Viên Không Rank', 'is_active' => true]);
         $student->assignRole('student');
 
+        // Phase 3 (A6): doanh số = tiền thực thu khách mới trong tháng
+        $hv = \App\Models\Student::create(['code' => 'HV-KPI-01', 'name' => 'HV KPI', 'phone' => '0987000111', 'branch_id' => $this->branch->id]);
         \App\Models\CrmCustomer::create([
             'code' => 'KH-KPI-01', 'name' => 'Lead Won KPI', 'phone' => '0987000111',
             'stage' => 'won', 'deal_value' => 20000000, 'branch_id' => $this->branch->id,
-            'assigned_user_id' => $sales->id, 'commission_user_id' => $sales->id,
+            'assigned_user_id' => $sales->id, 'commission_user_id' => $sales->id, 'converted_student_id' => $hv->id,
+        ]);
+        $tuition = \App\Models\StudentTuition::create([
+            'student_id' => $hv->id, 'branch_id' => $this->branch->id,
+            'total_amount' => 20000000, 'final_amount' => 20000000, 'paid_amount' => 0, 'debt_amount' => 20000000, 'status' => 'unpaid',
+        ]);
+        \App\Models\TuitionReceipt::create([
+            'receipt_number' => 'PT-KPI-01', 'student_tuition_id' => $tuition->id, 'student_id' => $hv->id,
+            'amount' => 20000000, 'payment_method' => 'cash', 'payment_date' => now(), 'status' => 'approved',
         ]);
 
         // Trước đây controller dùng User::all() — học viên cũng xuất hiện trên bảng xếp hạng.

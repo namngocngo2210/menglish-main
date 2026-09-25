@@ -19,9 +19,11 @@ class TeacherTimesheet extends Model
         'teaching_date',
         'scheduled_time',
         'checkin_time',
+        'checkout_time',
         'hours',
         'hourly_rate',
         'type',
+        'source',
         'status',
         'reviewed_by',
         'reviewed_at',
@@ -59,8 +61,14 @@ class TeacherTimesheet extends Model
     /** Đơn giá mặc định khi cả ca dạy lẫn nhân sự đều chưa cấu hình. */
     public const DEFAULT_HOURLY_RATE = 250000;
 
+    public const SOURCE_CHECKIN = 'checkin';
+
+    public const SOURCE_MANUAL = 'manual';
+
     /**
-     * Đơn giá áp dụng khi tính lương: timesheet.hourly_rate → user.hourly_rate → mặc định.
+     * Đơn giá áp dụng khi tính lương:
+     * timesheet.hourly_rate → đơn giá riêng của GV hiệu lực tại ngày dạy (teacher_hourly_rates)
+     * → users.hourly_rate → mặc định.
      */
     public function effectiveHourlyRate(?User $user = null): float
     {
@@ -68,9 +76,84 @@ class TeacherTimesheet extends Model
             return (float) $this->hourly_rate;
         }
 
+        $personalRate = TeacherHourlyRate::rateFor((int) $this->user_id, $this->teaching_date ?? now());
+        if ($personalRate !== null && $personalRate > 0) {
+            return $personalRate;
+        }
+
         $user ??= $this->teacher;
 
         return (float) ($user?->hourly_rate) > 0 ? (float) $user->hourly_rate : self::DEFAULT_HOURLY_RATE;
+    }
+
+    /**
+     * Buổi học thật (ClassSession) ứng với một nhân sự dạy lớp vào một ngày.
+     * Ưu tiên buổi phân công đúng người (GV/TA); nếu không có thì chọn buổi
+     * trùng khung giờ vào/ra; cuối cùng là buổi duy nhất trong ngày.
+     */
+    public static function matchSession(int $userId, int $classId, string $date, ?string $timeIn = null, ?string $timeOut = null): ?ClassSession
+    {
+        $sessions = ClassSession::where('class_id', $classId)->whereDate('date', $date)->orderBy('start_time')->get();
+        if ($sessions->isEmpty()) {
+            return null;
+        }
+
+        $assigned = $sessions->first(fn (ClassSession $s) => in_array($userId, [(int) $s->teacher_id, (int) $s->assistant_id], true));
+        if ($assigned) {
+            return $assigned;
+        }
+
+        if ($timeIn && $timeOut) {
+            $overlap = $sessions->first(fn (ClassSession $s) => $s->start_time && $s->end_time
+                && $s->start_time->format('H:i') < $timeOut && $s->end_time->format('H:i') > $timeIn);
+            if ($overlap) {
+                return $overlap;
+            }
+        }
+
+        return $sessions->count() === 1 ? $sessions->first() : null;
+    }
+
+    /**
+     * Bản ghi chấm công đang có hiệu lực (chưa bị từ chối) trùng với ca định ghi:
+     * cùng người + cùng buổi học, hoặc cùng người + cùng lớp + cùng ngày khi
+     * bản ghi cũ/mới không gắn buổi học. Dùng để chặn tính công 2 lần.
+     */
+    public static function findDuplicate(int $userId, int $classId, string $date, ?int $sessionId, ?int $ignoreId = null): ?self
+    {
+        return static::query()
+            ->where('user_id', $userId)
+            ->where('status', '!=', 'invalid')
+            ->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))
+            ->where(function ($query) use ($classId, $date, $sessionId) {
+                $sameDay = fn ($q) => $q->where('class_id', $classId)->whereDate('teaching_date', $date);
+                if ($sessionId) {
+                    $query->where('class_session_id', $sessionId)
+                        ->orWhere(fn ($q) => $sameDay($q->whereNull('class_session_id')));
+                } else {
+                    $query->where($sameDay);
+                }
+            })
+            ->first();
+    }
+
+    public function getSourceLabelAttribute(): string
+    {
+        return match ($this->source) {
+            self::SOURCE_MANUAL => 'Chấm tay',
+            self::SOURCE_CHECKIN => 'Check-in',
+            default => '—',
+        };
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            'valid' => 'Hợp lệ',
+            'invalid' => 'Từ chối',
+            'pending_review' => 'Chờ duyệt',
+            default => (string) $this->status,
+        };
     }
 
     public function getTypeLabelAttribute(): string

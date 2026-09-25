@@ -97,6 +97,8 @@ return [
             'entrance_test.*',
             'placement_test.view', 'placement_test.grade',
             'kpi.view', 'kpi.confirm',
+            // CM chốt biên bản lỗi vận hành (Phase 3)
+            'violation.view', 'violation.create', 'violation.confirm_error', 'violation.confirm_fine',
             'tuition.view', 'tuition.create', 'tuition.mark_contacted', 'tuition.report_overdue',
             'work_task.*', 'support_ticket.create', 'support_ticket.view', 'notification.view', 'survey.manage', 'course.view',
         ],
@@ -108,6 +110,8 @@ return [
             'level.*', 'syllabus.*',
             'entrance_test.*', 'placement_test.*',
             'kpi.view', 'kpi.confirm',
+            // HT chốt biên bản lỗi chuyên môn / giảng dạy (Phase 3)
+            'violation.view', 'violation.create', 'violation.confirm_error', 'violation.confirm_fine',
             'work_task.*', 'support_ticket.create', 'support_ticket.view', 'notification.view', 'survey.manage', 'course.view',
         ],
 

@@ -25,7 +25,6 @@ use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusUnit;
 use App\Models\TeacherRate;
 use App\Models\TeacherTimesheet;
-use App\Models\TimesheetSyncLog;
 use App\Models\TuitionReceipt;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -463,10 +462,8 @@ class MasterEntitySeeder extends Seeder
             ]
         );
 
-        TimesheetSyncLog::query()->firstOrCreate(
-            ['device_name' => 'Hikvision FaceID Pro (Cơ sở Cầu Giấy)'],
-            ['branch_id' => $branchCG?->id, 'device_ip' => '192.168.1.200', 'records_count' => 148, 'matched_count' => 146, 'status' => 'success']
-        );
+        // Không seed TimesheetSyncLog: chưa có tích hợp máy chấm công nào ghi log,
+        // dòng giả sẽ bị hiểu nhầm là lần đồng bộ thật trên màn Lịch sử đồng bộ.
 
         // 8. Kỷ luật & Phạt
         Penalty::query()->updateOrCreate(

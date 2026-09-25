@@ -110,11 +110,22 @@ class PayrollP0FixesTest extends TestCase
     {
         $sales = $this->userWithRole('sales_consultant', ['name' => 'Sales Hoa Hồng']);
         CommissionTier::create(['tier_name' => 'Mức 1', 'min_revenue' => 0, 'new_sale_percent' => 5, 'renew_percent' => 0, 'bonus_amount' => 200000]);
+        // Phase 3 (A6): căn cứ hoa hồng = tiền thực thu (phiếu duyệt trong kỳ), không phải deal_value
+        $student = \App\Models\Student::create(['code' => 'HV-P0-1', 'name' => 'HV Won', 'phone' => '0900000001', 'branch_id' => $this->branch->id]);
         CrmCustomer::create([
             'code' => 'KH-P0-1', 'name' => 'Lead Won', 'phone' => '0900000001', 'stage' => 'won',
-            'deal_value' => 20000000, 'branch_id' => $this->branch->id,
+            'deal_value' => 99000000, 'branch_id' => $this->branch->id,
             'assigned_user_id' => $sales->id, 'commission_user_id' => $sales->id,
-            'converted_at' => '2026-08-10 10:00:00',
+            'converted_at' => '2026-08-10 10:00:00', 'converted_student_id' => $student->id,
+        ]);
+        $tuition = \App\Models\StudentTuition::create([
+            'student_id' => $student->id, 'branch_id' => $this->branch->id,
+            'total_amount' => 20000000, 'final_amount' => 20000000, 'paid_amount' => 0, 'debt_amount' => 20000000, 'status' => 'unpaid',
+        ]);
+        \App\Models\TuitionReceipt::create([
+            'receipt_number' => 'PT-P0-1', 'student_tuition_id' => $tuition->id, 'student_id' => $student->id,
+            'amount' => 20000000, 'payment_method' => 'cash', 'payment_date' => '2026-08-10',
+            'status' => 'approved', 'approved_at' => '2026-08-10 10:00:00',
         ]);
 
         $period = $this->period();
@@ -201,7 +212,8 @@ class PayrollP0FixesTest extends TestCase
     {
         $this->actingAs($this->admin)->post(route('payroll.timesheets.manual.store'), [
             'user_id' => $this->teacher->id, 'class_id' => $this->classModel->id,
-            'teaching_date' => '2026-08-20', 'hours' => 2, 'type' => 'regular',
+            'teaching_date' => '2026-08-20', 'time_in' => '18:00', 'time_out' => '20:00', 'type' => 'regular',
+            'notes' => 'GV quên check-in',
         ])->assertSessionHasNoErrors();
 
         $this->assertNull(TeacherTimesheet::where('user_id', $this->teacher->id)->value('hourly_rate'));
@@ -213,6 +225,11 @@ class PayrollP0FixesTest extends TestCase
 
     public function test_checkin_leaves_hourly_rate_null(): void
     {
+        // Phase 3: check-in chỉ tính công khi có buổi học thật hôm nay.
+        \App\Models\ClassSession::create([
+            'class_id' => $this->classModel->id, 'branch_id' => $this->branch->id, 'date' => now()->toDateString(),
+            'start_time' => '18:00', 'end_time' => '20:00', 'teacher_id' => $this->teacher->id, 'status' => 'scheduled',
+        ]);
         $this->actingAs($this->teacher)->post(route('teacher.checkin'), ['class_ids' => [$this->classModel->id]])
             ->assertRedirect();
 
@@ -306,7 +323,8 @@ class PayrollP0FixesTest extends TestCase
 
         $this->actingAs($this->admin)->post(route('payroll.timesheets.manual.store'), [
             'user_id' => $this->teacher->id, 'class_id' => $this->classModel->id,
-            'teaching_date' => '2026-08-20', 'hours' => 2, 'type' => 'regular',
+            'teaching_date' => '2026-08-20', 'time_in' => '18:00', 'time_out' => '20:00', 'type' => 'regular',
+            'notes' => 'GV quên check-in',
         ])->assertSessionHasErrors('teaching_date');
         $this->assertDatabaseCount('teacher_timesheets', 0);
 
@@ -322,7 +340,7 @@ class PayrollP0FixesTest extends TestCase
         $this->assertDatabaseCount('penalties', 0);
 
         $penalty = $this->penalty($this->teacher, '2026-08-15', 100000, 'pending');
-        $this->actingAs($this->admin)->post(route('penalties.confirm', $penalty->id), ['decision' => 'fine'])
+        $this->actingAs($this->admin)->post(route('penalties.confirm', $penalty->id), ['decision' => 'fine', 'amount' => 100000])
             ->assertSessionHasErrors('violation_date');
         $this->assertSame('pending', $penalty->fresh()->status);
 

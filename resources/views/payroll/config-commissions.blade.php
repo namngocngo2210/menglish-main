@@ -1,255 +1,176 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('payroll.periods.index') }}" class="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary-container">military_tech</span>
-                        <span>Cấu Hình Mốc Hoa Hồng &amp; Thưởng Tái Tục</span>
-                    </h1>
-                    <p class="text-xs text-gray-500">Quản lý và thiết lập các mốc chính sách hoa hồng tuyển mới và duy trì học viên</p>
-                </div>
-            </div>
-            <a href="{{ route('payroll.config.teacher-rates') }}" class="px-3.5 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold shadow-2xs transition flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-[16px]">price_change</span>
-                <span>Đơn giá giờ dạy GV</span>
-            </a>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Cấu hình mốc hoa hồng tuyển sinh"
+                      description="Hoa hồng tính trên tiền thực thu của khách mới (gồm giáo trình, đồ dùng), theo mốc hiệu lực tại kỳ lương. Không tính hoa hồng tái tục.">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="price_change" :href="route('payroll.config.teacher-rates')">Đơn giá giờ dạy GV</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="space-y-6" x-data="{
-        editModalOpen: false,
-        editingTier: null,
-        openEdit(tier) {
-            this.editingTier = Object.assign({}, tier);
-            this.editModalOpen = true;
-        },
-        closeEdit() {
-            this.editModalOpen = false;
-            this.editingTier = null;
-        }
-    }">
-
-
+    <div class="space-y-lg" x-data="{ editing: null }">
         @if ($errors->any())
-            <div class="p-4 rounded-2xl bg-rose-50 text-rose-800 border border-rose-200 text-xs font-semibold">
-                <ul class="list-disc list-inside space-y-1">
+            <x-ui.alert type="error">
+                <ul class="list-disc pl-5">
                     @foreach ($errors->all() as $error)
                         <li>{{ $error }}</li>
                     @endforeach
                 </ul>
-            </div>
+            </x-ui.alert>
         @endif
-        
-        <!-- Warning Policy Banner (Historical Integrity Rule) -->
-        <div class="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 text-xs shadow-2xs">
-            <span class="material-symbols-outlined text-amber-600 text-xl shrink-0 mt-0.5">verified_user</span>
-            <div class="space-y-0.5">
-                <p class="font-bold text-amber-950">Quy tắc bảo toàn dữ liệu lịch sử &amp; thời điểm áp dụng:</p>
-                <p class="text-amber-800 leading-relaxed">
-                    Khi bạn thay đổi hoặc điều chỉnh tỷ lệ %, mốc doanh số của bậc hoa hồng, hệ thống sẽ <strong>chỉ áp dụng mức % mới cho các kỳ tính lương và phát sinh sau thời điểm sửa</strong>. Các kỳ lương đã duyệt / đã quyết toán trong quá khứ được giữ nguyên vẹn 100% (bảo lưu lịch sử).
-                </p>
-            </div>
-        </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            
-            <!-- Left Column: Commission Tiers Table (Col 8) -->
-            <div class="lg:col-span-8 space-y-6">
-                <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                    <div class="p-4 border-b border-gray-100 bg-slate-50/70 flex justify-between items-center">
-                        <h3 class="font-bold text-xs uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-primary-container text-base">percent</span>
-                            <span>Danh Sách Các Mốc Thưởng &amp; Hoa Hồng Đang Hiệu Lực</span>
-                        </h3>
-                        <span class="text-xs font-bold text-gray-500 font-mono">{{ $tiers->count() }} bậc</span>
-                    </div>
+        <x-ui.alert type="warning" title="Lịch sử & thời điểm áp dụng">
+            Sửa một mốc sẽ tạo <strong>phiên bản mới</strong> có hiệu lực từ ngày bạn chọn; phiên bản cũ được đóng vào ngày hôm trước và vẫn được dùng
+            khi tính lại các kỳ lương trước đó. Kỳ lương dùng mốc hiệu lực tại <strong>ngày cuối kỳ</strong>.
+        </x-ui.alert>
 
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse text-xs">
-                            <thead>
-                                <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
-                                    <th class="py-3 px-4">Bậc thưởng</th>
-                                    <th class="py-3 px-4 text-right">Doanh số tối thiểu</th>
-                                    <th class="py-3 px-4 text-center">% Tuyển mới</th>
-                                    <th class="py-3 px-4 text-center">% Tái tục (Renew)</th>
-                                    <th class="py-3 px-4 text-right">Thưởng vượt mốc</th>
-                                    <th class="py-3 px-4 text-right">Hành động</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
-                                @forelse ($tiers as $tier)
-                                    <tr class="hover:bg-orange-50/15 transition group">
-                                        <td class="py-3.5 px-4 font-bold text-gray-900">{{ $tier->tier_name }}</td>
-                                        <td class="py-3.5 px-4 font-mono font-bold text-gray-800 text-right">
-                                            ≥ {{ number_format($tier->min_revenue) }}đ
-                                        </td>
-                                        <td class="py-3.5 px-4 text-center">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono font-bold text-xs">
-                                                {{ $tier->new_sale_percent }}%
-                                            </span>
-                                        </td>
-                                        <td class="py-3.5 px-4 text-center">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-mono font-bold text-xs">
-                                                {{ $tier->renew_percent }}%
-                                            </span>
-                                        </td>
-                                        <td class="py-3.5 px-4 text-right font-mono font-black text-primary-container">
-                                            {{ number_format($tier->bonus_amount) }}đ
-                                        </td>
-                                        <td class="py-3.5 px-4 text-right whitespace-nowrap">
-                                            <div class="flex items-center justify-end gap-1">
-                                                <button @click="openEdit({{ json_encode($tier) }})" class="p-1 rounded-lg text-gray-500 hover:text-primary-container hover:bg-orange-50 transition cursor-pointer" title="Sửa bậc hoa hồng">
-                                                    <span class="material-symbols-outlined text-[18px]">edit</span>
-                                                </button>
-                                                <form action="{{ route('payroll.config.commission-tiers.destroy', $tier) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc muốn xóa bậc hoa hồng này?');">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-lg items-start">
+            <div class="lg:col-span-8 space-y-lg">
+                <x-ui.data-table min-width="640px">
+                    <x-slot:header>
+                        <h3 class="font-h3 text-h3 text-on-surface">Mốc đang hiệu lực ngày {{ $asOf->format('d/m/Y') }}</h3>
+                        <form method="GET" class="flex items-center gap-sm">
+                            <x-ui.date name="as_of" inline-label="Xem tại ngày:" :value="$asOf->toDateString()" />
+                            <x-ui.button type="submit" variant="secondary" size="sm">Xem</x-ui.button>
+                        </form>
+                    </x-slot:header>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Bậc</th>
+                                <th class="text-right">Doanh thu thực thu</th>
+                                <th class="text-center">% Tuyển mới</th>
+                                <th class="text-right">Thưởng vượt mốc</th>
+                                <th>Hiệu lực từ</th>
+                                <th class="text-right">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($tiers as $tier)
+                                <tr>
+                                    <td class="font-semibold">{{ $tier->tier_name }}</td>
+                                    <td class="text-right font-code text-code">
+                                        ≥ {{ number_format($tier->min_revenue, 0, ',', '.') }}đ
+                                        @if ($tier->max_revenue)
+                                            <span class="block font-caption text-caption text-on-surface-variant">đến {{ number_format($tier->max_revenue, 0, ',', '.') }}đ</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-center"><x-ui.badge color="success">{{ rtrim(rtrim(number_format((float) $tier->new_sale_percent, 2, '.', ''), '0'), '.') }}%</x-ui.badge></td>
+                                    <td><x-ui.money :value="$tier->bonus_amount" suffix="đ" /></td>
+                                    <td class="font-code text-code">{{ $tier->effective_from?->format('d/m/Y') ?? 'Từ đầu' }}</td>
+                                    <td class="text-right">
+                                        @if ($tier->effective_to === null)
+                                            <div class="flex justify-end gap-xs">
+                                                <x-ui.button variant="ghost" size="sm" icon="edit"
+                                                             @click="editing = {{ Js::from($tier->only(['id', 'tier_name', 'min_revenue', 'max_revenue', 'new_sale_percent', 'bonus_amount'])) }}; $dispatch('open-modal', 'edit-tier')">Phiên bản mới</x-ui.button>
+                                                <form action="{{ route('payroll.config.commission-tiers.destroy', $tier) }}" method="POST" data-confirm="Ngừng áp dụng mốc {{ $tier->tier_name }} từ hôm nay?">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" class="p-1 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer" title="Xóa">
-                                                        <span class="material-symbols-outlined text-[18px]">delete</span>
-                                                    </button>
+                                                    <x-ui.button type="submit" variant="danger-text" size="sm" icon="block">Ngừng</x-ui.button>
                                                 </form>
                                             </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="6" class="text-center py-8 text-gray-400 text-xs">Chưa có mốc hoa hồng nào được thiết lập.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="6"><x-ui.empty-state icon="percent" title="Chưa có mốc hoa hồng hiệu lực tại ngày này" /></td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </x-ui.data-table>
+
+                <x-ui.data-table min-width="760px">
+                    <x-slot:header>
+                        <h3 class="font-h3 text-h3 text-on-surface">Lịch sử các phiên bản</h3>
+                    </x-slot:header>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Bậc</th>
+                                <th class="text-right">Doanh thu từ</th>
+                                <th class="text-center">% Tuyển mới</th>
+                                <th class="text-right">Thưởng</th>
+                                <th>Hiệu lực</th>
+                                <th>Người tạo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($history as $version)
+                                <tr>
+                                    <td>
+                                        <span class="font-semibold">{{ $version->tier_name }}</span>
+                                        @if ($version->replaces)
+                                            <span class="block font-caption text-caption text-on-surface-variant">thay cho “{{ $version->replaces->tier_name }}”</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-right font-code text-code">{{ number_format($version->min_revenue, 0, ',', '.') }}đ</td>
+                                    <td class="text-center font-code text-code">{{ rtrim(rtrim(number_format((float) $version->new_sale_percent, 2, '.', ''), '0'), '.') }}%</td>
+                                    <td><x-ui.money :value="$version->bonus_amount" suffix="đ" /></td>
+                                    <td class="font-code text-code whitespace-nowrap">
+                                        {{ $version->effective_from?->format('d/m/Y') ?? 'Từ đầu' }} → {{ $version->effective_to?->format('d/m/Y') ?? 'nay' }}
+                                        @if ($version->effective_to === null)
+                                            <x-ui.badge color="success">Đang áp dụng</x-ui.badge>
+                                        @endif
+                                    </td>
+                                    <td>{{ $version->creator?->name ?? '—' }}</td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="6"><x-ui.empty-state icon="history" title="Chưa có lịch sử" /></td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                    <x-slot:footer><x-ui.pagination :paginator="$history" /></x-slot:footer>
+                </x-ui.data-table>
+            </div>
+
+            <div class="lg:col-span-4">
+                <form action="{{ route('payroll.config.commission-tiers.store') }}" method="POST"
+                      class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg space-y-md shadow-sm">
+                    @csrf
+                    <h3 class="font-h3 text-h3 text-on-surface">Thêm mốc hoa hồng</h3>
+                    <x-ui.input name="tier_name" label="Tên bậc" required placeholder="VD: Bậc 4 (Kim Cương)" />
+                    <x-ui.input type="number" name="min_revenue" label="Doanh thu thực thu tối thiểu (VNĐ)" required min="0" step="1000000" />
+                    <x-ui.input type="number" name="max_revenue" label="Doanh thu tối đa (VNĐ)" min="0" step="1000000" hint="Bỏ trống = không giới hạn." />
+                    <x-ui.input type="number" name="new_sale_percent" label="% Hoa hồng khách mới" required min="0" max="100" step="0.1" />
+                    <x-ui.input type="number" name="bonus_amount" label="Thưởng vượt mốc (VNĐ)" min="0" step="100000" />
+                    <x-ui.date name="effective_from" label="Hiệu lực từ ngày" required :value="old('effective_from', now()->toDateString())" />
+                    <x-ui.button type="submit" icon="save" class="w-full">Lưu mốc mới</x-ui.button>
+                    {{-- Thưởng / hoa hồng tái tục: A6 chốt không tính; khoản thưởng tái tục chờ BA chốt Q3. --}}
+                    <p class="font-caption text-caption text-on-surface-variant">Không có % tái tục: theo quyết định 25/09/2026 chỉ tính hoa hồng khách mới.</p>
+                </form>
+            </div>
+        </div>
+
+        <x-ui.modal name="edit-tier" title="Tạo phiên bản mới của mốc hoa hồng">
+            <form id="edit-tier-form" method="POST" :action="editing ? '{{ url('payroll/config/commission-tiers') }}/' + editing.id : '#'" class="space-y-md">
+                @csrf
+                @method('PUT')
+                <template x-if="editing">
+                    <div class="space-y-md">
+                        <x-ui.field label="Tên bậc" required>
+                            <input type="text" name="tier_name" x-model="editing.tier_name" required class="w-full rounded-lg border border-outline-variant px-md py-sm font-body-base text-body-base">
+                        </x-ui.field>
+                        <div class="grid grid-cols-2 gap-md">
+                            <x-ui.field label="Doanh thu tối thiểu" required>
+                                <input type="number" name="min_revenue" x-model="editing.min_revenue" min="0" required class="w-full rounded-lg border border-outline-variant px-md py-sm font-code text-code">
+                            </x-ui.field>
+                            <x-ui.field label="Doanh thu tối đa">
+                                <input type="number" name="max_revenue" x-model="editing.max_revenue" min="0" class="w-full rounded-lg border border-outline-variant px-md py-sm font-code text-code">
+                            </x-ui.field>
+                            <x-ui.field label="% Khách mới" required>
+                                <input type="number" name="new_sale_percent" x-model="editing.new_sale_percent" min="0" max="100" step="0.1" required class="w-full rounded-lg border border-outline-variant px-md py-sm font-code text-code">
+                            </x-ui.field>
+                            <x-ui.field label="Thưởng vượt mốc">
+                                <input type="number" name="bonus_amount" x-model="editing.bonus_amount" min="0" class="w-full rounded-lg border border-outline-variant px-md py-sm font-code text-code">
+                            </x-ui.field>
+                        </div>
+                        <x-ui.date name="effective_from" label="Phiên bản mới hiệu lực từ" required :value="now()->addDay()->toDateString()"
+                                   hint="Phiên bản cũ tự đóng vào ngày trước đó." />
                     </div>
-                </div>
-            </div>
-
-            <!-- Right Column: Add New Tier Form (Col 4) -->
-            <div class="lg:col-span-4 space-y-4">
-                <div class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-4">
-                    <h3 class="font-bold text-xs uppercase tracking-wider text-gray-900 flex items-center gap-1.5 pb-2 border-b border-gray-100">
-                        <span class="material-symbols-outlined text-primary-container text-base">add_circle</span>
-                        <span>Thiết lập mốc hoa hồng mới</span>
-                    </h3>
-
-                    <form action="{{ route('payroll.config.commission-tiers.store') }}" method="POST" class="space-y-3.5 text-xs">
-                        @csrf
-                        <div>
-                            <label class="block font-bold text-gray-700 mb-1 text-[11px] uppercase">Tên bậc thưởng <span class="text-rose-500">*</span></label>
-                            <input type="text" name="tier_name" placeholder="VD: Bậc 4 (Kim Cương)" required class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 bg-white text-gray-900 focus:ring-primary-container focus:border-primary-container shadow-2xs" />
-                        </div>
-
-                        <div>
-                            <label class="block font-bold text-gray-700 mb-1 text-[11px] uppercase">Doanh số tối thiểu (VNĐ) <span class="text-rose-500">*</span></label>
-                            <input type="number" name="min_revenue" value="200000000" step="5000000" min="0" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2.5 bg-white text-gray-900 focus:ring-primary-container focus:border-primary-container shadow-2xs" />
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block font-bold text-gray-700 mb-1 text-[11px] uppercase">% Tuyển mới <span class="text-rose-500">*</span></label>
-                                <input type="number" step="0.1" min="0" max="100" name="new_sale_percent" value="10.0" required class="w-full text-xs font-mono font-bold text-emerald-700 rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-primary-container focus:border-primary-container shadow-2xs" />
-                            </div>
-                            <div>
-                                <label class="block font-bold text-gray-700 mb-1 text-[11px] uppercase">% Tái tục <span class="text-rose-500">*</span></label>
-                                <input type="number" step="0.1" min="0" max="100" name="renew_percent" value="15.0" required class="w-full text-xs font-mono font-bold text-blue-700 rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-primary-container focus:border-primary-container shadow-2xs" />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block font-bold text-gray-700 mb-1 text-[11px] uppercase">Thưởng nóng vượt mốc (VNĐ)</label>
-                            <input type="number" name="bonus_amount" value="5000000" step="500000" min="0" class="w-full text-xs font-mono font-bold text-primary-container rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-primary-container focus:border-primary-container shadow-2xs" />
-                        </div>
-
-                        <div class="pt-2 border-t border-gray-100">
-                            <button type="submit" class="w-full py-2.5 bg-primary-container hover:bg-primary text-white font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
-                                <span class="material-symbols-outlined text-[16px]">save</span>
-                                <span>Lưu Mốc Thưởng Mới</span>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- Edit Commission Tier Modal -->
-        <div x-show="editModalOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-            <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div x-show="editModalOpen" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-                     @click="closeEdit()" class="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"></div>
-
-                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-                <div x-show="editModalOpen" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                     class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-200">
-                    
-                    <form :action="'/payroll/config/commission-tiers/' + (editingTier ? editingTier.id : '')" method="POST">
-                        @csrf
-                        @method('PUT')
-
-                        <div class="bg-white p-6 space-y-4">
-                            <div class="flex items-center justify-between border-b border-gray-100 pb-3">
-                                <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">
-                                    <span class="material-symbols-outlined text-primary-container">edit</span>
-                                    <span>Chỉnh Sửa Mốc Hoa Hồng</span>
-                                </h3>
-                                <button type="button" @click="closeEdit()" class="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition">
-                                    <span class="material-symbols-outlined text-[20px]">close</span>
-                                </button>
-                            </div>
-
-                            <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-1">
-                                <p class="font-bold flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-[16px]">info</span>
-                                    Lưu ý về mốc thời gian:
-                                </p>
-                                <p>Tỷ lệ % sau khi cập nhật chỉ có hiệu lực cho các kỳ tính lương và Deal phát sinh từ thời điểm này trở đi. Không thay đổi các kỳ đã khóa/duyệt trước đó.</p>
-                            </div>
-
-                            <div class="space-y-3 text-xs">
-                                <div>
-                                    <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Tên bậc thưởng <span class="text-rose-500">*</span></label>
-                                    <input type="text" name="tier_name" x-model="editingTier.tier_name" required class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 bg-white text-gray-900 focus:ring-primary-container focus:border-primary-container shadow-2xs" />
-                                </div>
-
-                                <div>
-                                    <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Doanh số tối thiểu (VNĐ) <span class="text-rose-500">*</span></label>
-                                    <input type="number" name="min_revenue" x-model="editingTier.min_revenue" step="5000000" min="0" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2.5 bg-white text-gray-900 focus:ring-primary-container focus:border-primary-container shadow-2xs" />
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">% Tuyển mới <span class="text-rose-500">*</span></label>
-                                        <input type="number" step="0.1" min="0" max="100" name="new_sale_percent" x-model="editingTier.new_sale_percent" required class="w-full text-xs font-mono font-bold text-emerald-700 rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-primary-container focus:border-primary-container shadow-2xs" />
-                                    </div>
-                                    <div>
-                                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">% Tái tục <span class="text-rose-500">*</span></label>
-                                        <input type="number" step="0.1" min="0" max="100" name="renew_percent" x-model="editingTier.renew_percent" required class="w-full text-xs font-mono font-bold text-blue-700 rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-primary-container focus:border-primary-container shadow-2xs" />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Thưởng nóng vượt mốc (VNĐ)</label>
-                                    <input type="number" name="bonus_amount" x-model="editingTier.bonus_amount" step="500000" min="0" class="w-full text-xs font-mono font-bold text-primary-container rounded-xl border border-gray-200 p-2.5 bg-white focus:ring-primary-container focus:border-primary-container shadow-2xs" />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-gray-50 px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
-                            <button type="button" @click="closeEdit()" class="px-4 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold transition shadow-2xs">
-                                Hủy
-                            </button>
-                            <button type="submit" class="px-5 py-2 rounded-xl bg-primary-container hover:bg-primary text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer">
-                                <span class="material-symbols-outlined text-[16px]">save</span>
-                                <span>Cập nhật bậc hoa hồng</span>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
+                </template>
+            </form>
+            <x-slot:footer>
+                <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'edit-tier')">Hủy</x-ui.button>
+                <x-ui.button type="submit" form="edit-tier-form" icon="save">Lưu phiên bản mới</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
     </div>
 </x-app-layout>

@@ -6,68 +6,65 @@
             </a>
             <div>
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight">Chấm công Ca dạy Thủ công (Giáo viên / Trợ giảng)</h1>
-                <p class="text-xs text-gray-500">Ghi nhận giờ dạy thực tế, ca dạy thay, dạy kèm 1-1 hoặc workshop</p>
+                <p class="text-xs text-gray-500">Ghi nhận ca dạy khi giáo viên không check-in được: bắt buộc giờ vào/ra và lý do</p>
             </div>
         </div>
     </x-slot>
 
-    <div class="max-w-4xl mx-auto">
-        <form action="{{ route('payroll.timesheets.manual.store') }}" method="POST" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
+    <div class="max-w-4xl mx-auto space-y-md">
+        <x-ui.alert type="info" title="Quy tắc chấm công tay">
+            <ul class="list-disc pl-5 space-y-0.5">
+                <li>Số giờ được tính tự động từ <strong>giờ vào</strong> và <strong>giờ ra</strong> (tối thiểu 30 phút).</li>
+                <li>Nếu lớp có buổi học trên lịch vào ngày này, bản ghi sẽ được gắn với buổi học đó.</li>
+                <li>Không chấm trùng: nhân sự đã check-in hoặc đã được chấm tay cho cùng lớp/buổi sẽ bị từ chối.</li>
+                <li>Không ghi được vào ngày thuộc kỳ lương đã duyệt/đã chi trả.</li>
+            </ul>
+        </x-ui.alert>
+
+        <form action="{{ route('payroll.timesheets.manual.store') }}" method="POST" class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm p-lg space-y-lg">
             @csrf
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Giáo viên / Trợ giảng được chấm công <span class="text-rose-500">*</span></label>
-                    <select name="user_id" required class="w-full text-xs rounded-xl border border-gray-200 p-2 font-bold">
-                        @foreach ($teachers as $tc)
-                            <option value="{{ $tc->id }}">
-                                {{ $tc->name }} - [{{ $tc->getRoleNames()->implode(', ') ?: 'GV/TA' }}] ({{ $tc->email }})
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Lớp học giảng dạy <span class="text-rose-500">*</span></label>
-                    <select name="class_id" required class="w-full text-xs rounded-xl border border-gray-200 p-2 font-semibold text-primary">
-                        @foreach ($classes as $cl)
-                            <option value="{{ $cl->id }}">{{ $cl->name }} ({{ $cl->code }})</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Ngày giảng dạy <span class="text-rose-500">*</span></label>
-                    <input type="date" name="teaching_date" value="{{ date('Y-m-d') }}" required class="w-full text-xs rounded-xl border border-gray-200 p-2" />
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Số giờ tính công (Hours) <span class="text-rose-500">*</span></label>
-                    <input type="number" step="0.5" name="hours" value="2.0" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2" />
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Đơn giá giờ dạy riêng (VNĐ/h)</label>
-                    <input type="number" name="hourly_rate" value="{{ old('hourly_rate') }}" min="1000" step="1000" placeholder="Bỏ trống = đơn giá của giáo viên" class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 p-2 text-emerald-600" />
-                    <p class="text-[10px] text-gray-400 mt-1">Bỏ trống để dùng đơn giá trong hồ sơ nhân sự (mặc định 250.000đ/h).</p>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Loại ca dạy</label>
-                    <select name="type" class="w-full text-xs rounded-xl border border-gray-200 p-2">
-                        <option value="regular">Ca dạy chính khóa</option>
-                        <option value="sub">Dạy thay (Sub)</option>
-                        <option value="1on1">Kèm phụ đạo 1-1</option>
-                        <option value="grading">Chấm bài thi Test</option>
-                        <option value="workshop">Workshop / Sự kiện</option>
-                    </select>
-                </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+                <x-ui.select name="user_id" label="Giáo viên / Trợ giảng được chấm công" required>
+                    @foreach ($teachers as $tc)
+                        <option value="{{ $tc->id }}" @selected((string) old('user_id') === (string) $tc->id)>
+                            {{ $tc->name }} - [{{ $tc->getRoleNames()->implode(', ') ?: 'GV/TA' }}] ({{ $tc->email }})
+                        </option>
+                    @endforeach
+                </x-ui.select>
+
+                <x-ui.select name="class_id" label="Lớp học giảng dạy" required>
+                    @foreach ($classes as $cl)
+                        <option value="{{ $cl->id }}" @selected((string) old('class_id') === (string) $cl->id)>{{ $cl->name }} ({{ $cl->code }})</option>
+                    @endforeach
+                </x-ui.select>
+
+                <x-ui.date name="teaching_date" label="Ngày giảng dạy" required :value="old('teaching_date', date('Y-m-d'))" />
+
+                <x-ui.select name="type" label="Loại ca dạy" required :options="[
+                    'regular' => 'Ca dạy chính khóa',
+                    'sub' => 'Dạy thay (Sub)',
+                    '1on1' => 'Kèm phụ đạo 1-1',
+                    'grading' => 'Chấm bài thi Test',
+                    'workshop' => 'Workshop / Sự kiện',
+                ]" />
+
+                <x-ui.input type="time" name="time_in" label="Giờ vào" required />
+                <x-ui.input type="time" name="time_out" label="Giờ ra" required hint="Số giờ tính công = giờ ra − giờ vào." />
+
+                <x-ui.input type="number" name="hourly_rate" label="Đơn giá giờ dạy riêng cho ca này (VNĐ/h)" min="1000" step="1000"
+                            placeholder="Bỏ trống = đơn giá của giáo viên"
+                            hint="Bỏ trống để dùng đơn giá riêng của GV theo ngày hiệu lực, rồi tới hồ sơ nhân sự (mặc định 250.000đ/h)." />
+
                 <div class="md:col-span-2">
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Ghi chú ca dạy</label>
-                    <textarea name="notes" rows="2" placeholder="Ghi chú nội dung buổi học, học sinh vắng..." class="w-full text-xs rounded-xl border border-gray-200 p-2"></textarea>
+                    <x-ui.textarea name="notes" label="Lý do chấm công tay" required rows="3"
+                                   placeholder="VD: GV quên check-in, dạy thay cho cô B, máy chấm công lỗi..." />
                 </div>
             </div>
 
-            <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                <button type="submit" class="px-6 py-2.5 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-base">save</span>
-                    <span>Lưu Chấm công vào CSDL</span>
-                </button>
+            <div class="flex items-center justify-end gap-sm pt-md border-t border-surface-container">
+                <x-ui.button variant="secondary" :href="route('payroll.timesheets.teachers')">Hủy</x-ui.button>
+                <x-ui.button type="submit" icon="save">Lưu chấm công</x-ui.button>
             </div>
         </form>
     </div>
