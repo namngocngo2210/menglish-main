@@ -191,6 +191,60 @@ class Phase4FinanceTest extends TestCase
             ->assertSee('Đang hiệu lực');
     }
 
+    // ---------------------------------------------------------------------
+    // 4. Quyền báo cáo thu chi
+    // ---------------------------------------------------------------------
+
+    public function test_sales_consultant_cannot_open_finance_reports_but_keeps_report_view(): void
+    {
+        $sales = $this->makeUser('sales_consultant');
+        $this->assertTrue($sales->can('report.view'));
+        $this->assertFalse($sales->can('finance.view'));
+
+        $this->actingAs($sales)->get(route('finance.reports.revenue'))->assertForbidden();
+        $this->actingAs($sales)->get(route('finance.expenses.index'))->assertForbidden();
+        $this->actingAs($sales)->get(route('finance.reports.revenue.export'))->assertForbidden();
+
+        $this->actingAs($this->accountant)->get(route('finance.reports.revenue'))->assertOk();
+        $this->actingAs($this->admin)->get(route('finance.expenses.index'))->assertOk();
+    }
+
+    public function test_manager_only_sees_own_branch_in_finance_reports(): void
+    {
+        $manager = $this->makeUser('manager');
+        $otherStudent = Student::create([
+            'code' => 'HV-P4-DD', 'name' => 'Học viên Đống Đa', 'phone' => '0900000099',
+            'branch_id' => $this->branch2->id, 'status' => 'studying',
+        ]);
+        $otherTuition = $this->makeTuition($otherStudent, 9000000);
+
+        $this->pendingReceipt($this->tuition, 1234000, ['status' => 'approved', 'invoice_number' => 'C26MEN-0000001']);
+        $this->pendingReceipt($otherTuition, 7777000, ['status' => 'approved', 'invoice_number' => 'C26MEN-0000002']);
+
+        $response = $this->actingAs($manager)->get(route('finance.reports.revenue', ['branch_id' => 'all']));
+        $response->assertOk();
+        $response->assertSee('1.234.000');
+        $response->assertDontSee('7.777.000');
+        $response->assertDontSee('CN Đống Đa');
+
+        // Cố ý chọn chi nhánh khác -> vẫn bị ép về chi nhánh của mình.
+        $this->actingAs($manager)->get(route('finance.reports.revenue', ['branch_id' => $this->branch2->id]))
+            ->assertOk()
+            ->assertDontSee('7.777.000');
+
+        $csv = $this->actingAs($manager)->get(route('finance.reports.revenue.export'))->streamedContent();
+        $this->assertStringNotContainsString('CN Đống Đa', $csv);
+
+        // Không được ghi khoản chi cho chi nhánh khác.
+        $this->actingAs($manager)->post(route('finance.expenses.store'), [
+            'expense_date' => now()->toDateString(), 'title' => 'Tiền điện', 'amount' => 500000,
+            'payment_method' => 'tien_mat', 'branch_id' => $this->branch2->id,
+        ])->assertForbidden();
+
+        // Admin vẫn thấy toàn hệ thống.
+        $this->actingAs($this->admin)->get(route('finance.reports.revenue'))->assertOk()->assertSee('7.777.000');
+    }
+
     public function test_deactivated_branch_range_is_skipped(): void
     {
         $range = InvoiceConfiguration::create([

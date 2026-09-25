@@ -29,7 +29,7 @@ class FinanceController extends Controller
     {
         // 1. Filter parameters
         $month = $request->input('month', Carbon::now()->format('Y-m'));
-        $branchId = $request->input('branch_id', 'all');
+        $branchId = $this->resolveBranchFilter($request, $request->input('branch_id', 'all'));
         $search = trim($request->input('search', ''));
 
         try {
@@ -43,8 +43,8 @@ class FinanceController extends Controller
         $endDate = $parsedDate->copy()->endOfMonth()->toDateString();
         $prevMonth = $parsedDate->copy()->subMonth()->format('Y-m');
 
-        // Danh sách chi nhánh
-        $branches = Branch::where('is_active', true)->orderBy('id')->get();
+        // Danh sách chi nhánh (Quản lý cơ sở chỉ thấy chi nhánh của mình)
+        $branches = $this->visibleBranches($request);
 
         // 2. Query manual expenses
         $query = OperatingExpense::with(['branch', 'creator'])
@@ -173,7 +173,10 @@ class FinanceController extends Controller
             $monthOptions[$val] = $label;
         }
 
+        $branchScoped = $this->scopedBranchIds($request->user()) !== null;
+
         return view('finance.expenses.index', compact(
+            'branchScoped',
             'month',
             'branchId',
             'search',
@@ -219,6 +222,8 @@ class FinanceController extends Controller
             'branch_id.required' => 'Vui lòng chọn chi nhánh áp dụng.',
         ]);
 
+        $this->authorizeExpenseBranch($request, $validated['branch_id']);
+
         // Tự động phân loại danh mục nếu không chọn
         $category = $validated['category'] ?? null;
         if (!$category) {
@@ -263,6 +268,9 @@ class FinanceController extends Controller
             'category' => 'nullable|string|in:mat_bang_tien_ich,giao_trinh_van_hanh,khac',
         ]);
 
+        $this->authorizeExpenseBranch($request, $expense->branch_id);
+        $this->authorizeExpenseBranch($request, $validated['branch_id']);
+
         $expense->update($validated);
 
         return redirect()->back()->with('status', 'Đã cập nhật thông tin khoản chi thành công!');
@@ -271,9 +279,10 @@ class FinanceController extends Controller
     /**
      * Xóa khoản chi tự nhập
      */
-    public function destroyExpense($id)
+    public function destroyExpense(Request $request, $id)
     {
         $expense = OperatingExpense::findOrFail($id);
+        $this->authorizeExpenseBranch($request, $expense->branch_id);
         $title = $expense->title;
         $expense->delete();
 
@@ -286,7 +295,7 @@ class FinanceController extends Controller
     public function exportExpenses(Request $request)
     {
         $month = $request->input('month', Carbon::now()->format('Y-m'));
-        $branchId = $request->input('branch_id', 'all');
+        $branchId = $this->resolveBranchFilter($request, $request->input('branch_id', 'all'));
 
         $parsedDate = Carbon::createFromFormat('Y-m', $month);
         $startDate = $parsedDate->copy()->startOfMonth()->toDateString();
@@ -341,7 +350,7 @@ class FinanceController extends Controller
     {
         // 1. Filter parameters
         $month = $request->input('month', Carbon::now()->format('Y-m'));
-        $branchId = $request->input('branch_id', 'all');
+        $branchId = $this->resolveBranchFilter($request, $request->input('branch_id', 'all'));
 
         try {
             $parsedDate = Carbon::createFromFormat('Y-m', $month);
@@ -354,7 +363,7 @@ class FinanceController extends Controller
         $endDate = $parsedDate->copy()->endOfMonth()->toDateString();
         $prevMonth = $parsedDate->copy()->subMonth()->format('Y-m');
 
-        $branches = Branch::where('is_active', true)->orderBy('id')->get();
+        $branches = $this->visibleBranches($request);
 
         // 2. Query Doanh thu (Tổng thu thực tế)
         // Tất cả phiếu thu còn hiệu lực (không bị hủy hóa đơn / rejected)
@@ -489,7 +498,10 @@ class FinanceController extends Controller
             $monthOptions[$val] = $label;
         }
 
+        $branchScoped = $this->scopedBranchIds($request->user()) !== null;
+
         return view('finance.reports.provisional-revenue', compact(
+            'branchScoped',
             'month',
             'branchId',
             'branches',
@@ -538,7 +550,7 @@ class FinanceController extends Controller
         $startDate = $parsedDate->copy()->startOfMonth()->toDateString();
         $endDate = $parsedDate->copy()->endOfMonth()->toDateString();
 
-        $branches = Branch::where('is_active', true)->orderBy('id')->get();
+        $branches = $this->visibleBranches($request);
         $period = PayrollPeriod::where('month', (int)$parsedDate->format('m'))
             ->where('year', (int)$parsedDate->format('Y'))
             ->whereIn('status', ['approved', 'paid'])
@@ -627,6 +639,59 @@ class FinanceController extends Controller
         }
 
         return $query;
+    }
+
+    /**
+     * Chi nhánh người dùng được xem trong báo cáo thu chi. null = không giới hạn (Admin, Kế toán).
+     * Quản lý cơ sở chỉ thấy chi nhánh của mình (branch_id + user_branches).
+     *
+     * @return \Illuminate\Support\Collection<int, int>|null
+     */
+    private function scopedBranchIds(?User $user): ?\Illuminate\Support\Collection
+    {
+        if (! $user || $user->hasAnyRole(['admin', 'accountant']) || ! $user->hasRole('manager')) {
+            return null;
+        }
+
+        $ids = $user->branches()->pluck('branches.id')
+            ->push($user->branch_id)
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        abort_if($ids->isEmpty(), 403, 'Tài khoản Quản lý cơ sở chưa được gán chi nhánh nên không xem được báo cáo thu chi.');
+
+        return $ids;
+    }
+
+    /**
+     * Chuẩn hoá bộ lọc chi nhánh theo phạm vi: người bị giới hạn không được chọn "Tất cả" hay chi nhánh ngoài phạm vi.
+     */
+    private function resolveBranchFilter(Request $request, int|string|null $branchId): int|string
+    {
+        $scope = $this->scopedBranchIds($request->user());
+        if ($scope === null) {
+            return $branchId ?? 'all';
+        }
+
+        return is_numeric($branchId) && $scope->contains((int) $branchId) ? (int) $branchId : $scope->first();
+    }
+
+    private function visibleBranches(Request $request)
+    {
+        $scope = $this->scopedBranchIds($request->user());
+
+        return Branch::where('is_active', true)
+            ->when($scope !== null, fn ($q) => $q->whereIn('id', $scope))
+            ->orderBy('id')
+            ->get();
+    }
+
+    private function authorizeExpenseBranch(Request $request, int|string|null $branchId): void
+    {
+        $scope = $this->scopedBranchIds($request->user());
+        abort_if($scope !== null && ! $scope->contains((int) $branchId), 403, 'Bạn chỉ được quản lý khoản chi của chi nhánh mình.');
     }
 
     /**

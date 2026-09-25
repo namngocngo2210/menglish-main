@@ -55,6 +55,8 @@ return [
         'holiday' => ['manage'],
         'activity_log' => ['view'],
         'report' => ['view'],
+        // Báo cáo thu chi / sổ khoản chi (finance.*). Tách khỏi report.view để Sale chỉ xem báo cáo CRM.
+        'finance' => ['view'],
     ],
 
     /**
@@ -77,14 +79,14 @@ return [
             'violation.*',
             'work_task.*', 'support_ticket.*', 'notification.*', 'survey.manage',
             'course.view', 'recruitment.view', 'recruitment.manage',
-            'media.*', 'activity_log.view', 'report.view',
+            'media.*', 'activity_log.view', 'report.view', 'finance.view',
             'promotion.manage',
         ],
 
         'accountant' => [
             'tuition.*', 'invoice.*', 'refund_transfer.*',
             'bank_account.manage', 'invoice_range.manage', 'fee_reminder_config.manage',
-            'payroll.view', 'payroll.create', 'payroll.edit', 'payroll.calculate', 'payroll.view_own', 'report.view',
+            'payroll.view', 'payroll.create', 'payroll.edit', 'payroll.calculate', 'payroll.view_own', 'report.view', 'finance.view',
             'work_task.view', 'support_ticket.create', 'support_ticket.view',
         ],
 

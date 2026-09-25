@@ -175,7 +175,7 @@ Route::middleware('auth')->group(function () {
     // ─────────────────────────────────────────────
     // 2.1. Tài chính & Báo cáo Thu Chi (Epic 13)
     // ─────────────────────────────────────────────
-    Route::prefix('finance')->name('finance.')->middleware('can:report.view')->group(function () {
+    Route::prefix('finance')->name('finance.')->middleware('can:finance.view')->group(function () {
         Route::get('/expenses', [FinanceController::class, 'expenses'])->name('expenses.index');
         Route::post('/expenses', [FinanceController::class, 'storeExpense'])->middleware('can:tuition.create')->name('expenses.store');
         Route::put('/expenses/{id}', [FinanceController::class, 'updateExpense'])->middleware('can:tuition.create')->name('expenses.update');
