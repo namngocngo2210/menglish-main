@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\PayrollPeriod;
 use App\Models\User;
@@ -42,9 +43,11 @@ class PayrollModuleTest extends TestCase
 
     public function test_can_record_manual_timesheet(): void
     {
-        $user = User::factory()->create();
+        // Quản lý cơ sở chỉ chấm công tay cho lớp thuộc chi nhánh mình.
+        $branch = Branch::create(['name' => 'Cơ sở chấm công', 'code' => 'CC', 'is_active' => true]);
+        $user = User::factory()->create(['branch_id' => $branch->id]);
         $user->assignRole('manager');
-        $class = ClassModel::create(['code' => 'CL-01', 'name' => 'Lớp Speaking B2']);
+        $class = ClassModel::create(['code' => 'CL-01', 'name' => 'Lớp Speaking B2', 'branch_id' => $branch->id]);
 
         $response = $this->actingAs($user)->post('/payroll/timesheets/manual', [
             'user_id' => $user->id,
