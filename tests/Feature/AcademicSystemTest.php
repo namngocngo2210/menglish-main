@@ -261,41 +261,41 @@ class AcademicSystemTest extends TestCase
             'title' => 'Đề Test Online Trực Tuyến 4 Kỹ Năng',
             'target_level' => 'B1 - B2',
             'duration_minutes' => 45,
-            'questions_count' => 20,
+            'questions_count' => 4,
             'is_active' => true,
+            'questions' => [
+                ['id' => 1, 'skill' => 'listening', 'type' => 'multiple_choice', 'title' => 'L1', 'options' => [['key' => 'A', 'text' => 'a'], ['key' => 'B', 'text' => 'b']], 'correct_answer' => 'B'],
+                ['id' => 2, 'skill' => 'listening', 'type' => 'multiple_choice', 'title' => 'L2', 'options' => [['key' => 'A', 'text' => 'a'], ['key' => 'B', 'text' => 'b']], 'correct_answer' => 'A'],
+                ['id' => 3, 'skill' => 'reading', 'type' => 'multiple_choice', 'title' => 'R1', 'options' => [['key' => 'C', 'text' => 'c'], ['key' => 'D', 'text' => 'd']], 'correct_answer' => 'C'],
+                ['id' => 4, 'skill' => 'reading', 'type' => 'multiple_choice', 'title' => 'R2', 'options' => [['key' => 'C', 'text' => 'c'], ['key' => 'D', 'text' => 'd']], 'correct_answer' => 'D'],
+            ],
         ]);
 
         $lead = CrmCustomer::create([
             'code' => 'KH-ONLINE01',
             'name' => 'Lê Thanh Hằng',
             'phone' => '0977 888 999',
+            'phone_normalized' => '0977888999',
             'email' => 'thanhhang.le@gmail.com',
             'stage' => 'test_scheduled',
         ]);
 
-        // 1. Lead visits portal test page
-        $responseTake = $this->get(route('portal.test.take', ['code' => $test->code, 'lead_id' => $lead->id]));
+        // 1. Lead mở link test riêng (có chữ ký, do CRM sinh)
+        $signedUrl = app(\App\Services\PlacementPortalLinkService::class)->signedLinkForLead($test, $lead);
+        $responseTake = $this->get($signedUrl);
         $responseTake->assertOk();
+        $responseTake->assertSee('Lê Thanh Hằng');
+        preg_match('/name="lead_token" value="([^"]+)"/', $responseTake->getContent(), $m);
+        $this->assertNotEmpty($m[1] ?? null);
 
-        // 2. Lead submits answers
+        // 2. Lead nộp bài
         $responseSubmit = $this->post(route('portal.test.submit', $test->code), [
-            'customer_id' => $lead->id,
+            'lead_token' => html_entity_decode($m[1]),
             'candidate_name' => $lead->name,
             'candidate_phone' => $lead->phone,
             'candidate_email' => $lead->email,
-            'listening_answers' => [
-                'q1' => 'B', // Correct
-                'q2' => 'A', // Correct
-                'q3' => 'C', // Correct
-                'q4' => 'A', // Correct
-            ],
-            'reading_answers' => [
-                'q1' => 'C', // Correct
-                'q2' => 'B', // Correct
-                'q3' => 'A', // Correct
-                'q4' => 'D', // Correct
-            ],
-            'writing_content' => 'I would like to improve my English speaking and listening skills because my current job requires daily communication with international clients and partners from Singapore and Australia. Furthermore, I am preparing to take the IELTS examination in the next six months to apply for a master degree program in Australia. Achieving an overall band score of 6.5 with no band under 6.0 is my primary objective. I am willing to dedicate two hours every evening to practice and review assignments.',
+            'answers' => ['1' => 'B', '2' => 'A', '3' => 'C', '4' => 'C'],
+            'writing_content' => 'I would like to improve my English speaking and listening skills.',
             'speaking_self_rate' => 'intermediate',
         ]);
 
@@ -303,24 +303,34 @@ class AcademicSystemTest extends TestCase
         $this->assertNotNull($submission);
         $responseSubmit->assertRedirect(URL::signedRoute('portal.test.scorecard', ['id' => $submission->id]));
 
-        // 3. Verify Auto-Grading & Scores
-        $this->assertEquals(7.0, $submission->listening_score); // 4/5 correct -> 7.0
-        $this->assertEquals(7.0, $submission->reading_score);   // 4/5 correct -> 7.0
-        $this->assertEquals(5.5, $submission->writing_score);   // Length heuristic
-        $this->assertEquals(5.5, $submission->speaking_score);
-        $this->assertEquals(6.3, $submission->overall_score);   // (7.0+7.0+5.5+5.5)/4 = 6.25 -> round 6.3
-        $this->assertEquals('B2 (Upper-Intermediate)', $submission->cefr_level);
-        $this->assertEquals('IELTS Intensive 6.5', $submission->recommended_course);
+        // 3. Nghe/Đọc chấm tự động theo đáp án của đề; Viết/Nói chờ Học vụ chấm
+        $this->assertSame($lead->id, $submission->customer_id);
+        $this->assertEquals(8.5, $submission->listening_score); // 2/2
+        $this->assertEquals(4.5, $submission->reading_score);   // 1/2
+        $this->assertNull($submission->writing_score);
+        $this->assertNull($submission->speaking_score);
+        $this->assertNull($submission->overall_score);
+        $this->assertSame('pending', $submission->status);
+        $this->assertNull($submission->grader_id);
 
-        // 4. Verify Smart Teacher Feedback was auto-generated
-        $this->assertNotNull($submission->teacher_comments);
-        $this->assertStringContainsString('Kỹ năng Nghe', $submission->teacher_comments);
-        $this->assertStringContainsString('IELTS Intensive 6.5', $submission->teacher_comments);
-
-        // 5. Verify CRM Lead updated
+        // 4. Lead tiến sang "tested" nhưng chưa có điểm tổng
         $lead->refresh();
         $this->assertEquals('tested', $lead->stage);
-        $this->assertStringContainsString('6.3', $lead->test_score);
+        $this->assertNull($lead->test_score);
+
+        // 5. Học vụ chấm hoàn tất -> rubric sinh nhận xét, đồng bộ điểm sang CRM
+        $this->actingAs($this->academicHead)->post(route('placement-tests.results.update', $submission->id), [
+            'listening_score' => 8.5,
+            'reading_score' => 4.5,
+            'writing_score' => 6.0,
+            'speaking_score' => 6.0,
+            'cefr_level' => 'B1',
+        ])->assertRedirect();
+        $submission->refresh();
+        $this->assertSame('graded', $submission->status);
+        $this->assertEquals(6.3, $submission->overall_score);
+        $this->assertStringContainsString('Kỹ năng Nghe', $submission->teacher_comments);
+        $this->assertStringContainsString('6.3', $lead->fresh()->test_score);
 
         // 6. View candidate scorecard (public route yêu cầu URL có chữ ký)
         $responseScorecard = $this->get(URL::signedRoute('portal.test.scorecard', ['id' => $submission->id]));

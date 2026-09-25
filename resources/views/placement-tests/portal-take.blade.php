@@ -41,15 +41,15 @@
             </div>
             <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">{{ $test->title }}</h1>
             <p class="text-xs md:text-sm text-white/90 leading-relaxed max-w-2xl">
-                Bài kiểm tra gồm {{ $test->questions_count }} câu hỏi đánh giá 4 kỹ năng (Nghe, Đọc - Ngữ pháp, Viết và Nói). Hệ thống sẽ <strong>tự động chấm điểm và xếp cấp độ CEFR</strong> ngay sau khi bạn hoàn thành.
+                Bài kiểm tra gồm {{ $test->questions_count }} câu hỏi đánh giá 4 kỹ năng (Nghe, Đọc - Ngữ pháp, Viết và Nói). Phần Nghe, Đọc - Ngữ pháp được chấm tự động; phần Viết và Nói do <strong>Học vụ MEnglish</strong> chấm và gửi kết quả xếp lớp cho bạn.
             </p>
         </div>
 
         <!-- Form Submission -->
         <form action="{{ route('portal.test.submit', $test->code) }}" method="POST" class="space-y-6">
             @csrf
-            @if ($lead)
-                <input type="hidden" name="customer_id" value="{{ $lead->id }}">
+            @if ($leadToken)
+                <input type="hidden" name="lead_token" value="{{ $leadToken }}">
             @endif
 
             <!-- 1. Candidate Info -->

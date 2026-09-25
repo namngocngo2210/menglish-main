@@ -20,6 +20,7 @@ use App\Models\StudentTuition;
 use App\Models\SystemCategory;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Services\PlacementPortalLinkService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -62,7 +63,7 @@ class CrmController extends Controller
 
     protected function normalizePhone(string $phone): string
     {
-        return preg_replace('/\D+/', '', $phone) ?: '';
+        return CrmCustomer::normalizePhone($phone);
     }
 
     protected function assertUniqueLead(string $phone, ?string $email = null, ?int $ignoreId = null): string
@@ -311,7 +312,12 @@ class CrmController extends Controller
         $courses = Course::where('is_active', true)->orderBy('name')->get();
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
 
-        return view('crm.show', compact('customer', 'placementTests', 'examiners', 'latestSubmission', 'trialClasses', 'courses', 'branches'));
+        // Link test riêng của lead: có chữ ký + hạn 7 ngày, chỉ khi đã gán đề đang hoạt động.
+        $portalTestLink = $customer->assignedTest?->is_active
+            ? app(PlacementPortalLinkService::class)->signedLinkForLead($customer->assignedTest, $customer)
+            : null;
+
+        return view('crm.show', compact('customer', 'placementTests', 'examiners', 'latestSubmission', 'trialClasses', 'courses', 'branches', 'portalTestLink'));
     }
 
     public function saveTestScore(Request $request, $id)
@@ -336,8 +342,9 @@ class CrmController extends Controller
         $listening = (float) $validated['listening_score'];
         $reading = (float) $validated['reading_score'];
         $speaking = (float) $validated['speaking_score'];
-        $writing = isset($validated['writing_score']) && $validated['writing_score'] !== '' ? (float) $validated['writing_score'] : $reading;
-        $overall = round(($listening + $reading + $speaking + $writing) / 4, 1);
+        // Kỹ năng không nhập giữ null — không lấy điểm kỹ năng khác thay thế.
+        $writing = isset($validated['writing_score']) ? (float) $validated['writing_score'] : null;
+        $overall = PlacementTestSubmission::averageOf([$listening, $reading, $speaking, $writing]);
 
         $submission = null;
         if (! empty($validated['submission_id'])) {
@@ -351,10 +358,9 @@ class CrmController extends Controller
 
         $testId = $submission?->placement_test_id
             ?? $validated['placement_test_id']
-            ?? $customer->assigned_test_id
-            ?? PlacementTest::first()?->id;
+            ?? $customer->assigned_test_id;
         if (! $testId) {
-            throw ValidationException::withMessages(['placement_test_id' => 'Chưa có đề kiểm tra đầu vào để chấm điểm.']);
+            throw ValidationException::withMessages(['placement_test_id' => 'Vui lòng chọn đề kiểm tra đầu vào đã dùng để chấm điểm.']);
         }
 
         if (! $submission) {
@@ -376,8 +382,8 @@ class CrmController extends Controller
             'writing_score' => $writing,
             'speaking_score' => $speaking,
             'overall_score' => $overall,
-            'cefr_level' => $validated['cefr_level'] ?? 'B1',
-            'recommended_course' => $validated['recommended_course'] ?? ($customer->course_interest ?? null),
+            'cefr_level' => $validated['cefr_level'] ?? null,
+            'recommended_course' => $validated['recommended_course'] ?? null,
             'teacher_comments' => $validated['teacher_comments'] ?? null,
             'grader_id' => Auth::id() ?? $customer->assigned_user_id,
             'status' => 'graded',
@@ -390,14 +396,14 @@ class CrmController extends Controller
         $customer->update([
             'test_score' => $cefr ? "{$overall} ({$cefr})" : (string) $overall,
             'test_decision' => 'test',
-            'stage' => in_array($customer->stage, ['consulting', 'test_scheduled', 'tested'], true) ? 'tested' : $customer->stage,
+            'stage' => $customer->canAdvanceToTested() ? 'tested' : $customer->stage,
         ]);
 
         CrmCustomerHistory::create([
             'customer_id' => $customer->id,
             'user_id' => Auth::id(),
             'type' => 'test',
-            'content' => 'Đã ghi nhận kết quả điểm test đầu vào: '.$overall.' Band'.($cefr ? " ({$cefr})" : '').' · Khóa đề xuất: '.($validated['recommended_course'] ?? ($customer->course_interest ?? 'Chưa đề xuất')),
+            'content' => 'Đã ghi nhận kết quả điểm test đầu vào: '.$overall.' Band'.($cefr ? " ({$cefr})" : '').' · Khóa đề xuất: '.($validated['recommended_course'] ?? 'Chưa đề xuất'),
         ]);
 
         return redirect()->back()->with('status', 'Đã ghi nhận và cập nhật điểm test đầu vào thành công!');

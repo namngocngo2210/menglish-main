@@ -469,10 +469,13 @@ class CrmWorkflowHardeningTest extends TestCase
             'speaking_score' => 6,
         ])->assertRedirect()->assertSessionHasNoErrors();
 
+        // Writing không nhập -> null (không lấy điểm Reading thay thế); Overall = TB các kỹ năng có điểm
         $lead->refresh();
-        $this->assertSame('6.5', $lead->test_score);
+        $this->assertSame('6.3', $lead->test_score);
 
         $submission = PlacementTestSubmission::where('customer_id', $lead->id)->firstOrFail();
+        $this->assertNull($submission->writing_score);
+        $this->assertNull($submission->cefr_level);
         $this->assertNull($submission->teacher_comments);
         $this->assertNull($submission->recommended_course);
     }

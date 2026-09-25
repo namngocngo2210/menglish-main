@@ -68,6 +68,7 @@ return [
             'user.view', 'user.lock', 'user.reset_password', 'user.assign_role',
             'role.view',
             'lead.*', 'entrance_test.*', 'student.*', 'class.*', 'attendance_student.*',
+            'placement_test.view', 'placement_test.grade',
             'level.*', 'syllabus.*',
             'tuition.*', 'invoice.*', 'refund_transfer.*',
             'payroll.*', 'kpi.*', 'teacher_rate.manage', 'commission_config.manage',

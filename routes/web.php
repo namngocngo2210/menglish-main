@@ -341,7 +341,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/rubric-guide', [PlacementTestController::class, 'rubricGuide'])->middleware('can:placement_test.view')->name('rubric-guide');
         Route::get('/results/{id}', [PlacementTestController::class, 'showResult'])->middleware('can:placement_test.grade')->name('results.show');
         Route::post('/results/{id}', [PlacementTestController::class, 'updateResult'])->middleware('can:placement_test.grade')->name('results.update');
-        Route::match(['get', 'post'], '/{id}/duplicate', [PlacementTestController::class, 'duplicateTest'])->middleware('can:placement_test.create')->name('duplicate');
+        Route::post('/{id}/duplicate', [PlacementTestController::class, 'duplicateTest'])->middleware('can:placement_test.create')->name('duplicate');
         Route::post('/{id}/distribute', [PlacementTestController::class, 'distributeTest'])->middleware('can:placement_test.distribute')->name('distribute');
         Route::get('/{id}', [PlacementTestController::class, 'showTest'])->middleware('can:placement_test.view')->name('show');
         Route::get('/{id}/edit', [PlacementTestController::class, 'editTest'])->middleware('can:placement_test.update')->name('edit');
@@ -585,11 +585,12 @@ Route::middleware('auth')->group(function () {
 
 // Cổng làm bài Test trực tuyến cho Lead / Học viên (Công khai)
 Route::prefix('portal/placement-test')->name('portal.test.')->group(function () {
-    Route::get('/{code}', [PlacementTestController::class, 'portalTakeTest'])->name('take');
-    Route::match(['GET', 'POST'], '/{code}/submit', [PlacementTestController::class, 'portalSubmitTest'])->name('submit');
+    Route::get('/{code}', [PlacementTestController::class, 'portalTakeTest'])->middleware('throttle:30,1')->name('take');
+    Route::get('/{code}/submit', [PlacementTestController::class, 'portalSubmitTest'])->middleware('throttle:30,1');
+    Route::post('/{code}/submit', [PlacementTestController::class, 'portalSubmitTest'])->middleware('throttle:10,1')->name('submit');
     // Scorecard chứa điểm số/PII của lead nên yêu cầu link có chữ ký, không cho dò id
-    Route::get('/scorecard/{id}', [PlacementTestController::class, 'portalScorecard'])->name('scorecard')->middleware('signed');
-    Route::get('/results/{id}', [PlacementTestController::class, 'portalScorecard'])->name('results')->middleware('signed');
+    Route::get('/scorecard/{id}', [PlacementTestController::class, 'portalScorecard'])->name('scorecard')->middleware(['signed', 'throttle:30,1']);
+    Route::get('/results/{id}', [PlacementTestController::class, 'portalScorecard'])->name('results')->middleware(['signed', 'throttle:30,1']);
 });
 
 Route::middleware(['auth'])->group(function () {
