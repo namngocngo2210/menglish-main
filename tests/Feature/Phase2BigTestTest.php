@@ -219,7 +219,7 @@ class Phase2BigTestTest extends TestCase
     public function test_results_page_has_per_student_send_button_and_sent_column(): void
     {
         $test = $this->makeTest($this->classA, 'BT-SEND', now()->subDay());
-        $s1 = Student::create(['code' => 'HV-S1', 'name' => 'HV Chờ Gửi', 'phone' => '0903', 'current_class_id' => $this->classA->id, 'status' => 'studying']);
+        $s1 = Student::create(['code' => 'HV-S1', 'name' => 'HV Chờ Gửi', 'phone' => '0903', 'parent_phone' => '0913', 'current_class_id' => $this->classA->id, 'status' => 'studying']);
         $s2 = Student::create(['code' => 'HV-S2', 'name' => 'HV Đã Gửi', 'phone' => '0904', 'current_class_id' => $this->classA->id, 'status' => 'studying']);
         $pending = BigTestResult::create(['big_test_id' => $test->id, 'student_id' => $s1->id, 'listening_score' => 7, 'reading_score' => 7, 'writing_score' => 7, 'speaking_score' => 7, 'overall_score' => 7, 'status' => 'approved']);
         BigTestResult::create(['big_test_id' => $test->id, 'student_id' => $s2->id, 'listening_score' => 8, 'reading_score' => 8, 'writing_score' => 8, 'speaking_score' => 8, 'overall_score' => 8, 'status' => 'sent', 'parent_notified' => true, 'notified_at' => now()]);

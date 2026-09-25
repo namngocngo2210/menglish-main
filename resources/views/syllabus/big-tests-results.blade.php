@@ -322,6 +322,9 @@
                                     @else
                                         <span class="text-[11px] text-gray-400">{{ $res?->is_absent ? 'Vắng thi' : 'Chưa gửi' }}</span>
                                     @endif
+                                    @if ($res && in_array((int) $res->student_id, $missingParentPhone, true))
+                                        <span class="mt-1 block text-[11px] font-semibold text-error">{{ \App\Http\Controllers\SyllabusController::MISSING_PARENT_PHONE }}</span>
+                                    @endif
                                 </td>
                             </tr>
                         @empty

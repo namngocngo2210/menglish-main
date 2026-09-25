@@ -10,7 +10,6 @@ use App\Models\BigTestResult;
 use App\Models\ClassModel;
 use App\Models\Course;
 use App\Models\CourseLevel;
-use App\Models\CrmCustomer;
 use App\Models\Student;
 use App\Models\SyllabusAdjustmentRequest;
 use App\Models\SyllabusAssignment;
@@ -38,6 +37,9 @@ use Illuminate\Validation\ValidationException;
 
 class SyllabusController extends Controller
 {
+    /** Trạng thái khi không gửi được kết quả Big Test: hồ sơ HV và khách CRM đều không có SĐT phụ huynh. */
+    public const MISSING_PARENT_PHONE = 'Thiếu SĐT phụ huynh';
+
     // ─────────────────────────────────────────────
     // 1. Kho tài liệu giáo trình (file thật, phân quyền xem)
     // ─────────────────────────────────────────────
@@ -1322,7 +1324,11 @@ class SyllabusController extends Controller
                 ->whereNotIn('id', $test->classModel->roster()->pluck('id'))->orderBy('name')->get())
             : collect();
 
-        return view('syllabus.big-tests-results', compact('test', 'allTests', 'results', 'students', 'selectedResult'));
+        // Học viên chưa gửi được kết quả vì không có SĐT phụ huynh (hồ sơ HV → khách CRM).
+        $missingParentPhone = $results->filter(fn ($r) => ! $r->parent_notified && ! $r->is_absent && $r->student && ! $r->student->parentContactPhone())
+            ->pluck('student_id')->map(fn ($id) => (int) $id)->all();
+
+        return view('syllabus.big-tests-results', compact('test', 'allTests', 'results', 'students', 'selectedResult', 'missingParentPhone'));
     }
 
     /**
@@ -1354,19 +1360,26 @@ class SyllabusController extends Controller
         return match ($this->deliverZaloResult($res, $test)) {
             'sent' => redirect()->back()->with('status', "Đã duyệt và gửi kết quả em {$studentName} cho phụ huynh qua Zalo ZNS."
                 .$progression->describe($progression->syncBigTest($test->fresh(), Auth::user()))),
-            'skipped' => redirect()->back()->with('warning', "Đã duyệt kết quả em {$studentName}, nhưng chưa gửi được: học viên chưa có số điện thoại liên hệ."),
+            'skipped' => redirect()->back()->with('warning', "Đã duyệt kết quả em {$studentName}, nhưng chưa gửi được: ".self::MISSING_PARENT_PHONE.' (nhập SĐT phụ huynh ở hồ sơ học viên).'),
             default => redirect()->back()->with('warning', "Đã duyệt kết quả em {$studentName}, nhưng gửi Zalo ZNS thất bại — vui lòng bấm Gửi PH lại."),
         };
     }
 
+    /**
+     * GV nhập kết quả Big Test. "Lưu nháp" (action=draft): kết quả ở trạng thái Nháp, sửa tiếp được, chưa vào hàng chờ
+     * duyệt của Học thuật, cho phép nhập dở (thiếu kỹ năng). "Gửi duyệt" (mặc định): bắt buộc đủ 4 kỹ năng (hoặc Vắng thi),
+     * chuyển sang Chờ duyệt — kèm các bản nháp còn lại đã đủ điểm của đợt thi.
+     */
     public function storeBigTestResults(Request $request, int $id)
     {
         $test = BigTest::with('classModel')->findOrFail($id);
         abort_unless($test->isAccessibleBy($request->user()), 404);
         abort_unless($test->is_distributed, 422, 'Đề thi chưa được duyệt và phân phối.');
+        $isDraft = $request->input('action') === 'draft';
 
         $skills = ['listening_score', 'reading_score', 'writing_score', 'speaking_score'];
         $rules = [
+            'action' => ['nullable', 'in:draft,submit'],
             'results' => ['required', 'array'],
             'results.*.student_id' => ['required', 'exists:students,id'],
             'results.*.progress_note' => ['nullable', 'string', 'max:2000'],
@@ -1486,7 +1499,7 @@ class SyllabusController extends Controller
             $message .= '; gửi lỗi '.count($failed).' ('.implode(', ', $failed).')';
         }
         if ($skipped !== []) {
-            $message .= '; bỏ qua '.count($skipped).' do thiếu số điện thoại ('.implode(', ', $skipped).')';
+            $message .= '; bỏ qua '.count($skipped).' — '.self::MISSING_PARENT_PHONE.' ('.implode(', ', $skipped).')';
         }
 
         return redirect()->back()->with('warning', $message.'.'.$stageNote);
@@ -1508,7 +1521,7 @@ class SyllabusController extends Controller
         return match ($this->deliverZaloResult($res, $res->bigTest)) {
             'sent' => redirect()->back()->with('status', "Đã gửi thông báo điểm qua Zalo ZNS đến Phụ huynh em {$studentName} thành công!"
                 .$progression->describe($progression->syncBigTest($res->bigTest, Auth::user()))),
-            'skipped' => redirect()->back()->with('error', "Không gửi được: học viên {$studentName} chưa có số điện thoại liên hệ."),
+            'skipped' => redirect()->back()->with('error', "Không gửi được cho em {$studentName}: ".self::MISSING_PARENT_PHONE.' (nhập SĐT phụ huynh ở hồ sơ học viên).'),
             default => redirect()->back()->with('error', "Gửi Zalo ZNS cho phụ huynh em {$studentName} thất bại, vui lòng thử lại."),
         };
     }
@@ -1521,12 +1534,7 @@ class SyllabusController extends Controller
     private function deliverZaloResult(BigTestResult $res, ?BigTest $test): string
     {
         $student = $res->student;
-        // Gửi phụ huynh: SĐT phụ huynh trong hồ sơ khách CRM đã chốt ra học viên này; hồ sơ học viên chưa có cột
-        // SĐT phụ huynh riêng nên không có thì dùng SĐT liên hệ của học viên; không có số nào thì bỏ qua.
-        $parentPhone = $student
-            ? CrmCustomer::where('converted_student_id', $student->id)->whereNotNull('parent_phone')->latest('id')->value('parent_phone')
-            : null;
-        $phone = trim((string) ($parentPhone ?: $student?->phone));
+        $phone = $student ? (string) $student->parentContactPhone() : '';
         if ($phone === '') {
             return 'skipped';
         }

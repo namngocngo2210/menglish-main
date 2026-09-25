@@ -1690,6 +1690,9 @@ class CrmController extends Controller
                 'user_id' => $studentUser->id,
                 'name' => $customer->name,
                 'phone' => $customer->phone,
+                // Liên hệ phụ huynh chép sang hồ sơ học viên (gửi kết quả Big Test qua Zalo).
+                'parent_name' => $customer->parent_name,
+                'parent_phone' => $customer->parent_phone,
                 'email' => $studentEmail,
                 'dob' => $customer->dob,
                 'gender' => $customer->gender,

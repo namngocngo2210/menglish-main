@@ -67,11 +67,11 @@ class BigTestResultsSecurityTest extends TestCase
             'branch_id' => $branch->id, 'teacher_id' => $this->teacherB->id, 'room' => 'P2', 'status' => 'active',
         ]);
         $this->studentA = Student::create([
-            'name' => 'HV Lớp A', 'code' => 'HV-BTS-A', 'phone' => '0901000001',
+            'name' => 'HV Lớp A', 'code' => 'HV-BTS-A', 'phone' => '0901000001', 'parent_phone' => '0911000001',
             'current_class_id' => $this->classA->id, 'branch_id' => $branch->id, 'status' => 'studying',
         ]);
         $this->studentB = Student::create([
-            'name' => 'HV Lớp B', 'code' => 'HV-BTS-B', 'phone' => '0901000002',
+            'name' => 'HV Lớp B', 'code' => 'HV-BTS-B', 'phone' => '0901000002', 'parent_phone' => '0911000002',
             'current_class_id' => $this->classB->id, 'branch_id' => $branch->id, 'status' => 'studying',
         ]);
         $this->testA = $this->makeTest($this->classA, 'BT-A', 'PASS-AAAA');
@@ -157,12 +157,14 @@ class BigTestResultsSecurityTest extends TestCase
 
     public function test_send_zalo_skips_students_without_phone_and_never_uses_fallback_number(): void
     {
-        $this->studentA->update(['phone' => '']);
+        // Không có SĐT phụ huynh (hồ sơ HV + khách CRM) → bỏ qua, KHÔNG gửi vào SĐT của chính học viên.
+        $this->studentA->update(['parent_phone' => null]);
         $result = $this->makeResult($this->testA, $this->studentA, 'approved');
 
-        $response = $this->actingAs($this->manager)->post(route('syllabus.big-tests.send-zalo', $this->testA->id));
+        $response = $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-zalo', $this->testA->id));
         $response->assertRedirect();
-        $response->assertSessionHas('warning', fn ($msg) => str_contains($msg, 'HV Lớp A'));
+        $response->assertSessionHas('warning', fn ($msg) => str_contains($msg, 'HV Lớp A') && str_contains($msg, 'Thiếu SĐT phụ huynh'));
+        $this->actingAs($this->lead)->get(route('syllabus.big-tests.results', $this->testA->id))->assertOk()->assertSee('Thiếu SĐT phụ huynh');
 
         $result->refresh();
         $this->assertFalse($result->parent_notified);
@@ -172,7 +174,7 @@ class BigTestResultsSecurityTest extends TestCase
     public function test_send_zalo_only_sends_unsent_results_and_marks_them_sent(): void
     {
         $other = Student::create([
-            'name' => 'HV Đã gửi', 'code' => 'HV-BTS-C', 'phone' => '0901000003',
+            'name' => 'HV Đã gửi', 'code' => 'HV-BTS-C', 'phone' => '0901000003', 'parent_phone' => '0911000003',
             'current_class_id' => $this->classA->id, 'status' => 'studying',
         ]);
         $sentAt = now()->subDay()->startOfSecond();
@@ -210,28 +212,66 @@ class BigTestResultsSecurityTest extends TestCase
     public function test_single_send_is_idempotent_and_failure_aware(): void
     {
         $sent = $this->makeResult($this->testA, $this->studentA, 'sent', true);
-        $this->actingAs($this->manager)->post(route('syllabus.big-tests.send-single-zalo', $sent->id))
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-single-zalo', $sent->id))
             ->assertRedirect()->assertSessionHas('error');
 
         $noPhone = $this->makeResult($this->testB, $this->studentB, 'approved');
-        $this->studentB->update(['phone' => ' ']);
-        $this->actingAs($this->manager)->post(route('syllabus.big-tests.send-single-zalo', $noPhone->id))
+        $this->studentB->update(['parent_phone' => ' ']);
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-single-zalo', $noPhone->id))
             ->assertRedirect()->assertSessionHas('error');
         $this->assertFalse($noPhone->fresh()->parent_notified);
 
-        $this->studentB->update(['phone' => '0901000002']);
+        $this->studentB->update(['parent_phone' => '0911000002']);
         config(['services.zalo.mode' => 'live', 'services.zalo.access_token' => 'test-token']);
         Http::fake(['*' => Http::response(['error' => -1], 200)]);
-        $this->actingAs($this->manager)->post(route('syllabus.big-tests.send-single-zalo', $noPhone->id))
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-single-zalo', $noPhone->id))
             ->assertRedirect()->assertSessionHas('error');
         $this->assertFalse($noPhone->fresh()->parent_notified);
 
         Http::fake(['*' => Http::response(['error' => 0], 200)]);
         config(['services.zalo.mode' => 'sandbox']);
-        $this->actingAs($this->manager)->post(route('syllabus.big-tests.send-single-zalo', $noPhone->id))
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-single-zalo', $noPhone->id))
             ->assertRedirect()->assertSessionHas('status');
         $this->assertSame('sent', $noPhone->fresh()->status);
         $this->assertTrue($noPhone->fresh()->parent_notified);
+    }
+
+    public function test_parent_phone_falls_back_to_crm_customer_parent_phone(): void
+    {
+        $this->studentA->update(['parent_phone' => null]);
+        \App\Models\CrmCustomer::create(['code' => 'KH-BTS-1', 'name' => 'HV Lớp A', 'phone' => '0901000001', 'phone_normalized' => '0901000001',
+            'parent_phone' => '0987654321', 'stage' => 'won', 'converted_student_id' => $this->studentA->id]);
+        config(['services.zalo.mode' => 'live', 'services.zalo.access_token' => 'test-token']);
+        Http::fake(['*' => Http::response(['error' => 0], 200)]);
+        $result = $this->makeResult($this->testA, $this->studentA, 'approved');
+
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-single-zalo', $result->id))->assertSessionHas('status');
+        Http::assertSent(fn ($request) => $request['phone'] === '84987654321');
+        $this->assertTrue($result->fresh()->parent_notified);
+
+        // SĐT phụ huynh trên hồ sơ học viên được ưu tiên hơn khách CRM.
+        $this->studentA->update(['parent_phone' => '0911222333']);
+        $this->assertSame('0911222333', $this->studentA->fresh()->parentContactPhone());
+    }
+
+    public function test_only_academic_lead_and_admin_approve_or_send_results(): void
+    {
+        $result = $this->makeResult($this->testA, $this->studentA, 'pending_review');
+        $staff = User::factory()->create(['is_active' => true]);
+        $staff->assignRole('academic_staff');
+
+        foreach ([$this->manager, $staff] as $user) {
+            $this->assertFalse($user->can('big_test.approve'));
+            $this->assertFalse($user->can('syllabus.approve_adjustment'));
+            $this->actingAs($user)->post(route('syllabus.big-tests.results.approve', $this->testA->id))->assertForbidden();
+            $this->actingAs($user)->post(route('syllabus.big-tests.send-zalo', $this->testA->id))->assertForbidden();
+            $this->actingAs($user)->post(route('syllabus.big-tests.results.approve-send', $result->id))->assertForbidden();
+            $this->actingAs($user)->get(route('syllabus.big-tests.results', $this->testA->id))->assertOk()
+                ->assertDontSee(route('syllabus.big-tests.results.approve', $this->testA->id));
+        }
+        $this->assertSame('pending_review', $result->fresh()->status);
+        $this->assertTrue($this->lead->can('big_test.approve'));
+        $this->assertTrue($this->lead->can('syllabus.approve_adjustment'));
     }
 
     // ---- 4. Regrading locked results / blank rows ----

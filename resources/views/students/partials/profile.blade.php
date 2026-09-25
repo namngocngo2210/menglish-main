@@ -74,6 +74,8 @@
                         <x-ui.input name="phone" type="tel" label="Số điện thoại" required :value="$student->phone" />
                         <x-ui.input name="email" type="email" label="Email liên hệ" :value="$student->email" placeholder="hocvien@menglish.edu.vn" />
                         <x-ui.input name="target" label="Mục tiêu học tập" :value="$student->target" placeholder="VD: IELTS 6.5, Cambridge Starters..." />
+                        <x-ui.input name="parent_name" label="Họ tên phụ huynh" :value="$student->parent_name" placeholder="VD: Nguyễn Thị Hoa" />
+                        <x-ui.input name="parent_phone" type="tel" label="SĐT phụ huynh (nhận kết quả Zalo)" :value="$student->parent_phone" placeholder="VD: 0987 654 321" />
                     </div>
                     <x-ui.input name="school" label="Trường học" :value="$student->school" placeholder="VD: Trường THCS Đoàn Thị Điểm" />
                     <x-ui.textarea name="address" label="Địa chỉ liên hệ" rows="2" :value="$student->address" placeholder="Nhập địa chỉ của học viên..." />
@@ -87,6 +89,10 @@
                 <div class="space-y-md">
                     <x-ui.field label="Trường học"><input type="text" value="{{ $student->school }}" disabled class="{{ $inputClass }}"></x-ui.field>
                     @if ($canViewContact)
+                        <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
+                            <x-ui.field label="Họ tên phụ huynh"><input type="text" value="{{ $student->parent_name }}" disabled class="{{ $inputClass }}"></x-ui.field>
+                            <x-ui.field label="SĐT phụ huynh"><input type="text" value="{{ $student->parent_phone }}" disabled class="{{ $inputClass }}"></x-ui.field>
+                        </div>
                         <x-ui.field label="Địa chỉ liên hệ"><textarea rows="2" disabled class="{{ $inputClass }}">{{ $student->address }}</textarea></x-ui.field>
                     @endif
                     <x-ui.field label="Ghi chú đặc biệt"><textarea rows="3" disabled class="{{ $inputClass }}">{{ $student->notes }}</textarea></x-ui.field>

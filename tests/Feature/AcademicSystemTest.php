@@ -507,6 +507,7 @@ class AcademicSystemTest extends TestCase
             'code' => 'HV-BT01',
             'name' => 'Ngô Thị Thanh Trúc',
             'phone' => '0966555444',
+            'parent_phone' => '0966555445',
             'current_class_id' => $this->classModel->id,
             'branch_id' => $this->branch->id,
             'status' => 'studying',
