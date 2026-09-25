@@ -14,11 +14,14 @@
     </x-slot>
 
     <div class="max-w-5xl mx-auto space-y-6" x-data="{
-        tasks: [
-            { id: 1, category: 'before', content: 'Chuẩn bị tài liệu in ấn cho học viên', attach_class: false, class_id: '', session: '' },
-            { id: 2, category: 'during', content: 'Hỗ trợ giảng viên điều phối hoạt động trên lớp', attach_class: true, class_id: '{{ $classes->first()?->id ?? '' }}', session: 'Buổi 5 - Listening Practice' },
-            { id: 3, category: 'after', content: 'Cập nhật điểm danh và kiểm tra phòng học', attach_class: false, class_id: '', session: '' }
-        ],
+        tasks: {{ \Illuminate\Support\Js::from(collect(old('tasks', [['category' => 'during']]))->values()->map(fn ($t, $i) => [
+            'id' => $i + 1,
+            'category' => $t['category'] ?? 'during',
+            'content' => $t['content'] ?? '',
+            'attach_class' => ! empty($t['attach_class']),
+            'class_id' => (string) ($t['class_id'] ?? ''),
+            'session' => $t['session'] ?? '',
+        ])) }},
         addTask() {
             this.tasks.push({
                 id: Date.now(),
@@ -48,11 +51,12 @@
                             Chọn Trợ giảng <span class="text-rose-500">*</span>
                         </label>
                         <select name="assistant_id" id="assistant_id" required class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container p-3">
-                            <option value="" disabled selected>-- Chọn Trợ giảng --</option>
+                            <option value="" disabled @selected(! old('assistant_id'))>-- Chọn Trợ giảng --</option>
                             @foreach($assistants as $ta)
-                                <option value="{{ $ta->id }}">{{ $ta->name }} ({{ $ta->email }})</option>
+                                <option value="{{ $ta->id }}" @selected((string) old('assistant_id') === (string) $ta->id)>{{ $ta->name }} ({{ $ta->email }})</option>
                             @endforeach
                         </select>
+                        <x-input-error :messages="$errors->get('assistant_id')" class="mt-1" />
                     </div>
 
                     <!-- Date -->
@@ -60,8 +64,9 @@
                         <label class="block text-xs font-bold uppercase text-gray-600 mb-1.5" for="assign_date">
                             Ngày giao việc <span class="text-rose-500">*</span>
                         </label>
-                        <input type="date" name="assign_date" id="assign_date" required value="{{ now()->format('Y-m-d') }}"
+                        <input type="date" name="assign_date" id="assign_date" required value="{{ old('assign_date', now()->format('Y-m-d')) }}"
                                class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container p-3">
+                        <x-input-error :messages="$errors->get('assign_date')" class="mt-1" />
                     </div>
 
                     <!-- Branch -->
@@ -72,7 +77,7 @@
                         <select name="branch_id" id="branch_id" class="w-full rounded-xl border-gray-200 text-sm focus:ring-primary-container focus:border-primary-container p-3">
                             <option value="">-- Chọn Chi nhánh --</option>
                             @foreach($branches as $b)
-                                <option value="{{ $b->id }}">{{ $b->name }}</option>
+                                <option value="{{ $b->id }}" @selected((string) old('branch_id') === (string) $b->id)>{{ $b->name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -91,6 +96,7 @@
                     </div>
 
                     <div class="space-y-4">
+                        <x-input-error :messages="array_merge($errors->get('tasks'), collect($errors->get('tasks.*'))->flatten()->all())" />
                         <template x-for="(item, index) in tasks" :key="item.id">
                             <div class="bg-gray-50/80 border border-gray-200 rounded-xl p-4 relative group transition hover:border-gray-300">
                                 <!-- Delete button -->

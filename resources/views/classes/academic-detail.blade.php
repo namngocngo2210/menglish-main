@@ -8,7 +8,7 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">class</span>
-                        Chi tiết lớp học Học thuật (Flow 1 — Bước #6)
+                        Chi tiết lớp học Học thuật
                     </h1>
                     <p class="text-xs text-gray-500">Tiến độ chi tiết từng chặng học, unit bài giảng và timeline các bài kiểm tra định kỳ Big Test.</p>
                 </div>
@@ -16,7 +16,7 @@
             <div class="flex items-center gap-2">
                 <a href="{{ route('classes.trial-booking') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition">
                     <span class="material-symbols-outlined text-[16px]">restart_alt</span>
-                    <span>Bắt đầu lại (Bước #1)</span>
+                    <span>Bắt đầu lại</span>
                 </a>
                 <a href="{{ route('classes.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-dark transition">
                     <span class="material-symbols-outlined text-[16px]">add</span>
@@ -34,7 +34,7 @@
             <div>
                 <div class="flex items-center gap-3">
                     <h2 class="text-xl font-bold text-gray-900 tracking-tight">
-                        Chi tiết lớp {{ $class?->code ?? 'IELTS_INT_01' }}
+                        Chi tiết lớp {{ $class?->code ?? '' }}
                     </h2>
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
                         Đang học
@@ -79,7 +79,7 @@
                     </div>
                     <div>
                         <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Sĩ số</span>
-                        <span class="font-bold text-primary font-mono">{{ $class?->students?->count() ?? 0 }}/{{ $class?->max_capacity ?? 15 }}</span>
+                        <span class="font-bold text-primary font-mono">{{ $class?->students?->count() ?? 0 }}/{{ $class?->max_capacity ?? '—' }}</span>
                     </div>
                     <div>
                         <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Ngày khai giảng</span>
@@ -101,7 +101,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-xs">
                     <div>
                         <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Tên chương trình</span>
-                        <span class="font-bold text-gray-900">{{ $class?->program ?? $class?->course?->name ?? 'IELTS Luyện thi' }}</span>
+                        <span class="font-bold text-gray-900">{{ $class?->program ?? $class?->course?->name ?? 'Chưa cập nhật' }}</span>
                     </div>
                     <div>
                         <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Chặng hiện tại</span>

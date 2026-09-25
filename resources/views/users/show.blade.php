@@ -197,20 +197,27 @@
                             <span class="material-symbols-outlined text-purple-600 text-[18px]">co_present</span>
                             Kiêm nhiệm giảng dạy
                         </h3>
-                        <button class="text-[11px] text-primary-container font-bold hover:underline flex items-center gap-0.5">
-                            <span class="material-symbols-outlined text-[14px]">add</span> Thêm
-                        </button>
+                        @can('user.assign_role')
+                            <a href="{{ route('users.roles.edit', $user) }}" class="text-[11px] text-primary-container font-bold hover:underline flex items-center gap-0.5">
+                                <span class="material-symbols-outlined text-[14px]">add</span> Thêm
+                            </a>
+                        @endcan
                     </div>
 
                     <div class="space-y-2.5">
-                        <div class="p-3 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-between text-xs">
-                            <div>
-                                <p class="font-bold text-gray-900">Dạy thay: Trần Văn C</p>
-                                <p class="text-[11px] text-gray-500 font-mono">15/09/2025 - 20/09/2025</p>
-                                <p class="text-[10px] text-gray-400">Lý do: Nghỉ ốm</p>
+                        @forelse ($teachingClasses as $tc)
+                            <div class="p-3 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-between text-xs">
+                                <div>
+                                    <p class="font-bold text-gray-900">{{ $tc->code }} — {{ $tc->name }}</p>
+                                    <p class="text-[11px] text-gray-500 font-mono">{{ $tc->start_date?->format('d/m/Y') ?? 'Chưa cập nhật' }} - {{ $tc->end_date?->format('d/m/Y') ?? 'Chưa cập nhật' }}</p>
+                                </div>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700">
+                                    {{ $tc->teacher_id === $user->id ? 'Giáo viên' : ($tc->foreign_teacher_id === $user->id ? 'GVNN' : 'Trợ giảng') }}
+                                </span>
                             </div>
-                            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-600">Hết hạn</span>
-                        </div>
+                        @empty
+                            <p class="text-xs text-gray-400 italic text-center py-2">Chưa phụ trách lớp nào.</p>
+                        @endforelse
                     </div>
 
                     <div class="p-2.5 bg-blue-50/60 border border-blue-100 rounded-xl text-[11px] text-blue-700 flex items-start gap-1.5">

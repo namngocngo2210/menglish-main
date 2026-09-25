@@ -117,7 +117,16 @@ class UserController extends Controller
             ]);
         }
 
-        return view('users.show', compact('user'));
+        // Lớp nhân sự đang phụ trách (GV chính / GVNN / trợ giảng) — thay cho dữ liệu kiêm nhiệm mẫu.
+        $teachingClasses = \App\Models\ClassModel::query()
+            ->where(fn ($q) => $q->where('teacher_id', $user->id)
+                ->orWhere('assistant_id', $user->id)
+                ->orWhere('foreign_teacher_id', $user->id))
+            ->whereIn('status', ['active', 'upcoming', 'pending_schedule'])
+            ->orderBy('code')
+            ->get(['id', 'code', 'name', 'teacher_id', 'assistant_id', 'foreign_teacher_id', 'start_date', 'end_date']);
+
+        return view('users.show', compact('user', 'teachingClasses'));
     }
 
     public function create(): View

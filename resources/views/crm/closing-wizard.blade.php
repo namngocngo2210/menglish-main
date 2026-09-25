@@ -51,7 +51,7 @@
                 <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" :class="step >= 1 ? 'bg-primary-container text-white' : 'bg-gray-100 text-gray-500'">1</div>
                 <div class="hidden sm:block text-left">
                     <div class="text-xs font-bold text-gray-900">Chọn Khách hàng Lead</div>
-                    <div class="text-[10px] text-gray-400">Từ Database CRM</div>
+                    <div class="text-[10px] text-gray-400">Từ dữ liệu CRM</div>
                 </div>
             </div>
             <div class="h-0.5 w-12 bg-gray-200"></div>
@@ -835,13 +835,10 @@
                             </div>
                             <div>
                                 <div style="font-size: 16px; font-weight: 700; margin-bottom: 4px; color: #c2410c;">
-                                    MENGLISH - MEDUCATION
+                                    {{ \App\Support\CenterInfo::name() }}
                                 </div>
                                 <div style="line-height: 1.5; font-size: 13px; color: #333;">
-                                    <div>Địa chỉ: CS1: 15/172 Phố Ngọc Hà - Ba Đình</div>
-                                    <div>CS2: 23/209 Phố Đội Cấn - Ba Đình</div>
-                                    <div>CS3: 24/55 Hoàng Hoa Thám - Ba Đình</div>
-                                    <div>Điện thoại: 0975996986</div>
+                                    @include('partials.center-info-lines')
                                 </div>
                             </div>
                         </div>
@@ -977,7 +974,7 @@
                 classId: @js($classes->first()?->id ?? ''),
                 assignLater: @js($classes->isEmpty()),
                 feePaid: true,
-                className: @js($classes->first()?->name ?? '4M2 T3T6'),
+                className: @js($classes->first()?->name ?? ''),
                 classBranch: @js($classes->first()?->branch?->code ?? 'BD'),
                 classBranchId: @js($classes->first()?->branch_id ?? ''),
                 courseId: @js((string) ($classes->first()?->course_id ?? $courses->first()?->id ?? '')),
@@ -1175,7 +1172,7 @@
 
                 saveNewPromotion() {
                     if (!this.newPromo.name || !this.newPromo.value) {
-                        alert('Vui lòng nhập tên chương trình ưu đãi và giá trị giảm!');
+                        window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Vui lòng nhập tên chương trình ưu đãi và giá trị giảm!', type: 'error' } }));
                         return;
                     }
 
@@ -1207,13 +1204,13 @@
                             this.paidAmount = this.amountDue;
                             this.showCreatePromoModal = false;
                             this.newPromo = { name: '', type: 'fixed', value: 0, description: '', branch_id: '', course_id: '', starts_at: '', ends_at: '', usage_limit: '' };
-                            alert('Đã tạo và áp dụng ưu đãi "' + data.promotion.name + '" thành công!');
+                            window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Đã tạo và áp dụng ưu đãi "' + data.promotion.name + '" thành công!', type: 'success' } }));
                         } else {
-                            alert('Có lỗi xảy ra khi tạo ưu đãi.');
+                            window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Có lỗi xảy ra khi tạo ưu đãi.', type: 'error' } }));
                         }
                     })
                     .catch(err => {
-                        alert('Lỗi kết nối máy chủ: ' + err.message);
+                        window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Lỗi kết nối máy chủ: ' + err.message, type: 'error' } }));
                     });
                 },
 

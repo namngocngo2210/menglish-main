@@ -234,8 +234,8 @@
                 @if ($selectedReceipt)
                     @php
                         $st = $selectedReceipt->tuition?->student ?? $selectedReceipt->student;
-                        $tClass = $selectedReceipt->tuition?->classModel?->name ?? $st?->currentClass?->name ?? 'IELTS Foundation 02';
-                        $branchName = $st?->branch?->name ?? 'Cơ sở Cầu Giấy';
+                        $tClass = $selectedReceipt->tuition?->classModel?->name ?? $st?->currentClass?->name ?? 'Chưa gắn lớp';
+                        $branchName = $st?->branch?->name ?? 'Chưa gán chi nhánh';
                     @endphp
 
                     @if (($sepayWarnings ?? collect())->isNotEmpty())
@@ -278,7 +278,7 @@
                                 <div class="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-y-1 gap-x-3">
                                     <span>Thời gian gửi: <strong>{{ $selectedReceipt->created_at?->format('H:i - d/m/Y') ?? now()->format('H:i - d/m/Y') }}</strong></span>
                                     <span>•</span>
-                                    <span>Người lập: <strong>{{ $selectedReceipt->creator?->name ?? 'Lê Thị Bích' }}</strong> (Tư vấn viên / {{ $branchName }})</span>
+                                    <span>Người lập: <strong>{{ $selectedReceipt->creator?->name ?? 'Chưa cập nhật' }}</strong> (Tư vấn viên / {{ $branchName }})</span>
                                 </div>
                             </div>
 

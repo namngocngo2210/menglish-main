@@ -242,13 +242,13 @@
                                     <div class="flex items-center justify-between">
                                         <span class="font-extrabold text-xs text-gray-900 font-mono">{{ $cls->code }}</span>
                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700">
-                                            {{ $cls->status ?? 'Đang học' }}
+                                            {{ \App\Support\StatusLabel::for($cls->status) }}
                                         </span>
                                     </div>
                                     <div class="text-xs font-bold text-gray-800 truncate">{{ $cls->name }}</div>
                                     <div class="text-[11px] text-gray-500 space-y-0.5">
-                                        <div>Khóa: {{ $cls->course?->name ?? 'IELTS Intensive' }}</div>
-                                        <div>Lịch: {{ $cls->schedule_text ?? 'T2-T4-T6 (18:00 - 20:00)' }}</div>
+                                        <div>Khóa: {{ $cls->course?->name ?? 'Chưa cập nhật' }}</div>
+                                        <div>Lịch: {{ $cls->schedule_text ?? 'Chưa cập nhật' }}</div>
                                     </div>
                                 </div>
                             @empty
@@ -279,7 +279,7 @@
                                     </div>
                                     <div class="text-right">
                                         <div class="font-extrabold text-gray-900 font-mono">{{ $ts->hours }}h</div>
-                                        <div class="text-[10px] text-emerald-600 font-bold">{{ $ts->status ?? 'Đã duyệt' }}</div>
+                                        <div class="text-[10px] text-emerald-600 font-bold">{{ $ts->status_label ?? \App\Support\StatusLabel::for($ts->status) }}</div>
                                     </div>
                                 </div>
                             @empty
@@ -433,7 +433,7 @@
                                         <td class="p-3.5 text-right font-mono font-black text-primary">{{ number_format($p->net_salary) }}đ</td>
                                         <td class="p-3.5 text-center">
                                             <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $p->status === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800' }}">
-                                                {{ $p->status ?? 'Đã duyệt' }}
+                                                {{ \App\Support\StatusLabel::for($p->status) }}
                                             </span>
                                         </td>
                                     </tr>

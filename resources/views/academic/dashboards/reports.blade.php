@@ -34,7 +34,11 @@
                 </div>
                 <div>
                     <span class="text-xs font-medium text-gray-500">Tỷ lệ chuyên cần ngày</span>
-                    <p class="text-2xl font-extrabold text-emerald-600">{{ $attendanceRateToday }}%</p>
+                    @if ($attendanceRateToday === null)
+                        <p class="text-sm font-semibold text-gray-400">Chưa có dữ liệu</p>
+                    @else
+                        <p class="text-2xl font-extrabold text-emerald-600">{{ $attendanceRateToday }}%</p>
+                    @endif
                 </div>
             </div>
 
@@ -44,17 +48,17 @@
                 </div>
                 <div>
                     <span class="text-xs font-medium text-gray-500">Báo cáo ngày hôm nay</span>
-                    <p class="text-2xl font-extrabold text-gray-900">{{ max($totalDailyReportsToday, 4) }} <span class="text-xs text-emerald-600 font-semibold">Đạt chuẩn</span></p>
+                    <p class="text-2xl font-extrabold text-gray-900">{{ $totalDailyReportsToday }}</p>
                 </div>
             </div>
 
             <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-                    <span class="material-symbols-outlined text-2xl">rate_review</span>
+                    <span class="material-symbols-outlined text-2xl">pending_actions</span>
                 </div>
                 <div>
-                    <span class="text-xs font-medium text-gray-500">Đánh giá trung bình</span>
-                    <p class="text-2xl font-extrabold text-purple-600">4.85 <span class="text-xs text-gray-400">/ 5.0</span></p>
+                    <span class="text-xs font-medium text-gray-500">Đề xuất điều chỉnh tiến độ chờ duyệt</span>
+                    <p class="text-2xl font-extrabold text-purple-600">{{ $weeklyStats['adjustments_pending'] }}</p>
                 </div>
             </div>
         </div>
@@ -66,15 +70,15 @@
                 <div class="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
                     <a href="{{ route('academic.dashboards.reports', ['tab' => 'daily']) }}"
                        class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap {{ $tab === 'daily' ? 'bg-primary-container text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
-                        1. Báo cáo ngày Học vụ (Daily)
+                        1. Báo cáo ngày Học vụ
                     </a>
                     <a href="{{ route('academic.dashboards.reports', ['tab' => 'weekly']) }}"
                        class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap {{ $tab === 'weekly' ? 'bg-primary-container text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
-                        2. Báo cáo tuần Học thuật (Weekly)
+                        2. Báo cáo tuần Học thuật
                     </a>
                     <a href="{{ route('academic.dashboards.reports', ['tab' => 'monthly']) }}"
                        class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap {{ $tab === 'monthly' ? 'bg-primary-container text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
-                        3. Báo cáo tháng Giáo viên (Monthly)
+                        3. Báo cáo tháng Giáo viên
                     </a>
                 </div>
 
@@ -103,7 +107,7 @@
                                     <th class="py-3 px-4">Người báo cáo</th>
                                     <th class="py-3 px-4">Sĩ số / Có mặt</th>
                                     <th class="py-3 px-4">Nội dung bài học & Nhật ký</th>
-                                    <th class="py-3 px-4">Task Follow-up</th>
+                                    <th class="py-3 px-4">Trạng thái / Bổ trợ</th>
                                     <th class="py-3 px-4">Thời gian</th>
                                 </tr>
                             </thead>
@@ -111,42 +115,44 @@
                                 @forelse($classReports as $cr)
                                     <tr class="hover:bg-gray-50/80 transition">
                                         <td class="py-3 px-4">
-                                            <span class="font-bold text-gray-900">{{ $cr->classModel?->name ?? 'Lớp học chung' }}</span>
+                                            <span class="font-bold text-gray-900">{{ $cr->classModel?->name ?? 'Chưa gắn lớp' }}</span>
                                             <span class="block text-[11px] text-gray-500 font-mono">{{ $cr->session_name }}</span>
                                         </td>
                                         <td class="py-3 px-4">
-                                            <span class="font-semibold text-gray-800">{{ $cr->reporter?->name ?? 'Học vụ / TA' }}</span>
-                                            <span class="block text-[10px] text-gray-400">Trợ giảng phụ trách</span>
+                                            <span class="font-semibold text-gray-800">{{ $cr->reporter?->name ?? 'Chưa cập nhật' }}</span>
                                         </td>
                                         <td class="py-3 px-4">
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 14 / 15 HV
-                                            </span>
-                                            <span class="block text-[10px] text-rose-500 mt-0.5">1 vắng (có phép)</span>
+                                            @php $att = $reportAttendance[$cr->id] ?? null; @endphp
+                                            @if ($att)
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> {{ $att['present'] }} / {{ $att['total'] }} HV
+                                                </span>
+                                                @if ($att['absent'] + $att['excused'] > 0)
+                                                    <span class="block text-[10px] text-rose-500 mt-0.5">{{ $att['absent'] + $att['excused'] }} vắng{{ $att['excused'] ? ' (' . $att['excused'] . ' có phép)' : '' }}</span>
+                                                @endif
+                                            @else
+                                                <span class="text-[11px] text-gray-400">Chưa có điểm danh</span>
+                                            @endif
                                         </td>
                                         <td class="py-3 px-4 max-w-xs">
                                             <p class="font-medium text-gray-900 truncate">{{ $cr->topics_learned }}</p>
-                                            <p class="text-[11px] text-gray-500 line-clamp-1">{{ $cr->teaching_log ?: 'Lớp học tập trung tốt, hoàn thành mục tiêu.' }}</p>
+                                            @if ($cr->teaching_log)
+                                                <p class="text-[11px] text-gray-500 line-clamp-1">{{ $cr->teaching_log }}</p>
+                                            @endif
                                         </td>
                                         <td class="py-3 px-4">
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                                                <span class="material-symbols-outlined text-[14px]">call</span>
-                                                Gửi bài tập cho HV vắng
-                                            </span>
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">{{ $cr->status_label }}</span>
+                                            @if ($cr->student_supports_count > 0)
+                                                <span class="block text-[10px] text-gray-500 mt-0.5">{{ $cr->student_supports_count }} HV cần bổ trợ</span>
+                                            @endif
                                         </td>
                                         <td class="py-3 px-4 font-mono text-gray-500 text-[11px]">
                                             {{ $cr->created_at->format('H:i d/m') }}
                                         </td>
                                     </tr>
                                 @empty
-                                    <!-- Fallback demo rows -->
-                                    <tr class="hover:bg-gray-50/80">
-                                        <td class="py-3 px-4 font-bold text-gray-900">IELTS Foundation - K24</td>
-                                        <td class="py-3 px-4 font-semibold text-gray-800">Trần Thị B (Học vụ)</td>
-                                        <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700">12/12 HV</span></td>
-                                        <td class="py-3 px-4 text-gray-700">Listening Part 1 & Ngữ pháp thì HTHT</td>
-                                        <td class="py-3 px-4 text-emerald-600 font-medium">Không phát sinh</td>
-                                        <td class="py-3 px-4 font-mono text-gray-400">18:30 15/05</td>
+                                    <tr>
+                                        <td colspan="6" class="py-8 text-center text-gray-400">Chưa có báo cáo trực lớp nào.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -168,46 +174,39 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div class="p-4 rounded-xl border border-gray-200 bg-gray-50 space-y-2">
-                            <span class="text-xs font-bold text-gray-700 uppercase">Tiến độ Syllabus tuần</span>
+                            <span class="text-xs font-bold text-gray-700 uppercase">Điều chỉnh tiến độ Syllabus</span>
                             <div class="flex items-center justify-between text-xs">
-                                <span>Đúng tiến độ:</span>
-                                <span class="font-bold text-emerald-600">28 lớp (93%)</span>
-                            </div>
-                            <div class="flex items-center justify-between text-xs">
-                                <span>Xin điều chỉnh:</span>
-                                <span class="font-bold text-amber-600">2 lớp (7%)</span>
-                            </div>
-                            <div class="w-full bg-gray-200 h-2 rounded-full overflow-hidden mt-2">
-                                <div class="bg-emerald-500 h-2 rounded-full" style="width: 93%"></div>
-                            </div>
-                        </div>
-
-                        <div class="p-4 rounded-xl border border-gray-200 bg-gray-50 space-y-2">
-                            <span class="text-xs font-bold text-gray-700 uppercase">QA Dự giờ & Kiểm định</span>
-                            <div class="flex items-center justify-between text-xs">
-                                <span>Số buổi đã dự giờ:</span>
-                                <span class="font-bold text-gray-900">8 buổi</span>
+                                <span>Yêu cầu mới trong tuần:</span>
+                                <span class="font-bold text-gray-900">{{ $weeklyStats['adjustments_week'] }}</span>
                             </div>
                             <div class="flex items-center justify-between text-xs">
-                                <span>Điểm chuyên môn TB:</span>
-                                <span class="font-bold text-primary">91.5 / 100</span>
+                                <span>Đang chờ duyệt:</span>
+                                <span class="font-bold text-amber-600">{{ $weeklyStats['adjustments_pending'] }}</span>
                             </div>
-                            <span class="block text-[11px] text-gray-500 italic">100% GV đạt chuẩn phương pháp giảng dạy</span>
                         </div>
 
                         <div class="p-4 rounded-xl border border-gray-200 bg-gray-50 space-y-2">
                             <span class="text-xs font-bold text-gray-700 uppercase">Khảo thí & Big Test</span>
                             <div class="flex items-center justify-between text-xs">
-                                <span>Đề test đã phân phối:</span>
-                                <span class="font-bold text-gray-900">4 bộ đề</span>
+                                <span>Big Test trong 7 ngày tới:</span>
+                                <span class="font-bold text-gray-900">{{ $weeklyStats['big_tests_upcoming'] }}</span>
                             </div>
                             <div class="flex items-center justify-between text-xs">
-                                <span>Học viên đạt Target:</span>
-                                <span class="font-bold text-emerald-600">88.4%</span>
+                                <span>Đề đã phân phối trong tuần:</span>
+                                <span class="font-bold text-gray-900">{{ $weeklyStats['big_tests_distributed'] }}</span>
                             </div>
-                            <span class="block text-[11px] text-gray-500 italic">Duyệt gửi kết quả phụ huynh trước Thứ 6</span>
+                        </div>
+
+                        <div class="p-4 rounded-xl border border-gray-200 bg-gray-50 space-y-2">
+                            <span class="text-xs font-bold text-gray-700 uppercase">Lớp đang chạy</span>
+                            <div class="flex items-center justify-between text-xs">
+                                <span>Đang học / Tổng số lớp:</span>
+                                <span class="font-bold text-gray-900">{{ $activeClasses }} / {{ $totalClasses }}</span>
+                            </div>
                         </div>
                     </div>
+
+                    @include('academic.dashboards.partials.record-list', ['records' => $weeklyReports, 'empty' => 'Chưa có báo cáo tuần nào.'])
                 </div>
             @endif
 
@@ -222,17 +221,7 @@
 
                     </div>
 
-                    <div class="bg-gray-50 p-6 rounded-2xl border border-gray-200 text-center space-y-3">
-                        <span class="material-symbols-outlined text-4xl text-primary">assessment</span>
-                        <h4 class="font-bold text-gray-900 text-sm">Kỳ Báo cáo Tháng Hiện Tại</h4>
-                        <p class="text-xs text-gray-500 max-w-md mx-auto">Giáo viên hoàn thành gửi bảng báo cáo chung cuối tháng vào ngày 28 hàng tháng để kế toán đối soát tính thưởng hiệu suất.</p>
-                        <div class="pt-2">
-                            <a href="{{ route('payroll.timesheets.teachers') }}" class="inline-flex items-center gap-1 px-4 py-2 bg-white border border-gray-300 rounded-xl text-xs font-bold text-gray-800 hover:bg-gray-100 shadow-xs">
-                                <span class="material-symbols-outlined text-[16px]">visibility</span>
-                                Xem Bảng công & Lịch dạy chi tiết
-                            </a>
-                        </div>
-                    </div>
+                    @include('academic.dashboards.partials.record-list', ['records' => $monthlyReports, 'empty' => 'Chưa có báo cáo tháng nào.'])
                 </div>
             @endif
         </div>

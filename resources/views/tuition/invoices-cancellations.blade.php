@@ -183,7 +183,7 @@
                                 </div>
                                 <div class="flex justify-between items-center">
                                     <span class="text-slate-500">Người yêu cầu hủy:</span>
-                                    <span class="font-medium text-slate-700">{{ $can->requester?->name ?? 'Lê Thị Bích (Học vụ)' }}</span>
+                                    <span class="font-medium text-slate-700">{{ $can->requester?->name ?? 'Chưa cập nhật' }}</span>
                                 </div>
                                 <div class="flex justify-between items-center">
                                     <span class="text-slate-500">Thời điểm gửi yêu cầu:</span>
@@ -220,8 +220,8 @@
                     @php
                         $st = $selectedCancellation->student ?? $selectedCancellation->receipt?->tuition?->student ?? $selectedCancellation->receipt?->student;
                         $rc = $selectedCancellation->receipt;
-                        $className = $rc?->tuition?->classModel?->name ?? $st?->currentClass?->name ?? 'IELTS Foundation 02';
-                        $branchName = $st?->branch?->name ?? 'Cơ sở Cầu Giấy';
+                        $className = $rc?->tuition?->classModel?->name ?? $st?->currentClass?->name ?? 'Chưa gắn lớp';
+                        $branchName = $st?->branch?->name ?? 'Chưa gán chi nhánh';
                     @endphp
 
                     <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 md:p-6 space-y-5">
@@ -245,7 +245,7 @@
                                     @endif
                                 </div>
                                 <p class="text-xs text-slate-500 mt-1">
-                                    Gắn với phiếu thu: <strong class="text-slate-800 font-mono">{{ $rc?->receipt_number ?? 'PT-Gốc' }}</strong> • Tạo ngày {{ $selectedCancellation->created_at->format('d/m/Y') }} bởi <span class="font-medium text-slate-700">{{ $selectedCancellation->requester?->name ?? 'Lê Thị Bích (Học vụ)' }}</span>
+                                    Gắn với phiếu thu: <strong class="text-slate-800 font-mono">{{ $rc?->receipt_number ?? '—' }}</strong> • Tạo ngày {{ $selectedCancellation->created_at->format('d/m/Y') }} bởi <span class="font-medium text-slate-700">{{ $selectedCancellation->requester?->name ?? 'Chưa cập nhật' }}</span>
                                 </p>
                             </div>
 
@@ -279,7 +279,7 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">
                                 <div>
                                     <span class="text-rose-700 text-[11px]">Người gửi yêu cầu:</span>
-                                    <div class="font-bold text-slate-900 mt-0.5">{{ $selectedCancellation->requester?->name ?? 'Lê Thị Bích' }} (Học vụ - {{ $branchName }})</div>
+                                    <div class="font-bold text-slate-900 mt-0.5">{{ $selectedCancellation->requester?->name ?? 'Chưa cập nhật' }} (Học vụ - {{ $branchName }})</div>
                                 </div>
                                 <div>
                                     <span class="text-rose-700 text-[11px]">Thời gian gửi:</span>

@@ -97,14 +97,14 @@
                                             student_name: '{{ addslashes($rc->tuition?->student?->name ?? '') }}',
                                             student_code: '{{ $rc->tuition?->student?->code ?? '' }}',
                                             student_phone: '{{ $rc->tuition?->student?->phone ?? '' }}',
-                                            class_name: '{{ addslashes($rc->tuition?->classModel?->name ?? 'Lớp Tiếng Anh Chuẩn') }}',
-                                            branch_name: '{{ addslashes($rc->tuition?->branch?->name ?? 'Cơ sở Cầu Giấy, Hà Nội') }}',
+                                            class_name: '{{ addslashes($rc->tuition?->classModel?->name ?? 'Chưa gắn lớp') }}',
+                                            branch_name: '{{ addslashes($rc->tuition?->branch?->name ?? 'Chưa gán chi nhánh') }}',
                                             amount: {{ (float) $rc->amount }},
                                             payment_method: '{{ $rc->payment_method === 'transfer' ? 'Chuyển khoản VietQR' : ($rc->payment_method === 'cash' ? 'Tiền mặt' : 'Quẹt thẻ POS') }}',
-                                            creator_name: '{{ addslashes($rc->creator?->name ?? 'Thu ngân / Kế toán') }}',
-                                            approver_name: '{{ addslashes($rc->approver?->name ?? 'Kế toán trưởng') }}',
+                                            creator_name: '{{ addslashes($rc->creator?->name ?? 'Chưa cập nhật') }}',
+                                            approver_name: '{{ addslashes($rc->approver?->name ?? 'Chưa duyệt') }}',
                                             created_at: '{{ $rc->created_at->format('d/m/Y') }}',
-                                            notes: '{{ addslashes($rc->notes ?? 'Thu học phí khóa học') }}'
+                                            notes: '{{ addslashes($rc->notes ?? '') }}'
                                         })"
                                         class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-primary-container hover:text-white text-gray-700 text-xs font-semibold transition cursor-pointer"
                                         title="Xem &amp; In Phiếu thu học phí chuẩn"
@@ -163,8 +163,12 @@
                     <div class="flex items-start justify-between border-b pb-4 border-gray-200">
                         <div>
                             <div class="text-xs font-black uppercase tracking-wider text-primary">HỆ THỐNG ANH NGỮ MENGLISH</div>
-                            <div class="text-[11px] text-gray-500 font-medium">Trụ sở: Cầu Giấy, Hà Nội · Hotline: 1900 8899</div>
-                            <div class="text-[10px] text-gray-400">Website: https://menglish.edu.vn · MST: 0109988234</div>
+                            <div class="text-[11px] text-gray-500 font-medium">
+                                <span x-text="selectedReceipt?.branch_name"></span>@if (\App\Support\CenterInfo::phone()) · Hotline: {{ \App\Support\CenterInfo::phone() }}@endif
+                            </div>
+                            @if (\App\Support\CenterInfo::website() || \App\Support\CenterInfo::taxCode())
+                                <div class="text-[10px] text-gray-400">{{ collect([\App\Support\CenterInfo::website() ? 'Website: ' . \App\Support\CenterInfo::website() : null, \App\Support\CenterInfo::taxCode() ? 'MST: ' . \App\Support\CenterInfo::taxCode() : null])->filter()->implode(' · ') }}</div>
+                            @endif
                         </div>
                         <div class="text-right">
                             <div class="text-xs font-mono font-bold text-gray-800">

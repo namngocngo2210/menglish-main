@@ -8,7 +8,7 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">event_available</span>
-                        Đặt lịch khách học thử vào buổi (Flow 1 — Bước #1)
+                        Đặt lịch khách học thử vào buổi
                     </h1>
                     <p class="text-xs text-gray-500">Khách hàng được tiếp nhận từ CRM hoặc Test đầu vào để xếp vào buổi học thử trải nghiệm tại cơ sở.</p>
                 </div>
@@ -16,7 +16,7 @@
             <div class="flex items-center gap-2">
                 <a href="{{ route('classes.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-dark transition">
                     <span class="material-symbols-outlined text-[18px]">group_add</span>
-                    <span>Tạo lớp mới (Bước #2)</span>
+                    <span>Tạo lớp mới</span>
                 </a>
             </div>
         </div>
@@ -31,9 +31,9 @@
         <!-- Interactive Card Modal Container -->
         <div class="bg-white rounded-2xl border border-gray-200 shadow-md overflow-hidden" x-data="{
             step: 1,
-            selectedClass: '{{ $classes->first()?->code ?? 'IELTS-PRE-01' }}',
+            selectedClass: '{{ $classes->first()?->code ?? '' }}',
             selectedClassId: '{{ $classes->first()?->id ?? 1 }}',
-            selectedClassName: '{{ $classes->first()?->name ?? 'IELTS-PRE-01' }}',
+            selectedClassName: '{{ $classes->first()?->name ?? '' }}',
             selectedSchedule: '{{ addslashes($classes->first()?->schedule_text ?? '') }}',
             selectedSession: '',
             searchQuery: '',
@@ -57,9 +57,7 @@
             <div class="flex justify-between items-center p-6 border-b border-gray-100 bg-white">
                 <div>
                     <h2 class="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Đặt lịch khách học thử vào buổi</h2>
-                    <p class="text-xs md:text-sm text-gray-500 mt-1">
-                        Khách hàng: <strong class="text-gray-800">{{ $customerName }}</strong> — Trình độ test: <span class="px-2 py-0.5 rounded bg-orange-100 text-primary font-bold text-xs">{{ $customerLevel }}</span>
-                    </p>
+                    <p class="text-xs md:text-sm text-gray-500 mt-1">Chọn lớp và buổi học thử phù hợp cho khách.</p>
                 </div>
                 <div class="p-2 rounded-lg bg-gray-50 text-gray-400">
                     <span class="material-symbols-outlined text-[20px]">calendar_add_on</span>
@@ -89,9 +87,21 @@
             <!-- Form Wrapper -->
             <form action="{{ route('classes.trial-booking.store') }}" method="POST">
                 @csrf
-                <input type="hidden" name="customer_name" value="{{ $customerName }}">
-                <input type="hidden" name="customer_level" value="{{ $customerLevel }}">
                 <input type="hidden" name="branch_name" value="{{ $customerBranch }}">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 px-6 pt-5 bg-white">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1" for="trial_customer_name">Tên khách hàng <span class="text-rose-500">*</span></label>
+                        <input id="trial_customer_name" type="text" name="customer_name" required value="{{ old('customer_name', $customerName) }}" placeholder="Họ tên khách học thử"
+                               class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container">
+                        <x-input-error :messages="$errors->get('customer_name')" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1" for="trial_customer_level">Trình độ test</label>
+                        <input id="trial_customer_level" type="text" name="customer_level" value="{{ old('customer_level', $customerLevel) }}" placeholder="VD: Pre-IELTS"
+                               class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container">
+                        <x-input-error :messages="$errors->get('customer_level')" class="mt-1" />
+                    </div>
+                </div>
                 <input type="hidden" name="class_id" :value="selectedClassId">
                 <input type="hidden" name="class_name" :value="selectedClassName">
                 <input type="hidden" name="session_time" :value="selectedSession">
@@ -113,8 +123,11 @@
                             </div>
                             <div class="w-full sm:w-60">
                                 <label class="block text-xs font-semibold text-gray-700 mb-1">Chi nhánh khách</label>
-                                <select class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-xs text-gray-700 focus:outline-none cursor-default" disabled>
-                                    <option selected>{{ $customerBranch }}</option>
+                                <select class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-xs text-gray-700 focus:outline-none"
+                                        onchange="const u = new URL(window.location.href); u.searchParams.set('branch_id', this.value); window.location = u.toString();">
+                                    @foreach ($branches as $branchOption)
+                                        <option value="{{ $branchOption->id }}" @selected((string) $selectedBranchId === (string) $branchOption->id)>{{ $branchOption->name }}</option>
+                                    @endforeach
                                 </select>
                             </div>
                         </div>
@@ -148,7 +161,7 @@
                                             </td>
                                             <td class="py-3 px-4">
                                                 <div class="flex items-center gap-1.5">
-                                                    <span class="font-medium text-gray-800">{{ $c->level ?? $c->course?->name ?? 'Pre-IELTS' }}</span>
+                                                    <span class="font-medium text-gray-800">{{ $c->level ?? $c->course?->name ?? 'Chưa cập nhật' }}</span>
                                                     @if($loop->first)
                                                         <span class="inline-flex items-center px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px] uppercase">
                                                             Gợi ý phù hợp
@@ -157,13 +170,13 @@
                                                 </div>
                                             </td>
                                             <td class="py-3 px-4 text-gray-600 font-medium">
-                                                {{ $c->branch?->name ?? 'Cầu Giấy' }}
+                                                {{ $c->branch?->name ?? 'Chưa cập nhật' }}
                                             </td>
                                         </tr>
                                     @empty
                                         <tr>
                                             <td colspan="4" class="p-6 text-center text-gray-400 text-xs">
-                                                Chưa có dữ liệu lớp học phù hợp. Vui lòng tạo lớp mới ở Bước #2.
+                                                Chưa có dữ liệu lớp học phù hợp. Vui lòng tạo lớp mới.
                                             </td>
                                         </tr>
                                     @endforelse
@@ -229,7 +242,7 @@
                                 Xác nhận thông tin học thử
                             </h4>
                             <ul class="space-y-1 text-xs text-gray-700">
-                                <li><span class="text-gray-500 inline-block w-28">Khách hàng:</span> <strong class="text-gray-900">{{ $customerName }}</strong></li>
+                                <li><span class="text-gray-500 inline-block w-28">Khách hàng:</span> <strong class="text-gray-900" x-text="document.getElementById('trial_customer_name')?.value || 'Chưa nhập'"></strong></li>
                                 <li><span class="text-gray-500 inline-block w-28">Lớp đăng ký:</span> <strong class="text-gray-900" x-text="selectedClassName"></strong></li>
                                 <li><span class="text-gray-500 inline-block w-28">Thời gian buổi:</span> <strong class="text-primary font-bold" x-text="selectedSession"></strong></li>
                                 <li><span class="text-gray-500 inline-block w-28">Chi nhánh:</span> <strong class="text-gray-900">{{ $customerBranch }}</strong></li>

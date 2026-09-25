@@ -36,10 +36,10 @@ class ClassManagementController extends Controller
         }
         $classes = $classesQuery->get();
 
-        // Lead mẫu hoặc lấy từ CRM
-        $customerName = $request->query('customer_name', 'Nguyễn Văn A');
-        $customerLevel = $request->query('customer_level', 'Pre-IELTS');
-        $customerBranch = $branches->firstWhere('id', $selectedBranchId)?->name ?? 'Cầu Giấy, Hà Nội';
+        // Thông tin khách truyền từ CRM (không có thì để trống cho người dùng nhập)
+        $customerName = (string) $request->query('customer_name', '');
+        $customerLevel = (string) $request->query('customer_level', '');
+        $customerBranch = $branches->firstWhere('id', $selectedBranchId)?->name ?? '';
 
         // Lấy lịch sử đặt học thử đã lưu
         $bookings = AcademicRecord::where('screen_key', '01_Web_Admin/12_dat_lich_hoc_thu_popup')
@@ -92,11 +92,11 @@ class ClassManagementController extends Controller
             'status' => 'confirmed',
             'data' => [
                 'customer_name' => $validated['customer_name'],
-                'customer_level' => $validated['customer_level'] ?? 'Pre-IELTS',
+                'customer_level' => $validated['customer_level'] ?? null,
                 'class_name' => $validated['class_name'],
                 'class_id' => $validated['class_id'] ?? null,
                 'session_time' => $validated['session_time'],
-                'branch_name' => $validated['branch_name'] ?? 'Cầu Giấy',
+                'branch_name' => $validated['branch_name'] ?? null,
                 'booked_at' => now()->toDateTimeString(),
             ],
             'user_id' => Auth::id(),
@@ -485,10 +485,28 @@ class ClassManagementController extends Controller
         if ($branchFilter) {
             $classesQuery->where('branch_id', $branchFilter);
         }
+        if ($programFilter) {
+            $classesQuery->where('program', $programFilter);
+        }
 
-        $classes = $classesQuery->get();
+        // Tiến độ thật: số buổi (không tính buổi hủy) và số buổi đã diễn ra.
+        $classesQuery->withCount([
+            'sessions as total_sessions_count' => fn ($q) => $q->where('status', '!=', 'cancelled'),
+            'sessions as done_sessions_count' => fn ($q) => $q->where('status', '!=', 'cancelled')->whereDate('date', '<=', today()),
+        ]);
 
-        return view('classes.academic-list', compact('classes', 'branches', 'search', 'branchFilter', 'programFilter'));
+        $classes = $classesQuery->orderBy('code')->paginate(20)->withQueryString();
+
+        // Big Test của các lớp đang hiển thị (thật, theo thứ tự lịch thi)
+        $bigTests = \App\Models\BigTest::whereIn('class_id', $classes->pluck('id'))
+            ->orderBy('scheduled_at')
+            ->get(['id', 'class_id', 'title', 'scheduled_at', 'status'])
+            ->groupBy('class_id');
+
+        $programs = ClassModel::visibleTo(auth()->user())->whereNotNull('program')->where('program', '!=', '')
+            ->distinct()->orderBy('program')->pluck('program');
+
+        return view('classes.academic-list', compact('classes', 'branches', 'search', 'branchFilter', 'programFilter', 'programs', 'bigTests'));
     }
 
     /**

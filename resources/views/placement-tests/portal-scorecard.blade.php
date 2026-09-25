@@ -59,7 +59,7 @@
                     </h1>
                     <div class="flex items-center justify-center sm:justify-end gap-1.5 text-xs font-bold text-slate-700 font-mono">
                         <span class="material-symbols-outlined text-sm text-orange-600">call</span>
-                        <span>Hotline: <strong class="text-orange-600 font-black">0975 996 986</strong></span>
+                        <span>Hotline: <strong class="text-orange-600 font-black">{{ \App\Support\CenterInfo::phone() }}</strong></span>
                     </div>
                     <div class="text-[10px] text-slate-400 font-mono">Mã bài thi: {{ $submission->test?->code }} · Ngày thi: {{ $submission->created_at->format('d/m/Y') }}</div>
                 </div>
@@ -67,9 +67,9 @@
 
             <!-- Campus Locations Footer Line -->
             <div class="mt-3 pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between text-[11px] text-slate-600 gap-2">
-                <span><strong>CS 1:</strong> Số 15 ngõ 172 Ngọc Hà</span>
-                <span><strong>CS 2:</strong> Số 23 ngõ 209 Đội Cấn</span>
-                <span><strong>CS 3:</strong> Số 12 ngõ 24/55 Hoàng Hoa Thám</span>
+                @foreach (\App\Support\CenterInfo::branches() as $centerBranch)
+                    <span><strong>{{ $centerBranch->name }}:</strong> {{ $centerBranch->address }}</span>
+                @endforeach
             </div>
         </div>
 
