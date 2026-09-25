@@ -546,6 +546,29 @@
 **Quyết định phát sinh:** Hạn xử lý order = ngày thi − 3 ngày (theo mockup SLA). Media Manager chỉ sở hữu `uploads/media`.
 **Triển khai:** chạy `php artisan migrate` (2 migration `2026_09_28_1200xx`); bật scheduler (`* * * * * php artisan schedule:run`). File media cũ ở `public/uploads/YYYY/MM` (lẫn file ticket) không còn hiện trong Media Manager — chuyển tay những file thuộc media sang `public/uploads/media/` nếu cần.
 
+#### Phase 2 — Lớp và lịch học (nhánh `feat/phase2-schedule`)
+**Đã làm:**
+- [x] Trùng lịch GVNN: buổi học lưu riêng `foreign_teacher_id` (migration + backfill từ lớp). Kiểm tra trùng lịch khi xếp TKB, tạo lớp, sửa lớp tính cả GV chính, GVNN, trợ giảng. `check-availability` báo cả TA/GVNN, tính nhân sự trên mọi chi nhánh, ca nối tiếp không bị coi là trùng.
+- [x] Ngày nghỉ thêm sau: khi thêm hoặc sửa ngày nghỉ, buổi sắp tới của chi nhánh bị ảnh hưởng (chưa điểm danh, chưa chấm công) chuyển **Đã hủy** và gắn ngày nghỉ. Mỗi buổi hủy được xếp **1 buổi học bù** vào ca kế tiếp của lớp, sau buổi cuối cùng, không trùng phòng hoặc nhân sự. Buổi đã có dữ liệu thì giữ nguyên, chỉ báo lại cho người dùng. Dời hoặc xóa ngày nghỉ thì khôi phục buổi đã hủy và gỡ buổi bù (nếu buổi bù chưa diễn ra). Dashboard và TKB đều hiện buổi nghỉ lễ và ngày học bù.
+- [x] Dashboard lớp theo ngày/tuần lấy từ buổi học thật: phòng, GV, GVNN, TA, giờ, sĩ số, trạng thái điểm danh từng buổi. Bộ lọc chạy được. Ma trận tuần sinh từ buổi học. Giáo viên chỉ thấy lớp mình. Nút "Điểm danh / Chấm công" mở `teacher.attendance` kèm `session` và `date`.
+- [x] Cấu hình trình độ: sửa, xóa (chặn khi đang có khóa học hoặc lớp dùng), bật/tắt trạng thái, tìm kiếm, lọc nhóm/trạng thái, thẻ thống kê, **nhóm trình độ** và **gắn Syllabus** (migration).
+- [x] TKB: chọn và sửa được lớp đã có lịch (buổi quá khứ/đã có dữ liệu giữ nguyên). Danh sách lớp theo người xem. Bỏ banner giả "12 → 15". Báo cáo phòng/nhân sự lọc theo chi nhánh và 7 ngày, số liệu từ buổi học thật, lưu nhu cầu nhân sự theo chi nhánh + ngày.
+- [x] Sĩ số: `ClassModel::occupiedSeats() / seatsLeft() / isFull() / hasSeatsFor()` (gộp bàn giao xếp lớp và `current_class_id`, chỉ tính học viên còn giữ chỗ). Dùng để chặn xếp lớp thủ công khi lớp đầy.
+- [x] Portal trợ giảng: chỉ nhiệm vụ của ngày đang chọn (có chọn ngày, nhắc việc quá hạn). Admin/Quản lý chọn được TA (bỏ tài khoản TA viết cứng). Giao diện điện thoại có thanh điều hướng dưới.
+- [x] Bảng KPI tự động theo tháng: chuyên cần từ điểm danh, hoàn thành bài tập từ bài nộp so với bài giao, hoàn thành công việc từ WorkTask, giữ chân từ học viên lớp. Bỏ số 96.8% và danh sách nhân sự đoán theo email. Không có dữ liệu thì hiện "Chưa có dữ liệu".
+
+**Chưa làm / chuyển phase sau:**
+- [ ] Chặn sĩ số trong `StudentProfileController::storeEnrollment` → màn này thuộc nhóm Hồ sơ học viên (việc khác đang làm). Chỉ cần gọi `$class->hasSeatsFor()`.
+- [ ] Điểm danh theo từng buổi (`teacher.attendance` hiện vẫn lấy buổi hôm nay) → thuộc việc điểm danh/chấm công. Link từ dashboard đã gửi sẵn `session` và `date`.
+- [ ] Buổi học bù (type `makeup`) chưa tự đổi GV/TA/phòng khi sửa lớp (scope `replaceable` chỉ áp buổi chính khóa).
+
+**Quyết định phát sinh (tạm theo nguyên tắc BPMN + mockup, cần BA xác nhận):**
+- Ngày nghỉ thêm sau → **hủy + tự xếp bù cuối lịch** (không dồn lịch). Không đổi số buổi của khóa.
+- Học viên "Bảo lưu" không tính vào sĩ số lớp.
+- Tỷ lệ bài tập là số gần đúng, vì bài nộp chưa gắn với bài tập cụ thể.
+
+**Lưu ý triển khai:** chạy `php artisan migrate` (2 migration: `class_sessions` thêm `foreign_teacher_id` / `holiday_id` / `rescheduled_from_id` kèm backfill; `course_levels` thêm `level_group` / `syllabus_curriculum_id`). Build lại asset (`npm run build`, `deploy.sh` đã tự làm) vì có class Tailwind mới.
+
 ---
 
 ## Phụ lục — Vị trí kỹ thuật các lỗi P0 (cho dev)

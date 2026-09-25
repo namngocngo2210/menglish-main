@@ -1,330 +1,201 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">Dashboard lớp học</h1>
-                <p class="text-sm text-gray-500 mt-0.5">Quản lý lịch học, điểm danh, chấm công giảng viên và bố trí trợ giảng</p>
-            </div>
-            <div class="flex items-center gap-3">
-                <button onclick="window.print()" class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium text-sm hover:bg-gray-50 transition shadow-sm flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[18px]">download</span>
-                    Xuất báo cáo
-                </button>
-                <a href="{{ route('tasks.schedule-config') }}" class="bg-primary-container text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-primary transition shadow-sm flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[18px]">add</span>
-                    Thêm / Cấu hình lớp
-                </a>
-            </div>
+{{-- Dashboard lớp học theo ngày / ma trận khung giờ tuần — dữ liệu lấy từ buổi học thật (class_sessions). --}}
+<x-app-layout title="Dashboard lớp học">
+    <x-ui.page-header title="Dashboard lớp học" description="Lịch học, điểm danh và chấm công theo từng buổi học thực tế.">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="download" onclick="window.print()">Xuất báo cáo</x-ui.button>
+            @can('class.create')
+                <x-ui.button icon="add" :href="route('classes.create')">Thêm lớp học</x-ui.button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <x-ui.tabs class="mb-lg">
+        <x-ui.tab icon="today" :href="route('tasks.classes-dashboard', ['tab' => 'day', 'date' => $date, 'branch_id' => $branchId])" :active="$tab === 'day'">Theo ngày</x-ui.tab>
+        <x-ui.tab icon="calendar_view_week" :href="route('tasks.classes-dashboard', ['tab' => 'week', 'week' => $week, 'branch_id' => $branchId])" :active="$tab === 'week'">Theo tuần</x-ui.tab>
+    </x-ui.tabs>
+
+    @if ($tab === 'day')
+        {{-- ─── THEO NGÀY ─── --}}
+        <x-ui.filter-bar :search="null" :action="route('tasks.classes-dashboard')">
+            <input type="hidden" name="tab" value="day">
+            <x-ui.select name="branch_id" inline-label="Chi nhánh:" :options="$branches->pluck('name', 'id')" :value="$branchId" placeholder="Tất cả chi nhánh" />
+            <x-ui.date name="date" inline-label="Ngày:" :value="$date" />
+        </x-ui.filter-bar>
+
+        <div class="mb-lg grid grid-cols-2 gap-md lg:grid-cols-4">
+            <x-ui.stat-card label="Buổi học trong ngày" :value="$dayStats['total']" icon="event" />
+            <x-ui.stat-card label="Đã điểm danh" :value="$dayStats['done']" tone="success" icon="how_to_reg" />
+            <x-ui.stat-card label="Chưa điểm danh" :value="$dayStats['missing']" tone="error" icon="pending_actions" />
+            <x-ui.stat-card label="Hủy / nghỉ lễ" :value="$dayStats['cancelled']" tone="warning" icon="event_busy" />
         </div>
-    </x-slot>
 
-    <div class="space-y-6" x-data="{ activeTab: 'day' }">
-
-        <!-- Main Content Card with Tabs -->
-        <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-            <!-- Tab Headers -->
-            <div class="flex border-b border-gray-200 px-6 bg-gray-50/50">
-                <button @click="activeTab = 'day'"
-                        :class="activeTab === 'day' ? 'border-primary-container text-primary-container font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'"
-                        class="px-5 py-3.5 text-sm font-medium border-b-2 transition flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[18px]">today</span>
-                    Theo ngày
-                </button>
-                <button @click="activeTab = 'week'"
-                        :class="activeTab === 'week' ? 'border-primary-container text-primary-container font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'"
-                        class="px-5 py-3.5 text-sm font-medium border-b-2 transition flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[18px]">calendar_view_week</span>
-                    Theo tuần (Ma trận khung giờ)
-                </button>
+        <div class="grid grid-cols-1 gap-lg xl:grid-cols-4">
+            <div class="xl:col-span-3">
+                <x-ui.data-table min-width="920px">
+                    <x-slot:header>
+                        <h3 class="font-h3 text-h3 text-on-surface">Buổi học ngày {{ \Illuminate\Support\Carbon::parse($date)->format('d/m/Y') }}</h3>
+                        <span class="font-body-small text-body-small text-on-surface-variant">{{ $selectedBranch?->name ?? 'Tất cả chi nhánh' }}</span>
+                    </x-slot:header>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tên lớp</th>
+                                <th>Khung giờ</th>
+                                <th>Phòng học</th>
+                                <th>GV chính</th>
+                                <th>GVNN</th>
+                                <th>Trợ giảng</th>
+                                <th class="text-center">Sĩ số</th>
+                                <th class="text-center">Điểm danh</th>
+                                <th class="text-right">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($daySessions as $session)
+                                @php
+                                    $class = $session->classModel;
+                                    $state = $dashboard->attendanceState($session, $today);
+                                    // teacher_id cũ = GV chính ?? GVNN: không lặp tên GVNN ở cột GV chính.
+                                    $mainTeacher = $session->teacher_id && $session->teacher_id !== $session->foreign_teacher_id ? $session->teacher : null;
+                                @endphp
+                                <tr data-session-id="{{ $session->id }}">
+                                    <td>
+                                        <div class="font-semibold text-on-surface">{{ $class?->name ?? 'Lớp đã xóa' }}</div>
+                                        <div class="flex flex-wrap items-center gap-xs font-caption text-caption text-on-surface-variant">
+                                            <span class="font-code">{{ $class?->code }}</span>
+                                            @if ($session->type === \App\Models\ClassSession::TYPE_MAKEUP)
+                                                <x-ui.badge color="warning">Học bù</x-ui.badge>
+                                            @elseif ($session->type === \App\Models\ClassSession::TYPE_SUPPORT)
+                                                <x-ui.badge color="secondary">Phụ đạo</x-ui.badge>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td class="whitespace-nowrap font-code">{{ $session->start_time?->format('H:i') }} - {{ $session->end_time?->format('H:i') }}</td>
+                                    <td class="whitespace-nowrap">{{ $session->room ?: '—' }}</td>
+                                    <td class="whitespace-nowrap">{{ $mainTeacher?->name ?? '—' }}</td>
+                                    <td class="whitespace-nowrap">{{ $session->foreignTeacher?->name ?? '—' }}</td>
+                                    <td class="whitespace-nowrap">{{ $session->assistant?->name ?? '—' }}</td>
+                                    <td class="whitespace-nowrap text-center font-code">
+                                        {{ $class ? ($seats[$class->id] ?? 0) : 0 }}/{{ $class?->max_capacity ?: '∞' }}
+                                    </td>
+                                    <td class="text-center">
+                                        <x-ui.badge :color="$state['color']" pill>{{ $state['label'] }}@if ($state['key'] === 'done') ({{ $session->attendances_count }})@endif</x-ui.badge>
+                                        @if ($session->holiday)
+                                            <div class="mt-xs font-caption text-caption text-on-surface-variant">{{ $session->holiday->name }}</div>
+                                        @endif
+                                    </td>
+                                    <td class="whitespace-nowrap text-right">
+                                        @if ($session->status !== 'cancelled' && $class && ! $session->date->gt($today) && auth()->user()->can('attendance_student.record'))
+                                            <x-ui.button size="sm" :variant="$state['key'] === 'done' ? 'secondary' : 'primary'" icon="how_to_reg"
+                                                :href="route('teacher.attendance', ['classId' => $class->id, 'session' => $session->id, 'date' => $session->date->toDateString()])">
+                                                {{ $state['key'] === 'done' ? 'Xem điểm danh' : 'Điểm danh / Chấm công' }}
+                                            </x-ui.button>
+                                        @elseif ($session->status === 'cancelled' && $session->makeupSession)
+                                            <span class="font-caption text-caption text-on-surface-variant">Bù ngày {{ $session->makeupSession->date->format('d/m') }}</span>
+                                        @else
+                                            <span class="font-caption text-caption text-on-surface-variant">—</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="9">
+                                        <x-ui.empty-state icon="event_available" title="Không có buổi học nào"
+                                            description="Không có buổi học nào trong ngày đã chọn{{ $selectedBranch ? ' tại '.$selectedBranch->name : '' }}. Lịch học được sinh từ màn TKB." />
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </x-ui.data-table>
             </div>
 
-            <!-- PANEL 1: THEO NGÀY -->
-            <div x-show="activeTab === 'day'" class="p-6 space-y-6">
-                <!-- Filters Bar -->
-                <div class="flex flex-col sm:flex-row items-center gap-4 bg-gray-50/80 p-4 rounded-xl border border-gray-200">
-                    <div class="w-full sm:w-64">
-                        <label class="block text-[11px] font-bold uppercase text-gray-500 mb-1">Chi nhánh</label>
-                        <select class="w-full bg-white border-gray-200 rounded-lg text-sm focus:ring-primary-container focus:border-primary-container">
-                            <option>Tất cả chi nhánh</option>
-                            @foreach($branches as $b)
-                                <option value="{{ $b->id }}">{{ $b->name }}</option>
+            {{-- Trợ giảng có ca trong ngày (từ buổi học thật) --}}
+            <aside class="rounded-xl border border-outline-variant bg-surface-container-low p-md">
+                <div class="mb-md flex items-center gap-sm border-b border-outline-variant pb-sm">
+                    <span class="material-symbols-outlined text-primary-container" aria-hidden="true">support_agent</span>
+                    <h3 class="font-h3 text-h3 text-on-surface">Trợ giảng làm việc</h3>
+                </div>
+                <ul class="space-y-sm">
+                    @forelse ($assistantsToday as $duty)
+                        <li class="flex items-center gap-sm rounded-lg border border-outline-variant bg-surface-container-lowest p-sm">
+                            <x-ui.avatar :name="$duty['user']->name" size="sm" />
+                            <div class="min-w-0">
+                                <p class="truncate font-body-medium text-body-medium text-on-surface">{{ $duty['user']->name }}</p>
+                                <p class="font-caption text-caption text-on-surface-variant">{{ $duty['from'] }} - {{ $duty['to'] }} · {{ $duty['sessions'] }} buổi</p>
+                            </div>
+                        </li>
+                    @empty
+                        <li class="py-md text-center font-body-small text-body-small text-on-surface-variant">Không có trợ giảng nào có ca trong ngày.</li>
+                    @endforelse
+                </ul>
+                @can('work_task.assign')
+                    <x-ui.button variant="secondary" icon="add" class="mt-md w-full" :href="route('tasks.ta-assign')">Giao việc cho trợ giảng</x-ui.button>
+                @endcan
+            </aside>
+        </div>
+    @else
+        {{-- ─── THEO TUẦN (ma trận khung giờ) ─── --}}
+        <x-ui.filter-bar :search="null" :action="route('tasks.classes-dashboard')">
+            <input type="hidden" name="tab" value="week">
+            <x-ui.select name="branch_id" inline-label="Chi nhánh:" :options="$branches->pluck('name', 'id')" :value="$branchId" placeholder="Tất cả chi nhánh" />
+            <x-ui.input type="week" name="week" inline-label="Tuần:" :value="$week" />
+        </x-ui.filter-bar>
+
+        <div class="mb-md flex flex-wrap items-center gap-md font-caption text-caption text-on-surface-variant">
+            <span class="flex items-center gap-xs"><span class="h-3 w-3 rounded border border-blue-200 bg-blue-50"></span> Chính khóa (màu theo khóa học)</span>
+            <span class="flex items-center gap-xs"><span class="h-3 w-3 rounded border border-amber-300 bg-amber-50"></span> Học bù</span>
+            <span class="flex items-center gap-xs"><span class="h-3 w-3 rounded border border-purple-300 bg-purple-50"></span> Phụ đạo</span>
+            <span class="flex items-center gap-xs"><span class="h-3 w-3 rounded border border-outline-variant bg-surface-container-low"></span> Đã hủy / nghỉ lễ</span>
+        </div>
+
+        @if (empty($matrix['rows']))
+            <div class="rounded-xl border border-outline-variant bg-surface-container-lowest">
+                <x-ui.empty-state icon="calendar_view_week" title="Tuần này chưa có buổi học"
+                    description="Tuần {{ $weekStart->format('d/m') }} - {{ $weekStart->addDays(6)->format('d/m/Y') }} chưa có buổi học nào{{ $selectedBranch ? ' tại '.$selectedBranch->name : '' }}." />
+            </div>
+        @else
+            <x-ui.data-table min-width="980px">
+                <table class="table-fixed">
+                    <thead>
+                        <tr>
+                            <th class="w-[120px] text-center">Khung giờ</th>
+                            @foreach ($matrix['days'] as $iso => $day)
+                                <th class="text-center {{ $day->isToday() ? 'text-primary' : '' }}">
+                                    {{ \App\Services\ClassDashboardService::WEEKDAYS[$iso] }}
+                                    <span class="block font-caption text-caption normal-case text-on-surface-variant">{{ $day->format('d/m') }}</span>
+                                </th>
                             @endforeach
-                        </select>
-                    </div>
-                    <div class="w-full sm:w-64">
-                        <label class="block text-[11px] font-bold uppercase text-gray-500 mb-1">Chọn ngày</label>
-                        <input type="date" value="{{ $date }}" class="w-full bg-white border-gray-200 rounded-lg text-sm focus:ring-primary-container focus:border-primary-container">
-                    </div>
-                    <div class="sm:self-end w-full sm:w-auto">
-                        <button class="w-full sm:w-auto px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition flex items-center justify-center gap-2">
-                            <span class="material-symbols-outlined text-[18px]">filter_list</span>
-                            Lọc danh sách
-                        </button>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    <!-- Main Table Area (3 cols) -->
-                    <div class="lg:col-span-3 space-y-4">
-                        <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-left border-collapse text-sm">
-                                    <thead class="bg-gray-50 text-gray-600 uppercase text-[11px] font-semibold tracking-wider border-b border-gray-200">
-                                        <tr>
-                                            <th class="py-3.5 px-4 whitespace-nowrap">Tên lớp</th>
-                                            <th class="py-3.5 px-4 whitespace-nowrap">Khung giờ</th>
-                                            <th class="py-3.5 px-4 whitespace-nowrap">Phòng học</th>
-                                            <th class="py-3.5 px-4 whitespace-nowrap">GV Chính</th>
-                                            <th class="py-3.5 px-4 whitespace-nowrap">GVNN</th>
-                                            <th class="py-3.5 px-4 text-center whitespace-nowrap">Sĩ số</th>
-                                            <th class="py-3.5 px-4 text-center whitespace-nowrap">Điểm danh</th>
-                                            <th class="py-3.5 px-4 text-right whitespace-nowrap">Thao tác</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-100">
-                                        @forelse($classes as $c)
-                                            <tr class="hover:bg-gray-50/80 transition-colors">
-                                                <td class="py-4 px-4 font-semibold text-gray-900">
-                                                    <div class="flex items-center gap-2">
-                                                        <span class="w-2.5 h-2.5 rounded-full {{ str_contains(strtolower($c->name), 'ielts') ? 'bg-blue-600' : (str_contains(strtolower($c->name), 'toeic') ? 'bg-orange-600' : 'bg-emerald-600') }}"></span>
-                                                        <span>{{ $c->name }}</span>
-                                                    </div>
-                                                </td>
-                                                <td class="py-4 px-4 whitespace-nowrap font-mono text-xs text-gray-700">{{ $c->schedule_text ?? '18:00 - 20:00' }}</td>
-                                                <td class="py-4 px-4 whitespace-nowrap text-gray-600">Phòng {{ $c->id + 100 }}</td>
-                                                <td class="py-4 px-4 whitespace-nowrap font-medium text-gray-800">{{ $c->teacher?->name ?? 'Chưa gán' }}</td>
-                                                <td class="py-4 px-4 whitespace-nowrap text-gray-600">{{ $c->course?->code === 'IELTS-MASTER' ? 'John Doe' : '—' }}</td>
-                                                <td class="py-4 px-4 text-center font-semibold text-gray-800">{{ $c->students->count() }}/{{ $c->max_capacity ?: 20 }}</td>
-                                                <td class="py-4 px-4 text-center">
-                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                        Đang hoạt động
-                                                    </span>
-                                                </td>
-                                                <td class="py-4 px-4 text-right whitespace-nowrap">
-                                                    <a href="{{ route('payroll.timesheets.manual') }}" class="inline-block bg-primary-container text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-primary transition shadow-sm">
-                                                        Chấm công
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        @empty
-                                            <tr>
-                                                <td colspan="8" class="py-8 text-center text-gray-400 text-xs">Chưa có lớp học nào được cấu hình trong hệ thống.</td>
-                                            </tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Sidebar Area: Trợ giảng làm việc hôm nay (1 col) -->
-                    <div class="lg:col-span-1">
-                        <div class="bg-gray-50/80 border border-gray-200 rounded-xl p-5 space-y-4">
-                            <div class="flex items-center gap-2 border-b border-gray-200 pb-3">
-                                <span class="material-symbols-outlined text-primary-container">support_agent</span>
-                                <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide">Trợ giảng phụ trách</h3>
-                            </div>
-
-                            <ul class="space-y-3 text-sm">
-                                @forelse($assistantsToday as $ta)
-                                    <li class="p-3 bg-white border border-gray-200 rounded-xl flex items-center gap-3 shadow-xs">
-                                        <div class="w-9 h-9 rounded-full bg-orange-100 text-primary-container font-bold flex items-center justify-center text-xs shrink-0">
-                                            {{ Str::substr($ta->name, 0, 1) }}
+                        </tr>
+                    </thead>
+                    <tbody class="align-top">
+                        @foreach ($matrix['rows'] as $slot => $cells)
+                            <tr>
+                                <td class="text-center font-code font-semibold">{{ $slot }}</td>
+                                @foreach ($cells as $iso => $sessions)
+                                    <td class="!px-xs">
+                                        <div class="space-y-xs">
+                                            @foreach ($sessions as $session)
+                                                <a href="{{ route('tasks.classes-dashboard', ['tab' => 'day', 'date' => $session->date->toDateString(), 'branch_id' => $branchId]) }}"
+                                                   class="block rounded-lg border p-xs transition hover:shadow-md {{ \App\Services\ClassDashboardService::tone($session) }}"
+                                                   title="{{ $session->classModel?->name }} · {{ $session->room }}">
+                                                    <p class="truncate text-[12px] font-semibold">{{ $session->classModel?->code ?? $session->classModel?->name }}</p>
+                                                    <p class="truncate text-[11px] opacity-80">{{ $session->room ?: 'Chưa có phòng' }}</p>
+                                                    @if ($session->status === 'cancelled')
+                                                        <p class="text-[10px] font-semibold no-underline">{{ $session->holiday ? 'Nghỉ lễ' : 'Đã hủy' }}</p>
+                                                    @elseif ($session->attendances_count > 0)
+                                                        <p class="text-[10px] font-semibold">✓ Đã điểm danh</p>
+                                                    @endif
+                                                </a>
+                                            @endforeach
                                         </div>
-                                        <div class="overflow-hidden">
-                                            <p class="font-semibold text-gray-900 text-xs truncate">{{ $ta->name }}</p>
-                                            <p class="text-[11px] text-gray-500 font-mono truncate">{{ $ta->email }}</p>
-                                        </div>
-                                    </li>
-                                @empty
-                                    <li class="p-3 text-xs text-gray-400 text-center">Chưa có trợ giảng nào.</li>
-                                @endforelse
-                            </ul>
-
-                            <a href="{{ route('tasks.ta-assign') }}" class="w-full py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium text-xs hover:bg-gray-50 transition flex items-center justify-center gap-1.5 shadow-xs">
-                                <span class="material-symbols-outlined text-[16px]">add</span>
-                                Giao việc cho Trợ giảng
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- PANEL 2: THEO TUẦN (MA TRẬN KHUNG GIỜ) -->
-            <div x-show="activeTab === 'week'" class="p-6 space-y-6">
-                <!-- Filters Bar (Week) -->
-                <div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/80 p-4 rounded-xl border border-gray-200">
-                    <div class="flex flex-wrap items-center gap-4 w-full sm:w-auto">
-                        <div class="w-full sm:w-56">
-                            <label class="block text-[11px] font-bold uppercase text-gray-500 mb-1">Chi nhánh</label>
-                            <select class="w-full bg-white border-gray-200 rounded-lg text-sm">
-                                <option>Tất cả chi nhánh</option>
-                                @foreach($branches as $b)
-                                    <option value="{{ $b->id }}">{{ $b->name }}</option>
+                                    </td>
                                 @endforeach
-                            </select>
-                        </div>
-                        <div class="w-full sm:w-56">
-                            <label class="block text-[11px] font-bold uppercase text-gray-500 mb-1">Chọn tuần</label>
-                            <input type="week" value="{{ $week }}" class="w-full bg-white border-gray-200 rounded-lg text-sm">
-                        </div>
-                    </div>
-                    <!-- Legend -->
-                    <div class="flex items-center gap-4 text-xs text-gray-600">
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-3 h-3 rounded bg-orange-100 border border-orange-300"></span> Lớp IELTS
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-3 h-3 rounded bg-blue-100 border border-blue-300"></span> Lớp Giao tiếp
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-3 h-3 rounded bg-emerald-100 border border-emerald-300"></span> Lớp TOEIC
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Matrix Schedule Table -->
-                <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse min-w-[900px] table-fixed text-xs">
-                            <thead class="bg-gray-50 text-gray-700 uppercase tracking-wider font-semibold border-b border-gray-200">
-                                <tr>
-                                    <th class="w-[120px] p-3 text-center border-r border-gray-200 bg-gray-100/70">Khung giờ</th>
-                                    <th class="p-3 text-center border-r border-gray-200">Thứ 2<br><span class="text-[10px] text-gray-400 font-normal">Ngày 1</span></th>
-                                    <th class="p-3 text-center border-r border-gray-200">Thứ 3<br><span class="text-[10px] text-gray-400 font-normal">Ngày 2</span></th>
-                                    <th class="p-3 text-center border-r border-gray-200">Thứ 4<br><span class="text-[10px] text-gray-400 font-normal">Ngày 3</span></th>
-                                    <th class="p-3 text-center border-r border-gray-200">Thứ 5<br><span class="text-[10px] text-gray-400 font-normal">Ngày 4</span></th>
-                                    <th class="p-3 text-center border-r border-gray-200">Thứ 6<br><span class="text-[10px] text-gray-400 font-normal">Ngày 5</span></th>
-                                    <th class="p-3 text-center border-r border-gray-200 bg-gray-50">Thứ 7<br><span class="text-[10px] text-gray-400 font-normal">Ngày 6</span></th>
-                                    <th class="p-3 text-center bg-gray-50">Chủ Nhật<br><span class="text-[10px] text-gray-400 font-normal">Ngày 7</span></th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-200 align-top">
-                                <!-- 08:00 - 10:00 -->
-                                <tr>
-                                    <td class="p-3 text-center font-bold text-gray-600 bg-gray-50 border-r border-gray-200 font-mono">
-                                        08:00 - 10:00
-                                    </td>
-                                    <td class="p-2 border-r border-gray-200">
-                                        <div class="bg-orange-50 border border-orange-200 rounded-lg p-2 hover:shadow-md transition">
-                                            <p class="font-bold text-orange-900 truncate">IELTS F. 01</p>
-                                            <p class="text-[10px] text-orange-700">Phòng 101</p>
-                                        </div>
-                                    </td>
-                                    <td class="p-2 border-r border-gray-200 bg-gray-50/30"></td>
-                                    <td class="p-2 border-r border-gray-200 space-y-1.5">
-                                        <div class="bg-orange-50 border border-orange-200 rounded-lg p-2 hover:shadow-md transition">
-                                            <p class="font-bold text-orange-900 truncate">IELTS F. 01</p>
-                                            <p class="text-[10px] text-orange-700">Phòng 101</p>
-                                        </div>
-                                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-2 hover:shadow-md transition">
-                                            <p class="font-bold text-blue-900 truncate">Giao tiếp B2</p>
-                                            <p class="text-[10px] text-blue-700">Phòng 205</p>
-                                        </div>
-                                    </td>
-                                    <td class="p-2 border-r border-gray-200 bg-gray-50/30"></td>
-                                    <td class="p-2 border-r border-gray-200">
-                                        <div class="bg-orange-50 border border-orange-200 rounded-lg p-2 hover:shadow-md transition">
-                                            <p class="font-bold text-orange-900 truncate">IELTS F. 01</p>
-                                            <p class="text-[10px] text-orange-700">Phòng 101</p>
-                                        </div>
-                                    </td>
-                                    <td class="p-2 border-r border-gray-200 bg-gray-50/30"></td>
-                                    <td class="p-2 bg-gray-50/30"></td>
-                                </tr>
-
-                                <!-- 10:00 - 12:00 -->
-                                <tr>
-                                    <td class="p-3 text-center font-bold text-gray-600 bg-gray-50 border-r border-gray-200 font-mono">
-                                        10:00 - 12:00
-                                    </td>
-                                    <td class="p-2 border-r border-gray-200 bg-gray-50/30"></td>
-                                    <td class="p-2 border-r border-gray-200 bg-gray-50/30"></td>
-                                    <td class="p-2 border-r border-gray-200 bg-gray-50/30"></td>
-                                    <td class="p-2 border-r border-gray-200 bg-gray-50/30"></td>
-                                    <td class="p-2 border-r border-gray-200 bg-gray-50/30"></td>
-                                    <td class="p-2 border-r border-gray-200">
-                                        <div class="bg-amber-50 border border-amber-200 rounded-lg p-2 hover:shadow-md transition">
-                                            <p class="font-bold text-amber-900 truncate">Thi thử IELTS</p>
-                                            <p class="text-[10px] text-amber-700">Hội trường</p>
-                                        </div>
-                                    </td>
-                                    <td class="p-2">
-                                        <div class="bg-amber-50 border border-amber-200 rounded-lg p-2 hover:shadow-md transition">
-                                            <p class="font-bold text-amber-900 truncate">Thi thử IELTS</p>
-                                            <p class="text-[10px] text-amber-700">Hội trường</p>
-                                        </div>
-                                    </td>
-                                </tr>
-
-                                <!-- 14:00 - 16:00 -->
-                                <tr>
-                                    <td class="p-3 text-center font-bold text-gray-600 bg-gray-50 border-r border-gray-200 font-mono">
-                                        14:00 - 16:00
-                                    </td>
-                                    <td class="p-2 border-r border-gray-200 bg-gray-50/30"></td>
-                                    <td class="p-2 border-r border-gray-200">
-                                        <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-2 hover:shadow-md transition">
-                                            <p class="font-bold text-emerald-900 truncate">TOEIC 500+</p>
-                                            <p class="text-[10px] text-emerald-700">Phòng 203</p>
-                                        </div>
-                                    </td>
-                                    <td class="p-2 border-r border-gray-200 bg-gray-50/30"></td>
-                                    <td class="p-2 border-r border-gray-200">
-                                        <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-2 hover:shadow-md transition">
-                                            <p class="font-bold text-emerald-900 truncate">TOEIC 500+</p>
-                                            <p class="text-[10px] text-emerald-700">Phòng 203</p>
-                                        </div>
-                                    </td>
-                                    <td class="p-2 border-r border-gray-200 bg-gray-50/30"></td>
-                                    <td class="p-2 border-r border-gray-200 bg-gray-50/30"></td>
-                                    <td class="p-2 bg-gray-50/30"></td>
-                                </tr>
-
-                                <!-- 18:00 - 20:00 -->
-                                <tr>
-                                    <td class="p-3 text-center font-bold text-gray-600 bg-gray-50 border-r border-gray-200 font-mono">
-                                        18:00 - 20:00
-                                    </td>
-                                    <td class="p-2 border-r border-gray-200">
-                                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-2 hover:shadow-md transition">
-                                            <p class="font-bold text-blue-900 truncate">Giao tiếp CB</p>
-                                            <p class="text-[10px] text-blue-700">Phòng 105</p>
-                                        </div>
-                                    </td>
-                                    <td class="p-2 border-r border-gray-200">
-                                        <div class="bg-orange-50 border border-orange-200 rounded-lg p-2 hover:shadow-md transition">
-                                            <p class="font-bold text-orange-900 truncate">IELTS Int 02</p>
-                                            <p class="text-[10px] text-orange-700">Phòng 301</p>
-                                        </div>
-                                    </td>
-                                    <td class="p-2 border-r border-gray-200">
-                                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-2 hover:shadow-md transition">
-                                            <p class="font-bold text-blue-900 truncate">Giao tiếp CB</p>
-                                            <p class="text-[10px] text-blue-700">Phòng 105</p>
-                                        </div>
-                                    </td>
-                                    <td class="p-2 border-r border-gray-200">
-                                        <div class="bg-orange-50 border border-orange-200 rounded-lg p-2 hover:shadow-md transition">
-                                            <p class="font-bold text-orange-900 truncate">IELTS Int 02</p>
-                                            <p class="text-[10px] text-orange-700">Phòng 301</p>
-                                        </div>
-                                    </td>
-                                    <td class="p-2 border-r border-gray-200">
-                                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-2 hover:shadow-md transition">
-                                            <p class="font-bold text-blue-900 truncate">Giao tiếp CB</p>
-                                            <p class="text-[10px] text-blue-700">Phòng 105</p>
-                                        </div>
-                                    </td>
-                                    <td class="p-2 border-r border-gray-200 bg-gray-50/30"></td>
-                                    <td class="p-2 bg-gray-50/30"></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    </div>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </x-ui.data-table>
+        @endif
+    @endif
 </x-app-layout>

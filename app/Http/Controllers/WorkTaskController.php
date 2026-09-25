@@ -14,9 +14,12 @@ use App\Models\SupportSession;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\ClassDashboardService;
+use App\Services\KpiBoardService;
 use App\Services\SafeUploadService;
 use App\Services\SessionScheduleService;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -171,35 +174,49 @@ class WorkTaskController extends Controller
     /**
      * 3. Dashboard Lớp học theo ngày / Ma trận khung giờ tuần
      */
-    public function classesDashboard(Request $request)
+    public function classesDashboard(Request $request, ClassDashboardService $dashboard)
     {
-        $branchId = $request->get('branch_id');
-        $date = $request->get('date', now()->format('Y-m-d'));
-        $week = $request->get('week', now()->format('Y-\WW'));
+        $validated = $request->validate([
+            'tab' => ['nullable', 'in:day,week'],
+            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
+            'date' => ['nullable', 'date'],
+            'week' => ['nullable', 'regex:/^\d{4}-W\d{2}$/'],
+        ]);
+        $viewer = $request->user();
+        $tab = $validated['tab'] ?? 'day';
+        $branchId = isset($validated['branch_id']) ? (int) $validated['branch_id'] : null;
+        $today = CarbonImmutable::today();
+        $day = CarbonImmutable::parse($validated['date'] ?? $today)->startOfDay();
+        $weekStart = ClassDashboardService::weekStart($validated['week'] ?? $day->format('o-\WW'));
+        $date = $day->toDateString();
+        $week = $weekStart->format('o-\WW');
 
-        $branches = Branch::where('is_active', true)->get();
-        $selectedBranch = $branchId ? Branch::find($branchId) : $branches->first();
+        $branches = Branch::where('is_active', true)->orderBy('name')->get();
+        $selectedBranch = $branchId ? $branches->firstWhere('id', $branchId) : null;
 
-        // Danh sách lớp hôm nay
-        $classes = ClassModel::with(['course', 'teacher', 'assistant', 'branch'])
-            ->where('status', 'active')
+        // Theo ngày: buổi học thật của ngày được chọn (kể cả buổi đã hủy/nghỉ lễ để học vụ nắm được).
+        $daySessions = $dashboard->sessionsQuery($viewer, $branchId)->whereDate('date', $date)->get();
+        $dayStats = [
+            'total' => $daySessions->where('status', '!=', 'cancelled')->count(),
+            'done' => $daySessions->filter(fn ($s) => $s->status !== 'cancelled' && $s->attendances_count > 0)->count(),
+            'missing' => $daySessions->filter(fn ($s) => $dashboard->attendanceState($s, $today)['key'] === 'missing')->count(),
+            'cancelled' => $daySessions->where('status', 'cancelled')->count(),
+        ];
+        $seats = $daySessions->pluck('classModel')->filter()->unique('id')
+            ->mapWithKeys(fn (ClassModel $class) => [$class->id => $class->occupiedSeats()]);
+        $assistantsToday = $dashboard->assistantsOnDuty($daySessions);
+
+        // Theo tuần: ma trận khung giờ sinh từ buổi học trong tuần.
+        $weekSessions = $dashboard->sessionsQuery($viewer, $branchId)
+            ->whereDate('date', '>=', $weekStart->toDateString())
+            ->whereDate('date', '<=', $weekStart->addDays(6)->toDateString())
             ->get();
+        $matrix = $dashboard->weekMatrix($weekSessions, $weekStart);
 
-        // Danh sách trợ giảng làm việc hôm nay
-        $assistantsToday = User::role('assistant')
-            ->where('is_active', true)
-            ->get();
-
-        if ($assistantsToday->isEmpty()) {
-            $assistantsToday = User::where('email', 'like', 'ta.%')
-                ->orWhere('name', 'like', '%Trợ giảng%')
-                ->orWhere('name', 'like', '%Anh Tuấn%')
-                ->orWhere('name', 'like', '%Ngọc Trâm%')
-                ->orWhere('name', 'like', '%Hải Yến%')
-                ->get();
-        }
-
-        return view('tasks.classes-dashboard', compact('branches', 'selectedBranch', 'classes', 'assistantsToday', 'date', 'week'));
+        return view('tasks.classes-dashboard', compact(
+            'tab', 'branches', 'branchId', 'selectedBranch', 'date', 'week', 'today',
+            'daySessions', 'dayStats', 'seats', 'assistantsToday', 'weekStart', 'matrix', 'dashboard'
+        ));
     }
 
     /**
@@ -265,33 +282,61 @@ class WorkTaskController extends Controller
      */
     public function taPortal(Request $request)
     {
-        $taUser = Auth::user();
+        $validated = $request->validate([
+            'date' => ['nullable', 'date'],
+            'ta_id' => ['nullable', 'integer', 'exists:users,id'],
+        ]);
+        $viewer = $request->user();
+        $date = CarbonImmutable::parse($validated['date'] ?? now())->startOfDay();
 
-        // Nếu là admin test, lấy user TA mẫu đầu tiên hoặc user hiện tại
-        if (! $taUser || $taUser->hasRole('admin')) {
-            $taUser = User::where('email', 'ta.tuan@menglish.edu.vn')->first() ?? Auth::user() ?? User::first();
+        // Admin / quản lý / học vụ xem được nhiệm vụ của trợ giảng bất kỳ qua bộ chọn TA;
+        // trợ giảng (và vai trò khác) chỉ xem nhiệm vụ của chính mình.
+        $canPickTa = $viewer->can('work_task.assign') || $viewer->can('work_task.approve');
+        $assistants = $canPickTa
+            ? User::role('assistant')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'email'])
+            : collect();
+
+        if ($canPickTa) {
+            $taUser = isset($validated['ta_id'])
+                ? User::find($validated['ta_id'])
+                : ($viewer->hasRole('assistant') ? $viewer : $assistants->first());
+        } else {
+            $taUser = $viewer;
         }
 
-        $today = now()->toDateString();
-
-        $tasks = WorkTask::with(['classModel', 'branch'])
-            ->where('assignee_id', $taUser->id)
-            ->whereDate('due_date', '<=', $today)
-            ->orderBy('id', 'desc')
-            ->get();
-
-        // Nếu chưa có task nào của TA này hôm nay, fallback lấy toàn bộ task của TA
-        if ($tasks->isEmpty()) {
-            $tasks = WorkTask::with(['classModel', 'branch'])
+        $tasks = collect();
+        $sessions = collect();
+        $overdueCount = 0;
+        if ($taUser) {
+            $tasks = WorkTask::with(['classModel:id,name,code', 'branch:id,name'])
                 ->where('assignee_id', $taUser->id)
+                ->whereDate('due_date', $date->toDateString())
+                ->orderBy('due_time')
+                ->orderBy('id')
+                ->get();
+            $overdueCount = WorkTask::where('assignee_id', $taUser->id)
+                ->whereDate('due_date', '<', $date->toDateString())
+                ->whereNotIn('status', ['completed', 'pending_confirmation'])
+                ->count();
+            $sessions = ClassSession::with(['classModel:id,name,code', 'branch:id,name'])
+                ->forStaff($taUser->id)
+                ->whereDate('date', $date->toDateString())
+                ->where('status', '!=', 'cancelled')
+                ->orderBy('start_time')
                 ->get();
         }
 
         $beforeTasks = $tasks->where('time_slot_category', 'before');
         $duringTasks = $tasks->where('time_slot_category', 'during');
-        $afterTasks = $tasks->where('time_slot_category', 'after');
+        // Nhiệm vụ không gắn ca được xếp vào "Sau giờ học" để không bị ẩn.
+        $afterTasks = $tasks->reject(fn (WorkTask $task) => in_array($task->time_slot_category, ['before', 'during'], true));
+        $canComplete = $taUser && ((int) $taUser->id === (int) $viewer->id || $viewer->can('work_task.approve'));
+        $isToday = $date->isToday();
 
-        return view('tasks.ta-portal', compact('taUser', 'beforeTasks', 'duringTasks', 'afterTasks', 'tasks'));
+        return view('tasks.ta-portal', compact(
+            'taUser', 'tasks', 'beforeTasks', 'duringTasks', 'afterTasks', 'sessions',
+            'date', 'isToday', 'canPickTa', 'assistants', 'overdueCount', 'canComplete'
+        ));
     }
 
     /**
@@ -493,14 +538,92 @@ class WorkTaskController extends Controller
      */
     public function scheduleConfig(Request $request)
     {
-        $classes = ClassModel::with(['teacher', 'assistant', 'branch', 'scheduleConfig'])->get();
-        $branches = Branch::where('is_active', true)->get();
+        $validated = $request->validate([
+            'report_branch_id' => ['nullable', 'integer', 'exists:branches,id'],
+            'report_date' => ['nullable', 'date'],
+            'class_id' => ['nullable', 'integer'],
+        ]);
+        $viewer = $request->user();
 
-        // Dữ liệu nhu cầu nhân sự chỉ từ seeder/nhập liệu thật; trước đây trang GET
-        // tự cấy 7 dòng số liệu giả (shifts/staff hardcode) vào DB khi bảng trống.
-        $demands = HrDailyDemand::orderBy('report_date')->get();
+        // Chỉ lớp người xem phụ trách (nhân sự quản lý lớp thấy tất cả).
+        $classes = ClassModel::visibleTo($viewer)
+            ->with(['teacher:id,name', 'assistant:id,name', 'foreignTeacher:id,name', 'branch:id,name', 'scheduleConfig'])
+            ->orderBy('name')
+            ->get();
+        $branches = Branch::where('is_active', true)->orderBy('name')->get();
 
-        return view('tasks.schedule-config', compact('classes', 'branches', 'demands'));
+        // Dữ liệu điền sẵn form khi chọn lớp đã có TKB (sửa lịch; buổi quá khứ/đã điểm danh được giữ nguyên).
+        $scheduleData = $classes->mapWithKeys(fn (ClassModel $class) => [$class->id => [
+            'academic_year' => $class->scheduleConfig?->academic_year,
+            'start_date' => $class->start_date?->toDateString(),
+            'end_date' => $class->end_date?->toDateString(),
+            'slot1_day' => $class->scheduleConfig?->slot1_day,
+            'slot1_start' => $class->scheduleConfig?->slot1_start ? substr($class->scheduleConfig->slot1_start, 0, 5) : null,
+            'slot1_end' => $class->scheduleConfig?->slot1_end ? substr($class->scheduleConfig->slot1_end, 0, 5) : null,
+            'slot2_day' => $class->scheduleConfig?->slot2_day,
+            'slot2_start' => $class->scheduleConfig?->slot2_start ? substr($class->scheduleConfig->slot2_start, 0, 5) : null,
+            'slot2_end' => $class->scheduleConfig?->slot2_end ? substr($class->scheduleConfig->slot2_end, 0, 5) : null,
+            'status' => $class->status,
+        ]]);
+
+        // Báo cáo phòng / nhân sự: 7 ngày từ ngày chọn, theo chi nhánh, số liệu từ buổi học thật.
+        $reportBranchId = (int) ($validated['report_branch_id'] ?? $viewer->branch_id ?? $branches->first()?->id);
+        $reportStart = CarbonImmutable::parse($validated['report_date'] ?? now())->startOfDay();
+        $reportEnd = $reportStart->addDays(6);
+        $visibleClassIds = $classes->modelKeys();
+        $sessionsInRange = fn (CarbonImmutable $from, CarbonImmutable $to) => ClassSession::query()
+            ->where('branch_id', $reportBranchId)
+            ->whereIn('class_id', $visibleClassIds)
+            ->where('status', '!=', 'cancelled')
+            ->whereDate('date', '>=', $from->toDateString())
+            ->whereDate('date', '<=', $to->toDateString())
+            ->get(['id', 'class_id', 'date', 'room', 'teacher_id', 'foreign_teacher_id', 'assistant_id']);
+
+        $weekSessions = $sessionsInRange($reportStart, $reportEnd);
+        $previousWeekSessions = $sessionsInRange($reportStart->subDays(7), $reportStart->subDay());
+        $savedDemands = HrDailyDemand::where('branch_id', $reportBranchId)
+            ->whereDate('report_date', '>=', $reportStart->toDateString())
+            ->whereDate('report_date', '<=', $reportEnd->toDateString())
+            ->get()
+            ->keyBy(fn (HrDailyDemand $demand) => $demand->report_date->toDateString());
+
+        $report = collect(range(0, 6))->map(function (int $offset) use ($reportStart, $weekSessions, $savedDemands) {
+            $day = $reportStart->addDays($offset);
+            $sessions = $weekSessions->filter(fn (ClassSession $s) => $s->date->isSameDay($day));
+            $assistants = $sessions->pluck('assistant_id')->filter()->unique()->count();
+
+            return [
+                'date' => $day,
+                'label' => ClassDashboardService::WEEKDAYS[$day->isoWeekday()],
+                'shifts' => $sessions->count(),
+                'rooms' => $sessions->pluck('room')->filter()->unique()->count(),
+                'teachers' => $sessions->flatMap(fn ($s) => [$s->teacher_id, $s->foreign_teacher_id])->filter()->unique()->count(),
+                'assistants' => $assistants,
+                'staff_needed' => $savedDemands->get($day->toDateString())?->staff_needed ?? $assistants,
+                'saved' => $savedDemands->has($day->toDateString()),
+            ];
+        });
+        $classCountChange = [
+            'previous' => $previousWeekSessions->pluck('class_id')->unique()->count(),
+            'current' => $weekSessions->pluck('class_id')->unique()->count(),
+        ];
+
+        // Buổi sắp tới bị hủy do ngày nghỉ lễ thêm sau (kèm ngày học bù).
+        $holidaySessions = ClassSession::with(['classModel:id,name,code', 'holiday:id,name', 'makeupSession:id,rescheduled_from_id,date,start_time'])
+            ->whereNotNull('holiday_id')
+            ->where('status', 'cancelled')
+            ->whereIn('class_id', $visibleClassIds)
+            ->whereDate('date', '>=', now()->toDateString())
+            ->orderBy('date')
+            ->limit(50)
+            ->get();
+
+        $selectedClassId = old('class_id', $validated['class_id'] ?? null);
+
+        return view('tasks.schedule-config', compact(
+            'classes', 'branches', 'scheduleData', 'selectedClassId',
+            'reportBranchId', 'reportStart', 'reportEnd', 'report', 'classCountChange', 'holidaySessions'
+        ));
     }
 
     public function updateScheduleConfig(Request $request, SessionScheduleService $schedule)
@@ -536,6 +659,7 @@ class WorkTaskController extends Controller
         ]);
 
         $class = ClassModel::findOrFail($payload['class_id']);
+        abort_unless(ClassModel::visibleTo($request->user())->whereKey($class->id)->exists(), 403, 'Bạn không phụ trách lớp này.');
         $startDate = Carbon::parse($payload['start_date'] ?? $class->start_date ?? now())->startOfDay();
         $endDate = Carbon::parse($payload['end_date'] ?? $class->end_date ?? $startDate->copy()->addMonths(3))->startOfDay();
 
@@ -647,6 +771,7 @@ class WorkTaskController extends Controller
                     'end_time' => $session['end'],
                     'room' => $class->room,
                     'teacher_id' => $class->teacher_id ?? $class->foreign_teacher_id,
+                    'foreign_teacher_id' => $class->foreign_teacher_id,
                     'assistant_id' => $class->assistant_id,
                     'status' => 'scheduled',
                 ]);
@@ -665,9 +790,31 @@ class WorkTaskController extends Controller
 
     public function saveHrDemand(Request $request)
     {
-        $demands = $request->input('demands', []);
-        foreach ($demands as $id => $val) {
-            HrDailyDemand::where('id', $id)->update(['staff_needed' => intval($val)]);
+        // Nhu cầu nhân sự lưu theo chi nhánh + ngày (demands[Y-m-d] = số người); số ca tính lại từ buổi học thật.
+        $validated = $request->validate([
+            'branch_id' => ['required', 'integer', 'exists:branches,id'],
+            'demands' => ['required', 'array', 'max:31'],
+            'demands.*' => ['nullable', 'integer', 'min:0', 'max:50'],
+        ]);
+
+        foreach ($validated['demands'] as $date => $staffNeeded) {
+            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $date) || $staffNeeded === null) {
+                continue;
+            }
+            $day = Carbon::parse($date);
+            $shifts = ClassSession::where('branch_id', $validated['branch_id'])
+                ->where('status', '!=', 'cancelled')
+                ->whereDate('date', $day->toDateString())
+                ->count();
+            // whereDate thay vì updateOrCreate: cột date có thể lưu kèm giờ (SQLite) nên so sánh bằng chuỗi sẽ tạo trùng.
+            $demand = HrDailyDemand::where('branch_id', $validated['branch_id'])
+                ->whereDate('report_date', $day->toDateString())
+                ->first() ?? new HrDailyDemand(['branch_id' => $validated['branch_id'], 'report_date' => $day->toDateString()]);
+            $demand->fill([
+                'day_of_week' => ClassDashboardService::WEEKDAYS[$day->isoWeekday()],
+                'shift_count' => $shifts,
+                'staff_needed' => (int) $staffNeeded,
+            ])->save();
         }
 
         return redirect()->back()->with('success', 'Đã lưu báo cáo nhu cầu nhân sự thành công!');
@@ -772,45 +919,27 @@ class WorkTaskController extends Controller
     /**
      * 9. Bảng KPI tự động
      */
-    public function kpiDashboard(Request $request)
+    public function kpiDashboard(Request $request, KpiBoardService $kpi)
     {
-        $teachers = User::where('is_active', true)
-            ->where(function ($q) {
-                $q->whereHas('roles', function ($rq) {
-                    $rq->whereIn('name', ['teacher', 'assistant', 'academic_staff']);
-                })->orWhere('email', 'like', 'teacher%')
-                    ->orWhere('email', 'like', 'ta%');
-            })
-            ->get();
+        $validated = $request->validate([
+            'month' => ['nullable', 'date_format:Y-m'],
+            'user_id' => ['nullable', 'integer'],
+        ]);
+        $month = $validated['month'] ?? now()->format('Y-m');
+        $from = CarbonImmutable::createFromFormat('!Y-m', $month)->startOfMonth();
+        $to = $from->endOfMonth();
 
-        if ($teachers->isEmpty()) {
-            $teachers = User::where('is_active', true)->take(6)->get();
-        }
+        $staffOptions = $kpi->staffQuery()->get(['id', 'name']);
+        $staff = $kpi->staffQuery()
+            ->when($validated['user_id'] ?? null, fn ($q, $userId) => $q->whereKey($userId))
+            ->paginate($request->perPage(20))
+            ->withQueryString();
 
-        $kpiData = $teachers->map(function ($u, $idx) {
-            $assignedClasses = ClassModel::where('teacher_id', $u->id)->orWhere('assistant_id', $u->id)->get();
-            $totalStudents = Student::whereIn('current_class_id', $assignedClasses->pluck('id'))->count();
-            $activeStudents = Student::whereIn('current_class_id', $assignedClasses->pluck('id'))->where('status', 'studying')->count();
-            $retentionRate = $totalStudents > 0 ? round(($activeStudents / $totalStudents) * 100, 1).'%' : '100.0%';
+        $kpiData = $staff->getCollection()->map(fn (User $user) => [
+            'user' => $user,
+            'code' => 'NS-'.str_pad((string) $user->id, 3, '0', STR_PAD_LEFT),
+        ] + $kpi->metricsFor($user, $from, $to));
 
-            $totalTasks = WorkTask::where('assignee_id', $u->id)->count();
-            $completedTasks = WorkTask::where('assignee_id', $u->id)->where('status', 'completed')->count();
-            $taskRate = $totalTasks > 0 ? round(($completedTasks / $totalTasks) * 100, 1).'%' : '100.0%';
-
-            $colors = ['bg-orange-600', 'bg-blue-600', 'bg-emerald-600', 'bg-purple-600', 'bg-indigo-600'];
-            $color = $colors[$idx % count($colors)].' text-white';
-
-            return [
-                'code' => 'GV-'.str_pad($u->id, 3, '0', STR_PAD_LEFT),
-                'name' => $u->name,
-                'initial' => Str::substr($u->name, 0, 2),
-                'bg_color' => $color,
-                'retention_rate' => $retentionRate,
-                'attendance_rate' => '96.8%',
-                'homework_rate' => $taskRate,
-            ];
-        });
-
-        return view('tasks.kpi-dashboard', compact('teachers', 'kpiData'));
+        return view('tasks.kpi-dashboard', compact('staff', 'staffOptions', 'kpiData', 'month', 'from', 'to'));
     }
 }
