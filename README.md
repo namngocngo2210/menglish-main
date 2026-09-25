@@ -61,6 +61,34 @@ Có gì trong dữ liệu:
 
 Kiểm thử nghiệm thu Phase 2: `php artisan test --filter='Phase2AcceptanceTest|DemoPhase2SeederTest'`.
 
+## MEnglish — Dữ liệu demo (Phase 3: chấm công → lương)
+
+`DemoPhase3Seeder` chạy sau `DemoPhase2Seeder` (cùng điều kiện môi trường, gọi từ `DatabaseSeeder`), dựng trên buổi học / học viên / tài khoản của Phase 1–2. Chạy riêng: `php artisan db:seed --class=DemoPhase3Seeder` (cần Phase 1–2 trước). Idempotent (đánh dấu `[demo-p3]` trên đơn giá GV — đã có thì chỉ in số liệu), ~2,5 giây, toàn bộ trong 1 transaction. Các sự kiện được chạy **đúng thời điểm trong quá khứ** (check-in lúc vào ca, Kế toán tính kỳ tháng trước ngày 1, Admin duyệt ngày 2…) nên hạn nộp phạt, gate 30 ngày, khóa kỳ chạy như thật. Seeder in bảng số dòng và **thực lĩnh từng người** của 2 kỳ.
+
+Có gì trong dữ liệu (L = tháng trước, C = tháng này):
+- **Hồ sơ lương**: lương cơ bản cho GV full-time (`gv.cohuu1`, `gv.cohuu2`), Học vụ, Học thuật, Sale; `nguyenvanan` hợp đồng Bán thời gian (GV part-time).
+- **Đơn giá buổi riêng** (màn Đơn giá GV): `nguyenvanan` 220.000đ/buổi từ tháng L−1, **phiên bản mới** 250.000đ/buổi từ ngày 1 tháng C; TA 120.000đ/buổi; GVNN 450.000đ/buổi. Mốc hoa hồng mặc định 3% / 4% / 5% theo số HS chốt; bảng % thưởng tái tục (0 nghỉ → 1%, 1 nghỉ → 0,7%, còn lại chờ BA).
+- **Chấm công** (màn Chấm công GV): GV / TA **tự check-in đúng ngày** mọi buổi thật đã qua của `DEMO-*-FAM1` / `FAM0`; 1 buổi GV quên check-in → Học vụ **chấm công tay** (lý do + giờ vào/ra), lần nhập trùng **bị từ chối**; 1 ca chấm tay không có buổi trên lịch (workshop) và ca mẫu không gắn buổi của MasterEntitySeeder **bị từ chối khi duyệt**; Học vụ duyệt ca mỗi sáng.
+- **Kỷ luật** (màn Danh sách vi phạm): đủ các bước chờ giải trình / đã giải trình / xác nhận lỗi / quyết phạt (chưa tới hạn) / đã nộp trực tiếp / **đã trừ lương** (quá hạn, kỳ L) / đã hủy; 1 biên bản quá hạn trừ ở kỳ C.
+- **KPI Học vụ** 15 mục / 6 nhóm tháng L và C cho `nva`, `giaovu2` (Quản lý chi nhánh chấm).
+- **Hoa hồng** (Sale `tranmaia`): 4 khách mới SĐT `0377…` chốt vào `DEMO-CG-FAM1`. Khách chốt tháng L−1, đủ 3/3 mốc → **trả ở kỳ L**; 3 khách chốt đầu tháng L → **hoãn** ở kỳ L (chưa đủ 30 ngày); tháng C 2 khách đủ 3/3 mốc → **trả kỳ C**, 1 khách 2/3 mốc → vẫn hoãn. Khách đã được trả hoa hồng **hoàn phí**, Admin chọn **thu hồi** → trừ ở kỳ C.
+- **Kỳ lương**: kỳ L **Đã duyệt** (khóa; Kế toán đã nhập bậc KPI giữ HS, KPI tự do, thuế TNCN, phụ cấp / khấu trừ tự do rồi tính lại); kỳ C **Đang soát** (đã tính + nhập tay, chờ Admin duyệt).
+
+Đăng nhập để xem (mật khẩu như trên):
+
+| Vai trò | Email | Xem gì |
+|---|---|---|
+| Kế toán | `ketoan2@menglish.edu.vn` | Lương → Danh sách bảng lương: kỳ C "Đang soát" → phiếu lương từng người (nhập bậc KPI / TNCN / dòng tự do, "Đồng bộ & Tính lại"); không có nút duyệt |
+| Admin | `admin@menglish.edu.vn` | Duyệt kỳ C; kỳ L đã khóa; Đơn giá GV, Mốc hoa hồng, Tham số tính lương, Danh sách vi phạm |
+| Giáo viên part-time | `nguyenvanan@menglish.edu.vn` | "Lương của tôi": chỉ thấy kỳ L (đã duyệt), kỳ C chưa hiện; biên bản của mình để giải trình |
+| GV full-time / TA | `gv.cohuu2@menglish.edu.vn` · `ta.tuan@menglish.edu.vn` | "Lương của tôi" kỳ L (BHXH 10,5% + Công đoàn 0,5% cho full-time; part-time không trừ) |
+| Học vụ | `nva@menglish.edu.vn` | Chấm công tay, duyệt chấm công, ghi nhận vi phạm, đánh giá KPI (không tự chấm mình) |
+| Quản lý cơ sở | `manager@menglish.edu.vn` | Chốt lỗi vận hành + quyết phạt, ghi nhận nộp phạt, tick mốc chăm sóc tháng đầu, đơn giá GV |
+| Học thuật | `academiclead@menglish.edu.vn` | Chốt lỗi chuyên môn + quyết phạt |
+| Sale | `tranmaia@menglish.edu.vn` | "Lương của tôi" kỳ L: hoa hồng trả / hoãn |
+
+Kiểm thử nghiệm thu Phase 3: `php artisan test --filter='Phase3AcceptanceTest|DemoPhase3SeederTest'`.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:

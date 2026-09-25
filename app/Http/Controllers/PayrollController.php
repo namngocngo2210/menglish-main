@@ -374,7 +374,8 @@ class PayrollController extends Controller
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
             'class_id' => 'required|exists:classes,id',
-            'teaching_date' => 'required|date',
+            // Chỉ chấm công cho ca đã diễn ra (không chấm trước cho ngày tương lai).
+            'teaching_date' => 'required|date|before_or_equal:today',
             'time_in' => ['required', 'date_format:H:i'],
             'time_out' => ['required', 'date_format:H:i', 'after:time_in'],
             // Bỏ trống = dùng đơn giá riêng của GV (theo ngày hiệu lực) → users.hourly_rate → mặc định
@@ -387,6 +388,7 @@ class PayrollController extends Controller
             'time_out.after' => 'Giờ ra phải sau giờ vào.',
             'notes.required' => 'Chấm công tay bắt buộc ghi lý do.',
             'notes.min' => 'Lý do chấm công tay cần ít nhất 5 ký tự.',
+            'teaching_date.before_or_equal' => 'Không chấm công tay trước cho ngày chưa diễn ra.',
         ]);
 
         // A3: Học vụ / Quản lý cơ sở chỉ chấm công tay cho lớp trong phạm vi mình quản lý (chi nhánh), không phải lớp bất kỳ.

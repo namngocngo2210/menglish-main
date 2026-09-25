@@ -6,6 +6,7 @@ use App\Models\ClassModel;
 use App\Models\KpiCriterion;
 use App\Models\KpiEvaluation;
 use App\Models\KpiEvaluationItem;
+use App\Models\PayrollPeriod;
 use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\User;
@@ -133,6 +134,13 @@ class KpiController extends Controller
             'score.*' => 'nullable|numeric|min:0|max:100',
             'note' => 'nullable|array',
         ]);
+        // Kỳ lương của tháng đã duyệt / đã chi trả thì khóa toàn bộ dữ liệu lương, gồm đánh giá KPI tháng đó.
+        $monthStart = \Illuminate\Support\Carbon::create((int) $validated['year'], (int) $validated['month'], 1);
+        if (PayrollPeriod::isLockedFor($monthStart) || PayrollPeriod::isLockedFor($monthStart->copy()->endOfMonth())) {
+            $message = 'Kỳ lương tháng '.$monthStart->format('m/Y').' đã duyệt — không thể sửa đánh giá KPI của tháng này.';
+
+            return back()->withInput()->withErrors(['month' => $message])->with('error', $message);
+        }
 
         $criteria = KpiCriterion::active()->get()->keyBy('id');
 

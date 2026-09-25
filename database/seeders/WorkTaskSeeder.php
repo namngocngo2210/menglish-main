@@ -342,14 +342,14 @@ class WorkTaskSeeder extends Seeder
         ];
 
         foreach ($days as $d) {
-            HrDailyDemand::updateOrCreate(
-                ['branch_id' => $branchCG?->id, 'report_date' => $d['date']],
-                [
-                    'day_of_week' => $d['day'],
-                    'shift_count' => $d['shifts'],
-                    'staff_needed' => $d['staff'],
-                ]
-            );
+            // report_date lưu dạng datetime trên SQLite: so theo ngày để chạy lại không nhân bản.
+            $demand = HrDailyDemand::where('branch_id', $branchCG?->id)->whereDate('report_date', $d['date'])->first()
+                ?? new HrDailyDemand(['branch_id' => $branchCG?->id, 'report_date' => $d['date']]);
+            $demand->fill([
+                'day_of_week' => $d['day'],
+                'shift_count' => $d['shifts'],
+                'staff_needed' => $d['staff'],
+            ])->save();
         }
     }
 }
