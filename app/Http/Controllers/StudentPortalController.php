@@ -6,14 +6,15 @@ use App\Models\AcademicRecord;
 use App\Models\BigTestResult;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
-use App\Models\MiniTestScore;
 use App\Models\Homework;
+use App\Models\MiniTestScore;
 use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\Survey;
 use App\Models\SyllabusAssignment;
 use App\Models\TuitionReceipt;
 use App\Services\SafeUploadService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -347,7 +348,7 @@ class StudentPortalController extends Controller
                 ->filter(fn (AcademicRecord $record) => ! empty(array_filter((array) data_get($record->data, (string) $student->id, []))))
                 ->take(3)
                 ->map(fn (AcademicRecord $record) => [
-                    'date' => preg_match('/-(\d{4}-\d{2}-\d{2})$/', (string) $record->record_code, $m) ? \Carbon\Carbon::parse($m[1]) : $record->created_at,
+                    'date' => preg_match('/-(\d{4}-\d{2}-\d{2})$/', (string) $record->record_code, $m) ? Carbon::parse($m[1]) : $record->created_at,
                     'remark' => (array) data_get($record->data, (string) $student->id, []),
                 ])
                 ->values();

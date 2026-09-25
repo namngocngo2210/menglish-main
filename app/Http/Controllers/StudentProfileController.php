@@ -10,6 +10,7 @@ use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\User;
 use App\Services\DocumentCodeGenerator;
+use App\Services\FirstMonthCareService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -281,7 +282,7 @@ class StudentProfileController extends Controller
                 ->get();
         }
 
-        $care = app(\App\Services\FirstMonthCareService::class)->checklist($student);
+        $care = app(FirstMonthCareService::class)->checklist($student);
 
         return view('students.show', compact('student', 'classes', 'sessions', 'attendances', 'attendanceBySession', 'attendanceStats', 'linkableClasses', 'care'));
     }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AcademicRecord;
 use App\Models\AdminNotification;
+use App\Models\BigTestOrder;
 use App\Models\BigTestResult;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
@@ -465,7 +466,6 @@ class TeacherPortalController extends Controller
         }
     }
 
-
     // ───────────────────────── GIAO BÀI TẬP VỀ NHÀ ─────────────────────────
     public function homework(Request $request, int $classId)
     {
@@ -637,7 +637,7 @@ class TeacherPortalController extends Controller
         $assignments = $class->syllabusAssignments;
 
         // Lịch sử order đề của lớp này (cùng dữ liệu với màn Duyệt & phân phối đề của Học thuật)
-        $requests = \App\Models\BigTestOrder::with('reviewer')
+        $requests = BigTestOrder::with('reviewer')
             ->where('class_id', $class->id)
             ->latest()
             ->take(10)
@@ -660,7 +660,7 @@ class TeacherPortalController extends Controller
         ]);
 
         $examDate = isset($validated['exam_date']) ? Carbon::parse($validated['exam_date']) : null;
-        $order = \App\Models\BigTestOrder::create([
+        $order = BigTestOrder::create([
             'code' => 'ORDTEST-'.strtoupper(Str::random(6)),
             'class_id' => $class->id,
             'teacher_id' => Auth::id(),
@@ -669,8 +669,8 @@ class TeacherPortalController extends Controller
             'exam_date' => $examDate,
             // Hạn xử lý: đề phải phân phối trước ngày thi N ngày; không có ngày thi thì trong 3 ngày làm việc.
             'due_date' => $examDate
-                ? $examDate->copy()->subDays(\App\Models\BigTestOrder::LEAD_DAYS)->max(today())
-                : today()->addDays(\App\Models\BigTestOrder::LEAD_DAYS),
+                ? $examDate->copy()->subDays(BigTestOrder::LEAD_DAYS)->max(today())
+                : today()->addDays(BigTestOrder::LEAD_DAYS),
             'note' => $validated['note'] ?? null,
             'status' => 'pending',
         ]);

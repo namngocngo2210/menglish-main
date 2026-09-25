@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use App\Models\Concerns\AuditsChanges;
+use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -129,7 +131,7 @@ class ClassModel extends Model
     }
 
     /** Học viên trong danh sách lớp (đã sắp theo tên). */
-    public function rosterStudents(): \Illuminate\Database\Eloquent\Collection
+    public function rosterStudents(): Collection
     {
         return $this->roster()->orderBy('name')->get();
     }
@@ -147,7 +149,7 @@ class ClassModel extends Model
      */
     public static function loadRosterCounts(iterable $classes): void
     {
-        $list = collect($classes instanceof \Illuminate\Contracts\Pagination\Paginator ? $classes->items() : $classes);
+        $list = collect($classes instanceof Paginator ? $classes->items() : $classes);
         $ids = $list->pluck('id')->filter()->map(fn ($id) => (int) $id)->all();
         if ($ids === []) {
             return;

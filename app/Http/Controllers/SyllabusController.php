@@ -9,6 +9,7 @@ use App\Models\BigTestOrder;
 use App\Models\BigTestResult;
 use App\Models\ClassModel;
 use App\Models\Course;
+use App\Models\Student;
 use App\Models\SyllabusAdjustmentRequest;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusChangeProposal;
@@ -16,6 +17,7 @@ use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusDocument;
 use App\Models\SyllabusUnit;
 use App\Models\User;
+use App\Services\DocumentCodeGenerator;
 use App\Services\SafeUploadService;
 use App\Services\ScheduleExtensionService;
 use App\Services\ZaloZnsService;
@@ -697,7 +699,7 @@ class SyllabusController extends Controller
             'room' => 'required|string',
         ]);
 
-        $code = app(\App\Services\DocumentCodeGenerator::class)->bigTestCode();
+        $code = app(DocumentCodeGenerator::class)->bigTestCode();
 
         $bt = BigTest::create($validated + [
             'code' => $code,
@@ -810,7 +812,7 @@ class SyllabusController extends Controller
         $results = $test ? BigTestResult::with('student')->where('big_test_id', $test->id)->get() : collect();
         // Danh sách lớp thật (gồm học viên liên kết lớp khác) + học viên đã có kết quả.
         $students = $test?->classModel
-            ? $test->classModel->rosterStudents()->concat(\App\Models\Student::whereIn('id', $results->pluck('student_id'))
+            ? $test->classModel->rosterStudents()->concat(Student::whereIn('id', $results->pluck('student_id'))
                 ->whereNotIn('id', $test->classModel->roster()->pluck('id'))->orderBy('name')->get())
             : collect();
 

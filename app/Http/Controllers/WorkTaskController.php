@@ -10,6 +10,7 @@ use App\Models\ClassReportStudentSupport;
 use App\Models\ClassScheduleConfig;
 use App\Models\ClassSession;
 use App\Models\HrDailyDemand;
+use App\Models\PayrollPeriod;
 use App\Models\Student;
 use App\Models\SupportSession;
 use App\Models\TeacherTimesheet;
@@ -19,12 +20,12 @@ use App\Services\ClassDashboardService;
 use App\Services\KpiBoardService;
 use App\Services\SafeUploadService;
 use App\Services\SessionScheduleService;
+use App\Services\SupportListService;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class WorkTaskController extends Controller
@@ -1157,7 +1158,7 @@ class WorkTaskController extends Controller
         $user = $request->user();
         $visibleClassIds = ClassModel::query()->visibleTo($user)->pluck('id')->all();
         $source = $request->query('source');
-        $sources = \App\Services\SupportListService::SOURCE_LABELS;
+        $sources = SupportListService::SOURCE_LABELS;
 
         $pendingSupports = ClassReportStudentSupport::with(['student', 'classModel', 'classReport.classModel'])
             ->whereDoesntHave('supportSession')
@@ -1273,8 +1274,8 @@ class WorkTaskController extends Controller
         abort_unless((int) $session->teacher_id === (int) Auth::id() || $request->user()->can('work_task.approve'), 403);
         abort_if($session->status === 'completed', 422, 'Buổi phụ đạo đã hoàn thành.');
         $validated = $request->validate(['completion_note' => ['nullable', 'string', 'max:2000']]);
-        if (\App\Models\PayrollPeriod::isLockedFor($session->session_date)) {
-            $message = \App\Models\PayrollPeriod::lockedMessage($session->session_date);
+        if (PayrollPeriod::isLockedFor($session->session_date)) {
+            $message = PayrollPeriod::lockedMessage($session->session_date);
 
             return redirect()->back()->withErrors(['session_date' => $message])->with('error', $message);
         }

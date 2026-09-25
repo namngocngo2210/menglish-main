@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Spatie\Permission\Models\Role;
 
 /**
  * Tìm nhân sự theo vai trò trong một chi nhánh (chi nhánh chính users.branch_id hoặc chi nhánh
@@ -19,7 +20,7 @@ class BranchStaff
     public static function withRoles(array|string $roles, ?int $branchId): Collection
     {
         // Vai trò chưa được tạo (vd. môi trường chưa seed) thì coi như không có ai.
-        $roles = \Spatie\Permission\Models\Role::whereIn('name', (array) $roles)->pluck('name')->all();
+        $roles = Role::whereIn('name', (array) $roles)->pluck('name')->all();
         if (! $branchId || $roles === []) {
             return collect();
         }
@@ -36,7 +37,7 @@ class BranchStaff
     /** Admin đang hoạt động (không phụ thuộc chi nhánh). */
     public static function admins(): Collection
     {
-        if (! \Spatie\Permission\Models\Role::where('name', 'admin')->exists()) {
+        if (! Role::where('name', 'admin')->exists()) {
             return collect();
         }
 

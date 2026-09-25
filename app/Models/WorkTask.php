@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\FirstMonthCareService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -46,7 +47,7 @@ class WorkTask extends Model
         // Việc chăm sóc tháng đầu hoàn thành → đánh dấu checklist chăm sóc bên CRM.
         static::updated(function (WorkTask $task) {
             if ($task->care_milestone && $task->wasChanged('status') && $task->status === 'completed') {
-                app(\App\Services\FirstMonthCareService::class)->syncCompletedTask($task);
+                app(FirstMonthCareService::class)->syncCompletedTask($task);
             }
         });
     }
@@ -89,7 +90,7 @@ class WorkTask extends Model
     // Helper accessor for status badge label & class
     public function getStatusLabelAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'new' => 'Mới',
             'in_progress' => 'Đang thực hiện',
             'pending_confirmation' => 'Chờ xác nhận',
@@ -103,7 +104,7 @@ class WorkTask extends Model
 
     public function getStatusBadgeClassAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'new' => 'bg-gray-100 text-gray-700 border-gray-200',
             'in_progress' => 'bg-amber-50 text-amber-700 border-amber-200',
             'pending_confirmation' => 'bg-orange-50 text-orange-700 border-orange-200',
@@ -117,7 +118,7 @@ class WorkTask extends Model
 
     public function getTaskTypeLabelAttribute(): string
     {
-        return match($this->task_type) {
+        return match ($this->task_type) {
             'one_time' => 'Phát sinh',
             'recurring' => 'Lặp đi lặp lại',
             default => $this->task_type,
@@ -126,7 +127,7 @@ class WorkTask extends Model
 
     public function getTimeSlotCategoryLabelAttribute(): string
     {
-        return match($this->time_slot_category) {
+        return match ($this->time_slot_category) {
             'before' => 'Trước giờ học',
             'during' => 'Trong giờ học',
             'after' => 'Sau giờ học',
