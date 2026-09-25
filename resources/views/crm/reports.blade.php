@@ -231,6 +231,11 @@
                     <p class="text-xs text-gray-500">Thống kê chi tiết số lượng Lead, doanh số và hoa hồng theo từng chuyên viên</p>
                 </div>
 
+                <div class="flex items-center gap-2">
+                    <x-ui.button variant="secondary" size="sm" icon="download" :href="request()->fullUrlWithQuery(['export' => 'xlsx'])">Xuất Excel</x-ui.button>
+                    <x-ui.button variant="ghost" size="sm" :href="request()->fullUrlWithQuery(['export' => 'csv'])">CSV</x-ui.button>
+                </div>
+
                 @can('commission_config.manage')
                 <a href="{{ route('payroll.config.commission-tiers') }}" class="text-xs font-bold text-primary-container hover:underline inline-flex items-center gap-1">
                     <span class="material-symbols-outlined text-sm">settings</span>

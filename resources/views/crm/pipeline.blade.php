@@ -32,6 +32,8 @@
             </div>
         @endunless
 
+        @include('crm.partials.list-filters', ['dateLabel' => 'Ngày tạo'])
+
         <!-- Pipeline summary cards -->
         <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
             @foreach ($stages as $stage)
@@ -93,6 +95,12 @@
                                     </div>
                                     <span class="text-[10px] text-gray-400 whitespace-nowrap shrink-0">{{ $lead['days'] }}</span>
                                 </div>
+
+                                @if ($lead['follow_up_status'] === 'overdue')
+                                    <div class="mb-1.5"><x-ui.badge color="status-overdue" title="Hạn liên hệ: {{ $lead['follow_up_at'] }}">Quá hạn · {{ $lead['follow_up_at'] }}</x-ui.badge></div>
+                                @elseif ($lead['follow_up_status'] === 'due_soon')
+                                    <div class="mb-1.5"><x-ui.badge color="warning" title="Hạn liên hệ: {{ $lead['follow_up_at'] }}">Sắp hết hạn · {{ $lead['follow_up_at'] }}</x-ui.badge></div>
+                                @endif
 
                                 <div class="text-xs font-bold text-primary-container mb-2 flex items-center justify-between">
                                     <span>{{ $lead['tuition'] }}</span>
@@ -164,14 +172,15 @@
                                             </button>
                                         @endif
 
-                                        @if ($stagePermissions['canBackward'] && $index > 0 && ! in_array($stage['id'], $stagePermissions['closed'], true))
+                                        @if (($stagePermissions['canForward'] || $stagePermissions['canBackward']) && ! in_array($stage['id'], $stagePermissions['closed'], true))
                                             <button
                                                 type="button"
-                                                @click.stop="openBackward({{ (int) $lead['id'] }}, @js($lead['name']), @js($stage['id']))"
-                                                class="inline-flex items-center px-1.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold transition cursor-pointer"
-                                                title="Lùi giai đoạn"
+                                                @click.stop="openStageEdit({{ (int) $lead['id'] }}, @js($lead['name']), @js($stage['id']))"
+                                                class="inline-flex items-center px-1.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-bold transition cursor-pointer"
+                                                title="Sửa giai đoạn"
+                                                aria-label="Sửa giai đoạn"
                                             >
-                                                <span class="material-symbols-outlined text-[14px]">undo</span>
+                                                <span class="material-symbols-outlined text-[14px]">edit_note</span>
                                             </button>
                                         @endif
                                     </div>
@@ -193,21 +202,21 @@
             @endforeach
         </div>
 
-        @if ($stagePermissions['canBackward'])
-            <!-- Admin: Lùi giai đoạn (bắt buộc lý do) -->
-            <div x-show="backward.open" x-cloak class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-3 text-xs" @click.outside="backward.open = false">
-                    <h3 class="font-bold text-sm">Lùi giai đoạn: <span x-text="backward.name"></span></h3>
-                    <p class="text-gray-500">Chỉ Admin được lùi giai đoạn. Lý do được lưu vào lịch sử Lead.</p>
-                    <select x-model="backward.target" class="w-full rounded-xl border-gray-200 text-xs">
-                        <template x-for="stage in backwardTargets()" :key="stage">
-                            <option :value="stage" x-text="permissions.labels[stage]"></option>
+        @if ($stagePermissions['canForward'] || $stagePermissions['canBackward'])
+            <!-- Sửa giai đoạn (A6): CM tiến 1 bước; chỉ Admin lùi bước (bắt buộc lý do); Thất bại bắt buộc lý do -->
+            <div x-show="stageEdit.open" x-cloak class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+                <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-3 text-xs" @click.outside="stageEdit.open = false">
+                    <h3 class="font-bold text-sm">Sửa giai đoạn: <span x-text="stageEdit.name"></span></h3>
+                    <p class="text-gray-500">Hiện tại: <strong x-text="permissions.labels[stageEdit.from]"></strong>. Học vụ / Quản lý cơ sở chỉ chuyển tiến 1 bước; chỉ Admin được lùi bước. Mọi thay đổi được lưu vào lịch sử khách.</p>
+                    <select x-model="stageEdit.target" class="w-full rounded-xl border-gray-200 text-xs" aria-label="Giai đoạn mới">
+                        <template x-for="option in stageEditOptions()" :key="option.value">
+                            <option :value="option.value" x-text="option.label"></option>
                         </template>
                     </select>
-                    <textarea x-model="backward.reason" rows="3" placeholder="Lý do lùi giai đoạn (bắt buộc)" class="w-full rounded-xl border-gray-200 text-xs"></textarea>
+                    <textarea x-show="stageEditNeedsReason()" x-model="stageEdit.reason" rows="3" :placeholder="stageEdit.target === 'lost' ? 'Lý do thất bại (bắt buộc)' : 'Lý do lùi giai đoạn (bắt buộc)'" class="w-full rounded-xl border-gray-200 text-xs"></textarea>
                     <div class="flex justify-end gap-2">
-                        <button type="button" @click="backward.open = false" class="px-3 py-2 border rounded-xl">Hủy</button>
-                        <button type="button" @click="submitBackward()" :disabled="!backward.reason.trim()" class="px-4 py-2 bg-rose-600 disabled:opacity-50 text-white font-bold rounded-xl">Lùi giai đoạn</button>
+                        <button type="button" @click="stageEdit.open = false" class="px-3 py-2 border rounded-xl">Hủy</button>
+                        <button type="button" @click="submitStageEdit()" :disabled="!stageEdit.target || (stageEditNeedsReason() && !stageEdit.reason.trim())" class="px-4 py-2 bg-primary-container disabled:opacity-50 text-white font-bold rounded-xl">Lưu giai đoạn</button>
                     </div>
                 </div>
             </div>
@@ -219,7 +228,7 @@
             return {
                 permissions: permissions,
                 draggedCard: null,
-                backward: { open: false, customerId: null, name: '', from: '', target: '', reason: '' },
+                stageEdit: { open: false, customerId: null, name: '', from: '', target: '', reason: '' },
                 toast: {
                     show: false,
                     message: '',
@@ -255,8 +264,40 @@
                     return null;
                 },
 
-                backwardTargets() {
-                    return this.permissions.order.slice(0, Math.max(0, this.indexOf(this.backward.from)));
+                // Lựa chọn trong modal "Sửa giai đoạn" theo quyền (A6).
+                stageEditOptions() {
+                    const from = this.stageEdit.from;
+                    const options = [];
+                    const next = this.permissions.order[this.indexOf(from) + 1];
+                    if (this.permissions.canForward && next && !this.permissions.closed.includes(next)) {
+                        options.push({ value: next, label: 'Tiến 1 bước → ' + this.permissions.labels[next] });
+                    }
+                    if (this.permissions.canBackward && !this.permissions.closed.includes(from)) {
+                        this.permissions.order.slice(0, Math.max(0, this.indexOf(from))).reverse()
+                            .forEach(stage => options.push({ value: stage, label: 'Lùi về ← ' + this.permissions.labels[stage] }));
+                    }
+                    if (this.permissions.canForward && !this.permissions.closed.includes(from)) {
+                        options.push({ value: 'lost', label: 'Chuyển sang Thất bại' });
+                    }
+                    return options;
+                },
+
+                stageEditNeedsReason() {
+                    return this.stageEdit.target === 'lost' || this.indexOf(this.stageEdit.target) < this.indexOf(this.stageEdit.from);
+                },
+
+                openStageEdit(customerId, name, fromStage, target = null) {
+                    this.stageEdit = { open: true, customerId, name, from: fromStage, target: '', reason: '' };
+                    const options = this.stageEditOptions();
+                    this.stageEdit.target = target || (options[0] ? options[0].value : '');
+                },
+
+                async submitStageEdit() {
+                    const { customerId, target, reason } = this.stageEdit;
+                    if (!target || (this.stageEditNeedsReason() && !reason.trim())) return;
+                    const payload = target === 'lost' ? { stage: 'lost', lost_reason: reason } : { stage: target, reason: reason };
+                    const ok = await this.postStage(customerId, payload);
+                    if (ok) this.stageEdit.open = false;
                 },
 
                 onDragStart(event, customerId, stageId, name) {
@@ -304,7 +345,7 @@
 
                     const type = this.transitionType(sourceStageId, targetStageId);
                     if (type === 'backward') {
-                        this.backward = { open: true, customerId, name, from: sourceStageId, target: targetStageId, reason: '' };
+                        this.openStageEdit(customerId, name, sourceStageId, targetStageId);
                         return;
                     }
                     if (type !== 'forward') {
@@ -315,17 +356,6 @@
                     }
 
                     await this.postStage(customerId, { stage: targetStageId });
-                },
-
-                openBackward(customerId, name, fromStage) {
-                    const targets = this.permissions.order.slice(0, Math.max(0, this.indexOf(fromStage)));
-                    this.backward = { open: true, customerId, name, from: fromStage, target: targets[targets.length - 1] || '', reason: '' };
-                },
-
-                async submitBackward() {
-                    if (!this.backward.reason.trim() || !this.backward.target) return;
-                    const ok = await this.postStage(this.backward.customerId, { stage: this.backward.target, reason: this.backward.reason });
-                    if (ok) this.backward.open = false;
                 },
 
                 async postStage(customerId, payload) {

@@ -9,6 +9,7 @@ use App\Http\Controllers\ClassManagementController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CourseLevelController;
 use App\Http\Controllers\CrmController;
+use App\Http\Controllers\CrmImportController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\KpiController;
@@ -137,6 +138,18 @@ Route::middleware('auth')->group(function () {
         Route::post('/closing-wizard', [CrmController::class, 'processClosingWizard'])->middleware('can:lead.convert')->name('closing-wizard.store');
         Route::post('/promotions/store', [CrmController::class, 'storePromotion'])->middleware('can:promotion.manage')->name('promotions.store');
         Route::get('/lost-deals', [CrmController::class, 'lostDeals'])->name('lost-deals');
+        // Phase 1 CRM: khách đã xóa / khôi phục, phân công lại, in hồ sơ, chăm sóc tháng đầu, xác nhận chính thức, nhập Excel.
+        Route::get('/customers-deleted', [CrmController::class, 'deletedCustomers'])->middleware('can:lead.delete')->name('customers.deleted');
+        Route::post('/customers/{id}/restore', [CrmController::class, 'restoreCustomer'])->middleware('can:lead.delete')->name('customers.restore');
+        Route::post('/customers/{id}/reassign', [CrmController::class, 'reassignCustomer'])->middleware('can:lead.assign')->name('customers.reassign');
+        Route::post('/customers/{id}/care-checklist', [CrmController::class, 'updateCareChecklist'])->middleware('can:lead.update')->name('customers.care-checklist');
+        Route::get('/customers/{id}/print', [CrmController::class, 'printCustomer'])->name('customers.print');
+        Route::get('/confirmations', [CrmController::class, 'confirmations'])->middleware('can:student.assign_class')->name('confirmations');
+        Route::post('/enrollments/{enrollment}/confirm', [CrmController::class, 'confirmEnrollment'])->middleware('can:student.assign_class')->name('enrollments.confirm');
+        Route::get('/import', [CrmImportController::class, 'create'])->middleware('can:lead.create')->name('import');
+        Route::get('/import/template', [CrmImportController::class, 'template'])->middleware('can:lead.create')->name('import.template');
+        Route::post('/import/preview', [CrmImportController::class, 'preview'])->middleware('can:lead.create')->name('import.preview');
+        Route::post('/import', [CrmImportController::class, 'store'])->middleware('can:lead.create')->name('import.store');
         Route::get('/reports', [CrmController::class, 'reports'])->name('reports');
     });
     Route::get('/crm/tuition-bill/{id}', [CrmController::class, 'tuitionBill'])->name('crm.tuition-bill');

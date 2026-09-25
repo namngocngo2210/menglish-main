@@ -30,6 +30,14 @@
                 </div>
             @endif
 
+            @php($locked = $customer->isContractLocked())
+            @if ($locked)
+                <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
+                    <span class="material-symbols-outlined text-base">lock</span>
+                    <span>Khách đã <strong>{{ $customer->stage_label }}</strong>: {{ implode(', ', \App\Models\CrmCustomer::CONTRACT_LOCKED_FIELDS) }} đã khóa, không sửa được tại đây.</span>
+                </div>
+            @endif
+
             <div>
                 <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary text-[18px]">person</span>
@@ -43,10 +51,15 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Số điện thoại <span class="text-rose-500">*</span></label>
                         <input type="tel" name="phone" value="{{ old('phone', $customer->phone) }}" required class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 font-mono" />
+                        <p class="mt-1 text-[11px] text-gray-500">Số Việt Nam 10 số bắt đầu bằng 0 (hoặc +84).</p>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Tên phụ huynh (nếu có)</label>
                         <input type="text" name="parent_name" value="{{ old('parent_name', $customer->parent_name) }}" placeholder="Nhập tên phụ huynh" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">SĐT phụ huynh</label>
+                        <input type="tel" name="parent_phone" value="{{ old('parent_phone', $customer->parent_phone) }}" placeholder="VD: 0912 345 678" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 font-mono" />
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Email</label>
@@ -83,7 +96,7 @@
                     @endcan
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Cơ sở đăng ký</label>
-                        <select name="branch_id" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2">
+                        <select name="branch_id" @disabled($locked) class="{{ $locked ? 'bg-gray-50 text-gray-500' : '' }} w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2">
                             <option value="">-- Chọn cơ sở --</option>
                             @foreach ($branches as $br)
                                 <option value="{{ $br->id }}" {{ old('branch_id', $customer->branch_id) == $br->id ? 'selected' : '' }}>{{ $br->name }} ({{ $br->code }})</option>
@@ -105,7 +118,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Khóa học quan tâm</label>
-                        <input type="text" name="course_interest" value="{{ old('course_interest', $customer->course_interest) }}" placeholder="VD: IELTS 6.5 Intensive" list="course-interest-options" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 font-semibold" />
+                        <input type="text" name="course_interest" @readonly($locked) value="{{ old('course_interest', $customer->course_interest) }}" placeholder="VD: IELTS 6.5 Intensive" list="course-interest-options" class="{{ $locked ? 'bg-gray-50 text-gray-500' : '' }} w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2 font-semibold" />
                         <datalist id="course-interest-options">
                             <option value="IELTS 6.5 Intensive">IELTS 6.5 Intensive</option>
                             <option value="IELTS 7.0 Master">IELTS 7.0 Master</option>
@@ -115,8 +128,13 @@
                         </datalist>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Giá trị deal (VNĐ)</label>
-                        <input type="number" name="deal_value" value="{{ old('deal_value', $customer->deal_value) }}" class="w-full text-xs font-mono font-bold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2" />
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Giá trị hợp đồng (VNĐ) @if ($locked)<span class="material-symbols-outlined text-[13px] align-middle text-amber-600" title="Đã khóa">lock</span>@endif</label>
+                        <input type="number" name="deal_value" @readonly($locked) value="{{ old('deal_value', $customer->deal_value) }}" class="{{ $locked ? 'bg-gray-50 text-gray-500' : '' }} w-full text-xs font-mono font-bold rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2" />
+                    </div>
+                    <div>
+                        <label for="next_follow_up_at" class="block text-xs font-semibold text-gray-700 mb-1">Hạn liên hệ tiếp theo</label>
+                        <input type="datetime-local" id="next_follow_up_at" name="next_follow_up_at" value="{{ old('next_follow_up_at', $customer->next_follow_up_at?->format('Y-m-d\TH:i')) }}" class="w-full text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container px-3 py-2" />
+                        <p class="mt-1 text-[11px] text-gray-500">Pipeline báo "Sắp hết hạn" trước 24 giờ và "Quá hạn" khi quá hạn.</p>
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Địa chỉ</label>
