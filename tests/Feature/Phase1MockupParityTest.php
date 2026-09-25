@@ -258,6 +258,38 @@ class Phase1MockupParityTest extends TestCase
         $this->actingAs($this->academic)->get(route('crm.confirmations', ['class_id' => $class->id + 99]))->assertDontSee('Lớp ID: IF-202310');
     }
 
+    // ── 10. Quản lý đề test ──────────────────────────────────────────────
+
+    public function test_placement_test_list_matches_mockup_filters_status_and_toggle(): void
+    {
+        $active = PlacementTest::create(['code' => 'TEST-G1-G2-01', 'title' => 'Đề khảo sát đầu vào số 1', 'duration_minutes' => 35, 'is_active' => true]);
+        $hidden = PlacementTest::create(['code' => 'TEST-G3-G4-02', 'title' => 'Đề khảo sát đầu vào số 2', 'duration_minutes' => 45, 'is_active' => false]);
+        $academicLead = $this->userWithRole('academic_lead', 'Học Thuật');
+
+        $this->actingAs($academicLead)->get(route('placement-tests.index'))->assertOk()
+            ->assertSee('Quản lý đề test đầu vào')->assertSee('Tạo đề mới')
+            ->assertSee('Cấp độ')->assertSee('Trạng thái')->assertSee('Tìm kiếm tên đề')->assertSee('Làm mới')
+            ->assertSee('Loại đề')->assertSee('placement_test')->assertSee('Thời gian')->assertSee('35 phút')
+            ->assertSee('Hoạt động')->assertSee('Ẩn')->assertSee('ID: TEST-G1-G2-01')
+            ->assertSee('trong tổng số', false)
+            // A6 Q2: bỏ CEFR / Band
+            ->assertDontSee('CEFR &amp; Cambridge', false)->assertDontSee('khung CEFR')->assertDontSee('Overall (Band)');
+
+        $this->actingAs($academicLead)->get(route('placement-tests.index', ['status' => 'hidden']))
+            ->assertSee('Đề khảo sát đầu vào số 2')->assertDontSee('Đề khảo sát đầu vào số 1');
+        $this->actingAs($academicLead)->get(route('placement-tests.index', ['grade_group' => 'khoi_1_2']))
+            ->assertSee('Đề khảo sát đầu vào số 1')->assertDontSee('Đề khảo sát đầu vào số 2');
+        $this->actingAs($academicLead)->get(route('placement-tests.index', ['search' => 'số 2']))
+            ->assertSee('Đề khảo sát đầu vào số 2')->assertDontSee('Đề khảo sát đầu vào số 1');
+
+        // Ẩn / Kích hoạt ngay trên danh sách.
+        $this->actingAs($academicLead)->post(route('placement-tests.toggle-active', $active->id))->assertRedirect();
+        $this->assertFalse($active->fresh()->is_active);
+        $this->actingAs($academicLead)->post(route('placement-tests.toggle-active', $hidden->id))->assertRedirect();
+        $this->assertTrue($hidden->fresh()->is_active);
+        $this->actingAs($this->academic)->post(route('placement-tests.toggle-active', $hidden->id))->assertForbidden();
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────
 
     private function lead(string $stage, array $attributes = []): CrmCustomer

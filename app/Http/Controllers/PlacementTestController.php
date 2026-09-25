@@ -21,7 +21,25 @@ class PlacementTestController extends Controller
 {
     public function index(Request $request)
     {
-        $tests = PlacementTest::withCount('submissions')->latest()->get();
+        $allTests = PlacementTest::withCount('submissions')->latest()->get()
+            ->each(fn (PlacementTest $test) => $test->setAttribute('grade_group', PlacementRubricService::detectGradeGroup($test->code)));
+
+        // Mockup quan-ly-de-dau-vao: lọc Cấp độ (khối lớp theo thang điểm A6 Q2), Trạng thái (Hoạt động / Ẩn), Tìm kiếm tên đề — phía server.
+        $search = Str::lower(trim((string) $request->input('search')));
+        $gradeGroup = (string) $request->input('grade_group');
+        $status = (string) $request->input('status');
+        $filtered = $allTests
+            ->when($search !== '', fn ($tests) => $tests->filter(fn (PlacementTest $t) => str_contains(Str::lower($t->title), $search) || str_contains(Str::lower($t->code), $search)))
+            ->when(PlacementRubricService::isValidGroup($gradeGroup), fn ($tests) => $tests->where('grade_group', $gradeGroup))
+            ->when($status === 'active', fn ($tests) => $tests->where('is_active', true))
+            ->when($status === 'hidden', fn ($tests) => $tests->where('is_active', false))
+            ->values();
+        $perPage = $request->perPage(20);
+        $page = max(1, $request->integer('page', 1));
+        $tests = new \Illuminate\Pagination\LengthAwarePaginator(
+            $filtered->forPage($page, $perPage)->values(), $filtered->count(), $perPage, $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
 
         $submissionsQuery = $this->visibleSubmissionsQuery()->with(['test', 'grader', 'customer'])->latest();
 
@@ -34,14 +52,24 @@ class PlacementTestController extends Controller
         $recentSubmissions = $submissionsQuery->take(50)->get();
 
         $stats = [
-            'total_tests' => $tests->count(),
-            'preset_tests' => $tests->where('is_preset', true)->count(),
-            'custom_tests' => $tests->where('is_preset', false)->count(),
-            'total_submissions' => PlacementTestSubmission::count(),
-            'avg_duration' => round($tests->avg('duration_minutes') ?: 0),
+            'total_tests' => $allTests->count(),
+            'active_tests' => $allTests->where('is_active', true)->count(),
+            'hidden_tests' => $allTests->where('is_active', false)->count(),
+            // Chỉ đếm bài làm trong phạm vi được xem (Quản lý / Học vụ: chi nhánh mình).
+            'total_submissions' => $this->visibleSubmissionsQuery()->count(),
+            'pending_submissions' => $this->visibleSubmissionsQuery()->where('status', 'pending')->count(),
         ];
 
         return view('placement-tests.index', compact('tests', 'recentSubmissions', 'selectedTest', 'stats'));
+    }
+
+    /** Mockup: nút Ẩn / Kích hoạt đề ngay trên danh sách (đề đã có bài làm không xóa được — ẩn để ngừng phát hành). */
+    public function toggleActive($id)
+    {
+        $test = PlacementTest::where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $test->update(['is_active' => ! $test->is_active]);
+
+        return back()->with('status', $test->is_active ? "Đã kích hoạt đề {$test->code}." : "Đã ẩn đề {$test->code} — link làm bài của đề này ngừng hoạt động.");
     }
 
     public function create()
@@ -176,7 +204,7 @@ class PlacementTestController extends Controller
         $submissionCount = $test->submissions()->count();
         if ($submissionCount > 0) {
             return redirect()->route('placement-tests.index')
-                ->with('error', "Đề [{$test->code}] đã có {$submissionCount} bài làm nên không thể xóa. Hãy tắt kích hoạt đề (Sửa đề → bỏ chọn Hoạt động) để ngừng phát hành.");
+                ->with('error', "Đề [{$test->code}] đã có {$submissionCount} bài làm nên không thể xóa. Hãy bấm \"Ẩn\" trên danh sách đề để ngừng phát hành.");
         }
 
         $title = $test->title;

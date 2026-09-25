@@ -379,6 +379,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/results/{id}', [PlacementTestController::class, 'updateResult'])->middleware('can:placement_test.grade')->name('results.update');
         Route::post('/{id}/duplicate', [PlacementTestController::class, 'duplicateTest'])->middleware('can:placement_test.create')->name('duplicate');
         Route::post('/{id}/distribute', [PlacementTestController::class, 'distributeTest'])->middleware('can:placement_test.distribute')->name('distribute');
+        Route::post('/{id}/toggle-active', [PlacementTestController::class, 'toggleActive'])->middleware('can:placement_test.update')->name('toggle-active');
         Route::get('/{id}', [PlacementTestController::class, 'showTest'])->middleware('can:placement_test.view')->name('show');
         Route::get('/{id}/edit', [PlacementTestController::class, 'editTest'])->middleware('can:placement_test.update')->name('edit');
         Route::put('/{id}', [PlacementTestController::class, 'updateTest'])->middleware('can:placement_test.update')->name('update');
