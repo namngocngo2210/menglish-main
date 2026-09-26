@@ -1205,38 +1205,7 @@ class TuitionController extends Controller
             ->count();
         $rejectedCount = $scoped()->where('status', 'rejected')->count();
 
-        // Query
-        $query = $scoped()->with([
-            'receipt.tuition.student.branch',
-            'receipt.student.branch',
-            'student.branch',
-            'requester',
-            'approver',
-        ]);
-
-        $statusFilter = $request->get('status', 'pending');
-        if ($statusFilter !== 'all' && ! empty($statusFilter)) {
-            $query->where('status', $statusFilter);
-        }
-
-        if ($request->filled('branch_id') && $request->input('branch_id') !== 'all') {
-            $bId = $request->input('branch_id');
-            $query->where(function ($q) use ($bId) {
-                $q->whereHas('student', fn ($sq) => $sq->where('branch_id', $bId))
-                    ->orWhereHas('receipt.tuition.student', fn ($sq) => $sq->where('branch_id', $bId));
-            });
-        }
-
-        if ($search = $request->input('q')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('invoice_number', 'like', "%{$search}%")
-                    ->orWhere('reason', 'like', "%{$search}%")
-                    ->orWhereHas('receipt', fn ($rq) => $rq->where('receipt_number', 'like', "%{$search}%"))
-                    ->orWhereHas('student', fn ($sq) => $sq->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"));
-            });
-        }
-
-        $cancellations = $query->latest()->get();
+        $cancellations = $this->filteredCancellations($request, $scope)->latest()->get();
 
         $selectedCancellation = null;
         if ($request->filled('selected_id')) {
@@ -1265,6 +1234,73 @@ class TuitionController extends Controller
             'approvedMonthCount',
             'rejectedCount'
         ));
+    }
+
+    /** Danh sách yêu cầu hủy theo bộ lọc màn hình (trạng thái, chi nhánh, tìm kiếm) — dùng cho màn hình và "Xuất danh sách". */
+    private function filteredCancellations(Request $request, ?array $scope)
+    {
+        $query = $this->scopedCancellations($scope)->with([
+            'receipt.tuition.student.branch',
+            'receipt.tuition.classModel.course',
+            'receipt.student.branch',
+            'student.branch',
+            'requester',
+            'approver',
+        ]);
+
+        $statusFilter = $request->get('status', 'pending');
+        if ($statusFilter !== 'all' && ! empty($statusFilter)) {
+            $query->where('status', $statusFilter);
+        }
+
+        if ($request->filled('branch_id') && $request->input('branch_id') !== 'all') {
+            $bId = $request->input('branch_id');
+            $query->where(function ($q) use ($bId) {
+                $q->whereHas('student', fn ($sq) => $sq->where('branch_id', $bId))
+                    ->orWhereHas('receipt.tuition.student', fn ($sq) => $sq->where('branch_id', $bId));
+            });
+        }
+
+        if ($search = $request->input('q')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('invoice_number', 'like', "%{$search}%")
+                    ->orWhere('reason', 'like', "%{$search}%")
+                    ->orWhereHas('receipt', fn ($rq) => $rq->where('receipt_number', 'like', "%{$search}%"))
+                    ->orWhereHas('student', fn ($sq) => $sq->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"));
+            });
+        }
+
+        return $query;
+    }
+
+    /** "Xuất danh sách" yêu cầu hủy hóa đơn (CSV UTF-8) theo bộ lọc đang xem. */
+    public function exportInvoiceCancellations(Request $request)
+    {
+        $rows = $this->filteredCancellations($request, $this->branchScope())->latest()->get();
+        $statusLabels = ['pending' => 'Chờ duyệt hủy', 'approved' => 'Đã duyệt hủy', 'rejected' => 'Đã từ chối hủy'];
+
+        return response()->streamDownload(function () use ($rows, $statusLabels) {
+            $out = fopen('php://output', 'w');
+            fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
+            fputcsv($out, ['Số hóa đơn', 'Mã phiếu thu', 'Mã HV', 'Học viên', 'Số tiền (VNĐ)', 'Lý do hủy', 'Người yêu cầu', 'Thời điểm gửi', 'Trạng thái', 'Người duyệt', 'Lý do từ chối']);
+            foreach ($rows as $can) {
+                $student = $can->student ?? $can->receipt?->tuition?->student ?? $can->receipt?->student;
+                fputcsv($out, [
+                    $can->invoice_number,
+                    $can->receipt?->receipt_number,
+                    $student?->code,
+                    $student?->name,
+                    (int) round((float) $can->amount),
+                    $can->reason,
+                    $can->requester?->name,
+                    $can->created_at?->format('d/m/Y H:i'),
+                    $statusLabels[$can->status] ?? $can->status,
+                    $can->approver?->name,
+                    $can->rejection_reason,
+                ]);
+            }
+            fclose($out);
+        }, 'yeu-cau-huy-hoa-don-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     /** Yêu cầu hủy hóa đơn trong phạm vi chi nhánh: theo phiếu thu gắn kèm, thiếu phiếu thì theo học viên. */
@@ -1340,6 +1376,8 @@ class TuitionController extends Controller
 
     public function approveInvoiceCancellation(Request $request, $id)
     {
+        // Mockup duyet-huy-hoa-don: "Chỉ Admin phê duyệt" hủy hóa đơn (chống nhảy số / thất thoát).
+        abort_unless($request->user()?->hasRole('admin'), 403, 'Chỉ Admin được phê duyệt hủy hóa đơn.');
         $this->abortUnlessCancellationInScope($id);
         $receiptId = InvoiceCancellation::query()->whereKey($id)->value('tuition_receipt_id');
         $tuitionId = $receiptId ? TuitionReceipt::query()->whereKey($receiptId)->value('student_tuition_id') : null;
@@ -1394,6 +1432,7 @@ class TuitionController extends Controller
 
     public function rejectInvoiceCancellation(Request $request, $id)
     {
+        abort_unless($request->user()?->hasRole('admin'), 403, 'Chỉ Admin được xử lý yêu cầu hủy hóa đơn.');
         $this->abortUnlessCancellationInScope($id);
         $validated = $request->validate([
             'rejection_reason' => 'nullable|string|max:1000',

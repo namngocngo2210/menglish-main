@@ -349,4 +349,33 @@ class Phase4FinanceParityTest extends TestCase
         $this->assertStringContainsString('PT-RENEWAL-1', $csv);
         $this->assertStringNotContainsString('HV-PAR-H2', $csv);
     }
+
+    public function test_duyet_huy_hoa_don_is_admin_only_exports_and_shows_no_fake_proof(): void
+    {
+        $receipt = TuitionReceipt::where('student_tuition_id', $this->tuition->id)->firstOrFail();
+        $receipt->update(['invoice_number' => 'C26CG-0000042']);
+        $cancellation = \App\Models\InvoiceCancellation::create([
+            'invoice_number' => 'C26CG-0000042', 'tuition_receipt_id' => $receipt->id, 'student_id' => $this->student->id,
+            'amount' => 3000000, 'reason' => 'Viết sai tên phụ huynh', 'requester_id' => $this->accountant->id, 'status' => 'pending',
+        ]);
+
+        $this->actingAs($this->accountant)->get(route('tuition.invoices.cancellations'))
+            ->assertOk()
+            ->assertSee('Chỉ Admin phê duyệt')
+            ->assertSee('Xuất danh sách')
+            ->assertSee('Yêu cầu đang chờ Admin phê duyệt.')
+            ->assertDontSee('hoadon_gachcheo_huy.jpg')
+            ->assertDontSee('Đã gạch chéo 3 liên');
+        $this->actingAs($this->accountant)->post(route('tuition.invoices.cancellations.approve', $cancellation->id))->assertForbidden();
+        $this->actingAs($this->manager)->post(route('tuition.invoices.cancellations.reject', $cancellation->id), ['rejection_reason' => 'x'])->assertForbidden();
+
+        $csv = $this->actingAs($this->accountant)->get(route('tuition.invoices.cancellations.export', ['status' => 'all']))->assertOk()->streamedContent();
+        $this->assertStringContainsString('C26CG-0000042', $csv);
+        $this->assertStringContainsString('Viết sai tên phụ huynh', $csv);
+
+        $this->actingAs($this->admin)->get(route('tuition.invoices.cancellations'))->assertOk()->assertSee('Duyệt hủy hóa đơn');
+        $this->actingAs($this->admin)->post(route('tuition.invoices.cancellations.approve', $cancellation->id))->assertSessionHasNoErrors();
+        $this->assertSame('cancelled', $receipt->fresh()->status);
+        $this->assertSame(6000000.0, (float) $this->tuition->fresh()->debt_amount);
+    }
 }

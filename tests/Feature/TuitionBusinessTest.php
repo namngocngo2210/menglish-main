@@ -298,14 +298,19 @@ class TuitionBusinessTest extends TestCase
         $cancellation = InvoiceCancellation::where('invoice_number', 'HDGTGT-001234')->first();
         $this->assertNotNull($cancellation);
 
-        // 2. Approve cancellation
-        $responseApprove = $this->actingAs($this->accountantUser)
+        // 2. Approve cancellation — Phase 4 (mockup duyet-huy-hoa-don): chỉ Admin phê duyệt hủy hóa đơn.
+        $this->actingAs($this->accountantUser)
+            ->post(route('tuition.invoices.cancellations.approve', $cancellation->id))
+            ->assertForbidden();
+        $admin = User::factory()->create(['is_active' => true]);
+        $admin->assignRole('admin');
+        $responseApprove = $this->actingAs($admin)
             ->post(route('tuition.invoices.cancellations.approve', $cancellation->id));
         $responseApprove->assertRedirect();
 
         $cancellation->refresh();
         $this->assertEquals('approved', $cancellation->status);
-        $this->assertEquals($this->accountantUser->id, $cancellation->approver_id);
+        $this->assertEquals($admin->id, $cancellation->approver_id);
         $this->assertEquals($receipt->id, $cancellation->tuition_receipt_id);
         $this->assertEquals('cancelled', $receipt->fresh()->status);
         $this->assertEquals(9000000, (float) $this->tuition->fresh()->debt_amount);
@@ -319,7 +324,7 @@ class TuitionBusinessTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $responseReject = $this->actingAs($this->accountantUser)
+        $responseReject = $this->actingAs($admin)
             ->post(route('tuition.invoices.cancellations.reject', $cancel2->id));
         $responseReject->assertRedirect();
 

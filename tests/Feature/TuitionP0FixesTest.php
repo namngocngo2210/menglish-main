@@ -351,7 +351,11 @@ class TuitionP0FixesTest extends TestCase
         $this->assertSame($receipt->id, $cancellation->tuition_receipt_id);
         $this->assertSame($this->student->id, $cancellation->student_id);
 
+        // Phase 4 (mockup duyet-huy-hoa-don): chỉ Admin phê duyệt hủy hóa đơn.
         $this->actingAs($this->accountant2)
+            ->post(route('tuition.invoices.cancellations.approve', $cancellation->id))
+            ->assertForbidden();
+        $this->actingAs($this->admin)
             ->post(route('tuition.invoices.cancellations.approve', $cancellation->id))
             ->assertSessionHasNoErrors();
 

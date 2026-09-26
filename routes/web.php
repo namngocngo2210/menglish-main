@@ -177,6 +177,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/history', [TuitionController::class, 'history'])->name('history');
         Route::get('/history/export', [TuitionController::class, 'exportHistory'])->name('history.export');
         Route::get('/invoices/cancellations', [TuitionController::class, 'invoiceCancellations'])->name('invoices.cancellations');
+        Route::get('/invoices/cancellations/export', [TuitionController::class, 'exportInvoiceCancellations'])->name('invoices.cancellations.export');
         Route::post('/invoices/cancellations', [TuitionController::class, 'storeInvoiceCancellation'])->middleware('can:invoice.request_cancel')->name('invoices.cancellations.store');
         Route::post('/invoices/cancellations/{id}/approve', [TuitionController::class, 'approveInvoiceCancellation'])->middleware('can:invoice.approve_cancel')->name('invoices.cancellations.approve');
         Route::post('/invoices/cancellations/{id}/reject', [TuitionController::class, 'rejectInvoiceCancellation'])->middleware('can:invoice.approve_cancel')->name('invoices.cancellations.reject');
