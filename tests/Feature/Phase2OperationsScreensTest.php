@@ -277,7 +277,7 @@ class Phase2OperationsScreensTest extends TestCase
         $this->assertModelExists($used);
 
         $this->actingAs($this->admin)->delete(route('course-levels.destroy', $free->id))->assertSessionHasNoErrors();
-        $this->assertModelMissing($free);
+        $this->assertSoftDeleted($free);
     }
 
     // ── 7. Portal trợ giảng ───────────────────────────────────────────────

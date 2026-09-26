@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Tài liệu giáo trình (file thật). File nằm trên disk private, chỉ đọc qua
@@ -13,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class SyllabusDocument extends Model
 {
+    use SoftDeletes;
+
     public const DISK = 'local';
 
     public const DIRECTORY = 'syllabus_documents';

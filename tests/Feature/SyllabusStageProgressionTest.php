@@ -367,10 +367,15 @@ class SyllabusStageProgressionTest extends TestCase
         ])->assertSessionHasNoErrors();
         $this->assertSame(11, $lesson->fresh()->session_no);
 
-        // Chặng còn unit không xóa được; xóa unit thì xóa luôn buổi.
+        // Chặng còn unit không xóa được; xóa unit thì xóa (mềm) luôn buổi.
         $this->actingAs($this->academic)->delete(route('syllabus.stages.destroy', $stage4->id))->assertSessionHas('error');
         $this->actingAs($this->academic)->delete(route('syllabus.units.destroy', $unit4->id))->assertRedirect();
-        $this->assertDatabaseMissing('syllabus_lessons', ['id' => $lesson->id]);
+        $this->assertSoftDeleted('syllabus_lessons', ['id' => $lesson->id]);
+        // Buổi đã xóa mềm nhả số buổi cho buổi mới cùng số.
+        $this->actingAs($this->academic)->post(route('syllabus.lessons.store'), [
+            'unit_id' => SyllabusUnit::where('curriculum_id', $this->curriculum->id)->firstOrFail()->id, 'session_no' => 11, 'title' => 'Dùng lại số 11',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(1, SyllabusLesson::where('curriculum_id', $this->curriculum->id)->where('session_no', 11)->count());
         $this->actingAs($this->academic)->delete(route('syllabus.stages.destroy', $stage4->id))->assertSessionHas('status');
         $this->assertSame(3, $this->stages[2]->fresh()->position);
 

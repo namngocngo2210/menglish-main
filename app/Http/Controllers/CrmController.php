@@ -625,7 +625,7 @@ class CrmController extends Controller
 
         $group = (string) $request->input('grade_group');
         $validated = $request->validate(PlacementRubricService::scoreRules($group) + [
-            'placement_test_id' => 'nullable|exists:placement_tests,id',
+            'placement_test_id' => 'nullable|exists:placement_tests,id,deleted_at,NULL',
             'submission_id' => 'nullable|integer|exists:placement_test_submissions,id',
         ], PlacementRubricService::scoreMessages($group));
 
@@ -717,7 +717,7 @@ class CrmController extends Controller
             'appointment_date' => 'required|date|after_or_equal:today',
             'appointment_time' => 'required|date_format:H:i',
             'appointment_type' => 'required|string|in:online,offline',
-            'assigned_test_id' => 'nullable|exists:placement_tests,id',
+            'assigned_test_id' => 'nullable|exists:placement_tests,id,deleted_at,NULL',
             'examiner_id' => 'nullable|exists:users,id',
             'notes' => 'nullable|string|max:500',
         ]);
@@ -1505,7 +1505,7 @@ class CrmController extends Controller
             'max_discount_amount' => 'nullable|numeric|min:0',
             'description' => 'nullable|string|max:1000',
             'branch_id' => 'nullable|exists:branches,id',
-            'course_id' => 'nullable|exists:courses,id',
+            'course_id' => 'nullable|exists:courses,id,deleted_at,NULL',
             'starts_at' => 'nullable|date',
             'ends_at' => 'nullable|date',
             'usage_limit' => 'nullable|integer|min:1',
@@ -1567,7 +1567,7 @@ class CrmController extends Controller
         $validated = $request->validate([
             'customer_id' => 'required|exists:crm_customers,id',
             'class_id' => 'nullable|exists:classes,id',
-            'course_id' => 'nullable|required_without:class_id|exists:courses,id',
+            'course_id' => 'nullable|required_without:class_id|exists:courses,id,deleted_at,NULL',
             'fee_paid_at_closing' => 'nullable|boolean',
             'promotion_id' => 'nullable|exists:promotions,id',
             'fee_items' => 'nullable',
@@ -1578,7 +1578,7 @@ class CrmController extends Controller
             'split_transfer_amount' => 'nullable|numeric|min:0',
             'split_pos_amount' => 'nullable|numeric|min:0',
             'transfer_memo' => 'nullable|string|max:255',
-            'bank_account_id' => 'nullable|exists:bank_accounts,id',
+            'bank_account_id' => 'nullable|exists:bank_accounts,id,deleted_at,NULL',
             'bill_notes' => 'nullable|string|max:2000',
         ], [
             'course_id.required_without' => 'Chọn khóa học khi xếp lớp sau để tính học phí.',

@@ -40,6 +40,7 @@ class SyllabusStageMigrationTest extends TestCase
             '2026_09_30_120100_add_stage_and_views_to_syllabus_documents',
             '2026_09_30_120200_add_lesson_to_syllabus_change_proposals',
             '2026_09_30_120300_add_stage_to_big_test_orders',
+            '2026_10_09_100000_add_soft_deletes_to_remaining_tables',
         ])->map(fn ($name) => require base_path("database/migrations/{$name}.php"));
         $dependents->reverse()->each->down();
         $migration->down();

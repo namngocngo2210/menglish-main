@@ -63,9 +63,9 @@ class SyllabusController extends Controller
     public function storeDocument(Request $request)
     {
         $validated = $request->validate([
-            'curriculum_id' => ['required', 'exists:syllabus_curriculums,id'],
+            'curriculum_id' => ['required', 'exists:syllabus_curriculums,id,deleted_at,NULL'],
             'title' => ['required', 'string', 'max:255'],
-            'stage_id' => ['nullable', Rule::exists('syllabus_stages', 'id')->where('curriculum_id', $request->input('curriculum_id'))],
+            'stage_id' => ['nullable', Rule::exists('syllabus_stages', 'id')->whereNull('deleted_at')->where('curriculum_id', $request->input('curriculum_id'))],
             'stage_name' => ['nullable', 'string', 'max:255'],
             'file' => ['required', 'file', 'max:'.SyllabusDocument::MAX_KB],
             'visible_to_teachers' => ['nullable', 'boolean'],
@@ -106,7 +106,7 @@ class SyllabusController extends Controller
     public function destroyDocument(int $id)
     {
         $doc = SyllabusDocument::findOrFail($id);
-        Storage::disk(SyllabusDocument::DISK)->delete($doc->file_path);
+        // Xóa mềm — giữ file để có thể khôi phục.
         $doc->delete();
 
         return redirect()->back()->with('status', "Đã xóa tài liệu {$doc->title}.");
@@ -238,10 +238,15 @@ class SyllabusController extends Controller
             return redirect()->back()->with('error', "Giáo trình {$curriculum->title} đang được lớp học, không thể xóa.");
         }
 
-        foreach ($curriculum->documents()->get() as $doc) {
-            Storage::disk(SyllabusDocument::DISK)->delete($doc->file_path);
-        }
-        $curriculum->delete();
+        // Xóa mềm dây chuyền (khóa ngoại cascade chỉ chạy khi xóa cứng); giữ file tài liệu để có thể khôi phục.
+        DB::transaction(function () use ($curriculum) {
+            $curriculum->levels()->update(['syllabus_curriculum_id' => null]);
+            $curriculum->documents()->delete();
+            $curriculum->lessons()->get()->each->delete();
+            $curriculum->units()->delete();
+            $curriculum->stages()->delete();
+            $curriculum->delete();
+        });
 
         return redirect()->route('syllabus.builder')->with('status', "Đã xóa giáo trình {$curriculum->title}.");
     }
@@ -250,11 +255,11 @@ class SyllabusController extends Controller
     {
         return [
             'title' => ['required', 'string', 'max:255'],
-            'course_id' => ['nullable', 'exists:courses,id'],
+            'course_id' => ['nullable', 'exists:courses,id,deleted_at,NULL'],
             'version' => ['required', 'string', 'max:20'],
             'description' => ['nullable', 'string', 'max:5000'],
             'level_ids' => ['nullable', 'array'],
-            'level_ids.*' => ['integer', 'exists:course_levels,id'],
+            'level_ids.*' => ['integer', 'exists:course_levels,id,deleted_at,NULL'],
         ];
     }
 
@@ -284,7 +289,7 @@ class SyllabusController extends Controller
     public function storeStage(Request $request)
     {
         $validated = $request->validate($this->stageRules() + [
-            'curriculum_id' => ['required', 'exists:syllabus_curriculums,id'],
+            'curriculum_id' => ['required', 'exists:syllabus_curriculums,id,deleted_at,NULL'],
         ]);
         $position = (int) SyllabusStage::where('curriculum_id', $validated['curriculum_id'])->max('position') + 1;
         $stage = SyllabusStage::create($validated + ['position' => $position]);
@@ -315,7 +320,10 @@ class SyllabusController extends Controller
             return redirect()->back()->with('error', $error);
         }
 
-        $stage->delete();
+        DB::transaction(function () use ($stage) {
+            SyllabusDocument::where('stage_id', $stage->id)->update(['stage_id' => null]);
+            $stage->delete();
+        });
         $this->renumberStages($stage->curriculum_id);
 
         return redirect()->route('syllabus.builder', ['curriculum' => $stage->curriculum_id])
@@ -364,8 +372,8 @@ class SyllabusController extends Controller
     public function storeUnit(Request $request)
     {
         $validated = $request->validate($this->unitRules() + [
-            'curriculum_id' => ['required', 'exists:syllabus_curriculums,id'],
-            'stage_id' => ['nullable', Rule::exists('syllabus_stages', 'id')->where('curriculum_id', $request->input('curriculum_id'))],
+            'curriculum_id' => ['required', 'exists:syllabus_curriculums,id,deleted_at,NULL'],
+            'stage_id' => ['nullable', Rule::exists('syllabus_stages', 'id')->whereNull('deleted_at')->where('curriculum_id', $request->input('curriculum_id'))],
         ], ['stage_id.exists' => 'Chặng không thuộc giáo trình đã chọn.']);
         $this->ensureUniqueUnitNumber((int) $validated['curriculum_id'], (int) $validated['unit_number']);
         // Không chọn chặng → đưa vào chặng cuối của giáo trình.
@@ -381,7 +389,7 @@ class SyllabusController extends Controller
     {
         $unit = SyllabusUnit::findOrFail($id);
         $validated = $request->validate($this->unitRules() + [
-            'stage_id' => ['nullable', Rule::exists('syllabus_stages', 'id')->where('curriculum_id', $unit->curriculum_id)],
+            'stage_id' => ['nullable', Rule::exists('syllabus_stages', 'id')->whereNull('deleted_at')->where('curriculum_id', $unit->curriculum_id)],
         ], ['stage_id.exists' => 'Chặng không thuộc giáo trình này.']);
         $this->ensureUniqueUnitNumber($unit->curriculum_id, (int) $validated['unit_number'], $unit->id);
         if (empty($validated['stage_id'])) {
@@ -397,7 +405,10 @@ class SyllabusController extends Controller
     public function destroyUnit(int $id)
     {
         $unit = SyllabusUnit::withCount('lessons')->findOrFail($id);
-        $unit->delete();
+        DB::transaction(function () use ($unit) {
+            $unit->lessons()->get()->each->delete();
+            $unit->delete();
+        });
 
         return redirect()->route('syllabus.builder', ['curriculum' => $unit->curriculum_id])
             ->with('status', "Đã xóa Unit {$unit->title}".($unit->lessons_count ? " cùng {$unit->lessons_count} buổi." : '.'));
@@ -455,7 +466,7 @@ class SyllabusController extends Controller
     public function storeLesson(Request $request)
     {
         $validated = $request->validate($this->lessonRules() + [
-            'unit_id' => ['required', 'exists:syllabus_units,id'],
+            'unit_id' => ['required', 'exists:syllabus_units,id,deleted_at,NULL'],
         ]);
         $unit = SyllabusUnit::findOrFail($validated['unit_id']);
         $this->ensureUniqueSessionNo($unit->curriculum_id, (int) $validated['session_no']);
@@ -470,7 +481,7 @@ class SyllabusController extends Controller
     {
         $lesson = SyllabusLesson::findOrFail($id);
         $validated = $request->validate($this->lessonRules() + [
-            'unit_id' => ['nullable', Rule::exists('syllabus_units', 'id')->where('curriculum_id', $lesson->curriculum_id)],
+            'unit_id' => ['nullable', Rule::exists('syllabus_units', 'id')->whereNull('deleted_at')->where('curriculum_id', $lesson->curriculum_id)],
         ], ['unit_id.exists' => 'Unit không thuộc giáo trình này.']);
         $this->ensureUniqueSessionNo($lesson->curriculum_id, (int) $validated['session_no'], $lesson->id);
         if (empty($validated['unit_id'])) {
@@ -528,8 +539,8 @@ class SyllabusController extends Controller
     {
         $validated = $request->validate([
             'class_id' => ['required', 'exists:classes,id'],
-            'curriculum_id' => ['nullable', 'exists:syllabus_curriculums,id'],
-            'stage_id' => ['nullable', 'exists:syllabus_stages,id'],
+            'curriculum_id' => ['nullable', 'exists:syllabus_curriculums,id,deleted_at,NULL'],
+            'stage_id' => ['nullable', 'exists:syllabus_stages,id,deleted_at,NULL'],
             'user_id' => ['nullable', 'exists:users,id'],
             'assigned_chapters' => ['nullable', 'string', 'max:255'],
             'stage_name' => ['nullable', 'string', 'max:255'],
@@ -681,9 +692,9 @@ class SyllabusController extends Controller
     public function storeProposal(Request $request)
     {
         $validated = $request->validate([
-            'curriculum_id' => ['required', 'exists:syllabus_curriculums,id'],
-            'unit_id' => ['nullable', Rule::exists('syllabus_units', 'id')->where('curriculum_id', $request->input('curriculum_id'))],
-            'lesson_id' => ['nullable', Rule::exists('syllabus_lessons', 'id')->where('curriculum_id', $request->input('curriculum_id'))],
+            'curriculum_id' => ['required', 'exists:syllabus_curriculums,id,deleted_at,NULL'],
+            'unit_id' => ['nullable', Rule::exists('syllabus_units', 'id')->whereNull('deleted_at')->where('curriculum_id', $request->input('curriculum_id'))],
+            'lesson_id' => ['nullable', Rule::exists('syllabus_lessons', 'id')->whereNull('deleted_at')->where('curriculum_id', $request->input('curriculum_id'))],
             'proposal_type' => ['nullable', 'string', 'max:255'],
             'old_content' => ['nullable', 'string', 'max:5000'],
             'new_content' => ['required', 'string', 'max:5000'],
@@ -1251,7 +1262,7 @@ class SyllabusController extends Controller
             'test_type' => 'required|string',
             'scheduled_at' => 'required|date',
             'room' => 'required|string',
-            'syllabus_stage_id' => 'nullable|exists:syllabus_stages,id',
+            'syllabus_stage_id' => 'nullable|exists:syllabus_stages,id,deleted_at,NULL',
         ]);
         // Big Test cuối chặng: mặc định gắn chặng đang mở của lớp.
         $validated['syllabus_stage_id'] ??= SyllabusAssignment::open()->where('class_id', $validated['class_id'])->value('stage_id');

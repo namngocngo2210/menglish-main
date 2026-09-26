@@ -31,6 +31,6 @@ class KpiEvaluationItem extends Model
 
     public function criterion(): BelongsTo
     {
-        return $this->belongsTo(KpiCriterion::class, 'kpi_criterion_id');
+        return $this->belongsTo(KpiCriterion::class, 'kpi_criterion_id')->withTrashed();
     }
 }

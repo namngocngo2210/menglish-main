@@ -128,7 +128,7 @@ class AcademicSystemTest extends TestCase
         // 3. Delete course level
         $responseDelete = $this->actingAs($this->academicHead)->delete(route('course-levels.destroy', $level->id));
         $responseDelete->assertRedirect(route('course-levels.index'));
-        $this->assertDatabaseMissing('course_levels', ['id' => $level->id]);
+        $this->assertSoftDeleted('course_levels', ['id' => $level->id]);
     }
 
     public function test_course_level_creation_fails_on_duplicate_code(): void
@@ -253,7 +253,7 @@ class AcademicSystemTest extends TestCase
         // Delete
         $responseDelete = $this->actingAs($this->academicHead)->delete(route('placement-tests.destroy', $test->id));
         $responseDelete->assertRedirect(route('placement-tests.index'));
-        $this->assertDatabaseMissing('placement_tests', ['id' => $test->id]);
+        $this->assertSoftDeleted('placement_tests', ['id' => $test->id]);
     }
 
     public function test_lead_online_test_portal_auto_grading_and_smart_comments(): void

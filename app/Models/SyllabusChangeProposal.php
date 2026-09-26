@@ -44,17 +44,17 @@ class SyllabusChangeProposal extends Model
 
     public function curriculum(): BelongsTo
     {
-        return $this->belongsTo(SyllabusCurriculum::class, 'curriculum_id');
+        return $this->belongsTo(SyllabusCurriculum::class, 'curriculum_id')->withTrashed();
     }
 
     public function unit(): BelongsTo
     {
-        return $this->belongsTo(SyllabusUnit::class, 'unit_id');
+        return $this->belongsTo(SyllabusUnit::class, 'unit_id')->withTrashed();
     }
 
     public function lesson(): BelongsTo
     {
-        return $this->belongsTo(SyllabusLesson::class, 'lesson_id');
+        return $this->belongsTo(SyllabusLesson::class, 'lesson_id')->withTrashed();
     }
 
     /** "Buổi 3: … (Unit 2)", "Unit 2: …" hoặc "Chung toàn giáo trình". */

@@ -79,7 +79,7 @@ class SyllabusAssignment extends Model
 
     public function curriculum(): BelongsTo
     {
-        return $this->belongsTo(SyllabusCurriculum::class, 'curriculum_id');
+        return $this->belongsTo(SyllabusCurriculum::class, 'curriculum_id')->withTrashed();
     }
 
     public function stage(): BelongsTo

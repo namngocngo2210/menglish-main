@@ -61,12 +61,12 @@ class PlacementTestSubmission extends Model
 
     public function test(): BelongsTo
     {
-        return $this->belongsTo(PlacementTest::class, 'placement_test_id');
+        return $this->belongsTo(PlacementTest::class, 'placement_test_id')->withTrashed();
     }
 
     public function placementTest(): BelongsTo
     {
-        return $this->belongsTo(PlacementTest::class, 'placement_test_id');
+        return $this->belongsTo(PlacementTest::class, 'placement_test_id')->withTrashed();
     }
 
     public function customer(): BelongsTo

@@ -13,6 +13,8 @@ use App\Models\SyllabusAssignment;
 use App\Models\SyllabusChangeProposal;
 use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusDocument;
+use App\Models\SyllabusLesson;
+use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
 use App\Models\User;
 use Carbon\Carbon;
@@ -124,7 +126,7 @@ class Phase2SyllabusTest extends TestCase
 
         // Xóa bài
         $this->actingAs($this->academic)->delete(route('syllabus.units.destroy', $unit->id))->assertRedirect();
-        $this->assertDatabaseMissing('syllabus_units', ['id' => $unit->id]);
+        $this->assertSoftDeleted('syllabus_units', ['id' => $unit->id]);
     }
 
     public function test_teacher_cannot_edit_syllabus_lessons_directly(): void
@@ -234,7 +236,7 @@ class Phase2SyllabusTest extends TestCase
         ])->assertForbidden();
     }
 
-    public function test_document_delete_removes_record_and_file(): void
+    public function test_document_delete_is_soft_and_keeps_file(): void
     {
         Storage::fake('local');
         $cur = $this->curriculum();
@@ -246,8 +248,29 @@ class Phase2SyllabusTest extends TestCase
         $this->actingAs($this->teacher)->delete(route('syllabus.documents.destroy', $doc->id))->assertForbidden();
         $this->actingAs($this->academic)->delete(route('syllabus.documents.destroy', $doc->id))->assertRedirect();
 
-        $this->assertDatabaseMissing('syllabus_documents', ['id' => $doc->id]);
-        Storage::disk('local')->assertMissing($doc->file_path);
+        $this->assertSoftDeleted('syllabus_documents', ['id' => $doc->id]);
+        Storage::disk('local')->assertExists($doc->file_path);
+    }
+
+    public function test_curriculum_delete_soft_deletes_its_stages_units_lessons_and_documents(): void
+    {
+        $cur = $this->curriculum();
+        $stage = SyllabusStage::create(['curriculum_id' => $cur->id, 'position' => 1, 'name' => 'Chặng 1']);
+        $unit = SyllabusUnit::create(['curriculum_id' => $cur->id, 'stage_id' => $stage->id, 'unit_number' => 1, 'title' => 'Unit 1']);
+        $lesson = SyllabusLesson::create(['unit_id' => $unit->id, 'session_no' => 1, 'title' => 'Buổi 1']);
+        $this->actingAs($this->academic)->post(route('syllabus.documents.store'), [
+            'curriculum_id' => $cur->id, 'title' => 'Tài liệu', 'file' => $this->pdf(),
+        ]);
+        $doc = SyllabusDocument::firstOrFail();
+
+        $this->actingAs($this->academic)->delete(route('syllabus.curriculums.destroy', $cur->id))->assertRedirect();
+
+        $this->assertSoftDeleted($cur);
+        $this->assertSoftDeleted($stage);
+        $this->assertSoftDeleted($unit);
+        $this->assertSoftDeleted('syllabus_lessons', ['id' => $lesson->id]);
+        $this->assertSoftDeleted($doc);
+        Storage::disk('local')->assertExists($doc->file_path);
     }
 
     // ---- 4. Đề xuất sửa giáo trình ----
