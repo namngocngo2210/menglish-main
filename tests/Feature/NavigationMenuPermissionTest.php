@@ -112,6 +112,31 @@ class NavigationMenuPermissionTest extends TestCase
         }
     }
 
+    public function test_merged_groups_keep_area_anchor_per_item(): void
+    {
+        // Nhóm "Cấu hình nghiệp vụ" gộp mục của nhiều khu: mỗi mục vẫn theo quyền neo của khu gốc.
+        $menu = app(SidebarMenu::class);
+        $items = collect($menu->definition())->firstWhere('id', 'settings')['items'];
+        $debtReminders = collect($items)->firstWhere('route', 'system-config.debt-reminders');
+        $this->assertSame(['tuition.approve', 'tuition.reject', 'invoice.request_cancel', 'refund_transfer.request'], $debtReminders['anchor']);
+
+        $sales = $this->makeUser('sales_consultant');
+        $this->assertFalse($menu->canSee($sales, $debtReminders));
+        $this->assertTrue($menu->canSee($this->makeUser('admin'), $debtReminders));
+    }
+
+    public function test_groups_are_ordered_by_section_and_sidebar_renders_section_titles(): void
+    {
+        $sections = collect(app(SidebarMenu::class)->definition())->pluck('section');
+        // Nhóm cùng khu đứng liền nhau (tiêu đề khu chỉ in một lần).
+        $this->assertSame($sections->unique()->values()->all(), $sections->reduce(
+            fn (array $carry, string $section) => end($carry) === $section ? $carry : [...$carry, $section], []
+        ));
+
+        $this->actingAs($this->makeUser('admin'))->get(route('dashboard'))
+            ->assertOk()->assertSee('data-menu-section', false)->assertSee('Tuyển sinh')->assertSee('Hệ thống');
+    }
+
     public function test_layout_does_not_load_google_fonts(): void
     {
         $admin = $this->makeUser('admin');

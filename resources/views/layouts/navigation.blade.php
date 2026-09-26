@@ -1,6 +1,7 @@
 {{--
     Sidebar ứng dụng (theo mockup crm-ui-mockup/app-shell-layout).
     - Menu + quyền: App\Support\Navigation\SidebarMenu (ability đọc từ middleware can: của route).
+    - Nhóm chia theo khu (tiêu đề khu); accordion chỉ mở 1 nhóm một lúc.
     - Responsive: ≥1200px đầy đủ 240px (accordion) · 768–1199px thu gọn icon 72px (flyout khi hover)
       · <768px drawer (mở bằng nút menu trên topbar, biến `sidebarOpen` của layout).
 --}}
@@ -26,12 +27,13 @@
             collapsed: tabletQuery.matches,
             init() {
                 tabletQuery.addEventListener('change', (e) => { this.collapsed = e.matches; });
-                try {
-                    const saved = JSON.parse(localStorage.getItem('menglish_sidebar_open_groups') || '{}');
-                    Object.keys(saved || {}).forEach((k) => { if (saved[k] === true) this.openGroups[k] = true; });
-                } catch (e) {}
-                Object.keys(initialGroups || {}).forEach((k) => { if (initialGroups[k]) this.openGroups[k] = true; });
-                this.persist();
+                // Chỉ mở 1 nhóm: nhóm chứa trang hiện tại; không có thì mở lại nhóm lần trước.
+                if (!Object.values(this.openGroups).some(Boolean)) {
+                    try {
+                        const saved = localStorage.getItem('menglish_sidebar_open_group');
+                        if (saved && saved in this.openGroups) this.openGroups[saved] = true;
+                    } catch (e) {}
+                }
 
                 this.$nextTick(() => {
                     const nav = this.$refs.navContainer;
@@ -46,11 +48,10 @@
                 });
             },
             toggle(id) {
-                this.openGroups[id] = !this.openGroups[id];
-                this.persist();
-            },
-            persist() {
-                try { localStorage.setItem('menglish_sidebar_open_groups', JSON.stringify(this.openGroups)); } catch (e) {}
+                const open = !this.openGroups[id];
+                Object.keys(this.openGroups).forEach((k) => { this.openGroups[k] = false; });
+                this.openGroups[id] = open;
+                try { localStorage.setItem('menglish_sidebar_open_group', open ? id : ''); } catch (e) {}
             },
             saveScroll() {
                 try { sessionStorage.setItem('sidebar_scroll_top', this.$refs.navContainer?.scrollTop ?? 0); } catch (e) {}
@@ -94,6 +95,11 @@
 
         @foreach ($menuGroups as $group)
             @php $gid = $group['id']; $groupActive = $group['is_active']; @endphp
+            @if ($loop->first || $group['section'] !== $menuGroups[$loop->index - 1]['section'])
+                {{-- Tiêu đề khu (sidebar thu gọn: chỉ còn đường kẻ) --}}
+                <div class="px-md pb-1 pt-md font-caption text-[10px] font-semibold uppercase tracking-widest text-surface-variant/50 md:hidden desktop:block" data-menu-section>{{ $group['section'] }}</div>
+                <div class="mx-auto my-sm hidden h-px w-8 bg-white/10 md:block desktop:hidden" aria-hidden="true"></div>
+            @endif
             <div
                 x-data="{
                     show: false, timer: null, top: 0, left: 0,

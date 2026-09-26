@@ -53,8 +53,9 @@ class NavigationPermissionTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('CRM & Tuyển sinh');
         $response->assertSee('Học phí & Hoá đơn');
-        $response->assertSee('Phân quyền & Hệ thống');
-        $response->assertSee('Nhân sự & Vận hành');
+        $response->assertSee('Phân quyền & Nhật ký');
+        $response->assertSee('Cấu hình nghiệp vụ');
+        $response->assertSee('Nhân sự & KPI');
     }
 
     public function test_teacher_only_sees_permitted_navigation_modules(): void

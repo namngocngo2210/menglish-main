@@ -368,14 +368,14 @@ class RbacFlexibleTest extends TestCase
         $groups = fn (User $u) => collect(app(SidebarMenu::class)->groupsFor($u->fresh()))->pluck('id')->all();
 
         $this->assertNotContains('student_portal', $groups($this->admin));
-        $this->assertNotContains('teacher_schedule', $groups($this->admin));
-        $this->assertContains('teacher_schedule', $groups($this->makeUser('teacher')));
-        $this->assertContains('teacher_schedule', $groups($this->makeUser('assistant')));
+        $this->assertNotContains('teacher_portal', $groups($this->admin));
+        $this->assertContains('teacher_portal', $groups($this->makeUser('teacher')));
+        $this->assertContains('teacher_portal', $groups($this->makeUser('assistant')));
 
         $staff = $this->makeUser('academic_staff');
-        $this->assertNotContains('teacher_schedule', $groups($staff));
+        $this->assertNotContains('teacher_portal', $groups($staff));
         $this->actingAs($this->admin)->put(route('users.permissions.update', $staff), ['overrides' => ['portal' => ['teacher' => 'allow']]])->assertSessionHasNoErrors();
-        $this->assertContains('teacher_schedule', $groups($staff));
+        $this->assertContains('teacher_portal', $groups($staff));
     }
 
     // ── Seed chỉ thêm, không ghi đè cấu hình Admin ────────────────────────────────────────────
