@@ -70,6 +70,21 @@ class DeployHookTest extends TestCase
         $this->assertTrue((bool) $admin->must_change_password);
         $this->assertSame(0, \App\Models\Branch::count());
 
+        // RBAC khởi tạo đầy đủ theo danh mục (docs/rbac.md): Super Admin toàn quyền, vai trò mặc định có phạm vi dữ liệu,
+        // quyền cũ *.all_branches đã thay bằng *.scope_all.
+        $this->assertTrue($admin->isSuperAdmin());
+        $this->assertTrue($admin->can('tuition.scope_all'));
+        $this->assertTrue($admin->can('role.assign_permission'));
+        $this->assertSame('all', \App\Support\DataScope::level($admin, 'lead'));
+        $this->assertFalse(\Spatie\Permission\Models\Permission::where('name', 'tuition.all_branches')->exists());
+        foreach (array_keys(config('access.roles')) as $role) {
+            $this->assertTrue(\Spatie\Permission\Models\Role::where('name', $role)->exists(), "Thiếu vai trò {$role}");
+        }
+        $academicStaff = \Spatie\Permission\Models\Role::findByName('academic_staff', 'web');
+        $this->assertTrue($academicStaff->hasPermissionTo('lead.update'));
+        $this->assertFalse($academicStaff->hasPermissionTo('lead.delete'));
+        $this->assertFalse($academicStaff->hasPermissionTo('lead.stage_back'));
+
         // Chạy lại: không khởi tạo lại khi đã có người dùng.
         $again = $this->post('/_deploy/hook', ['seed' => 'bootstrap'], ['X-Deploy-Token' => $token]);
         $this->assertStringContainsString('đã có người dùng', collect($again->json('steps'))->firstWhere('command', 'db:seed')['output']);
