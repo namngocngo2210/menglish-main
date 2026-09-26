@@ -6,28 +6,49 @@ use App\Http\Requests\SystemCategoryRequest;
 use App\Models\SystemCategory;
 use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
+/**
+ * Quản lý Danh mục hệ thống (mockup epic-5/quan-ly-danh-muc-he-thong): 4 tab, bảng + panel
+ * "Thêm giá trị mới / Sửa" bên phải trên cùng trang, ngừng dùng / kích hoạt lại.
+ */
 class SystemCategoryController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $type = request('type', SystemCategory::TYPE_LEAD_SOURCE);
+        $type = $this->validType($request->query('type'));
+        $search = trim((string) $request->query('q', ''));
 
-        $categories = SystemCategory::query()->ofType($type)->orderBy('sort_order')->paginate(request()->perPage(20))->withQueryString();
+        $categories = SystemCategory::query()->ofType($type)
+            ->when($search !== '', fn ($q) => $q->where(fn ($s) => $s->where('code', 'like', "%{$search}%")->orWhere('name', 'like', "%{$search}%")))
+            ->orderBy('sort_order')->orderBy('id')
+            ->paginate($request->perPage(20))->withQueryString();
+
+        $editing = $request->filled('edit')
+            ? SystemCategory::query()->ofType($type)->find($request->integer('edit'))
+            : null;
 
         return view('system-categories.index', [
             'categories' => $categories,
             'type' => $type,
             'types' => SystemCategory::TYPES,
+            'typeLabels' => SystemCategory::TYPE_LABELS,
+            'editing' => $editing,
+            'suggestedCode' => SystemCategory::suggestCode($type),
+            'nextOrder' => (int) SystemCategory::query()->ofType($type)->max('sort_order') + 1,
+            'search' => $search,
         ]);
     }
 
     public function create(): View
     {
+        $type = $this->validType(request('type'));
+
         return view('system-categories.form', [
-            'category' => new SystemCategory(['type' => request('type', SystemCategory::TYPE_LEAD_SOURCE)]),
+            'category' => new SystemCategory(['type' => $type, 'code' => SystemCategory::suggestCode($type)]),
             'types' => SystemCategory::TYPES,
+            'typeLabels' => SystemCategory::TYPE_LABELS,
         ]);
     }
 
@@ -36,18 +57,17 @@ class SystemCategoryController extends Controller
         Audit::describe('Tạo danh mục hệ thống');
         $category = SystemCategory::create([
             ...$request->validated(),
+            'sort_order' => $request->validated('sort_order') ?? ((int) SystemCategory::query()->ofType($request->validated('type'))->max('sort_order') + 1),
             'is_active' => $request->boolean('is_active', true),
         ]);
 
-        return redirect()->route('system-categories.index', ['type' => $category->type])->with('status', 'Đã thêm danh mục.');
+        return redirect()->route('system-categories.index', ['type' => $category->type])->with('status', "Đã thêm danh mục \"{$category->name}\".");
     }
 
-    public function edit(SystemCategory $systemCategory): View
+    public function edit(SystemCategory $systemCategory): RedirectResponse
     {
-        return view('system-categories.form', [
-            'category' => $systemCategory,
-            'types' => SystemCategory::TYPES,
-        ]);
+        // Sửa trên panel bên phải của trang danh sách (mockup).
+        return redirect()->route('system-categories.index', ['type' => $systemCategory->type, 'edit' => $systemCategory->id]);
     }
 
     public function update(SystemCategoryRequest $request, SystemCategory $systemCategory): RedirectResponse
@@ -55,6 +75,7 @@ class SystemCategoryController extends Controller
         Audit::describe('Cập nhật danh mục hệ thống');
         $systemCategory->update([
             ...$request->validated(),
+            'sort_order' => $request->validated('sort_order') ?? $systemCategory->sort_order,
             'is_active' => $request->boolean('is_active'),
         ]);
 
@@ -67,7 +88,7 @@ class SystemCategoryController extends Controller
         Audit::describe('Ngừng sử dụng danh mục hệ thống');
         $systemCategory->update(['is_active' => false]);
 
-        return redirect()->route('system-categories.index', ['type' => $type])->with('status', 'Đã ngừng sử dụng danh mục.');
+        return redirect()->route('system-categories.index', ['type' => $type])->with('status', "Đã ngừng sử dụng \"{$systemCategory->name}\".");
     }
 
     /**
@@ -84,5 +105,10 @@ class SystemCategoryController extends Controller
 
         return redirect()->route('system-categories.index', ['type' => $systemCategory->type])
             ->with('status', "Đã kích hoạt lại danh mục \"{$systemCategory->name}\".");
+    }
+
+    private function validType(mixed $type): string
+    {
+        return in_array($type, SystemCategory::TYPES, true) ? $type : SystemCategory::TYPE_LEAD_SOURCE;
     }
 }
