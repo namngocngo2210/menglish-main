@@ -41,6 +41,8 @@ class NavigationMenuPermissionTest extends TestCase
 
             $links = $this->sidebarLinks($dashboard->getContent());
             $this->assertNotEmpty($links, "Sidebar của role {$role} phải có ít nhất link Tổng quan.");
+            // Cộng thêm mọi tab / nút hành động của workspace và menu con Cài đặt mà role được thấy.
+            $links = array_values(array_unique([...$links, ...$this->workspaceAndSettingsLinks($user)]));
 
             foreach ($links as $url) {
                 $status = $this->actingAs($user)->get($url)->getStatusCode();
@@ -87,7 +89,8 @@ class NavigationMenuPermissionTest extends TestCase
         $menu = app(SidebarMenu::class);
         $routes = [];
 
-        foreach ($menu->definition() as $group) {
+        $sections = [...$menu->definition(), ...$menu->settingsDefinition()];
+        foreach ($sections as $group) {
             foreach ($group['items'] as $item) {
                 $this->assertDoesNotMatchRegularExpression('/\(#\d+\)|#\d+\)/', $item['label']);
                 $routes[] = $item['route'];
@@ -100,13 +103,14 @@ class NavigationMenuPermissionTest extends TestCase
 
     public function test_group_is_hidden_when_user_has_no_visible_item(): void
     {
-        // Sales chỉ có quyền CRM: không được thấy nhóm Phân quyền/Học phí.
+        // Sales chỉ có quyền CRM: không được thấy workspace Nhân sự/Học phí, không có mục Cài đặt nào.
         $sales = $this->makeUser('sales_consultant');
         $groups = collect(app(SidebarMenu::class)->groupsFor($sales))->pluck('id');
 
         $this->assertContains('crm', $groups);
-        $this->assertNotContains('permissions', $groups);
+        $this->assertNotContains('hr', $groups);
         $this->assertNotContains('tuition', $groups);
+        $this->assertSame([], app(SidebarMenu::class)->settingsFor($sales));
         foreach (app(SidebarMenu::class)->groupsFor($sales) as $group) {
             $this->assertNotEmpty($group['items']);
         }
@@ -114,9 +118,9 @@ class NavigationMenuPermissionTest extends TestCase
 
     public function test_merged_groups_keep_area_anchor_per_item(): void
     {
-        // Nhóm "Cấu hình nghiệp vụ" gộp mục của nhiều khu: mỗi mục vẫn theo quyền neo của khu gốc.
+        // Trang Cài đặt gộp mục của nhiều khu: mỗi mục vẫn theo quyền neo của khu gốc.
         $menu = app(SidebarMenu::class);
-        $items = collect($menu->definition())->firstWhere('id', 'settings')['items'];
+        $items = collect($menu->settingsDefinition())->flatMap(fn (array $section) => $section['items']);
         $debtReminders = collect($items)->firstWhere('route', 'system-config.debt-reminders');
         $this->assertSame(['tuition.approve', 'tuition.reject', 'invoice.request_cancel', 'refund_transfer.request'], $debtReminders['anchor']);
 
@@ -134,7 +138,8 @@ class NavigationMenuPermissionTest extends TestCase
         ));
 
         $this->actingAs($this->makeUser('admin'))->get(route('dashboard'))
-            ->assertOk()->assertSee('data-menu-section', false)->assertSee('Tuyển sinh')->assertSee('Hệ thống');
+            ->assertOk()->assertSee('data-menu-section', false)->assertSee('Tuyển sinh')
+            ->assertSee('data-menu-item="settings"', false)->assertSee(route('settings.index'), false);
     }
 
     public function test_layout_does_not_load_google_fonts(): void
@@ -178,6 +183,22 @@ class NavigationMenuPermissionTest extends TestCase
         }
 
         return $user;
+    }
+
+    /**
+     * URL mọi tab + nút hành động của workspace và mục Cài đặt user được thấy.
+     *
+     * @return list<string>
+     */
+    private function workspaceAndSettingsLinks(User $user): array
+    {
+        $menu = app(SidebarMenu::class);
+
+        return collect($menu->groupsFor($user))
+            ->flatMap(fn (array $group) => [...$group['items'], ...$group['actions']])
+            ->merge(collect($menu->settingsFor($user))->flatMap(fn (array $section) => $section['items']))
+            ->pluck('url')
+            ->all();
     }
 
     /**

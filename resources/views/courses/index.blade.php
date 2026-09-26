@@ -24,24 +24,6 @@
         </div>
     </x-slot>
 
-    {{-- Navigation Sub-Tabs --}}
-    <div class="border-b border-gray-200 bg-white -mt-md -mx-md lg:-mt-lg lg:-mx-lg px-6 pt-3 mb-5">
-        <div class="flex items-center gap-6 overflow-x-auto text-xs font-semibold scrollbar-none">
-            <a href="{{ route('courses.index') }}" class="pb-3 border-b-2 border-primary-container text-primary font-bold transition whitespace-nowrap flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-[17px]">sell</span>
-                <span>Bảng giá &amp; Danh mục Khóa học</span>
-            </a>
-            <a href="{{ route('course-levels.index') }}" class="pb-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 transition whitespace-nowrap flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-[17px]">layers</span>
-                <span>Khung Trình Độ CEFR / IELTS</span>
-            </a>
-            <a href="{{ route('syllabus.documents') }}" class="pb-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 transition whitespace-nowrap flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-[17px]">menu_book</span>
-                <span>Giáo trình &amp; Syllabus</span>
-            </a>
-        </div>
-    </div>
-
     <div class="space-y-5" x-data="courseManager()">
         {{-- 1. KPI Cards --}}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5">

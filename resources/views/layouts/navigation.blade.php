@@ -1,13 +1,16 @@
 {{--
     Sidebar ứng dụng (theo mockup crm-ui-mockup/app-shell-layout).
     - Menu + quyền: App\Support\Navigation\SidebarMenu (ability đọc từ middleware can: của route).
-    - Nhóm chia theo khu (tiêu đề khu); accordion chỉ mở 1 nhóm một lúc.
-    - Responsive: ≥1200px đầy đủ 240px (accordion) · 768–1199px thu gọn icon 72px (flyout khi hover)
-      · <768px drawer (mở bằng nút menu trên topbar, biến `sidebarOpen` của layout).
+    - 1 mục = 1 workspace (link tới tab đầu tiên user được xem); màn hình con là tab trong trang (x-ui.workspace-tabs).
+      Cấu hình / danh mục gom vào mục "Cài đặt" cuối sidebar.
+    - Responsive: ≥1200px đầy đủ 240px · 768–1199px thu gọn icon 72px (tooltip = title) · <768px drawer
+      (mở bằng nút menu trên topbar, biến `sidebarOpen` của layout).
 --}}
 @php
-    $menuGroups = app(\App\Support\Navigation\SidebarMenu::class)->groupsFor(Auth::user(), request());
-    $initialOpenGroups = collect($menuGroups)->mapWithKeys(fn ($g) => [$g['id'] => $g['is_active']])->all();
+    $sidebarMenu = app(\App\Support\Navigation\SidebarMenu::class);
+    $menuGroups = $sidebarMenu->groupsFor(Auth::user(), request());
+    $settingsUrl = $sidebarMenu->settingsUrlFor(Auth::user(), request()) ? route('settings.index') : null;
+    $settingsActive = $settingsUrl && ($sidebarMenu->isSettingsRoute(request()) || request()->routeIs('settings.*'));
     $dashboardActive = request()->routeIs('dashboard');
     $roleLabels = [
         'admin' => 'Quản trị hệ thống', 'manager' => 'Quản lý', 'accountant' => 'Kế toán',
@@ -20,21 +23,10 @@
 @endphp
 
 <script>
-    function sidebarNavigation(initialGroups) {
-        const tabletQuery = window.matchMedia('(min-width: 768px) and (max-width: 1199.98px)');
+    function sidebarNavigation() {
         return {
-            openGroups: Object.assign({}, initialGroups || {}),
-            collapsed: tabletQuery.matches,
             init() {
-                tabletQuery.addEventListener('change', (e) => { this.collapsed = e.matches; });
-                // Chỉ mở 1 nhóm: nhóm chứa trang hiện tại; không có thì mở lại nhóm lần trước.
-                if (!Object.values(this.openGroups).some(Boolean)) {
-                    try {
-                        const saved = localStorage.getItem('menglish_sidebar_open_group');
-                        if (saved && saved in this.openGroups) this.openGroups[saved] = true;
-                    } catch (e) {}
-                }
-
+                // Giữ vị trí cuộn của menu giữa các lần chuyển trang; lần đầu cuộn tới mục đang mở.
                 this.$nextTick(() => {
                     const nav = this.$refs.navContainer;
                     if (!nav) return;
@@ -47,12 +39,6 @@
                     }
                 });
             },
-            toggle(id) {
-                const open = !this.openGroups[id];
-                Object.keys(this.openGroups).forEach((k) => { this.openGroups[k] = false; });
-                this.openGroups[id] = open;
-                try { localStorage.setItem('menglish_sidebar_open_group', open ? id : ''); } catch (e) {}
-            },
             saveScroll() {
                 try { sessionStorage.setItem('sidebar_scroll_top', this.$refs.navContainer?.scrollTop ?? 0); } catch (e) {}
             },
@@ -63,7 +49,7 @@
 <aside
     class="fixed left-0 top-0 z-40 flex h-full w-sidebar-width flex-col bg-sidebar text-surface-variant shadow-level-3 transition-[transform,width] duration-200 max-md:-translate-x-full md:w-sidebar-collapsed desktop:w-sidebar-width md:shadow-none"
     :class="{ 'max-md:!translate-x-0': sidebarOpen }"
-    x-data="sidebarNavigation(@js($initialOpenGroups))"
+    x-data="sidebarNavigation()"
     aria-label="Menu chính"
     data-sidebar
 >
@@ -85,80 +71,21 @@
 
     {{-- Menu --}}
     <nav x-ref="navContainer" @scroll.passive.debounce.100ms="saveScroll()" class="custom-scrollbar flex-1 space-y-xs overflow-y-auto px-2 py-sm">
-        <a href="{{ route('dashboard') }}"
-           @if ($dashboardActive) aria-current="page" @endif
-           title="Tổng quan"
-           class="flex items-center gap-md rounded-lg px-md py-sm font-body-medium text-body-medium transition-colors duration-150 active:scale-95 md:justify-center md:px-0 desktop:justify-start desktop:px-md {{ $dashboardActive ? 'bg-primary-container text-white shadow-lg shadow-primary-container/20' : 'hover:bg-white/10 hover:text-white' }}">
-            <span class="material-symbols-outlined shrink-0 {{ $dashboardActive ? 'fill' : '' }}">dashboard</span>
-            <span class="truncate md:hidden desktop:inline">Tổng quan</span>
-        </a>
+        @include('layouts.partials.sidebar-link', ['url' => route('dashboard'), 'label' => 'Tổng quan', 'icon' => 'dashboard', 'active' => $dashboardActive, 'id' => 'dashboard'])
 
         @foreach ($menuGroups as $group)
-            @php $gid = $group['id']; $groupActive = $group['is_active']; @endphp
             @if ($loop->first || $group['section'] !== $menuGroups[$loop->index - 1]['section'])
                 {{-- Tiêu đề khu (sidebar thu gọn: chỉ còn đường kẻ) --}}
                 <div class="px-md pb-1 pt-md font-caption text-[10px] font-semibold uppercase tracking-widest text-surface-variant/50 md:hidden desktop:block" data-menu-section>{{ $group['section'] }}</div>
                 <div class="mx-auto my-sm hidden h-px w-8 bg-white/10 md:block desktop:hidden" aria-hidden="true"></div>
             @endif
-            <div
-                x-data="{
-                    show: false, timer: null, top: 0, left: 0,
-                    place() {
-                        const r = this.$el.getBoundingClientRect();
-                        this.left = r.right + 6; this.top = r.top;
-                        this.$nextTick(() => {
-                            const fly = this.$refs.flyout; if (!fly) return;
-                            const max = window.innerHeight - fly.offsetHeight - 8;
-                            this.top = Math.max(8, Math.min(r.top, max));
-                        });
-                    },
-                    enter() { if (!collapsed) return; clearTimeout(this.timer); this.place(); this.show = true; },
-                    leave() { this.timer = setTimeout(() => this.show = false, 150); },
-                }"
-                @mouseenter="enter()" @mouseleave="leave()"
-            >
-                <button type="button"
-                        @click="collapsed ? (show = !show, place()) : toggle('{{ $gid }}')"
-                        :aria-expanded="collapsed ? show : !!openGroups['{{ $gid }}']"
-                        title="{{ $group['label'] }}"
-                        class="group flex w-full items-center gap-md rounded-lg px-md py-sm text-left font-body-medium text-body-medium transition-colors duration-150 md:justify-center md:px-0 desktop:justify-start desktop:px-md {{ $groupActive ? 'text-white md:bg-primary-container md:shadow-lg md:shadow-primary-container/20 desktop:bg-transparent desktop:shadow-none' : 'hover:bg-white/10 hover:text-white' }}">
-                    <span class="material-symbols-outlined shrink-0 {{ $groupActive ? 'text-primary-container md:text-white desktop:text-primary-container' : '' }}">{{ $group['icon'] }}</span>
-                    <span class="flex-1 truncate md:hidden desktop:inline">{{ $group['label'] }}</span>
-                    <span class="material-symbols-outlined text-[18px] text-surface-variant/50 transition-transform duration-200 md:hidden desktop:inline-block"
-                          :class="{ 'rotate-90': openGroups['{{ $gid }}'] }">chevron_right</span>
-                </button>
-
-                {{-- Accordion (desktop + drawer) --}}
-                <div x-show="!collapsed && openGroups['{{ $gid }}']" x-collapse @if (! $groupActive) x-cloak @endif>
-                    <div class="ml-[27px] mt-xs space-y-0.5 border-l border-white/10 pl-sm">
-                        @foreach ($group['items'] as $item)
-                            <a href="{{ $item['url'] }}"
-                               @if ($item['active']) aria-current="page" @endif
-                               data-menu-item
-                               class="block truncate rounded-lg px-sm py-1.5 font-body-small text-body-small transition-colors duration-150 {{ $item['active'] ? 'bg-primary-container font-medium text-white shadow-lg shadow-primary-container/20' : 'text-surface-variant/80 hover:bg-white/10 hover:text-white' }}"
-                               title="{{ $item['label'] }}">{{ $item['label'] }}</a>
-                        @endforeach
-                    </div>
-                </div>
-
-                {{-- Flyout (tablet: sidebar thu gọn icon) --}}
-                <template x-teleport="body">
-                    <div x-ref="flyout" x-show="collapsed && show" x-cloak
-                         @mouseenter="clearTimeout(timer)" @mouseleave="leave()"
-                         x-transition.opacity.duration.150ms
-                         class="fixed z-[60] max-h-[calc(100vh-16px)] w-64 overflow-y-auto rounded-xl border border-white/10 bg-sidebar py-sm shadow-level-3"
-                         :style="`top:${top}px;left:${left}px`">
-                        <div class="mb-xs border-b border-white/10 px-md pb-sm pt-xs font-label text-label uppercase text-white">{{ $group['label'] }}</div>
-                        <div class="flex flex-col gap-0.5 px-sm">
-                            @foreach ($group['items'] as $item)
-                                <a href="{{ $item['url'] }}"
-                                   class="rounded-lg px-sm py-1.5 font-body-small text-body-small transition-colors {{ $item['active'] ? 'bg-primary-container font-medium text-white' : 'text-surface-variant/80 hover:bg-white/10 hover:text-white' }}">{{ $item['label'] }}</a>
-                            @endforeach
-                        </div>
-                    </div>
-                </template>
-            </div>
+            @include('layouts.partials.sidebar-link', ['url' => $group['url'], 'label' => $group['label'], 'icon' => $group['icon'], 'active' => $group['is_active'], 'id' => $group['id']])
         @endforeach
+
+        @if ($settingsUrl)
+            <div class="mx-md my-sm h-px bg-white/10" aria-hidden="true"></div>
+            @include('layouts.partials.sidebar-link', ['url' => $settingsUrl, 'label' => 'Cài đặt', 'icon' => 'settings', 'active' => $settingsActive, 'id' => 'settings'])
+        @endif
     </nav>
 
     {{-- Vai trò + Đăng xuất --}}

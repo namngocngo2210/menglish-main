@@ -33,6 +33,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->afterResolving(\Illuminate\Contracts\Auth\Access\Gate::class, function ($gate) {
             $this->registerPermissionOverrideGate($gate);
         });
+
+        // Menu dùng chung 1 instance: sidebar, tab workspace, Cài đặt dùng chung cache quyền theo request.
+        $this->app->singleton(\App\Support\Navigation\SidebarMenu::class);
     }
 
     /**

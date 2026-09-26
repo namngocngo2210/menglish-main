@@ -39,6 +39,7 @@ use App\Http\Controllers\TuitionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserPermissionOverrideController;
 use App\Http\Controllers\GlobalSearchController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\WorkTaskController;
 use Illuminate\Support\Facades\Route;
 
@@ -51,6 +52,9 @@ Route::get('/dashboard', DashboardController::class)->middleware(['auth'])->name
 
 // Tìm kiếm chung trên topbar (khách CRM, học viên, lớp) — mỗi nhóm tự kiểm tra quyền + phạm vi dữ liệu.
 Route::get('/search', GlobalSearchController::class)->middleware(['auth'])->name('search');
+
+// Trang Cài đặt: chuyển tới mục cấu hình đầu tiên user được xem (menu con do layout hiển thị).
+Route::get('/settings', SettingsController::class)->middleware(['auth'])->name('settings.index');
 
 // Interactive Mockup Hub Navigator (Admin / Manager)
 Route::get('/mockup-hub', [MockupHubController::class, 'index'])->middleware(['auth', 'can:system_category.manage'])->name('mockup-hub.index');

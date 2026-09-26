@@ -1,5 +1,5 @@
 <x-app-layout title="Tìm kiếm">
-    <x-ui.page-header title="Tìm kiếm" description="Tìm khách hàng, học viên và lớp học theo tên, mã hoặc số điện thoại (trong phạm vi bạn được xem)." />
+    <x-ui.page-header title="Tìm kiếm" description="Tìm màn hình theo tên, khách hàng, học viên và lớp học theo tên, mã hoặc số điện thoại (trong phạm vi bạn được xem)." />
 
     <form method="GET" action="{{ route('search') }}" role="search" class="mb-lg flex max-w-xl gap-sm">
         <x-ui.input name="q" type="search" :value="$term" icon="search" placeholder="Nhập tên, mã hoặc SĐT (ít nhất 2 ký tự)..." aria-label="Từ khóa tìm kiếm" class="flex-1" />
@@ -10,7 +10,7 @@
         <div class="rounded-xl border border-surface-container-highest bg-surface">
             <x-ui.empty-state icon="search" title="Nhập từ khóa để tìm kiếm" description="Từ khóa cần ít nhất 2 ký tự." />
         </div>
-    @elseif ($searched === [])
+    @elseif ($searched === [] && $screens === [])
         <div class="rounded-xl border border-surface-container-highest bg-surface">
             <x-ui.empty-state icon="lock" title="Bạn chưa có quyền tìm kiếm" description="Tài khoản của bạn chưa được cấp quyền xem khách hàng, học viên hoặc lớp học." />
         </div>
@@ -22,6 +22,22 @@
         <p class="mb-md font-body-medium text-body-medium text-on-surface-variant">Tìm thấy {{ $total }} kết quả cho “<strong class="text-on-surface">{{ $term }}</strong>”.</p>
 
         <div class="space-y-lg">
+            @if ($screens !== [])
+                <section class="rounded-xl border border-surface-container-highest bg-surface p-md" data-search-screens>
+                    <h2 class="mb-sm font-h3 text-h3 text-on-surface">Màn hình ({{ count($screens) }})</h2>
+                    <ul class="grid grid-cols-1 gap-xs sm:grid-cols-2 lg:grid-cols-3">
+                        @foreach ($screens as $screen)
+                            <li>
+                                <a href="{{ $screen['url'] }}" class="flex items-center gap-sm rounded-lg px-sm py-xs font-body-medium text-body-medium text-primary hover:bg-surface-container-low">
+                                    <span class="material-symbols-outlined text-[18px] text-on-surface-variant" aria-hidden="true">arrow_forward</span>
+                                    <span class="truncate">{{ $screen['title'] }}</span>
+                                </a>
+                            </li>
+                        @endforeach
+                    </ul>
+                </section>
+            @endif
+
             @if (in_array('customers', $searched, true) && $results['customers']->isNotEmpty())
                 <x-ui.data-table>
                     <x-slot:header>

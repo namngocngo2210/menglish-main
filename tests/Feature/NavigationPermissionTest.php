@@ -51,11 +51,12 @@ class NavigationPermissionTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('dashboard'));
 
         $response->assertStatus(200);
-        $response->assertSee('CRM & Tuyển sinh');
-        $response->assertSee('Học phí & Hoá đơn');
-        $response->assertSee('Phân quyền & Nhật ký');
-        $response->assertSee('Cấu hình nghiệp vụ');
-        $response->assertSee('Nhân sự & KPI');
+        // IX-4: 1 mục / workspace; cấu hình + phân quyền gom vào "Cài đặt".
+        $response->assertSee('Khách hàng (CRM)');
+        $response->assertSee('data-menu-item="tuition"', false);
+        $response->assertSee('data-menu-item="hr"', false);
+        $response->assertSee('data-menu-item="payroll"', false);
+        $response->assertSee('data-menu-item="settings"', false);
     }
 
     public function test_teacher_only_sees_permitted_navigation_modules(): void
@@ -70,9 +71,9 @@ class NavigationPermissionTest extends TestCase
         $response->assertSee('Ticket');
 
         // Teacher MUST NOT see unpermitted modules
-        $response->assertDontSee('CRM & Tuyển sinh');
-        $response->assertDontSee('Học phí & Hoá đơn');
-        $response->assertDontSee('Phân quyền & Hệ thống');
+        $response->assertDontSee('Khách hàng (CRM)');
+        $response->assertDontSee('data-menu-item="tuition"', false);
+        $response->assertDontSee('data-menu-item="hr"', false);
         $response->assertDontSee('Mockup Hub');
     }
 
@@ -80,7 +81,7 @@ class NavigationPermissionTest extends TestCase
     {
         // Ban đầu teacher không thấy CRM
         $response = $this->actingAs($this->teacher)->get(route('dashboard'));
-        $response->assertDontSee('CRM & Tuyển sinh');
+        $response->assertDontSee('Khách hàng (CRM)');
 
         // Cấp quyền override cá nhân: cho phép lead.view
         UserPermissionOverride::create([

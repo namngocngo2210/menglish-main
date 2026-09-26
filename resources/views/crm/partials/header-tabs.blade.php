@@ -1,20 +1,4 @@
-@php
-    $crmMenu = app(\App\Support\Navigation\SidebarMenu::class);
-    $crmUser = auth()->user();
-    $crmTabs = collect([
-        ['route' => 'crm.pipeline', 'label' => 'Theo giai đoạn'],
-        ['route' => 'crm.customers.index', 'label' => 'Danh sách'],
-        ['route' => 'crm.waiting-list', 'label' => 'Chờ xếp lớp'],
-        ['route' => 'crm.reports', 'label' => 'Báo cáo doanh số'],
-        ['route' => 'crm.customers.won', 'label' => 'Khách chốt thành công'],
-        ['route' => 'crm.lost-deals', 'label' => 'Khách không chốt'],
-        ['route' => 'crm.confirmations', 'label' => 'Xác nhận chính thức'],
-        ['route' => 'crm.customers.deleted', 'label' => 'Khách đã xóa'],
-        ['route' => 'placement-tests.index', 'label' => 'Đề test đầu vào (AI)'],
-        ['route' => 'placement-tests.rubric-guide', 'label' => 'Thang điểm & Rubric'],
-    ])->filter(fn ($tab) => $crmUser && $crmMenu->canSee($crmUser, $tab));
-@endphp
-
+{{-- Header chung của workspace CRM: tiêu đề, tìm kiếm, nút thêm/nhập + tab (khai báo ở SidebarMenu, workspace "crm"). --}}
 <div class="-mx-md -mt-md mb-lg border-b border-surface-container-highest bg-surface px-md pt-md lg:-mx-lg lg:-mt-lg lg:px-lg">
     <div class="flex flex-col gap-md pb-sm md:flex-row md:items-center md:justify-between">
         <h1 class="font-h1 text-h1 text-on-surface">Quản lý tuyển sinh</h1>
@@ -34,9 +18,5 @@
         </div>
     </div>
 
-    <x-ui.tabs class="border-b-0">
-        @foreach ($crmTabs as $tab)
-            <x-ui.tab :href="route($tab['route'])" :active="request()->routeIs($tab['route'])">{{ $tab['label'] }}</x-ui.tab>
-        @endforeach
-    </x-ui.tabs>
+    <x-ui.workspace-tabs workspace="crm" class="!mb-0 !border-b-0" />
 </div>

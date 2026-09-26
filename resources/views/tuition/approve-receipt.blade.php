@@ -6,11 +6,6 @@
             <span class="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
             <span>Duyệt phiếu thu</span>
         </x-slot:breadcrumbs>
-        <x-slot:actions>
-            @can('tuition.create')
-                <x-ui.button icon="add_circle" :href="route('tuition.receipts.create')">Lập phiếu thu mới</x-ui.button>
-            @endcan
-        </x-slot:actions>
     </x-ui.page-header>
 
     @include('tuition.partials.errors')

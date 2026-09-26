@@ -5,9 +5,6 @@
             @can('fee_reminder_config.manage')
                 <x-ui.button variant="secondary" icon="settings" :href="route('system-config.debt-reminders')">Cấu hình nhắc nợ</x-ui.button>
             @endcan
-            @can('tuition.create')
-                <x-ui.button icon="add_card" :href="route('tuition.receipts.create')">Lập phiếu thu mới</x-ui.button>
-            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 

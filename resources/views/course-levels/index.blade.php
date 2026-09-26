@@ -28,12 +28,6 @@
             </x-slot:actions>
         </x-ui.page-header>
 
-        <x-ui.tabs class="mb-lg">
-            <x-ui.tab icon="sell" :href="route('courses.index')">Bảng giá &amp; Khóa học</x-ui.tab>
-            <x-ui.tab icon="layers" :href="route('course-levels.index')" active>Trình độ</x-ui.tab>
-            <x-ui.tab icon="menu_book" :href="route('syllabus.documents')">Giáo trình &amp; Syllabus</x-ui.tab>
-        </x-ui.tabs>
-
         @if (session('status'))
             <x-ui.alert type="success" class="mb-lg" dismissible>{{ session('status') }}</x-ui.alert>
         @endif

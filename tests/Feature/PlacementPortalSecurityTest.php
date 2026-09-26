@@ -373,7 +373,11 @@ class PlacementPortalSecurityTest extends TestCase
         $manager = $this->userWithRole('manager');
 
         $this->actingAs($manager)->get(route('placement-tests.index'))->assertOk();
-        $this->actingAs($manager)->get(route('dashboard'))->assertSee(route('placement-tests.index'), false);
+        // IX-4: Đề test là tab của workspace "Test đầu vào & học thử" (sidebar trỏ tới tab đầu tiên).
+        $this->actingAs($manager)->get(route('dashboard'))->assertSee('data-menu-item="trial"', false);
+        $menuRoutes = collect(app(\App\Support\Navigation\SidebarMenu::class)->groupsFor($manager->fresh()))
+            ->flatMap(fn (array $g) => collect($g['items'])->pluck('route'));
+        $this->assertContains('placement-tests.index', $menuRoutes);
 
         $sales = $this->userWithRole('sales_consultant');
         $this->actingAs($sales)->get(route('placement-tests.index'))->assertForbidden();

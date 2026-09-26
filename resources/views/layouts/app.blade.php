@@ -10,9 +10,10 @@
     $currentUser = Auth::user();
     $menu = app(\App\Support\Navigation\SidebarMenu::class);
     $quickCreate = $menu->quickCreateFor($currentUser);
-    // Ô tìm kiếm chung: khách CRM / học viên / lớp (trang /search tự lọc theo quyền từng nhóm).
-    $canGlobalSearch = $currentUser && Route::has('search')
-        && ($currentUser->can('lead.view') || $currentUser->can('student.view') || $currentUser->can('class.view'));
+    // Ô tìm kiếm chung: tên màn hình + khách CRM / học viên / lớp (trang /search tự lọc theo quyền từng nhóm).
+    $canGlobalSearch = $currentUser && Route::has('search');
+    // Trang cấu hình / danh mục: bọc bằng menu con Cài đặt (URL cũ giữ nguyên).
+    $settingsSections = $currentUser && $menu->isSettingsRoute(request()) ? $menu->settingsFor($currentUser, request()) : [];
     $canViewNotifications = (bool) $currentUser?->can('notification.view');
 @endphp
 <!DOCTYPE html>
@@ -57,7 +58,7 @@
                             <form method="GET" action="{{ route('search') }}" role="search" class="relative hidden w-[300px] shrink-0 lg:block">
                                 <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
                                 <input type="search" name="q" value="{{ request()->routeIs('search') ? request('q') : '' }}" minlength="2"
-                                       placeholder="Tìm khách, học viên, lớp, SĐT..." aria-label="Tìm kiếm khách hàng, học viên, lớp học"
+                                       placeholder="Tìm màn hình, khách, học viên, lớp..." aria-label="Tìm kiếm màn hình, khách hàng, học viên, lớp học"
                                        class="w-full rounded-full border-none bg-surface-container-low py-2 pl-10 pr-md font-body-small text-body-small text-on-surface placeholder:text-on-surface-variant/50 focus:ring-2 focus:ring-primary-container/20">
                             </form>
                             <a href="{{ route('search') }}" class="shrink-0 rounded-lg p-2 text-on-surface-variant hover:bg-surface-container-high lg:hidden" aria-label="Tìm kiếm">
@@ -198,6 +199,11 @@
 
                 {{-- Nội dung trang --}}
                 <main class="flex-1 p-md lg:p-lg">
+                    {{-- Tab của workspace: trang tự đặt <x-ui.workspace-tabs> thì không chèn lại --}}
+                    @unless (request()->attributes->get('workspace_tabs_rendered'))
+                        <x-ui.workspace-tabs />
+                    @endunless
+
                     @if ($errors->any() && ! $attributes->get('hide-errors'))
                         <x-ui.alert type="error" title="Vui lòng kiểm tra lại thông tin" class="mb-lg" dismissible data-global-errors>
                             <ul class="list-inside list-disc space-y-0.5">
@@ -208,7 +214,14 @@
                         </x-ui.alert>
                     @endif
 
-                    {{ $slot }}
+                    @if ($settingsSections !== [])
+                        <div class="flex flex-col gap-lg lg:flex-row lg:items-start">
+                            <x-ui.settings-nav :sections="$settingsSections" />
+                            <div class="min-w-0 flex-1">{{ $slot }}</div>
+                        </div>
+                    @else
+                        {{ $slot }}
+                    @endif
                 </main>
 
                 <footer class="mt-auto flex select-none flex-col items-center justify-between gap-xs border-t border-surface-container-highest bg-surface px-md py-md font-caption text-caption text-on-surface-variant sm:flex-row lg:px-lg">

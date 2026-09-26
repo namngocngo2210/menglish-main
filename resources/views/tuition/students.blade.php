@@ -2,14 +2,8 @@
      "Lập phiếu thu" ở từng dòng → modal 4xl (học viên + khoản nợ chọn sẵn); "Lập phiếu thu mới" (lập tự do) vẫn mở trang riêng.
      Lưu phiếu xong → "tuition-receipts-changed" tải lại #tuition-list (giữ bộ lọc, trang hiện tại). --}}
 <x-app-layout title="Danh sách thu phí">
-    <x-ui.page-header title="Danh sách học viên đến hạn thu phí" description="Theo dõi và quản lý công nợ học phí của học viên.">
-        <x-slot:actions>
-            @can('tuition.create')
-                <x-ui.button variant="secondary" icon="upload_file" :href="route('tuition.import')" modal="lg">Nhập Excel</x-ui.button>
-                <x-ui.button icon="add_card" :href="route('tuition.receipts.create')">Lập phiếu thu mới</x-ui.button>
-            @endcan
-        </x-slot:actions>
-    </x-ui.page-header>
+    {{-- Nút "Nhập Excel" / "Lập phiếu thu" nằm ở thanh tab workspace Học phí (SidebarMenu). --}}
+    <x-ui.page-header title="Danh sách học viên đến hạn thu phí" description="Theo dõi và quản lý công nợ học phí của học viên." />
 
     <form method="GET" action="{{ route('tuition.students') }}" class="mb-lg grid grid-cols-1 gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md md:grid-cols-12 md:items-end">
         <label class="block md:col-span-3">

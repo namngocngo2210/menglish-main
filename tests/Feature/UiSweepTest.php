@@ -365,7 +365,12 @@ class UiSweepTest extends TestCase
 
     public function test_sidebar_menu_has_no_duplicate_labels(): void
     {
-        $labels = collect(app(SidebarMenu::class)->definition())->flatMap(fn ($group) => collect($group['items'])->pluck('label'));
+        // Tab trùng tên giữa các workspace là bình thường; tên đầy đủ "Workspace › Tab" + mục Cài đặt thì không được trùng.
+        $menu = app(SidebarMenu::class);
+        $labels = collect($menu->definition())
+            ->flatMap(fn ($group) => collect($group['items'])->map(fn ($item) => $group['label'].' › '.$item['label']))
+            ->merge(collect($menu->settingsDefinition())->flatMap(fn ($section) => collect($section['items'])->map(fn ($item) => 'Cài đặt › '.$item['label'])))
+            ->merge(collect($menu->definition())->pluck('label'));
         $duplicates = $labels->countBy()->filter(fn ($n) => $n > 1)->keys()->all();
         $this->assertSame([], $duplicates, 'Nhãn menu bị lặp: '.implode(', ', $duplicates));
     }

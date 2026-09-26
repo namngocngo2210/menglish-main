@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\ClassModel;
 use App\Models\CrmCustomer;
 use App\Models\Student;
+use App\Support\Navigation\SidebarMenu;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * Ô tìm kiếm chung trên topbar: tìm khách CRM, học viên, lớp học theo tên / mã / SĐT.
+ * Ô tìm kiếm chung trên topbar: tìm màn hình theo tên (menu, tab, Cài đặt — chỉ màn user được mở) và
+ * khách CRM, học viên, lớp học theo tên / mã / SĐT.
  * Mỗi nhóm chỉ tìm khi người dùng có quyền xem module đó và luôn đi qua scope
  * phân quyền dữ liệu của model (visibleTo), nên không lộ bản ghi ngoài phạm vi.
  */
@@ -18,12 +20,13 @@ class GlobalSearchController extends Controller
 {
     private const LIMIT = 20;
 
-    public function __invoke(Request $request): View
+    public function __invoke(Request $request, SidebarMenu $menu): View
     {
         $user = $request->user();
         $term = trim((string) $request->query('q', ''));
         $results = ['customers' => collect(), 'students' => collect(), 'classes' => collect()];
         $searched = [];
+        $screens = $menu->searchScreens($user, $term, $request);
 
         if (mb_strlen($term) >= 2) {
             $like = '%'.addcslashes($term, '%_\\').'%';
@@ -70,7 +73,8 @@ class GlobalSearchController extends Controller
             'term' => $term,
             'results' => $results,
             'searched' => $searched,
-            'total' => collect($results)->sum(fn ($items) => $items->count()),
+            'screens' => $screens,
+            'total' => collect($results)->sum(fn ($items) => $items->count()) + count($screens),
         ]);
     }
 }
