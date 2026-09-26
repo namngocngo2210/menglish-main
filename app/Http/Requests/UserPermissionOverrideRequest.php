@@ -16,7 +16,8 @@ class UserPermissionOverrideRequest extends FormRequest
     /**
      * Dữ liệu gửi lên là ma trận: overrides[module][action] = 'allow' | 'deny' | 'inherit'.
      * "inherit" nghĩa là xóa override, dùng lại quyền theo role.
-     * Phạm vi theo module: scope[module][type] = all|branch|class, scope[module][ids][] = id.
+     * Phạm vi áp dụng (Lớp học): scope[module][type] = all|branch|class, scope[module][ids][] = id.
+     * Phạm vi dữ liệu: data_scope[module] = inherit|own|branch|all. Action động có dấu "." gửi bằng ":".
      *
      * @return array<string, mixed>
      */
@@ -34,6 +35,9 @@ class UserPermissionOverrideRequest extends FormRequest
             ])],
             'scope.*.ids' => ['nullable', 'array'],
             'scope.*.ids.*' => ['integer'],
+            // Phạm vi dữ liệu theo module: data_scope[module] = inherit | own | branch | all.
+            'data_scope' => ['array'],
+            'data_scope.*' => ['nullable', Rule::in(['inherit', 'own', 'branch', 'all'])],
         ];
     }
 }
