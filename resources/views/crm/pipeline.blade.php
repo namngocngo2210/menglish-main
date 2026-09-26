@@ -31,7 +31,7 @@
         @include('crm.partials.list-filters', ['dateLabel' => 'Ngày tạo'])
 
         {{-- Kanban 8 cột (mockup: tiêu đề cột = chấm màu + TÊN (số lượng)).
-             Bấm thẻ → modal xem nhanh (đẩy URL chi tiết); thêm / sửa khách trong modal xong → "crm-customers-changed" tải lại bảng (giữ bộ lọc). --}}
+             Bấm thẻ → trang hồ sơ đầy đủ; thêm / sửa khách trong modal xong → "crm-customers-changed" tải lại bảng (giữ bộ lọc). --}}
         <div id="crm-kanban" class="custom-scrollbar overflow-x-auto pb-md"
              hx-get="{{ route('crm.pipeline', request()->query()) }}" hx-trigger="crm-customers-changed from:body" hx-select="#crm-kanban" hx-swap="outerHTML" hx-disinherit="*">
             <div class="flex min-h-[calc(100vh-320px)] min-w-max items-start gap-md">
@@ -78,7 +78,8 @@
                                     data-stage-index="{{ $index }}"
                                     @dragstart="onDragStart($event, {{ (int) $lead['id'] }}, @js($stage['id']), @js($lead['name']))"
                                     @dragend="onDragEnd($event)"
-                                    hx-get="{{ route('crm.customers.show', $lead['id']) }}" hx-target="#remote-modal-body" hx-swap="innerHTML" hx-push-url="true" data-modal-size="3xl"
+                                    {{-- Bấm thẻ (không phải nút bên trong) → trang hồ sơ đầy đủ --}}
+                                    @click="if (! $event.target.closest('button, a, form')) window.location.href = @js(route('crm.customers.show', $lead['id']))"
                                 >
                                     @if ($canEditStage)
                                         <button

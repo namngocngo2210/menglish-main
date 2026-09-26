@@ -39,8 +39,8 @@
         </div>
 
         <x-ui.filter-bar placeholder="Tìm kiếm trình độ..." :action="route('course-levels.index')">
-            <x-ui.select name="group" :options="$groups->combine($groups)" placeholder="Tất cả nhóm" inline-label="Nhóm:" />
-            <x-ui.select name="status" :options="['active' => 'Hoạt động', 'inactive' => 'Ngừng hoạt động']" placeholder="Mọi trạng thái" inline-label="Trạng thái:" />
+            <x-ui.select name="group" :options="$groups->combine($groups)" placeholder="Tất cả nhóm" label="Nhóm" />
+            <x-ui.select name="status" :options="['active' => 'Hoạt động', 'inactive' => 'Ngừng hoạt động']" placeholder="Mọi trạng thái" label="Trạng thái" />
         </x-ui.filter-bar>
 
         <x-ui.data-table min-width="960px">

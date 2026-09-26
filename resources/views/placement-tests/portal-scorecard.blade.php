@@ -6,7 +6,7 @@
     <title>Bản Đánh Giá Năng Lực Tiếng Anh — {{ $submission->candidate_name }}</title>
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=be-vietnam-pro:400,500,600,700,800,900&display=swap" rel="stylesheet" />
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @include('layouts.partials.assets')
     <style>
         @media print {
             body { background: #fff !important; padding: 0 !important; }

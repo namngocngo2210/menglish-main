@@ -6,7 +6,9 @@
             Khách bị xóa không còn chiếm số điện thoại: có thể tạo lại khách mới cùng SĐT. Khôi phục sẽ bị chặn nếu SĐT đã thuộc khách khác đang hoạt động.
         </x-ui.alert>
 
-        <x-ui.filter-bar placeholder="Tìm tên, mã KH, SĐT khách đã xóa..." />
+        <x-ui.filter-bar placeholder="Tìm tên, mã KH, SĐT khách đã xóa...">
+            <x-slot:quick><x-ui.workspace-chips workspace="crm" /></x-slot:quick>
+        </x-ui.filter-bar>
 
         <x-ui.data-table min-width="900px">
             <x-slot:header>

@@ -49,9 +49,6 @@
         @if ($canBookTrial)
             <x-ui.button variant="secondary" size="sm" icon="school" onclick="window.dispatchEvent(new CustomEvent('open-modal', { detail: 'crm-schedule-trial' }))">Đặt học thử</x-ui.button>
         @endif
-        @can('lead.update')
-            <x-ui.button variant="secondary" size="sm" icon="edit" :href="route('crm.customers.edit', $customer->id)">Sửa thông tin</x-ui.button>
-        @endcan
         @can('lead.delete')
             @if (! in_array($customer->stage, ['won', 'lost'], true) && ! $customer->converted_student_id)
                 <form action="{{ route('crm.customers.destroy', $customer->id) }}" method="POST" class="inline" data-confirm="Bạn có chắc chắn muốn xóa khách {{ $customer->name }} ({{ $customer->code }})?">
@@ -309,7 +306,7 @@
                         <x-ui.alert type="error">Khách chưa có hoạt động chăm sóc nào trong {{ $statusCard['neglect_days'] }} ngày gần đây.</x-ui.alert>
                     @endif
                     @can('lead.update')
-                        <a href="{{ route('crm.customers.edit', $customer->id) }}#next_follow_up_at" class="inline-flex items-center gap-xs font-body-small text-body-small font-semibold text-primary hover:underline">
+                        <a href="{{ route('crm.customers.show', ['id' => $customer->id, 'tab' => 'info']) }}#next_follow_up_at" class="inline-flex items-center gap-xs font-body-small text-body-small font-semibold text-primary hover:underline">
                             <span class="material-symbols-outlined text-[16px]">event</span>Đặt hạn liên hệ
                         </a>
                     @endcan
@@ -362,12 +359,12 @@
 
         {{-- ── Cột phải: thao tác (tab) + lịch sử hoạt động ── --}}
         <div class="space-y-lg lg:col-span-8">
-            <div class="{{ $card }} overflow-hidden" x-data="{ tab: 'ops' }">
+            <div class="{{ $card }} overflow-hidden" x-data="{ tab: @js(old('_tab', request('tab')) === 'info' ? 'info' : 'ops') }">
                 <div class="flex border-b border-surface-container-highest" role="tablist">
                     <button type="button" role="tab" @click="tab = 'ops'" :class="tab === 'ops' ? 'border-primary-container text-primary font-semibold' : 'border-transparent text-on-surface-variant hover:text-primary'"
                             class="-mb-px border-b-2 px-lg py-md font-body-medium text-body-medium transition-colors">Đặt lịch &amp; Kết quả</button>
                     <button type="button" role="tab" @click="tab = 'info'" :class="tab === 'info' ? 'border-primary-container text-primary font-semibold' : 'border-transparent text-on-surface-variant hover:text-primary'"
-                            class="-mb-px border-b-2 px-lg py-md font-body-medium text-body-medium transition-colors">Thông tin mở rộng</button>
+                            class="-mb-px border-b-2 px-lg py-md font-body-medium text-body-medium transition-colors">Thông tin khách hàng</button>
                 </div>
 
                 <div x-show="tab === 'ops'" class="space-y-xl p-lg">
@@ -562,8 +559,18 @@
                     </section>
                 </div>
 
-                <div x-show="tab === 'info'" x-cloak class="p-lg">
-                    <dl class="grid grid-cols-1 gap-md font-body-base text-body-base sm:grid-cols-2">
+                <div x-show="tab === 'info'" x-cloak>
+                    {{-- Thông tin hệ thống (không sửa) --}}
+                    <dl class="flex flex-wrap gap-x-lg gap-y-xs border-b border-surface-container-highest px-lg py-sm font-body-small text-body-small text-on-surface-variant">
+                        <div>Mã khách: <span class="font-code text-on-surface">{{ $customer->code }}</span></div>
+                        <div>Tạo hồ sơ: <span class="text-on-surface">{{ $customer->created_at->format('d/m/Y H:i') }}</span></div>
+                        <div>Ngày chốt: <span class="text-on-surface">{{ $customer->converted_at?->format('d/m/Y H:i') ?? '—' }}</span></div>
+                    </dl>
+                    @if ($editForm)
+                        {{-- Sửa trực tiếp mọi thông tin khách ngay trong hồ sơ (không còn trang / modal sửa riêng) --}}
+                        @include('crm.customers._edit-form', $editForm)
+                    @else
+                    <div class="p-lg"><dl class="grid grid-cols-1 gap-md font-body-base text-body-base sm:grid-cols-2">
                         @foreach ([
                             'Mã khách hàng' => $customer->code,
                             'Email' => $customer->email ?? '—',
@@ -585,7 +592,8 @@
                                 <dd class="mt-xs whitespace-pre-line text-on-surface">{{ $customer->notes }}</dd>
                             </div>
                         @endif
-                    </dl>
+                    </dl></div>
+                    @endif
                 </div>
             </div>
 

@@ -212,7 +212,7 @@ class CrmBusinessTest extends TestCase
             'notes' => 'Hẹn ca test 14h chiều thứ 7 tuần này.',
         ]);
 
-        $response->assertRedirect(route('crm.customers.show', $customer->id));
+        $response->assertRedirect(route('crm.customers.show', ['id' => $customer->id, 'tab' => 'info']));
 
         // BA: Sales không đổi giai đoạn; Học vụ (CM) chuyển tiến 1 bước.
         $this->actingAs($this->salesUser)->postJson(route('crm.customers.stage', $customer->id), ['stage' => 'consulting'])->assertForbidden();

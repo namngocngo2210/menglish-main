@@ -1,8 +1,4 @@
 {
-  "node_modules/@fontsource-variable/material-symbols-outlined/files/material-symbols-outlined-latin-fill-normal.woff2": {
-    "file": "assets/material-symbols-outlined-latin-fill-normal-B_eu7oil.woff2",
-    "src": "node_modules/@fontsource-variable/material-symbols-outlined/files/material-symbols-outlined-latin-fill-normal.woff2"
-  },
   "node_modules/@fontsource/be-vietnam-pro/files/be-vietnam-pro-latin-400-normal.woff": {
     "file": "assets/be-vietnam-pro-latin-400-normal-bXgqVju9.woff",
     "src": "node_modules/@fontsource/be-vietnam-pro/files/be-vietnam-pro-latin-400-normal.woff"
@@ -196,7 +192,7 @@
     "src": "node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-vietnamese-500-normal.woff2"
   },
   "resources/css/app.css": {
-    "file": "assets/app-CiffP8GA.css",
+    "file": "assets/app-CvG08MBa.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },

@@ -1,4 +1,4 @@
-{{-- Danh sách khách: Thêm / Sửa mở modal 2xl, Xem mở modal xem nhanh 3xl (đẩy URL chi tiết);
+{{-- Danh sách khách: Thêm mở modal 2xl; bấm tên / nút sửa → trang hồ sơ đầy đủ (sửa trực tiếp trong trang);
      lưu xong server phát "crm-customers-changed" → #customer-list tự tải lại (giữ bộ lọc, trang hiện tại). --}}
 <x-app-layout>
     @include('crm.partials.header-tabs')
@@ -13,6 +13,7 @@
         {{-- Bộ lọc (mockup danh-sach-khach): Từ khóa, Nguồn, Người phụ trách, Giai đoạn, Chi nhánh, "Lọc dữ liệu" --}}
         <form method="GET" action="{{ route('crm.customers.index') }}" role="search"
               class="rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
+            <x-ui.workspace-chips workspace="crm" class="mb-md border-b border-surface-container-highest pb-md" />
             {{-- Giữ lọc nhanh "Chưa liên hệ >24h" khi lọc thêm --}}
             @if (request()->boolean('sla'))
                 <input type="hidden" name="sla" value="1">
@@ -65,7 +66,7 @@
                     @forelse ($customers as $c)
                         <tr class="group">
                             <td class="whitespace-nowrap">
-                                <a href="{{ route('crm.customers.show', $c->id) }}" hx-get="{{ route('crm.customers.show', $c->id) }}" hx-target="#remote-modal-body" hx-swap="innerHTML" hx-push-url="true" data-modal-size="3xl"
+                                <a href="{{ route('crm.customers.show', $c->id) }}"
                                    class="font-body-medium text-body-medium text-on-background transition hover:text-primary">{{ $c->name }}</a>
                                 <div class="font-code text-caption text-on-surface-variant">{{ $c->code }}</div>
                             </td>
@@ -91,10 +92,8 @@
                             </td>
                             <td class="whitespace-nowrap text-right">
                                 <div class="flex items-center justify-end gap-xs">
-                                    <x-ui.button variant="ghost" size="sm" icon="visibility" :href="route('crm.customers.show', $c->id)" modal="3xl" hx-push-url="true" title="Xem nhanh" aria-label="Xem nhanh" />
-                                    @can('lead.update')
-                                        <x-ui.button variant="ghost" size="sm" icon="edit" :href="route('crm.customers.edit', $c->id)" modal="2xl" title="Sửa thông tin" aria-label="Sửa thông tin" />
-                                    @endcan
+                                    {{-- Sửa = mở hồ sơ đầy đủ ở tab "Thông tin khách hàng" (sửa trực tiếp trong trang) --}}
+                                    <x-ui.button variant="ghost" size="sm" icon="edit" :href="route('crm.customers.show', ['id' => $c->id, 'tab' => 'info'])" title="Mở hồ sơ" aria-label="Mở hồ sơ {{ $c->name }}" />
                                     @can('lead.delete')
                                         @if ($c->stage !== \App\Models\CrmCustomer::STAGE_LOST)
                                             <form action="{{ route('crm.customers.destroy', $c->id) }}" method="POST" class="inline" data-confirm="Bạn có chắc chắn muốn xóa khách {{ $c->name }} ({{ $c->code }})?">

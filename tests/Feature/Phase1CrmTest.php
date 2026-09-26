@@ -163,9 +163,9 @@ class Phase1CrmTest extends TestCase
         }
 
         $open = $this->lead('consulting');
-        $this->actingAs($this->admin)->get(route('crm.customers.edit', $open))->assertOk()->assertDontSee('đã khóa, không sửa được');
+        $this->actingAs($this->admin)->get(route('crm.customers.show', ['id' => $open->id, 'tab' => 'info']))->assertOk()->assertDontSee('đã khóa, không sửa được');
         $won = CrmCustomer::where('stage', 'won')->first();
-        $this->actingAs($this->admin)->get(route('crm.customers.edit', $won))->assertOk()->assertSee('đã khóa, không sửa được');
+        $this->actingAs($this->admin)->get(route('crm.customers.show', ['id' => $won->id, 'tab' => 'info']))->assertOk()->assertSee('đã khóa, không sửa được');
     }
 
     public function test_updating_customer_writes_before_and_after_history(): void

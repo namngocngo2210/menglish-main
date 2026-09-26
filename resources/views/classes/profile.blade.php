@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-ui.page-header title="Hồ sơ lớp học" icon="school" :back="route('classes.create')">
+    <x-ui.page-header title="Hồ sơ lớp học" icon="school">
         <x-slot:actions>
             @if($class)
                 @can('class.update')

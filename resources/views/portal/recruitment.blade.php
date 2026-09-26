@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cơ hội Nghề nghiệp & Tuyển dụng — MENGLISH</title>
     {{-- Dùng CSS dự án (design tokens + x-ui.*) thay cho Tailwind CDN --}}
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @include('layouts.partials.assets')
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
     <style>

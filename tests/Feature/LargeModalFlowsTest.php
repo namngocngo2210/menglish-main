@@ -52,7 +52,6 @@ class LargeModalFlowsTest extends TestCase
     {
         return [
             'khách – thêm' => [fn (self $t) => route('crm.customers.create'), 'modal-customer-form', 'Thêm khách mới'],
-            'khách – sửa' => [fn (self $t) => route('crm.customers.edit', $t->lead()->id), 'modal-customer-form', 'Sửa thông tin khách'],
             'giao việc' => [fn (self $t) => route('tasks.create'), 'modal-task-form', 'Giao việc mới'],
             'giao việc trợ giảng' => [fn (self $t) => route('tasks.ta-assign'), 'modal-ta-assign-form', 'Tạo lượt giao việc cho Trợ giảng'],
             'báo cáo trực lớp' => [fn (self $t) => route('tasks.class-reports.create', ['class_id' => $t->classModel()->id]), 'modal-class-report-form', 'Nộp báo cáo trực lớp'],
@@ -88,10 +87,10 @@ class LargeModalFlowsTest extends TestCase
     {
         return [
             'khách – danh sách' => [fn (self $t) => route('crm.customers.index'), 'crm-customers-changed', [
-                fn (self $t) => route('crm.customers.create'), fn (self $t) => route('crm.customers.edit', $t->lead()->id), fn (self $t) => route('crm.customers.show', $t->lead()->id),
+                fn (self $t) => route('crm.customers.create'),
             ]],
             'khách – Kanban' => [fn (self $t) => route('crm.pipeline'), 'crm-customers-changed', [
-                fn (self $t) => route('crm.customers.create'), fn (self $t) => route('crm.customers.show', $t->lead()->id),
+                fn (self $t) => route('crm.customers.create'),
             ]],
             'công việc' => [fn (self $t) => route('tasks.index', ['tab' => 'assigned']), 'tasks-changed', [
                 fn (self $t) => route('tasks.create'), fn (self $t) => route('tasks.show', $t->task()->id),
@@ -148,27 +147,26 @@ class LargeModalFlowsTest extends TestCase
             ->assertRedirect(route('crm.customers.show', CrmCustomer::where('name', 'Trần Bình')->value('id')))->assertSessionHas('status');
     }
 
-    public function test_customer_quick_view_is_a_fragment_and_keeps_data_scope(): void
+    public function test_customer_profile_is_the_single_full_page_and_keeps_data_scope(): void
     {
         $lead = $this->lead();
-        $lead->histories()->create(['user_id' => $this->admin->id, 'type' => 'call', 'content' => 'Gọi tư vấn lần 1']);
 
-        $this->actingAs($this->admin)->get(route('crm.customers.show', $lead->id))->assertOk()
-            ->assertSee('data-sidebar', false)->assertDontSee('data-testid="customer-quick-view"', false);
+        // Hồ sơ đầy đủ có form sửa trực tiếp (tab "Thông tin khách hàng"); không còn modal xem nhanh.
+        $this->actingAs($this->admin)->get(route('crm.customers.show', ['id' => $lead->id, 'tab' => 'info']))->assertOk()
+            ->assertSee('data-sidebar', false)->assertSee('Thông tin khách hàng')
+            ->assertSee('id="edit-lead-form"', false)->assertSee('name="_tab" value="info"', false);
 
-        $this->actingAs($this->admin)->get(route('crm.customers.show', $lead->id), self::HX)->assertOk()
-            ->assertHeader('Vary', 'HX-Request')
-            ->assertDontSee('data-sidebar', false)
-            ->assertSee('data-testid="customer-quick-view"', false)
-            ->assertSee($lead->name)->assertSee('Gọi tư vấn lần 1')
-            ->assertSee('Mở trang đầy đủ')
-            ->assertSee('href="'.route('crm.customers.edit', $lead->id).'"', false);
+        // Link cũ mở bằng htmx / URL sửa cũ → chuyển sang trang đầy đủ.
+        $this->actingAs($this->admin)->get(route('crm.customers.show', $lead->id), self::HX)
+            ->assertNoContent()->assertHeader('HX-Redirect', route('crm.customers.show', $lead->id));
+        $this->actingAs($this->admin)->get(route('crm.customers.edit', $lead->id))
+            ->assertRedirect(route('crm.customers.show', ['id' => $lead->id, 'tab' => 'info']));
 
-        // Sales khác không thấy lead của người khác (404 như trang đầy đủ).
+        // Sales khác không thấy lead của người khác.
         $otherSale = User::factory()->create(['is_active' => true, 'branch_id' => $this->branch->id]);
         $otherSale->syncRoles(['sales_consultant']);
-        $this->actingAs($otherSale)->get(route('crm.customers.show', $lead->id), self::HX)->assertNotFound();
-        $this->actingAs($otherSale)->get(route('crm.customers.edit', $lead->id), self::HX)->assertNotFound();
+        $this->actingAs($otherSale)->get(route('crm.customers.show', $lead->id))->assertNotFound();
+        $this->actingAs($otherSale)->get(route('crm.customers.edit', $lead->id))->assertNotFound();
     }
 
     // ── Công việc ─────────────────────────────────────────────────────────────────────────────

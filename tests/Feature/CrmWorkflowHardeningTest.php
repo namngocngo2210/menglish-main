@@ -400,7 +400,7 @@ class CrmWorkflowHardeningTest extends TestCase
         $admin = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
         $admin->assignRole('admin');
 
-        $this->actingAs($admin)->get(route('crm.customers.edit', $lead->id))
+        $this->actingAs($admin)->get(route('crm.customers.show', ['id' => $lead->id, 'tab' => 'info']))
             ->assertOk()
             ->assertSee('name="source"', false)
             ->assertSee('Nguồn cũ');

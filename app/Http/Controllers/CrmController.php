@@ -423,10 +423,12 @@ class CrmController extends Controller
         );
     }
 
+    /** Hồ sơ khách: trang đầy đủ duy nhất (Kanban / danh sách / nút sửa đều mở đây); tab "Thông tin khách hàng" sửa trực tiếp. */
     public function showCustomer(Request $request, CrmStageService $stages, $id)
     {
+        // Link cũ mở bằng htmx (modal xem nhanh đã bỏ) → chuyển hẳn sang trang đầy đủ.
         if ($this->isModalRequest()) {
-            return $this->customerQuickView($request, $id);
+            return response()->noContent()->header('HX-Redirect', route('crm.customers.show', $id));
         }
 
         $customer = $this->scopeCustomerQuery()
@@ -472,32 +474,10 @@ class CrmController extends Controller
         $canReassign = $user->can('lead.assign');
         $reassignUsers = $canReassign ? $this->assignableUsers($customer->branch_id) : collect();
 
+        $editForm = $user->can('lead.update') ? $this->customerFormOptions() : null;
+
         return $this->modalView('crm.show', compact('customer', 'placementTests', 'examiners', 'latestSubmission', 'courses', 'branches', 'portalTestLink', 'canBookTrial', 'trialSessions', 'stageControls',
-            'histories', 'logType', 'rubric', 'statusCard', 'canReassign', 'reassignUsers', 'trialRemaining'));
-    }
-
-    /** Số dòng lịch sử chăm sóc hiện trong modal xem nhanh (đủ xem nhanh; toàn bộ ở trang đầy đủ). */
-    private const QUICK_VIEW_HISTORY_LIMIT = 5;
-
-    /**
-     * Modal xem nhanh khách (Kanban / danh sách): thông tin chính, vài dòng chăm sóc gần nhất, nút hành động.
-     * Cùng phạm vi dữ liệu với trang đầy đủ (scopeCustomerQuery → 404 nếu ngoài phạm vi); 3 truy vấn, không N+1.
-     */
-    protected function customerQuickView(Request $request, $id)
-    {
-        $customer = $this->scopeCustomerQuery()
-            ->with(['branch:id,name', 'assignedUser:id,name'])
-            ->where(fn (Builder $query) => $query->where('id', $id)->orWhere('code', $id))
-            ->firstOrFail();
-        $recentHistories = $customer->histories()->with('user:id,name')->limit(self::QUICK_VIEW_HISTORY_LIMIT)->get();
-        $user = $request->user();
-
-        return $this->modalView('crm.customers.quick-view', [
-            'customer' => $customer,
-            'recentHistories' => $recentHistories,
-            'canEdit' => $user->can('lead.update'),
-            'canClose' => $user->can('lead.convert') && in_array($customer->stage, CrmCustomer::CLOSABLE_STAGES, true),
-        ]);
+            'histories', 'logType', 'rubric', 'statusCard', 'canReassign', 'reassignUsers', 'trialRemaining', 'editForm'));
     }
 
     /**
@@ -889,19 +869,30 @@ class CrmController extends Controller
         return redirect()->back()->with('status', 'Đã hủy buổi học thử.');
     }
 
+    /** URL sửa cũ: chuyển tới tab "Thông tin khách hàng" của trang đầy đủ (form sửa nằm trong trang). */
     public function editCustomer($id)
     {
         $customer = $this->findScopedCustomer($id);
-        $branches = Branch::all();
-        $salesUsers = Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), 'lead.be_assigned')->orderBy('name')->get();
+        $url = route('crm.customers.show', ['id' => $customer->id, 'tab' => 'info']);
+
+        return $this->modalRedirect(redirect($url));
+    }
+
+    /**
+     * Dữ liệu cho form sửa khách (crm/customers/_edit-form) trong trang hồ sơ.
+     *
+     * @return array{branches: \Illuminate\Support\Collection, salesUsers: \Illuminate\Support\Collection, leadSources: \Illuminate\Support\Collection, courseNames: \Illuminate\Support\Collection}
+     */
+    protected function customerFormOptions(): array
+    {
         $leadSources = SystemCategory::where('type', 'lead_source')->orderBy('sort_order')->pluck('name');
-        if ($leadSources->isEmpty()) {
-            $leadSources = collect(CrmCustomer::DEFAULT_SOURCES);
-        }
 
-        $courseNames = Course::where('is_active', true)->orderBy('name')->pluck('name');
-
-        return $this->modalView('crm.edit', compact('customer', 'branches', 'salesUsers', 'leadSources', 'courseNames'));
+        return [
+            'branches' => Branch::all(),
+            'salesUsers' => Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), 'lead.be_assigned')->orderBy('name')->get(),
+            'leadSources' => $leadSources->isEmpty() ? collect(CrmCustomer::DEFAULT_SOURCES) : $leadSources,
+            'courseNames' => Course::where('is_active', true)->orderBy('name')->pluck('name'),
+        ];
     }
 
     /** Trường theo dõi khi sửa thông tin khách: cột => nhãn (ghi lịch sử trước / sau). */
@@ -991,7 +982,7 @@ class CrmController extends Controller
             throw ValidationException::withMessages(['phone' => 'Số điện thoại hoặc email này vừa được phiên khác sử dụng. Vui lòng kiểm tra lại.']);
         }
 
-        return $this->modalSaved('Cập nhật thông tin khách hàng thành công!', 'crm-customers-changed', route('crm.customers.show', $customer->id));
+        return $this->modalSaved('Cập nhật thông tin khách hàng thành công!', 'crm-customers-changed', route('crm.customers.show', ['id' => $customer->id, 'tab' => 'info']));
     }
 
     protected function fieldChanged(CrmCustomer $customer, string $field, mixed $new): bool

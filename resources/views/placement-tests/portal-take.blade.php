@@ -7,7 +7,7 @@
     <title>{{ $test->title }} — MEnglish Online Placement Test</title>
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=be-vietnam-pro:400,500,600,700,800&display=swap" rel="stylesheet" />
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @include('layouts.partials.assets')
 </head>
 <body class="font-sans antialiased text-on-surface bg-surface-container-low min-h-screen">
     {{-- Header --}}
