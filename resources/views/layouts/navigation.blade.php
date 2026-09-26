@@ -75,7 +75,7 @@
     {{-- Brand --}}
     <div class="flex h-header-height shrink-0 items-center gap-sm px-md md:justify-center md:px-0 desktop:justify-start desktop:px-md" data-sidebar-center>
         <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-sm rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container" title="Về trang tổng quan">
-            <span class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-container-lowest">
                 <img src="{{ asset('images/menglish-logo.png') }}" alt="MEnglish" class="h-full w-full object-contain" width="40" height="40">
             </span>
             <span class="flex min-w-0 flex-col md:hidden desktop:flex" data-sidebar-text>
@@ -119,7 +119,7 @@
         <form method="POST" action="{{ route('logout') }}">
             @csrf
             <button type="submit" data-tooltip="Đăng xuất" aria-label="Đăng xuất" data-sidebar-center
-                    class="flex w-full items-center gap-md rounded-lg px-md py-sm font-body-medium text-body-medium text-red-400 transition-colors hover:bg-error/20 hover:text-red-300 md:justify-center md:px-0 desktop:justify-start desktop:px-md">
+                    class="flex w-full items-center gap-md rounded-lg px-md py-sm font-body-medium text-body-medium text-error-container/80 transition-colors hover:bg-error/20 hover:text-error-container md:justify-center md:px-0 desktop:justify-start desktop:px-md">
                 <span class="material-symbols-outlined shrink-0" aria-hidden="true">logout</span>
                 <span class="md:hidden desktop:inline" data-sidebar-text>Đăng xuất</span>
             </button>
@@ -135,7 +135,7 @@
 
     {{-- Tooltip tên mục khi sidebar dạng icon (position fixed để không bị cắt bởi vùng cuộn) --}}
     <div x-show="tip.show" x-cloak role="tooltip"
-         class="pointer-events-none fixed z-50 -translate-y-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg ring-1 ring-white/10"
+         class="pointer-events-none fixed z-50 -translate-y-1/2 whitespace-nowrap rounded-md bg-inverse-surface px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg ring-1 ring-white/10"
          :style="`top: ${tip.top}px; left: ${tip.left}px`" x-text="tip.text"></div>
 </aside>
 

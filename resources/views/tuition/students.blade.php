@@ -6,31 +6,19 @@
     <x-ui.page-header title="Danh sách học viên đến hạn thu phí" description="Theo dõi và quản lý công nợ học phí của học viên." />
 
     <form method="GET" action="{{ route('tuition.students') }}" class="mb-lg grid grid-cols-1 gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md md:grid-cols-12 md:items-end">
-        <label class="block md:col-span-3">
-            <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Chi nhánh</span>
-            <select name="branch_id" onchange="this.form.submit()" class="w-full rounded-lg border-outline-variant font-body-base text-body-base">
-                <option value="">Tất cả chi nhánh</option>
-                @foreach ($branches as $br)
-                    <option value="{{ $br->id }}" @selected((string) request('branch_id') === (string) $br->id)>{{ $br->name }}</option>
-                @endforeach
-            </select>
-        </label>
-        <label class="block md:col-span-3">
-            <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Lớp học</span>
-            <select name="class_id" onchange="this.form.submit()" class="w-full rounded-lg border-outline-variant font-body-base text-body-base">
-                <option value="">Tất cả lớp học</option>
+        <div class="md:col-span-3">
+            <x-ui.select name="branch_id" label="Chi nhánh" placeholder="Tất cả chi nhánh" onchange="this.form.submit()" :options="$branches->pluck('name', 'id')" />
+        </div>
+        <div class="md:col-span-3">
+            <x-ui.select name="class_id" label="Lớp học" placeholder="Tất cả lớp học" onchange="this.form.submit()">
                 @foreach ($classes as $cl)
                     <option value="{{ $cl->id }}" @selected((string) request('class_id') === (string) $cl->id)>{{ $cl->name }} ({{ $cl->code }})</option>
                 @endforeach
-            </select>
-        </label>
-        <label class="block md:col-span-4">
-            <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Tìm kiếm học sinh</span>
-            <span class="relative block">
-                <input type="search" name="search" value="{{ request('search') }}" placeholder="Họ tên hoặc mã học sinh..." class="w-full rounded-lg border-outline-variant pr-10 font-body-base text-body-base" />
-                <span class="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
-            </span>
-        </label>
+            </x-ui.select>
+        </div>
+        <div class="md:col-span-4">
+            <x-ui.input type="search" name="search" label="Tìm kiếm học sinh" icon="search" :value="request('search')" placeholder="Họ tên hoặc mã học sinh..." />
+        </div>
         <div class="flex gap-sm md:col-span-2">
             <x-ui.button type="submit" icon="filter_list" class="flex-1">Lọc</x-ui.button>
             @if (request()->hasAny(['branch_id', 'class_id', 'search', 'status', 'type']))
@@ -58,13 +46,8 @@
                     @foreach (['branch_id', 'class_id', 'search'] as $keep)
                         @if (request($keep))<input type="hidden" name="{{ $keep }}" value="{{ request($keep) }}">@endif
                     @endforeach
-                    <select name="status" onchange="this.form.submit()" aria-label="Trạng thái công nợ" class="rounded-lg border-outline-variant py-xs font-body-small text-body-small">
-                        <option value="">Tất cả trạng thái</option>
-                        <option value="paid" @selected(request('status') === 'paid')>Đã hoàn thành</option>
-                        <option value="partial" @selected(request('status') === 'partial')>Đang nợ (Đã cọc)</option>
-                        <option value="overdue" @selected(request('status') === 'overdue')>Quá hạn</option>
-                        <option value="unpaid" @selected(request('status') === 'unpaid')>Chưa nộp</option>
-                    </select>
+                    <x-ui.select name="status" onchange="this.form.submit()" aria-label="Trạng thái công nợ" placeholder="Tất cả trạng thái"
+                                 :options="['paid' => 'Đã hoàn thành', 'partial' => 'Đang nợ (Đã cọc)', 'overdue' => 'Quá hạn', 'unpaid' => 'Chưa nộp']" />
                 </form>
             </div>
             <x-ui.data-table min-width="1020px">
