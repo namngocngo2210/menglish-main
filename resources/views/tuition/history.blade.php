@@ -151,7 +151,7 @@
                                 <x-ui.button size="sm" variant="ghost" icon="visibility" @click="open({{ $rc->id }})" title="Xem chi tiết" aria-label="Xem chi tiết" />
                                 <x-ui.button size="sm" variant="ghost" icon="print" @click="print({{ $rc->id }})" title="In phiếu thu" aria-label="In phiếu thu" />
                                 @if (in_array($rc->status, \App\Models\TuitionReceipt::EDITABLE_STATUSES, true)
-                                    && ((int) $rc->creator_id === (int) auth()->id() || auth()->user()?->hasRole('admin')))
+                                    && ((int) $rc->creator_id === (int) auth()->id() || auth()->user()?->isSuperAdmin()))
                                     <x-ui.button size="sm" variant="ghost" icon="edit" :href="route('tuition.receipts.edit', $rc->id)" title="Sửa phiếu nháp / bị trả về rồi gửi duyệt lại" aria-label="Sửa phiếu" />
                                 @endif
                             </td>

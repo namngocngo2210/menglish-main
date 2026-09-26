@@ -19,7 +19,7 @@ class AdminNotificationController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $isGlobalViewer = !$user || $user->hasRole('admin') || $user->hasRole('manager') || $user->roles->isEmpty();
+        $isGlobalViewer = ! $user || NotificationService::seesSystemNotifications($user);
 
         // Tự động quét để có dữ liệu mới nhất (nếu là admin/manager)
         if ($isGlobalViewer) {

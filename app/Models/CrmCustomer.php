@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\AuditsChanges;
+use App\Support\DataScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -163,32 +164,31 @@ class CrmCustomer extends Model
     }
 
     /**
-     * Scope dữ liệu CRM (BA chốt 2026-09-25):
-     * - Admin: toàn bộ.
-     * - Quản lý cơ sở / Học vụ: chỉ khách thuộc chi nhánh của mình (branch_id + user_branches).
-     * - Sales và các vai trò CRM còn lại: chỉ khách được giao phụ trách.
+     * Phạm vi dữ liệu CRM theo quyền "lead.scope_*" (DataScope; mặc định theo BA 2026-09-25):
+     * - Toàn hệ thống (Admin): mọi khách.
+     * - Chi nhánh (Quản lý cơ sở / Học vụ / Học thuật): khách thuộc chi nhánh của mình (branch_id + user_branches).
+     * - Của tôi (Sales): khách được giao phụ trách.
+     * Không đăng nhập (job / lệnh nền): không lọc.
      */
     public function scopeVisibleTo(Builder $query, ?User $user): Builder
     {
-        if (! $user || $user->hasRole('admin')) {
+        if (! $user) {
             return $query;
         }
 
-        if ($user->hasAnyRole(['manager', 'academic_staff', 'academic_lead'])) {
-            $branchIds = self::branchIdsOf($user);
+        $model = $query->getModel();
 
-            return $branchIds === []
-                ? $query->whereRaw('1 = 0')
-                : $query->whereIn($query->getModel()->qualifyColumn('branch_id'), $branchIds);
-        }
-
-        return $query->where($query->getModel()->qualifyColumn('assigned_user_id'), $user->id);
+        return DataScope::apply(
+            $query, $user, 'lead',
+            fn (Builder $q) => $q->where($model->qualifyColumn('assigned_user_id'), $user->id),
+            fn (Builder $q, array $branchIds) => $q->whereIn($model->qualifyColumn('branch_id'), $branchIds),
+        );
     }
 
     /** @return list<int> */
     public static function branchIdsOf(User $user): array
     {
-        return $user->branches()->pluck('branches.id')->push($user->branch_id)->filter()->unique()->map(fn ($id) => (int) $id)->values()->all();
+        return $user->branchIds();
     }
 
     public function branch(): BelongsTo

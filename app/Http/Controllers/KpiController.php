@@ -10,6 +10,8 @@ use App\Models\PayrollPeriod;
 use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\User;
+use App\Support\DataScope;
+use App\Support\StaffType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -19,11 +21,29 @@ use Illuminate\Support\Facades\Auth;
  */
 class KpiController extends Controller
 {
+    /** Chức danh thuộc diện đánh giá KPI tháng (phân loại nhân sự, không phải phân quyền). */
     private const STAFF_ROLES = ['academic_staff', 'academic_lead', 'teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant'];
 
     private function guard(string $permission = 'kpi.view'): void
     {
         abort_unless(Auth::user()?->can($permission), 403);
+    }
+
+    /**
+     * Nhân sự người xem được xem / chấm KPI theo phạm vi "kpi.scope_*": Của tôi → chỉ mình; Chi nhánh → nhân sự thuộc
+     * chi nhánh mình; Toàn hệ thống → mọi nhân sự.
+     */
+    private function scopedStaff(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        $viewer = Auth::user();
+
+        return DataScope::apply(
+            $query, $viewer, 'kpi',
+            fn ($q) => $q->whereKey($viewer->id),
+            fn ($q, array $branchIds) => $q->whereIn('branch_id', $branchIds)
+                ->orWhereHas('branches', fn ($b) => $b->whereIn('branches.id', $branchIds)),
+            branchIncludesOwn: true,
+        );
     }
 
     // ───────────────────── CẤU HÌNH KPI ─────────────────────
@@ -97,7 +117,7 @@ class KpiController extends Controller
 
         $search = trim((string) $request->query('search', ''));
         $role = in_array($request->query('role'), self::STAFF_ROLES, true) ? $request->query('role') : null;
-        $staff = User::whereHas('roles', fn ($q) => $q->whereIn('name', $role ? [$role] : self::STAFF_ROLES))
+        $staff = $this->scopedStaff(User::whereHas('roles', fn ($q) => $q->whereIn('name', $role ? [$role] : self::STAFF_ROLES)))
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('name', 'like', "%{$search}%")->orWhere('employee_code', 'like', "%{$search}%")))
             ->orderBy('name')->paginate($request->perPage(20))->withQueryString();
         $fund = KpiCriterion::fund();
@@ -123,12 +143,12 @@ class KpiController extends Controller
     public function evaluate(Request $request, int $userId)
     {
         $this->guard();
-        $staff = User::findOrFail($userId);
+        $staff = $this->scopedStaff(User::query())->findOrFail($userId);
         [$month, $year] = $this->monthYear($request);
 
         $criteria = KpiCriterion::active()->ordered()->get();
         $fund = KpiCriterion::fund();
-        $isAcademicStaff = $staff->hasRole('academic_staff');
+        $isAcademicStaff = StaffType::usesAcademicStaffKpi($staff);
         $evaluation = KpiEvaluation::with(['items', 'evaluator'])
             ->where('user_id', $userId)->where('month', $month)->where('year', $year)->first();
         $scores = $evaluation ? $evaluation->items->keyBy('kpi_criterion_id') : collect();
@@ -146,7 +166,7 @@ class KpiController extends Controller
             'low' => $criteria->filter(fn ($c) => ($s = $scores->get($c->id)) && (float) $s->score > 0 && (float) $s->score <= 50)->count(),
             'zero' => $criteria->filter(fn ($c) => ($s = $scores->get($c->id)) && (float) $s->score <= 0)->count(),
         ];
-        $staffOptions = User::whereHas('roles', fn ($q) => $q->whereIn('name', self::STAFF_ROLES))->orderBy('name')->get(['id', 'name']);
+        $staffOptions = $this->scopedStaff(User::whereHas('roles', fn ($q) => $q->whereIn('name', self::STAFF_ROLES)))->orderBy('name')->get(['id', 'name']);
 
         return view('kpi.evaluate', compact(
             'staff', 'criteria', 'evaluation', 'scores', 'month', 'year', 'isSelf', 'fund', 'isAcademicStaff',
@@ -157,7 +177,7 @@ class KpiController extends Controller
     public function evaluateStore(Request $request, int $userId)
     {
         $this->guard('kpi.confirm');
-        User::findOrFail($userId);
+        $this->scopedStaff(User::query())->findOrFail($userId);
         // Nhân viên không tự chấm KPI của chính mình (A3 / Phase 3)
         abort_if($userId === (int) $request->user()->id, 403, 'Bạn không được tự chấm KPI của chính mình.');
         $validated = $request->validate([

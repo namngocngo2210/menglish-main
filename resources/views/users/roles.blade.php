@@ -73,7 +73,7 @@
                             <label class="flex items-center justify-between p-4 rounded-2xl border border-gray-200 hover:border-primary-container hover:bg-orange-50/20 cursor-pointer transition shadow-2xs group">
                                 <div class="flex items-center gap-3.5">
                                     <input type="checkbox" name="roles[]" value="{{ $role->name }}"
-                                        @checked($user->hasRole($role->name))
+                                        @checked($user->roles->contains('name', $role->name))
                                         class="w-4 h-4 rounded border-gray-300 text-primary-container focus:ring-primary-container">
                                     <div>
                                         <div class="font-bold text-sm text-gray-900 group-hover:text-primary-container transition">{{ \App\Helpers\AclHelper::roleLabel($role->name) }}</div>

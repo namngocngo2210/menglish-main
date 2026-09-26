@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\DataScope;
 use App\Models\Branch;
 use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
@@ -83,8 +84,9 @@ class StudentProfileController extends Controller
         ]);
 
         $branchId = $validated['branch_id'] ?? null;
-        if (! $user->hasRole('admin')) {
-            $allowed = Student::branchIdsFor($user);
+        // Phạm vi Học viên khác "Toàn hệ thống": chỉ tạo học viên cho chi nhánh của mình.
+        if (! DataScope::isAll($user, 'student')) {
+            $allowed = $user->branchIds();
             $branchId ??= $user->branch_id;
             if ($branchId && ! in_array((int) $branchId, $allowed, true)) {
                 throw ValidationException::withMessages(['branch_id' => 'Bạn chỉ được tạo học viên cho chi nhánh mình phụ trách.']);
@@ -479,23 +481,19 @@ class StudentProfileController extends Controller
 
     private function visibleBranches(User $user)
     {
-        return $user->hasRole('admin')
+        return DataScope::isAll($user, 'student')
             ? Branch::orderBy('name')->get()
-            : Branch::whereIn('id', Student::branchIdsFor($user))->orderBy('name')->get();
+            : Branch::whereIn('id', $user->branchIds())->orderBy('name')->get();
     }
 
-    /** Lớp người dùng được thao tác: admin tất cả; vai trò chi nhánh theo chi nhánh; GV/TA lớp mình dạy. */
+    /** Lớp người dùng được thao tác theo phạm vi Học viên: Toàn hệ thống → mọi lớp; Chi nhánh → lớp thuộc chi nhánh mình; Của tôi → lớp mình dạy. */
     private function visibleClasses(User $user): Builder
     {
-        if ($user->hasRole('admin')) {
-            return ClassModel::query();
-        }
-
-        if ($user->hasAnyRole(Student::BRANCH_SCOPED_ROLES)) {
-            return ClassModel::query()->whereIn('branch_id', Student::branchIdsFor($user));
-        }
-
-        return ClassModel::query()->visibleTo($user);
+        return match (DataScope::level($user, 'student')) {
+            DataScope::ALL => ClassModel::query(),
+            DataScope::BRANCH => ClassModel::query()->whereIn('branch_id', $user->branchIds()),
+            default => ClassModel::query()->visibleTo($user),
+        };
     }
 
     private function assertCanJoinClass(Student $student, ClassModel $class): void

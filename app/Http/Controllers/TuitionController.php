@@ -206,7 +206,7 @@ class TuitionController extends Controller
     {
         $receipt = TuitionReceipt::with(['tuition.student.branch', 'tuition.classModel', 'student'])->findOrFail($id);
         $user = $request->user();
-        abort_unless((int) $receipt->creator_id === (int) $user->id || $user->hasRole('admin'), 403, 'Chỉ người lập phiếu mới được sửa phiếu này.');
+        abort_unless((int) $receipt->creator_id === (int) $user->id || $user->isSuperAdmin(), 403, 'Chỉ người lập phiếu mới được sửa phiếu này.');
 
         if (! in_array($receipt->status, TuitionReceipt::EDITABLE_STATUSES, true)) {
             return redirect()->route('tuition.receipts.approve', ['selected_id' => $receipt->id])
@@ -429,7 +429,7 @@ class TuitionController extends Controller
 
         $user = $request->user();
         $receipt = TuitionReceipt::with('tuition.student')->findOrFail($id);
-        abort_unless((int) $receipt->creator_id === (int) $user->id || $user->hasRole('admin'), 403, 'Chỉ người lập phiếu mới được sửa phiếu này.');
+        abort_unless((int) $receipt->creator_id === (int) $user->id || $user->isSuperAdmin(), 403, 'Chỉ người lập phiếu mới được sửa phiếu này.');
 
         if ($amountError = $this->receiptAmountError($validated)) {
             return redirect()->back()->withErrors($amountError)->withInput();
@@ -672,7 +672,7 @@ class TuitionController extends Controller
             ]);
 
             // Kế toán có phạm vi học phí chứa chi nhánh của phiếu: kế toán chi nhánh đó + người được cấp
-            // `tuition.all_branches` (kế toán tổng) — BA 26/09/2026, không còn suy ra từ "không gán chi nhánh".
+            // phạm vi Học phí "Toàn hệ thống" (tuition.scope_all — kế toán tổng) — BA 26/09/2026, không còn suy ra từ "không gán chi nhánh".
             $branchId = $this->receiptBranchId($receipt);
             $accountants = User::query()
                 ->where('is_active', true)
@@ -828,7 +828,7 @@ class TuitionController extends Controller
                 return 'Phiếu thu này đã được xử lý trước đó.';
             }
 
-            if ((int) $receipt->creator_id === (int) $user->id && ! $user->hasRole('admin')) {
+            if ((int) $receipt->creator_id === (int) $user->id && ! $user->isSuperAdmin()) {
                 return 'Người lập phiếu không được tự duyệt phiếu của mình. Vui lòng chuyển Kế toán/Quản lý khác duyệt.';
             }
 
@@ -2122,7 +2122,7 @@ class TuitionController extends Controller
 
     public function config(Request $request)
     {
-        // Người bị giới hạn chi nhánh chỉ thấy dải của chi nhánh mình + dải mặc định; có `tuition.all_branches` thấy tất cả.
+        // Người bị giới hạn chi nhánh chỉ thấy dải của chi nhánh mình + dải mặc định; phạm vi "Toàn hệ thống" (tuition.scope_all) thấy tất cả.
         // Sửa dải mặc định (dùng chung) cần `invoice_range.manage_default` (BA 26/09/2026).
         $scope = $this->branchScope();
         $ranges = InvoiceConfiguration::with('branch')

@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CrmCustomerHistory;
 use App\Models\CrmTrialBooking;
 use App\Models\User;
-use App\Services\CrmStageService;
+use App\Support\DataScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -23,7 +23,8 @@ class TrialGuestController extends Controller
 
         $bookings = CrmTrialBooking::query()
             ->with(['customer:id,code,name,parent_name,phone,test_score', 'session', 'classModel.course', 'feedbackBy'])
-            ->when(! $user->hasRole('admin'), fn (Builder $query) => $query->where(
+            // Phạm vi CRM "Toàn hệ thống" thấy mọi khách học thử; còn lại chỉ buổi mình dạy / lớp mình phụ trách.
+            ->when(! DataScope::isAll($user, 'lead'), fn (Builder $query) => $query->where(
                 fn (Builder $inner) => $this->teachingScope($inner, $user)
             ))
             ->where('crm_trial_bookings.status', '!=', 'cancelled')
@@ -93,7 +94,7 @@ class TrialGuestController extends Controller
 
     private function canGiveFeedback(CrmTrialBooking $booking, User $user): bool
     {
-        if ($user->hasAnyRole(CrmStageService::CM_ROLES)) {
+        if ($user->can('lead.trial_feedback')) {
             return true;
         }
 

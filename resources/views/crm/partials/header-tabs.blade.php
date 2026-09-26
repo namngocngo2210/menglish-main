@@ -9,7 +9,7 @@
         ['route' => 'crm.customers.won', 'label' => 'Khách chốt thành công'],
         ['route' => 'crm.lost-deals', 'label' => 'Khách không chốt'],
         ['route' => 'crm.confirmations', 'label' => 'Xác nhận chính thức'],
-        ['route' => 'crm.customers.deleted', 'label' => 'Khách đã xóa', 'roles' => ['admin', 'manager']],
+        ['route' => 'crm.customers.deleted', 'label' => 'Khách đã xóa'],
         ['route' => 'placement-tests.index', 'label' => 'Đề test đầu vào (AI)'],
         ['route' => 'placement-tests.rubric-guide', 'label' => 'Thang điểm & Rubric'],
     ])->filter(fn ($tab) => $crmUser && $crmMenu->canSee($crmUser, $tab));

@@ -179,6 +179,15 @@ class NotificationService
     /**
      * Lấy số lượng thông báo chưa đọc theo người dùng đang đăng nhập
      */
+    /**
+     * Thấy cả thông báo chung của hệ thống (user_id NULL: lead sót SLA 24h…): quyền notification.view_system
+     * (mặc định Admin, Quản lý cơ sở). Tài khoản chưa gán vai trò nào (dữ liệu cũ) giữ hành vi cũ.
+     */
+    public static function seesSystemNotifications(User $user): bool
+    {
+        return $user->can('notification.view_system') || $user->roles->isEmpty();
+    }
+
     public function getUnreadCount(?User $user = null): int
     {
         if (! $user) {
@@ -189,7 +198,7 @@ class NotificationService
         }
 
         $query = AdminNotification::where('is_read', false);
-        $isGlobalViewer = $user->hasRole('admin') || $user->hasRole('manager') || $user->roles->isEmpty();
+        $isGlobalViewer = self::seesSystemNotifications($user);
 
         if ($isGlobalViewer) {
             $query->where(function ($q) use ($user) {
@@ -216,7 +225,7 @@ class NotificationService
 
         // Việc quét stale lead chỉ chạy qua command định kỳ (crm:scan-stale-leads),
         // không tự chạy khi đọc danh sách thông báo để tránh query + email lặp lại.
-        $isGlobalViewer = $user->hasRole('admin') || $user->hasRole('manager') || $user->roles->isEmpty();
+        $isGlobalViewer = self::seesSystemNotifications($user);
 
         $query = AdminNotification::latest();
 
@@ -447,7 +456,7 @@ class NotificationService
             });
 
         if ($inBranch->isEmpty()) {
-            $inBranch = $candidates->filter(fn (User $user) => $user->hasRole('admin'));
+            $inBranch = $candidates->filter(fn (User $user) => $user->isSuperAdmin());
         }
 
         return $inBranch->pluck('id')
@@ -600,7 +609,7 @@ class NotificationService
 
         $query = AdminNotification::where('is_read', false);
 
-        if ($user->hasRole('admin') || $user->hasRole('manager')) {
+        if ($user->can('notification.view_system')) {
             $query->where(function ($q) use ($user) {
                 $q->whereNull('user_id')->orWhere('user_id', $user->id);
             });

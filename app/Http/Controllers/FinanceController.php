@@ -663,7 +663,7 @@ class FinanceController extends Controller
 
     /**
      * Chi nhánh người dùng được xem trong báo cáo thu chi / sổ khoản chi — cùng quy tắc với các màn Học phí
-     * (TuitionBranchScope): có quyền `finance.all_branches` (Admin; kế toán tổng do Admin cấp) thấy toàn hệ thống,
+     * (TuitionBranchScope): phạm vi dữ liệu `finance.scope_all` (Admin; kế toán tổng do Admin cấp) thấy toàn hệ thống,
      * người khác chỉ các chi nhánh của mình (BA 26/09/2026 — không còn suy ra "kế toán tổng" từ việc không gán chi nhánh).
      * null = không giới hạn.
      *
@@ -671,12 +671,12 @@ class FinanceController extends Controller
      */
     private function scopedBranchIds(?User $user): ?\Illuminate\Support\Collection
     {
-        $ids = TuitionBranchScope::branchIds($user, TuitionBranchScope::FINANCE_ALL_BRANCHES);
+        $ids = TuitionBranchScope::branchIds($user, TuitionBranchScope::FINANCE);
         if ($ids === null) {
             return null;
         }
 
-        abort_if($ids === [], 403, 'Tài khoản chưa được gán chi nhánh và chưa được cấp quyền xem báo cáo thu chi mọi chi nhánh (finance.all_branches).');
+        abort_if($ids === [], 403, 'Tài khoản chưa được gán chi nhánh và chưa được cấp phạm vi báo cáo thu chi "Toàn hệ thống" (finance.scope_all).');
 
         return collect($ids)->map(fn ($id) => (int) $id)->unique()->values();
     }

@@ -48,10 +48,10 @@ class TeacherHourlyRate extends Model
     /** Loại giáo viên mặc định theo vai trò / hợp đồng (Q3). */
     public static function defaultTeacherType(User $user): string
     {
-        if ($user->hasRole('foreign_teacher')) {
+        if (\App\Support\StaffType::isForeignTeacher($user)) {
             return 'foreign';
         }
-        if ($user->hasRole('assistant') && ! $user->hasAnyRole(['teacher', 'teacher_parttime', 'teacher_fulltime'])) {
+        if (\App\Support\StaffType::isAssistantOnly($user)) {
             return 'assistant';
         }
 

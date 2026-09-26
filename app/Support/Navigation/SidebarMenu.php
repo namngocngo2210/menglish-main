@@ -15,23 +15,14 @@ use Illuminate\Routing\Router;
  *  2. `can` (tuỳ chọn) — danh sách ability bổ sung, thỏa MỘT trong số đó. Chỉ dùng
  *     cho route không có middleware `can:` (controller tự kiểm tra quyền) hoặc khi
  *     cần hạn chế hơn route (vd. quick-link "Lập phiếu thu" cần tuition.create).
- *  3. `roles` (tuỳ chọn) — item chỉ dành cho các role cụ thể (controller kiểm tra theo role).
- *  4. Nhóm có `roles` chỉ hiện với các role đó; nhóm không còn item nào sẽ bị ẩn.
+ *  3. Nhóm có `can` (tuỳ chọn) chỉ hiện khi user có MỘT trong các quyền đó (quyền "neo" của khu vực, vd. nhóm
+ *     Học phí cho người xử lý nghiệp vụ kế toán, nhóm Cổng giáo viên cho portal.teacher / portal.assistant);
+ *     nhóm không còn item nào sẽ bị ẩn. Không kiểm tra tên vai trò — Admin đổi quyền là menu đổi theo.
  */
 final class SidebarMenu
 {
-    private const TEACHER_ROLES = ['teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant'];
-
-    /** Role được StaffReportController cho phép (controller tự kiểm tra, route không có can:). */
-    private const REPORT_ROLES = [
-        'admin', 'manager', 'academic_staff', 'academic_lead',
-        'teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant',
-    ];
-
-    private const STAFF_ROLES = [
-        'admin', 'manager', 'accountant', 'academic_staff', 'academic_lead', 'sales_consultant',
-        'teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant',
-    ];
+    /** Quyền đối tượng của cổng giáo viên / trợ giảng. */
+    private const TEACHING_PORTAL = ['portal.teacher', 'portal.assistant'];
 
     /** @var array<string, list<string>> */
     private array $abilityCache = [];
@@ -41,7 +32,7 @@ final class SidebarMenu
     /**
      * Khai báo menu. `active` là pattern cho Request::routeIs (mặc định = route của item).
      *
-     * @return list<array{id: string, label: string, icon: string, roles?: list<string>, items: list<array<string, mixed>>}>
+     * @return list<array{id: string, label: string, icon: string, can?: list<string>, items: list<array<string, mixed>>}>
      */
     public function definition(): array
     {
@@ -50,8 +41,8 @@ final class SidebarMenu
                 'id' => 'crm',
                 'label' => 'CRM & Tuyển sinh',
                 'icon' => 'person_search',
-                // BA 26/09/2026: Học vụ là actor chính bên CRM (mục con vẫn lọc theo quyền của route).
-                'roles' => ['admin', 'manager', 'sales_consultant', 'academic_staff'],
+                // Người làm việc với khách (thêm / sửa khách). BA 26/09/2026: Học vụ là actor chính bên CRM.
+                'can' => ['lead.create', 'lead.update'],
                 'items' => [
                     ['label' => 'Bảng Kanban Leads', 'route' => 'crm.pipeline'],
                     ['label' => 'Danh sách Lead', 'route' => 'crm.customers.index', 'active' => ['crm.customers.index', 'crm.customers.show', 'crm.customers.edit', 'crm.customers.create']],
@@ -66,10 +57,10 @@ final class SidebarMenu
                 'id' => 'hr',
                 'label' => 'Nhân sự & Vận hành',
                 'icon' => 'badge',
-                'roles' => ['admin', 'manager', 'academic_staff', 'academic_lead'],
+                'can' => ['user.view', 'kpi.view'],
                 'items' => [
                     ['label' => 'Nhân sự & Tài khoản', 'route' => 'users.index', 'active' => ['users.*']],
-                    ['label' => 'Nhật ký sự vụ học vụ', 'route' => 'reports.journal', 'roles' => self::REPORT_ROLES],
+                    ['label' => 'Nhật ký sự vụ học vụ', 'route' => 'reports.journal'],
                     ['label' => 'Cấu hình KPI học vụ', 'route' => 'kpi.criteria'],
                     ['label' => 'Tổng hợp KPI tháng', 'route' => 'kpi.monthly', 'active' => ['kpi.monthly', 'kpi.evaluate']],
                     ['label' => 'Rà soát điểm danh', 'route' => 'kpi.attendance-review'],
@@ -79,7 +70,6 @@ final class SidebarMenu
                 'id' => 'students',
                 'label' => 'Hồ sơ Học sinh',
                 'icon' => 'school',
-                'roles' => ['admin', 'manager', 'academic_staff', 'academic_lead'],
                 'items' => [
                     ['label' => 'Học sinh & Liên kết lớp', 'route' => 'students.index', 'active' => ['students.index', 'students.show', 'students.edit', 'students.create']],
                     ['label' => 'Xác nhận nhập học', 'route' => 'students.enrollments'],
@@ -89,7 +79,7 @@ final class SidebarMenu
                 'id' => 'student_portal',
                 'label' => 'Cổng Phụ huynh & Học sinh',
                 'icon' => 'family_restroom',
-                'roles' => ['student'],
+                'can' => ['portal.student'],
                 'items' => [
                     ['label' => 'Trang chủ', 'route' => 'portal.student.home', 'active' => ['portal.student.home*']],
                     ['label' => 'Học tập & Nộp bài tập', 'route' => 'portal.student.homework', 'active' => ['portal.student.homework*']],
@@ -104,7 +94,8 @@ final class SidebarMenu
                 'id' => 'classes',
                 'label' => 'Lớp học & Lịch dạy',
                 'icon' => 'meeting_room',
-                'roles' => ['admin', 'manager', 'academic_staff', 'academic_lead'],
+                // Người quản lý lớp (giáo viên xem lớp mình ở Cổng giáo viên).
+                'can' => ['class.update'],
                 'items' => [
                     ['label' => 'Đặt lịch học thử', 'route' => 'classes.trial-booking', 'active' => ['classes.trial-booking*']],
                     ['label' => 'Tạo lớp mới', 'route' => 'classes.create'],
@@ -122,7 +113,8 @@ final class SidebarMenu
                 'id' => 'syllabus',
                 'label' => 'Syllabus & Giáo trình',
                 'icon' => 'menu_book',
-                'roles' => ['admin', 'manager', 'academic_staff', 'academic_lead'],
+                // Người quản lý giáo trình (giáo viên dùng nhóm "Giáo trình & Big Test (GV)").
+                'can' => ['syllabus.manage'],
                 'items' => [
                     ['label' => 'Tài liệu & Giáo trình', 'route' => 'syllabus.documents'],
                     ['label' => 'Soạn Syllabus chặng', 'route' => 'syllabus.builder'],
@@ -139,7 +131,6 @@ final class SidebarMenu
                 'id' => 'teacher_syllabus',
                 'label' => 'Giáo trình & Big Test (GV)',
                 'icon' => 'auto_stories',
-                'roles' => array_merge(['admin', 'manager', 'academic_staff', 'academic_lead'], self::TEACHER_ROLES),
                 'items' => [
                     ['label' => 'Chặng đang dạy & Order Test', 'route' => 'syllabus.teaching-stages', 'active' => ['syllabus.teaching-stages', 'teacher.order-test*']],
                     ['label' => 'Xem bài giảng (Cổng GV)', 'route' => 'syllabus.teacher-view'],
@@ -151,11 +142,11 @@ final class SidebarMenu
                 'id' => 'teacher_schedule',
                 'label' => 'Cổng Giáo viên & Giảng dạy',
                 'icon' => 'co_present',
-                'roles' => self::TEACHER_ROLES,
+                'can' => self::TEACHING_PORTAL,
                 'items' => [
                     ['label' => 'Check-in & Điểm danh hôm nay', 'route' => 'teacher.home', 'active' => ['teacher.home', 'teacher.attendance*'], 'can' => ['attendance_student.record']],
-                    ['label' => 'Chấm bài nộp của lớp', 'route' => 'portal.teacher.submissions', 'active' => ['portal.teacher.submissions*'], 'roles' => array_merge(['admin'], self::TEACHER_ROLES)],
-                    ['label' => 'Khách học thử', 'route' => 'teacher.trial-guests', 'active' => ['teacher.trial-guests*'], 'roles' => array_merge(['admin'], self::TEACHER_ROLES)],
+                    ['label' => 'Chấm bài nộp của lớp', 'route' => 'portal.teacher.submissions', 'active' => ['portal.teacher.submissions*']],
+                    ['label' => 'Khách học thử', 'route' => 'teacher.trial-guests', 'active' => ['teacher.trial-guests*']],
                     ['label' => 'Nhiệm vụ hôm nay của TA', 'route' => 'portal.ta-tasks', 'can' => ['work_task.view']],
                 ],
             ],
@@ -163,7 +154,8 @@ final class SidebarMenu
                 'id' => 'tuition',
                 'label' => 'Học phí & Hoá đơn',
                 'icon' => 'monetization_on',
-                'roles' => ['admin', 'manager', 'accountant'],
+                // Người xử lý nghiệp vụ kế toán (duyệt / trả về phiếu, hủy hóa đơn, hoàn / chuyển phí).
+                'can' => ['tuition.approve', 'tuition.reject', 'invoice.request_cancel', 'refund_transfer.request'],
                 'items' => [
                     ['label' => 'Học viên & Thu phí', 'route' => 'tuition.students'],
                     ['label' => 'Nhập danh sách từ Excel', 'route' => 'tuition.import'],
@@ -181,7 +173,6 @@ final class SidebarMenu
                 'id' => 'finance',
                 'label' => 'Báo cáo Thu - Chi',
                 'icon' => 'query_stats',
-                'roles' => ['admin', 'manager', 'accountant'],
                 'items' => [
                     ['label' => 'Doanh thu tạm tính', 'route' => 'finance.reports.revenue', 'active' => ['finance.reports.*']],
                     ['label' => 'Sổ khoản chi vận hành', 'route' => 'finance.expenses.index', 'active' => ['finance.expenses.*']],
@@ -191,7 +182,6 @@ final class SidebarMenu
                 'id' => 'inventory',
                 'label' => 'Hàng hoá & Danh mục',
                 'icon' => 'inventory_2',
-                'roles' => ['admin', 'manager', 'academic_staff'],
                 'items' => [
                     ['label' => 'Hàng hóa & Vật phẩm', 'route' => 'merchandise.index', 'active' => ['merchandise.*']],
                 ],
@@ -200,7 +190,8 @@ final class SidebarMenu
                 'id' => 'tasks',
                 'label' => 'Phân công & Trợ giảng',
                 'icon' => 'task_alt',
-                'roles' => ['admin', 'manager', 'academic_staff', 'academic_lead'],
+                // Người giao việc (GV / TA dùng "Nhiệm vụ hôm nay" ở Cổng giáo viên).
+                'can' => ['work_task.create'],
                 'items' => [
                     ['label' => 'Công việc & Giao việc', 'route' => 'tasks.index', 'active' => ['tasks.index', 'tasks.show', 'tasks.create', 'tasks.edit']],
                     ['label' => 'Giao việc cho Trợ giảng', 'route' => 'tasks.ta-assign'],
@@ -213,7 +204,7 @@ final class SidebarMenu
                 'id' => 'tickets',
                 'label' => 'Hỗ trợ & Ticket',
                 'icon' => 'confirmation_number',
-                'roles' => self::STAFF_ROLES,
+                'can' => ['portal.staff'],
                 'items' => [
                     ['label' => 'Danh sách ticket', 'route' => 'tickets.index', 'active' => ['tickets.index', 'tickets.show']],
                     ['label' => 'Tạo ticket mới', 'route' => 'tickets.create'],
@@ -225,11 +216,9 @@ final class SidebarMenu
                 'label' => 'Chấm công',
                 'icon' => 'schedule',
                 // Kế toán chỉ thấy mục nào Admin cấp quyền (attendance_staff.*) — mặc định không có mục nào nên nhóm ẩn.
-                'roles' => ['admin', 'manager', 'academic_staff', 'accountant', ...self::TEACHER_ROLES],
                 'items' => [
                     ['label' => 'Chấm công đơn lẻ (GV & TA)', 'route' => 'payroll.timesheets.manual'],
-                    ['label' => 'Giờ dạy & Chấm công giáo viên', 'route' => 'payroll.timesheets.teachers', 'can' => ['attendance_staff.view', 'payroll.view_own'],
-                        'roles' => ['admin', 'manager', 'academic_staff', ...self::TEACHER_ROLES]],
+                    ['label' => 'Giờ dạy & Chấm công giáo viên', 'route' => 'payroll.timesheets.teachers', 'can' => ['attendance_staff.view', ...self::TEACHING_PORTAL]],
                     ['label' => 'Chấm công AppSheet', 'route' => 'payroll.timesheets.appsheet'],
                     ['label' => 'Lịch sử đồng bộ chấm công', 'route' => 'payroll.timesheets.sync-history'],
                 ],
@@ -238,7 +227,7 @@ final class SidebarMenu
                 'id' => 'payroll',
                 'label' => 'Lương & Thưởng',
                 'icon' => 'payments',
-                'roles' => ['admin', 'manager', 'accountant', ...self::TEACHER_ROLES],
+                'can' => ['payroll.view', 'payroll.view_own'],
                 'items' => [
                     ['label' => 'Bảng lương theo kỳ', 'route' => 'payroll.periods.index', 'active' => ['payroll.periods.*']],
                     ['label' => 'Lương của tôi', 'route' => 'portal.my-salary', 'can' => ['payroll.view_own']],
@@ -253,7 +242,6 @@ final class SidebarMenu
                 'id' => 'survey',
                 'label' => 'Khảo sát / Test',
                 'icon' => 'ballot',
-                'roles' => ['admin', 'manager', 'academic_staff', 'academic_lead'],
                 'items' => [
                     ['label' => 'Đề test đầu vào (AI)', 'route' => 'placement-tests.index', 'active' => ['placement-tests.index', 'placement-tests.create', 'placement-tests.show', 'placement-tests.edit', 'placement-tests.results.*']],
                     ['label' => 'Thang điểm & Hướng dẫn chấm', 'route' => 'placement-tests.rubric-guide'],
@@ -266,7 +254,6 @@ final class SidebarMenu
                 'id' => 'media',
                 'label' => 'Media & Tệp tin',
                 'icon' => 'perm_media',
-                'roles' => ['admin', 'manager'],
                 'items' => [
                     ['label' => 'Media & File lưu trữ', 'route' => 'media.index', 'active' => ['media.*']],
                 ],
@@ -275,16 +262,15 @@ final class SidebarMenu
                 'id' => 'personal',
                 'label' => 'Của tôi',
                 'icon' => 'person',
-                'roles' => self::REPORT_ROLES,
                 'items' => [
-                    ['label' => 'Báo cáo định kỳ của tôi', 'route' => 'reports.my', 'roles' => self::REPORT_ROLES],
+                    ['label' => 'Báo cáo định kỳ của tôi', 'route' => 'reports.my'],
                 ],
             ],
             [
                 'id' => 'permissions',
                 'label' => 'Phân quyền & Hệ thống',
                 'icon' => 'admin_panel_settings',
-                'roles' => ['admin', 'manager'],
+                'can' => ['role.view', 'permission.view', 'branch.view', 'activity_log.view'],
                 'items' => [
                     ['label' => 'Cơ sở & Chi nhánh', 'route' => 'branches.index', 'active' => ['branches.*']],
                     ['label' => 'Vai trò', 'route' => 'roles.index', 'active' => ['roles.*']],
@@ -294,7 +280,7 @@ final class SidebarMenu
                     ['label' => 'Tài khoản ngân hàng', 'route' => 'system-config.bank-accounts'],
                     ['label' => 'Thông số hosting & máy chủ', 'route' => 'system-config.hosting'],
                     ['label' => 'Nhật ký vận hành', 'route' => 'activity-logs.index', 'active' => ['activity-logs.*']],
-                    ['label' => 'Tổng hợp báo cáo & nhật ký', 'route' => 'reports.all', 'roles' => ['admin', 'manager']],
+                    ['label' => 'Tổng hợp báo cáo & nhật ký', 'route' => 'reports.all'],
                 ],
             ],
         ];
@@ -312,7 +298,7 @@ final class SidebarMenu
             ['label' => 'Tạo lớp', 'icon' => 'add_home', 'route' => 'classes.create', 'can' => ['class.create']],
             ['label' => 'Lập phiếu thu', 'icon' => 'receipt_long', 'route' => 'tuition.receipts.create', 'can' => ['tuition.create']],
             ['label' => 'Giao việc', 'icon' => 'assignment_add', 'route' => 'tasks.create', 'can' => ['work_task.create']],
-            ['label' => 'Tạo ticket hỗ trợ', 'icon' => 'confirmation_number', 'route' => 'tickets.create', 'roles' => self::STAFF_ROLES],
+            ['label' => 'Tạo ticket hỗ trợ', 'icon' => 'confirmation_number', 'route' => 'tickets.create', 'can' => ['portal.staff']],
         ];
     }
 
@@ -329,7 +315,7 @@ final class SidebarMenu
 
         $groups = [];
         foreach ($this->definition() as $group) {
-            if (! empty($group['roles']) && ! $user->hasAnyRole($group['roles'])) {
+            if (! empty($group['can']) && ! collect($group['can'])->contains(fn (string $ability) => $user->can($ability))) {
                 continue;
             }
 
@@ -393,10 +379,6 @@ final class SidebarMenu
         }
 
         if (! empty($item['can']) && ! collect($item['can'])->contains(fn (string $ability) => $user->can($ability))) {
-            return false;
-        }
-
-        if (! empty($item['roles']) && ! $user->hasAnyRole($item['roles'])) {
             return false;
         }
 

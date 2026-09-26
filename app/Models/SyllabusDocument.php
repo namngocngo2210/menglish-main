@@ -94,8 +94,9 @@ class SyllabusDocument extends Model
             return $query;
         }
 
-        $isTeacher = $user->hasAnyRole(['teacher', 'teacher_fulltime', 'teacher_parttime']);
-        $isAssistant = $user->hasRole('assistant');
+        // Tài liệu "dành cho giáo viên" / "dành cho trợ giảng": theo quyền đối tượng Cổng giáo viên / Cổng trợ giảng.
+        $isTeacher = $user->can('portal.teacher');
+        $isAssistant = $user->can('portal.assistant');
 
         return $query->where(function (Builder $q) use ($isTeacher, $isAssistant) {
             $q->whereRaw('1 = 0');

@@ -113,7 +113,7 @@
                                             <span class="material-symbols-outlined text-[13px]" aria-hidden="true">school</span>{{ $task->classModel->name }}{{ $task->lesson_session ? ' · '.$task->lesson_session : '' }}
                                         </span>
                                     @endif
-                                    @if ($task->time_slot_category && $task->assignee?->hasRole('assistant'))
+                                    @if ($task->time_slot_category && $task->assignee?->can('portal.assistant'))
                                         <span class="rounded bg-surface-container-high px-sm font-caption text-caption text-on-surface-variant">{{ $task->time_slot_category_label }}</span>
                                     @endif
                                 </div>

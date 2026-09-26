@@ -22,19 +22,19 @@ class Penalty extends Model
     public const PAYMENT_DUE_DAYS = 2;
 
     /**
-     * Loại lỗi → người chốt. Lỗi chuyên môn do Học thuật (HT) chốt; lỗi vận hành
-     * do Học vụ / Quản lý cơ sở (CM) chốt. Admin luôn được chốt.
+     * Loại lỗi → quyền chốt. Lỗi chuyên môn: violation.decide_academic (mặc định Học thuật — HT); lỗi vận hành:
+     * violation.decide_operations (mặc định Học vụ / Quản lý cơ sở — CM). Admin luôn được chốt.
      */
     public const CATEGORIES = [
         'academic' => [
             'label' => 'Lỗi chuyên môn / giảng dạy',
             'confirmer' => 'Học thuật (HT)',
-            'roles' => ['academic_lead'],
+            'permission' => 'violation.decide_academic',
         ],
         'operations' => [
             'label' => 'Lỗi vận hành / nội quy',
             'confirmer' => 'Học vụ / Quản lý (CM)',
-            'roles' => ['academic_staff', 'manager'],
+            'permission' => 'violation.decide_operations',
         ],
     ];
 
@@ -257,17 +257,16 @@ class Penalty extends Model
      */
     public function canBeDecidedBy(User $user): bool
     {
-        if ($user->id === $this->user_id && ! $user->hasRole('admin')) {
+        // Quan hệ: người vi phạm không tự chốt biên bản của mình (Super Admin được chốt mọi biên bản).
+        if ($user->id === $this->user_id && ! $user->isSuperAdmin()) {
             return false;
         }
-        if ($user->hasRole('admin')) {
-            return true;
-        }
 
-        $roles = self::CATEGORIES[$this->error_category]['roles']
-            ?? collect(self::CATEGORIES)->pluck('roles')->flatten()->all();
+        $permissions = isset(self::CATEGORIES[$this->error_category])
+            ? [self::CATEGORIES[$this->error_category]['permission']]
+            : collect(self::CATEGORIES)->pluck('permission')->all();
 
-        return $user->hasAnyRole($roles);
+        return collect($permissions)->contains(fn (string $permission) => $user->can($permission));
     }
 
     /** Biên bản đã được trừ vào bản ghi lương của một kỳ đã duyệt/đã chi trả. */

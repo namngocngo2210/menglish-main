@@ -50,7 +50,7 @@ class NotifyExpiringContractsCommand extends Command
             $daysLeft = (int) $today->diffInDays($member->contract_end_date->copy()->startOfDay());
 
             $recipients = $admins->merge(
-                $managers->filter(fn (User $manager) => in_array((int) $member->branch_id, $manager->managedBranchIds() ?? [], true))
+                $managers->filter(fn (User $manager) => in_array((int) $member->branch_id, $manager->branchIds(), true))
             )->unique('id')->reject(fn (User $recipient) => $recipient->id === $member->id);
 
             foreach ($recipients as $recipient) {

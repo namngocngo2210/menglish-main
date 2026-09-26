@@ -127,7 +127,7 @@
                         <h4 class="text-xs font-bold text-rose-900 uppercase">Lý do từ chối gần nhất (Phiếu: {{ $recentRejection->receipt_number }})</h4>
                         <p class="text-xs text-rose-800 mt-0.5 leading-relaxed">{{ $recentRejection->rejection_reason }}</p>
                         @if (! $editingReceipt && in_array($recentRejection->status, \App\Models\TuitionReceipt::EDITABLE_STATUSES, true)
-                            && ((int) $recentRejection->creator_id === (int) auth()->id() || auth()->user()?->hasRole('admin')))
+                            && ((int) $recentRejection->creator_id === (int) auth()->id() || auth()->user()?->isSuperAdmin()))
                             <a href="{{ route('tuition.receipts.edit', $recentRejection->id) }}" class="mt-1.5 inline-flex items-center gap-1 text-xs font-bold text-rose-700 underline">
                                 <span class="material-symbols-outlined text-sm">edit</span> Sửa phiếu bị trả về &amp; gửi duyệt lại
                             </a>
