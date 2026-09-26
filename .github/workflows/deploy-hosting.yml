@@ -135,17 +135,13 @@ jobs:
       - name: Migrate + cache (hook)
         run: |
           set -e
-          # LiteSpeed cache .htaccess vài giây: ngay sau khi thay public_html, route Laravel có thể còn 404 → thử lại.
-          for i in 1 2 3 4 5 6; do
-            status=$(curl -s -o hook.json -w '%{http_code}' --max-time 300 -X POST \
-              -H "X-Deploy-Token: ${{ secrets.DEPLOY_HOOK_TOKEN }}" \
-              -d "seed=${{ inputs.seed }}" \
-              "${{ secrets.APP_URL }}/_deploy/hook")
-            [ "$status" != "404" ] && break
-            echo "Hook 404 (lần $i), thử lại sau 10s..."
-            sleep 10
-          done
-          cat hook.json || true
+          # Gọi thẳng qua index.php: không phụ thuộc rewrite .htaccess của web server.
+          status=$(curl -s -o hook.json -w '%{http_code}' --max-time 300 -X POST \
+            -H "X-Deploy-Token: ${{ secrets.DEPLOY_HOOK_TOKEN }}" \
+            -d "seed=${{ inputs.seed }}" \
+            "${{ secrets.APP_URL }}/index.php/_deploy/hook")
+          echo "HTTP $status"
+          head -c 5000 hook.json || true
           test "$status" = "200"
 
       - name: Kiểm tra trang đăng nhập
@@ -153,3 +149,12 @@ jobs:
           status=$(curl -s -o /dev/null -w '%{http_code}' "${{ secrets.APP_URL }}/login")
           echo "HTTP $status"
           test "$status" = "200"
+
+      - name: Chẩn đoán khi lỗi
+        if: failure()
+        run: |
+          for path in / /login /index.php /index.php/login /robots.txt /build/manifest.json /.htaccess /_deploy-release.php; do
+            printf '%-24s ' "$path"
+            curl -s -o /dev/null -w '%{http_code}  server=%header{server}  powered=%header{x-powered-by}  location=%header{location}\n' \
+              --max-time 20 "${{ secrets.APP_URL }}$path" || echo "curl lỗi"
+          done
