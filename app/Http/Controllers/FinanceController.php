@@ -642,14 +642,20 @@ class FinanceController extends Controller
     }
 
     /**
-     * Chi nhánh người dùng được xem trong báo cáo thu chi. null = không giới hạn (Admin, Kế toán).
-     * Quản lý cơ sở chỉ thấy chi nhánh của mình (branch_id + user_branches).
+     * Chi nhánh người dùng được xem trong báo cáo thu chi. null = không giới hạn.
+     * Cùng quy tắc với màn Học phí (TuitionBranchScope): Admin và kế toán tổng (không gán chi nhánh) thấy toàn hệ
+     * thống; kế toán có gán chi nhánh chỉ thấy các chi nhánh đó; Quản lý cơ sở chỉ thấy chi nhánh của mình
+     * (branch_id + user_branches).
      *
      * @return \Illuminate\Support\Collection<int, int>|null
      */
     private function scopedBranchIds(?User $user): ?\Illuminate\Support\Collection
     {
-        if (! $user || $user->hasAnyRole(['admin', 'accountant']) || ! $user->hasRole('manager')) {
+        if (! $user || $user->hasRole('admin')) {
+            return null;
+        }
+        $isManager = $user->hasRole('manager');
+        if (! $isManager && ! $user->hasRole('accountant')) {
             return null;
         }
 
@@ -660,6 +666,9 @@ class FinanceController extends Controller
             ->unique()
             ->values();
 
+        if (! $isManager && $ids->isEmpty()) {
+            return null;
+        }
         abort_if($ids->isEmpty(), 403, 'Tài khoản Quản lý cơ sở chưa được gán chi nhánh nên không xem được báo cáo thu chi.');
 
         return $ids;
