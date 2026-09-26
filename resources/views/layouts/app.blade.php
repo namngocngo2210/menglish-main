@@ -84,7 +84,7 @@
                             $unreadNotifsCount = $notifService->getUnreadCount($currentUser);
                             $headerNotifs = $notifService->getUserNotifications($currentUser, 6);
                         @endphp
-                        <x-dropdown align="right" width="notification">
+                        <x-ui.dropdown align="right" width="notification">
                             <x-slot name="trigger">
                                 <button type="button" class="relative rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-primary" title="Thông báo & Cảnh báo" aria-label="Thông báo">
                                     <span class="material-symbols-outlined">notifications</span>
@@ -151,10 +151,10 @@
                                     </div>
                                 @endif
                             </x-slot>
-                        </x-dropdown>
+                        </x-ui.dropdown>
 
                         {{-- Tài khoản --}}
-                        <x-dropdown align="right" width="56">
+                        <x-ui.dropdown align="right" width="56">
                             <x-slot name="trigger">
                                 <button type="button" class="flex items-center gap-sm rounded-lg p-xs text-left transition-colors hover:bg-surface-container-low sm:border-l sm:border-surface-container-highest sm:pl-md" aria-label="Tài khoản">
                                     <span class="hidden text-right lg:block">
@@ -181,7 +181,7 @@
                                     </button>
                                 </form>
                             </x-slot>
-                        </x-dropdown>
+                        </x-ui.dropdown>
                     </div>
                 </header>
 

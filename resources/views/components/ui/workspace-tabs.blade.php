@@ -49,7 +49,7 @@
             @if ($buttons->isNotEmpty() || $menus->isNotEmpty())
                 <div class="flex shrink-0 flex-wrap items-center gap-sm pb-sm">
                     @foreach ($menus as $menuLabel => $menuItems)
-                        <x-dropdown align="right" width="64">
+                        <x-ui.dropdown align="right" width="64">
                             <x-slot name="trigger">
                                 <x-ui.button size="sm" variant="secondary" type="button" aria-haspopup="menu">
                                     {{ $menuLabel }}
@@ -67,7 +67,7 @@
                                     @endforeach
                                 </div>
                             </x-slot>
-                        </x-dropdown>
+                        </x-ui.dropdown>
                     @endforeach
                     @foreach ($buttons as $action)
                         <x-ui.button size="sm" :variant="$action['variant'] ?? 'primary'" :icon="$action['icon'] ?? null" :href="$action['url']" :modal="$action['modal'] ?? null">{{ $action['label'] }}</x-ui.button>

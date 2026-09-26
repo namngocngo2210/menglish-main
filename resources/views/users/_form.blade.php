@@ -74,14 +74,7 @@
                         </label>
                     @endforeach
                 </div>
-                @php($concurrentErrors = array_merge($errors->get('concurrent_roles'), collect($errors->get('concurrent_roles.*'))->flatten()->all()))
-                @if ($concurrentErrors)
-                    <ul class="mt-1 space-y-1 font-caption text-caption text-error" role="alert">
-                        @foreach ($concurrentErrors as $message)
-                            <li>{{ $message }}</li>
-                        @endforeach
-                    </ul>
-                @endif
+                <x-ui.errors class="mt-1" :messages="array_merge($errors->get('concurrent_roles'), collect($errors->get('concurrent_roles.*'))->flatten()->all())" />
             </fieldset>
         @endcan
 

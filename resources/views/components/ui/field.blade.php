@@ -1,17 +1,17 @@
 {{--
     <x-ui.field> — khung trường form: label (+ dấu * bắt buộc), control (slot), gợi ý, lỗi validate.
     Thường không dùng trực tiếp: <x-ui.input>/<x-ui.select>/<x-ui.textarea>/<x-ui.date> tự bọc field khi có `label`.
-    Props: label, name (để lấy lỗi $errors), for (id của control), required (bool), hint
+    Props: label, name (để lấy lỗi $errors), for (id của control), required (bool), hint, bag (error bag có tên, vd. updatePassword)
     Ví dụ:
       <x-ui.field label="Ghi chú" name="note" hint="Tối đa 500 ký tự">
           <textarea name="note" ...></textarea>
       </x-ui.field>
 --}}
-@props(['label' => null, 'name' => null, 'for' => null, 'required' => false, 'hint' => null])
+@props(['label' => null, 'name' => null, 'for' => null, 'required' => false, 'hint' => null, 'bag' => null])
 
 @php
     $errorKey = $name ? rtrim(str_replace(['[]', '[', ']'], ['', '.', ''], $name), '.') : null;
-    $message = $errorKey ? ($errors ?? new \Illuminate\Support\ViewErrorBag)->first($errorKey) : null;
+    $message = $errorKey ? (($errors ?? new \Illuminate\Support\ViewErrorBag)->getBag($bag ?? 'default'))->first($errorKey) : null;
 @endphp
 
 <div {{ $attributes->merge(['class' => 'flex flex-col gap-xs']) }}>

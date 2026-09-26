@@ -74,7 +74,7 @@
         @if ($taskId)
             <input type="hidden" name="task_id" value="{{ $taskId }}">
         @endif
-        <x-input-error :messages="array_merge($errors->get('class_id'), $errors->get('task_id'))" />
+        <x-ui.errors :messages="array_merge($errors->get('class_id'), $errors->get('task_id'))" />
 
         <div class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
             <div class="flex items-start gap-sm">
@@ -90,7 +90,7 @@
                     @endif
                     <x-ui.input name="session_name" :id="$p.'session_name'" :value="$task?->lesson_session" maxlength="255" aria-label="Tên buổi"
                            placeholder="{{ $sessionOptions->isNotEmpty() ? 'Hoặc nhập tên buổi (để trống = theo buổi đã chọn)' : 'VD: Buổi 5 - Listening Practice' }}" />
-                    <x-input-error :messages="array_merge($errors->get('session_name'), $errors->get('class_session_id'))" />
+                    <x-ui.errors :messages="array_merge($errors->get('session_name'), $errors->get('class_session_id'))" />
                 </div>
             </div>
         </div>
@@ -117,7 +117,7 @@
                     </label>
                 </div>
                 <p class="font-caption text-caption text-on-surface-variant">JPG, PNG, WEBP — tối đa 10 ảnh, mỗi ảnh ≤ 10MB.</p>
-                <x-input-error :messages="array_merge($errors->get('board_images'), collect($errors->get('board_images.*'))->flatten()->all())" />
+                <x-ui.errors :messages="array_merge($errors->get('board_images'), collect($errors->get('board_images.*'))->flatten()->all())" />
             </div>
         </div>
 
@@ -129,7 +129,7 @@
                 </h2>
                 <span class="font-caption text-caption text-on-surface-variant" x-text="supports.length + ' học sinh'"></span>
             </div>
-            <x-input-error :messages="collect($errors->get('supports.*'))->flatten()->all()" />
+            <x-ui.errors :messages="collect($errors->get('supports.*'))->flatten()->all()" />
             <p x-show="supports.length === 0" class="text-center font-body-small text-body-small italic text-on-surface-variant">Chưa có học sinh cần bổ trợ.</p>
             <template x-for="(sup, idx) in supports" :key="sup.id">
                 <div class="relative space-y-sm rounded-lg border border-outline-variant bg-surface-container-low p-sm">

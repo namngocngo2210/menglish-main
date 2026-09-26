@@ -64,13 +64,7 @@
                             <x-ui.button variant="ghost" icon="close" :href="route('activity-logs.index')">Xóa lọc</x-ui.button>
                         @endif
                     </div>
-                    @if ($dateErrors = array_merge($errors->get('date_from'), $errors->get('date_to')))
-                        <ul class="space-y-1 font-caption text-caption text-error" role="alert">
-                            @foreach ($dateErrors as $message)
-                                <li>{{ $message }}</li>
-                            @endforeach
-                        </ul>
-                    @endif
+                    <x-ui.errors :messages="array_merge($errors->get('date_from'), $errors->get('date_to'))" />
                 </form>
             </x-slot:header>
             <table>

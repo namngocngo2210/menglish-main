@@ -14,30 +14,15 @@
         @method('put')
 
         <div>
-            <x-ui.input id="update_password_current_password" name="current_password" type="password" :label="__('Mật khẩu hiện tại')" autocomplete="current-password" />
-            @foreach ($errors->updatePassword->get('current_password') as $message)
-                <p class="mt-1 flex items-center gap-xs font-caption text-caption text-error" role="alert">
-                    <span class="material-symbols-outlined text-[14px]" aria-hidden="true">error</span>{{ $message }}
-                </p>
-            @endforeach
+            <x-ui.input id="update_password_current_password" name="current_password" type="password" :label="__('Mật khẩu hiện tại')" bag="updatePassword" autocomplete="current-password" />
         </div>
 
         <div>
-            <x-ui.input id="update_password_password" name="password" type="password" :label="__('Mật khẩu mới')" autocomplete="new-password" />
-            @foreach ($errors->updatePassword->get('password') as $message)
-                <p class="mt-1 flex items-center gap-xs font-caption text-caption text-error" role="alert">
-                    <span class="material-symbols-outlined text-[14px]" aria-hidden="true">error</span>{{ $message }}
-                </p>
-            @endforeach
+            <x-ui.input id="update_password_password" name="password" type="password" :label="__('Mật khẩu mới')" bag="updatePassword" autocomplete="new-password" />
         </div>
 
         <div>
-            <x-ui.input id="update_password_password_confirmation" name="password_confirmation" type="password" :label="__('Xác nhận mật khẩu mới')" autocomplete="new-password" />
-            @foreach ($errors->updatePassword->get('password_confirmation') as $message)
-                <p class="mt-1 flex items-center gap-xs font-caption text-caption text-error" role="alert">
-                    <span class="material-symbols-outlined text-[14px]" aria-hidden="true">error</span>{{ $message }}
-                </p>
-            @endforeach
+            <x-ui.input id="update_password_password_confirmation" name="password_confirmation" type="password" :label="__('Xác nhận mật khẩu mới')" bag="updatePassword" autocomplete="new-password" />
         </div>
 
         <div class="flex items-center gap-3 pt-2">

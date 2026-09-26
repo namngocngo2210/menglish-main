@@ -43,7 +43,7 @@
                 </h2>
                 <span class="font-caption text-caption text-on-surface-variant" x-text="tasks.length + ' đầu việc'"></span>
             </div>
-            <x-input-error :messages="array_merge($errors->get('tasks'), collect($errors->get('tasks.*'))->flatten()->all())" />
+            <x-ui.errors :messages="array_merge($errors->get('tasks'), collect($errors->get('tasks.*'))->flatten()->all())" />
 
             <template x-for="(item, index) in tasks" :key="item.id">
                 <div class="relative space-y-sm rounded-lg border border-outline-variant bg-surface-container-low p-md">
