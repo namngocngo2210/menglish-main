@@ -46,10 +46,36 @@ class DeployHookTest extends TestCase
         $this->assertNotContains('db:seed', $commands($this->post('/_deploy/hook', [], ['X-Deploy-Token' => $token])));
 
         $this->app['env'] = 'production';
-        $blocked = $this->post('/_deploy/hook', ['seed' => 1], ['X-Deploy-Token' => $token]);
+        $blocked = $this->post('/_deploy/hook', ['seed' => 'demo'], ['X-Deploy-Token' => $token]);
         $step = collect($blocked->json('steps'))->firstWhere('command', 'db:seed');
         $this->assertNotNull($step);
         $this->assertSame(1, $step['exit']);
         $this->assertStringContainsString('production', $step['output']);
+    }
+
+    public function test_bootstrap_seed_creates_single_admin_only_on_empty_database(): void
+    {
+        $token = str_repeat('e', 64);
+        config(['app.deploy_hook_token' => $token]);
+        putenv('INITIAL_ADMIN_EMAIL=owner@meducation.vn');
+        putenv('INITIAL_ADMIN_PASSWORD=Very-Strong-Pass-123');
+        $this->app['env'] = 'production';
+
+        $this->post('/_deploy/hook', ['seed' => 'bootstrap'], ['X-Deploy-Token' => $token])->assertOk();
+
+        $this->assertSame(1, \App\Models\User::count());
+        $admin = \App\Models\User::first();
+        $this->assertSame('owner@meducation.vn', $admin->email);
+        $this->assertTrue($admin->hasRole('admin'));
+        $this->assertTrue((bool) $admin->must_change_password);
+        $this->assertSame(0, \App\Models\Branch::count());
+
+        // Chạy lại: không khởi tạo lại khi đã có người dùng.
+        $again = $this->post('/_deploy/hook', ['seed' => 'bootstrap'], ['X-Deploy-Token' => $token]);
+        $this->assertStringContainsString('đã có người dùng', collect($again->json('steps'))->firstWhere('command', 'db:seed')['output']);
+        $this->assertSame(1, \App\Models\User::count());
+
+        putenv('INITIAL_ADMIN_EMAIL');
+        putenv('INITIAL_ADMIN_PASSWORD');
     }
 }

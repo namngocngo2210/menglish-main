@@ -26,9 +26,10 @@ on:
         type: boolean
         default: true
       seed:
-        description: Chạy seed (vai trò, quyền, tài khoản mặc định, dữ liệu demo) — chỉ staging, bị chặn trên production
-        type: boolean
-        default: false
+        description: "Seed sau migrate: none | bootstrap (cài mới: vai trò, quyền, 1 Admin từ .env — chỉ khi DB chưa có user) | demo (dữ liệu demo, bị chặn trên production)"
+        type: choice
+        options: [none, bootstrap, demo]
+        default: none
 
 concurrency:
   group: deploy-${{ inputs.environment }}
@@ -133,7 +134,7 @@ jobs:
           set -e
           status=$(curl -s -o hook.json -w '%{http_code}' -X POST \
             -H "X-Deploy-Token: ${{ secrets.DEPLOY_HOOK_TOKEN }}" \
-            -d "seed=${{ inputs.seed && '1' || '0' }}" \
+            -d "seed=${{ inputs.seed }}" \
             "${{ secrets.APP_URL }}/_deploy/hook")
           cat hook.json || true
           test "$status" = "200"

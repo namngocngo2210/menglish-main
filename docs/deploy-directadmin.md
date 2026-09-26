@@ -44,9 +44,17 @@ Mỗi môi trường (staging `dungthu…`, production `portal…`) là một do
    ```
    (đường dẫn PHP xem trong DirectAdmin; nếu chọn PHP khác mặc định thường là `/usr/local/php83/bin/php`). Cron chạy: nhắc Big Test, nhắc nợ, chăm sóc tháng đầu, kết thúc bảo lưu, việc quá hạn, hợp đồng sắp hết hạn…
 
-## Staging mới (database trống)
+## Cài mới (database trống)
 
-Chạy workflow với **`seed` = tick**: sau migrate, hook chạy `db:seed` (vai trò, quyền, chi nhánh, tài khoản mặc định; với `APP_ENV=staging` có thêm dữ liệu demo — xem README "Kiểm tra nhanh toàn hệ thống" để biết tài khoản). Mật khẩu mặc định = `SEED_DEFAULT_PASSWORD` trong `.env` (mặc định `Password123!` — nên đặt giá trị khác). Tùy chọn này **bị chặn trên production**.
+Chạy workflow với tham số **`seed`**:
+
+| Giá trị | Dùng khi | Tạo gì |
+|---|---|---|
+| `bootstrap` | **Production** cài lần đầu (cũng dùng được cho staging) | Vai trò, quyền, danh mục hệ thống và **1 tài khoản Admin** lấy từ `.env` (`INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` ≥ 10 ký tự), bị bắt đổi mật khẩu lần đầu. Không tạo chi nhánh / nhân sự / dữ liệu demo. **Chỉ chạy khi database chưa có người dùng**; chạy lại sẽ tự bỏ qua. |
+| `demo` | Staging để thử nghiệm | Toàn bộ dữ liệu demo + tài khoản demo (README "Kiểm tra nhanh toàn hệ thống"), mật khẩu = `SEED_DEFAULT_PASSWORD`. **Bị chặn trên production.** |
+| `none` | Các lần deploy sau | Không seed |
+
+Sau khi `bootstrap` production: đăng nhập Admin → đổi mật khẩu → tạo **chi nhánh**, **tài khoản nhân sự** (gán vai trò + chi nhánh), **ngày nghỉ**, **khóa học / trình độ**, **tài khoản ngân hàng**, **dải số hóa đơn**, rồi mới nhập khách / học viên. Nên xóa `INITIAL_ADMIN_PASSWORD` khỏi `.env` sau khi đăng nhập được.
 
 ## Mỗi lần deploy
 

@@ -32,10 +32,19 @@ class DeployHookController extends Controller
         $run('optimize:clear');
         $migrateCode = $run('migrate', ['--force' => true]);
 
-        // Seed (vai trò, quyền, tài khoản mặc định + dữ liệu demo) — chỉ khi được yêu cầu và KHÔNG phải production.
-        if ($request->boolean('seed') && $migrateCode === 0) {
-            if (app()->environment('production')) {
-                $steps[] = ['command' => 'db:seed', 'exit' => 1, 'output' => 'Bị chặn: không chạy seed trên production.'];
+        // Seed:
+        //  - "bootstrap": vai trò, quyền, danh mục + 1 Admin từ .env — chỉ khi database CHƯA có người dùng (cài mới, kể cả production).
+        //  - "demo": toàn bộ DatabaseSeeder (tài khoản & dữ liệu demo) — bị chặn trên production.
+        $seed = (string) $request->input('seed', '');
+        if ($migrateCode === 0 && in_array($seed, ['bootstrap', 'demo', '1'], true)) {
+            if ($seed === 'bootstrap') {
+                if (\App\Models\User::query()->exists()) {
+                    $steps[] = ['command' => 'db:seed', 'exit' => 1, 'output' => 'Bỏ qua: database đã có người dùng, không khởi tạo lại.'];
+                } else {
+                    $run('db:seed', ['--class' => \Database\Seeders\ProductionBootstrapSeeder::class, '--force' => true]);
+                }
+            } elseif (app()->environment('production')) {
+                $steps[] = ['command' => 'db:seed', 'exit' => 1, 'output' => 'Bị chặn: không chạy seed demo trên production.'];
             } else {
                 $run('db:seed', ['--force' => true]);
             }
