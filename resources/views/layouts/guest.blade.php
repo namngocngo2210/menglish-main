@@ -14,7 +14,7 @@
         <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
 
         {{-- Font & icon được tự host qua Vite (resources/css/app.css) --}}
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @include('layouts.partials.assets')
     </head>
     <body class="bg-background font-body-base text-body-base text-on-surface antialiased">
         <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-background">

@@ -27,11 +27,9 @@
         </x-ui.alert>
     @endunless
 
-    <x-ui.filter-bar :search="null">
-        <x-ui.date name="from" inline-label="Từ ngày" :value="request('from')" />
-        <x-ui.date name="to" inline-label="Đến ngày" :value="request('to')" />
-        <x-ui.select name="status" inline-label="Trạng thái" :options="\App\Models\TimesheetSyncLog::STATUS_LABELS" placeholder="Tất cả trạng thái" />
-        <x-ui.button type="submit" icon="search">Lọc dữ liệu</x-ui.button>
+    <x-ui.filter-bar :search="false" submit-label="Lọc dữ liệu">
+        <x-ui.date-range label="Khoảng ngày" />
+        <x-ui.select name="status" label="Trạng thái" :options="\App\Models\TimesheetSyncLog::STATUS_LABELS" placeholder="Tất cả trạng thái" />
     </x-ui.filter-bar>
 
     <x-ui.data-table min-width="900px" x-data="{ open: null }">

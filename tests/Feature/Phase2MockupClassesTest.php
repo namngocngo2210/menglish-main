@@ -173,7 +173,7 @@ class Phase2MockupClassesTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('tasks.classes-dashboard', ['date' => '2026-10-07']))->assertOk()
             ->assertSee('Quản lý lịch học, điểm danh và chấm công giảng viên')
-            ->assertSee('Xuất báo cáo')->assertSee('Thêm lớp học')
+            ->assertSee('Xuất báo cáo')->assertSee('Tạo lớp mới')
             ->assertSee('Theo ngày')->assertSee('Theo tuần')->assertSee('Lọc thêm')
             ->assertSee('Chỉ được chấm công trong vòng 24h sau giờ học')
             ->assertSee('Xem điểm danh')

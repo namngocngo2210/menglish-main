@@ -2,9 +2,9 @@
     <x-ui.page-header title="Rà soát điểm danh (Học vụ)" icon="rule" />
 
     <div class="space-y-6">
-        <x-ui.filter-bar :search="null" class="!mb-0">
-            <x-ui.date name="date" :value="$date" />
-            <x-ui.select name="class_id" :value="$classId" placeholder="Tất cả lớp" :options="$classes->pluck('name', 'id')" />
+        <x-ui.filter-bar :search="false" class="!mb-0">
+            <x-ui.date name="date" label="Ngày" :value="$date" />
+            <x-ui.select name="class_id" label="Lớp" :value="$classId" placeholder="Tất cả lớp" :options="$classes->pluck('name', 'id')" />
         </x-ui.filter-bar>
 
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">

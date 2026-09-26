@@ -72,6 +72,13 @@
     aria-label="Menu chính"
     data-sidebar
 >
+    {{-- Nút thu gọn / mở rộng: nút tròn ở mép phải phần header của sidebar (chỉ màn ≥1200px; 768–1199px luôn dạng icon) --}}
+    <button type="button" @click="toggleCollapsed()" data-sidebar-toggle
+            :data-tooltip="collapsed ? 'Mở rộng menu' : 'Thu gọn menu'" :aria-expanded="(!collapsed).toString()" aria-label="Thu gọn / mở rộng menu"
+            class="absolute -right-3 top-5 z-50 hidden h-6 w-6 items-center justify-center rounded-full border border-surface-container-highest bg-surface-container-lowest text-on-surface-variant shadow-md transition-colors hover:bg-primary-container hover:text-white desktop:flex">
+        <span class="material-symbols-outlined text-[18px]" aria-hidden="true" x-text="collapsed ? 'chevron_right' : 'chevron_left'">chevron_left</span>
+    </button>
+
     {{-- Brand --}}
     <div class="flex h-header-height shrink-0 items-center gap-sm px-md md:justify-center md:px-0 desktop:justify-start desktop:px-md" data-sidebar-center>
         <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-sm rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container" title="Về trang tổng quan">
@@ -124,13 +131,6 @@
                 <span class="md:hidden desktop:inline" data-sidebar-text>Đăng xuất</span>
             </button>
         </form>
-        {{-- Thu gọn / mở rộng sidebar (chỉ màn ≥1200px; 768–1199px luôn dạng icon) --}}
-        <button type="button" @click="toggleCollapsed()" data-sidebar-center data-sidebar-toggle
-                :data-tooltip="collapsed ? 'Mở rộng menu' : null" :aria-expanded="(!collapsed).toString()" aria-label="Thu gọn / mở rộng menu"
-                class="hidden w-full items-center gap-md rounded-lg px-md py-sm font-body-medium text-body-medium text-surface-variant/70 transition-colors hover:bg-white/10 hover:text-white desktop:flex">
-            <span class="material-symbols-outlined shrink-0" aria-hidden="true" x-text="collapsed ? 'left_panel_open' : 'left_panel_close'">left_panel_close</span>
-            <span class="truncate" data-sidebar-text>Thu gọn menu</span>
-        </button>
     </div>
 
     {{-- Tooltip tên mục khi sidebar dạng icon (position fixed để không bị cắt bởi vùng cuộn) --}}

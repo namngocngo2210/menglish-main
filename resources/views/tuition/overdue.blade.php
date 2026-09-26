@@ -9,9 +9,9 @@
     </x-ui.page-header>
 
     <x-ui.filter-bar :action="route('tuition.overdue')" placeholder="Họ tên, SĐT hoặc mã học viên...">
-        <x-ui.select name="branch_id" :options="$branches->pluck('name', 'id')" placeholder="Tất cả chi nhánh" inline-label="Chi nhánh:" />
-        <x-ui.select name="class_id" :options="$classes->mapWithKeys(fn ($c) => [$c->id => $c->name.' ('.$c->code.')'])" placeholder="Tất cả lớp học" inline-label="Lớp:" />
-        <x-ui.select name="type" :options="['all' => 'Quá hạn & sắp đến hạn', 'overdue' => 'Chỉ quá hạn', 'upcoming' => 'Chỉ sắp đến hạn']" inline-label="Nhóm:" />
+        <x-ui.select name="branch_id" :options="$branches->pluck('name', 'id')" placeholder="Tất cả chi nhánh" label="Chi nhánh" />
+        <x-ui.select name="class_id" :options="$classes->mapWithKeys(fn ($c) => [$c->id => $c->name.' ('.$c->code.')'])" placeholder="Tất cả lớp học" label="Lớp" />
+        <x-ui.select name="type" :options="['all' => 'Quá hạn & sắp đến hạn', 'overdue' => 'Chỉ quá hạn', 'upcoming' => 'Chỉ sắp đến hạn']" label="Nhóm" />
     </x-ui.filter-bar>
 
     <div id="tuition-overdue-list" class="space-y-xl"

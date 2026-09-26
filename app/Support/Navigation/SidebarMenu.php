@@ -127,6 +127,10 @@ final class SidebarMenu
                     ['label' => 'Báo cáo đào tạo', 'route' => 'academic.dashboards.reports'],
                     ['label' => 'Nhật ký sự vụ lớp', 'route' => 'academic.dashboards.incidents'],
                 ]),
+                // Nút chung mọi tab Lớp học (trước nằm ở menu "Tạo mới" trên topbar); quyền theo middleware can:class.create.
+                'actions' => [
+                    ['label' => 'Tạo lớp mới', 'route' => 'classes.create', 'icon' => 'add'],
+                ],
             ],
             [
                 'id' => 'syllabus',

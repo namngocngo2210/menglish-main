@@ -60,7 +60,7 @@ class Phase1MockupParityTest extends TestCase
         $this->actingAs($this->manager)->get(route('crm.pipeline'))->assertOk()
             // Bộ lọc: tìm kiếm + Nguồn / Người phụ trách
             ->assertSee('Tìm họ tên, số điện thoại...')
-            ->assertSee('Nguồn:')->assertSee('Người phụ trách:')
+            ->assertSee('Nguồn')->assertSee('Người phụ trách')
             // Thẻ khách: phụ huynh, phụ trách, trạng thái hạn, nút chuyển bước
             ->assertSee('Phụ huynh: Anh Bình')->assertSee('Phụ trách:')
             ->assertSee('Quá hạn')->assertSee('Sắp hết hạn')->assertSee('Còn hạn')
@@ -73,7 +73,7 @@ class Phase1MockupParityTest extends TestCase
             ->assertDontSee('Hủy chốt');
 
         // Admin thấy thêm lọc chi nhánh
-        $this->actingAs($this->admin)->get(route('crm.pipeline'))->assertOk()->assertSee('Chi nhánh:');
+        $this->actingAs($this->admin)->get(route('crm.pipeline'))->assertOk()->assertSee('name="branch_id"', false);
     }
 
     // ── 2. Danh sách khách ───────────────────────────────────────────────
@@ -224,7 +224,7 @@ class Phase1MockupParityTest extends TestCase
         $this->actingAs($this->academic)->get(route('crm.customers.won'))->assertOk()
             ->assertSee('Chờ xếp lớp (Cần xử lý gấp)')->assertSee('Ưu tiên xử lý')->assertSee('Nguyễn Văn An')->assertSee('Gán lớp')
             ->assertSee('Chờ 8 ngày')
-            ->assertSee('Lớp học:')->assertSee('Nhập tên hoặc số điện thoại...')
+            ->assertSee('Lớp học')->assertSee('Nhập tên hoặc số điện thoại...')
             ->assertSee('Khách đã có lớp')->assertSee('Tải báo cáo chi tiết')->assertSee('Thời điểm chốt')
             ->assertSee('Movers A')->assertDontSee('Hủy chốt');
 
@@ -249,7 +249,7 @@ class Phase1MockupParityTest extends TestCase
         $this->actingAs($this->academic)->get(route('crm.confirmations'))->assertOk()
             ->assertSee('Khách hàng đã chốt thành công')->assertSee('học viên')
             ->assertSee('Chờ xếp lớp (Cần xử lý gấp)')->assertSee('Nguyễn Hoàng Anh')->assertSee('Gán lớp')
-            ->assertSee('Chi nhánh:')->assertSee('Lớp học:')->assertSee('Tìm kiếm học viên...')
+            ->assertSee('Chi nhánh')->assertSee('Lớp học')->assertSee('Tìm kiếm học viên...')
             ->assertSee('Khách đã có lớp')->assertSee('Lớp ID: IF-202310')->assertSee('Ngày chốt')->assertSee('Trạng thái')
             ->assertSee('Chờ khai giảng')->assertSee('Xác nhận chính thức')->assertSee('Xác nhận học viên')
             ->assertDontSee('@js(', false)

@@ -66,8 +66,8 @@
 
             <x-ui.filter-bar placeholder="Tìm kiếm học viên..." class="!mb-0">
                 <input type="hidden" name="status" value="{{ $status }}">
-                <x-ui.select name="branch_id" inline-label="Chi nhánh:" :options="$filterBranches->pluck('name', 'id')" placeholder="Tất cả chi nhánh" aria-label="Chi nhánh" />
-                <x-ui.select name="class_id" inline-label="Lớp học:" :options="$filterClasses->pluck('name', 'id')" placeholder="Tất cả lớp" aria-label="Lớp học" />
+                <x-ui.select name="branch_id" label="Chi nhánh" :options="$filterBranches->pluck('name', 'id')" placeholder="Tất cả chi nhánh" />
+                <x-ui.select name="class_id" label="Lớp học" :options="$filterClasses->pluck('name', 'id')" placeholder="Tất cả lớp" />
             </x-ui.filter-bar>
 
             <x-ui.data-table min-width="1180px">

@@ -8,7 +8,15 @@
 @import '@fontsource/be-vietnam-pro/700.css';
 @import '@fontsource/jetbrains-mono/400.css';
 @import '@fontsource/jetbrains-mono/500.css';
-@import '@fontsource-variable/material-symbols-outlined/fill.css';
+/* Material Symbols: file tĩnh public/fonts (được preload trong <head>, xem layouts/partials/assets).
+   font-display: block => khi font chưa tải xong icon ẩn (không hiện chữ tên icon như "dashboard"). */
+@font-face {
+    font-family: 'Material Symbols Outlined Variable';
+    font-style: normal;
+    font-display: block;
+    font-weight: 100 700;
+    src: url('/fonts/material-symbols-outlined.woff2') format('woff2-variations'), url('/fonts/material-symbols-outlined.woff2') format('woff2');
+}
 
 @tailwind base;
 @tailwind components;
@@ -34,6 +42,9 @@
     letter-spacing: normal;
     text-transform: none;
     display: inline-block;
+    /* Giữ đúng 1 ô vuông icon: tên icon (ligature) không tràn chữ ra ngoài trong lúc tải font */
+    width: 1em;
+    overflow: hidden;
     white-space: nowrap;
     word-wrap: normal;
     direction: ltr;

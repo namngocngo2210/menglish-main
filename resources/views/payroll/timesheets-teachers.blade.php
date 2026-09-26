@@ -45,16 +45,15 @@
             @endif
         </div>
 
-        <x-ui.filter-bar placeholder="Tìm giáo viên..." :search="$canViewAll ? 'search' : null">
-            <x-ui.input type="month" name="month" :value="$month" inline-label="Kỳ lương:" />
+        <x-ui.filter-bar placeholder="Tìm giáo viên..." :search="$canViewAll ? 'search' : false">
+            <x-ui.input type="month" name="month" :value="$month" label="Kỳ lương" />
             @if ($canViewAll)
-                <x-ui.select name="branch_id" :options="$filterBranches->pluck('name', 'id')" placeholder="Tất cả chi nhánh" aria-label="Chi nhánh" />
-                <x-ui.select name="class_id" :options="$filterClasses->mapWithKeys(fn ($c) => [$c->id => $c->name.' ('.$c->code.')'])" placeholder="Tất cả lớp học" aria-label="Lớp học" />
-                <x-ui.select name="user_id" :options="$filterTeachers->pluck('name', 'id')" placeholder="Tất cả giáo viên" aria-label="Giáo viên" />
+                <x-ui.select name="branch_id" :options="$filterBranches->pluck('name', 'id')" placeholder="Tất cả chi nhánh" label="Chi nhánh" />
+                <x-ui.select name="class_id" :options="$filterClasses->mapWithKeys(fn ($c) => [$c->id => $c->name.' ('.$c->code.')'])" placeholder="Tất cả lớp học" label="Lớp học" />
+                <x-ui.select name="user_id" :options="$filterTeachers->pluck('name', 'id')" placeholder="Tất cả giáo viên" label="Giáo viên" />
             @endif
-            <x-ui.select name="status" :options="['pending_review' => 'Chờ đối soát', 'valid' => 'Hợp lệ', 'invalid' => 'Từ chối']" placeholder="Tất cả trạng thái" aria-label="Trạng thái" />
-            <x-ui.select name="type" :options="['regular' => 'Ca dạy chính khóa', 'sub' => 'Dạy thay', '1on1' => 'Kèm 1-1 / bổ trợ', 'grading' => 'Chấm bài thi', 'workshop' => 'Workshop / Sự kiện']" placeholder="Mọi loại ca" aria-label="Loại ca" />
-            <x-ui.button type="submit" variant="secondary" icon="filter_list">Lọc</x-ui.button>
+            <x-ui.select name="status" :options="['pending_review' => 'Chờ đối soát', 'valid' => 'Hợp lệ', 'invalid' => 'Từ chối']" placeholder="Tất cả trạng thái" label="Trạng thái" />
+            <x-ui.select name="type" :options="['regular' => 'Ca dạy chính khóa', 'sub' => 'Dạy thay', '1on1' => 'Kèm 1-1 / bổ trợ', 'grading' => 'Chấm bài thi', 'workshop' => 'Workshop / Sự kiện']" placeholder="Mọi loại ca" label="Loại ca" />
         </x-ui.filter-bar>
 
         @if ($canViewAll && $subPendingCount > 0)

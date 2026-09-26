@@ -3,9 +3,6 @@
     <x-ui.page-header title="Dashboard lớp học" description="Quản lý lịch học, điểm danh và chấm công giảng viên">
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="download" :href="request()->fullUrlWithQuery(['export' => 1])" title="Xuất Excel đúng dữ liệu đang xem">Xuất báo cáo</x-ui.button>
-            @can('class.create')
-                <x-ui.button icon="add" :href="route('classes.create')">Thêm lớp học</x-ui.button>
-            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -20,14 +17,14 @@
 
     @if ($tab === 'day')
         {{-- ─── THEO NGÀY ─── --}}
-        <x-ui.filter-bar :search="null" :action="route('tasks.classes-dashboard')" x-data="{ more: {{ $attendanceFilter || $teacherFilter ? 'true' : 'false' }} }">
+        <x-ui.filter-bar :search="false" :action="route('tasks.classes-dashboard')" x-data="{ more: {{ $attendanceFilter || $teacherFilter ? 'true' : 'false' }} }">
             <input type="hidden" name="tab" value="day">
-            <x-ui.select name="branch_id" inline-label="Chi nhánh:" :options="$branches->pluck('name', 'id')" :value="$branchId" placeholder="Tất cả chi nhánh" />
-            <x-ui.date name="date" inline-label="Chọn ngày:" :value="$date" />
-            <x-ui.button variant="secondary" icon="filter_list" x-on:click="more = !more" ::aria-expanded="more">Lọc thêm</x-ui.button>
-            <div x-show="more" x-cloak class="flex w-full flex-wrap items-center gap-md">
-                <x-ui.select name="teacher_id" inline-label="Giáo viên:" :options="$dayTeachers->pluck('name', 'id')" :value="$teacherFilter" placeholder="Tất cả giáo viên" />
-                <x-ui.select name="attendance" inline-label="Điểm danh:" :options="['done' => 'Đã điểm danh', 'missing' => 'Chưa điểm danh', 'upcoming' => 'Chưa diễn ra', 'cancelled' => 'Hủy / nghỉ lễ']" :value="$attendanceFilter" placeholder="Tất cả trạng thái" />
+            <x-ui.select name="branch_id" label="Chi nhánh" :options="$branches->pluck('name', 'id')" :value="$branchId" placeholder="Tất cả chi nhánh" />
+            <x-ui.date name="date" label="Chọn ngày" :value="$date" />
+            <div><x-ui.button variant="ghost" icon="tune" x-on:click="more = !more" ::aria-expanded="more">Lọc thêm</x-ui.button></div>
+            <div x-show="more" x-cloak class="contents">
+                <x-ui.select name="teacher_id" label="Giáo viên" :options="$dayTeachers->pluck('name', 'id')" :value="$teacherFilter" placeholder="Tất cả giáo viên" />
+                <x-ui.select name="attendance" label="Điểm danh" :options="['done' => 'Đã điểm danh', 'missing' => 'Chưa điểm danh', 'upcoming' => 'Chưa diễn ra', 'cancelled' => 'Hủy / nghỉ lễ']" :value="$attendanceFilter" placeholder="Tất cả trạng thái" />
             </div>
         </x-ui.filter-bar>
 
@@ -159,10 +156,10 @@
         </div>
     @else
         {{-- ─── THEO TUẦN (ma trận khung giờ) ─── --}}
-        <x-ui.filter-bar :search="null" :action="route('tasks.classes-dashboard')">
+        <x-ui.filter-bar :search="false" :action="route('tasks.classes-dashboard')">
             <input type="hidden" name="tab" value="week">
-            <x-ui.select name="branch_id" inline-label="Chi nhánh:" :options="$branches->pluck('name', 'id')" :value="$branchId" placeholder="Tất cả chi nhánh" />
-            <x-ui.input type="week" name="week" inline-label="Chọn tuần:" :value="$week" />
+            <x-ui.select name="branch_id" label="Chi nhánh" :options="$branches->pluck('name', 'id')" :value="$branchId" placeholder="Tất cả chi nhánh" />
+            <x-ui.input type="week" name="week" label="Chọn tuần" :value="$week" />
         </x-ui.filter-bar>
 
         <div class="mb-md flex flex-wrap items-center gap-md font-caption text-caption text-on-surface-variant">

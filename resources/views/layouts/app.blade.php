@@ -47,7 +47,7 @@
         <script>try { if (localStorage.getItem('sidebar_collapsed') === '1') document.documentElement.classList.add('sidebar-collapsed'); } catch (e) {}</script>
 
         {{-- Font & icon được tự host qua Vite (resources/css/app.css) --}}
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @include('layouts.partials.assets')
     </head>
     {{-- hx-headers: mọi request htmx (modal, làm mới danh sách) mang CSRF token --}}
     <body class="bg-background font-body-base text-body-base text-on-surface antialiased" hx-headers="{{ json_encode(['X-CSRF-TOKEN' => csrf_token()]) }}">

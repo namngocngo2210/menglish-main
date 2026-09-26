@@ -16,10 +16,9 @@
         </x-slot:actions>
     </x-ui.page-header>
 
-    <x-ui.filter-bar placeholder="Tìm nhân sự (tên, mã NV)...">
-        <x-ui.select name="period" :options="$periodOptions" :value="$periodValue" aria-label="Kỳ đánh giá" />
-        <x-ui.select name="role" :options="$roleOptions" placeholder="Mọi vai trò" aria-label="Vai trò" />
-        <x-ui.button type="submit" variant="secondary" icon="filter_list">Xem</x-ui.button>
+    <x-ui.filter-bar placeholder="Tìm nhân sự (tên, mã NV)..." submit-label="Xem">
+        <x-ui.select name="period" :options="$periodOptions" :value="$periodValue" label="Kỳ đánh giá" />
+        <x-ui.select name="role" :options="$roleOptions" placeholder="Mọi vai trò" label="Vai trò" />
     </x-ui.filter-bar>
 
     <x-ui.data-table min-width="860px">

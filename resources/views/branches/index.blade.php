@@ -37,8 +37,8 @@
 
         {{-- Filter & Search Bar --}}
         <x-ui.filter-bar :action="route('branches.index')" :reset-url="route('branches.index')" placeholder="Tìm tên, mã, địa chỉ, số hotline..." class="!mb-0">
-            <x-ui.select name="status" :options="['1' => 'Đang hoạt động', '0' => 'Tạm dừng']" placeholder="Tất cả trạng thái" aria-label="Trạng thái" onchange="this.form.submit()" />
-            <div class="text-xs text-on-surface-variant font-mono shrink-0">
+            <x-ui.select name="status" :options="['1' => 'Đang hoạt động', '0' => 'Tạm dừng']" placeholder="Tất cả trạng thái" label="Trạng thái" onchange="this.form.submit()" />
+            <div class="self-center font-body-small text-body-small text-on-surface-variant">
                 Hiển thị: <strong>{{ $branches->count() }}</strong> cơ sở chi nhánh
             </div>
         </x-ui.filter-bar>
