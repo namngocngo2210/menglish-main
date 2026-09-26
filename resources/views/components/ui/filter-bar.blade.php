@@ -1,6 +1,6 @@
 {{--
     <x-ui.filter-bar> — thanh bộ lọc CHUNG (form GET) dạng lưới đều cột: ô tìm kiếm (rộng 2 cột) + các control trong slot
-    + nhóm nút Lọc / Xoá lọc luôn căn ở cột cuối bên phải.
+    + nhóm nút Lọc / Xoá lọc luôn căn ở cột cuối bên phải. Slot `quick`: hàng lọc nhanh ở đầu khung (vd. <x-ui.workspace-chips />).
     - Control trong slot nên có `label` (nhãn nằm trên, các ô thẳng hàng đáy); khoảng ngày dùng <x-ui.date-range> (rộng 2 cột).
     - Phần tử muốn chiếm 2 cột: class="sm:col-span-2"; nhóm control ẩn/hiện: bọc <div class="contents">.
     Props: action (mặc định URL hiện tại), search (tên tham số tìm kiếm; false = không có ô tìm — không dùng null vì Blade coi null là "không truyền"), placeholder,
@@ -21,6 +21,12 @@
 
 <form method="GET" action="{{ $action }}" role="search"
       {{ $attributes->merge(['class' => 'mb-lg rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm']) }}>
+    @isset($quick)
+        {{-- Lọc nhanh (vd. <x-ui.workspace-chips />) nằm trong cùng khung bộ lọc --}}
+        @if (trim($quick) !== '')
+            <div class="mb-md border-b border-surface-container-highest pb-md">{{ $quick }}</div>
+        @endif
+    @endisset
     <div class="grid grid-cols-1 items-end gap-md sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6" data-filter-grid>
         @if ($search)
             <x-ui.field label="Tìm kiếm" class="sm:col-span-2">

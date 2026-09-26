@@ -109,8 +109,9 @@ class Phase1MockupParityTest extends TestCase
             ->assertSee('Lưu thông tin')->assertSee('Hủy');
 
         $lead = $this->lead('consulting', ['name' => 'Khách Sửa', 'parent_name' => 'Trần Thị Lan']);
-        $this->actingAs($this->manager)->get(route('crm.customers.edit', $lead))->assertOk()
-            ->assertSee('Sửa thông tin khách')->assertSee('Trần Thị Lan')
+        // Sửa thông tin: form nằm trong tab "Thông tin khách hàng" của hồ sơ đầy đủ.
+        $this->actingAs($this->manager)->get(route('crm.customers.show', ['id' => $lead->id, 'tab' => 'info']))->assertOk()
+            ->assertSee('Thông tin khách hàng')->assertSee('Trần Thị Lan')
             ->assertSee('Không thể thay đổi nếu học viên đã có lớp')->assertSee('Lưu thay đổi')
             ->assertDontSee('Closing Wizard');
     }
@@ -127,7 +128,7 @@ class Phase1MockupParityTest extends TestCase
             ->assertSee('Số điện thoại')->assertSee('Tên phụ huynh')->assertSee('SĐT phụ huynh')->assertSee('0909 888 999')
             ->assertSee('Người phụ trách')->assertSee('Chi nhánh')->assertSee('Cơ sở Đội Cấn')
             ->assertSee('Trạng thái &amp; Hạn xử lý', false)->assertSee('Giai đoạn hiện tại')->assertSee('Còn 2 giờ')
-            ->assertSee('Đặt lịch &amp; Kết quả', false)->assertSee('Thông tin mở rộng')
+            ->assertSee('Đặt lịch &amp; Kết quả', false)->assertSee('Thông tin khách hàng')
             ->assertSee('Lịch hẹn Test')->assertSee('Gửi kết quả &amp; Phản hồi', false)->assertSee('Kết quả &amp; Đánh giá', false)
             ->assertSee('Nhận xét học thử')->assertSee('Chưa có nhận xét từ buổi học thử.')
             ->assertSee('Lịch sử hoạt động')->assertSee('Tất cả hoạt động')->assertSee('Hình thức:')->assertSee('Zalo/SMS')

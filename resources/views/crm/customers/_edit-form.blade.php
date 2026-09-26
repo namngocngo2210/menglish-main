@@ -1,5 +1,5 @@
 {{--
-    Form Sửa thông tin khách — dùng chung trang đầy đủ (crm/edit) và modal ($asModal: id tiền tố "modal-", nút Lưu ở footer).
+    Form Sửa thông tin khách — nằm trong tab "Thông tin khách hàng" của hồ sơ (crm/show). ($asModal: id tiền tố "modal-", nút Lưu ở footer.)
     Trường hợp đồng khóa sau chốt (A3): Giá trị hợp đồng, Cơ sở, Khóa đăng ký.
     Biến: $customer, $branches, $salesUsers, $leadSources, $courseNames, $asModal (bool, tuỳ chọn).
 --}}
@@ -12,6 +12,8 @@
 <form action="{{ route('crm.customers.update', $customer->id) }}" method="POST" id="{{ $asModal ? 'modal-customer-form' : 'edit-lead-form' }}" @class(['space-y-md', 'p-lg' => ! $asModal])>
     @csrf
     @method('PUT')
+    {{-- Lỗi validate → quay lại hồ sơ mở sẵn tab "Thông tin khách hàng" --}}
+    <input type="hidden" name="_tab" value="info">
 
     @if ($locked)
         <x-ui.alert type="warning">Khách đã <strong>{{ $customer->stage_label }}</strong>: {{ implode(', ', \App\Models\CrmCustomer::CONTRACT_LOCKED_FIELDS) }} đã khóa, không sửa được tại đây.</x-ui.alert>
@@ -76,7 +78,7 @@
 
     @unless ($asModal)
         <div class="flex items-center justify-end gap-md pt-lg">
-            <x-ui.button variant="secondary" :href="route('crm.customers.show', $customer->id)">Hủy</x-ui.button>
+            <x-ui.button variant="secondary" type="reset">Hoàn tác</x-ui.button>
             <x-ui.button type="submit" icon="save">Lưu thay đổi</x-ui.button>
         </div>
     @endunless

@@ -7,6 +7,7 @@
     $exportLabel ??= 'Xuất Excel';
 @endphp
 <x-ui.filter-bar :placeholder="$searchPlaceholder">
+    <x-slot:quick><x-ui.workspace-chips workspace="crm" /></x-slot:quick>
     {{-- Thứ tự & nhãn theo mockup pipeline-tong-quan-giai-doan: Nguồn → Người phụ trách → Chi nhánh --}}
     <x-ui.select name="source" label="Nguồn" :options="$filterSources->mapWithKeys(fn ($s) => [$s => $s])" placeholder="Tất cả nguồn" />
     <x-ui.select name="assigned_user_id" label="Người phụ trách" :options="$filterSales->pluck('name', 'id')" placeholder="Tất cả nhân viên" />

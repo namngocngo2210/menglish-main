@@ -29,5 +29,6 @@
             'deleted' => $crmVisible()->onlyTrashed()->count(),
         ];
     @endphp
-    <x-ui.workspace-tabs workspace="crm" :counts="$crmChipCounts" class="!mb-0 !border-b-0" />
+    @php(request()->attributes->set('workspace_chip_counts', $crmChipCounts))
+    <x-ui.workspace-tabs workspace="crm" class="!mb-0 !border-b-0" />
 </div>

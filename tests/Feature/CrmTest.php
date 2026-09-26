@@ -91,7 +91,7 @@ class CrmTest extends TestCase
             'source' => 'Hotline',
         ]);
 
-        $response->assertRedirect(route('crm.customers.show', $customer->id));
+        $response->assertRedirect(route('crm.customers.show', ['id' => $customer->id, 'tab' => 'info']));
         $this->actingAs($user)->post(route('crm.customers.stage', $customer->id), ['stage' => 'consulting']);
 
         $this->assertDatabaseHas('crm_customers', [
