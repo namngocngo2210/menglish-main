@@ -94,7 +94,8 @@ class WorkspaceNavigationTest extends TestCase
     public function test_each_route_belongs_to_exactly_one_place(): void
     {
         $menu = app(SidebarMenu::class);
-        $routes = collect($menu->definition())->flatMap(fn (array $group) => collect($group['items'])->pluck('route'))
+        // Chip lọc theo query (vd. Danh sách ?sla=1) dùng lại route của tab cha, không phải màn riêng.
+        $routes = collect($menu->definition())->flatMap(fn (array $group) => collect($group['items'])->filter(fn (array $item) => empty($item['query']))->pluck('route'))
             ->merge(collect($menu->settingsDefinition())->flatMap(fn (array $section) => collect($section['items'])->pluck('route')));
 
         $this->assertSame([], $routes->countBy()->filter(fn ($n) => $n > 1)->keys()->all());
@@ -141,8 +142,8 @@ class WorkspaceNavigationTest extends TestCase
         $this->assertStringNotContainsString('href="'.route('tuition.receipts.approve').'"', $html);
         $this->assertStringContainsString('href="'.route('tuition.receipts.create').'"', $html);
 
-        // Sales: tab "Đã xóa" cần lead.delete.
-        $html = $this->actingAs($this->makeUser('sales_consultant'))->get(route('crm.pipeline'))->assertOk()->getContent();
+        // Sales: chip "Đã xóa" (dưới tab Danh sách) cần lead.delete.
+        $html = $this->actingAs($this->makeUser('sales_consultant'))->get(route('crm.customers.index'))->assertOk()->getContent();
         $this->assertStringContainsString('data-workspace-tabs="crm"', $html);
         $this->assertStringNotContainsString('href="'.route('crm.customers.deleted').'"', $html);
         $this->assertStringContainsString('href="'.route('crm.lost-deals').'"', $html);
@@ -254,5 +255,40 @@ class WorkspaceNavigationTest extends TestCase
         $user->syncRoles([$role]);
 
         return $this->users[$role] = $user;
+    }
+
+    public function test_crm_tabs_are_compact_with_quick_filters_and_menu(): void
+    {
+        $html = $this->actingAs($this->makeUser('admin'))->get(route('crm.customers.index'))->assertOk()->getContent();
+        $bar = substr($html, strpos($html, 'data-workspace-tabs="crm"'));
+
+        // Chỉ 2 tab; các màn khác là chip lọc nhanh / menu "Xếp lớp".
+        $tabs = substr($bar, 0, strpos($bar, 'data-workspace-chips'));
+        $this->assertStringContainsString('Kanban', $tabs);
+        $this->assertStringNotContainsString('>Chờ xếp lớp<', $tabs);
+        $this->assertStringContainsString('data-workspace-chips', $bar);
+        $this->assertStringContainsString(route('crm.customers.index', ['sla' => 1]), $bar);
+        $this->assertStringContainsString(route('crm.waiting-list'), $bar);
+        $this->assertStringContainsString('data-workspace-menu="Xếp lớp"', $bar);
+        $this->assertStringContainsString(route('crm.confirmations'), $bar);
+        $this->assertStringContainsString(route('crm.closing-wizard'), $bar);
+        $this->assertStringNotContainsString(route('crm.reports'), $bar);
+
+        // Trang con (chip) vẫn thuộc workspace CRM, tab Danh sách đang mở.
+        $this->get(route('crm.lost-deals'))->assertOk()->assertSee('data-workspace-chips', false);
+    }
+
+    public function test_crm_sla_quick_filter_lists_only_stale_new_leads(): void
+    {
+        $admin = $this->makeUser('admin');
+        $make = fn (string $name) => \App\Models\CrmCustomer::create([
+            'code' => \App\Models\CrmCustomer::generateCode(), 'name' => $name,
+            'phone' => '09'.random_int(10000000, 99999999), 'stage' => 'new',
+        ]);
+        $make('Khách Quá Hạn SLA')->forceFill(['created_at' => now()->subHours(30)])->saveQuietly();
+        $make('Khách Mới Toanh');
+
+        $this->actingAs($admin)->get(route('crm.customers.index', ['sla' => 1]))->assertOk()
+            ->assertSee('Khách Quá Hạn SLA')->assertDontSee('Khách Mới Toanh');
     }
 }

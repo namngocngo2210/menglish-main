@@ -93,7 +93,9 @@ class NavigationMenuPermissionTest extends TestCase
         foreach ($sections as $group) {
             foreach ($group['items'] as $item) {
                 $this->assertDoesNotMatchRegularExpression('/\(#\d+\)|#\d+\)/', $item['label']);
-                $routes[] = $item['route'];
+                if (empty($item['query'])) { // chip lọc theo query dùng lại route của tab cha
+                    $routes[] = $item['route'];
+                }
             }
         }
 

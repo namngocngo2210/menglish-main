@@ -16,5 +16,18 @@
         </x-slot:actions>
     </x-ui.page-header>
 
-    <x-ui.workspace-tabs workspace="crm" class="!mb-0 !border-b-0" />
+    @php
+        // Số trên chip lọc nhanh (theo phạm vi dữ liệu của user).
+        $crmVisible = fn () => \App\Models\CrmCustomer::query()->visibleTo(auth()->user());
+        $crmStageCounts = $crmVisible()->whereIn('stage', ['waiting_class', 'won', 'lost'])
+            ->selectRaw('stage, count(*) as total')->groupBy('stage')->pluck('total', 'stage');
+        $crmChipCounts = [
+            'sla' => $crmVisible()->staleNew()->count(),
+            'waiting_class' => (int) ($crmStageCounts['waiting_class'] ?? 0),
+            'won' => (int) ($crmStageCounts['won'] ?? 0),
+            'lost' => (int) ($crmStageCounts['lost'] ?? 0),
+            'deleted' => $crmVisible()->onlyTrashed()->count(),
+        ];
+    @endphp
+    <x-ui.workspace-tabs workspace="crm" :counts="$crmChipCounts" class="!mb-0 !border-b-0" />
 </div>

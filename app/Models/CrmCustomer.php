@@ -163,6 +163,12 @@ class CrmCustomer extends Model
         });
     }
 
+    /** Khách "Mới" quá 24h chưa được tiếp nhận (SLA liên hệ 24h, cùng tiêu chí cảnh báo stale_lead_24h). */
+    public function scopeStaleNew(Builder $query): Builder
+    {
+        return $query->where('stage', 'new')->where('created_at', '<=', now()->subHours(24));
+    }
+
     /**
      * Phạm vi dữ liệu CRM theo quyền "lead.scope_*" (DataScope; mặc định theo BA 2026-09-25):
      * - Toàn hệ thống (Admin): mọi khách.

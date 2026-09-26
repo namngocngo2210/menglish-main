@@ -280,6 +280,10 @@ class CrmController extends Controller
         if ($stage = $request->input('stage')) {
             $query->where('stage', $stage);
         }
+        // Lọc nhanh "Chưa liên hệ >24h" (chip trên header CRM).
+        if ($request->boolean('sla')) {
+            $query->staleNew();
+        }
 
         $dbCustomers = $query->paginate($request->perPage(15))->withQueryString();
 
