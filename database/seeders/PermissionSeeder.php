@@ -2,21 +2,25 @@
 
 namespace Database\Seeders;
 
+use App\Support\PermissionCatalog;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class PermissionSeeder extends Seeder
 {
     /**
-     * Run the database seeds. Đọc toàn bộ permission từ config/access.php,
-     * tạo theo format "module.action" cho guard "web". Idempotent.
+     * Tạo mọi permission của danh mục (config/permission_catalog.php) + quyền gán vai trò "user.assign_role.<vai trò>"
+     * cho các vai trò mặc định và vai trò đang có. CHỈ THÊM (findOrCreate) — không xóa, không đổi gán quyền.
      */
     public function run(): void
     {
-        foreach (config('access.permissions', []) as $module => $actions) {
-            foreach ($actions as $action) {
-                Permission::findOrCreate("{$module}.{$action}", 'web');
-            }
+        $roles = collect(array_keys(config('access.roles', [])))
+            ->merge(Role::query()->where('guard_name', 'web')->pluck('name'))
+            ->unique();
+
+        foreach (PermissionCatalog::allPermissions($roles) as $name) {
+            Permission::findOrCreate($name, 'web');
         }
     }
 }
