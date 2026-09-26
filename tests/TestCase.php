@@ -20,6 +20,12 @@ abstract class TestCase extends BaseTestCase
 
     protected function setUp(): void
     {
+        // Database test dạng file (phpunit.xml): tạo sẵn khi chưa có (CI / máy mới clone).
+        $testDb = dirname(__DIR__).'/database/testing.sqlite';
+        if (! file_exists($testDb)) {
+            touch($testDb);
+        }
+
         parent::setUp();
         \Illuminate\Support\Facades\Mail::fake();
     }
