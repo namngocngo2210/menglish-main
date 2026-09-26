@@ -199,6 +199,70 @@ class Phase4PlatformParityTest extends TestCase
         $this->assertSame(ClassReport::STATUS_APPROVED, ClassReport::firstOrFail()->status);
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // Trợ giảng 3 ca (Phase 4 mục 4) — Tạo lượt giao việc + Nhiệm vụ hôm nay
+    // ─────────────────────────────────────────────────────────────
+
+    public function test_ta_assign_three_shifts_uses_real_session_times_and_reports_late_submission(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow(today()->setTime(16, 10));
+        $ta = $this->makeUser('assistant', $this->branch);
+        $teacher = $this->makeUser('teacher', $this->branch);
+        $academic = $this->makeUser('academic_staff', $this->branch);
+        $class = $this->makeClass(['teacher_id' => $teacher->id, 'assistant_id' => $ta->id]);
+        $session = \App\Models\ClassSession::create([
+            'class_id' => $class->id, 'branch_id' => $this->branch->id, 'date' => today(), 'shift_name' => 'Slot 1',
+            'type' => 'regular', 'start_time' => '17:30', 'end_time' => '19:00', 'teacher_id' => $teacher->id,
+            'assistant_id' => $ta->id, 'status' => 'scheduled',
+        ]);
+
+        $this->actingAs($academic)->get(route('tasks.ta-assign'))->assertOk()
+            ->assertSee('Khuyến nghị gửi trước 15h30')
+            ->assertSee($ta->name)
+            ->assertDontSee($teacher->email); // chỉ trợ giảng trong ô "Chọn Trợ giảng"
+
+        // Gắn lớp mà không chọn lớp → lỗi; giao cho người không phải trợ giảng → lỗi.
+        $base = ['assistant_id' => $ta->id, 'assign_date' => today()->toDateString(), 'branch_id' => $this->branch->id];
+        $this->actingAs($academic)->post(route('tasks.ta-assign.store'), $base + ['tasks' => [['category' => 'before', 'content' => 'X', 'attach_class' => '1']]])
+            ->assertSessionHasErrors('tasks.0.class_id');
+        $this->actingAs($academic)->post(route('tasks.ta-assign.store'), ['assistant_id' => $teacher->id] + $base + ['tasks' => [['category' => 'before', 'content' => 'X']]])
+            ->assertSessionHasErrors('assistant_id');
+
+        $this->actingAs($academic)->post(route('tasks.ta-assign.store'), $base + ['tasks' => [
+            ['category' => 'before', 'content' => 'Chuẩn bị tài liệu', 'attach_class' => '1', 'class_id' => $class->id, 'class_session_id' => $session->id],
+            ['category' => 'during', 'content' => 'Hỗ trợ GVNN', 'attach_class' => '1', 'class_id' => $class->id, 'class_session_id' => $session->id],
+            ['category' => 'after', 'content' => 'Dọn phòng', 'attach_class' => '1', 'class_id' => $class->id, 'class_session_id' => $session->id],
+            ['category' => 'after', 'content' => 'Cập nhật điểm danh', 'attach_class' => '0'],
+        ]])->assertSessionHasNoErrors()->assertRedirect(route('tasks.index'));
+
+        $due = WorkTask::where('assignee_id', $ta->id)->pluck('due_time', 'title')->map(fn ($t) => substr($t, 0, 5));
+        $this->assertSame('17:30', $due['Chuẩn bị tài liệu']);
+        $this->assertSame('19:00', $due['Hỗ trợ GVNN']);
+        $this->assertSame('20:00', $due['Dọn phòng']);
+        $this->assertSame('21:30', $due['Cập nhật điểm danh']);
+        $this->assertStringContainsString('(', WorkTask::where('title', 'Dọn phòng')->value('lesson_session'));
+
+        // Gửi sau 15h30 → báo Admin; TA nhận 1 thông báo gộp.
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->admin->id, 'title' => 'Giao việc trợ giảng sau 15:30']);
+        $this->assertSame(1, AdminNotification::where('user_id', $ta->id)->where('type', 'task_assigned')->count());
+
+        // Portal TA: 3 nhóm ca, đầu việc gắn lớp có nút "Nộp báo cáo trực lớp".
+        $this->actingAs($ta)->get(route('portal.ta-tasks'))->assertOk()
+            ->assertSeeInOrder(['Trước giờ học', 'Chuẩn bị tài liệu', 'Trong giờ học', 'Hỗ trợ GVNN', 'Sau giờ học', 'Dọn phòng'])
+            ->assertSee('Nộp báo cáo trực lớp');
+
+        // Qua hạn → lệnh đánh dấu Quá hạn, thẻ hiện "Trễ N giờ" + "Hoàn thành gấp".
+        \Illuminate\Support\Carbon::setTestNow(today()->setTime(21, 45));
+        $this->artisan('tasks:mark-overdue')->assertSuccessful();
+        $this->assertSame('overdue', WorkTask::where('title', 'Chuẩn bị tài liệu')->value('status'));
+        $this->assertSame('overdue', WorkTask::where('title', 'Dọn phòng')->value('status'));
+        $this->artisan('tasks:mark-overdue')->assertSuccessful(); // idempotent: không báo trùng
+        $this->assertSame(4, AdminNotification::where('user_id', $ta->id)->where('title', 'like', 'Công việc quá hạn%')->count());
+        $this->actingAs($ta)->get(route('portal.ta-tasks'))->assertOk()->assertSee('Trễ 5 giờ')->assertSee('Hoàn thành gấp');
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_q8_report_form_lists_only_own_classes_and_roster(): void
     {
         $teacher = $this->makeUser('teacher', $this->branch);

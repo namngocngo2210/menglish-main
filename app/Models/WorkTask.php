@@ -87,6 +87,42 @@ class WorkTask extends Model
         return $this->hasOne(ClassReport::class, 'task_id');
     }
 
+    /** Ca trực của trợ giảng (Phase 4 — "trợ giảng 3 ca"). */
+    public const TIME_SLOTS = [
+        'before' => 'Trước giờ học',
+        'during' => 'Trong giờ học',
+        'after' => 'Sau giờ học',
+    ];
+
+    /** Trạng thái còn phải làm (sẽ thành "Quá hạn" khi qua hạn). */
+    public const OPEN_STATUSES = ['new', 'in_progress'];
+
+    /** Thời điểm hết hạn = ngày hạn + giờ hạn (không có giờ → cuối ngày). */
+    public function dueAt(): ?\Carbon\CarbonInterface
+    {
+        if (! $this->due_date) {
+            return null;
+        }
+        $time = $this->due_time ? substr((string) $this->due_time, 0, 5) : '23:59';
+        if (! preg_match('/^\d{2}:\d{2}$/', $time)) {
+            $time = '23:59';
+        }
+
+        return $this->due_date->copy()->setTimeFromTimeString($time);
+    }
+
+    /** Số giờ trễ hạn (làm tròn lên), 0 nếu chưa quá hạn. */
+    public function lateHours(?\Carbon\CarbonInterface $now = null): int
+    {
+        $dueAt = $this->dueAt();
+        $now ??= now();
+        if (! $dueAt || $now->lessThanOrEqualTo($dueAt)) {
+            return 0;
+        }
+
+        return (int) ceil($dueAt->diffInMinutes($now) / 60);
+    }
+
     // Helper accessor for status badge label & class
     public function getStatusLabelAttribute(): string
     {

@@ -308,21 +308,56 @@ class WorkTaskController extends Controller
     /**
      * 4. Tạo lượt giao việc cho Trợ giảng (Batch assign form)
      */
+    /** Giờ hạn mặc định của 3 ca trực khi đầu việc không gắn buổi học. */
+    public const SLOT_DEFAULT_DUE = ['before' => '14:00', 'during' => '18:00', 'after' => '21:30'];
+
+    /** Mốc khuyến nghị gửi nhiệm vụ trợ giảng trong ngày (mockup: "Khuyến nghị gửi trước 15h30"). */
+    public const TA_ASSIGN_CUTOFF = '15:30';
+
+    /** Trợ giảng được giao: vai trò assistant đang hoạt động (Quản lý cơ sở: trong chi nhánh mình). */
+    private function assignableAssistants(User $user)
+    {
+        $managed = $user->managedBranchIds();
+
+        return User::role('assistant')
+            ->where('is_active', true)
+            ->whereNull('locked_at')
+            ->when($managed !== null, fn ($q) => $q->whereIn('branch_id', $managed))
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'branch_id']);
+    }
+
     public function taAssignForm(Request $request)
     {
-        $assistants = User::where('is_active', true)
-            ->where(function ($q) {
-                $q->whereHas('roles', function ($rq) {
-                    $rq->whereIn('name', ['assistant', 'academic_staff', 'teacher']);
-                })->orWhere('email', 'like', 'ta.%');
-            })
+        $user = $request->user();
+        $assistants = $this->assignableAssistants($user);
+        $managed = $user->managedBranchIds();
+        $branches = Branch::where('is_active', true)
+            ->when($managed !== null, fn ($q) => $q->whereIn('id', $managed))
+            ->orderBy('name')->get();
+        $classes = ClassModel::query()->visibleTo($user)
+            ->whereIn('status', ['active', 'upcoming'])
             ->orderBy('name')
+            ->get(['id', 'name', 'code', 'branch_id', 'schedule_text']);
+
+        // Buổi học thật của từng lớp (7 ngày trước → 30 ngày tới) cho ô "Buổi học", lọc theo ngày giao trên trình duyệt.
+        $sessions = ClassSession::whereIn('class_id', $classes->modelKeys())
+            ->where('status', '!=', 'cancelled')
+            ->where('type', '!=', ClassSession::TYPE_SUPPORT)
+            ->whereDate('date', '>=', today()->subDays(7)->toDateString())
+            ->whereDate('date', '<=', today()->addDays(30)->toDateString())
+            ->orderBy('date')->orderBy('start_time')
             ->get();
+        $lessons = $sessions->isNotEmpty() ? app(\App\Services\SessionLessonService::class)->lessonsFor($sessions) : [];
+        $classSessions = $sessions->groupBy('class_id')->map(fn ($rows) => $rows->map(fn (ClassSession $s) => [
+            'id' => $s->id,
+            'date' => $s->date->toDateString(),
+            'label' => self::sessionLabel($s, $lessons[$s->id] ?? null).' · '.$s->start_time?->format('H:i').'-'.$s->end_time?->format('H:i'),
+        ])->values());
 
-        $branches = Branch::where('is_active', true)->get();
-        $classes = ClassModel::where('status', 'active')->get();
+        $cutoff = self::TA_ASSIGN_CUTOFF;
 
-        return view('tasks.ta-assign', compact('assistants', 'branches', 'classes'));
+        return view('tasks.ta-assign', compact('assistants', 'branches', 'classes', 'classSessions', 'cutoff'));
     }
 
     public function taAssignStore(Request $request)
@@ -331,41 +366,108 @@ class WorkTaskController extends Controller
             'assistant_id' => 'required|exists:users,id',
             'assign_date' => 'required|date',
             'branch_id' => 'nullable|exists:branches,id',
-            'tasks' => 'required|array|min:1',
+            'tasks' => 'required|array|min:1|max:30',
             'tasks.*.category' => 'required|in:before,during,after',
             'tasks.*.content' => 'required|string|max:500',
             'tasks.*.attach_class' => 'nullable',
             'tasks.*.class_id' => 'nullable|exists:classes,id',
+            'tasks.*.class_session_id' => 'nullable|integer|exists:class_sessions,id',
             'tasks.*.session' => 'nullable|string|max:255',
+        ], [
+            'assistant_id.required' => 'Vui lòng chọn trợ giảng.',
+            'tasks.*.content.required' => 'Nội dung đầu việc không được để trống.',
         ]);
 
-        $createdCount = 0;
-        $lastTask = null;
-        foreach ($validated['tasks'] as $item) {
-            $hasAttachClass = isset($item['attach_class']) && ($item['attach_class'] == '1' || $item['attach_class'] == 'on');
-
-            $lastTask = WorkTask::create([
-                'title' => $item['content'],
-                'description' => 'Nhiệm vụ trực ca '.($item['category'] === 'before' ? 'Trước giờ học' : ($item['category'] === 'during' ? 'Trong giờ học' : 'Sau giờ học')),
-                'creator_id' => Auth::id() ?? 1,
-                'assignee_id' => $validated['assistant_id'],
-                'branch_id' => $validated['branch_id'] ?? null,
-                'class_id' => $hasAttachClass ? ($item['class_id'] ?? null) : null,
-                'lesson_session' => $hasAttachClass ? ($item['session'] ?? null) : null,
-                'time_slot_category' => $item['category'],
-                'task_type' => 'one_time',
-                'due_date' => $validated['assign_date'],
-                'due_time' => $item['category'] === 'before' ? '14:00' : ($item['category'] === 'during' ? '18:00' : '21:30'),
-                'status' => 'new',
-            ]);
-            $createdCount++;
+        $user = $request->user();
+        if (! $this->assignableAssistants($user)->contains('id', (int) $validated['assistant_id'])) {
+            throw ValidationException::withMessages(['assistant_id' => 'Chỉ giao cho trợ giảng đang hoạt động trong phạm vi bạn quản lý.']);
+        }
+        $managed = $user->managedBranchIds();
+        if (! empty($validated['branch_id']) && $managed !== null && ! in_array((int) $validated['branch_id'], $managed, true)) {
+            throw ValidationException::withMessages(['branch_id' => 'Bạn chỉ giao việc trong chi nhánh mình quản lý.']);
         }
 
-        if ($lastTask) {
-            $this->notifyAssignee($lastTask, $createdCount);
+        $assignDate = Carbon::parse($validated['assign_date'])->toDateString();
+        $visibleClassIds = ClassModel::query()->visibleTo($user)->pluck('id')->all();
+        $rows = [];
+        foreach ($validated['tasks'] as $i => $item) {
+            $attach = in_array($item['attach_class'] ?? null, ['1', 'on', 1, true], true);
+            $session = null;
+            if ($attach) {
+                if (empty($item['class_id'])) {
+                    throw ValidationException::withMessages(["tasks.{$i}.class_id" => 'Đầu việc #'.($i + 1).': đã chọn "Gắn lớp" thì phải chọn lớp học.']);
+                }
+                if (! in_array((int) $item['class_id'], $visibleClassIds, true)) {
+                    throw ValidationException::withMessages(["tasks.{$i}.class_id" => 'Đầu việc #'.($i + 1).': lớp nằm ngoài phạm vi bạn quản lý.']);
+                }
+                if (! empty($item['class_session_id'])) {
+                    $session = ClassSession::find($item['class_session_id']);
+                    if (! $session || (int) $session->class_id !== (int) $item['class_id'] || $session->date->toDateString() !== $assignDate) {
+                        throw ValidationException::withMessages(["tasks.{$i}.class_session_id" => 'Đầu việc #'.($i + 1).': buổi học không thuộc lớp hoặc không đúng ngày giao việc.']);
+                    }
+                } elseif (blank($item['session'] ?? null)) {
+                    throw ValidationException::withMessages(["tasks.{$i}.class_session_id" => 'Đầu việc #'.($i + 1).': vui lòng chọn buổi học.']);
+                }
+            }
+            $rows[] = [$item, $attach, $session];
         }
 
-        return redirect()->route('tasks.index')->with('success', "Đã tạo thành công {$createdCount} nhiệm vụ cho Trợ giảng!");
+        $created = DB::transaction(function () use ($rows, $validated, $assignDate) {
+            $created = collect();
+            foreach ($rows as [$item, $attach, $session]) {
+                $created->push(WorkTask::create([
+                    'title' => $item['content'],
+                    'description' => 'Nhiệm vụ trực ca '.WorkTask::TIME_SLOTS[$item['category']],
+                    'creator_id' => Auth::id(),
+                    'assignee_id' => $validated['assistant_id'],
+                    'branch_id' => $validated['branch_id'] ?? ($session?->branch_id),
+                    'class_id' => $attach ? $item['class_id'] : null,
+                    'lesson_session' => $attach
+                        ? ($session ? self::sessionLabel($session, app(\App\Services\SessionLessonService::class)->lessonsFor(collect([$session]))[$session->id] ?? null) : $item['session'])
+                        : null,
+                    'time_slot_category' => $item['category'],
+                    'task_type' => 'one_time',
+                    'due_date' => $assignDate,
+                    'due_time' => self::slotDueTime($item['category'], $session),
+                    'status' => 'new',
+                ]));
+            }
+
+            return $created;
+        });
+
+        $this->notifyAssignee($created->last(), $created->count());
+
+        // Gửi sau 15h30 cho nhiệm vụ trong ngày (hoặc ngày đã qua): vẫn lưu, báo Admin (mockup).
+        $late = $assignDate < today()->toDateString()
+            || ($assignDate === today()->toDateString() && now()->format('H:i') > self::TA_ASSIGN_CUTOFF);
+        if ($late) {
+            $assistant = User::find($validated['assistant_id']);
+            User::role('admin')->where('is_active', true)->whereNull('locked_at')->pluck('id')
+                ->reject(fn ($id) => (int) $id === (int) Auth::id())
+                ->each(fn ($adminId) => $this->notifyUser($adminId, 'task_assigned', 'Giao việc trợ giảng sau '.self::TA_ASSIGN_CUTOFF,
+                    Auth::user()->name." giao {$created->count()} nhiệm vụ ngày ".Carbon::parse($assignDate)->format('d/m/Y')." cho {$assistant?->name} lúc ".now()->format('H:i').'.',
+                    route('portal.ta-tasks', ['ta_id' => $validated['assistant_id'], 'date' => $assignDate])));
+        }
+
+        return redirect()->route('tasks.index')->with('success', "Đã tạo thành công {$created->count()} nhiệm vụ cho Trợ giảng!".($late ? ' (Gửi sau '.self::TA_ASSIGN_CUTOFF.' — đã báo Admin.)' : ''));
+    }
+
+    /**
+     * Giờ hạn của ca trực: gắn buổi học → Trước giờ học = giờ bắt đầu buổi, Trong giờ học = giờ kết thúc,
+     * Sau giờ học = kết thúc + 60 phút; không gắn buổi → mốc mặc định của ca.
+     */
+    private static function slotDueTime(string $category, ?ClassSession $session): string
+    {
+        if (! $session || ! $session->start_time || ! $session->end_time) {
+            return self::SLOT_DEFAULT_DUE[$category];
+        }
+
+        return match ($category) {
+            'before' => $session->start_time->format('H:i'),
+            'during' => $session->end_time->format('H:i'),
+            default => $session->end_time->copy()->addHour()->min($session->end_time->copy()->setTime(23, 59))->format('H:i'),
+        };
     }
 
     /**
@@ -383,14 +485,16 @@ class WorkTaskController extends Controller
         // Admin / quản lý / học vụ xem được nhiệm vụ của trợ giảng bất kỳ qua bộ chọn TA;
         // trợ giảng (và vai trò khác) chỉ xem nhiệm vụ của chính mình.
         $canPickTa = $viewer->can('work_task.assign') || $viewer->can('work_task.approve');
-        $assistants = $canPickTa
-            ? User::role('assistant')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'email'])
-            : collect();
+        $assistants = $canPickTa ? $this->assignableAssistants($viewer) : collect();
 
         if ($canPickTa) {
-            $taUser = isset($validated['ta_id'])
-                ? User::find($validated['ta_id'])
-                : ($viewer->hasRole('assistant') ? $viewer : $assistants->first());
+            if (isset($validated['ta_id'])) {
+                $taId = (int) $validated['ta_id'];
+                abort_unless($taId === (int) $viewer->id || $assistants->contains('id', $taId), 403, 'Trợ giảng này nằm ngoài phạm vi bạn quản lý.');
+                $taUser = User::find($taId);
+            } else {
+                $taUser = $viewer->hasRole('assistant') ? $viewer : $assistants->first();
+            }
         } else {
             $taUser = $viewer;
         }
@@ -399,7 +503,7 @@ class WorkTaskController extends Controller
         $sessions = collect();
         $overdueCount = 0;
         if ($taUser) {
-            $tasks = WorkTask::with(['classModel:id,name,code', 'branch:id,name'])
+            $tasks = WorkTask::with(['classModel:id,name,code,teacher_id', 'branch:id,name', 'creator:id,name', 'classReport'])
                 ->where('assignee_id', $taUser->id)
                 ->whereDate('due_date', $date->toDateString())
                 ->orderBy('due_time')
@@ -437,6 +541,7 @@ class WorkTaskController extends Controller
     {
         $task = WorkTask::findOrFail($id);
         abort_unless((int) $task->assignee_id === (int) Auth::id() || $request->user()->can('work_task.approve'), 403);
+        abort_if(in_array($task->status, ['completed', 'canceled', 'pending_confirmation'], true), 422, 'Nhiệm vụ đã hoàn thành, đã hủy hoặc đang chờ xác nhận.');
         $request->validate([
             'proof_image' => 'nullable|file|max:10240|mimes:'.implode(',', SafeUploadService::IMAGES),
             'proof_image_url' => 'nullable|url:http,https|max:2048',
