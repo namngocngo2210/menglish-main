@@ -57,8 +57,19 @@ class UserPermissionOverrideController extends Controller
         $branches = Branch::query()->orderBy('name')->get(['id', 'name']);
         $classes = ClassModel::query()->where('status', '!=', 'cancelled')->orderBy('name')->get(['id', 'name', 'code', 'branch_id']);
 
+        // Thẻ tổng kết (mockup): số thao tác đang được phép sau phân quyền cá nhân, số đơn vị phạm vi dữ liệu.
+        $effective = $permissionsByModule->flatten()->filter(function (Permission $permission) use ($overrides, $rolePermissions) {
+            $override = $overrides->get($permission->name);
+
+            return $override ? (bool) $override->allow : in_array($permission->name, $rolePermissions, true);
+        });
+        $effectiveCount = $effective->count();
+        $modulesWithAccess = $effective->map(fn (Permission $p) => explode('.', $p->name)[0])->unique()->values()->all();
+        $scopeUnitCount = $scopes->sum(fn (array $scope) => count($scope['ids']));
+
         return view('users.permissions', compact(
-            'user', 'permissionsByModule', 'rolePermissions', 'overrides', 'scopes', 'branches', 'classes'
+            'user', 'permissionsByModule', 'rolePermissions', 'overrides', 'scopes', 'branches', 'classes',
+            'effectiveCount', 'modulesWithAccess', 'scopeUnitCount'
         ));
     }
 

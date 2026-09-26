@@ -10,10 +10,16 @@
     </x-ui.page-header>
 
     <x-ui.filter-bar :search="null" :action="route('tasks.kpi-dashboard')">
-        <x-ui.select name="user_id" inline-label="Nhân sự:" :options="$staffOptions->pluck('name', 'id')" placeholder="Tất cả nhân sự" />
-        <x-ui.input type="month" name="month" inline-label="Kỳ báo cáo:" :value="$month" />
-        <span class="font-body-small text-body-small text-on-surface-variant">{{ $from->format('d/m/Y') }} - {{ $to->format('d/m/Y') }}</span>
+        @if ($canSeeStaff)
+            <x-ui.select name="user_id" inline-label="Chọn nhân sự:" :options="$staffOptions->mapWithKeys(fn ($u) => [$u->id => $u->name.($u->employee_code ? ' ('.$u->employee_code.')' : '')])" placeholder="Tất cả nhân sự" />
+        @endif
+        <x-ui.input type="month" name="month" inline-label="Kỳ báo cáo:" :value="$month" aria-label="Từ tháng" />
+        <x-ui.input type="month" name="month_to" inline-label="đến" :value="$monthTo" aria-label="Đến tháng" />
+        <span class="font-body-small text-body-small text-on-surface-variant">Tháng {{ $from->format('m/Y') }}{{ $monthTo !== $month ? ' - Tháng '.$to->format('m/Y') : '' }} ({{ $from->format('d/m/Y') }} - {{ $to->format('d/m/Y') }})</span>
     </x-ui.filter-bar>
+    @unless ($canSeeStaff)
+        <x-ui.alert type="info" class="mb-md">Bạn đang xem KPI của chính mình. KPI toàn bộ nhân sự chỉ dành cho người có quyền duyệt công việc.</x-ui.alert>
+    @endunless
 
     <x-ui.data-table min-width="860px">
         <table>

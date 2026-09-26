@@ -15,16 +15,28 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ActivityLogController extends Controller
 {
+    /** Nhóm lọc nhanh theo module (mockup: Tất cả / CRM / Giáo trình / Lớp & Điểm danh / Phân quyền …). */
+    public const MODULE_GROUPS = [
+        'crm' => ['label' => 'CRM', 'logs' => ['CRM & Leads', 'Khảo sát & Đề thi']],
+        'syllabus' => ['label' => 'Giáo trình', 'logs' => ['Giáo trình & Syllabus']],
+        'class' => ['label' => 'Lớp & Điểm danh', 'logs' => ['Học viên & Lớp học']],
+        'permission' => ['label' => 'Phân quyền', 'logs' => ['Người dùng & Phân quyền', 'Tài khoản & Hồ sơ']],
+        'finance' => ['label' => 'Học phí', 'logs' => ['Học phí & Thu chi']],
+        'payroll' => ['label' => 'Lương & Chấm công', 'logs' => ['Bảng lương & Chấm công']],
+        'tasks' => ['label' => 'Công việc & Ticket', 'logs' => ['Quản lý công việc', 'Ticket hỗ trợ']],
+        'system' => ['label' => 'Cấu hình', 'logs' => ['Cấu hình hệ thống', 'Quản lý Media']],
+    ];
+
     public function index(Request $request): View
     {
         $request->validate([
             'date_from' => ['nullable', 'date'],
-            'date_to' => ['nullable', 'date'],
-        ]);
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+        ], ['date_to.after_or_equal' => 'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.']);
 
         $logs = $this->filteredQuery($request)
-            ->with('causer')
-            ->paginate($request->perPage(25))
+            ->with(['causer.roles'])
+            ->paginate($request->perPage(10))
             ->withQueryString();
 
         // Module choices & Users for filter dropdowns
@@ -72,14 +84,40 @@ class ActivityLogController extends Controller
     /**
      * Xuất nhật ký theo bộ lọc hiện tại ra CSV (UTF-8 BOM, mở trực tiếp bằng Excel).
      */
-    public function export(Request $request): StreamedResponse
+    public function export(Request $request): StreamedResponse|\Symfony\Component\HttpFoundation\BinaryFileResponse
     {
         $request->validate([
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
+            'format' => ['nullable', 'in:xlsx,csv'],
         ]);
 
         $query = $this->filteredQuery($request)->with('causer');
+        $headings = ['ID', 'Thời điểm', 'Người thực hiện', 'Email', 'Phân hệ', 'Hành động', 'Nội dung', 'Đối tượng', 'Trường thay đổi (trước → sau)', 'IP'];
+        $row = fn (Activity $log) => [
+            $log->id,
+            $log->created_at?->format('d/m/Y H:i:s'),
+            $log->causer?->name ?? 'Hệ thống tự động',
+            $log->causer?->email,
+            $log->log_name,
+            Audit::eventLabel($log->event),
+            $log->description,
+            $log->subject_type ? class_basename($log->subject_type).' #'.$log->subject_id : '',
+            collect(self::diff($log))
+                ->map(fn ($r, $field) => $field.': '.self::stringify($r['old']).' → '.self::stringify($r['new']))
+                ->implode('; '),
+            $log->properties['ip'] ?? '',
+        ];
+
+        // Mặc định Excel (.xlsx) theo mockup "Xuất Excel"; ?format=csv giữ bản CSV streaming (dữ liệu lớn).
+        if ($request->query('format', 'xlsx') === 'xlsx') {
+            $rows = [];
+            $query->limit(20000)->get()->each(function (Activity $log) use (&$rows, $row) {
+                $rows[] = $row($log);
+            });
+
+            return \App\Exports\ArrayExport::download('nhat-ky-van-hanh', $headings, $rows, 'xlsx');
+        }
         $filename = 'nhat-ky-van-hanh-'.now()->format('Ymd-His').'.csv';
 
         return response()->streamDownload(function () use ($query) {
@@ -226,6 +264,10 @@ class ActivityLogController extends Controller
             $query->where('log_name', $request->input('log_name'));
         }
 
+        if (($group = $request->input('module')) && isset(self::MODULE_GROUPS[$group])) {
+            $query->whereIn('log_name', self::MODULE_GROUPS[$group]['logs']);
+        }
+
         if ($request->filled('event')) {
             $query->where('event', $request->input('event'));
         }
@@ -243,8 +285,14 @@ class ActivityLogController extends Controller
 
         if ($request->filled('search')) {
             $search = trim($request->input('search'));
-            $query->where(function ($sub) use ($search) {
-                $sub->where('description', 'like', "%{$search}%")
+            // "Mã bản ghi": #123 hoặc số → khớp id đối tượng / id nhật ký.
+            $recordId = preg_match('/^#?(\d+)$/', $search, $m) ? (int) $m[1] : null;
+            $query->where(function ($sub) use ($search, $recordId) {
+                if ($recordId) {
+                    $sub->where('subject_id', $recordId)->orWhere('id', $recordId)->orWhere('causer_id', $recordId);
+                }
+                $sub->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('batch_uuid', $search)
                     ->orWhere('log_name', 'like', "%{$search}%")
                     ->orWhere('event', 'like', "%{$search}%")
                     ->orWhereHas('causer', function ($c) use ($search) {

@@ -43,6 +43,9 @@ class UserRequest extends FormRequest
             'contract_start_date' => ['nullable', 'date'],
             'contract_end_date' => ['nullable', 'date'],
             'contract_file' => ['nullable', 'file', 'max:10240', 'mimes:pdf,doc,docx,jpg,jpeg,png,webp'],
+            'concurrent_roles_present' => ['nullable', 'boolean'],
+            'concurrent_roles' => ['nullable', 'array'],
+            'concurrent_roles.*' => ['string', 'exists:roles,name'],
         ];
     }
 

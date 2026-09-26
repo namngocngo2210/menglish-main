@@ -1,438 +1,219 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">Danh sách công việc</h1>
-                <p class="text-sm text-gray-500 mt-0.5">Quản lý, phân công và theo dõi tiến độ công việc toàn diện</p>
-            </div>
-            <div class="flex items-center gap-3">
-                @if (auth()->user()->can('work_task.create') || auth()->user()->can('work_task.request'))
-                    <button @click="$dispatch('open-create-task-modal')" class="bg-primary-container text-white hover:bg-primary transition-colors px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-sm">
-                        <span class="material-symbols-outlined text-[20px]">add</span>
+{{-- Danh sách công việc (mockup phan-cong-cong-viec/danh_s_ch_c_ng_vi_c) — giao việc 2 chiều, đổi trạng thái theo luật. --}}
+@php
+    $statuses = [
+        'all' => 'Tất cả', 'overdue' => 'Quá hạn', 'blocked' => 'Bị chặn', 'pending_confirmation' => 'Chờ xác nhận',
+        'in_progress' => 'Đang thực hiện', 'new' => 'Mới', 'completed' => 'Hoàn thành', 'canceled' => 'Đã hủy',
+    ];
+    $statusColors = [
+        'new' => 'status-new', 'in_progress' => 'status-progress', 'pending_confirmation' => 'status-pending',
+        'blocked' => 'status-blocked', 'completed' => 'status-done', 'overdue' => 'status-overdue', 'canceled' => 'status-canceled',
+    ];
+    $transitionLabels = [
+        'in_progress' => ['Đang thực hiện', 'play_arrow'], 'blocked' => ['Bị chặn', 'block'],
+        'pending_confirmation' => ['Gửi chờ xác nhận', 'outgoing_mail'], 'completed' => ['Xác nhận hoàn thành', 'check_circle'],
+        'canceled' => ['Hủy công việc', 'cancel'],
+    ];
+    $canCreate = auth()->user()->can('work_task.create') || auth()->user()->can('work_task.request');
+    $createErrors = $errors->hasAny(['taskTitle', 'taskDescription', 'assignee', 'dueDate', 'taskType', 'frequency', 'branch_id', 'class_id']);
+@endphp
+<x-app-layout title="Danh sách công việc">
+    <div x-data="{
+            statusModal: false,
+            currentTask: null,
+            newStatus: '',
+            statusLabel: '',
+            reasonRequired: false,
+            openStatusModal(task, status, label) {
+                this.currentTask = task; this.newStatus = status; this.statusLabel = label;
+                this.reasonRequired = ['blocked', 'canceled'].includes(status);
+                this.statusModal = true;
+            }
+         }">
+        <x-ui.page-header title="Danh sách công việc" description="Quản lý, phân công và theo dõi tiến độ công việc — giao việc hai chiều.">
+            <x-slot:actions>
+                @can('work_task.approve')
+                    <x-ui.button variant="secondary" icon="fact_check" :href="route('tasks.manual-approvals')">
+                        Chờ xác nhận
+                        @if ($counts['pending'] > 0)<span class="rounded-full bg-error px-1.5 font-code text-caption text-white">{{ $counts['pending'] }}</span>@endif
+                    </x-ui.button>
+                @endcan
+                @if ($canCreate)
+                    <x-ui.button icon="add" x-on:click="$dispatch('open-modal', 'create-task')">
                         {{ auth()->user()->can('work_task.create') ? 'Giao việc' : 'Đề xuất việc cho Admin / Học vụ' }}
-                    </button>
+                    </x-ui.button>
                 @endif
-            </div>
-        </div>
-    </x-slot>
+            </x-slot:actions>
+        </x-ui.page-header>
 
-    <div class="space-y-6" x-data="{
-        createModalOpen: false,
-        statusModalOpen: false,
-        currentTask: null,
-        newStatus: 'blocked',
-        statusReason: '',
-        openStatusModal(task, status = 'blocked') {
-            this.currentTask = task;
-            this.newStatus = status;
-            this.statusReason = task.blocked_reason || task.rejection_reason || '';
-            this.statusModalOpen = true;
-        }
-    }" @open-create-task-modal.window="createModalOpen = true">
-
-        
-
-        @if(session('info'))
-            <div class="p-4 bg-blue-50 border border-blue-200 text-blue-800 rounded-xl flex items-center gap-3">
-                <span class="material-symbols-outlined text-blue-600">info</span>
-                <span class="font-medium text-sm">{{ session('info') }}</span>
-            </div>
+        @if (session('info'))
+            <x-ui.alert type="info" class="mb-md" dismissible>{{ session('info') }}</x-ui.alert>
+        @endif
+        @if ($errors->has('status') || $errors->has('reason'))
+            <x-ui.alert type="error" class="mb-md">{{ $errors->first('status') ?: $errors->first('reason') }}</x-ui.alert>
         @endif
 
-        <!-- Quick Summary Cards -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
-                <div>
-                    <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Tất cả công việc</p>
-                    <h3 class="text-2xl font-bold text-gray-900 mt-1">{{ $counts['all'] }}</h3>
-                </div>
-                <div class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600">
-                    <span class="material-symbols-outlined">assignment</span>
-                </div>
-            </div>
-            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
-                <div>
-                    <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Việc của tôi</p>
-                    <h3 class="text-2xl font-bold text-gray-900 mt-1">{{ $counts['mine'] }}</h3>
-                </div>
-                <div class="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-primary">
-                    <span class="material-symbols-outlined">person</span>
-                </div>
-            </div>
-            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
-                <div>
-                    <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Chờ xác nhận</p>
-                    <h3 class="text-2xl font-bold text-orange-600 mt-1">{{ $counts['pending'] }}</h3>
-                </div>
-                <div class="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600">
-                    <span class="material-symbols-outlined">pending_actions</span>
-                </div>
-            </div>
-            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
-                <div>
-                    <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Quá hạn</p>
-                    <h3 class="text-2xl font-bold text-rose-600 mt-1">{{ $counts['overdue'] }}</h3>
-                </div>
-                <div class="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600">
-                    <span class="material-symbols-outlined">warning</span>
-                </div>
-            </div>
+        <div class="mb-md grid grid-cols-2 gap-md sm:grid-cols-4">
+            <x-ui.stat-card label="Tất cả công việc" :value="$counts['all']" icon="assignment" />
+            <x-ui.stat-card label="Việc của tôi" :value="$counts['mine']" icon="person" tone="primary" />
+            <x-ui.stat-card label="Chờ xác nhận" :value="$counts['pending']" icon="pending_actions" tone="warning" />
+            <x-ui.stat-card label="Quá hạn" :value="$counts['overdue']" icon="warning" tone="error" />
         </div>
 
-        <!-- Navigation Tabs & Search/Filter bar -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-4">
-            <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-200 pb-3 gap-4">
-                <!-- Tab bar -->
-                <div class="flex items-center gap-6 overflow-x-auto">
-                    @if ($canViewAll)
-                    <a href="{{ route('tasks.index', array_merge(request()->query(), ['tab' => 'all'])) }}"
-                       class="pb-2 text-sm font-semibold transition border-b-2 {{ $tab === 'all' ? 'text-primary border-primary-container' : 'text-gray-500 border-transparent hover:text-gray-900' }}">
-                        Tất cả <span class="ml-1 px-1.5 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{{ $counts['all'] }}</span>
-                    </a>
-                    @endif
-                    <a href="{{ route('tasks.index', array_merge(request()->query(), ['tab' => 'mine'])) }}"
-                       class="pb-2 text-sm font-semibold transition border-b-2 {{ $tab === 'mine' ? 'text-primary border-primary-container' : 'text-gray-500 border-transparent hover:text-gray-900' }}">
-                        Của tôi <span class="ml-1 px-1.5 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{{ $counts['mine'] }}</span>
-                    </a>
-                    <a href="{{ route('tasks.index', array_merge(request()->query(), ['tab' => 'assigned'])) }}"
-                       class="pb-2 text-sm font-semibold transition border-b-2 {{ $tab === 'assigned' ? 'text-primary border-primary-container' : 'text-gray-500 border-transparent hover:text-gray-900' }}">
-                        Tôi giao <span class="ml-1 px-1.5 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{{ $counts['assigned'] }}</span>
-                    </a>
-                </div>
-
-                <!-- Search form -->
-                <form method="GET" action="{{ route('tasks.index') }}" class="flex items-center gap-2">
-                    <input type="hidden" name="tab" value="{{ $tab }}">
-                    <div class="relative w-full sm:w-64">
-                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
-                        <input type="text" name="q" value="{{ $search }}" placeholder="Tìm công việc, nhân sự..."
-                               class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-xs rounded-lg pl-9 pr-3 py-2 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
+        <x-ui.data-table min-width="880px">
+            <x-slot:header>
+                <div class="flex w-full flex-col gap-sm">
+                    <div class="flex flex-col gap-sm md:flex-row md:items-center md:justify-between">
+                        <x-ui.tabs class="border-0">
+                            <x-ui.tab :href="route('tasks.index', array_merge(request()->except('page'), ['tab' => 'mine']))" :active="$tab === 'mine'" :count="$counts['mine']">Của tôi</x-ui.tab>
+                            <x-ui.tab :href="route('tasks.index', array_merge(request()->except('page'), ['tab' => 'assigned']))" :active="$tab === 'assigned'" :count="$counts['assigned']">Tôi giao</x-ui.tab>
+                            @if ($canViewAll)
+                                <x-ui.tab :href="route('tasks.index', array_merge(request()->except('page'), ['tab' => 'all']))" :active="$tab === 'all'" :count="$counts['all']">Tất cả</x-ui.tab>
+                            @endif
+                        </x-ui.tabs>
+                        <form method="GET" action="{{ route('tasks.index') }}" class="flex flex-wrap items-center gap-sm">
+                            <input type="hidden" name="tab" value="{{ $tab }}">
+                            <input type="hidden" name="status" value="{{ $status }}">
+                            <x-ui.select name="task_type" :options="['one_time' => 'Phát sinh', 'recurring' => 'Lặp đi lặp lại']" :value="$taskType === 'all' ? null : $taskType"
+                                         placeholder="Mọi loại" onchange="this.form.submit()" aria-label="Loại công việc" />
+                            <x-ui.input name="q" :value="$search" icon="search" placeholder="Tìm công việc, nhân sự..." aria-label="Tìm kiếm" />
+                        </form>
                     </div>
-                    @if(!empty($search))
-                        <a href="{{ route('tasks.index', ['tab' => $tab]) }}" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-                            <span class="material-symbols-outlined text-[18px]">close</span>
-                        </a>
-                    @endif
-                </form>
-            </div>
-
-            <!-- Filter Status Chips -->
-            <div class="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                <span class="text-gray-500 font-medium mr-1">Trạng thái:</span>
-                @php
-                    $statuses = [
-                        'all' => 'Tất cả',
-                        'overdue' => 'Quá hạn',
-                        'blocked' => 'Bị chặn',
-                        'pending_confirmation' => 'Chờ xác nhận',
-                        'in_progress' => 'Đang thực hiện',
-                        'new' => 'Mới',
-                        'completed' => 'Hoàn thành',
-                        'canceled' => 'Đã hủy',
-                    ];
-                @endphp
-                @foreach($statuses as $stKey => $stLabel)
-                    <a href="{{ route('tasks.index', array_merge(request()->query(), ['status' => $stKey])) }}"
-                       class="px-2.5 py-1 rounded-full border transition {{ $status === $stKey ? 'bg-primary-container text-white border-primary-container font-semibold' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100' }}">
-                        {{ $stLabel }}
-                    </a>
-                @endforeach
-            </div>
-        </div>
-
-        <!-- Data Table Container -->
-        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-sm">
-                    <thead class="bg-gray-50 text-gray-600 uppercase text-[11px] font-semibold tracking-wider border-b border-gray-200">
-                        <tr>
-                            <th class="p-4 whitespace-nowrap">Tiêu đề</th>
-                            <th class="p-4 whitespace-nowrap">Loại</th>
-                            <th class="p-4 whitespace-nowrap">Người nhận</th>
-                            <th class="p-4 whitespace-nowrap">Hạn hoàn thành</th>
-                            <th class="p-4 whitespace-nowrap">Trạng thái</th>
-                            <th class="p-4 text-right whitespace-nowrap">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        @forelse($tasks as $task)
-                            <tr class="hover:bg-gray-50/80 transition-colors {{ $task->status === 'overdue' ? 'bg-rose-50/30' : ($task->status === 'canceled' ? 'opacity-60 bg-gray-50/50' : '') }}">
-                                <td class="p-4">
-                                    <div class="font-medium text-gray-900 {{ $task->status === 'canceled' ? 'line-through text-gray-500' : '' }}">
-                                        {{ $task->title }}
-                                    </div>
-                                    @if($task->description)
-                                        <div class="text-xs text-gray-500 mt-0.5 line-clamp-1 {{ $task->status === 'canceled' ? 'line-through' : '' }}">
-                                            {{ $task->description }}
-                                        </div>
+                    <div class="flex flex-wrap items-center gap-xs">
+                        <span class="mr-xs font-body-small text-body-small text-on-surface-variant">Trạng thái:</span>
+                        @foreach ($statuses as $stKey => $stLabel)
+                            <a href="{{ route('tasks.index', array_merge(request()->except('page'), ['status' => $stKey])) }}"
+                               class="rounded-full border px-sm py-[2px] font-body-small text-body-small transition-colors {{ $status === $stKey ? 'border-primary-container bg-primary-container text-white' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-low' }}">{{ $stLabel }}</a>
+                        @endforeach
+                    </div>
+                </div>
+            </x-slot:header>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tiêu đề</th>
+                        <th>Loại</th>
+                        <th>Người nhận</th>
+                        <th>Hạn hoàn thành</th>
+                        <th>Trạng thái</th>
+                        <th class="text-right">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($tasks as $task)
+                        @php $allowed = \App\Http\Controllers\WorkTaskController::allowedTransitions($task, auth()->user()); @endphp
+                        <tr class="{{ $task->status === 'overdue' ? 'bg-error-container/20' : '' }} {{ $task->status === 'canceled' ? 'opacity-60' : '' }}">
+                            <td class="max-w-[360px]">
+                                <div class="font-semibold text-on-surface {{ $task->status === 'canceled' ? 'line-through' : '' }}">{{ $task->title }}</div>
+                                @if ($task->description)
+                                    <div class="line-clamp-1 font-caption text-caption text-on-surface-variant">{{ $task->description }}</div>
+                                @endif
+                                <div class="mt-xs flex flex-wrap gap-xs">
+                                    @if ($task->classModel)
+                                        <span class="inline-flex items-center gap-xs rounded bg-secondary-fixed/60 px-sm font-caption text-caption text-secondary">
+                                            <span class="material-symbols-outlined text-[13px]" aria-hidden="true">school</span>{{ $task->classModel->name }}{{ $task->lesson_session ? ' · '.$task->lesson_session : '' }}
+                                        </span>
                                     @endif
-                                    @if($task->classModel)
-                                        <div class="inline-flex items-center gap-1 text-[11px] text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded mt-1.5">
-                                            <span class="material-symbols-outlined text-[13px]">school</span>
-                                            {{ $task->classModel->name }} {{ $task->lesson_session ? '· ' . $task->lesson_session : '' }}
-                                        </div>
+                                    @if ($task->time_slot_category && $task->assignee?->hasRole('assistant'))
+                                        <span class="rounded bg-surface-container-high px-sm font-caption text-caption text-on-surface-variant">{{ $task->time_slot_category_label }}</span>
                                     @endif
-                                    @if($task->blocked_reason)
-                                        <div class="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded px-2 py-1 mt-1.5 flex items-center gap-1">
-                                            <span class="material-symbols-outlined text-[14px]">block</span>
-                                            Lý do chặn: {{ $task->blocked_reason }}
-                                        </div>
-                                    @endif
-                                </td>
-                                <td class="p-4">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs border {{ $task->task_type === 'one_time' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-purple-50 text-purple-700 border-purple-200' }}">
-                                        {{ $task->task_type_label }}
-                                        @if($task->frequency)
-                                            ({{ match($task->frequency) { 'daily' => 'Hàng ngày', 'weekly' => 'Hàng tuần', 'monthly' => 'Hàng tháng', default => $task->frequency } }})
+                                </div>
+                                @if ($task->status === 'blocked' && $task->blocked_reason)
+                                    <div class="mt-xs flex items-center gap-xs font-caption text-caption text-status-blocked"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">block</span>Lý do: {{ $task->blocked_reason }}</div>
+                                @endif
+                            </td>
+                            <td>
+                                <x-ui.badge :color="$task->task_type === 'recurring' ? 'secondary' : 'info'" :dot="false">
+                                    {{ $task->task_type_label }}@if ($task->frequency) ({{ ['daily' => 'Hàng ngày', 'weekly' => 'Hàng tuần', 'monthly' => 'Hàng tháng'][$task->frequency] ?? $task->frequency }})@endif
+                                </x-ui.badge>
+                            </td>
+                            <td>
+                                <div class="flex items-center gap-sm">
+                                    <x-ui.avatar :name="$task->assignee?->name ?? '?'" size="sm" />
+                                    <div class="min-w-0">
+                                        <div class="truncate font-body-small text-body-small font-medium">{{ $task->assignee?->name ?? 'Chưa phân công' }}</div>
+                                        @if ($tab !== 'mine' && $task->creator)
+                                            <div class="truncate font-caption text-caption text-on-surface-variant">Giao bởi {{ $task->creator->name }}</div>
                                         @endif
-                                    </span>
-                                </td>
-                                <td class="p-4">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-7 h-7 rounded-full bg-primary-container/10 text-primary flex items-center justify-center font-bold text-xs">
-                                            {{ Str::substr($task->assignee?->name ?? 'U', 0, 1) }}
-                                        </div>
-                                        <span class="text-gray-900 font-medium text-xs">{{ $task->assignee?->name ?? 'Chưa phân công' }}</span>
                                     </div>
-                                </td>
-                                <td class="p-4 font-mono text-xs {{ $task->status === 'overdue' ? 'text-rose-600 font-bold' : 'text-gray-600' }}">
-                                    {{ $task->due_date ? $task->due_date->format('d/m/Y') : '—' }}
-                                    @if($task->due_time)
-                                        <span class="text-[11px] text-gray-400 block">{{ $task->due_time }}</span>
-                                    @endif
-                                </td>
-                                <td class="p-4">
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border {{ $task->status_badge_class }}">
-                                        {{ $task->status_label }}
-                                    </span>
-                                </td>
-                                <td class="p-4 text-right">
-                                    <div class="relative inline-block text-left" x-data="{ open: false }">
-                                        <button @click="open = !open" @click.outside="open = false" class="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition">
-                                            <span class="material-symbols-outlined text-[20px]">more_vert</span>
-                                        </button>
-                                        @php $allowedStatuses = \App\Http\Controllers\WorkTaskController::allowedTransitions($task, auth()->user()); @endphp
-                                        <div x-show="open" x-cloak class="origin-top-right absolute right-0 mt-2 w-52 rounded-xl shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20 divide-y divide-gray-100 py-1">
-                                            @if (in_array('in_progress', $allowedStatuses, true))
-                                            <button @click="openStatusModal({{ json_encode($task) }}, 'in_progress'); open = false;" class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                                                <span class="material-symbols-outlined text-[16px] text-amber-500">play_arrow</span> {{ $task->status === 'pending_confirmation' ? 'Trả về làm tiếp' : 'Đang thực hiện' }}
+                                </div>
+                            </td>
+                            <td class="whitespace-nowrap font-code text-body-small {{ $task->status === 'overdue' ? 'font-semibold text-error' : '' }}">
+                                {{ $task->due_date?->format('d/m/Y') ?? '—' }}
+                                @if ($task->due_time)<span class="block text-caption text-on-surface-variant">{{ substr($task->due_time, 0, 5) }}</span>@endif
+                            </td>
+                            <td><x-ui.badge :color="$statusColors[$task->status] ?? 'neutral'">{{ $task->status_label }}</x-ui.badge></td>
+                            <td class="text-right">
+                                <div class="relative inline-block text-left" x-data="{ open: false }">
+                                    <x-ui.button variant="ghost" icon="more_vert" aria-label="Thao tác" x-on:click="open = !open" x-on:click.outside="open = false" />
+                                    <div x-show="open" x-cloak class="absolute right-0 z-20 mt-xs w-56 rounded-lg border border-outline-variant bg-surface-container-lowest py-xs text-left shadow-lg">
+                                        @forelse ($allowed as $next)
+                                            @php [$lbl, $ico] = $transitionLabels[$next] ?? [$next, 'arrow_forward']; if ($next === 'in_progress' && $task->status === 'pending_confirmation') { $lbl = 'Trả về làm tiếp'; } @endphp
+                                            <button type="button" class="flex w-full items-center gap-sm px-md py-xs font-body-small text-body-small hover:bg-surface-container-low"
+                                                    x-on:click="openStatusModal({{ \Illuminate\Support\Js::from(['id' => $task->id, 'title' => $task->title]) }}, @js($next), @js($lbl)); open = false">
+                                                <span class="material-symbols-outlined text-[16px] text-on-surface-variant" aria-hidden="true">{{ $ico }}</span>{{ $lbl }}
                                             </button>
-                                            @endif
-                                            @if (in_array('blocked', $allowedStatuses, true))
-                                            <button @click="openStatusModal({{ json_encode($task) }}, 'blocked'); open = false;" class="w-full text-left px-4 py-2 text-xs text-rose-700 hover:bg-rose-50 flex items-center gap-2">
-                                                <span class="material-symbols-outlined text-[16px] text-rose-500">block</span> Báo Bị chặn
-                                            </button>
-                                            @endif
-                                            @if (in_array('pending_confirmation', $allowedStatuses, true))
-                                            <button @click="openStatusModal({{ json_encode($task) }}, 'pending_confirmation'); open = false;" class="w-full text-left px-4 py-2 text-xs text-orange-700 hover:bg-orange-50 flex items-center gap-2">
-                                                <span class="material-symbols-outlined text-[16px] text-orange-500">outgoing_mail</span> Gửi chờ xác nhận
-                                            </button>
-                                            @endif
-                                            @if (in_array('completed', $allowedStatuses, true))
-                                            <button @click="openStatusModal({{ json_encode($task) }}, 'completed'); open = false;" class="w-full text-left px-4 py-2 text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2">
-                                                <span class="material-symbols-outlined text-[16px] text-emerald-500">check_circle</span> Xác nhận Hoàn thành
-                                            </button>
-                                            @endif
-                                            @if (in_array('canceled', $allowedStatuses, true))
-                                            <button @click="openStatusModal({{ json_encode($task) }}, 'canceled'); open = false;" class="w-full text-left px-4 py-2 text-xs text-gray-500 hover:bg-gray-50 flex items-center gap-2">
-                                                <span class="material-symbols-outlined text-[16px] text-gray-400">cancel</span> Hủy công việc
-                                            </button>
-                                            @endif
-                                            @if (empty($allowedStatuses))
-                                                <div class="px-4 py-2 text-[11px] text-gray-400">Không có thao tác khả dụng</div>
-                                            @endif
-                                        </div>
+                                        @empty
+                                            <p class="px-md py-xs font-caption text-caption text-on-surface-variant">Không có thao tác khả dụng</p>
+                                        @endforelse
                                     </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="p-8 text-center text-gray-500">
-                                    <span class="material-symbols-outlined text-4xl text-gray-300 mb-2">assignment_late</span>
-                                    <p class="font-medium text-sm">Không tìm thấy công việc nào phù hợp.</p>
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="6"><x-ui.empty-state icon="assignment_late" title="Không tìm thấy công việc nào phù hợp" /></td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+            <x-slot:footer>
+                <x-ui.pagination :paginator="$tasks" unit="công việc" />
+            </x-slot:footer>
+        </x-ui.data-table>
 
-            <!-- Pagination footer -->
-            <x-pagination :paginator="$tasks" />
-        </div>
-
-        <!-- ========================================== -->
-        <!-- MODAL: GIAO VIỆC MỚI -->
-        <!-- ========================================== -->
-        <div x-show="createModalOpen" x-cloak class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div @click.outside="createModalOpen = false" class="bg-white rounded-2xl shadow-xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
-                <!-- Modal Header -->
-                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">add_task</span>
-                        Giao việc mới
-                    </h2>
-                    <button @click="createModalOpen = false" class="text-gray-400 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100">
-                        <span class="material-symbols-outlined text-[20px]">close</span>
-                    </button>
-                </div>
-
-                <!-- Modal Body -->
-                <form id="createTaskForm" action="{{ route('tasks.store') }}" method="POST" class="p-6 overflow-y-auto space-y-4 text-sm">
+        {{-- Modal: Giao việc mới --}}
+        @if ($canCreate)
+            <x-ui.modal name="create-task" title="Giao việc mới" max-width="xl" :show="$createErrors">
+                <form id="createTaskForm" action="{{ route('tasks.store') }}" method="POST">
                     @csrf
-                    <!-- Tiêu đề công việc -->
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 uppercase mb-1" for="taskTitle">
-                            Tiêu đề công việc <span class="text-rose-500">*</span>
-                        </label>
-                        <input type="text" id="taskTitle" name="taskTitle" required placeholder="Nhập tiêu đề công việc..."
-                               class="w-full rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container">
-                    </div>
-
-                    <!-- Mô tả chi tiết -->
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 uppercase mb-1" for="taskDescription">
-                            Mô tả chi tiết
-                        </label>
-                        <textarea id="taskDescription" name="taskDescription" rows="3" placeholder="Mô tả nội dung công việc chi tiết..."
-                                  class="w-full rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container"></textarea>
-                    </div>
-
-                    <!-- Người nhận & Hạn hoàn thành -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-700 uppercase mb-1" for="assignee">
-                                Người nhận <span class="text-rose-500">*</span>
-                            </label>
-                            <select id="assignee" name="assignee" required class="w-full rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container">
-                                <option value="" disabled selected>-- Chọn nhân sự --</option>
-                                @foreach($users as $u)
-                                    <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->getRoleNames()->implode(', ') ?: 'Nhân viên' }})</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-700 uppercase mb-1" for="dueDate">
-                                Hạn hoàn thành <span class="text-rose-500">*</span>
-                            </label>
-                            <input type="date" id="dueDate" name="dueDate" required value="{{ now()->addDays(2)->format('Y-m-d') }}"
-                                   class="w-full rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container">
-                        </div>
-                    </div>
-
-                    <!-- Chi nhánh & Gắn lớp (Tùy chọn) -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-700 uppercase mb-1" for="branch_id">
-                                Chi nhánh
-                            </label>
-                            <select id="branch_id" name="branch_id" class="w-full rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container">
-                                <option value="">-- Không chỉ định --</option>
-                                @foreach($branches as $b)
-                                    <option value="{{ $b->id }}">{{ $b->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-700 uppercase mb-1" for="class_id">
-                                Gắn lớp (Nếu có)
-                            </label>
-                            <select id="class_id" name="class_id" class="w-full rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container">
-                                <option value="">-- Không gắn lớp --</option>
-                                @foreach($classes as $c)
-                                    <option value="{{ $c->id }}">{{ $c->name }} ({{ $c->code }})</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Loại công việc & Tần suất -->
-                    <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3" x-data="{ isRecurring: false }">
-                        <span class="block text-xs font-semibold text-gray-700 uppercase">Loại công việc</span>
-                        <div class="flex items-center gap-6">
-                            <label class="inline-flex items-center gap-2 cursor-pointer">
-                                <input type="radio" name="taskType" value="one-time" checked @change="isRecurring = false" class="text-primary focus:ring-primary-container">
-                                <span class="text-sm text-gray-800">Phát sinh</span>
-                            </label>
-                            <label class="inline-flex items-center gap-2 cursor-pointer">
-                                <input type="radio" name="taskType" value="recurring" @change="isRecurring = true" class="text-primary focus:ring-primary-container">
-                                <span class="text-sm text-gray-800">Lặp đi lặp lại</span>
-                            </label>
-                        </div>
-
-                        <!-- Tần suất -->
-                        <div x-show="isRecurring" x-cloak class="pt-2 border-t border-gray-200">
-                            <label class="block text-xs font-semibold text-gray-600 uppercase mb-1" for="frequency">Tần suất</label>
-                            <select id="frequency" name="frequency" class="w-full sm:w-1/2 rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container">
-                                <option value="daily">Hàng ngày</option>
-                                <option value="weekly" selected>Hàng tuần</option>
-                                <option value="monthly">Hàng tháng</option>
-                            </select>
-                        </div>
-                    </div>
+                    @include('tasks.partials.task-form-fields')
                 </form>
+                <x-slot:footer>
+                    <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'create-task')">Hủy</x-ui.button>
+                    <x-ui.button type="submit" form="createTaskForm" icon="send">Lưu và Giao việc</x-ui.button>
+                </x-slot:footer>
+            </x-ui.modal>
+        @endif
 
-                <!-- Modal Footer -->
-                <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-                    <button type="button" @click="createModalOpen = false" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm">
-                        Hủy
-                    </button>
-                    <button type="submit" form="createTaskForm" class="px-5 py-2 bg-primary-container text-white rounded-lg hover:bg-primary font-medium text-sm flex items-center gap-2 shadow-sm">
-                        <span class="material-symbols-outlined text-[18px]">send</span>
-                        Lưu và Giao việc
-                    </button>
+        {{-- Modal: Thay đổi trạng thái --}}
+        <div x-show="statusModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/40 p-md" role="dialog" aria-modal="true">
+            <div x-on:click.outside="statusModal = false" class="w-full max-w-md overflow-hidden rounded-xl bg-surface-container-lowest shadow-xl">
+                <div class="flex items-center justify-between border-b border-surface-container px-lg py-md">
+                    <h3 class="font-h3 text-h3 text-on-surface">Thay đổi trạng thái</h3>
+                    <button type="button" x-on:click="statusModal = false" class="rounded p-xs text-on-surface-variant" aria-label="Đóng"><span class="material-symbols-outlined">close</span></button>
                 </div>
-            </div>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- MODAL: THAY ĐỔI TRẠNG THÁI -->
-        <!-- ========================================== -->
-        <div x-show="statusModalOpen" x-cloak class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div @click.outside="statusModalOpen = false" class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
-                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h2 class="text-base font-bold text-gray-900">Thay đổi trạng thái</h2>
-                    <button @click="statusModalOpen = false" class="text-gray-400 hover:text-gray-700 p-1 rounded-full">
-                        <span class="material-symbols-outlined text-[20px]">close</span>
-                    </button>
-                </div>
-
-                <form :action="'/tasks/' + (currentTask ? currentTask.id : '') + '/status'" method="POST" class="p-6 space-y-4 text-sm">
+                <form :action="'{{ url('/tasks') }}/' + (currentTask ? currentTask.id : '') + '/status'" method="POST" class="space-y-md px-lg py-md">
                     @csrf
+                    <input type="hidden" name="status" :value="newStatus">
                     <div>
-                        <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Công việc</label>
-                        <p class="font-medium text-gray-900" x-text="currentTask ? currentTask.title : ''"></p>
+                        <p class="font-caption text-caption text-on-surface-variant">Công việc</p>
+                        <p class="font-body-medium text-body-medium font-semibold" x-text="currentTask ? currentTask.title : ''"></p>
                     </div>
-
                     <div>
-                        <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Trạng thái mới</label>
-                        <select name="status" x-model="newStatus" class="w-full rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container">
-                            <option value="new">Mới</option>
-                            <option value="in_progress">Đang thực hiện</option>
-                            <option value="pending_confirmation">Chờ xác nhận</option>
-                            <option value="blocked">Bị chặn</option>
-                            <option value="completed">Hoàn thành</option>
-                            <option value="canceled">Đã hủy</option>
-                        </select>
+                        <p class="font-caption text-caption text-on-surface-variant">Trạng thái mới</p>
+                        <p class="flex items-center gap-xs font-body-medium text-body-medium font-semibold text-primary" x-text="statusLabel"></p>
                     </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 uppercase mb-1" for="reason">Ghi chú lý do / Kết quả</label>
-                        <textarea name="reason" id="reason" x-model="statusReason" rows="3" placeholder="Nhập lý do chi tiết hoặc kết quả..."
-                                  class="w-full rounded-lg border-gray-200 text-sm focus:border-primary-container focus:ring-primary-container"></textarea>
-                    </div>
-
-                    <div class="pt-2 flex justify-end gap-3">
-                        <button type="button" @click="statusModalOpen = false" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-xs">
-                            Hủy
-                        </button>
-                        <button type="submit" class="px-5 py-2 bg-primary-container text-white rounded-lg hover:bg-primary-tint font-medium text-xs shadow-sm">
-                            Xác nhận cập nhật
-                        </button>
+                    <label class="block">
+                        <span class="mb-xs block font-body-small text-body-small font-medium">
+                            <span x-text="reasonRequired ? 'Ghi chú lý do' : 'Ghi chú / kết quả (tùy chọn)'"></span><span x-show="reasonRequired" class="text-error"> *</span>
+                        </span>
+                        <textarea name="reason" rows="3" :required="reasonRequired" maxlength="1000" placeholder="Nhập lý do chi tiết khiến công việc bị chặn / kết quả..."
+                                  class="w-full rounded-lg border border-outline-variant px-md py-sm font-body-base text-body-base"></textarea>
+                    </label>
+                    <div class="flex justify-end gap-sm border-t border-surface-container pt-md">
+                        <x-ui.button variant="secondary" x-on:click="statusModal = false">Hủy</x-ui.button>
+                        <x-ui.button type="submit">Xác nhận</x-ui.button>
                     </div>
                 </form>
             </div>
         </div>
-
     </div>
 </x-app-layout>

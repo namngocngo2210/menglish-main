@@ -12,13 +12,14 @@
          x-data="{
             modalOpen: false,
             selectedTask: null,
-            openCompleteModal(task) { this.selectedTask = task; this.modalOpen = true; }
+            proofName: '',
+            openCompleteModal(task) { this.selectedTask = task; this.proofName = ''; this.modalOpen = true; }
          }">
 
         {{-- Tiêu đề + người được xem --}}
         <header class="mb-md flex items-center justify-between gap-sm">
             <div class="min-w-0">
-                <h1 class="font-h2 text-h2 text-primary">{{ $isToday ? 'Nhiệm vụ hôm nay' : 'Nhiệm vụ ngày '.$date->format('d/m/Y') }}</h1>
+                <h1 class="font-h2 text-h2 text-primary">{{ $isToday ? 'Nhiệm vụ hằng ngày' : 'Nhiệm vụ ngày '.$date->format('d/m/Y') }}</h1>
                 <p class="truncate font-body-small text-body-small text-on-surface-variant">
                     @if ($taUser)
                         Trợ giảng: <span class="font-semibold text-on-surface">{{ $taUser->name }}</span> · {{ $date->format('d/m/Y') }}
@@ -161,13 +162,19 @@
                 <form :action="'{{ url('/tasks') }}/' + (selectedTask ? selectedTask.id : '') + '/complete'" method="POST" enctype="multipart/form-data" class="space-y-md overflow-y-auto p-md">
                     @csrf
                     <div class="rounded-lg bg-surface-container-low p-sm">
-                        <p class="font-body-medium text-body-medium font-semibold" x-text="selectedTask ? selectedTask.title : ''"></p>
-                        <p class="font-caption text-caption text-on-surface-variant" x-text="'Hạn: ' + (selectedTask && selectedTask.due_time ? selectedTask.due_time.substring(0, 5) : '—')"></p>
+                        <p class="font-body-medium text-body-medium font-semibold" x-text="selectedTask ? 'Nhiệm vụ: ' + selectedTask.title : ''"></p>
+                        <p class="font-caption text-caption text-on-surface-variant" x-text="'Hạn chót: ' + (selectedTask ? selectedTask.due_label : '—')"></p>
                     </div>
-                    <x-ui.field label="Ảnh minh chứng (tùy chọn)" name="proof_image" for="ta_proof">
-                        <input id="ta_proof" type="file" name="proof_image" accept="image/*" class="w-full font-body-small text-body-small">
-                    </x-ui.field>
-                    <x-ui.alert type="info">Có ảnh: nhiệm vụ <strong>hoàn thành ngay</strong>. Không có ảnh: chuyển sang <strong>chờ người giao việc xác nhận</strong>.</x-ui.alert>
+                    <div class="space-y-xs">
+                        <span class="block font-label text-label uppercase text-on-surface-variant">Bằng chứng hình ảnh</span>
+                        <label for="ta_proof" class="flex cursor-pointer flex-col items-center justify-center gap-xs rounded-lg border-2 border-dashed border-outline-variant p-md text-center text-on-surface-variant hover:border-primary-container">
+                            <span class="material-symbols-outlined text-[32px]" aria-hidden="true">cloud_upload</span>
+                            <span class="font-body-small text-body-small font-semibold" x-text="proofName || 'Nhấn để tải ảnh lên'"></span>
+                            <span class="font-caption text-caption">PNG, JPG tối đa 10MB</span>
+                        </label>
+                        <input id="ta_proof" type="file" name="proof_image" accept="image/*" class="sr-only" x-on:change="proofName = $event.target.files[0]?.name || ''">
+                    </div>
+                    <x-ui.alert type="info"><strong>Lưu ý:</strong> Có ảnh đính kèm, nhiệm vụ sẽ được <strong>hoàn thành ngay</strong>. Nếu không có ảnh, trạng thái sẽ chuyển sang <strong>chờ người giao việc xác nhận</strong>.</x-ui.alert>
                     <x-ui.field label="Ghi chú (tùy chọn)" name="note" for="ta_note">
                         <textarea id="ta_note" name="note" rows="3" class="w-full rounded-lg border border-outline-variant p-sm font-body-small text-body-small" placeholder="Kết quả hoặc vấn đề phát sinh..."></textarea>
                     </x-ui.field>

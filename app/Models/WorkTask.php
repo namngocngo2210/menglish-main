@@ -49,6 +49,11 @@ class WorkTask extends Model
             if ($task->care_milestone && $task->wasChanged('status') && $task->status === 'completed') {
                 app(FirstMonthCareService::class)->syncCompletedTask($task);
             }
+
+            // Việc "Lặp đi lặp lại": hoàn thành một lượt → tự tạo lượt kế tiếp theo tần suất.
+            if ($task->task_type === 'recurring' && $task->wasChanged('status') && $task->status === 'completed') {
+                $task->spawnNextOccurrence();
+            }
         });
     }
 
@@ -85,6 +90,83 @@ class WorkTask extends Model
     public function classReport()
     {
         return $this->hasOne(ClassReport::class, 'task_id');
+    }
+
+    /** Ca trực của trợ giảng (Phase 4 — "trợ giảng 3 ca"). */
+    public const TIME_SLOTS = [
+        'before' => 'Trước giờ học',
+        'during' => 'Trong giờ học',
+        'after' => 'Sau giờ học',
+    ];
+
+    /** Trạng thái còn phải làm (sẽ thành "Quá hạn" khi qua hạn). */
+    public const OPEN_STATUSES = ['new', 'in_progress'];
+
+    /**
+     * Tạo lượt kế tiếp của việc lặp (hạn + 1 ngày / 1 tuần / 1 tháng), cùng người giao / người nhận.
+     * Không tạo trùng nếu lượt kế tiếp (cùng tiêu đề, người nhận, hạn) đã có.
+     */
+    public function spawnNextOccurrence(): ?self
+    {
+        if (! $this->due_date) {
+            return null;
+        }
+        $next = match ($this->frequency) {
+            'daily' => $this->due_date->copy()->addDay(),
+            'monthly' => $this->due_date->copy()->addMonthNoOverflow(),
+            default => $this->due_date->copy()->addWeek(),
+        };
+
+        $exists = self::query()
+            ->where('title', $this->title)
+            ->where('assignee_id', $this->assignee_id)
+            ->where('task_type', 'recurring')
+            ->whereDate('due_date', $next->toDateString())
+            ->exists();
+        if ($exists) {
+            return null;
+        }
+
+        return self::create([
+            'title' => $this->title,
+            'description' => $this->description,
+            'creator_id' => $this->creator_id,
+            'assignee_id' => $this->assignee_id,
+            'branch_id' => $this->branch_id,
+            'class_id' => $this->class_id,
+            'time_slot_category' => $this->time_slot_category,
+            'task_type' => 'recurring',
+            'frequency' => $this->frequency ?: 'weekly',
+            'due_date' => $next->toDateString(),
+            'due_time' => $this->due_time,
+            'status' => 'new',
+        ]);
+    }
+
+    /** Thời điểm hết hạn = ngày hạn + giờ hạn (không có giờ → cuối ngày). */
+    public function dueAt(): ?\Carbon\CarbonInterface
+    {
+        if (! $this->due_date) {
+            return null;
+        }
+        $time = $this->due_time ? substr((string) $this->due_time, 0, 5) : '23:59';
+        if (! preg_match('/^\d{2}:\d{2}$/', $time)) {
+            $time = '23:59';
+        }
+
+        return $this->due_date->copy()->setTimeFromTimeString($time);
+    }
+
+    /** Số giờ trễ hạn (làm tròn lên), 0 nếu chưa quá hạn. */
+    public function lateHours(?\Carbon\CarbonInterface $now = null): int
+    {
+        $dueAt = $this->dueAt();
+        $now ??= now();
+        if (! $dueAt || $now->lessThanOrEqualTo($dueAt)) {
+            return 0;
+        }
+
+        return (int) ceil($dueAt->diffInMinutes($now) / 60);
     }
 
     // Helper accessor for status badge label & class

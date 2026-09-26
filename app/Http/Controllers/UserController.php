@@ -62,12 +62,38 @@ class UserController extends Controller
             });
         }
 
+        if ($status = $request->input('status')) {
+            match ($status) {
+                'active' => $query->where('is_active', true)->whereNull('locked_at'),
+                'locked' => $query->where(fn ($q) => $q->where('is_active', false)->orWhereNotNull('locked_at')),
+                'contract_expiring' => $query->whereNotNull('contract_end_date')
+                    ->whereDate('contract_end_date', '<=', now()->addDays(User::CONTRACT_WARNING_DAYS)->toDateString()),
+                default => null,
+            };
+        }
+
         $users = $query->paginate($request->perPage(15))->withQueryString();
+
+        // Lớp đang phụ trách của từng nhân sự trên trang (kiêm nhiệm giảng dạy trong hồ sơ nhanh) — 1 truy vấn.
+        $pageIds = $users->getCollection()->modelKeys();
+        $teachingByUser = [];
+        \App\Models\ClassModel::query()
+            ->whereIn('status', ['active', 'upcoming', 'pending_schedule'])
+            ->where(fn ($q) => $q->whereIn('teacher_id', $pageIds)->orWhereIn('assistant_id', $pageIds)->orWhereIn('foreign_teacher_id', $pageIds))
+            ->orderBy('code')
+            ->get(['id', 'code', 'name', 'teacher_id', 'assistant_id', 'foreign_teacher_id'])
+            ->each(function ($class) use (&$teachingByUser) {
+                foreach (['teacher_id' => 'Giáo viên', 'foreign_teacher_id' => 'GVNN', 'assistant_id' => 'Trợ giảng'] as $column => $label) {
+                    if ($class->{$column}) {
+                        $teachingByUser[(int) $class->{$column}][] = ['code' => $class->code, 'name' => $class->name, 'role' => $label];
+                    }
+                }
+            });
 
         $totalStaff = $scope(User::query())->count();
         $activeStaff = $scope(User::query())->where('is_active', true)->whereNull('locked_at')->count();
         $academicStaff = $scope(User::query())->whereHas('roles', function ($q) {
-            $q->whereIn('name', ['teacher', 'assistant', 'academic_staff']);
+            $q->whereIn('name', self::ACADEMIC_ROLES);
         })->count();
         $lockedStaff = $scope(User::query())->where(function ($q) {
             $q->where('is_active', false)->orWhereNotNull('locked_at');
@@ -86,6 +112,7 @@ class UserController extends Controller
         return view('users.index', compact(
             'expiringContracts',
             'users',
+            'teachingByUser',
             'totalStaff',
             'activeStaff',
             'academicStaff',
@@ -147,14 +174,14 @@ class UserController extends Controller
 
         // Tài khoản mới luôn phải đổi mật khẩu ở lần đăng nhập đầu tiên.
         $user = User::create([
-            ...$request->safe()->except(['role', 'password', 'contract_file']),
+            ...$request->safe()->except(['role', 'password', 'contract_file', 'concurrent_roles', 'concurrent_roles_present']),
             'password' => Hash::make($request->validated('password')),
             'must_change_password' => true,
             'is_active' => true,
             'created_by' => auth()->id(),
         ]);
 
-        $user->syncRoles([$request->validated('role')]);
+        $user->syncRoles($this->rolesWithConcurrent($request, $request->validated('role'), []));
         $this->storeContractFile($request, $user);
 
         return redirect()->route('users.index')->with('status', 'Đã tạo tài khoản thành công.');
@@ -178,7 +205,7 @@ class UserController extends Controller
 
         Audit::describe('Cập nhật tài khoản nhân viên');
 
-        $user->fill($request->safe()->except(['role', 'password', 'contract_file']));
+        $user->fill($request->safe()->except(['role', 'password', 'contract_file', 'concurrent_roles', 'concurrent_roles_present']));
 
         if ($request->filled('password')) {
             $user->password = Hash::make($request->validated('password'));
@@ -190,13 +217,8 @@ class UserController extends Controller
         // giữ nguyên các vai trò kiêm nhiệm (gán ở màn "Gán vai trò").
         $currentRoles = $user->getRoleNames();
         $primaryRole = $currentRoles->first();
-        $roles = $currentRoles
-            ->reject(fn (string $role) => $role === $primaryRole)
-            ->prepend($request->validated('role'))
-            ->unique()
-            ->values()
-            ->all();
-        $user->syncRoles($roles);
+        $keptConcurrent = $currentRoles->reject(fn (string $role) => $role === $primaryRole)->values()->all();
+        $user->syncRoles($this->rolesWithConcurrent($request, $request->validated('role'), $keptConcurrent));
 
         $this->storeContractFile($request, $user);
 
@@ -302,6 +324,29 @@ class UserController extends Controller
             $user->contract_file_path,
             'hop-dong-'.Str::slug($user->name).'.'.$extension
         );
+    }
+
+    /**
+     * Vai trò chính + kiêm nhiệm. Form gửi "concurrent_roles_present" (người có quyền gán vai trò)
+     * thì dùng danh sách kiêm nhiệm được chọn (chỉ vai trò người thao tác được phép gán);
+     * không gửi thì giữ nguyên kiêm nhiệm hiện có. Vai trò chính luôn đứng đầu.
+     *
+     * @param  string[]  $currentConcurrent
+     * @return string[]
+     */
+    private function rolesWithConcurrent(UserRequest $request, string $primary, array $currentConcurrent): array
+    {
+        $concurrent = $currentConcurrent;
+        if ($request->boolean('concurrent_roles_present') && auth()->user()?->can('user.assign_role')) {
+            $concurrent = array_values(array_unique((array) $request->validated('concurrent_roles', [])));
+            foreach ($concurrent as $role) {
+                if (! in_array($role, $this->creatableRoles(auth()->user()), true)) {
+                    throw ValidationException::withMessages(['concurrent_roles' => 'Bạn không được phép gán vai trò kiêm nhiệm "'.\App\Helpers\AclHelper::shortRoleLabel($role).'".']);
+                }
+            }
+        }
+
+        return collect($concurrent)->reject(fn (string $role) => $role === $primary)->prepend($primary)->unique()->values()->all();
     }
 
     private function storeContractFile(UserRequest $request, User $user): void
@@ -412,20 +457,42 @@ class UserController extends Controller
      * Dữ liệu hồ sơ nhanh nhúng vào danh sách nhân sự. Chỉ gồm các trường hiển
      * thị; CCCD, lương, đơn giá, địa chỉ, liên hệ khẩn chỉ gửi cho người được xem.
      */
-    public static function profilePayload(User $user, ?User $viewer): array
+    /** Vai trò thuộc "Khối học thuật" (thẻ thống kê Tài khoản & vai trò). */
+    public const ACADEMIC_ROLES = ['teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant', 'academic_staff', 'academic_lead'];
+
+    /**
+     * @param  array<int, array{code: string, name: string, role: string}>  $teaching  lớp đang phụ trách
+     */
+    public static function profilePayload(User $user, ?User $viewer, array $teaching = []): array
     {
+        $roles = $user->getRoleNames();
+        $contractStatus = $user->contractExpiryStatus();
         $payload = [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
             'phone' => $user->phone,
+            'employee_code' => $user->employee_code ?: 'NV-'.str_pad((string) $user->id, 4, '0', STR_PAD_LEFT),
             'branch' => $user->branch ? ['name' => $user->branch->name] : null,
+            'primary_role' => $roles->first() ? \App\Helpers\AclHelper::shortRoleLabel($roles->first()) : null,
+            // Kiêm nhiệm: vai trò phụ ngoài vai trò chính + lớp đang phụ trách.
+            'concurrent_roles' => $roles->slice(1)->map(fn ($r) => \App\Helpers\AclHelper::shortRoleLabel($r))->values()->all(),
+            'teaching' => array_values($teaching),
             'certificates' => $user->certificates,
             'graduation_school' => $user->graduation_school,
             'teaching_level' => $user->teaching_level,
             'contract_type' => $user->contract_type,
-            'contract_start_date' => $user->contract_start_date?->format('Y-m-d'),
-            'contract_end_date' => $user->contract_end_date?->format('Y-m-d'),
+            'contract_start_date' => $user->contract_start_date?->format('d/m/Y'),
+            'contract_end_date' => $user->contract_end_date?->format('d/m/Y'),
+            'contract_status' => match (true) {
+                ! $user->contract_type && ! $user->contract_end_date => 'Chưa cập nhật',
+                $contractStatus === 'expired' => 'Đã hết hạn',
+                $contractStatus === 'expiring' => 'Sắp hết hạn',
+                default => 'Đang hiệu lực',
+            },
+            'contract_url' => $user->contract_file_path && $viewer && ((int) $viewer->id === (int) $user->id || $viewer->can('user.view'))
+                ? route('users.contract.download', $user) : null,
+            'show_url' => route('users.show', $user),
         ];
 
         if (self::canViewSensitive($viewer)) {

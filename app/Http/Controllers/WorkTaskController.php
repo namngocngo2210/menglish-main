@@ -49,7 +49,7 @@ class WorkTaskController extends Controller
         $taskType = $request->get('task_type', 'all');
         $search = $request->get('q', '');
 
-        $query = WorkTask::with(['creator', 'assignee', 'branch', 'classModel']);
+        $query = WorkTask::with(['creator', 'assignee.roles', 'branch', 'classModel']);
         $this->scopeVisibleTasks($query, $currentUser);
 
         if ($tab === 'mine') {
@@ -193,6 +193,14 @@ class WorkTaskController extends Controller
             return redirect()->back()->withErrors(['status' => $message]);
         }
 
+        // Mockup "Thay đổi trạng thái": Bị chặn / Hủy bắt buộc ghi lý do.
+        if (in_array($status, ['blocked', 'canceled'], true) && blank($reason ?? $note)) {
+            return redirect()->back()->withErrors(['reason' => $status === 'blocked'
+                ? 'Vui lòng nhập lý do khiến công việc bị chặn.'
+                : 'Vui lòng nhập lý do hủy công việc.']);
+        }
+        $note ??= $reason;
+
         $updateData = ['status' => $status];
 
         if ($status === 'blocked') {
@@ -213,6 +221,10 @@ class WorkTaskController extends Controller
         }
 
         $task->update($updateData);
+
+        if ($status === 'pending_confirmation') {
+            $this->notifyTaskConfirmer($task->loadMissing('assignee'));
+        }
 
         return redirect()->back()->with('success', 'Đã cập nhật trạng thái công việc thành công!');
     }
@@ -304,21 +316,56 @@ class WorkTaskController extends Controller
     /**
      * 4. Tạo lượt giao việc cho Trợ giảng (Batch assign form)
      */
+    /** Giờ hạn mặc định của 3 ca trực khi đầu việc không gắn buổi học. */
+    public const SLOT_DEFAULT_DUE = ['before' => '14:00', 'during' => '18:00', 'after' => '21:30'];
+
+    /** Mốc khuyến nghị gửi nhiệm vụ trợ giảng trong ngày (mockup: "Khuyến nghị gửi trước 15h30"). */
+    public const TA_ASSIGN_CUTOFF = '15:30';
+
+    /** Trợ giảng được giao: vai trò assistant đang hoạt động (Quản lý cơ sở: trong chi nhánh mình). */
+    private function assignableAssistants(User $user)
+    {
+        $managed = $user->managedBranchIds();
+
+        return User::role('assistant')
+            ->where('is_active', true)
+            ->whereNull('locked_at')
+            ->when($managed !== null, fn ($q) => $q->whereIn('branch_id', $managed))
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'branch_id']);
+    }
+
     public function taAssignForm(Request $request)
     {
-        $assistants = User::where('is_active', true)
-            ->where(function ($q) {
-                $q->whereHas('roles', function ($rq) {
-                    $rq->whereIn('name', ['assistant', 'academic_staff', 'teacher']);
-                })->orWhere('email', 'like', 'ta.%');
-            })
+        $user = $request->user();
+        $assistants = $this->assignableAssistants($user);
+        $managed = $user->managedBranchIds();
+        $branches = Branch::where('is_active', true)
+            ->when($managed !== null, fn ($q) => $q->whereIn('id', $managed))
+            ->orderBy('name')->get();
+        $classes = ClassModel::query()->visibleTo($user)
+            ->whereIn('status', ['active', 'upcoming'])
             ->orderBy('name')
+            ->get(['id', 'name', 'code', 'branch_id', 'schedule_text']);
+
+        // Buổi học thật của từng lớp (7 ngày trước → 30 ngày tới) cho ô "Buổi học", lọc theo ngày giao trên trình duyệt.
+        $sessions = ClassSession::whereIn('class_id', $classes->modelKeys())
+            ->where('status', '!=', 'cancelled')
+            ->where('type', '!=', ClassSession::TYPE_SUPPORT)
+            ->whereDate('date', '>=', today()->subDays(7)->toDateString())
+            ->whereDate('date', '<=', today()->addDays(30)->toDateString())
+            ->orderBy('date')->orderBy('start_time')
             ->get();
+        $lessons = $sessions->isNotEmpty() ? app(\App\Services\SessionLessonService::class)->lessonsFor($sessions) : [];
+        $classSessions = $sessions->groupBy('class_id')->map(fn ($rows) => $rows->map(fn (ClassSession $s) => [
+            'id' => $s->id,
+            'date' => $s->date->toDateString(),
+            'label' => self::sessionLabel($s, $lessons[$s->id] ?? null).' · '.$s->start_time?->format('H:i').'-'.$s->end_time?->format('H:i'),
+        ])->values());
 
-        $branches = Branch::where('is_active', true)->get();
-        $classes = ClassModel::where('status', 'active')->get();
+        $cutoff = self::TA_ASSIGN_CUTOFF;
 
-        return view('tasks.ta-assign', compact('assistants', 'branches', 'classes'));
+        return view('tasks.ta-assign', compact('assistants', 'branches', 'classes', 'classSessions', 'cutoff'));
     }
 
     public function taAssignStore(Request $request)
@@ -327,41 +374,108 @@ class WorkTaskController extends Controller
             'assistant_id' => 'required|exists:users,id',
             'assign_date' => 'required|date',
             'branch_id' => 'nullable|exists:branches,id',
-            'tasks' => 'required|array|min:1',
+            'tasks' => 'required|array|min:1|max:30',
             'tasks.*.category' => 'required|in:before,during,after',
             'tasks.*.content' => 'required|string|max:500',
             'tasks.*.attach_class' => 'nullable',
             'tasks.*.class_id' => 'nullable|exists:classes,id',
+            'tasks.*.class_session_id' => 'nullable|integer|exists:class_sessions,id',
             'tasks.*.session' => 'nullable|string|max:255',
+        ], [
+            'assistant_id.required' => 'Vui lòng chọn trợ giảng.',
+            'tasks.*.content.required' => 'Nội dung đầu việc không được để trống.',
         ]);
 
-        $createdCount = 0;
-        $lastTask = null;
-        foreach ($validated['tasks'] as $item) {
-            $hasAttachClass = isset($item['attach_class']) && ($item['attach_class'] == '1' || $item['attach_class'] == 'on');
-
-            $lastTask = WorkTask::create([
-                'title' => $item['content'],
-                'description' => 'Nhiệm vụ trực ca '.($item['category'] === 'before' ? 'Trước giờ học' : ($item['category'] === 'during' ? 'Trong giờ học' : 'Sau giờ học')),
-                'creator_id' => Auth::id() ?? 1,
-                'assignee_id' => $validated['assistant_id'],
-                'branch_id' => $validated['branch_id'] ?? null,
-                'class_id' => $hasAttachClass ? ($item['class_id'] ?? null) : null,
-                'lesson_session' => $hasAttachClass ? ($item['session'] ?? null) : null,
-                'time_slot_category' => $item['category'],
-                'task_type' => 'one_time',
-                'due_date' => $validated['assign_date'],
-                'due_time' => $item['category'] === 'before' ? '14:00' : ($item['category'] === 'during' ? '18:00' : '21:30'),
-                'status' => 'new',
-            ]);
-            $createdCount++;
+        $user = $request->user();
+        if (! $this->assignableAssistants($user)->contains('id', (int) $validated['assistant_id'])) {
+            throw ValidationException::withMessages(['assistant_id' => 'Chỉ giao cho trợ giảng đang hoạt động trong phạm vi bạn quản lý.']);
+        }
+        $managed = $user->managedBranchIds();
+        if (! empty($validated['branch_id']) && $managed !== null && ! in_array((int) $validated['branch_id'], $managed, true)) {
+            throw ValidationException::withMessages(['branch_id' => 'Bạn chỉ giao việc trong chi nhánh mình quản lý.']);
         }
 
-        if ($lastTask) {
-            $this->notifyAssignee($lastTask, $createdCount);
+        $assignDate = Carbon::parse($validated['assign_date'])->toDateString();
+        $visibleClassIds = ClassModel::query()->visibleTo($user)->pluck('id')->all();
+        $rows = [];
+        foreach ($validated['tasks'] as $i => $item) {
+            $attach = in_array($item['attach_class'] ?? null, ['1', 'on', 1, true], true);
+            $session = null;
+            if ($attach) {
+                if (empty($item['class_id'])) {
+                    throw ValidationException::withMessages(["tasks.{$i}.class_id" => 'Đầu việc #'.($i + 1).': đã chọn "Gắn lớp" thì phải chọn lớp học.']);
+                }
+                if (! in_array((int) $item['class_id'], $visibleClassIds, true)) {
+                    throw ValidationException::withMessages(["tasks.{$i}.class_id" => 'Đầu việc #'.($i + 1).': lớp nằm ngoài phạm vi bạn quản lý.']);
+                }
+                if (! empty($item['class_session_id'])) {
+                    $session = ClassSession::find($item['class_session_id']);
+                    if (! $session || (int) $session->class_id !== (int) $item['class_id'] || $session->date->toDateString() !== $assignDate) {
+                        throw ValidationException::withMessages(["tasks.{$i}.class_session_id" => 'Đầu việc #'.($i + 1).': buổi học không thuộc lớp hoặc không đúng ngày giao việc.']);
+                    }
+                } elseif (blank($item['session'] ?? null)) {
+                    throw ValidationException::withMessages(["tasks.{$i}.class_session_id" => 'Đầu việc #'.($i + 1).': vui lòng chọn buổi học.']);
+                }
+            }
+            $rows[] = [$item, $attach, $session];
         }
 
-        return redirect()->route('tasks.index')->with('success', "Đã tạo thành công {$createdCount} nhiệm vụ cho Trợ giảng!");
+        $created = DB::transaction(function () use ($rows, $validated, $assignDate) {
+            $created = collect();
+            foreach ($rows as [$item, $attach, $session]) {
+                $created->push(WorkTask::create([
+                    'title' => $item['content'],
+                    'description' => 'Nhiệm vụ trực ca '.WorkTask::TIME_SLOTS[$item['category']],
+                    'creator_id' => Auth::id(),
+                    'assignee_id' => $validated['assistant_id'],
+                    'branch_id' => $validated['branch_id'] ?? ($session?->branch_id),
+                    'class_id' => $attach ? $item['class_id'] : null,
+                    'lesson_session' => $attach
+                        ? ($session ? self::sessionLabel($session, app(\App\Services\SessionLessonService::class)->lessonsFor(collect([$session]))[$session->id] ?? null) : $item['session'])
+                        : null,
+                    'time_slot_category' => $item['category'],
+                    'task_type' => 'one_time',
+                    'due_date' => $assignDate,
+                    'due_time' => self::slotDueTime($item['category'], $session),
+                    'status' => 'new',
+                ]));
+            }
+
+            return $created;
+        });
+
+        $this->notifyAssignee($created->last(), $created->count());
+
+        // Gửi sau 15h30 cho nhiệm vụ trong ngày (hoặc ngày đã qua): vẫn lưu, báo Admin (mockup).
+        $late = $assignDate < today()->toDateString()
+            || ($assignDate === today()->toDateString() && now()->format('H:i') > self::TA_ASSIGN_CUTOFF);
+        if ($late) {
+            $assistant = User::find($validated['assistant_id']);
+            User::role('admin')->where('is_active', true)->whereNull('locked_at')->pluck('id')
+                ->reject(fn ($id) => (int) $id === (int) Auth::id())
+                ->each(fn ($adminId) => $this->notifyUser($adminId, 'task_assigned', 'Giao việc trợ giảng sau '.self::TA_ASSIGN_CUTOFF,
+                    Auth::user()->name." giao {$created->count()} nhiệm vụ ngày ".Carbon::parse($assignDate)->format('d/m/Y')." cho {$assistant?->name} lúc ".now()->format('H:i').'.',
+                    route('portal.ta-tasks', ['ta_id' => $validated['assistant_id'], 'date' => $assignDate])));
+        }
+
+        return redirect()->route('tasks.index')->with('success', "Đã tạo thành công {$created->count()} nhiệm vụ cho Trợ giảng!".($late ? ' (Gửi sau '.self::TA_ASSIGN_CUTOFF.' — đã báo Admin.)' : ''));
+    }
+
+    /**
+     * Giờ hạn của ca trực: gắn buổi học → Trước giờ học = giờ bắt đầu buổi, Trong giờ học = giờ kết thúc,
+     * Sau giờ học = kết thúc + 60 phút; không gắn buổi → mốc mặc định của ca.
+     */
+    private static function slotDueTime(string $category, ?ClassSession $session): string
+    {
+        if (! $session || ! $session->start_time || ! $session->end_time) {
+            return self::SLOT_DEFAULT_DUE[$category];
+        }
+
+        return match ($category) {
+            'before' => $session->start_time->format('H:i'),
+            'during' => $session->end_time->format('H:i'),
+            default => $session->end_time->copy()->addHour()->min($session->end_time->copy()->setTime(23, 59))->format('H:i'),
+        };
     }
 
     /**
@@ -379,14 +493,16 @@ class WorkTaskController extends Controller
         // Admin / quản lý / học vụ xem được nhiệm vụ của trợ giảng bất kỳ qua bộ chọn TA;
         // trợ giảng (và vai trò khác) chỉ xem nhiệm vụ của chính mình.
         $canPickTa = $viewer->can('work_task.assign') || $viewer->can('work_task.approve');
-        $assistants = $canPickTa
-            ? User::role('assistant')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'email'])
-            : collect();
+        $assistants = $canPickTa ? $this->assignableAssistants($viewer) : collect();
 
         if ($canPickTa) {
-            $taUser = isset($validated['ta_id'])
-                ? User::find($validated['ta_id'])
-                : ($viewer->hasRole('assistant') ? $viewer : $assistants->first());
+            if (isset($validated['ta_id'])) {
+                $taId = (int) $validated['ta_id'];
+                abort_unless($taId === (int) $viewer->id || $assistants->contains('id', $taId), 403, 'Trợ giảng này nằm ngoài phạm vi bạn quản lý.');
+                $taUser = User::find($taId);
+            } else {
+                $taUser = $viewer->hasRole('assistant') ? $viewer : $assistants->first();
+            }
         } else {
             $taUser = $viewer;
         }
@@ -395,7 +511,7 @@ class WorkTaskController extends Controller
         $sessions = collect();
         $overdueCount = 0;
         if ($taUser) {
-            $tasks = WorkTask::with(['classModel:id,name,code', 'branch:id,name'])
+            $tasks = WorkTask::with(['classModel:id,name,code,teacher_id', 'branch:id,name', 'creator:id,name', 'classReport'])
                 ->where('assignee_id', $taUser->id)
                 ->whereDate('due_date', $date->toDateString())
                 ->orderBy('due_time')
@@ -433,6 +549,7 @@ class WorkTaskController extends Controller
     {
         $task = WorkTask::findOrFail($id);
         abort_unless((int) $task->assignee_id === (int) Auth::id() || $request->user()->can('work_task.approve'), 403);
+        abort_if(in_array($task->status, ['completed', 'canceled', 'pending_confirmation'], true), 422, 'Nhiệm vụ đã hoàn thành, đã hủy hoặc đang chờ xác nhận.');
         $request->validate([
             'proof_image' => 'nullable|file|max:10240|mimes:'.implode(',', SafeUploadService::IMAGES),
             'proof_image_url' => 'nullable|url:http,https|max:2048',
@@ -461,6 +578,7 @@ class WorkTaskController extends Controller
                 'status' => 'pending_confirmation',
                 'completion_note' => $note,
             ]);
+            $this->notifyTaskConfirmer($task->loadMissing('assignee'));
             $msg = "Đã gửi báo cáo tiến độ. Do không đính kèm ảnh, nhiệm vụ chuyển sang 'Chờ người giao việc xác nhận'!";
         }
 
@@ -472,69 +590,176 @@ class WorkTaskController extends Controller
      */
     public function createClassReport(Request $request)
     {
-        $classes = ClassModel::where('status', 'active')->get();
-        $classId = $request->get('class_id', $classes->first()?->id);
-        $taskId = $request->get('task_id');
+        $user = $request->user();
+        $task = $this->reportableTask($request->integer('task_id') ?: null, $user);
 
-        $selectedClass = ClassModel::with('students')->find($classId) ?? $classes->first();
-        $students = $selectedClass?->students ?? Student::all();
+        // Chỉ lớp người nộp phụ trách (GV / GVNN / TA, hoặc trong phạm vi quản lý).
+        $classes = ClassModel::query()->visibleTo($user)
+            ->whereIn('status', ['active', 'upcoming'])
+            ->orderBy('name')
+            ->get();
+        if ($task?->classModel && ! $classes->contains('id', $task->class_id)) {
+            $classes->push($task->classModel);
+        }
 
-        return view('tasks.class-report-create', compact('classes', 'selectedClass', 'students', 'taskId'));
+        $classId = $request->integer('class_id') ?: ($task?->class_id ?: $classes->first()?->id);
+        $selectedClass = $classes->firstWhere('id', $classId) ?? $classes->first();
+        $students = $selectedClass ? $selectedClass->rosterStudents() : collect();
+
+        // Buổi học thật của lớp (30 ngày gần nhất tới hôm nay) cho ô "Buổi học" và "Buổi vắng".
+        $sessions = $selectedClass
+            ? ClassSession::where('class_id', $selectedClass->id)
+                ->where('status', '!=', 'cancelled')
+                ->where('type', '!=', ClassSession::TYPE_SUPPORT)
+                ->whereDate('date', '<=', today()->toDateString())
+                ->whereDate('date', '>=', today()->subDays(30)->toDateString())
+                ->orderByDesc('date')->orderByDesc('start_time')
+                ->limit(20)
+                ->get()
+            : collect();
+        $lessons = $sessions->isNotEmpty() ? app(\App\Services\SessionLessonService::class)->lessonsFor($sessions) : [];
+        $sessionOptions = $sessions->mapWithKeys(fn (ClassSession $s) => [$s->id => self::sessionLabel($s, $lessons[$s->id] ?? null)]);
+        $defaultSessionId = $sessions->first(fn (ClassSession $s) => $s->date->isToday())?->id;
+
+        $confirmerId = ClassReport::resolveConfirmerId($selectedClass, $task, (int) $user->id);
+        $confirmer = $confirmerId ? User::find($confirmerId, ['id', 'name']) : null;
+        $taskId = $task?->id;
+
+        return view('tasks.class-report-create', compact(
+            'classes', 'selectedClass', 'students', 'taskId', 'task', 'sessionOptions', 'defaultSessionId', 'confirmer'
+        ));
+    }
+
+    /** "Buổi N - Nội dung bài (dd/mm)" cho một buổi học. */
+    private static function sessionLabel(ClassSession $session, ?array $lesson): string
+    {
+        $label = $lesson ? 'Buổi '.$lesson['no'].($lesson['title'] ? ' - '.$lesson['title'] : '') : ($session->shift_name ?: 'Buổi học');
+
+        return $label.' ('.$session->date->format('d/m').')';
+    }
+
+    /**
+     * Đầu việc "Trực lớp" mà người nộp được gắn báo cáo: do chính họ thực hiện
+     * (hoặc người có quyền duyệt nộp thay), chưa hoàn thành / hủy.
+     */
+    private function reportableTask(?int $taskId, User $user): ?WorkTask
+    {
+        if (! $taskId) {
+            return null;
+        }
+        $task = WorkTask::with('classModel')->find($taskId);
+        if (! $task || in_array($task->status, ['completed', 'canceled'], true)) {
+            return null;
+        }
+
+        return (int) $task->assignee_id === (int) $user->id || $user->can('work_task.approve') ? $task : null;
     }
 
     public function storeClassReport(Request $request)
     {
         $validated = $request->validate([
             'class_id' => 'required|exists:classes,id',
-            'session_name' => 'required|string|max:255',
+            'class_session_id' => 'nullable|integer|exists:class_sessions,id',
+            'session_name' => 'required_without:class_session_id|nullable|string|max:255',
             'hom_nay_hoc_gi' => 'required|string',
             'nhat_ky_day' => 'nullable|string',
             'task_id' => 'nullable|exists:work_tasks,id',
             'supports' => 'nullable|array',
             'supports.*.student_id' => 'nullable|exists:students,id',
-            'supports.*.absence_session' => 'nullable|string',
+            'supports.*.absence_session' => 'nullable|string|max:255',
             'supports.*.reason' => 'nullable|string',
             'supports.*.action_plan' => 'nullable|string',
+            'board_images' => 'nullable|array|max:10',
+            'board_images.*' => 'file|max:10240|mimes:'.implode(',', SafeUploadService::IMAGES),
             'board_image' => 'nullable|file|max:10240|mimes:'.implode(',', SafeUploadService::IMAGES),
             'board_image_url' => 'nullable|url:http,https|max:2048',
+        ], [
+            'session_name.required_without' => 'Vui lòng chọn hoặc nhập buổi học.',
+            'hom_nay_hoc_gi.required' => 'Vui lòng nhập "Hôm nay học gì".',
         ]);
 
+        $user = $request->user();
         $class = ClassModel::findOrFail($validated['class_id']);
         abort_unless(
-            $request->user()->can('work_task.approve')
-            || in_array((int) Auth::id(), array_map('intval', [$class->teacher_id, $class->assistant_id, $class->foreign_teacher_id]), true),
+            $user->can('work_task.approve')
+            || in_array((int) $user->id, array_map('intval', [$class->teacher_id, $class->assistant_id, $class->foreign_teacher_id]), true)
+            || ClassModel::query()->visibleTo($user)->whereKey($class->id)->exists(),
             403
         );
 
-        $hasImage = $request->hasFile('board_image') || ! empty($request->input('board_image_url'));
-        $imagePath = null;
-        if ($request->hasFile('board_image')) {
-            $imagePath = SafeUploadService::store($request->file('board_image'), 'class_reports', SafeUploadService::IMAGES, 'board_image');
-        } elseif ($request->filled('board_image_url')) {
-            $imagePath = $request->input('board_image_url');
+        $session = null;
+        if (! empty($validated['class_session_id'])) {
+            $session = ClassSession::find($validated['class_session_id']);
+            if (! $session || (int) $session->class_id !== (int) $class->id) {
+                throw ValidationException::withMessages(['class_session_id' => 'Buổi học không thuộc lớp đã chọn.']);
+            }
         }
 
-        // Quy tắc: Có ảnh đính kèm -> hoàn thành ngay (approved); Không có ảnh -> chờ GV chính xác nhận (pending_approval)
-        $status = $hasImage ? 'approved' : 'pending_approval';
+        // Đầu việc "Trực lớp": gửi kèm (từ Portal TA) hoặc tự tìm việc đang mở của người nộp cho lớp trong ngày.
+        $task = null;
+        if (! empty($validated['task_id'])) {
+            $task = $this->reportableTask((int) $validated['task_id'], $user);
+            if (! $task || ($task->class_id && (int) $task->class_id !== (int) $class->id)) {
+                throw ValidationException::withMessages(['task_id' => 'Đầu việc không thuộc bạn, đã đóng hoặc không gắn với lớp này.']);
+            }
+        } else {
+            $task = WorkTask::where('assignee_id', $user->id)
+                ->where('class_id', $class->id)
+                ->whereDate('due_date', ($session?->date ?? today())->toDateString())
+                ->whereIn('status', ['new', 'in_progress', 'overdue', 'blocked'])
+                ->orderBy('due_time')->orderBy('id')
+                ->first();
+        }
 
-        $report = ClassReport::create([
-            'task_id' => $validated['task_id'] ?? null,
-            'class_id' => $validated['class_id'],
-            'reporter_id' => Auth::id() ?? 1,
-            'session_name' => $validated['session_name'],
-            'session_date' => now()->toDateString(),
-            'topics_learned' => $validated['hom_nay_hoc_gi'],
-            'teaching_log' => $validated['nhat_ky_day'] ?? null,
-            'board_image' => $imagePath,
-            'has_image' => $hasImage,
-            'status' => $status,
-            'approved_at' => $hasImage ? now() : null,
-            'approved_by' => $hasImage ? Auth::id() : null,
-        ]);
+        $files = array_values(array_filter(array_merge(
+            (array) $request->file('board_images', []),
+            $request->hasFile('board_image') ? [$request->file('board_image')] : []
+        )));
+        $hasImage = ! empty($files) || $request->filled('board_image_url');
 
-        // Lưu danh sách học sinh cần bổ trợ
-        if (! empty($validated['supports'])) {
-            foreach ($validated['supports'] as $supp) {
+        // A6 Q8: không ảnh → cần người xác nhận (GV chính; chưa có GV chính → người giao việc).
+        $confirmerId = ClassReport::resolveConfirmerId($class, $task, (int) $user->id);
+        if (! $hasImage && ! $confirmerId) {
+            throw ValidationException::withMessages([
+                'board_images' => 'Lớp chưa có GV chính và báo cáo không gắn đầu việc "Trực lớp" được giao, nên không có người xác nhận. '
+                    .'Hãy đính kèm ít nhất 1 ảnh bảng/lớp hoặc nộp từ đầu việc "Trực lớp" trong Portal.',
+            ]);
+        }
+
+        $paths = [];
+        foreach ($files as $file) {
+            $paths[] = SafeUploadService::store($file, 'class_reports', SafeUploadService::IMAGES, 'board_images');
+        }
+        if ($request->filled('board_image_url')) {
+            $paths[] = $request->input('board_image_url');
+        }
+
+        $sessionName = trim((string) ($validated['session_name'] ?? ''));
+        if ($sessionName === '' && $session) {
+            $sessionName = self::sessionLabel($session, app(\App\Services\SessionLessonService::class)->lessonsFor(collect([$session]))[$session->id] ?? null);
+        }
+
+        $report = DB::transaction(function () use ($validated, $class, $session, $task, $user, $paths, $hasImage, $confirmerId, $sessionName) {
+            $report = ClassReport::create([
+                'task_id' => $task?->id,
+                'class_id' => $class->id,
+                'class_session_id' => $session?->id,
+                'reporter_id' => $user->id,
+                'confirmer_id' => $hasImage ? null : $confirmerId,
+                'session_name' => $sessionName,
+                'session_date' => ($session?->date ?? today())->toDateString(),
+                'topics_learned' => $validated['hom_nay_hoc_gi'],
+                'teaching_log' => $validated['nhat_ky_day'] ?? null,
+                'board_image' => $paths[0] ?? null,
+                'board_images' => $paths ?: null,
+                'has_image' => $hasImage,
+                // Có ≥ 1 ảnh → xác nhận ngay; không ảnh → chờ xác nhận.
+                'status' => $hasImage ? ClassReport::STATUS_APPROVED : ClassReport::STATUS_PENDING,
+                'approved_at' => $hasImage ? now() : null,
+                'approved_by' => null,
+            ]);
+
+            foreach ($validated['supports'] ?? [] as $supp) {
                 if (! empty($supp['student_id']) && ! empty($supp['reason'])) {
                     ClassReportStudentSupport::create([
                         'class_report_id' => $report->id,
@@ -546,28 +771,30 @@ class WorkTaskController extends Controller
                     ]);
                 }
             }
-        }
 
-        // Cập nhật work task liên quan nếu có
-        if (! empty($validated['task_id'])) {
-            $task = WorkTask::find($validated['task_id']);
+            // Đầu việc "Trực lớp": có ảnh → tự Hoàn thành; không ảnh → Chờ xác nhận.
             if ($task) {
                 $task->update([
                     'status' => $hasImage ? 'completed' : 'pending_confirmation',
                     'completed_at' => $hasImage ? now() : null,
-                    'completion_proof_image' => $imagePath,
+                    'completion_proof_image' => $paths[0] ?? null,
                     'completion_note' => 'Báo cáo trực lớp: '.$validated['hom_nay_hoc_gi'],
+                    'rejection_reason' => null,
                 ]);
             }
-        }
+
+            return $report;
+        });
 
         if (! $hasImage) {
-            $this->notifyClassReportReviewers($report, $class);
+            $this->notifyClassReportConfirmer($report->load(['classModel', 'task']), $class);
         }
 
+        $confirmerName = $confirmerId ? User::find($confirmerId)?->name : null;
         $msg = $hasImage
-            ? 'Đã nộp báo cáo trực lớp thành công kèm hình ảnh minh chứng!'
-            : 'Đã nộp báo cáo trực lớp (Không có ảnh, hệ thống đang chờ GV chính xác nhận)!';
+            ? 'Đã nộp báo cáo trực lớp kèm '.count($paths).' ảnh — đầu việc "Trực lớp" đã tự hoàn thành.'
+            : 'Đã nộp báo cáo trực lớp (không có ảnh) — chờ '.($report->confirmerRoleLabel() === 'GV chính của lớp' ? 'GV chính' : 'người giao việc')
+                .($confirmerName ? " {$confirmerName}" : '').' xác nhận.';
 
         return redirect()->route('portal.ta-tasks')->with('success', $msg);
     }
@@ -577,34 +804,64 @@ class WorkTaskController extends Controller
      */
     public function manualApprovals(Request $request)
     {
-        $selectedId = $request->get('selected_id');
-
+        $validated = $request->validate([
+            'selected_id' => ['nullable', 'integer'],
+            'report' => ['nullable', 'integer'],
+            'kind' => ['nullable', 'in:task,report'],
+            'q' => ['nullable', 'string', 'max:100'],
+            'assignee_id' => ['nullable', 'integer'],
+        ]);
         $user = $request->user();
+        $kind = $validated['kind'] ?? null;
+        $search = trim((string) ($validated['q'] ?? ''));
+        $assigneeFilter = isset($validated['assignee_id']) ? (int) $validated['assignee_id'] : null;
 
-        // Người có quyền duyệt thấy việc chờ xác nhận trong phạm vi; người khác
-        // chỉ thấy việc do chính mình giao. Không ai duyệt việc của chính mình.
-        $pendingQuery = WorkTask::with(['assignee', 'creator', 'classModel', 'classReport'])
+        // Việc thường chờ xác nhận: người có quyền duyệt thấy trong phạm vi; người khác chỉ việc mình giao.
+        // Việc "Trực lớp" có báo cáo chờ xác nhận đi theo luật Q8 (mục báo cáo bên dưới), không lặp ở đây.
+        // Không ai duyệt việc của chính mình.
+        $pendingQuery = WorkTask::with(['assignee', 'creator', 'classModel'])
             ->where('status', 'pending_confirmation')
+            ->whereDoesntHave('classReport', fn ($q) => $q->where('status', ClassReport::STATUS_PENDING))
             ->where(fn ($q) => $q->whereNull('assignee_id')->orWhere('assignee_id', '!=', $user->id));
         if ($user->can('work_task.approve')) {
             $this->scopeVisibleTasks($pendingQuery, $user);
         } else {
             $pendingQuery->where('creator_id', $user->id);
         }
-        $pendingTasks = $pendingQuery->latest()->get();
+        $pendingTasks = $kind === 'report' ? collect() : $pendingQuery
+            ->when($search !== '', fn ($q) => $q->where(fn ($s) => $s->where('title', 'like', "%{$search}%")
+                ->orWhereHas('assignee', fn ($a) => $a->where('name', 'like', "%{$search}%"))))
+            ->when($assigneeFilter, fn ($q) => $q->where('assignee_id', $assigneeFilter))
+            ->latest('updated_at')
+            ->get();
 
-        $selectedTask = $selectedId
-            ? $pendingTasks->firstWhere('id', $selectedId)
-            : $pendingTasks->first();
-
-        $pendingReports = ClassReport::with(['classModel', 'reporter', 'task'])
-            ->where('status', 'pending_approval')
+        // Báo cáo trực lớp chờ xác nhận: chỉ người xác nhận theo Q8 (GV chính / người giao việc).
+        $pendingReports = $kind === 'task' ? collect() : ClassReport::with(['classModel', 'reporter', 'task.creator', 'studentSupports.student'])
+            ->where('status', ClassReport::STATUS_PENDING)
+            ->when($search !== '', fn ($q) => $q->where(fn ($s) => $s->where('session_name', 'like', "%{$search}%")
+                ->orWhere('topics_learned', 'like', "%{$search}%")
+                ->orWhereHas('reporter', fn ($a) => $a->where('name', 'like', "%{$search}%"))
+                ->orWhereHas('classModel', fn ($c) => $c->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))))
+            ->when($assigneeFilter, fn ($q) => $q->where('reporter_id', $assigneeFilter))
             ->latest()
             ->get()
             ->filter(fn (ClassReport $report) => $this->canReviewClassReport($report, $user))
             ->values();
 
-        return view('tasks.manual-approvals', compact('pendingTasks', 'selectedTask', 'pendingReports'));
+        $selectedReport = isset($validated['report']) ? $pendingReports->firstWhere('id', (int) $validated['report']) : null;
+        $selectedTask = $selectedReport ? null : (isset($validated['selected_id'])
+            ? $pendingTasks->firstWhere('id', (int) $validated['selected_id'])
+            : $pendingTasks->first());
+        if (! $selectedTask && ! $selectedReport) {
+            $selectedReport = $pendingReports->first();
+        }
+
+        $assigneeOptions = $pendingTasks->pluck('assignee')->merge($pendingReports->pluck('reporter'))
+            ->filter()->unique('id')->sortBy('name')->pluck('name', 'id');
+
+        return view('tasks.manual-approvals', compact(
+            'pendingTasks', 'selectedTask', 'pendingReports', 'selectedReport', 'kind', 'search', 'assigneeFilter', 'assigneeOptions'
+        ));
     }
 
     /**
@@ -653,13 +910,32 @@ class WorkTaskController extends Controller
     public function approveClassReport(Request $request, int $id)
     {
         $report = ClassReport::with(['classModel', 'task'])->findOrFail($id);
-        abort_unless($this->canReviewClassReport($report, $request->user()), 403, 'Bạn không có quyền duyệt báo cáo này.');
-        abort_unless($report->status === 'pending_approval', 422, 'Báo cáo không ở trạng thái chờ duyệt.');
+        abort_unless($this->canReviewClassReport($report, $request->user()), 403, 'Chỉ GV chính của lớp (lớp chưa có GV chính: người giao việc) được xác nhận báo cáo này.');
+        abort_unless($report->status === ClassReport::STATUS_PENDING, 422, 'Báo cáo không ở trạng thái chờ xác nhận.');
 
-        DB::transaction(function () use ($report, $request) {
+        $this->confirmClassReport($report, $request->user(), $request->input('admin_note'));
+
+        return back()->with('success', 'Đã xác nhận báo cáo trực lớp — đầu việc "Trực lớp" đã hoàn thành.');
+    }
+
+    public function rejectClassReport(Request $request, int $id)
+    {
+        $validated = $request->validate(['reason' => 'required|string|max:1000'], ['reason.required' => 'Vui lòng nhập lý do trả về.']);
+        $report = ClassReport::with(['classModel', 'task'])->findOrFail($id);
+        abort_unless($this->canReviewClassReport($report, $request->user()), 403, 'Chỉ GV chính của lớp (lớp chưa có GV chính: người giao việc) được xác nhận báo cáo này.');
+        abort_unless($report->status === ClassReport::STATUS_PENDING, 422, 'Báo cáo không ở trạng thái chờ xác nhận.');
+
+        $this->returnClassReport($report, $request->user(), $validated['reason']);
+
+        return back()->with('info', 'Đã trả báo cáo trực lớp về cho người nộp.');
+    }
+
+    private function confirmClassReport(ClassReport $report, User $actor, ?string $note = null): void
+    {
+        DB::transaction(function () use ($report, $actor, $note) {
             $report->update([
-                'status' => 'approved',
-                'approved_by' => $request->user()->id,
+                'status' => ClassReport::STATUS_APPROVED,
+                'approved_by' => $actor->id,
                 'approved_at' => now(),
                 'rejection_reason' => null,
             ]);
@@ -667,44 +943,36 @@ class WorkTaskController extends Controller
             if ($report->task && $report->task->status === 'pending_confirmation') {
                 $report->task->update([
                     'status' => 'completed',
-                    'confirmed_by' => $request->user()->id,
+                    'confirmed_by' => $actor->id,
                     'confirmed_at' => now(),
                     'completed_at' => now(),
+                    'completion_note' => trim(($report->task->completion_note ?? '').($note ? "\n[Ghi chú xác nhận]: {$note}" : '')),
                 ]);
             }
         });
 
-        $this->notifyUser($report->reporter_id, 'class_report_pending', 'Báo cáo trực lớp đã được duyệt',
-            "{$request->user()->name} đã duyệt báo cáo trực lớp {$report->session_name}.", route('portal.ta-tasks'));
-
-        return back()->with('success', 'Đã duyệt báo cáo trực lớp.');
+        $this->notifyUser($report->reporter_id, 'class_report_pending', 'Báo cáo trực lớp đã được xác nhận',
+            "{$actor->name} đã xác nhận báo cáo trực lớp {$report->session_name}.", route('portal.ta-tasks'));
     }
 
-    public function rejectClassReport(Request $request, int $id)
+    private function returnClassReport(ClassReport $report, User $actor, string $reason): void
     {
-        $validated = $request->validate(['reason' => 'required|string|max:1000']);
-        $report = ClassReport::with(['classModel', 'task'])->findOrFail($id);
-        abort_unless($this->canReviewClassReport($report, $request->user()), 403, 'Bạn không có quyền duyệt báo cáo này.');
-        abort_unless($report->status === 'pending_approval', 422, 'Báo cáo không ở trạng thái chờ duyệt.');
-
-        DB::transaction(function () use ($report, $validated) {
+        DB::transaction(function () use ($report, $reason) {
             $report->update([
-                'status' => 'rejected',
-                'rejection_reason' => $validated['reason'],
+                'status' => ClassReport::STATUS_REJECTED,
+                'rejection_reason' => $reason,
             ]);
 
             if ($report->task && $report->task->status === 'pending_confirmation') {
                 $report->task->update([
                     'status' => 'in_progress',
-                    'rejection_reason' => $validated['reason'],
+                    'rejection_reason' => $reason,
                 ]);
             }
         });
 
         $this->notifyUser($report->reporter_id, 'class_report_pending', 'Báo cáo trực lớp bị trả về',
-            "{$request->user()->name}: {$validated['reason']}", route('portal.ta-tasks'));
-
-        return back()->with('info', 'Đã trả báo cáo trực lớp về cho người nộp.');
+            "{$actor->name}: {$reason}", route('portal.ta-tasks'));
     }
 
     /**
@@ -787,23 +1055,26 @@ class WorkTaskController extends Controller
         abort_unless($user && ($user->can('work_task.create') || $user->can('work_task.request')), 403, 'Bạn không có quyền giao việc.');
     }
 
+    private function pendingReportOf(WorkTask $task): ?ClassReport
+    {
+        return ClassReport::with(['classModel', 'task'])
+            ->where('task_id', $task->id)
+            ->where('status', ClassReport::STATUS_PENDING)
+            ->latest('id')
+            ->first();
+    }
+
+    /**
+     * A6 Q8: chỉ đúng người xác nhận — GV chính của lớp; lớp chưa có GV chính thì
+     * người giao đầu việc "Trực lớp". Người nộp không tự xác nhận.
+     */
     private function canReviewClassReport(ClassReport $report, User $user): bool
     {
         if ((int) $report->reporter_id === (int) $user->id) {
             return false;
         }
 
-        if ($report->classModel && (int) $report->classModel->teacher_id === (int) $user->id) {
-            return true;
-        }
-
-        if (! $user->can('work_task.approve')) {
-            return false;
-        }
-
-        $managed = $user->managedBranchIds();
-
-        return $managed === null || in_array((int) $report->classModel?->branch_id, $managed, true);
+        return $report->currentConfirmerId() === (int) $user->id;
     }
 
     private function notifyAssignee(WorkTask $task, int $count = 1): void
@@ -821,26 +1092,29 @@ class WorkTaskController extends Controller
         $this->notifyUser($task->assignee_id, 'task_assigned', $title, $message, route('tasks.index', ['tab' => 'mine']), ['task_id' => $task->id]);
     }
 
-    private function notifyClassReportReviewers(ClassReport $report, ClassModel $class): void
+    /** Báo đúng một người xác nhận (GV chính, hoặc người giao việc khi lớp chưa có GV chính). */
+    private function notifyClassReportConfirmer(ClassReport $report, ClassModel $class): void
     {
-        $recipientIds = collect([$class->teacher_id])->filter()
-            ->reject(fn ($id) => (int) $id === (int) $report->reporter_id)
-            ->unique();
-
-        // Lớp chưa có GV chính: báo cho người có quyền duyệt công việc cùng chi nhánh.
-        if ($recipientIds->isEmpty()) {
-            $recipientIds = User::permission('work_task.approve')
-                ->where('is_active', true)
-                ->where(fn ($q) => $q->where('branch_id', $class->branch_id)->orWhereHas('roles', fn ($r) => $r->where('name', 'admin')))
-                ->pluck('id')
-                ->reject(fn ($id) => (int) $id === (int) $report->reporter_id);
+        $confirmerId = $report->currentConfirmerId();
+        if (! $confirmerId) {
+            return;
         }
 
-        foreach ($recipientIds as $userId) {
-            $this->notifyUser($userId, 'class_report_pending', 'Báo cáo trực lớp chờ duyệt',
-                "Báo cáo {$report->session_name} lớp {$class->name} chưa có ảnh bảng, cần xác nhận.",
-                route('tasks.manual-approvals'), ['class_report_id' => $report->id]);
+        $this->notifyUser($confirmerId, 'class_report_pending', 'Báo cáo trực lớp chờ xác nhận',
+            "Báo cáo {$report->session_name} lớp {$class->name} không có ảnh bảng — bạn là ".mb_strtolower($report->confirmerRoleLabel()).', cần xác nhận.',
+            route('tasks.manual-approvals', ['report' => $report->id]), ['class_report_id' => $report->id]);
+    }
+
+    /** Người thực hiện gửi "Chờ xác nhận" (không ảnh) → báo người giao việc. */
+    private function notifyTaskConfirmer(WorkTask $task): void
+    {
+        if (! $task->creator_id || (int) $task->creator_id === (int) $task->assignee_id) {
+            return;
         }
+
+        $this->notifyUser($task->creator_id, 'task_assigned', "Việc chờ xác nhận: {$task->title}",
+            ($task->assignee?->name ?? 'Người thực hiện').' đã báo hoàn thành (không ảnh minh chứng), cần bạn xác nhận.',
+            route('tasks.manual-approvals', ['selected_id' => $task->id]), ['task_id' => $task->id]);
     }
 
     private function notifyUser(?int $userId, string $type, string $title, string $message, string $link, array $data = []): void
@@ -862,6 +1136,15 @@ class WorkTaskController extends Controller
     public function approveTask(Request $request, $id)
     {
         $task = WorkTask::findOrFail($id);
+
+        // Đầu việc "Trực lớp" có báo cáo chờ xác nhận: theo luật Q8 (GV chính / người giao việc).
+        if ($report = $this->pendingReportOf($task)) {
+            abort_unless($this->canReviewClassReport($report, $request->user()), 403, 'Chỉ GV chính của lớp (lớp chưa có GV chính: người giao việc) được xác nhận báo cáo trực lớp này.');
+            $this->confirmClassReport($report, $request->user(), $request->input('admin_note'));
+
+            return redirect()->route('tasks.manual-approvals')->with('success', "Đã xác nhận hoàn thành công việc '{$task->title}'!");
+        }
+
         $this->ensureCanApprove($task, $request->user());
         $adminNote = $request->input('admin_note');
 
@@ -884,8 +1167,17 @@ class WorkTaskController extends Controller
     public function rejectTask(Request $request, $id)
     {
         $task = WorkTask::findOrFail($id);
+        $request->validate(['admin_note' => 'required|string|max:1000'], ['admin_note.required' => 'Vui lòng nhập lý do từ chối / yêu cầu bổ sung.']);
+
+        if ($report = $this->pendingReportOf($task)) {
+            abort_unless($this->canReviewClassReport($report, $request->user()), 403, 'Chỉ GV chính của lớp (lớp chưa có GV chính: người giao việc) được xác nhận báo cáo trực lớp này.');
+            $this->returnClassReport($report, $request->user(), $request->input('admin_note'));
+
+            return redirect()->route('tasks.manual-approvals')->with('info', "Đã từ chối/yêu cầu bổ sung cho công việc '{$task->title}'!");
+        }
+
         $this->ensureCanApprove($task, $request->user());
-        $adminNote = $request->input('admin_note', 'Yêu cầu bổ sung hình ảnh hoặc tài liệu minh chứng.');
+        $adminNote = $request->input('admin_note');
 
         $task->update([
             'status' => 'in_progress',
@@ -1379,25 +1671,42 @@ class WorkTaskController extends Controller
     {
         $validated = $request->validate([
             'month' => ['nullable', 'date_format:Y-m'],
+            'month_to' => ['nullable', 'date_format:Y-m'],
             'user_id' => ['nullable', 'integer'],
         ]);
+        // Kỳ báo cáo (mockup "Tháng 10/2023 - Tháng 11/2023"): từ tháng → đến tháng.
         $month = $validated['month'] ?? now()->format('Y-m');
+        $monthTo = $validated['month_to'] ?? $month;
+        if ($monthTo < $month) {
+            [$month, $monthTo] = [$monthTo, $month];
+        }
         $from = CarbonImmutable::createFromFormat('!Y-m', $month)->startOfMonth();
-        $to = $from->endOfMonth();
+        $to = CarbonImmutable::createFromFormat('!Y-m', $monthTo)->endOfMonth();
 
-        $staffOptions = $kpi->staffQuery()->get(['id', 'name']);
+        // Người có quyền duyệt công việc xem KPI nhân sự (Quản lý cơ sở: chi nhánh mình); người khác chỉ xem KPI của mình.
+        $viewer = $request->user();
+        $managed = $viewer->managedBranchIds();
+        $canSeeStaff = $viewer->can('work_task.approve');
+        $scopedStaff = fn () => $kpi->staffQuery()
+            ->when(! $canSeeStaff, fn ($q) => $q->whereKey($viewer->id))
+            ->when($canSeeStaff && $managed !== null, fn ($q) => $q->whereIn('branch_id', $managed));
+        if (! $canSeeStaff) {
+            $validated['user_id'] = $viewer->id;
+        }
+
+        $staffOptions = $scopedStaff()->get(['id', 'name', 'employee_code']);
 
         // Xuất Excel toàn bộ nhân sự theo bộ lọc hiện tại (không phân trang).
         if ($request->boolean('export')) {
             $fmt = fn ($v) => $v === null ? 'Chưa có dữ liệu' : $v.'%';
-            $rows = $kpi->staffQuery()
+            $rows = $scopedStaff()
                 ->when($validated['user_id'] ?? null, fn ($q, $userId) => $q->whereKey($userId))
                 ->get()
                 ->map(function (User $user) use ($kpi, $from, $to, $fmt) {
                     $m = $kpi->metricsFor($user, $from, $to);
 
                     return [
-                        'NS-'.str_pad((string) $user->id, 3, '0', STR_PAD_LEFT),
+                        $user->employee_code ?: 'NS-'.str_pad((string) $user->id, 3, '0', STR_PAD_LEFT),
                         $user->name,
                         $m['classes'] ?? 0,
                         $fmt($m['attendance'] ?? null), $m['attendance_detail'] ?? '',
@@ -1408,22 +1717,22 @@ class WorkTaskController extends Controller
                 })->all();
 
             return \App\Exports\ArrayExport::download(
-                'kpi-'.$month,
+                'kpi-'.$month.($monthTo !== $month ? '-'.$monthTo : ''),
                 ['Mã NS', 'Nhân sự', 'Số lớp', 'Chuyên cần', 'Chi tiết chuyên cần', 'Bài tập', 'Chi tiết bài tập', 'Công việc', 'Chi tiết công việc', 'Giữ chân', 'Chi tiết giữ chân'],
                 $rows,
                 $request->query('format', 'xlsx')
             );
         }
-        $staff = $kpi->staffQuery()
+        $staff = $scopedStaff()
             ->when($validated['user_id'] ?? null, fn ($q, $userId) => $q->whereKey($userId))
             ->paginate($request->perPage(20))
             ->withQueryString();
 
         $kpiData = $staff->getCollection()->map(fn (User $user) => [
             'user' => $user,
-            'code' => 'NS-'.str_pad((string) $user->id, 3, '0', STR_PAD_LEFT),
+            'code' => $user->employee_code ?: 'NS-'.str_pad((string) $user->id, 3, '0', STR_PAD_LEFT),
         ] + $kpi->metricsFor($user, $from, $to));
 
-        return view('tasks.kpi-dashboard', compact('staff', 'staffOptions', 'kpiData', 'month', 'from', 'to'));
+        return view('tasks.kpi-dashboard', compact('staff', 'staffOptions', 'kpiData', 'month', 'monthTo', 'from', 'to', 'canSeeStaff'));
     }
 }

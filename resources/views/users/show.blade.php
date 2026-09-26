@@ -1,4 +1,6 @@
-@php($canViewSensitive = \App\Http\Controllers\UserController::canViewSensitive(auth()->user()))
+@php
+    $canViewSensitive = \App\Http\Controllers\UserController::canViewSensitive(auth()->user());
+@endphp
 <x-app-layout>
     <x-slot name="header">
         <div class="flex items-center justify-between">
@@ -123,9 +125,16 @@
                             <span class="material-symbols-outlined text-blue-600">contract</span>
                             Quản lý Hợp đồng lao động
                         </h3>
-                        <span class="text-xs px-2.5 py-0.5 rounded-full {{ $user->contract_type ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-500' }} font-semibold">
-                            {{ $user->contract_type ? 'Đang hiệu lực' : 'Chưa cập nhật' }}
-                        </span>
+                        @php
+                            $contractState = $user->contractExpiryStatus();
+                            [$contractLabel, $contractTone] = match (true) {
+                                ! $user->contract_type && ! $user->contract_end_date => ['Chưa cập nhật', 'bg-gray-100 text-gray-500'],
+                                $contractState === 'expired' => ['Đã hết hạn', 'bg-rose-50 text-rose-700 border border-rose-200'],
+                                $contractState === 'expiring' => ['Sắp hết hạn', 'bg-amber-50 text-amber-700 border border-amber-200'],
+                                default => ['Đang hiệu lực', 'bg-emerald-50 text-emerald-700 border border-emerald-200'],
+                            };
+                        @endphp
+                        <span class="text-xs px-2.5 py-0.5 rounded-full {{ $contractTone }} font-semibold">{{ $contractLabel }}</span>
                     </div>
 
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs">
@@ -151,7 +160,9 @@
                         </div>
                         <div>
                             <span class="text-[11px] text-gray-400 font-bold uppercase block mb-0.5">Thời hạn còn lại</span>
-                            @php($contractStatus = $user->contractExpiryStatus())
+                            @php
+                                $contractStatus = $user->contractExpiryStatus();
+                            @endphp
                             <span class="font-bold {{ $contractStatus === 'expired' ? 'text-rose-600' : ($contractStatus === 'expiring' ? 'text-amber-600' : 'text-emerald-600') }}">
                                 @if (! $user->contract_end_date)
                                     Chưa cập nhật
@@ -195,13 +206,22 @@
                     <div class="flex items-center justify-between border-b border-gray-100 pb-3">
                         <h3 class="text-sm font-bold text-gray-900 flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-purple-600 text-[18px]">co_present</span>
-                            Kiêm nhiệm giảng dạy
+                            Kiêm nhiệm &amp; lớp phụ trách
                         </h3>
                         @can('user.assign_role')
                             <a href="{{ route('users.roles.edit', $user) }}" class="text-[11px] text-primary-container font-bold hover:underline flex items-center gap-0.5">
                                 <span class="material-symbols-outlined text-[14px]">add</span> Thêm
                             </a>
                         @endcan
+                    </div>
+
+                    <div class="flex flex-wrap gap-1.5">
+                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-orange-50 text-primary border border-orange-200" title="Vai trò chính">{{ $user->roles->first() ? \App\Helpers\AclHelper::shortRoleLabel($user->roles->first()->name) : 'Nhân sự' }}</span>
+                        @forelse ($user->roles->slice(1) as $extraRole)
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Kiêm nhiệm: {{ \App\Helpers\AclHelper::shortRoleLabel($extraRole->name) }}</span>
+                        @empty
+                            <span class="text-[11px] text-gray-400 italic">Không kiêm nhiệm vai trò khác</span>
+                        @endforelse
                     </div>
 
                     <div class="space-y-2.5">

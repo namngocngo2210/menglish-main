@@ -154,7 +154,7 @@ class UiSweepTest extends TestCase
             ->assertOk()
             ->assertSee('75%')          // 3/4 có mặt
             ->assertSee('3 / 4 HV')
-            ->assertSee('Chờ duyệt')
+            ->assertSee('Chờ xác nhận') // A6 Q8: báo cáo trực lớp không ảnh ở trạng thái "Chờ xác nhận"
             ->assertDontSee('pending_approval')
             ->assertDontSee('14 / 15 HV');
     }

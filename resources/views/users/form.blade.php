@@ -21,7 +21,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label for="name" class="block text-[11px] font-bold uppercase text-gray-600 mb-1">Họ và tên <span class="text-rose-600">*</span></label>
-                    <input type="text" id="name" name="name" class="w-full bg-white border border-gray-200 text-gray-900 rounded-xl text-sm focus:ring-primary-container focus:border-primary-container p-2.5 shadow-2xs" value="{{ old('name', $user->name) }}" placeholder="VD: Nguyễn Văn A" required>
+                    <input type="text" id="name" name="name" class="w-full bg-white border border-gray-200 text-gray-900 rounded-xl text-sm focus:ring-primary-container focus:border-primary-container p-2.5 shadow-2xs" value="{{ old('name', $user->name) }}" placeholder="Họ và tên đầy đủ" required>
                     <x-input-error :messages="$errors->get('name')" class="mt-1 text-xs" />
                 </div>
                 <div>
@@ -39,7 +39,7 @@
                 </div>
                 <div>
                     <label for="phone" class="block text-[11px] font-bold uppercase text-gray-600 mb-1">Số điện thoại</label>
-                    <input type="text" id="phone" name="phone" class="w-full bg-white border border-gray-200 text-gray-900 rounded-xl text-sm focus:ring-primary-container focus:border-primary-container p-2.5 font-mono shadow-2xs" value="{{ old('phone', $user->phone) }}" placeholder="VD: 0912 345 678">
+                    <input type="text" id="phone" name="phone" class="w-full bg-white border border-gray-200 text-gray-900 rounded-xl text-sm focus:ring-primary-container focus:border-primary-container p-2.5 font-mono shadow-2xs" value="{{ old('phone', $user->phone) }}" placeholder="10 số, bắt đầu bằng 0">
                     <x-input-error :messages="$errors->get('phone')" class="mt-1 text-xs" />
                 </div>
             </div>
@@ -64,17 +64,31 @@
                         @endforeach
                     </select>
                     <x-input-error :messages="$errors->get('role')" class="mt-1 text-xs" />
-                    @if ($user->exists && $user->getRoleNames()->count() > 1)
-                        <p class="mt-1 text-[11px] text-gray-500">
-                            Kiêm nhiệm:
-                            @foreach ($user->getRoleNames()->slice(1) as $extraRole)
-                                <span class="inline-flex px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold">{{ \App\Helpers\AclHelper::roleLabel($extraRole) }}</span>
-                            @endforeach
-                            — được giữ nguyên khi lưu. Đổi kiêm nhiệm tại màn "Gán vai trò".
-                        </p>
-                    @endif
                 </div>
             </div>
+
+            {{-- Kiêm nhiệm: vai trò phụ ngoài vai trò chính (chỉ các vai trò người thao tác được phép gán). --}}
+            @can('user.assign_role')
+                @php
+                    $currentConcurrent = $user->exists ? $user->getRoleNames()->slice(1)->values()->all() : [];
+                    $checkedConcurrent = old('concurrent_roles', $currentConcurrent);
+                @endphp
+                <fieldset class="rounded-xl border border-gray-200 p-4">
+                    <input type="hidden" name="concurrent_roles_present" value="1">
+                    <legend class="px-1 text-[11px] font-bold uppercase text-gray-600">Vai trò kiêm nhiệm</legend>
+                    <p class="mb-2 text-[11px] text-gray-500">Nhân sự giữ thêm các vai trò này ngoài vai trò chính (ví dụ Học vụ kiêm Trợ giảng). Quyền được cộng dồn.</p>
+                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        @foreach ($roles as $roleName)
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="checkbox" name="concurrent_roles[]" value="{{ $roleName }}" @checked(in_array($roleName, (array) $checkedConcurrent, true))
+                                       class="rounded border-gray-300 text-primary-container focus:ring-primary-container">
+                                <span>{{ \App\Helpers\AclHelper::shortRoleLabel($roleName) }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                    <x-input-error :messages="array_merge($errors->get('concurrent_roles'), collect($errors->get('concurrent_roles.*'))->flatten()->all())" class="mt-1 text-xs" />
+                </fieldset>
+            @endcan
 
             <div>
                 <label for="password" class="block text-[11px] font-bold uppercase text-gray-600 mb-1">
@@ -102,7 +116,7 @@
                     </div>
                     <div>
                         <label for="emergency_contact" class="block text-[11px] font-bold uppercase text-gray-600 mb-1">Liên lạc khẩn cấp (Tên & SĐT)</label>
-                        <input type="text" id="emergency_contact" name="emergency_contact" class="w-full bg-white border border-gray-200 text-gray-900 rounded-xl text-sm focus:ring-primary-container focus:border-primary-container p-2.5 shadow-2xs" value="{{ old('emergency_contact', $user->emergency_contact) }}" placeholder="VD: Mẹ - 0988 776 655">
+                        <input type="text" id="emergency_contact" name="emergency_contact" class="w-full bg-white border border-gray-200 text-gray-900 rounded-xl text-sm focus:ring-primary-container focus:border-primary-container p-2.5 shadow-2xs" value="{{ old('emergency_contact', $user->emergency_contact) }}" placeholder="Tên người thân - SĐT">
                         <x-input-error :messages="$errors->get('emergency_contact')" class="mt-1 text-xs" />
                     </div>
                 </div>
@@ -115,7 +129,7 @@
                     </div>
                     <div>
                         <label for="current_address" class="block text-[11px] font-bold uppercase text-gray-600 mb-1">Nơi ở hiện tại</label>
-                        <input type="text" id="current_address" name="current_address" class="w-full bg-white border border-gray-200 text-gray-900 rounded-xl text-sm focus:ring-primary-container focus:border-primary-container p-2.5 shadow-2xs" value="{{ old('current_address', $user->current_address) }}" placeholder="VD: Cầu Giấy, Hà Nội">
+                        <input type="text" id="current_address" name="current_address" class="w-full bg-white border border-gray-200 text-gray-900 rounded-xl text-sm focus:ring-primary-container focus:border-primary-container p-2.5 shadow-2xs" value="{{ old('current_address', $user->current_address) }}" placeholder="Quận/huyện, tỉnh/thành">
                         <x-input-error :messages="$errors->get('current_address')" class="mt-1 text-xs" />
                     </div>
                 </div>
