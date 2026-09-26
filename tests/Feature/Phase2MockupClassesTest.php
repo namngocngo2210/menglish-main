@@ -203,8 +203,11 @@ class Phase2MockupClassesTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('holidays.index'))->assertOk()
             ->assertSee('Lưu ý nghiệp vụ')
-            ->assertSee('Danh sách ngày nghỉ')->assertSee('Tìm kiếm ngày nghỉ...')
-            ->assertSee('Thông tin ngày nghỉ')->assertSee('Ví dụ: Tết Trung Thu')
+            ->assertSee('Danh sách ngày nghỉ')->assertSee('Tìm kiếm ngày nghỉ...')->assertSee('Thêm ngày nghỉ');
+
+        // IX-1: form Thêm mở bằng modal; mở thẳng URL create vẫn là danh sách + form bên phải.
+        $this->actingAs($this->admin)->get(route('holidays.create'))->assertOk()
+            ->assertSee('Danh sách ngày nghỉ')->assertSee('Thông tin ngày nghỉ')->assertSee('Ví dụ: Tết Trung Thu')
             ->assertSee('Phạm vi áp dụng')->assertSee('Toàn hệ thống (Mặc định)')
             ->assertSee('* Để trống nếu muốn áp dụng cho tất cả chi nhánh.')
             ->assertSee('Hủy bỏ')->assertSee('Lưu thông tin');

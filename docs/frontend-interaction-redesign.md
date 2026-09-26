@@ -200,6 +200,67 @@ protected function dialogSaved(string $message, string $refresh, ?string $fallba
 - Feature test cho mỗi route chuyển đổi: (a) GET thường → 200 có layout; (b) GET có `HX-Request` → 200, không có `<aside data-sidebar>`; (c) POST lỗi + HX → 422 có thông báo lỗi; (d) POST đúng + HX → 204 có `HX-Trigger`.
 - Test trình duyệt: mở/đóng, Esc, Back, mobile 375px (modal toàn màn).
 
+### 5.3 Cách dùng (API chốt sau IX-1)
+
+> Tên cuối cùng khác bản nháp ở 5.2: `RendersDialogs` → **`RendersModals`**, `x-ui.dialog-frame` → **`x-ui.modal-frame`**, `close-dialog` → **`close-modal`**, `#dialog-body` → **`#remote-modal-body`**. Không có middleware `HtmxValidation`: lỗi validate được bắt ở `bootstrap/app.php` (`withExceptions` → `App\Support\Htmx::renderValidationForm`), vì exception trong pipeline không nổi lên được middleware.
+
+**1. Nút mở modal** — vẫn là `<a href>` thật (mở tab mới, F5, JS lỗi → trang đầy đủ):
+```blade
+<x-ui.button icon="add" :href="route('holidays.create')" modal="md">Thêm ngày nghỉ</x-ui.button>
+<x-ui.button variant="ghost" icon="edit" :href="route('holidays.edit', $row)" modal="md" aria-label="Sửa" />
+{{-- modal = true (cỡ lg) | sm | md | lg | xl | 2xl | 3xl | 4xl | full --}}
+```
+
+**2. Controller** — logic nghiệp vụ giữ nguyên, chỉ đổi dòng `return`:
+```php
+use App\Http\Concerns\RendersModals;
+
+class HolidayController extends Controller
+{
+    use RendersModals;
+
+    public function edit(Holiday $holiday): Response
+    {
+        return $this->modalView('holidays.form', [...]);   // view nhận $asModal (bool); header Vary: HX-Request
+    }
+
+    public function update(HolidayRequest $request, Holiday $holiday): Response|RedirectResponse
+    {
+        // ... lưu như cũ ...
+        return $this->modalSaved('Đã cập nhật ngày nghỉ.', 'holidays-changed', route('holidays.index'));
+        // htmx → 204 + HX-Trigger {"close-modal":true,"toast":{...},"holidays-changed":true}
+        // thường → redirect(fallback)->with('status', ...) như trước
+    }
+}
+```
+`$this->isModalRequest()` dùng khi muốn bỏ bớt query chỉ trang đầy đủ mới cần (vd. danh sách bên trái).
+
+**3. View form** — tách `_form.blade.php` dùng chung, view trang rẽ nhánh theo `$asModal`:
+```blade
+@if ($asModal)
+    <x-ui.modal-frame title="Sửa ngày nghỉ">
+        @include('holidays._form')                      {{-- <form id="modal-holiday-form" method="POST" action="..."> --}}
+        <x-slot:footer><x-ui.button type="submit" form="modal-holiday-form">Lưu thông tin</x-ui.button></x-slot:footer>
+    </x-ui.modal-frame>
+@else
+    <x-app-layout>...trang đầy đủ, @include('holidays._form')...</x-app-layout>
+@endif
+```
+Form trong `x-ui.modal-frame` tự gửi bằng htmx (`hx-boost`), không cần thêm thuộc tính nào. Id trong form modal nên có tiền tố `modal-` để không trùng form ở trang.
+
+**4. Validate lỗi** — không cần code: route `x.store` / `x.update` lỗi validate khi gọi từ modal → server chạy lại action `x.create` / `x.edit` (cùng controller, cùng tham số) với lỗi + old input → **422**, htmx thay lại nội dung modal. Route không theo quy ước resource → giữ hành vi cũ (redirect back).
+
+**5. Làm mới danh sách** — bọc vùng bảng, nghe sự kiện `<refreshEvent>` truyền cho `modalSaved`:
+```blade
+<div id="holiday-list" hx-get="{{ route('holidays.index', request()->query()) }}"
+     hx-trigger="holidays-changed from:body" hx-select="#holiday-list" hx-swap="outerHTML"> ...bảng... </div>
+```
+Dùng route danh sách + query hiện tại (không dùng `url()->full()` nếu trang có thể là create/edit, vì URL đó trả fragment).
+
+**6. Xác nhận xóa** — `x-ui.modal` thường + form `hx-boost="true" hx-swap="none"` với `:action` Alpine (JS đọc action lúc gửi); controller `destroy` trả `modalSaved(...)`. Xem `holidays/index.blade.php`.
+
+**7. Test mẫu** — `tests/Feature/HolidayModalTest.php` (GET thường có `data-sidebar`; GET `HX-Request` không có; POST lỗi → 422; POST đúng → 204 + `HX-Trigger`; request thường vẫn redirect).
+
 ---
 
 ## 6. Kế hoạch sprint
@@ -207,10 +268,10 @@ protected function dialogSaved(string $message, string $refresh, ?string $fallba
 > Chèn sau FE-1 của `frontend-ux-audit.md` (cần `x-ui.icon-button`, `x-ui.confirm` và JS module hóa trước).
 
 ### Sprint IX-1 — Hạ tầng modal
-- [ ] Cài `htmx.org` 2 và `@alpinejs/focus`, cấu hình CSRF và event bridge htmx ↔ Alpine (`toast`, `close-dialog`)
-- [ ] Nâng cấp `x-ui.modal`, thêm `x-ui.remote-modal` ở layout, prop `modal=` cho `x-ui.button`
-- [ ] Trait `RendersDialogs`, middleware `HtmxValidation`, `x-ui.dialog-frame`
-- [ ] Làm mẫu trọn vẹn với **Ngày nghỉ** (create/edit/delete), kèm 4 feature test mẫu
+- [x] Cài `htmx.org` 2 và `@alpinejs/focus`, cấu hình CSRF và event bridge htmx ↔ Alpine (`toast`, `close-modal`)
+- [x] Nâng cấp `x-ui.modal`, thêm `x-ui.remote-modal` ở layout, prop `modal=` cho `x-ui.button`
+- [x] Trait `RendersModals`, xử lý lỗi validate htmx (422) ở `bootstrap/app.php`, `x-ui.modal-frame`
+- [x] Làm mẫu trọn vẹn với **Ngày nghỉ** (create/edit/delete), kèm feature test mẫu (`HolidayModalTest`, 9 test)
 
 ### Sprint IX-2 — Chuyển 15 luồng sang Modal
 - [ ] Danh mục, quyền, vai trò, gán vai trò user, vật phẩm, ngày nghỉ (xong ở IX-1)
@@ -264,7 +325,7 @@ protected function dialogSaved(string $message, string $refresh, ?string $fallba
 
 | Sprint | Trạng thái | Đã làm | Chưa làm / chuyển sprint |
 |---|---|---|---|
-| IX-1 | Chưa bắt đầu | | |
+| IX-1 | Xong (26/09/2026) | htmx 2 + `@alpinejs/focus` (`resources/js/components/remote-modal.js`: CSRF, 422 swap, bridge `toast`/`close-modal`, skeleton, trang đầy đủ lọt vào modal → chuyển trang, toast khi lỗi 403/404/419/5xx). `x-ui.modal` tương thích ngược + cỡ `3xl`/`4xl`/`full`, toàn màn < `sm` cho cỡ ≥ `2xl`, header/footer cố định, `x-trap` + trả focus, `aria-labelledby`, hỏi "Bỏ các thay đổi chưa lưu?". `x-ui.remote-modal` (layout), `x-ui.modal-frame`, `x-ui.button modal=`. Trait `RendersModals` + `App\Support\Htmx::renderValidationForm`. Ngày nghỉ: `_form` dùng chung, Thêm/Sửa bằng modal, Xóa bằng modal xác nhận, danh sách tự làm mới giữ bộ lọc. Test: `HolidayModalTest` (9), sửa `Phase2MockupClassesTest` (form Thêm chuyển sang modal / trang create) | Chưa có test trình duyệt (Esc, Back, 375px) — làm cùng IX-2. Hỏi "Bỏ thay đổi?" dùng `confirm()` gốc, chờ `x-ui.confirm` (FE-1). Nút Back chưa đóng modal (chỉ cần khi có modal xem chi tiết push URL — IX-3). Chưa có phím tắt `N` |
 | IX-2 | Chưa bắt đầu | | |
 | IX-3 | Chưa bắt đầu | | |
 | IX-4 | Chưa bắt đầu | | |

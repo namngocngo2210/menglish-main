@@ -32,7 +32,8 @@
         {{-- Font & icon được tự host qua Vite (resources/css/app.css) --}}
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="bg-background font-body-base text-body-base text-on-surface antialiased">
+    {{-- hx-headers: mọi request htmx (modal, làm mới danh sách) mang CSRF token --}}
+    <body class="bg-background font-body-base text-body-base text-on-surface antialiased" hx-headers="{{ json_encode(['X-CSRF-TOKEN' => csrf_token()]) }}">
         <div class="flex min-h-screen flex-col" x-data="{ sidebarOpen: false }" @keydown.escape.window="sidebarOpen = false">
             @include('layouts.navigation')
 
@@ -227,6 +228,9 @@
 
             {{-- Toast toàn cục: flash session + event "toast" --}}
             <x-ui.toast />
+
+            {{-- Modal chung cho form/chi tiết tải bằng htmx: <x-ui.button :href="..." modal="md"> --}}
+            <x-ui.remote-modal />
 
             @stack('scripts')
         </div>
