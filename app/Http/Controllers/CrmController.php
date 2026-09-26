@@ -451,7 +451,8 @@ class CrmController extends Controller
 
         $rubric = $this->rubricSummary($latestSubmission);
         $statusCard = $this->statusCardData($customer);
-        $canReassign = $user->can('lead.assign') && $user->hasAnyRole(['admin', 'manager']);
+        // Phân công lại theo quyền lead.assign (Admin, Quản lý cơ sở, Học vụ — BA 26/09/2026), không theo vai trò.
+        $canReassign = $user->can('lead.assign');
         $reassignUsers = $canReassign ? $this->assignableUsers($customer->branch_id) : collect();
 
         return view('crm.show', compact('customer', 'placementTests', 'examiners', 'latestSubmission', 'courses', 'branches', 'portalTestLink', 'canBookTrial', 'trialSessions', 'stageControls',
@@ -1142,13 +1143,13 @@ class CrmController extends Controller
 
     protected function authorizeDeletedCustomers(Request $request): void
     {
-        abort_unless($request->user()->can('lead.delete') && $request->user()->hasAnyRole(['admin', 'manager']), 403, 'Chỉ Admin / Quản lý cơ sở được xem và khôi phục khách đã xóa.');
+        abort_unless($request->user()->can('lead.delete'), 403, 'Bạn không có quyền xem và khôi phục khách đã xóa.');
     }
 
-    /** Phân công lại Sales phụ trách (Admin / Quản lý cơ sở), bắt buộc lý do, ghi lịch sử. */
+    /** Phân công lại Sales phụ trách (quyền lead.assign: Admin / Quản lý cơ sở / Học vụ), bắt buộc lý do, ghi lịch sử. */
     public function reassignCustomer(Request $request, $id)
     {
-        abort_unless($request->user()->can('lead.assign') && $request->user()->hasAnyRole(['admin', 'manager']), 403, 'Chỉ Admin / Quản lý cơ sở được phân công lại khách.');
+        abort_unless($request->user()->can('lead.assign'), 403, 'Bạn không có quyền phân công lại khách.');
         $customer = $this->findScopedCustomer($id);
         $validated = $request->validate([
             'assigned_user_id' => 'required|exists:users,id',
@@ -1631,7 +1632,8 @@ class CrmController extends Controller
             $feeItems = $this->resolveFeeItems($request->input('fee_items'));
             $otherFees = array_sum(array_column($feeItems, 'amount'));
             $contractTotal = max(0, $baseTuition - $discount + $otherFees);
-            if ($prepaidAmount > 0 && ! $request->user()->hasAnyRole(['admin', 'manager'])) {
+            // Khoản thu trước (đã thu ngoài phiếu) cần người có quyền duyệt phiếu thu xác nhận (tuition.approve), không theo vai trò.
+            if ($prepaidAmount > 0 && ! $request->user()->can('tuition.approve')) {
                 throw ValidationException::withMessages(['prepaid_amount' => 'Khoản thu trước phải được quản lý xác nhận.']);
             }
             if ($prepaidAmount > $contractTotal) {

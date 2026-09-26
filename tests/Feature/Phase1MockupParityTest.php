@@ -288,7 +288,10 @@ class Phase1MockupParityTest extends TestCase
         $this->assertFalse($active->fresh()->is_active);
         $this->actingAs($academicLead)->post(route('placement-tests.toggle-active', $hidden->id))->assertRedirect();
         $this->assertTrue($hidden->fresh()->is_active);
-        $this->actingAs($this->academic)->post(route('placement-tests.toggle-active', $hidden->id))->assertForbidden();
+        // BA 26/09/2026: Học vụ toàn quyền đề test đầu vào trừ xóa → bật / tắt được, không xóa được.
+        $this->actingAs($this->academic)->post(route('placement-tests.toggle-active', $hidden->id))->assertRedirect();
+        $this->assertFalse($hidden->fresh()->is_active);
+        $this->actingAs($this->academic)->delete(route('placement-tests.destroy', $hidden->id))->assertForbidden();
     }
 
     // ── 11. Tạo đề ───────────────────────────────────────────────────────
