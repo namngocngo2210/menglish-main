@@ -1,0 +1,146 @@
+# Deploy MEnglish lên shared hosting DirectAdmin qua FTP (không cần SSH).
+#
+# Cấu trúc trên hosting (mỗi môi trường một domain):
+#   /home/<user>/domains/<domain>/<APP_DIR>/   ← code Laravel (ngoài public_html, người ngoài không truy cập được)
+#   /home/<user>/domains/<domain>/public_html/ ← chỉ nội dung thư mục public/ (index.php trỏ sang APP_DIR)
+#
+# Secrets cần tạo (Settings → Environments → staging / production → Secrets):
+#   FTP_SERVER, FTP_USERNAME, FTP_PASSWORD   tài khoản FTP của domain (DirectAdmin → FTP Management)
+#   FTP_APP_DIR     vd. domains/dungthu.menglish.vn/menglish/     (đường dẫn tính từ thư mục gốc của tài khoản FTP)
+#   FTP_PUBLIC_DIR  vd. domains/dungthu.menglish.vn/public_html/
+#   APP_URL         vd. https://dungthu.menglish.vn
+#   DEPLOY_HOOK_TOKEN  trùng với DEPLOY_HOOK_TOKEN trong .env trên hosting (≥ 32 ký tự)
+# Variables (tùy chọn): APP_DIR_NAME (mặc định "menglish"), PHP_VERSION (mặc định 8.4, khớp PHP của hosting)
+name: Deploy hosting (DirectAdmin)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Môi trường deploy
+        type: choice
+        options: [staging, production]
+        default: staging
+      run_tests:
+        description: Chạy toàn bộ test trước khi deploy
+        type: boolean
+        default: true
+      seed:
+        description: "Seed sau migrate: none | bootstrap (cài mới: vai trò, quyền, 1 Admin từ .env — chỉ khi DB chưa có user) | demo (dữ liệu demo, bị chặn trên production)"
+        type: choice
+        options: [none, bootstrap, demo]
+        default: none
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    if: ${{ inputs.run_tests }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ vars.PHP_VERSION || '8.4' }}
+          extensions: mbstring, pdo_sqlite, intl, gd, zip, bcmath
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - run: cp .env.example .env && php artisan key:generate
+      - run: php artisan test
+
+  deploy:
+    needs: test
+    if: ${{ always() && (needs.test.result == 'success' || needs.test.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    env:
+      APP_DIR_NAME: ${{ vars.APP_DIR_NAME || 'menglish' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ vars.PHP_VERSION || '8.4' }}
+          extensions: mbstring, intl, gd, zip, bcmath
+
+      - name: Composer (production)
+        run: composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Build assets
+        run: npm ci --no-audit --no-fund && npm run build
+
+      - name: Chuẩn bị gói deploy
+        run: |
+          set -e
+          mkdir -p dist/app dist/public
+          # Code Laravel (không kèm public/, test, tài liệu, file người dùng upload)
+          rsync -a ./ dist/app/ \
+            --exclude '.git' --exclude '.github' --exclude 'node_modules' --exclude 'tests' \
+            --exclude 'dist' --exclude '.env' --exclude 'public' --exclude 'gui-test-screenshots' \
+            --exclude 'ui-full-tinh-nang-menglish' --exclude 'docs' \
+            --exclude 'storage/app/public/*' --exclude 'storage/app/private/*' \
+            --exclude 'storage/logs/*' --exclude 'storage/framework/sessions/*' \
+            --exclude 'storage/framework/views/*' --exclude 'storage/framework/cache/data/*'
+          # Nội dung public_html (không kèm file người dùng upload, symlink storage, mockup cũ)
+          rsync -a public/ dist/public/ \
+            --exclude 'uploads/2*' --exclude 'uploads/media' --exclude 'uploads/tuition' \
+            --exclude 'storage' --exclude 'hot' --exclude 'ui-full-tinh-nang-menglish'
+          # Giữ sẵn các thư mục ghi được (FTP không tạo thư mục rỗng)
+          for d in storage/logs storage/app/public storage/app/private storage/framework/sessions \
+                   storage/framework/views storage/framework/cache/data bootstrap/cache; do
+            mkdir -p "dist/app/$d" && touch "dist/app/$d/.keep"
+          done
+          sed "s#__APP_DIR__#${APP_DIR_NAME}#" deploy/directadmin-index.php > dist/public/index.php
+
+      - name: Upload code Laravel (FTP)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          security: loose
+          local-dir: dist/app/
+          server-dir: ${{ secrets.FTP_APP_DIR }}
+          state-name: .ftp-deploy-sync-state.json
+          exclude: |
+            **/.git*
+            **/.git*/**
+            .env
+
+      - name: Upload public_html (FTP)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          security: loose
+          local-dir: dist/public/
+          server-dir: ${{ secrets.FTP_PUBLIC_DIR }}
+          state-name: .ftp-deploy-sync-state.json
+          # Không xóa file người dùng đã upload lên hosting
+          exclude: |
+            uploads/**
+            storage/**
+
+      - name: Migrate + cache (hook)
+        run: |
+          set -e
+          status=$(curl -s -o hook.json -w '%{http_code}' -X POST \
+            -H "X-Deploy-Token: ${{ secrets.DEPLOY_HOOK_TOKEN }}" \
+            -d "seed=${{ inputs.seed }}" \
+            "${{ secrets.APP_URL }}/_deploy/hook")
+          cat hook.json || true
+          test "$status" = "200"
+
+      - name: Kiểm tra trang đăng nhập
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' "${{ secrets.APP_URL }}/login")
+          echo "HTTP $status"
+          test "$status" = "200"
