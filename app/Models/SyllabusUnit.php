@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Unit — nhóm buổi học trong một chặng (Giáo trình → Chặng → Unit → Buổi).
@@ -21,7 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class SyllabusUnit extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'syllabus_units';
 

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Buổi học trong giáo trình (nội dung từng buổi) — cấp thấp nhất của Giáo trình → Chặng → Unit → Buổi.
@@ -14,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class SyllabusLesson extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'syllabus_lessons';
 
     protected $fillable = [
@@ -39,6 +42,11 @@ class SyllabusLesson extends Model
             if ($lesson->unit_id && ($lesson->isDirty('unit_id') || ! $lesson->curriculum_id)) {
                 $lesson->curriculum_id = SyllabusUnit::whereKey($lesson->unit_id)->value('curriculum_id');
             }
+        });
+
+        // Buổi đã xóa mềm nhả số buổi (session_no = -id) để UNIQUE (curriculum_id, session_no) không chặn buổi mới cùng số.
+        static::softDeleted(function (self $lesson) {
+            static::withTrashed()->whereKey($lesson->getKey())->update(['session_no' => -$lesson->getKey()]);
         });
     }
 

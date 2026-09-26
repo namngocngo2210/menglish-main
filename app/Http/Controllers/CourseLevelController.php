@@ -68,7 +68,7 @@ class CourseLevelController extends Controller
             'target' => 'required|string|max:255',
             'duration' => 'nullable|string|max:100',
             'lessons_count' => 'required|integer|min:1',
-            'syllabus_curriculum_id' => 'nullable|integer|exists:syllabus_curriculums,id',
+            'syllabus_curriculum_id' => 'nullable|integer|exists:syllabus_curriculums,id,deleted_at,NULL',
             'is_active' => 'nullable|boolean',
         ]);
         $validated['level_group'] = isset($validated['level_group']) ? mb_strtoupper(trim($validated['level_group'])) : null;
@@ -101,7 +101,7 @@ class CourseLevelController extends Controller
             'target' => 'required|string|max:255',
             'duration' => 'nullable|string|max:100',
             'lessons_count' => 'required|integer|min:1',
-            'syllabus_curriculum_id' => ['nullable', 'integer', Rule::exists('syllabus_curriculums', 'id')],
+            'syllabus_curriculum_id' => ['nullable', 'integer', Rule::exists('syllabus_curriculums', 'id')->whereNull('deleted_at')],
             'is_active' => 'nullable|boolean',
         ]);
         $validated['level_group'] = isset($validated['level_group']) ? mb_strtoupper(trim($validated['level_group'])) : null;
@@ -122,7 +122,7 @@ class CourseLevelController extends Controller
     {
         $validated = $request->validate([
             'ids' => 'required|array|min:1|max:200',
-            'ids.*' => 'integer|distinct|exists:course_levels,id',
+            'ids.*' => 'integer|distinct|exists:course_levels,id,deleted_at,NULL',
         ]);
         $ids = array_map('intval', $validated['ids']);
 

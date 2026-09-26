@@ -187,7 +187,7 @@ class Phase1EnrollmentTest extends TestCase
 
         $empty = PlacementTest::create(['code' => 'CUSTOM-2', 'title' => 'Đề trống', 'is_active' => true]);
         $this->actingAs($this->admin)->delete(route('placement-tests.destroy', $empty->id))->assertSessionHas('status');
-        $this->assertDatabaseMissing('placement_tests', ['id' => $empty->id]);
+        $this->assertSoftDeleted('placement_tests', ['id' => $empty->id]);
     }
 
     public function test_placement_results_follow_crm_branch_scope(): void

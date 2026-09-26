@@ -56,7 +56,7 @@ class CourseController extends Controller
         $validated = $request->validate([
             'code' => 'required|string|unique:courses,code|max:30',
             'name' => 'required|string|max:255',
-            'course_level_id' => 'nullable|exists:course_levels,id',
+            'course_level_id' => 'nullable|exists:course_levels,id,deleted_at,NULL',
             'tuition_fee' => 'required|numeric|min:0',
             'total_lessons' => 'required|integer|min:1',
             'description' => 'nullable|string|max:1000',
@@ -88,7 +88,7 @@ class CourseController extends Controller
         $validated = $request->validate([
             'code' => 'required|string|max:30|unique:courses,code,' . $course->id,
             'name' => 'required|string|max:255',
-            'course_level_id' => 'nullable|exists:course_levels,id',
+            'course_level_id' => 'nullable|exists:course_levels,id,deleted_at,NULL',
             'tuition_fee' => 'required|numeric|min:0',
             'total_lessons' => 'required|integer|min:1',
             'description' => 'nullable|string|max:1000',

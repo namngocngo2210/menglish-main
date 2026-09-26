@@ -18,7 +18,6 @@ use App\Services\SafeUploadService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class StudentPortalController extends Controller
@@ -483,11 +482,6 @@ class StudentPortalController extends Controller
         $record = AcademicRecord::findOrFail($id);
         $this->authorizeStudentRecord($record, '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap');
 
-        if (! empty($record->data['attachment_path'])) {
-            $relativePath = str_replace('/storage/', '', $record->data['attachment_path']);
-            Storage::disk('public')->delete($relativePath);
-        }
-
         $record->delete();
 
         return back()->with('success', 'Đã xóa bài nộp thành công! Bạn có thể nộp lại bài mới.');
@@ -563,11 +557,6 @@ class StudentPortalController extends Controller
     {
         $record = AcademicRecord::findOrFail($id);
         $this->authorizeStudentRecord($record, '04_Cong_Phu_Huynh_Hoc_Sinh/04_luyen_phat_am');
-
-        if (! empty($record->data['audio_path'])) {
-            $relativePath = str_replace('/storage/', '', $record->data['audio_path']);
-            Storage::disk('public')->delete($relativePath);
-        }
 
         $record->delete();
 

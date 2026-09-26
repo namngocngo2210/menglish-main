@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Mục KPI Học vụ. weight = % của quỹ KPI (tổng các mục đang áp dụng = 100%);
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class KpiCriterion extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'kpi_criteria';
 
