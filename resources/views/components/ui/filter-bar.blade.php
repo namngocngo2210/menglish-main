@@ -21,7 +21,7 @@
 @endphp
 
 <form method="GET" action="{{ $action }}" role="search"
-      {{ $attributes->merge(['class' => 'mb-lg flex flex-wrap items-center gap-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm']) }}>
+      {{ $attributes->merge(['class' => 'mb-lg flex flex-wrap items-center gap-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm [&>select]:w-auto [&>input]:w-auto [&>label_select]:w-auto']) }}>
     @if ($search)
         <div class="relative min-w-[240px] flex-1">
             <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
