@@ -13,6 +13,7 @@ class AclHelper
             'branch' => '🏢 Quản Lý Cơ Sở & Chi Nhánh',
             'lead' => '🎯 CRM & Khách Hàng Tiềm Năng',
             'entrance_test' => '📝 Đề Thi & Chấm Test Đầu Vào',
+            'promotion' => '🎁 Ưu Đãi Tuyển Sinh (Chốt khách)',
             'placement_test' => '📝 Khảo Thí & Placement Test Đầu Vào',
             'student' => '🎓 Quản Lý Học Viên & Hồ Sơ',
             'class' => '🏫 Quản Lý Lớp Học & Xếp Lớp',
@@ -45,8 +46,72 @@ class AclHelper
         };
     }
 
+    /**
+     * Nhóm hiển thị của module trên màn Vai trò và ma trận Phân quyền cá nhân. Các module kế toán gom về một nhóm
+     * "Kế toán / Học phí" (BA 26/09/2026: Admin phân quyền kế toán linh hoạt theo vai trò hoặc theo người).
+     */
+    public const MODULE_GROUPS = [
+        'Kế toán / Học phí' => ['tuition', 'invoice', 'refund_transfer', 'invoice_range', 'bank_account', 'fee_reminder_config', 'finance', 'payroll'],
+        'CRM & Tuyển sinh' => ['lead', 'promotion', 'entrance_test', 'placement_test'],
+    ];
+
+    public const OTHER_GROUP = 'Học vụ, nhân sự & hệ thống';
+
+    public static function moduleGroup(string $module): string
+    {
+        foreach (self::MODULE_GROUPS as $group => $modules) {
+            if (in_array($module, $modules, true)) {
+                return $group;
+            }
+        }
+
+        return self::OTHER_GROUP;
+    }
+
+    /**
+     * Gom permission (đã nhóm theo module) theo nhóm hiển thị, giữ thứ tự: Kế toán / Học phí, CRM & Tuyển sinh, còn lại.
+     *
+     * @param  iterable<string, mixed>  $permissionsByModule
+     * @return array<string, array<string, mixed>>
+     */
+    public static function groupModules(iterable $permissionsByModule): array
+    {
+        $groups = array_fill_keys([...array_keys(self::MODULE_GROUPS), self::OTHER_GROUP], []);
+        foreach ($permissionsByModule as $module => $permissions) {
+            $groups[self::moduleGroup((string) $module)][$module] = $permissions;
+        }
+
+        return array_filter($groups);
+    }
+
+    /** Nhãn riêng theo đúng tên permission (ưu tiên hơn nhãn chung theo action). */
+    private const PERMISSION_LABELS = [
+        'tuition.all_branches' => 'Xem & xử lý học phí mọi chi nhánh (kế toán tổng)',
+        'finance.all_branches' => 'Xem báo cáo thu chi mọi chi nhánh',
+        'refund_transfer.approve' => 'Duyệt khất nợ / bảo lưu',
+        'refund_transfer.approve_transfer' => 'Duyệt chuyển nhượng phí',
+        'refund_transfer.approve_refund' => 'Duyệt hoàn tiền (chi tiền)',
+        'refund_transfer.reject' => 'Từ chối yêu cầu hoàn / chuyển / khất nợ / bảo lưu',
+        'refund_transfer.request' => 'Lập yêu cầu hoàn / chuyển / khất nợ / bảo lưu',
+        'invoice.approve_cancel' => 'Duyệt / từ chối hủy hóa đơn',
+        'invoice_range.manage' => 'Cấu hình dải số hóa đơn chi nhánh',
+        'invoice_range.manage_default' => 'Cấu hình dải số hóa đơn mặc định (dùng chung)',
+        'tuition.approve' => 'Duyệt phiếu thu (không tự duyệt phiếu mình lập)',
+        'tuition.reject' => 'Trả về phiếu thu',
+        'bank_account.manage' => 'Quản lý tài khoản ngân hàng & SePay',
+        'fee_reminder_config.manage' => 'Cấu hình nhắc nợ',
+        'payroll.approve' => 'Duyệt / chốt bảng lương',
+        'payroll.edit' => 'Nhập khoản tay trên phiếu lương',
+        'payroll.mark_paid' => 'Đánh dấu đã chi trả lương',
+        'finance.view' => 'Xem báo cáo thu chi & sổ khoản chi',
+    ];
+
     public static function actionLabel(string $permissionName): string
     {
+        if (isset(self::PERMISSION_LABELS[$permissionName])) {
+            return self::PERMISSION_LABELS[$permissionName];
+        }
+
         $parts = explode('.', $permissionName);
         $action = $parts[1] ?? $permissionName;
 

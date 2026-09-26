@@ -671,20 +671,15 @@ class TuitionController extends Controller
                 'is_read' => false,
             ]);
 
+            // Kế toán có phạm vi học phí chứa chi nhánh của phiếu: kế toán chi nhánh đó + người được cấp
+            // `tuition.all_branches` (kế toán tổng) — BA 26/09/2026, không còn suy ra từ "không gán chi nhánh".
             $branchId = $this->receiptBranchId($receipt);
             $accountants = User::query()
                 ->where('is_active', true)
                 ->whereKeyNot((int) $receipt->creator_id)
                 ->whereHas('roles', fn ($q) => $q->where('name', 'accountant'))
-                ->where(function ($q) use ($branchId) {
-                    $q->where(function ($noBranch) {
-                        $noBranch->whereNull('branch_id')->whereDoesntHave('branches');
-                    });
-                    if ($branchId) {
-                        $q->orWhere('branch_id', $branchId)
-                            ->orWhereHas('branches', fn ($b) => $b->where('branches.id', $branchId));
-                    }
-                })
+                ->get()
+                ->filter(fn (User $accountant) => TuitionBranchScope::coversBranch($accountant, $branchId ? (int) $branchId : null))
                 ->pluck('id');
 
             foreach ($accountants as $accountantId) {
@@ -1393,8 +1388,8 @@ class TuitionController extends Controller
 
     public function approveInvoiceCancellation(Request $request, $id)
     {
-        // Mockup duyet-huy-hoa-don: "Chỉ Admin phê duyệt" hủy hóa đơn (chống nhảy số / thất thoát).
-        abort_unless($request->user()?->hasRole('admin'), 403, 'Chỉ Admin được phê duyệt hủy hóa đơn.');
+        // Duyệt hủy hóa đơn theo quyền `invoice.approve_cancel` (route middleware) — mặc định chỉ Admin (mockup
+        // "Chỉ Admin phê duyệt"), Admin cấp thêm cho vai trò / người khác (BA 26/09/2026).
         $this->abortUnlessCancellationInScope($id);
         $receiptId = InvoiceCancellation::query()->whereKey($id)->value('tuition_receipt_id');
         $tuitionId = $receiptId ? TuitionReceipt::query()->whereKey($receiptId)->value('student_tuition_id') : null;
@@ -1449,7 +1444,6 @@ class TuitionController extends Controller
 
     public function rejectInvoiceCancellation(Request $request, $id)
     {
-        abort_unless($request->user()?->hasRole('admin'), 403, 'Chỉ Admin được xử lý yêu cầu hủy hóa đơn.');
         $this->abortUnlessCancellationInScope($id);
         $validated = $request->validate([
             'rejection_reason' => 'nullable|string|max:1000',
@@ -1505,7 +1499,9 @@ class TuitionController extends Controller
                 return $c->filter(fn (TuitionRefundRequest $r) => Str::contains(Str::lower(($r->student?->name ?? '').' '.($r->student?->code ?? '').' '.($r->targetStudent?->name ?? '').' '.($r->targetStudent?->code ?? '')), $needle));
             })
             ->values();
-        $canApproveRefund = (bool) Auth::user()?->hasRole('admin');
+        // Loại hồ sơ người xem được duyệt (TuitionRefundRequest::approvePermission).
+        $approvableTypes = collect(TuitionRefundRequest::TYPES)->keys()
+            ->filter(fn (string $type) => Auth::user()?->can(TuitionRefundRequest::approvePermission($type)))->values()->all();
         // Gợi ý thu hồi hoa hồng cho hồ sơ hoàn phí đang chờ duyệt (học < 1 tháng → có).
         $commissionService = app(SalesCommissionService::class);
         $clawbackHints = $refundRequests->where('status', 'pending')->where('type', 'refund')
@@ -1521,7 +1517,7 @@ class TuitionController extends Controller
         $studentFinance = $students->mapWithKeys(fn (Student $student) => [$student->id => $this->refundBasis($student)]);
         $adminFeePercent = (float) config('tuition.refund_admin_fee_percent', 10);
 
-        return view('tuition.refunds', compact('refundRequests', 'pendingRequests', 'overdueCount', 'historyRequests', 'filters', 'canApproveRefund', 'students', 'clawbackHints', 'studentFinance', 'adminFeePercent'));
+        return view('tuition.refunds', compact('refundRequests', 'pendingRequests', 'overdueCount', 'historyRequests', 'filters', 'approvableTypes', 'students', 'clawbackHints', 'studentFinance', 'adminFeePercent'));
     }
 
     /**
@@ -1648,10 +1644,15 @@ class TuitionController extends Controller
         $pending = TuitionRefundRequest::with('student.currentClass')->findOrFail($id);
         abort_unless(TuitionBranchScope::allowsStudent($pending->student, $this->branchScope()), 403, self::OUT_OF_SCOPE);
 
-        // A6 "Hoàn phí": chỉ Admin duyệt hoàn tiền, và bắt buộc ảnh bằng chứng chi tiền. Quá hạn xử lý chỉ gắn cờ, không chặn.
+        // BA 26/09/2026: mỗi loại hồ sơ duyệt theo một quyền riêng (TuitionRefundRequest::approvePermission):
+        // hoàn tiền `refund_transfer.approve_refund` (mặc định chỉ Admin — A6 "Hoàn phí"), chuyển nhượng
+        // `refund_transfer.approve_transfer`, khất nợ / bảo lưu `refund_transfer.approve`.
+        abort_unless($request->user()?->can(TuitionRefundRequest::approvePermission($pending->type)), 403,
+            $pending->type === TuitionRefundRequest::TYPE_REFUND ? 'Bạn chưa được cấp quyền duyệt hoàn tiền học phí.' : 'Bạn chưa được cấp quyền duyệt loại yêu cầu này.');
+
+        // Hoàn tiền bắt buộc ảnh bằng chứng chi tiền. Quá hạn xử lý chỉ gắn cờ, không chặn.
         $proofPath = null;
         if ($pending->type === TuitionRefundRequest::TYPE_REFUND && $pending->status === 'pending') {
-            abort_unless(Auth::user()?->hasRole('admin'), 403, 'Chỉ Admin được duyệt hoàn tiền học phí.');
             $request->validate([
                 'proof_image' => ['required', 'file', 'max:10240'],
             ], [
@@ -2121,7 +2122,8 @@ class TuitionController extends Controller
 
     public function config(Request $request)
     {
-        // Kế toán chi nhánh chỉ thấy dải của chi nhánh mình + dải mặc định (chỉ xem); Admin / kế toán tổng thấy tất cả.
+        // Người bị giới hạn chi nhánh chỉ thấy dải của chi nhánh mình + dải mặc định; có `tuition.all_branches` thấy tất cả.
+        // Sửa dải mặc định (dùng chung) cần `invoice_range.manage_default` (BA 26/09/2026).
         $scope = $this->branchScope();
         $ranges = InvoiceConfiguration::with('branch')
             ->when($scope !== null, fn ($q) => $q->where(fn ($q) => $q->whereNull('branch_id')->orWhereIn('branch_id', $scope)))
@@ -2145,17 +2147,22 @@ class TuitionController extends Controller
         if ($editing && ! $this->canManageRange($editing->branch_id)) {
             $editing = null;
         }
-        $canManageDefault = $scope === null;
+        $canManageDefault = (bool) $request->user()?->can('invoice_range.manage_default');
 
         return view('tuition.config', compact('ranges', 'maxIssued', 'recentInvoices', 'branches', 'editing', 'canManageDefault'));
     }
 
-    /** Dải của chi nhánh trong phạm vi người dùng; dải mặc định (branch_id null) chỉ người không bị giới hạn chi nhánh. */
+    /**
+     * Dải của chi nhánh: chi nhánh nằm trong phạm vi học phí của người dùng. Dải mặc định (branch_id null, dùng chung):
+     * cần quyền `invoice_range.manage_default` (mặc định Admin; Admin cấp cho kế toán tổng) — BA 26/09/2026.
+     */
     private function canManageRange(?int $branchId): bool
     {
-        $scope = $this->branchScope();
+        if ($branchId === null) {
+            return (bool) Auth::user()?->can('invoice_range.manage_default');
+        }
 
-        return $scope === null || ($branchId !== null && in_array((int) $branchId, $scope, true));
+        return TuitionBranchScope::coversBranch(Auth::user(), (int) $branchId);
     }
 
     /**

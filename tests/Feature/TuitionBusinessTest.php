@@ -20,11 +20,13 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\GrantsPersonalPermissions;
 use Tests\TestCase;
 
 class TuitionBusinessTest extends TestCase
 {
     use RefreshDatabase;
+    use GrantsPersonalPermissions;
 
     private User $accountantUser;
 
@@ -443,12 +445,16 @@ class TuitionBusinessTest extends TestCase
 
     public function test_can_update_electronic_invoice_configuration(): void
     {
-        // Phase 4 (phạm vi chi nhánh): dải mặc định dùng chung chỉ kế toán tổng (không gán chi nhánh) / Admin sửa.
+        // Dải mặc định dùng chung: cần quyền invoice_range.manage_default (Admin; kế toán tổng được Admin cấp — BA 26/09/2026).
         $this->actingAs($this->accountantUser)->post(route('tuition.config.update'), [
             'template_code' => '1/001', 'series_code' => 'C26MEN', 'current_number' => 1500,
         ])->assertForbidden();
         $headAccountant = User::factory()->create(['branch_id' => null, 'is_active' => true]);
         $headAccountant->assignRole('accountant');
+        $this->actingAs($headAccountant)->post(route('tuition.config.update'), [
+            'template_code' => '1/001', 'series_code' => 'C26MEN', 'current_number' => 1500,
+        ])->assertForbidden();
+        $this->grantPersonal($headAccountant, 'invoice_range.manage_default');
 
         $response = $this->actingAs($headAccountant)->post(route('tuition.config.update'), [
             'template_code' => '1/001',

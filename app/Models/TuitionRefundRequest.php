@@ -28,6 +28,25 @@ class TuitionRefundRequest extends Model
         self::TYPE_DEFERRAL => 'Bảo lưu',
     ];
 
+    /**
+     * Quyền duyệt theo loại hồ sơ (BA 26/09/2026 — Admin cấp / thu hồi ở màn Vai trò hoặc Phân quyền cá nhân).
+     * Mặc định: hoàn tiền chỉ Admin (A6 "Hoàn phí"); chuyển nhượng, khất nợ, bảo lưu: Admin, Quản lý cơ sở, Kế toán.
+     */
+    public const APPROVE_PERMISSIONS = [
+        self::TYPE_REFUND => 'refund_transfer.approve_refund',
+        self::TYPE_TRANSFER => 'refund_transfer.approve_transfer',
+        self::TYPE_EXTENSION => 'refund_transfer.approve',
+        self::TYPE_DEFERRAL => 'refund_transfer.approve',
+    ];
+
+    /** Quyền từ chối mọi loại hồ sơ. */
+    public const REJECT_PERMISSION = 'refund_transfer.reject';
+
+    public static function approvePermission(?string $type): string
+    {
+        return self::APPROVE_PERMISSIONS[$type] ?? 'refund_transfer.approve';
+    }
+
     protected $table = 'tuition_refund_requests';
 
     protected $fillable = [

@@ -18,6 +18,7 @@ use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\PayrollFormulaService;
 use App\Services\SalesCommissionService;
+use App\Support\TuitionBranchScope;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,9 +31,7 @@ class PayrollController extends Controller
 {
     public function periods(Request $request)
     {
-        $currentUser = auth()->user();
-        abort_if($currentUser && ($currentUser->hasRole('student') || $currentUser->hasRole('teacher') || $currentUser->hasRole('academic_lead')), 403);
-
+        // Truy cập theo quyền payroll.view (route middleware) — không chặn cứng theo vai trò (BA 26/09/2026).
         $search = trim((string) $request->query('search', ''));
         $status = $request->query('status');
 
@@ -457,11 +456,33 @@ class PayrollController extends Controller
         return view('payroll.operations', compact('period', 'records'));
     }
 
+    /**
+     * Lớp người dùng được chấm công tay / chỉnh ca / xác nhận theo lịch / lọc ca.
+     * - Người quản lý lớp (Admin, Học vụ, Quản lý cơ sở…): như ClassModel::visibleTo (Quản lý cơ sở: chi nhánh mình).
+     * - Người được Admin cấp quyền chấm công mà không quản lý lớp (vd. Kế toán được cấp attendance_staff.manual_record —
+     *   BA 26/09/2026, chấm công chỉ theo quyền, không theo vai trò): lớp thuộc chi nhánh của mình (TuitionBranchScope;
+     *   có `tuition.all_branches` → mọi lớp), cộng lớp mình phụ trách.
+     */
+    private function timesheetClasses(User $user): \Illuminate\Database\Eloquent\Builder
+    {
+        if (ClassModel::userManagesAll($user)) {
+            return ClassModel::query()->visibleTo($user);
+        }
+
+        $branchIds = TuitionBranchScope::branchIds($user);
+        if ($branchIds === null) {
+            return ClassModel::query();
+        }
+
+        return ClassModel::query()->where(fn ($q) => $q->whereIn('branch_id', $branchIds)
+            ->orWhereIn('id', ClassModel::query()->visibleTo($user)->select('id')));
+    }
+
     public function manualTimesheet(Request $request)
     {
         // Chỉ liệt kê lớp đang/opening trong phạm vi người chấm và nhân sự giảng dạy — User::all() trước đây
         // đưa cả học viên vào dropdown chấm công.
-        $classes = ClassModel::with('branch')->visibleTo($request->user())
+        $classes = $this->timesheetClasses($request->user())->with('branch')
             ->whereIn('status', ['active', 'upcoming', 'pending_schedule'])->orderBy('name')->get();
         $teachers = $this->teachingStaff();
         $branches = $classes->pluck('branch')->filter()->unique('id')->sortBy('name')->values();
@@ -505,9 +526,9 @@ class PayrollController extends Controller
             'teaching_date.before_or_equal' => 'Không chấm công tay trước cho ngày chưa diễn ra.',
         ]);
 
-        // A3: Học vụ / Quản lý cơ sở chỉ chấm công tay cho lớp trong phạm vi mình quản lý (chi nhánh), không phải lớp bất kỳ.
+        // A3: chỉ chấm công tay cho lớp trong phạm vi mình (chi nhánh), không phải lớp bất kỳ — xem timesheetClasses().
         abort_unless(
-            ClassModel::query()->visibleTo($request->user())->whereKey($validated['class_id'])->exists(),
+            $this->timesheetClasses($request->user())->whereKey($validated['class_id'])->exists(),
             403,
             'Lớp này nằm ngoài phạm vi bạn được chấm công.'
         );
@@ -599,13 +620,14 @@ class PayrollController extends Controller
         $classId = $request->integer('class_id') ?: null;
         $teacherId = $canViewAll ? ($request->integer('user_id') ?: null) : $user->id;
 
-        $visibleClassIds = $canViewAll ? ClassModel::query()->visibleTo($user)->pluck('id') : null;
+        $visibleClassIds = $canViewAll ? $this->timesheetClasses($user)->pluck('id') : null;
+        $limitToVisibleClasses = $canViewAll && ($user->managedBranchIds() !== null || ! ClassModel::userManagesAll($user));
 
         $query = TeacherTimesheet::with(['teacher.branch', 'classModel', 'reviewer', 'adjuster', 'classSession'])
             ->whereBetween('teaching_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
             ->when(! $canViewAll, fn ($q) => $q->where('user_id', $user->id))
             // Quản lý cơ sở / Học vụ chỉ thấy ca của lớp trong phạm vi mình (Admin thấy tất cả).
-            ->when($canViewAll && $user->managedBranchIds() !== null, fn ($q) => $q->whereIn('class_id', $visibleClassIds))
+            ->when($limitToVisibleClasses, fn ($q) => $q->whereIn('class_id', $visibleClassIds))
             ->when($teacherId, fn ($q) => $q->where('user_id', $teacherId))
             ->when($branchId, fn ($q) => $q->whereHas('classModel', fn ($c) => $c->where('branch_id', $branchId)))
             ->when($classId, fn ($q) => $q->where('class_id', $classId))
@@ -649,7 +671,7 @@ class PayrollController extends Controller
                 ->whereDate('date', $scheduleDay->toDateString())
                 ->where('status', '!=', 'cancelled')
                 ->whereNotNull('teacher_id')
-                ->whereIn('class_id', ClassModel::query()->visibleTo($user)->select('id'))
+                ->whereIn('class_id', $this->timesheetClasses($user)->select('id'))
                 ->when($branchId, fn ($q) => $q->whereHas('classModel', fn ($c) => $c->where('branch_id', $branchId)))
                 ->orderBy('start_time')->get()
                 ->map(function ($session) {
@@ -662,10 +684,10 @@ class PayrollController extends Controller
         }
         $subPendingCount = $canViewAll
             ? TeacherTimesheet::where('type', 'sub')->where('status', 'pending_review')
-                ->when($user->managedBranchIds() !== null, fn ($q) => $q->whereIn('class_id', $visibleClassIds))->count()
+                ->when($limitToVisibleClasses, fn ($q) => $q->whereIn('class_id', $visibleClassIds))->count()
             : 0;
 
-        $filterClasses = $canViewAll ? ClassModel::query()->visibleTo($user)->orderBy('name')->get(['id', 'name', 'code', 'branch_id']) : collect();
+        $filterClasses = $canViewAll ? $this->timesheetClasses($user)->orderBy('name')->get(['id', 'name', 'code', 'branch_id']) : collect();
         $filterBranches = $canViewAll ? \App\Models\Branch::whereIn('id', $filterClasses->pluck('branch_id')->filter()->unique())->orderBy('name')->get(['id', 'name']) : collect();
         $filterTeachers = $canViewAll ? $this->teachingStaff() : collect();
 
@@ -685,7 +707,7 @@ class PayrollController extends Controller
     {
         abort_unless($request->user()->can('attendance_staff.view'), 403);
         $session = \App\Models\ClassSession::with('classModel')->findOrFail($sessionId);
-        abort_unless(ClassModel::query()->visibleTo($request->user())->whereKey($session->class_id)->exists(), 403);
+        abort_unless($this->timesheetClasses($request->user())->whereKey($session->class_id)->exists(), 403);
         abort_if($session->status === 'cancelled' || ! $session->teacher_id, 422, 'Buổi học đã hủy hoặc chưa phân công giáo viên.');
         if ($session->date->isAfter(today())) {
             throw ValidationException::withMessages(['session' => 'Chưa tới ngày học — không thể xác nhận chấm công trước.']);
@@ -777,7 +799,7 @@ class PayrollController extends Controller
     public function adjustTimesheet(Request $request, int $id)
     {
         $timesheet = TeacherTimesheet::findOrFail($id);
-        abort_unless(ClassModel::query()->visibleTo($request->user())->whereKey($timesheet->class_id)->exists(), 403);
+        abort_unless($this->timesheetClasses($request->user())->whereKey($timesheet->class_id)->exists(), 403);
         if (PayrollPeriod::isLockedFor($timesheet->teaching_date)) {
             return $this->rejectLockedDate('time_in', $timesheet->teaching_date);
         }

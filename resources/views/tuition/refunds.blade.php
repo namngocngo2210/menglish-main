@@ -265,7 +265,9 @@
                             @forelse ($pendingRequests as $rq)
                                 @php
                                     $overdue = $rq->isProcessingOverdue();
-                                    $needsAdmin = $rq->type === 'refund' && ! $canApproveRefund;
+                                    // Quyền duyệt theo loại hồ sơ (TuitionRefundRequest::approvePermission) — Admin cấp / thu hồi.
+                                    $canApproveThis = in_array($rq->type, $approvableTypes, true);
+                                    $canRejectAny = auth()->user()->can(\App\Models\TuitionRefundRequest::REJECT_PERMISSION);
                                 @endphp
                                 <tr class="align-top hover:bg-surface-container-high">
                                     <td class="p-sm">
@@ -293,24 +295,26 @@
                                         <p class="mt-[2px] font-caption text-caption text-on-surface-variant">{{ $rq->created_at->format('d/m/Y') }} · {{ $rq->requester?->name ?? '—' }}</p>
                                     </td>
                                     <td class="p-sm">
-                                        @can('refund_transfer.approve')
+                                        @if ($canApproveThis || $canRejectAny)
                                             <div class="flex gap-sm">
-                                                @if ($needsAdmin)
-                                                    <span class="font-caption text-caption text-on-surface-variant" title="A6: chỉ Admin duyệt hoàn tiền">Chờ Admin duyệt</span>
+                                                @if (! $canApproveThis)
+                                                    <span class="font-caption text-caption text-on-surface-variant" title="Cần quyền {{ \App\Models\TuitionRefundRequest::approvePermission($rq->type) }}">{{ $rq->type === 'refund' ? 'Chờ Admin duyệt' : 'Chờ người có quyền duyệt' }}</span>
                                                 @else
                                                     <button type="button" @click="$dispatch('open-modal', 'approve-refund-{{ $rq->id }}')" title="Duyệt" aria-label="Duyệt"
                                                             class="flex h-8 w-8 items-center justify-center rounded-lg bg-tertiary text-white shadow-sm hover:brightness-110 active:scale-90">
                                                         <span class="material-symbols-outlined text-[18px]">check</span>
                                                     </button>
                                                 @endif
-                                                <button type="button" @click="$dispatch('open-modal', 'reject-refund-{{ $rq->id }}')" title="Từ chối" aria-label="Từ chối"
-                                                        class="flex h-8 w-8 items-center justify-center rounded-lg border border-error text-error hover:bg-error/10 active:scale-90">
-                                                    <span class="material-symbols-outlined text-[18px]">close</span>
-                                                </button>
+                                                @if ($canRejectAny)
+                                                    <button type="button" @click="$dispatch('open-modal', 'reject-refund-{{ $rq->id }}')" title="Từ chối" aria-label="Từ chối"
+                                                            class="flex h-8 w-8 items-center justify-center rounded-lg border border-error text-error hover:bg-error/10 active:scale-90">
+                                                        <span class="material-symbols-outlined text-[18px]">close</span>
+                                                    </button>
+                                                @endif
                                             </div>
                                         @else
                                             <span class="font-caption text-caption text-on-surface-variant">Chờ duyệt</span>
-                                        @endcan
+                                        @endif
                                     </td>
                                 </tr>
                             @empty
@@ -325,10 +329,11 @@
     </div>
 
     {{-- Hộp duyệt / từ chối từng hồ sơ chờ --}}
-    @can('refund_transfer.approve')
+    @php $canRejectRefunds = auth()->user()->can(\App\Models\TuitionRefundRequest::REJECT_PERMISSION); @endphp
+    @if ($approvableTypes !== [] || $canRejectRefunds)
         @foreach ($pendingRequests as $rq)
             @php $overdue = $rq->isProcessingOverdue(); @endphp
-            @if (! ($rq->type === 'refund' && ! $canApproveRefund))
+            @if (in_array($rq->type, $approvableTypes, true))
                 <x-ui.modal :name="'approve-refund-'.$rq->id" :title="'Duyệt '.mb_strtolower($rq->type_label).' — '.$rq->student?->name" max-width="md">
                     <form id="approve-refund-form-{{ $rq->id }}" action="{{ route('tuition.refunds.approve', $rq->id) }}" method="POST" enctype="multipart/form-data" class="space-y-md">
                         @csrf
@@ -381,6 +386,7 @@
                     </x-slot:footer>
                 </x-ui.modal>
             @endif
+            @if ($canRejectRefunds)
             <x-ui.modal :name="'reject-refund-'.$rq->id" :title="'Từ chối hồ sơ — '.$rq->student?->name" max-width="md">
                 <form id="reject-refund-form-{{ $rq->id }}" action="{{ route('tuition.refunds.reject', $rq->id) }}" method="POST">
                     @csrf
@@ -394,8 +400,9 @@
                     <x-ui.button variant="danger" type="submit" icon="close" form="reject-refund-form-{{ $rq->id }}">Từ chối</x-ui.button>
                 </x-slot:footer>
             </x-ui.modal>
+            @endif
         @endforeach
-    @endcan
+    @endif
 
     {{-- Tất cả yêu cầu --}}
     <div id="all-requests" class="mt-lg">

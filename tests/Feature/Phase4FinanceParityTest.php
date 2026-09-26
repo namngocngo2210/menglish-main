@@ -14,6 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\GrantsPersonalPermissions;
 use Tests\TestCase;
 
 /**
@@ -23,6 +24,7 @@ use Tests\TestCase;
 class Phase4FinanceParityTest extends TestCase
 {
     use RefreshDatabase;
+    use GrantsPersonalPermissions;
 
     private Branch $branch;
 
@@ -361,9 +363,9 @@ class Phase4FinanceParityTest extends TestCase
 
         $this->actingAs($this->accountant)->get(route('tuition.invoices.cancellations'))
             ->assertOk()
-            ->assertSee('Chỉ Admin phê duyệt')
+            ->assertSee('Admin phê duyệt (theo phân quyền)')
             ->assertSee('Xuất danh sách')
-            ->assertSee('Yêu cầu đang chờ Admin phê duyệt.')
+            ->assertSee('Yêu cầu đang chờ Admin (hoặc người được cấp quyền duyệt hủy hóa đơn) phê duyệt.')
             ->assertDontSee('hoadon_gachcheo_huy.jpg')
             ->assertDontSee('Đã gạch chéo 3 liên');
         $this->actingAs($this->accountant)->post(route('tuition.invoices.cancellations.approve', $cancellation->id))->assertForbidden();
@@ -474,7 +476,10 @@ class Phase4FinanceParityTest extends TestCase
         // Phiếu đã duyệt 3tr ở CG (setUp); thêm 5tr ở ĐĐ.
         $other = $this->makeStudent('HV-PAR-DD', 'Học Viên ĐĐ', $this->branch2);
         $this->makeTuition($other, 5000000, paid: 5000000);
-        $headAccountant = $this->makeUser('accountant', withBranch: false);
+        // Kế toán tổng = được Admin cấp finance.all_branches (BA 26/09/2026), không còn suy ra từ "không gán chi nhánh".
+        $unscopedAccountant = $this->makeUser('accountant', withBranch: false);
+        $this->actingAs($unscopedAccountant)->get(route('finance.reports.revenue'))->assertForbidden();
+        $headAccountant = $this->grantHeadOffice($this->makeUser('accountant', withBranch: false));
 
         // Kế toán chi nhánh CG: chỉ thấy CG (trước đây thấy toàn hệ thống).
         $this->actingAs($this->accountant)->get(route('finance.reports.revenue'))

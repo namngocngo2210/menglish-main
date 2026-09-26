@@ -10,11 +10,13 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\GrantsPersonalPermissions;
 use Tests\TestCase;
 
 class TuitionTest extends TestCase
 {
     use RefreshDatabase;
+    use GrantsPersonalPermissions;
 
     protected function setUp(): void
     {
@@ -23,12 +25,13 @@ class TuitionTest extends TestCase
         $this->seed(RoleSeeder::class);
     }
 
+    /** Kế toán tổng (không gán chi nhánh): Admin cấp quyền mọi chi nhánh qua Phân quyền cá nhân (BA 26/09/2026). */
     private function accountant(): User
     {
         $user = User::factory()->create();
         $user->assignRole('accountant');
 
-        return $user;
+        return $this->grantHeadOffice($user);
     }
 
     public function test_can_view_tuition_students_list(): void
