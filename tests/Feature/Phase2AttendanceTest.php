@@ -217,7 +217,7 @@ class Phase2AttendanceTest extends TestCase
 
         $admin = User::factory()->create(['is_active' => true]);
         $admin->assignRole('admin');
-        $this->actingAs($admin)->get(route('classes.profile', $this->classModel->id))
+        $this->actingAs($admin)->get(route('classes.show', ['id' => $this->classModel->id, 'tab' => 'students']))
             ->assertOk()->assertSee('Học viên Liên Kết')->assertDontSee('Học viên Bảo Lưu')->assertSee('2 học sinh');
     }
 

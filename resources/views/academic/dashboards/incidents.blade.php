@@ -1,9 +1,12 @@
 <x-app-layout>
-    <x-ui.page-header title="Dashboard Nhật ký Sự vụ Cơ sở">
+    <x-ui.page-header title="Báo cáo & sự vụ" icon="monitoring" description="Báo cáo đào tạo ngày / tuần / tháng và sự vụ của các lớp, các cơ sở.">
         <x-slot:actions>
-            <x-ui.button variant="secondary" icon="assessment" :href="route('academic.dashboards.reports')">Dashboard Báo cáo</x-ui.button>
+            @can('staff_report.submit')
+                <x-ui.button icon="add" :href="route('reports.journal')">Ghi sự vụ</x-ui.button>
+            @endcan
         </x-slot:actions>
     </x-ui.page-header>
+    @include('academic.dashboards.partials.section-tabs')
 
 
     @php
@@ -25,13 +28,14 @@
         <x-ui.data-table>
             <x-slot:header>
                 <div>
-                    <h3 class="text-sm font-bold text-on-surface">Danh sách Sự vụ Nổi cộm Các Cơ sở</h3>
+                    <h3 class="text-sm font-bold text-on-surface">Nhật ký sự vụ các lớp và cơ sở</h3>
                     <p class="text-xs text-on-surface-variant">Theo dõi, giao quyền xử lý và ghi nhận giải pháp khắc phục</p>
                 </div>
-                <form method="GET" action="{{ route('academic.dashboards.incidents') }}" class="flex flex-wrap items-center gap-2">
-                    <span class="text-xs font-medium text-on-surface-variant">Lọc theo:</span>
+                <form method="GET" action="{{ route('academic.dashboards.incidents') }}" class="grid w-full grid-cols-2 gap-2 lg:w-auto lg:grid-cols-4" aria-label="Lọc sự vụ">
                     <x-ui.select name="branch_id" aria-label="Cơ sở" onchange="this.form.submit()" placeholder="Tất cả cơ sở" :value="(string) $branchId"
                                  :options="$branches->pluck('name', 'id')" />
+                    <x-ui.select name="class_id" aria-label="Lớp" onchange="this.form.submit()" placeholder="Mọi lớp" :value="(string) $classId"
+                                 :options="$classes->mapWithKeys(fn ($c) => [$c->id => $c->code])" />
                     <x-ui.select name="severity" aria-label="Mức độ" onchange="this.form.submit()" :value="$severity"
                                  :options="['all' => 'Mọi mức độ'] + $priorityLabels" />
                     <x-ui.select name="status" aria-label="Trạng thái" onchange="this.form.submit()" :value="$status"
@@ -77,6 +81,39 @@
                             </td>
                         </tr>
                     @endforeach
+                    @foreach ($journals as $journal)
+                        @php $journalSeverity = ['urgent' => 'urgent', 'important' => 'high', 'normal' => 'medium'][$journal->severity] ?? null; @endphp
+                        <tr class="{{ $journal->severity === 'urgent' && $journal->status !== 'resolved' ? 'bg-error/5' : '' }}">
+                            <td>
+                                <span class="font-code font-bold">Sự vụ #{{ $journal->id }}</span>
+                                <span class="block text-[11px] text-on-surface-variant">{{ $journal->classModel?->branch?->name ?? $journal->user?->branch?->name ?? 'Chưa cập nhật' }}</span>
+                                @if ($journal->classModel)
+                                    <a href="{{ route('classes.show', ['id' => $journal->class_id, 'tab' => 'incidents']) }}" class="block text-[11px] font-semibold text-primary hover:underline">Lớp {{ $journal->classModel->code }}</a>
+                                @endif
+                            </td>
+                            <td>
+                                <x-ui.badge color="warning" pill :dot="false">Nhật ký sự vụ</x-ui.badge>
+                            </td>
+                            <td class="max-w-sm">
+                                <p class="font-semibold">{{ $journal->title }}</p>
+                                @if ($journal->content)
+                                    <p class="line-clamp-1 text-[11px] text-on-surface-variant">{{ $journal->content }}</p>
+                                @endif
+                            </td>
+                            <td>
+                                <x-ui.badge :color="$priorityColors[$journalSeverity] ?? 'neutral'" pill>{{ $journal->severity_label }}</x-ui.badge>
+                            </td>
+                            <td>
+                                <span class="font-bold">{{ $journal->user?->name ?? 'Chưa cập nhật' }}</span>
+                                @if ($journal->followups->isNotEmpty())
+                                    <span class="block line-clamp-1 text-[11px] text-on-surface-variant">{{ $journal->followups->first()->content }}</span>
+                                @endif
+                            </td>
+                            <td>
+                                <x-ui.badge :color="['resolved' => 'success', 'following' => 'info'][$journal->status] ?? 'warning'" pill>{{ ['resolved' => 'Đã xử lý', 'following' => 'Đang theo dõi'][$journal->status] ?? 'Mới' }}</x-ui.badge>
+                            </td>
+                        </tr>
+                    @endforeach
                     @foreach ($incidents as $incident)
                         <tr>
                             <td>
@@ -101,7 +138,7 @@
                             </td>
                         </tr>
                     @endforeach
-                    @if ($urgentTickets->isEmpty() && $incidents->isEmpty())
+                    @if ($urgentTickets->isEmpty() && $incidents->isEmpty() && $journals->isEmpty())
                         <tr>
                             <td colspan="6"><x-ui.empty-state title="Chưa có sự vụ nào phù hợp bộ lọc." /></td>
                         </tr>

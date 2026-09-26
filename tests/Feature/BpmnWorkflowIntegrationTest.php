@@ -270,12 +270,12 @@ class BpmnWorkflowIntegrationTest extends TestCase
 
         // Trước đây orWhere không bọc closure: tìm theo code thoát cả filter status + chi nhánh.
         $this->actingAs($this->manager)
-            ->get(route('classes.academic-list', ['search' => 'CANCEL-XYZ']))
+            ->get(route('classes.index', ['search' => 'CANCEL-XYZ']))
             ->assertOk()
             ->assertDontSee('Lớp Đã Hủy Bí Mật');
 
         $this->actingAs($this->manager)
-            ->get(route('classes.academic-list', ['search' => 'BPMN-01']))
+            ->get(route('classes.index', ['search' => 'BPMN-01']))
             ->assertOk()
             ->assertSee($this->classModel->name);
         $this->assertNotNull($cancelled->id);
