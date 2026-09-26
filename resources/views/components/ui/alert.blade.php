@@ -14,7 +14,7 @@
 @php
     $styles = [
         'error' => ['bg-error-container border-error text-on-error-container', 'text-error', 'error'],
-        'warning' => ['bg-amber-50 border-amber-500 text-amber-900', 'text-amber-600', 'warning'],
+        'warning' => ['bg-warning-container border-warning text-on-warning-container', 'text-warning', 'warning'],
         'info' => ['bg-secondary-fixed/50 border-secondary text-on-secondary-fixed', 'text-secondary', 'info'],
         'success' => ['bg-tertiary-fixed/30 border-tertiary text-on-tertiary-fixed-variant', 'text-tertiary', 'check_circle'],
     ];

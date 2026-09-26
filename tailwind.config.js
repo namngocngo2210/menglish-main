@@ -90,6 +90,18 @@ export default {
                     container: '#ffdad6',
                 },
                 'on-error': '#ffffff',
+
+                // Cảnh báo / thông tin (thay cho amber-*, blue-* viết cứng). success = tertiary.
+                warning: {
+                    DEFAULT: '#b45309',
+                    container: '#fef3c7',
+                },
+                'on-warning-container': '#78350f',
+                info: {
+                    DEFAULT: '#1d4ed8',
+                    container: '#dbeafe',
+                },
+                'on-info-container': '#1e3a8a',
                 'on-error-container': '#93000a',
 
                 surface: {

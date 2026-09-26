@@ -2,6 +2,7 @@
     <x-ui.button> — nút chuẩn theo mockup.
     Props:
       variant: primary (mặc định, cam CTA) | secondary (viền) | ghost (hành động trong bảng) | danger (nền đỏ) | danger-text (chữ đỏ)
+               | success (nền xanh lá: xác nhận thu tiền / duyệt) | info (nền xanh dương: hành động phụ nổi bật)
       size:    md (mặc định) | sm
       icon:    tên Material Symbol hiển thị trước nhãn (vd. "add"); không có slot => nút chỉ-icon
       href:    có href => render thẻ <a>, ngược lại <button type="button"> (đổi bằng type="submit")
@@ -23,6 +24,8 @@
         'ghost' => 'text-on-surface-variant hover:bg-surface-container-high hover:text-primary',
         'danger' => 'bg-error text-white shadow-sm hover:bg-on-error-container',
         'danger-text' => 'border border-transparent text-error hover:border-error/20 hover:bg-error-container/50',
+        'success' => 'bg-tertiary text-white shadow-sm hover:bg-on-tertiary-fixed-variant',
+        'info' => 'bg-secondary text-white shadow-sm hover:bg-secondary-hover',
     ];
     $iconOnly = $slot->isEmpty() && $icon;
     $sizes = $iconOnly

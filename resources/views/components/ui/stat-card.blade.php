@@ -21,7 +21,7 @@
         'success' => ['text-tertiary-container', 'bg-tertiary-fixed/50 text-tertiary'],
         'secondary' => ['text-secondary-container', 'bg-secondary-fixed text-secondary'],
         'error' => ['text-error', 'bg-error-container text-error'],
-        'warning' => ['text-amber-600', 'bg-amber-100 text-amber-700'],
+        'warning' => ['text-warning', 'bg-warning-container text-warning'],
     ];
     [$valueTone, $iconTone] = $tones[$tone] ?? $tones['default'];
 @endphp
