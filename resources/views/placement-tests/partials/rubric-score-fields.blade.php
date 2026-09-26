@@ -132,7 +132,7 @@
                     </label>
                     <span class="font-code text-code" x-text="'/ ' + max('{{ $skill }}')"></span>
                 </div>
-                <input id="score_{{ $skill }}" type="number" step="0.5" min="0" :max="max('{{ $skill }}')" name="{{ $skill }}_score" x-model="scores.{{ $skill }}" required
+                <input id="score_{{ $skill }}" type="number" step="0.5" min="0" :max="max('{{ $skill }}')" name="{{ $skill }}_score" x-model="scores.{{ $skill }}" @if ($skill === 'speaking') :required="hasRubric" @else required @endif
                        :class="overMax('{{ $skill }}') ? 'border-error ring-2 ring-error/20' : 'border-outline-variant'"
                        class="w-full rounded-lg border bg-surface-container-lowest p-sm text-center font-code text-h3" />
                 <div class="h-1.5 w-full overflow-hidden rounded-full bg-surface-container-high">

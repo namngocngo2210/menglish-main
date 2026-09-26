@@ -195,9 +195,9 @@
 | 25/09/2026 | Hoàn phí | Xử lý **trong 1 tuần** và **trong cùng tháng phát sinh**. **Admin** duyệt. **Ưu tiên chuyển nhượng** buổi dư, hoàn tiền là phương án cuối. Hoàn tiền **bắt buộc ảnh bằng chứng**. Quá hạn → gắn cờ **"Quá hạn xử lý"**, không chặn nút duyệt |
 | 25/09/2026 | Q8 — Báo cáo trực lớp | Ảnh **không bắt buộc**. Có ≥ 1 ảnh → đầu việc "Trực lớp" tự **Hoàn thành**. Không ảnh → **Chờ xác nhận**, GV chính của lớp xác nhận; lớp chưa có GV chính thì **người giao việc** xác nhận |
 | 26/09/2026 | Chốt bảng lương | Còn nhân sự **chưa chốt KPI** thì **chặn** chốt bảng lương (không chỉ cảnh báo) |
+| 26/09/2026 | Q2 — Học viên lớn (lớp 5–9) | **Không xếp lớp theo thang điểm tự động.** Nhập điểm thô bài test, Học vụ xem điểm và **chủ động chọn lớp thủ công**. Lớp 8–9 không test Nói → được để trống Nói |
 
 **Còn chờ trả lời:**
-- **Q2 — Học viên lớn:** chưa có thang điểm. File thang điểm chỉ có 4 khối (Khối 1-2 → Khối 4 lên 5); "Phân loại bài test" có bài cho lớp 5–9 (lớp 8–9 chỉ 3 kỹ năng, không nói) nhưng chưa có băng điểm / mapping lớp. Chờ Học thuật / chị Kiều Liên bổ sung.
 - **Q4 — Cấu trúc bảng:** chang_buoi_hoc / buoi_giao_trinh có cần bảng UNIT riêng không; NOI_DUNG_BUOI_HOC đang tự đánh số (so_unit, so_buoi), chưa nối buoi_giao_trinh_id — hai hệ đánh số phải khớp. Chờ Mai Le Quel Owen / Nam Ngo xác nhận.
 - **Q3 — Lương buổi có GVNN** (Part-time): chờ làm rõ với Mai Le Quel Owen.
 - **Thưởng tái tục:** bảng % đầy đủ theo số HS nghỉ (mới có ví dụ 100% → 1%, nghỉ 1 → 0,7%).
