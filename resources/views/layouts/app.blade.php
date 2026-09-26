@@ -216,17 +216,11 @@
                     @endif
                 </main>
 
-                <footer class="mt-auto flex select-none flex-col items-center justify-between gap-xs border-t border-surface-container-highest bg-surface px-md py-md font-caption text-caption text-on-surface-variant sm:flex-row lg:px-lg">
+                <footer class="mt-auto flex select-none flex-col items-center justify-center gap-xs border-t border-surface-container-highest bg-surface px-md py-md font-caption text-caption text-on-surface-variant sm:flex-row lg:px-lg">
                     <div class="flex items-center gap-xs">
                         <span class="font-semibold text-on-surface">MENGLISH</span>
                         <span aria-hidden="true">&bull;</span>
                         <span>Hệ thống quản trị giáo dục &amp; học vụ</span>
-                    </div>
-                    <div class="flex items-center gap-xs">
-                        <span>Phát triển bởi</span>
-                        <a href="https://vmst.vn" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-0.5 font-semibold text-primary hover:underline">
-                            VMST Media <span class="material-symbols-outlined text-[13px] opacity-70">open_in_new</span>
-                        </a>
                     </div>
                 </footer>
             </div>

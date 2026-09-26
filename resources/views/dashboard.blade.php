@@ -25,38 +25,7 @@
     @endphp
 
     <div class="space-y-6">
-        @if($isAdminOrManager)
-            {{-- Workspace Overview Banner --}}
-            <div class="relative overflow-hidden bg-gradient-to-r from-navy via-navy-light to-navy rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-white/10">
-                <div class="relative z-10 max-w-2xl space-y-3">
-                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-container/20 text-orange-400 border border-primary-container/30 text-xs font-bold">
-                        <span class="w-2 h-2 rounded-full bg-primary-container animate-ping"></span>
-                        Không gian điều hành trung tâm MEnglish
-                    </div>
-                    <h2 class="text-2xl sm:text-3xl font-black tracking-tight text-white leading-tight">
-                        Quản Trị Vận Hành &amp; Đào Tạo Toàn Diện
-                    </h2>
-                    <p class="text-xs sm:text-sm text-gray-300 leading-relaxed">
-                        Hệ thống điều hành tích hợp CRM Tuyển sinh, Quản lý Học vụ, Học phí, Chấm công Tính lương và Ngân hàng Đề thi chuẩn hóa.
-                    </p>
-                    <div class="flex flex-wrap items-center gap-3 pt-2">
-                        <a href="{{ route('crm.pipeline') }}" class="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
-                            <span class="material-symbols-outlined text-[18px]">view_kanban</span>
-                            <span>CRM Tuyển sinh</span>
-                        </a>
-                        <a href="{{ route('tuition.students') }}" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold backdrop-blur-sm transition flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-[18px]">monetization_on</span>
-                            <span>Học phí</span>
-                        </a>
-                        <a href="{{ route('tasks.index') }}" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold backdrop-blur-sm transition flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-[18px]">task_alt</span>
-                            <span>Giao việc &amp; TA</span>
-                        </a>
-                    </div>
-                </div>
-                <div class="absolute -right-10 -bottom-10 w-80 h-80 bg-primary-container/20 rounded-full blur-3xl pointer-events-none"></div>
-            </div>
-        @else
+        @unless($isAdminOrManager)
             {{-- Welcome Banner for Staff / Teachers --}}
             <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm flex items-center justify-between">
                 <div>
@@ -76,7 +45,7 @@
                     @endif
                 </div>
             </div>
-        @endif
+        @endunless
 
         @if (! empty($roleDashboard))
             @include('dashboard.partials.role-widgets', ['roleDashboard' => $roleDashboard])
