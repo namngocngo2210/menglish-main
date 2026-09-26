@@ -1,9 +1,7 @@
 <x-app-layout>
     <x-ui.page-header title="Tạo lớp mới (Flow 1 — Bước #2)" icon="group_add" :back="route('classes.trial-booking')">
         <x-slot:badges>
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-secondary border border-secondary/20">
-                Học vụ / Quản trị
-            </span>
+            <x-ui.badge color="secondary" :dot="false" :pill="true">Học vụ / Quản trị</x-ui.badge>
         </x-slot:badges>
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="list" :href="route('classes.academic-list')">Quay lại danh sách lớp</x-ui.button>
@@ -14,7 +12,7 @@
     <div class="max-w-4xl mx-auto space-y-6">
 
         {{-- Main Form Card --}}
-        <form action="{{ route('classes.store') }}" method="POST" class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden divide-y divide-gray-100">
+        <form action="{{ route('classes.store') }}" method="POST" class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm overflow-hidden divide-y divide-surface-container-highest">
             @csrf
 
             {{-- Khối 1: Thông tin cơ bản & Phân loại lớp (Bắt buộc) --}}
@@ -22,280 +20,180 @@
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <div class="w-2.5 h-2.5 rounded-full bg-primary-container"></div>
-                        <h2 class="text-base font-bold text-gray-900 uppercase tracking-wide">
+                        <h2 class="text-base font-bold text-on-surface uppercase tracking-wide">
                             1. Thông tin cơ bản &amp; Phân loại
                         </h2>
                     </div>
-                    <span class="text-xs text-gray-400 font-medium italic">
-                        (<span class="text-rose-500 font-bold">*</span>) Trường bắt buộc nhập
+                    <span class="text-xs text-on-surface-variant/70 font-medium italic">
+                        (<span class="text-error font-bold">*</span>) Trường bắt buộc nhập
                     </span>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
                     {{-- Tên lớp (Bắt buộc) --}}
                     <div class="md:col-span-8">
-                        <label for="ten_lop" class="block text-xs font-bold text-gray-700 mb-1.5">
-                            Tên lớp học <span class="text-rose-500 font-bold">*</span>
-                        </label>
-                        <input type="text"
-                               id="ten_lop"
-                               name="ten_lop"
-                               value="{{ old('ten_lop') }}"
-                               placeholder="VD: ENG-B1 · IELTS Căn Bản K26"
-                               required
-                               class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition placeholder:text-gray-400">
-                        <p class="text-[11px] text-gray-400 mt-1">Tên hiển thị rõ ràng trên sổ điểm danh và cổng giáo viên.</p>
-                        @error('ten_lop') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
+                        <x-ui.input id="ten_lop" name="ten_lop" label="Tên lớp học" required placeholder="VD: ENG-B1 · IELTS Căn Bản K26" class="text-xs"
+                                    hint="Tên hiển thị rõ ràng trên sổ điểm danh và cổng giáo viên." />
                     </div>
 
                     {{-- Mã lớp (Tùy chọn) --}}
                     <div class="md:col-span-4">
-                        <label for="ma_lop" class="block text-xs font-bold text-gray-700 mb-1.5">
-                            Mã lớp <span class="text-[11px] font-normal text-gray-400">(Tùy chọn)</span>
-                        </label>
-                        <input type="text"
-                               id="ma_lop"
-                               name="ma_lop"
-                               value="{{ old('ma_lop') }}"
-                               placeholder="VD: ENG-B1-K26"
-                               class="w-full px-3.5 py-2.5 text-xs font-mono uppercase bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition placeholder:text-gray-400">
-                        <p class="text-[11px] text-gray-400 mt-1">Để trống hệ thống sẽ tự sinh theo quy tắc.</p>
-                        @error('ma_lop') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
+                        <x-ui.input id="ma_lop" name="ma_lop" label="Mã lớp (Tùy chọn)" placeholder="VD: ENG-B1-K26" class="text-xs font-mono uppercase"
+                                    hint="Để trống hệ thống sẽ tự sinh theo quy tắc." />
                     </div>
 
                     {{-- Chi nhánh (Bắt buộc) --}}
                     <div class="md:col-span-4">
-                        <label for="chi_nhanh" class="block text-xs font-bold text-gray-700 mb-1.5">
-                            Chi nhánh đào tạo <span class="text-rose-500 font-bold">*</span>
-                        </label>
-                        <select id="chi_nhanh"
-                                name="chi_nhanh"
-                                required
-                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition text-gray-900 cursor-pointer">
+                        <x-ui.select id="chi_nhanh" name="chi_nhanh" label="Chi nhánh đào tạo" required class="text-xs cursor-pointer">
                             <option value="" disabled {{ old('chi_nhanh') ? '' : 'selected' }}>-- Chọn chi nhánh --</option>
                             @foreach($branches as $b)
                                 <option value="{{ $b->id }}" {{ old('chi_nhanh') == $b->id ? 'selected' : '' }}>
                                     {{ $b->name }} ({{ $b->code }})
                                 </option>
                             @endforeach
-                        </select>
-                        @error('chi_nhanh') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
+                        </x-ui.select>
                     </div>
 
                     {{-- Chương trình (Bắt buộc) --}}
                     <div class="md:col-span-4">
-                        <label for="chuong_trinh" class="block text-xs font-bold text-gray-700 mb-1.5">
-                            Chương trình học <span class="text-rose-500 font-bold">*</span>
-                        </label>
-                        <select id="chuong_trinh"
-                                name="chuong_trinh"
-                                required
-                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition text-gray-900 cursor-pointer">
+                        <x-ui.select id="chuong_trinh" name="chuong_trinh" label="Chương trình học" required class="text-xs cursor-pointer">
                             <option value="" disabled {{ old('chuong_trinh') ? '' : 'selected' }}>-- Chọn chương trình học --</option>
-                            
                             @foreach($courses as $c)
                                 <option value="{{ $c->name }}" data-fee="{{ $c->tuition_fee }}" {{ old('chuong_trinh') === $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
                             @endforeach
-                        </select>
-                        @error('chuong_trinh') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
+                        </x-ui.select>
                     </div>
 
                     {{-- Cấp độ (Bắt buộc) --}}
                     <div class="md:col-span-4">
-                        <label for="cap_do" class="block text-xs font-bold text-gray-700 mb-1.5">
-                            Cấp độ <span class="text-rose-500 font-bold">*</span>
-                        </label>
-                        <select id="cap_do"
-                                name="cap_do"
-                                required
-                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition text-gray-900 cursor-pointer">
+                        <x-ui.select id="cap_do" name="cap_do" label="Cấp độ" required class="text-xs cursor-pointer">
                             <option value="" disabled {{ old('cap_do') ? '' : 'selected' }}>-- Chọn cấp độ --</option>
-                            
                             @foreach($levels as $lvl)
                                 <option value="{{ $lvl->code }}" {{ old('cap_do') === $lvl->code ? 'selected' : '' }}>{{ $lvl->name }} ({{ $lvl->target }})</option>
                             @endforeach
-                        </select>
-                        @error('cap_do') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
+                        </x-ui.select>
                     </div>
 
                     {{-- Sĩ số tối đa (Bắt buộc) --}}
                     <div class="md:col-span-4">
-                        <label for="si_so_toi_da" class="block text-xs font-bold text-gray-700 mb-1.5">
-                            Sĩ số tối đa <span class="text-rose-500 font-bold">*</span>
-                        </label>
-                        <div class="relative">
-                            <input type="number"
-                                   id="si_so_toi_da"
-                                   name="si_so_toi_da"
-                                   min="1"
-                                   max="100"
-                                   value="{{ old('si_so_toi_da') }}"
-                                   placeholder="VD: 16"
-                                   required
-                                   class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
-                            <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[11px] text-gray-400 font-medium">
-                                học viên
+                        <x-ui.field label="Sĩ số tối đa" name="si_so_toi_da" for="si_so_toi_da" required hint="Giới hạn số học viên xếp lớp tối đa.">
+                            <div class="relative">
+                                <input type="number"
+                                       id="si_so_toi_da"
+                                       name="si_so_toi_da"
+                                       min="1"
+                                       max="100"
+                                       value="{{ old('si_so_toi_da') }}"
+                                       placeholder="VD: 16"
+                                       required
+                                       class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm pr-16 text-xs text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
+                                <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[11px] text-on-surface-variant/70 font-medium">
+                                    học viên
+                                </div>
                             </div>
-                        </div>
-                        <p class="text-[11px] text-gray-400 mt-1">Giới hạn số học viên xếp lớp tối đa.</p>
-                        @error('si_so_toi_da') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
+                        </x-ui.field>
                     </div>
 
                     {{-- Ngưỡng khai giảng (số học viên tối thiểu để mở lớp) --}}
                     <div class="md:col-span-4">
-                        <label for="min_students" class="block text-xs font-bold text-gray-700 mb-1.5">
-                            Ngưỡng khai giảng
-                        </label>
-                        <div class="relative">
-                            <input type="number"
-                                   id="min_students"
-                                   name="min_students"
-                                   min="1"
-                                   max="100"
-                                   value="{{ old('min_students', 6) }}"
-                                   class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
-                            <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[11px] text-gray-400 font-medium">
-                                học viên
+                        <x-ui.field label="Ngưỡng khai giảng" name="min_students" for="min_students" hint="Số học viên tối thiểu để mở lớp; không vượt sĩ số tối đa.">
+                            <div class="relative">
+                                <input type="number"
+                                       id="min_students"
+                                       name="min_students"
+                                       min="1"
+                                       max="100"
+                                       value="{{ old('min_students', 6) }}"
+                                       class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm pr-16 text-xs text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
+                                <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[11px] text-on-surface-variant/70 font-medium">
+                                    học viên
+                                </div>
                             </div>
-                        </div>
-                        <p class="text-[11px] text-gray-400 mt-1">Số học viên tối thiểu để mở lớp; không vượt sĩ số tối đa.</p>
-                        @error('min_students') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
+                        </x-ui.field>
                     </div>
 
                     {{-- Trạng thái khởi tạo (Readonly indicator) --}}
                     <div class="md:col-span-12 flex items-center">
-                        <div class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 flex items-center justify-between">
+                        <div class="w-full bg-surface-container-low border border-surface-container-highest rounded-xl px-4 py-2.5 flex items-center justify-between">
                             <div class="flex items-center gap-2">
-                                <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Trạng thái lớp ban đầu:</span>
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                                    Chưa cấu hình lịch (Khởi tạo)
-                                </span>
+                                <span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Trạng thái lớp ban đầu:</span>
+                                <x-ui.badge color="warning">Chưa cấu hình lịch (Khởi tạo)</x-ui.badge>
                             </div>
-                            <span class="text-[11px] text-gray-400 italic">Tự động kích hoạt khi xếp ca ở TKB</span>
+                            <span class="text-[11px] text-on-surface-variant/70 italic">Tự động kích hoạt khi xếp ca ở TKB</span>
                         </div>
                     </div>
                 </div>
             </div>
 
             {{-- Khối 2: Phòng học & Nhân sự giảng dạy (Tùy chọn - có thể để trống gán sau) --}}
-            <div class="p-6 md:p-8 space-y-6 bg-gray-50/40">
+            <div class="p-6 md:p-8 space-y-6 bg-surface-container-low/40">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <div class="w-2.5 h-2.5 rounded-full bg-secondary"></div>
-                        <h2 class="text-base font-bold text-gray-900 uppercase tracking-wide">
+                        <h2 class="text-base font-bold text-on-surface uppercase tracking-wide">
                             2. Phòng học &amp; Đội ngũ phụ trách
                         </h2>
                     </div>
-                    <span class="text-xs px-2.5 py-1 bg-gray-100 text-gray-600 rounded-md font-semibold">
-                        Tùy chọn • Để trống gán sau
-                    </span>
+                    <x-ui.badge :dot="false">Tùy chọn • Để trống gán sau</x-ui.badge>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
                     {{-- Phòng học (Tùy chọn) --}}
                     <div class="md:col-span-6">
-                        <label for="phong_hoc" class="block text-xs font-bold text-gray-700 mb-1.5">
-                            Phòng học dự kiến
-                        </label>
-                        <select id="phong_hoc"
-                                name="phong_hoc"
-                                class="w-full px-3.5 py-2.5 text-xs bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition text-gray-900 cursor-pointer">
-                            <option value="" selected>-- Chưa gán phòng (để trống) --</option>
-                            <option value="P101" {{ old('phong_hoc') === 'P101' ? 'selected' : '' }}>Phòng 101 (Sức chứa 20 - Tầng 1)</option>
-                            <option value="P202" {{ old('phong_hoc') === 'P202' ? 'selected' : '' }}>Phòng 202 (Sức chứa 16 - Tầng 2)</option>
-                            <option value="P302" {{ old('phong_hoc') === 'P302' ? 'selected' : '' }}>Phòng 302 (Sức chứa 18 - Tầng 3)</option>
-                            <option value="LAB_A" {{ old('phong_hoc') === 'LAB_A' ? 'selected' : '' }}>Phòng Lab A (Sức chứa 24 - Tầng 4)</option>
-                            <option value="LAB_B" {{ old('phong_hoc') === 'LAB_B' ? 'selected' : '' }}>Phòng Lab B (Sức chứa 24 - Tầng 4)</option>
-                        </select>
-                        <p class="text-[11px] text-gray-400 mt-1">Danh sách phòng hiện có của trung tâm (dùng chung các chi nhánh).</p>
+                        <x-ui.select id="phong_hoc" name="phong_hoc" label="Phòng học dự kiến" class="text-xs cursor-pointer" placeholder="-- Chưa gán phòng (để trống) --"
+                                     hint="Danh sách phòng hiện có của trung tâm (dùng chung các chi nhánh)."
+                                     :options="['P101' => 'Phòng 101 (Sức chứa 20 - Tầng 1)', 'P202' => 'Phòng 202 (Sức chứa 16 - Tầng 2)', 'P302' => 'Phòng 302 (Sức chứa 18 - Tầng 3)', 'LAB_A' => 'Phòng Lab A (Sức chứa 24 - Tầng 4)', 'LAB_B' => 'Phòng Lab B (Sức chứa 24 - Tầng 4)']" />
                     </div>
 
                     {{-- Giáo viên chính (Tùy chọn) --}}
                     <div class="md:col-span-6">
-                        <label for="giao_vien_chinh" class="block text-xs font-bold text-gray-700 mb-1.5">
-                            Giáo viên chính
-                        </label>
-                        <select id="giao_vien_chinh"
-                                name="giao_vien_chinh"
-                                class="w-full px-3.5 py-2.5 text-xs bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition text-gray-900 cursor-pointer">
-                            <option value="" selected>-- Chưa gán giáo viên chính (để trống) --</option>
-                            @foreach($teachers as $t)
-                                <option value="{{ $t->id }}" {{ old('giao_vien_chinh') == $t->id ? 'selected' : '' }}>
-                                    {{ $t->name }} ({{ $t->email }})
-                                </option>
-                            @endforeach
-                        </select>
+                        <x-ui.select id="giao_vien_chinh" name="giao_vien_chinh" label="Giáo viên chính" class="text-xs cursor-pointer" placeholder="-- Chưa gán giáo viên chính (để trống) --"
+                                     :options="$teachers->mapWithKeys(fn ($t) => [$t->id => $t->name . ' (' . $t->email . ')'])" />
                     </div>
 
                     {{-- Trợ giảng (Tùy chọn) --}}
                     <div class="md:col-span-6">
-                        <label for="tro_giang" class="block text-xs font-bold text-gray-700 mb-1.5">
-                            Trợ giảng
-                        </label>
-                        <select id="tro_giang"
-                                name="tro_giang"
-                                class="w-full px-3.5 py-2.5 text-xs bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition text-gray-900 cursor-pointer">
-                            <option value="" selected>-- Chưa gán trợ giảng (để trống) --</option>
-                            @foreach($assistants as $ta)
-                                <option value="{{ $ta->id }}" {{ old('tro_giang') == $ta->id ? 'selected' : '' }}>
-                                    {{ $ta->name }} ({{ $ta->email }})
-                                </option>
-                            @endforeach
-                        </select>
+                        <x-ui.select id="tro_giang" name="tro_giang" label="Trợ giảng" class="text-xs cursor-pointer" placeholder="-- Chưa gán trợ giảng (để trống) --"
+                                     :options="$assistants->mapWithKeys(fn ($ta) => [$ta->id => $ta->name . ' (' . $ta->email . ')'])" />
                     </div>
 
                     {{-- Giáo viên nước ngoài (GVNN) (Tùy chọn) --}}
                     <div class="md:col-span-6">
-                        <label for="giao_vien_nn" class="block text-xs font-bold text-gray-700 mb-1.5">
-                            Giáo viên nước ngoài (GVNN)
-                        </label>
-                        <select id="giao_vien_nn"
-                                name="giao_vien_nn"
-                                class="w-full px-3.5 py-2.5 text-xs bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition text-gray-900 cursor-pointer">
-                            <option value="" selected>-- Không áp dụng hoặc gán sau (để trống) --</option>
-                            @foreach($foreignTeachers as $teacher)
-                                <option value="{{ $teacher->id }}" {{ old('giao_vien_nn') == $teacher->id ? 'selected' : '' }}>
-                                    {{ $teacher->name }} ({{ $teacher->email }})
-                                </option>
-                            @endforeach
-                        </select>
+                        <x-ui.select id="giao_vien_nn" name="giao_vien_nn" label="Giáo viên nước ngoài (GVNN)" class="text-xs cursor-pointer" placeholder="-- Không áp dụng hoặc gán sau (để trống) --"
+                                     :options="$foreignTeachers->mapWithKeys(fn ($teacher) => [$teacher->id => $teacher->name . ' (' . $teacher->email . ')'])" />
                     </div>
                 </div>
             </div>
 
             {{-- Khối 3: Lên lịch học tự động (Render TKB ngay khi tạo lớp) --}}
-            <div class="p-6 md:p-8 space-y-6 bg-gray-50/40" x-data="scheduleGenerator()" x-cloak>
+            <div class="p-6 md:p-8 space-y-6 bg-surface-container-low/40" x-data="scheduleGenerator()" x-cloak>
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <div class="w-2.5 h-2.5 rounded-full bg-secondary"></div>
-                        <h2 class="text-base font-bold text-gray-900 uppercase tracking-wide">
+                        <h2 class="text-base font-bold text-on-surface uppercase tracking-wide">
                             3. Lên lịch học tự động
                         </h2>
                     </div>
-                    <span class="text-xs px-2.5 py-1 bg-gray-100 text-gray-600 rounded-md font-semibold">
-                        Tùy chọn • Không render sẽ tạo lớp chờ TKB
-                    </span>
+                    <x-ui.badge :dot="false">Tùy chọn • Không render sẽ tạo lớp chờ TKB</x-ui.badge>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
                     {{-- Start Date --}}
                     <div class="md:col-span-3">
-                        <label class="block text-xs font-bold text-gray-700 mb-1.5">Ngày bắt đầu</label>
-                        <input type="date" x-model="startDate" class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:ring-primary-container focus:border-primary-container">
+                        <x-ui.date label="Ngày bắt đầu" x-model="startDate" class="text-xs" />
                     </div>
                     {{-- End Date --}}
                     <div class="md:col-span-3">
-                        <label class="block text-xs font-bold text-gray-700 mb-1.5">Ngày kết thúc</label>
-                        <input type="date" x-model="endDate" class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:ring-primary-container focus:border-primary-container">
+                        <x-ui.date label="Ngày kết thúc" x-model="endDate" class="text-xs" />
                     </div>
                     {{-- Days of Week --}}
                     <div class="md:col-span-6">
-                        <label class="block text-xs font-bold text-gray-700 mb-1.5">Ngày học trong tuần</label>
+                        <label class="block text-xs font-bold text-on-surface-variant mb-1.5">Ngày học trong tuần</label>
                         <div class="flex flex-wrap gap-2">
                             <template x-for="day in daysOfWeek" :key="day.value">
-                                <label class="flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-200">
+                                <label class="flex items-center gap-1 bg-surface-container px-3 py-1.5 rounded-lg border border-surface-container-highest cursor-pointer hover:bg-surface-container-high">
                                     <input type="checkbox" :value="day.value" x-model="selectedDays" class="text-primary focus:ring-primary-container rounded">
-                                    <span class="text-xs font-medium text-gray-700" x-text="day.label"></span>
+                                    <span class="text-xs font-medium text-on-surface-variant" x-text="day.label"></span>
                                 </label>
                             </template>
                         </div>
@@ -303,14 +201,14 @@
 
                     {{-- Shift config --}}
                     <div class="md:col-span-12">
-                        <label class="block text-xs font-bold text-gray-700 mb-1.5">Cấu hình ca học</label>
+                        <label class="block text-xs font-bold text-on-surface-variant mb-1.5">Cấu hình ca học</label>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <template x-for="shift in shifts" :key="shift.name">
-                                <label class="flex items-center gap-2 bg-gray-50 p-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-blue-50">
-                                    <input type="checkbox" :value="shift.name" x-model="selectedShifts" class="text-blue-500 focus:ring-blue-500 rounded">
+                                <label class="flex items-center gap-2 bg-surface-container-low p-3 rounded-xl border border-surface-container-highest cursor-pointer hover:bg-secondary/10">
+                                    <input type="checkbox" :value="shift.name" x-model="selectedShifts" class="text-secondary focus:ring-secondary rounded">
                                     <div class="flex flex-col">
-                                        <span class="text-xs font-bold text-gray-900" x-text="shift.name"></span>
-                                        <span class="text-[10px] text-gray-500" x-text="shift.start + ' - ' + shift.end"></span>
+                                        <span class="text-xs font-bold text-on-surface" x-text="shift.name"></span>
+                                        <span class="text-[10px] text-on-surface-variant" x-text="shift.start + ' - ' + shift.end"></span>
                                     </div>
                                 </label>
                             </template>
@@ -318,32 +216,30 @@
                     </div>
 
                     <div class="md:col-span-12 flex justify-end">
-                        <button type="button" @click="generateSchedule" class="px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition">
-                            ⚡ Render Thời Khoá Biểu
-                        </button>
+                        <x-ui.button variant="info" x-on:click="generateSchedule">⚡ Render Thời Khoá Biểu</x-ui.button>
                     </div>
                 </div>
 
                 {{-- Generated Schedule Table --}}
-                <div x-show="generatedSessions.length > 0" class="mt-6 border border-gray-200 rounded-xl overflow-hidden bg-white">
-                    <table class="w-full text-left border-collapse">
-                        <thead class="bg-gray-50 border-b border-gray-200">
+                <x-ui.data-table x-show="generatedSessions.length > 0" class="mt-6">
+                    <table>
+                        <thead>
                             <tr>
-                                <th class="py-3 px-4 text-xs font-bold text-gray-700">Ngày</th>
-                                <th class="py-3 px-4 text-xs font-bold text-gray-700">Ca học</th>
-                                <th class="py-3 px-4 text-xs font-bold text-gray-700">Phòng trống</th>
+                                <th>Ngày</th>
+                                <th>Ca học</th>
+                                <th>Phòng trống</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200 bg-white">
+                        <tbody>
                             <template x-for="(session, index) in generatedSessions" :key="index">
                                 <tr>
-                                    <td class="py-3 px-4 text-xs font-medium text-gray-900" x-text="session.dateFormatted"></td>
-                                    <td class="py-3 px-4">
-                                        <span class="inline-block px-2 py-1 bg-blue-50 text-blue-700 font-bold text-[10px] rounded" x-text="session.shift + ' (' + session.start + ' - ' + session.end + ')'"></span>
+                                    <td class="text-xs font-medium" x-text="session.dateFormatted"></td>
+                                    <td>
+                                        <span class="inline-block px-2 py-1 bg-secondary/10 text-secondary font-bold text-[10px] rounded" x-text="session.shift + ' (' + session.start + ' - ' + session.end + ')'"></span>
                                     </td>
-                                    <td class="py-3 px-4 relative">
-                                        <div x-show="session.loading" class="text-xs text-gray-500">Đang kiểm tra...</div>
-                                        <select x-show="!session.loading" x-model="session.room" class="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-primary-container focus:border-primary-container">
+                                    <td class="relative">
+                                        <div x-show="session.loading" class="text-xs text-on-surface-variant">Đang kiểm tra...</div>
+                                        <select x-show="!session.loading" x-model="session.room" class="w-full px-2 py-1 text-xs border border-surface-container-highest rounded focus:ring-primary-container focus:border-primary-container">
                                             <option value="">-- Chọn phòng --</option>
                                             <template x-for="room in allRooms">
                                                 <option :value="room" :disabled="session.occupiedRooms.includes(room)" x-text="room + (session.occupiedRooms.includes(room) ? ' (Đã trùng lịch)' : ' (Trống)')"></option>
@@ -356,75 +252,59 @@
                     </table>
 
                     <input type="hidden" name="schedule_sessions_json" :value="generatedSessions.length > 0 ? JSON.stringify(generatedSessions) : ''">
-                    @error('schedule_sessions_json') <p class="text-[11px] text-rose-500 px-4 py-2">{{ $message }}</p> @enderror
-                </div>
+                    @error('schedule_sessions_json') <p class="text-[11px] text-error px-4 py-2">{{ $message }}</p> @enderror
+                </x-ui.data-table>
             </div>
 
             {{-- Khối 3: Học phí & Ghi chú quản lý (Tùy chọn) --}}
             <div class="p-6 md:p-8 space-y-6">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                        <div class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
-                        <h2 class="text-base font-bold text-gray-900 uppercase tracking-wide">
+                        <div class="w-2.5 h-2.5 rounded-full bg-tertiary"></div>
+                        <h2 class="text-base font-bold text-on-surface uppercase tracking-wide">
                             4. Học phí &amp; Ghi chú nội bộ
                         </h2>
                     </div>
-                    <span class="text-xs px-2.5 py-1 bg-gray-100 text-gray-600 rounded-md font-semibold">
-                        Tùy chọn
-                    </span>
+                    <x-ui.badge :dot="false">Tùy chọn</x-ui.badge>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
                     {{-- Học phí (Tùy chọn) --}}
                     <div class="md:col-span-6">
-                        <label for="hoc_phi" class="block text-xs font-bold text-gray-700 mb-1.5">
-                            Mức học phí niêm yết
-                        </label>
-                        <div class="relative">
-                            <input type="number"
-                                   id="hoc_phi"
-                                   name="hoc_phi"
-                                   value="{{ old('hoc_phi') }}"
-                                   placeholder="VD: 8500000"
-                                   min="0"
-                                   step="50000"
-                                   class="w-full pl-3.5 pr-14 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition font-mono font-bold text-gray-900">
-                            <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-xs font-bold text-gray-400">
-                                VNĐ
+                        <x-ui.field label="Mức học phí niêm yết" name="hoc_phi" for="hoc_phi" hint="Đơn giá trọn khóa trước khi áp dụng ưu đãi/học bổng.">
+                            <div class="relative">
+                                <input type="number"
+                                       id="hoc_phi"
+                                       name="hoc_phi"
+                                       value="{{ old('hoc_phi') }}"
+                                       placeholder="VD: 8500000"
+                                       min="0"
+                                       step="50000"
+                                       class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest pl-md pr-14 py-sm text-xs placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition font-mono font-bold text-on-surface">
+                                <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-xs font-bold text-on-surface-variant/70">
+                                    VNĐ
+                                </div>
                             </div>
-                        </div>
-                        <p class="text-[11px] text-gray-400 mt-1">Đơn giá trọn khóa trước khi áp dụng ưu đãi/học bổng.</p>
-                        @error('hoc_phi') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
+                        </x-ui.field>
                     </div>
 
                     {{-- Ghi chú (Tùy chọn) --}}
                     <div class="md:col-span-12">
-                        <label for="ghi_chu" class="block text-xs font-bold text-gray-700 mb-1.5">
-                            Ghi chú vận hành <span class="text-[11px] font-normal text-gray-400">(Tùy chọn)</span>
-                        </label>
-                        <textarea id="ghi_chu"
-                                  name="ghi_chu"
-                                  rows="3"
-                                  placeholder="Ghi chú thêm về yêu cầu đầu vào, lớp liên kết doanh nghiệp hoặc lưu ý đặc biệt cho giáo viên phụ trách..."
-                                  class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition placeholder:text-gray-400">{{ old('ghi_chu') }}</textarea>
+                        <x-ui.textarea id="ghi_chu" name="ghi_chu" label="Ghi chú vận hành (Tùy chọn)" rows="3" class="text-xs"
+                                       placeholder="Ghi chú thêm về yêu cầu đầu vào, lớp liên kết doanh nghiệp hoặc lưu ý đặc biệt cho giáo viên phụ trách..." />
                     </div>
                 </div>
             </div>
 
             {{-- Action Footer (Buttons) --}}
-            <div class="p-6 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div class="text-xs text-gray-500 text-center sm:text-left">
-                    Sau khi bấm <strong class="text-gray-800">"Lưu lớp học"</strong>, hệ thống sẽ tạo bản ghi lớp và tự động chuyển hướng đến <strong class="text-gray-800">Hồ sơ lớp học</strong>.
+            <div class="p-6 bg-surface-container-low border-t border-surface-container-highest flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="text-xs text-on-surface-variant text-center sm:text-left">
+                    Sau khi bấm <strong class="text-on-surface">"Lưu lớp học"</strong>, hệ thống sẽ tạo bản ghi lớp và tự động chuyển hướng đến <strong class="text-on-surface">Hồ sơ lớp học</strong>.
                 </div>
 
                 <div class="flex items-center gap-3 w-full sm:w-auto">
-                    <a href="{{ route('classes.academic-list') }}" class="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-700 text-xs font-semibold hover:bg-gray-100 transition text-center">
-                        Hủy bỏ
-                    </a>
-                    <button type="submit" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-primary-container text-white text-xs font-bold shadow-sm hover:bg-primary-dark transition flex items-center justify-center gap-2">
-                        <span class="material-symbols-outlined text-[18px]">save</span>
-                        <span>Lưu &amp; Chuyển sang Hồ sơ lớp</span>
-                    </button>
+                    <x-ui.button variant="secondary" :href="route('classes.academic-list')" class="w-full sm:w-auto">Hủy bỏ</x-ui.button>
+                    <x-ui.button type="submit" icon="save" class="w-full sm:w-auto">Lưu &amp; Chuyển sang Hồ sơ lớp</x-ui.button>
                 </div>
             </div>
         </form>

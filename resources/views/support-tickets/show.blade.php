@@ -21,7 +21,7 @@
 <x-app-layout>
     <x-ui.page-header :title="$ticket->title" :back="route('tickets.index')">
         <x-slot:badges>
-            <span class="inline-flex items-center px-2.5 py-1 rounded-xl bg-orange-100 text-primary border border-orange-300 font-mono font-bold text-xs shadow-2xs">#{{ $ticket->code }}</span>
+            <span class="inline-flex items-center px-2.5 py-1 rounded-xl bg-primary-container/10 text-primary border border-primary-container/30 font-mono font-bold text-xs shadow-2xs">#{{ $ticket->code }}</span>
         </x-slot:badges>
         <x-slot:meta>Tạo bởi {{ $ticket->creator?->name }} vào lúc {{ $ticket->created_at->format('d/m/Y H:i') }} · {{ $ticket->category_label }}</x-slot:meta>
         {{-- Status & Assignee Quick Actions --}}

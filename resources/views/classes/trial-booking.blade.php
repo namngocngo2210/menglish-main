@@ -11,7 +11,7 @@
     {{-- Main Container Matching Prototype 01_Web_Admin/12_dat_lich_hoc_thu_popup --}}
     <div class="max-w-4xl mx-auto space-y-6">
         {{-- Interactive Card Modal Container --}}
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-md overflow-hidden" x-data="{
+        <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-md overflow-hidden" x-data="{
             step: 1,
             selectedClass: '{{ $classes->first()?->code ?? '' }}',
             selectedClassId: '{{ $classes->first()?->id ?? 1 }}',
@@ -36,33 +36,33 @@
             }
         }">
             {{-- Header --}}
-            <div class="flex justify-between items-center p-6 border-b border-gray-100 bg-white">
+            <div class="flex justify-between items-center p-6 border-b border-surface-container-highest bg-surface-container-lowest">
                 <div>
-                    <h2 class="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Đặt lịch khách học thử vào buổi</h2>
-                    <p class="text-xs md:text-sm text-gray-500 mt-1">Chọn lớp và buổi học thử phù hợp cho khách.</p>
+                    <h2 class="text-xl md:text-2xl font-bold text-on-surface tracking-tight">Đặt lịch khách học thử vào buổi</h2>
+                    <p class="text-xs md:text-sm text-on-surface-variant mt-1">Chọn lớp và buổi học thử phù hợp cho khách.</p>
                 </div>
-                <div class="p-2 rounded-lg bg-gray-50 text-gray-400">
+                <div class="p-2 rounded-lg bg-surface-container-low text-on-surface-variant/70">
                     <span class="material-symbols-outlined text-[20px]">calendar_add_on</span>
                 </div>
             </div>
 
             {{-- Steps Indicator --}}
-            <div class="bg-gray-50 px-6 py-3 border-b border-gray-100 flex items-center gap-4">
+            <div class="bg-surface-container-low px-6 py-3 border-b border-surface-container-highest flex items-center gap-4">
                 <div class="flex items-center gap-2">
                     <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors"
-                         :class="step === 1 ? 'bg-primary-container text-white' : 'bg-emerald-600 text-white'">
+                         :class="step === 1 ? 'bg-primary-container text-white' : 'bg-tertiary text-white'">
                         <template x-if="step === 1"><span>1</span></template>
                         <template x-if="step === 2"><span class="material-symbols-outlined text-[14px]">check</span></template>
                     </div>
-                    <span class="text-xs font-bold text-gray-900">Chọn lớp</span>
+                    <span class="text-xs font-bold text-on-surface">Chọn lớp</span>
                 </div>
-                <div class="h-px bg-gray-300 w-8"></div>
+                <div class="h-px bg-surface-container-highest w-8"></div>
                 <div class="flex items-center gap-2">
                     <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors"
-                         :class="step === 2 ? 'bg-primary-container text-white' : 'bg-gray-200 text-gray-500'">
+                         :class="step === 2 ? 'bg-primary-container text-white' : 'bg-surface-container-high text-on-surface-variant'">
                         2
                     </div>
-                    <span class="text-xs font-semibold" :class="step === 2 ? 'text-gray-900' : 'text-gray-500'">Chọn buổi học</span>
+                    <span class="text-xs font-semibold" :class="step === 2 ? 'text-on-surface' : 'text-on-surface-variant'">Chọn buổi học</span>
                 </div>
             </div>
 
@@ -70,112 +70,87 @@
             <form action="{{ route('classes.trial-booking.store') }}" method="POST">
                 @csrf
                 <input type="hidden" name="branch_name" value="{{ $customerBranch }}">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 px-6 pt-5 bg-white">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1" for="trial_customer_name">Tên khách hàng <span class="text-rose-500">*</span></label>
-                        <input id="trial_customer_name" type="text" name="customer_name" required value="{{ old('customer_name', $customerName) }}" placeholder="Họ tên khách học thử"
-                               class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container">
-                        <x-input-error :messages="$errors->get('customer_name')" class="mt-1" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1" for="trial_customer_level">Trình độ test</label>
-                        <input id="trial_customer_level" type="text" name="customer_level" value="{{ old('customer_level', $customerLevel) }}" placeholder="VD: Pre-IELTS"
-                               class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container">
-                        <x-input-error :messages="$errors->get('customer_level')" class="mt-1" />
-                    </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 px-6 pt-5 bg-surface-container-lowest">
+                    <x-ui.input id="trial_customer_name" name="customer_name" label="Tên khách hàng" required :value="$customerName" placeholder="Họ tên khách học thử" class="text-xs" />
+                    <x-ui.input id="trial_customer_level" name="customer_level" label="Trình độ test" :value="$customerLevel" placeholder="VD: Pre-IELTS" class="text-xs" />
                 </div>
                 <input type="hidden" name="class_id" :value="selectedClassId">
                 <input type="hidden" name="class_name" :value="selectedClassName">
                 <input type="hidden" name="session_time" :value="selectedSession">
 
                 {{-- Content Area --}}
-                <div class="p-6 bg-white min-h-[380px]">
+                <div class="p-6 bg-surface-container-lowest min-h-[380px]">
                     {{-- STEP 1: Chọn Lớp --}}
                     <div x-show="step === 1" x-transition.opacity>
                         {{-- Filters & Search --}}
                         <div class="flex flex-col sm:flex-row gap-4 mb-4">
                             <div class="flex-1">
-                                <label class="block text-xs font-semibold text-gray-700 mb-1">Tìm kiếm lớp</label>
-                                <div class="relative">
-                                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
-                                    <input x-model="searchQuery"
-                                           class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg bg-white text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition"
-                                           placeholder="Nhập tên hoặc mã lớp..." type="text"/>
-                                </div>
+                                <x-ui.input label="Tìm kiếm lớp" icon="search" x-model="searchQuery" placeholder="Nhập tên hoặc mã lớp..." class="text-xs" />
                             </div>
                             <div class="w-full sm:w-60">
-                                <label class="block text-xs font-semibold text-gray-700 mb-1">Chi nhánh khách</label>
-                                <select class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-xs text-gray-700 focus:outline-none"
-                                        onchange="const u = new URL(window.location.href); u.searchParams.set('branch_id', this.value); window.location = u.toString();">
-                                    @foreach ($branches as $branchOption)
-                                        <option value="{{ $branchOption->id }}" @selected((string) $selectedBranchId === (string) $branchOption->id)>{{ $branchOption->name }}</option>
-                                    @endforeach
-                                </select>
+                                <x-ui.select label="Chi nhánh khách" class="text-xs" :value="$selectedBranchId" :options="$branches->pluck('name', 'id')"
+                                             onchange="const u = new URL(window.location.href); u.searchParams.set('branch_id', this.value); window.location = u.toString();" />
                             </div>
                         </div>
 
                         {{-- Class List Table --}}
-                        <div class="border border-gray-200 rounded-xl overflow-hidden shadow-2xs">
-                            <table class="w-full text-left border-collapse">
+                        <x-ui.data-table>
+                            <table>
                                 <thead>
-                                    <tr class="bg-gray-50 border-b border-gray-200 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                                        <th class="py-2.5 px-4 w-10"></th>
-                                        <th class="py-2.5 px-4">Tên lớp</th>
-                                        <th class="py-2.5 px-4">Trình độ</th>
-                                        <th class="py-2.5 px-4">Chi nhánh</th>
+                                    <tr>
+                                        <th class="w-10"></th>
+                                        <th>Tên lớp</th>
+                                        <th>Trình độ</th>
+                                        <th>Chi nhánh</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-gray-100 text-xs">
+                                <tbody class="text-xs">
                                     @forelse($classes as $c)
-                                        <tr class="hover:bg-orange-50/40 transition-colors cursor-pointer"
-                                            :class="selectedClassId == {{ $c->id }} ? 'bg-orange-50/60 font-semibold' : ''"
+                                        <tr class="cursor-pointer"
+                                            :class="selectedClassId == {{ $c->id }} ? 'bg-primary-container/10 font-semibold' : ''"
                                             @click="selectClass({{ $c->id }}, '{{ $c->code }}', '{{ $c->name }}')">
-                                            <td class="py-3 px-4">
+                                            <td>
                                                 <input type="radio" name="class_selection" value="{{ $c->id }}"
                                                        :checked="selectedClassId == {{ $c->id }}"
-                                                       class="w-4 h-4 text-primary focus:ring-primary-container border-gray-300">
+                                                       class="w-4 h-4 text-primary focus:ring-primary-container border-outline-variant">
                                             </td>
-                                            <td class="py-3 px-4">
-                                                <div class="font-bold text-gray-900">{{ $c->name }}</div>
-                                                <div class="text-[11px] text-gray-500 font-normal">
+                                            <td>
+                                                <div class="font-bold text-on-surface">{{ $c->name }}</div>
+                                                <div class="text-[11px] text-on-surface-variant font-normal">
                                                     Mã: <span class="font-mono">{{ $c->code }}</span> • Khai giảng: {{ $c->start_date ? $c->start_date->format('d/m/Y') : '12/10/2023' }}
                                                 </div>
                                             </td>
-                                            <td class="py-3 px-4">
+                                            <td>
                                                 <div class="flex items-center gap-1.5">
-                                                    <span class="font-medium text-gray-800">{{ $c->level ?? $c->course?->name ?? 'Chưa cập nhật' }}</span>
+                                                    <span class="font-medium text-on-surface">{{ $c->level ?? $c->course?->name ?? 'Chưa cập nhật' }}</span>
                                                     @if($loop->first)
-                                                        <span class="inline-flex items-center px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px] uppercase">
-                                                            Gợi ý phù hợp
-                                                        </span>
+                                                        <x-ui.badge color="success" class="uppercase">Gợi ý phù hợp</x-ui.badge>
                                                     @endif
                                                 </div>
                                             </td>
-                                            <td class="py-3 px-4 text-gray-600 font-medium">
+                                            <td class="text-on-surface-variant font-medium">
                                                 {{ $c->branch?->name ?? 'Chưa cập nhật' }}
                                             </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="4" class="p-6 text-center text-gray-400 text-xs">
-                                                Chưa có dữ liệu lớp học phù hợp. Vui lòng tạo lớp mới.
-                                            </td>
+                                            <td colspan="4"><x-ui.empty-state icon="school" title="Chưa có dữ liệu lớp học phù hợp. Vui lòng tạo lớp mới." /></td>
                                         </tr>
                                     @endforelse
                                 </tbody>
                             </table>
-                        </div>
+                        </x-ui.data-table>
                     </div>
 
                     {{-- STEP 2: Chọn Buổi Học --}}
                     <div x-show="step === 2" x-transition.opacity>
                         <div class="mb-4">
-                            <h3 class="text-base font-bold text-gray-900">Chọn buổi học thử</h3>
-                            <p class="text-xs text-gray-500">
+                            <h3 class="text-base font-bold text-on-surface">Chọn buổi học thử</h3>
+                            <p class="text-xs text-on-surface-variant">
                                 Lớp đã chọn: <strong class="text-primary font-bold" x-text="selectedClassName"></strong>
                             </p>
-                            <p class="text-xs text-gray-500 mt-1" x-show="selectedSchedule">
-                                Lịch học: <strong class="text-gray-800 font-mono" x-text="selectedSchedule"></strong>
+                            <p class="text-xs text-on-surface-variant mt-1" x-show="selectedSchedule">
+                                Lịch học: <strong class="text-on-surface font-mono" x-text="selectedSchedule"></strong>
                             </p>
                         </div>
 
@@ -188,29 +163,29 @@
                                 @endphp
                                 <label class="block cursor-pointer relative" @click="pickSession({{ $upcoming->class_id }}, @js($upcoming->classModel?->name), @js($sessionLabel))">
                                     <input type="radio" name="session_selection_radio" value="{{ $sessionLabel }}" class="peer sr-only">
-                                    <div class="p-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-all peer-checked:border-primary-container peer-checked:ring-2 peer-checked:ring-primary-container/20 peer-checked:bg-orange-50/40 h-full flex flex-col justify-between"
-                                         :class="{{ $isSelected }} ? 'border-primary-container ring-2 ring-primary-container/20 bg-orange-50/40' : ''">
+                                    <div class="p-4 rounded-xl border border-surface-container-highest bg-surface-container-lowest hover:bg-surface-container-low transition-all peer-checked:border-primary-container peer-checked:ring-2 peer-checked:ring-primary-container/20 peer-checked:bg-primary-container/5 h-full flex flex-col justify-between"
+                                         :class="{{ $isSelected }} ? 'border-primary-container ring-2 ring-primary-container/20 bg-primary-container/10' : ''">
                                         <div class="flex items-start justify-between mb-3">
-                                            <div class="flex items-center gap-1.5 text-gray-800 font-bold text-xs">
+                                            <div class="flex items-center gap-1.5 text-on-surface font-bold text-xs">
                                                 <span class="material-symbols-outlined text-[18px] text-primary">calendar_today</span>
                                                 <span>{{ $upcoming->date->translatedFormat('l, d/m/Y') }}</span>
                                             </div>
-                                            <div class="w-4 h-4 rounded-full border border-gray-300 flex items-center justify-center"
+                                            <div class="w-4 h-4 rounded-full border border-outline-variant flex items-center justify-center"
                                                  :class="{{ $isSelected }} ? 'border-primary-container bg-primary-container text-white' : ''">
                                                 <span class="material-symbols-outlined text-[12px]" x-show="{{ $isSelected }}">check</span>
                                             </div>
                                         </div>
-                                        <div class="text-[11px] text-gray-600 font-semibold mb-2">
+                                        <div class="text-[11px] text-on-surface-variant font-semibold mb-2">
                                             {{ $upcoming->classModel?->name ?? 'Lớp đã bị xóa' }}{{ $upcoming->shift_name ? ' · '.$upcoming->shift_name : '' }}
                                         </div>
-                                        <div class="flex items-center gap-1.5 text-gray-500 text-xs">
+                                        <div class="flex items-center gap-1.5 text-on-surface-variant text-xs">
                                             <span class="material-symbols-outlined text-[16px]">schedule</span>
                                             <span class="font-mono">{{ $upcoming->start_time->format('H:i') }} - {{ $upcoming->end_time->format('H:i') }}</span>
                                         </div>
                                     </div>
                                 </label>
                             @empty
-                                <div class="md:col-span-3 p-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 text-center text-xs text-gray-500">
+                                <div class="md:col-span-3 p-6 rounded-xl border border-dashed border-outline-variant bg-surface-container-low text-center text-xs text-on-surface-variant">
                                     Chưa có buổi học nào đã lên lịch sắp diễn ra tại chi nhánh này.
                                     Hãy tạo lớp và render thời khóa biểu trước khi đặt lịch học thử.
                                 </div>
@@ -218,48 +193,36 @@
                         </div>
 
                         {{-- Confirmation Summary Box --}}
-                        <div x-show="selectedSession" class="mt-6 p-4 bg-orange-50/60 rounded-xl border border-orange-200/80">
-                            <h4 class="text-xs font-bold text-gray-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <div x-show="selectedSession" class="mt-6 p-4 bg-primary-container/5 rounded-xl border border-primary-container/25">
+                            <h4 class="text-xs font-bold text-on-surface uppercase tracking-wider mb-2 flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-primary text-[18px]">verified</span>
                                 Xác nhận thông tin học thử
                             </h4>
-                            <ul class="space-y-1 text-xs text-gray-700">
-                                <li><span class="text-gray-500 inline-block w-28">Khách hàng:</span> <strong class="text-gray-900" x-text="document.getElementById('trial_customer_name')?.value || 'Chưa nhập'"></strong></li>
-                                <li><span class="text-gray-500 inline-block w-28">Lớp đăng ký:</span> <strong class="text-gray-900" x-text="selectedClassName"></strong></li>
-                                <li><span class="text-gray-500 inline-block w-28">Thời gian buổi:</span> <strong class="text-primary font-bold" x-text="selectedSession"></strong></li>
-                                <li><span class="text-gray-500 inline-block w-28">Chi nhánh:</span> <strong class="text-gray-900">{{ $customerBranch }}</strong></li>
+                            <ul class="space-y-1 text-xs text-on-surface-variant">
+                                <li><span class="text-on-surface-variant inline-block w-28">Khách hàng:</span> <strong class="text-on-surface" x-text="document.getElementById('trial_customer_name')?.value || 'Chưa nhập'"></strong></li>
+                                <li><span class="text-on-surface-variant inline-block w-28">Lớp đăng ký:</span> <strong class="text-on-surface" x-text="selectedClassName"></strong></li>
+                                <li><span class="text-on-surface-variant inline-block w-28">Thời gian buổi:</span> <strong class="text-primary font-bold" x-text="selectedSession"></strong></li>
+                                <li><span class="text-on-surface-variant inline-block w-28">Chi nhánh:</span> <strong class="text-on-surface">{{ $customerBranch }}</strong></li>
                             </ul>
                         </div>
                     </div>
                 </div>
 
                 {{-- Footer Actions --}}
-                <div class="p-4 md:p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+                <div class="p-4 md:p-6 border-t border-surface-container-highest bg-surface-container-low flex justify-end gap-3">
                     {{-- Step 1 Buttons --}}
                     <template x-if="step === 1">
                         <div class="flex gap-2">
-                            <a href="{{ route('classes.create') }}" class="px-4 py-2 rounded-xl bg-white border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition">
-                                Bỏ qua
-                            </a>
-                            <button type="button" @click="step = 2"
-                                    :disabled="!selectedClassId"
-                                    class="px-5 py-2 rounded-xl bg-primary-container text-white text-xs font-bold shadow-sm hover:bg-primary-dark transition disabled:opacity-50 disabled:cursor-not-allowed">
-                                Tiếp theo →
-                            </button>
+                            <x-ui.button variant="secondary" :href="route('classes.create')">Bỏ qua</x-ui.button>
+                            <x-ui.button x-on:click="step = 2" x-bind:disabled="!selectedClassId">Tiếp theo →</x-ui.button>
                         </div>
                     </template>
 
                     {{-- Step 2 Buttons --}}
                     <template x-if="step === 2">
                         <div class="flex gap-2">
-                            <button type="button" @click="step = 1" class="px-4 py-2 rounded-xl bg-white border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition">
-                                ← Quay lại
-                            </button>
-                            <button type="submit"
-                                    :disabled="!selectedSession"
-                                    class="px-5 py-2 rounded-xl bg-primary-container text-white text-xs font-bold shadow-sm hover:bg-primary-dark transition disabled:opacity-50 disabled:cursor-not-allowed">
-                                Xác nhận đặt lịch học thử
-                            </button>
+                            <x-ui.button variant="secondary" x-on:click="step = 1">← Quay lại</x-ui.button>
+                            <x-ui.button type="submit" x-bind:disabled="!selectedSession">Xác nhận đặt lịch học thử</x-ui.button>
                         </div>
                     </template>
                 </div>
@@ -268,39 +231,37 @@
 
         {{-- Recent Trial Bookings (Database Backed) --}}
         @if($bookings->isNotEmpty())
-            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">
+            <x-ui.data-table>
+                <x-slot:header>
+                    <h3 class="text-sm font-bold text-on-surface flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary text-[18px]">history</span>
                         Lịch sử khách học thử đã xác nhận gần đây
                     </h3>
-                    <span class="text-xs text-gray-500 font-mono">{{ $bookings->count() }} lượt</span>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
+                    <span class="text-xs text-on-surface-variant font-mono">{{ $bookings->count() }} lượt</span>
+                </x-slot:header>
+                    <table class="text-xs">
                         <thead>
-                            <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase">
-                                <th class="py-2 px-3">Mã phiếu</th>
-                                <th class="py-2 px-3">Khách hàng</th>
-                                <th class="py-2 px-3">Lớp học</th>
-                                <th class="py-2 px-3">Buổi học</th>
-                                <th class="py-2 px-3">Thời gian đặt</th>
+                            <tr>
+                                <th>Mã phiếu</th>
+                                <th>Khách hàng</th>
+                                <th>Lớp học</th>
+                                <th>Buổi học</th>
+                                <th>Thời gian đặt</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100">
+                        <tbody>
                             @foreach($bookings as $b)
                                 <tr>
-                                    <td class="py-2.5 px-3 font-mono font-bold text-gray-700">{{ $b->record_code }}</td>
-                                    <td class="py-2.5 px-3 font-bold text-gray-900">{{ $b->data['customer_name'] ?? '—' }}</td>
-                                    <td class="py-2.5 px-3 text-gray-800">{{ $b->data['class_name'] ?? '—' }}</td>
-                                    <td class="py-2.5 px-3 text-primary font-medium">{{ $b->data['session_time'] ?? '—' }}</td>
-                                    <td class="py-2.5 px-3 text-gray-500">{{ $b->created_at->format('d/m/Y H:i') }}</td>
+                                    <td class="font-mono font-bold text-on-surface-variant">{{ $b->record_code }}</td>
+                                    <td class="font-bold">{{ $b->data['customer_name'] ?? '—' }}</td>
+                                    <td>{{ $b->data['class_name'] ?? '—' }}</td>
+                                    <td class="text-primary font-medium">{{ $b->data['session_time'] ?? '—' }}</td>
+                                    <td class="text-on-surface-variant">{{ $b->created_at->format('d/m/Y H:i') }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
                     </table>
-                </div>
-            </div>
+            </x-ui.data-table>
         @endif
     </div>
 </x-app-layout>

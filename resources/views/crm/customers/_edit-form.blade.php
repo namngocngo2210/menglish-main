@@ -66,7 +66,7 @@
                 <div class="relative">
                     <input type="number" id="{{ $id('deal_value') }}" name="deal_value" @readonly($locked) value="{{ old('deal_value', $customer->deal_value) }}"
                            class="w-full rounded-lg border border-outline-variant px-md py-sm font-code text-code focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 {{ $locked ? 'bg-surface-container-low text-on-surface-variant' : 'bg-surface-container-lowest' }}" />
-                    @if ($locked)<span class="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[18px] text-amber-600" title="Đã khóa">lock</span>@endif
+                    @if ($locked)<span class="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[18px] text-warning" title="Đã khóa">lock</span>@endif
                 </div>
             </x-ui.field>
             <div class="md:col-span-2"><x-ui.input name="address" :id="$id('address')" label="Địa chỉ" :value="$customer->address" /></div>
@@ -76,13 +76,8 @@
 
     @unless ($asModal)
         <div class="flex items-center justify-end gap-md pt-lg">
-            <a href="{{ route('crm.customers.show', $customer->id) }}"
-               class="rounded-lg border border-outline-variant px-lg py-sm font-body-medium text-body-medium text-on-surface transition-all hover:bg-surface-container-highest active:scale-95">Hủy</a>
-            <button type="submit"
-                    class="flex items-center gap-sm rounded-lg bg-primary-container px-xl py-sm font-body-medium text-body-medium text-white shadow-md transition-all hover:opacity-90 hover:shadow-lg active:scale-95">
-                <span class="material-symbols-outlined text-[20px]">save</span>
-                Lưu thay đổi
-            </button>
+            <x-ui.button variant="secondary" :href="route('crm.customers.show', $customer->id)">Hủy</x-ui.button>
+            <x-ui.button type="submit" icon="save">Lưu thay đổi</x-ui.button>
         </div>
     @endunless
 </form>

@@ -12,124 +12,78 @@
          hx-get="{{ route('tickets.index', request()->query()) }}" hx-trigger="tickets-changed from:body" hx-select="#ticket-list" hx-swap="outerHTML" hx-disinherit="*">
         {{-- Stats Cards --}}
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
-                <div>
-                    <div class="text-xs text-gray-500 font-medium">Tổng Ticket</div>
-                    <div class="text-xl font-bold text-gray-900 font-mono">{{ $stats['total'] }}</div>
-                </div>
-                <div class="w-10 h-10 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center">
-                    <span class="material-symbols-outlined">inbox</span>
-                </div>
-            </div>
-
-            <div class="bg-white p-4 rounded-2xl border border-amber-200 shadow-sm flex items-center justify-between bg-amber-50/20">
-                <div>
-                    <div class="text-xs text-amber-700 font-medium">Mới tiếp nhận</div>
-                    <div class="text-xl font-bold text-amber-900 font-mono">{{ $stats['open'] }}</div>
-                </div>
-                <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
-                    <span class="material-symbols-outlined">hourglass_top</span>
-                </div>
-            </div>
-
-            <div class="bg-white p-4 rounded-2xl border border-blue-200 shadow-sm flex items-center justify-between bg-blue-50/20">
-                <div>
-                    <div class="text-xs text-blue-700 font-medium">Đang xử lý</div>
-                    <div class="text-xl font-bold text-blue-900 font-mono">{{ $stats['in_progress'] }}</div>
-                </div>
-                <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center">
-                    <span class="material-symbols-outlined">pending</span>
-                </div>
-            </div>
-
-            <div class="bg-white p-4 rounded-2xl border border-emerald-200 shadow-sm flex items-center justify-between bg-emerald-50/20">
-                <div>
-                    <div class="text-xs text-emerald-700 font-medium">Đã giải quyết</div>
-                    <div class="text-xl font-bold text-emerald-900 font-mono">{{ $stats['resolved'] }}</div>
-                </div>
-                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
-                    <span class="material-symbols-outlined">check_circle</span>
-                </div>
-            </div>
+            <x-ui.stat-card label="Tổng Ticket" :value="$stats['total']" icon="inbox" />
+            <x-ui.stat-card label="Mới tiếp nhận" :value="$stats['open']" tone="warning" icon="hourglass_top" />
+            <x-ui.stat-card label="Đang xử lý" :value="$stats['in_progress']" tone="secondary" icon="pending" />
+            <x-ui.stat-card label="Đã giải quyết" :value="$stats['resolved']" tone="success" icon="check_circle" />
         </div>
 
         {{-- Filter & Search Bar --}}
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+        <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-4">
             <form action="{{ route('tickets.index') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-                <input type="text" name="search" value="{{ request('search') }}" placeholder="Tìm theo mã TK, tiêu đề, nội dung..." class="text-xs rounded-xl border border-gray-200 p-2 sm:col-span-2">
-                <select name="status" class="text-xs rounded-xl border border-gray-200 p-2">
-                    <option value="">-- Tất cả trạng thái --</option>
-                    <option value="open" {{ request('status') === 'open' ? 'selected' : '' }}>Mới tiếp nhận (Open)</option>
-                    <option value="in_progress" {{ request('status') === 'in_progress' ? 'selected' : '' }}>Đang xử lý (In Progress)</option>
-                    <option value="resolved" {{ request('status') === 'resolved' ? 'selected' : '' }}>Đã giải quyết (Resolved)</option>
-                    <option value="closed" {{ request('status') === 'closed' ? 'selected' : '' }}>Đã đóng (Closed)</option>
-                </select>
-                <button type="submit" class="px-4 py-2 bg-gray-900 hover:bg-black text-white font-bold rounded-xl shadow-sm transition">
-                    Lọc Tickets
-                </button>
+                <div class="sm:col-span-2"><x-ui.input name="search" :value="request('search')" placeholder="Tìm theo mã TK, tiêu đề, nội dung..." class="text-xs" /></div>
+                <x-ui.select name="status" class="text-xs" placeholder="-- Tất cả trạng thái --"
+                             :options="['open' => 'Mới tiếp nhận (Open)', 'in_progress' => 'Đang xử lý (In Progress)', 'resolved' => 'Đã giải quyết (Resolved)', 'closed' => 'Đã đóng (Closed)']" />
+                <x-ui.button type="submit" variant="secondary">Lọc Tickets</x-ui.button>
             </form>
         </div>
 
         {{-- Tickets Table --}}
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <table class="w-full text-left border-collapse text-xs">
+        <x-ui.data-table>
+            <table class="text-xs">
                 <thead>
-                    <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
-                        <th class="py-3 px-4">Mã Ticket</th>
-                        <th class="py-3 px-4">Tiêu đề &amp; Danh mục</th>
-                        <th class="py-3 px-4">Mức độ ưu tiên</th>
-                        <th class="py-3 px-4">Người tạo</th>
-                        <th class="py-3 px-4">Người phụ trách</th>
-                        <th class="py-3 px-4">Trạng thái</th>
-                        <th class="py-3 px-4 text-right">Chi tiết</th>
+                    <tr>
+                        <th>Mã Ticket</th>
+                        <th>Tiêu đề &amp; Danh mục</th>
+                        <th>Mức độ ưu tiên</th>
+                        <th>Người tạo</th>
+                        <th>Người phụ trách</th>
+                        <th>Trạng thái</th>
+                        <th class="text-right">Chi tiết</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
+                <tbody>
                     @forelse ($tickets as $ticket)
-                        <tr class="hover:bg-purple-50/10 transition">
-                            <td class="py-3.5 px-4">
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-orange-50 text-primary border border-orange-200 font-mono font-bold text-xs shadow-2xs">
+                        <tr>
+                            <td>
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-primary-container/10 text-primary border border-primary-container/30 font-mono font-bold text-xs shadow-2xs">
                                     #{{ $ticket->code }}
                                 </span>
                             </td>
-                            <td class="py-3.5 px-4">
-                                <div class="font-bold text-gray-900">{{ $ticket->title }}</div>
-                                <div class="text-[11px] text-gray-400">{{ $ticket->category_label }} · {{ $ticket->created_at->format('d/m/Y H:i') }}</div>
+                            <td>
+                                <div class="font-bold text-on-surface">{{ $ticket->title }}</div>
+                                <div class="text-[11px] text-on-surface-variant/70">{{ $ticket->category_label }} · {{ $ticket->created_at->format('d/m/Y H:i') }}</div>
                             </td>
-                            <td class="py-3.5 px-4">
+                            <td>
                                 <span class="px-2.5 py-0.5 rounded-full border text-[10px] {{ $ticket->priority_badge }}">
                                     {{ strtoupper($ticket->priority) }}
                                 </span>
                             </td>
-                            <td class="py-3.5 px-4 font-medium text-gray-800">{{ $ticket->creator?->name ?? 'Hệ thống' }}</td>
-                            <td class="py-3.5 px-4 font-medium text-gray-800">
+                            <td class="font-medium">{{ $ticket->creator?->name ?? 'Hệ thống' }}</td>
+                            <td class="font-medium">
                                 @if ($ticket->assignee)
                                     <span class="text-primary font-bold">{{ $ticket->assignee->name }}</span>
                                 @else
-                                    <span class="text-gray-400 italic">Chưa phân công</span>
+                                    <span class="text-on-surface-variant/70 italic">Chưa phân công</span>
                                 @endif
                             </td>
-                            <td class="py-3.5 px-4">
+                            <td>
                                 <span class="px-2.5 py-1 rounded-full border font-bold text-[10px] {{ $ticket->status_badge }}">
                                     {{ $ticket->status_label }}
                                 </span>
                             </td>
-                            <td class="py-3.5 px-4 text-right whitespace-nowrap">
-                                <a href="{{ route('tickets.show', $ticket->id) }}" hx-get="{{ route('tickets.show', $ticket->id) }}" hx-target="#remote-modal-body" hx-swap="innerHTML" hx-push-url="true" data-modal-size="3xl"
-                                   class="px-3 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-primary font-bold text-xs transition inline-flex items-center gap-1">
-                                    <span>Trao đổi</span>
-                                    <span class="material-symbols-outlined text-[14px]">forum</span>
-                                </a>
+                            <td class="text-right whitespace-nowrap">
+                                <x-ui.button variant="ghost" size="sm" icon="forum" :href="route('tickets.show', $ticket->id)" hx-get="{{ route('tickets.show', $ticket->id) }}" hx-target="#remote-modal-body" hx-swap="innerHTML" hx-push-url="true" data-modal-size="3xl">Trao đổi</x-ui.button>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center py-8 text-gray-400 text-xs">Chưa có ticket nào được tạo.</td>
+                            <td colspan="7"><x-ui.empty-state title="Chưa có ticket nào được tạo." /></td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
-            <x-pagination :paginator="$tickets" />
-        </div>
+            <x-slot:footer><x-ui.pagination :paginator="$tickets" /></x-slot:footer>
+        </x-ui.data-table>
     </div>
 </x-app-layout>
