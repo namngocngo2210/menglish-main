@@ -286,4 +286,67 @@ class Phase4FinanceParityTest extends TestCase
         $this->assertSame('rejected', $refund->fresh()->status);
         $this->assertSame('Đề nghị chuyển nhượng', $refund->fresh()->rejection_reason);
     }
+
+    // ---------------------------------------------------------------------
+    // Màn hình (mockup)
+    // ---------------------------------------------------------------------
+
+    public function test_ds_thu_phi_groups_due_tuitions_and_scopes_stats(): void
+    {
+        $this->tuition->update(['due_date' => now()->subDays(10)]);
+        $this->tuition->recalculateDebt();
+        $soon = $this->makeStudent('HV-PAR-SOON', 'Sắp Đến Hạn', $this->branch);
+        $this->makeTuition($soon, 2000000, extra: ['due_date' => now()->addDays(5)]);
+        $other = $this->makeStudent('HV-PAR-OTHER', 'Chi Nhánh Khác', $this->branch2);
+        $this->makeTuition($other, 9000000, extra: ['due_date' => now()->subDays(2)]);
+
+        $this->actingAs($this->manager)->get(route('tuition.students'))
+            ->assertOk()
+            ->assertSee('Danh sách học viên đến hạn thu phí')
+            ->assertSee('Nhóm "Quá hạn"', false)
+            ->assertSee('Quá hạn nghiêm trọng')
+            ->assertSee('Nhóm "Sắp đến hạn"', false)
+            ->assertSee('Khoản thu')
+            ->assertSee('Xác nhận đã liên hệ')
+            ->assertSee('HV-PAR-SOON')
+            ->assertDontSee('HV-PAR-OTHER')
+            // Thẻ thống kê chỉ cộng chi nhánh của Quản lý (6tr + 2tr), không cộng 9tr của chi nhánh khác.
+            ->assertViewHas('stats', fn ($stats) => $stats['final'] === 8000000.0);
+    }
+
+    public function test_lich_su_thu_filters_details_and_exports(): void
+    {
+        $receipt = TuitionReceipt::where('student_tuition_id', $this->tuition->id)->firstOrFail();
+        $receipt->update(['invoice_number' => 'C26CG-0000007', 'payment_method' => 'transfer', 'transaction_code' => 'FTPAR001']);
+        \App\Models\InvoiceConfiguration::create(['branch_id' => $this->branch->id, 'template_code' => '1/002', 'series_code' => 'C26CG', 'start_number' => 1, 'current_number' => 8, 'is_active' => true]);
+        $other = $this->makeStudent('HV-PAR-H2', 'Học Viên Hai', $this->branch);
+        $this->makeTuition($other, 1000000, paid: 500000);
+
+        $this->actingAs($this->accountant)->get(route('tuition.history', ['student_id' => $this->student->id]))
+            ->assertOk()
+            ->assertSee('Lịch sử thu học phí')
+            ->assertSee('Học viên: Nguyễn Hoàn')
+            ->assertSee('C26CG-0000007')
+            ->assertSee('Chính thức')
+            ->assertSee('Chi tiết Phiếu thu')
+            ->assertSee('Tải lên biên lai mới')
+            ->assertViewHas('templates', fn ($t) => $t['C26CG'] === '1/002')
+            ->assertDontSee('HV-PAR-H2')
+            ->assertDontSee('01GTKT0/001');
+
+        $this->actingAs($this->accountant)->get(route('tuition.history', ['method' => 'cash']))
+            ->assertOk()->assertSee('HV-PAR-H2')->assertDontSee('C26CG-0000007');
+
+        // Chỉ khoản tái tục: khoản học phí đầu tiên của học viên bị loại.
+        $renewal = StudentTuition::create(['student_id' => $this->student->id, 'branch_id' => $this->branch->id, 'total_amount' => 4000000, 'final_amount' => 4000000, 'paid_amount' => 0, 'debt_amount' => 4000000, 'status' => 'unpaid']);
+        $this->approvedReceipt($renewal, 1000000, ['receipt_number' => 'PT-RENEWAL-1']);
+        $this->actingAs($this->accountant)->get(route('tuition.history', ['kind' => 'renewal']))
+            ->assertOk()->assertSee('PT-RENEWAL-1')->assertDontSee('C26CG-0000007')->assertSee('khoản thu tái tục');
+
+        $csv = $this->actingAs($this->accountant)->get(route('tuition.history.export', ['student_id' => $this->student->id]))
+            ->assertOk()->streamedContent();
+        $this->assertStringContainsString('C26CG-0000007', $csv);
+        $this->assertStringContainsString('PT-RENEWAL-1', $csv);
+        $this->assertStringNotContainsString('HV-PAR-H2', $csv);
+    }
 }

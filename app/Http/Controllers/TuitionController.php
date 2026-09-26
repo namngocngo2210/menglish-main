@@ -1079,15 +1079,116 @@ class TuitionController extends Controller
         return redirect()->back()->with('status', "Đã từ chối phiếu thu {$receipt->receipt_number} và trả về người lập để chỉnh sửa, gửi duyệt lại!");
     }
 
+    /**
+     * Lịch sử thu học phí (mockup lich-su-thu-hoc-phi): lọc theo học viên / trạng thái / hình thức / ngày thu,
+     * chế độ "chỉ khoản tái tục" (bỏ khoản học phí đầu tiên của học viên), chi tiết phiếu + minh chứng, xuất Excel.
+     */
     public function history(Request $request)
     {
-        $receipts = TuitionBranchScope::receipts(TuitionReceipt::query(), $this->branchScope())
-            ->with(['tuition.student', 'tuition.classModel', 'student', 'creator', 'approver'])
+        $filters = $this->historyFilters($request);
+        $receipts = $this->historyQuery($filters)
+            ->with(['tuition.student', 'tuition.classModel.course', 'tuition.branch', 'student.branch', 'creator', 'approver'])
             ->latest()
             ->paginate($request->perPage(15))
             ->withQueryString();
 
-        return view('tuition.history', compact('receipts'));
+        $scope = $this->branchScope();
+        $student = $filters['student_id'] ? TuitionBranchScope::students(Student::query(), $scope)->find($filters['student_id']) : null;
+
+        // Mẫu số / ký hiệu hóa đơn lấy theo dải số thật (tiền tố số HĐ = ký hiệu dải), không ghi cứng.
+        $templates = InvoiceConfiguration::query()->pluck('template_code', 'series_code');
+
+        return view('tuition.history', compact('receipts', 'filters', 'student', 'templates'));
+    }
+
+    /** Xuất Excel (CSV UTF-8) lịch sử thu theo đúng bộ lọc đang xem. */
+    public function exportHistory(Request $request)
+    {
+        $filters = $this->historyFilters($request);
+        $rows = $this->historyQuery($filters)
+            ->with(['tuition.student', 'tuition.classModel.course', 'tuition.branch', 'student.branch', 'creator', 'approver'])
+            ->latest()
+            ->get();
+
+        return response()->streamDownload(function () use ($rows) {
+            $out = fopen('php://output', 'w');
+            fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
+            fputcsv($out, ['Mã phiếu', 'Số HĐĐT', 'Mã HV', 'Học viên', 'Khoản thu', 'Số tiền (VNĐ)', 'Phụ thu (VNĐ)', 'Hình thức', 'Mã giao dịch', 'Trạng thái', 'Ngày thu', 'Người lập', 'Người duyệt', 'Chi nhánh']);
+            foreach ($rows as $rc) {
+                $student = $rc->tuition?->student ?? $rc->student;
+                fputcsv($out, [
+                    $rc->receipt_number,
+                    $rc->invoice_number,
+                    $student?->code,
+                    $student?->name,
+                    $rc->tuition?->fee_label ?? 'Phụ thu',
+                    (int) round((float) $rc->amount),
+                    (int) round((float) $rc->surcharge_amount),
+                    TuitionReceipt::METHOD_LABELS[$rc->payment_method] ?? $rc->payment_method,
+                    $rc->transaction_code,
+                    $rc->status_label,
+                    $rc->payment_date?->format('d/m/Y'),
+                    $rc->creator?->name,
+                    $rc->approver?->name,
+                    $rc->tuition?->branch?->name ?? $student?->branch?->name,
+                ]);
+            }
+            fclose($out);
+        }, 'lich-su-thu-hoc-phi-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /** @return array{search: string, student_id: ?int, status: string, method: string, from: ?string, to: ?string, kind: string} */
+    private function historyFilters(Request $request): array
+    {
+        $date = fn ($v) => is_string($v) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) ? $v : null;
+
+        return [
+            'search' => trim((string) $request->input('search', '')),
+            'student_id' => $request->filled('student_id') ? (int) $request->input('student_id') : null,
+            'status' => in_array($request->input('status'), ['draft', 'pending', 'approved', 'rejected', 'cancelled'], true) ? $request->input('status') : '',
+            'method' => in_array($request->input('method'), ['transfer', 'vietqr', 'cash', 'pos'], true) ? $request->input('method') : '',
+            'from' => $date($request->input('from')),
+            'to' => $date($request->input('to')),
+            'kind' => $request->input('kind') === 'renewal' ? 'renewal' : 'all',
+        ];
+    }
+
+    private function historyQuery(array $filters)
+    {
+        $query = TuitionBranchScope::receipts(TuitionReceipt::query(), $this->branchScope());
+
+        if ($filters['student_id']) {
+            $query->where(fn ($q) => $q->where('student_id', $filters['student_id'])
+                ->orWhereHas('tuition', fn ($t) => $t->where('student_id', $filters['student_id'])));
+        }
+        if ($filters['search'] !== '') {
+            $search = $filters['search'];
+            $query->where(fn ($q) => $q->where('receipt_number', 'like', "%{$search}%")
+                ->orWhere('invoice_number', 'like', "%{$search}%")
+                ->orWhere('transaction_code', 'like', "%{$search}%")
+                ->orWhereHas('tuition.student', fn ($s) => $s->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))
+                ->orWhereHas('student', fn ($s) => $s->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%")));
+        }
+        if ($filters['status'] !== '') {
+            $query->where('status', $filters['status']);
+        }
+        if ($filters['method'] !== '') {
+            $query->where('payment_method', $filters['method']);
+        }
+        if ($filters['from']) {
+            $query->whereDate('payment_date', '>=', $filters['from']);
+        }
+        if ($filters['to']) {
+            $query->whereDate('payment_date', '<=', $filters['to']);
+        }
+        if ($filters['kind'] === 'renewal') {
+            // Khoản tái tục = phiếu thuộc khoản học phí KHÔNG phải khoản đầu tiên (id nhỏ nhất) của học viên
+            // — cùng định nghĩa "lần đầu" với hoa hồng tuyển sinh (Phase 3).
+            $query->whereNotNull('student_tuition_id')
+                ->whereRaw('student_tuition_id > (SELECT MIN(st2.id) FROM student_tuitions st2 WHERE st2.student_id = (SELECT st1.student_id FROM student_tuitions st1 WHERE st1.id = tuition_receipts.student_tuition_id))');
+        }
+
+        return $query;
     }
 
     public function invoiceCancellations(Request $request)
