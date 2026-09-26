@@ -443,7 +443,14 @@ class TuitionBusinessTest extends TestCase
 
     public function test_can_update_electronic_invoice_configuration(): void
     {
-        $response = $this->actingAs($this->accountantUser)->post(route('tuition.config.update'), [
+        // Phase 4 (phạm vi chi nhánh): dải mặc định dùng chung chỉ kế toán tổng (không gán chi nhánh) / Admin sửa.
+        $this->actingAs($this->accountantUser)->post(route('tuition.config.update'), [
+            'template_code' => '1/001', 'series_code' => 'C26MEN', 'current_number' => 1500,
+        ])->assertForbidden();
+        $headAccountant = User::factory()->create(['branch_id' => null, 'is_active' => true]);
+        $headAccountant->assignRole('accountant');
+
+        $response = $this->actingAs($headAccountant)->post(route('tuition.config.update'), [
             'template_code' => '1/001',
             'series_code' => 'C26MEN',
             'current_number' => 1500,

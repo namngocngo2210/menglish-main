@@ -378,4 +378,26 @@ class Phase4FinanceParityTest extends TestCase
         $this->assertSame('cancelled', $receipt->fresh()->status);
         $this->assertSame(6000000.0, (float) $this->tuition->fresh()->debt_amount);
     }
+
+    public function test_dai_so_hoa_don_is_branch_scoped_and_notifies_branch(): void
+    {
+        $other = \App\Models\InvoiceConfiguration::create(['branch_id' => $this->branch2->id, 'template_code' => '1/001', 'series_code' => 'C26DD', 'start_number' => 1, 'end_number' => 100, 'current_number' => 1, 'is_active' => true]);
+        $branchAccountant2 = $this->makeUser('accountant');
+        $manager = $this->manager;
+
+        // Kế toán chi nhánh CG: không thấy / không sửa dải của chi nhánh ĐĐ, không sửa dải mặc định.
+        $this->actingAs($this->accountant)->get(route('tuition.config'))->assertOk()->assertDontSee('C26DD')->assertSee('Chính sách cấp số hóa đơn');
+        $this->actingAs($this->accountant)->post(route('tuition.config.ranges.toggle', $other->id))->assertForbidden();
+
+        $this->actingAs($this->accountant)->post(route('tuition.config.ranges.store'), [
+            'branch_id' => $this->branch->id, 'template_code' => '1/001', 'series_code' => 'C26CG', 'start_number' => 1, 'end_number' => 500,
+        ])->assertSessionHasNoErrors();
+
+        // Thông báo tới Kế toán + Quản lý cơ sở của chi nhánh (không gửi cho người thao tác).
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $branchAccountant2->id, 'type' => 'invoice_range_changed']);
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $manager->id, 'type' => 'invoice_range_changed']);
+        $this->assertDatabaseMissing('admin_notifications', ['user_id' => $this->accountant->id, 'type' => 'invoice_range_changed']);
+
+        $this->actingAs($this->admin)->get(route('tuition.config'))->assertOk()->assertSee('C26DD')->assertSee('C26CG');
+    }
 }

@@ -2104,7 +2104,10 @@ class TuitionController extends Controller
 
     public function config(Request $request)
     {
+        // Kế toán chi nhánh chỉ thấy dải của chi nhánh mình + dải mặc định (chỉ xem); Admin / kế toán tổng thấy tất cả.
+        $scope = $this->branchScope();
         $ranges = InvoiceConfiguration::with('branch')
+            ->when($scope !== null, fn ($q) => $q->where(fn ($q) => $q->whereNull('branch_id')->orWhereIn('branch_id', $scope)))
             ->orderByRaw('CASE WHEN branch_id IS NULL THEN 0 ELSE 1 END')
             ->orderBy('branch_id')
             ->orderBy('start_number')
@@ -2120,10 +2123,49 @@ class TuitionController extends Controller
                 ->get(['invoice_number', 'status', 'updated_at']),
         ]);
 
-        $branches = Branch::orderBy('name')->get();
+        $branches = TuitionBranchScope::branches($scope)->orderBy('name')->get();
         $editing = $request->filled('edit') ? $ranges->firstWhere('id', (int) $request->input('edit')) : null;
+        if ($editing && ! $this->canManageRange($editing->branch_id)) {
+            $editing = null;
+        }
+        $canManageDefault = $scope === null;
 
-        return view('tuition.config', compact('ranges', 'maxIssued', 'recentInvoices', 'branches', 'editing'));
+        return view('tuition.config', compact('ranges', 'maxIssued', 'recentInvoices', 'branches', 'editing', 'canManageDefault'));
+    }
+
+    /** Dải của chi nhánh trong phạm vi người dùng; dải mặc định (branch_id null) chỉ người không bị giới hạn chi nhánh. */
+    private function canManageRange(?int $branchId): bool
+    {
+        $scope = $this->branchScope();
+
+        return $scope === null || ($branchId !== null && in_array((int) $branchId, $scope, true));
+    }
+
+    /**
+     * Mockup "Chính sách đồng bộ số hóa đơn": mọi thay đổi dải số được thông báo tới chi nhánh liên quan —
+     * Kế toán + Quản lý cơ sở của chi nhánh (dải mặc định: mọi Kế toán), không gửi cho chính người thao tác.
+     */
+    private function notifyInvoiceRangeChange(InvoiceConfiguration $range, string $message): void
+    {
+        $recipients = User::query()
+            ->where('is_active', true)
+            ->whereKeyNot(Auth::id())
+            ->when($range->branch_id,
+                fn ($q) => $q->whereHas('roles', fn ($r) => $r->whereIn('name', ['accountant', 'manager']))
+                    ->where(fn ($q) => $q->where('branch_id', $range->branch_id)->orWhereHas('branches', fn ($b) => $b->where('branches.id', $range->branch_id))),
+                fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', 'accountant')))
+            ->pluck('id');
+
+        foreach ($recipients as $userId) {
+            AdminNotification::create([
+                'user_id' => $userId,
+                'type' => 'invoice_range_changed',
+                'title' => 'Thay đổi dải số hóa đơn',
+                'message' => $message,
+                'data' => ['invoice_configuration_id' => $range->id, 'link' => route('tuition.config')],
+                'is_read' => false,
+            ]);
+        }
     }
 
     /**
@@ -2147,6 +2189,7 @@ class TuitionController extends Controller
         $config = ! empty($validated['config_id'])
             ? InvoiceConfiguration::findOrFail($validated['config_id'])
             : (InvoiceConfiguration::whereNull('branch_id')->orderBy('id')->first() ?? new InvoiceConfiguration(['branch_id' => null]));
+        abort_unless($this->canManageRange($config->branch_id), 403, 'Bạn chỉ được cấu hình dải số hóa đơn của chi nhánh mình.');
 
         $series = strtoupper($validated['series_code']);
         $start = (int) ($validated['start_number'] ?? $config->start_number ?? 1);
@@ -2167,6 +2210,8 @@ class TuitionController extends Controller
             'provider' => $validated['provider'] ?? $config->provider ?? 'vnpt',
         ]);
         $config->save();
+        $this->notifyInvoiceRangeChange($config, (Auth::user()?->name ?? 'Hệ thống').' đã cập nhật dải số '.$config->series_code
+            .' ('.($config->branch?->name ?? 'dải mặc định').'): số kế tiếp '.$config->current_number.'.');
 
         return redirect()->route('tuition.config')->with('status', 'Đã lưu cấu hình dải số hóa đơn điện tử thành công!');
     }
@@ -2188,6 +2233,8 @@ class TuitionController extends Controller
             'end_number.gte' => 'Số kết thúc phải lớn hơn hoặc bằng số bắt đầu.',
             'series_code.regex' => 'Ký hiệu hóa đơn chỉ gồm chữ và số, không dấu, không khoảng trắng.',
         ]);
+
+        abort_unless($this->canManageRange(isset($validated['branch_id']) ? (int) $validated['branch_id'] : null), 403, 'Bạn chỉ được cấp dải số hóa đơn cho chi nhánh mình.');
 
         $series = strtoupper($validated['series_code']);
         $start = (int) $validated['start_number'];
@@ -2212,6 +2259,7 @@ class TuitionController extends Controller
         ]);
 
         $branchName = $range->branch?->name ?? 'Dải mặc định (dùng chung)';
+        $this->notifyInvoiceRangeChange($range, (Auth::user()?->name ?? 'Hệ thống')." đã cấp dải số hóa đơn mới {$series} {$start} – {$end} cho {$branchName}.");
 
         return redirect()->route('tuition.config')
             ->with('status', "Đã thêm dải số {$series} ".str_pad((string) $start, InvoiceConfiguration::NUMBER_PAD, '0', STR_PAD_LEFT)
@@ -2222,7 +2270,10 @@ class TuitionController extends Controller
     public function toggleInvoiceRange($id)
     {
         $range = InvoiceConfiguration::findOrFail($id);
+        abort_unless($this->canManageRange($range->branch_id), 403, 'Bạn chỉ được cấu hình dải số hóa đơn của chi nhánh mình.');
         $range->update(['is_active' => ! $range->is_active]);
+        $this->notifyInvoiceRangeChange($range, (Auth::user()?->name ?? 'Hệ thống').($range->is_active ? ' đã kích hoạt lại' : ' đã ngừng dùng')
+            ." dải số {$range->series_code} (".($range->branch?->name ?? 'dải mặc định').').');
 
         return redirect()->route('tuition.config')->with('status', $range->is_active
             ? "Đã kích hoạt lại dải số {$range->series_code}."
