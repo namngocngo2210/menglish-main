@@ -153,4 +153,10 @@ class ClassReport extends Model
 
         return 'Người giao việc';
     }
+
+    /** A6 Q8: đúng người xác nhận hiện tại mới được xác nhận / trả về; người nộp không tự xác nhận. */
+    public function isConfirmableBy(User $user): bool
+    {
+        return (int) $this->reporter_id !== (int) $user->id && $this->currentConfirmerId() === (int) $user->id;
+    }
 }

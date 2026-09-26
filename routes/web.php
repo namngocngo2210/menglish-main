@@ -4,6 +4,7 @@ use App\Http\Controllers\AcademicDashboardController;
 use App\Http\Controllers\AcademicSystemController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AdminNotificationController;
+use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\ClassManagementController;
 use App\Http\Controllers\CourseController;
@@ -55,6 +56,13 @@ Route::get('/search', GlobalSearchController::class)->middleware(['auth'])->name
 
 // Trang Cài đặt: chuyển tới mục cấu hình đầu tiên user được xem (menu con do layout hiển thị).
 Route::get('/settings', SettingsController::class)->middleware(['auth'])->name('settings.index');
+
+// "Việc cần duyệt" (IX-5): quyền = duyệt được ít nhất 1 nguồn (kiểm tra trong controller), từng mục theo quyền module.
+Route::middleware('auth')->prefix('approvals')->name('approvals.')->group(function () {
+    Route::get('/', [ApprovalController::class, 'index'])->name('index');
+    Route::post('/bulk', [ApprovalController::class, 'bulk'])->name('bulk');
+    Route::get('/{source}/{id}', [ApprovalController::class, 'show'])->where('source', '[a-z_]+')->whereNumber('id')->name('show');
+});
 
 // Interactive Mockup Hub Navigator (Admin / Manager)
 Route::get('/mockup-hub', [MockupHubController::class, 'index'])->middleware(['auth', 'can:system_category.manage'])->name('mockup-hub.index');

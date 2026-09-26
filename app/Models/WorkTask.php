@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Services\FirstMonthCareService;
+use App\Support\DataScope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -215,5 +217,34 @@ class WorkTask extends Model
             'after' => 'Sau giờ học',
             default => 'Trong giờ học',
         };
+    }
+
+    /**
+     * Phạm vi Công việc (DataScope `work_task`): "Của mình" = việc mình giao / mình làm; "Chi nhánh" = việc của chi
+     * nhánh mình hoặc người làm thuộc chi nhánh mình (kèm việc của mình).
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        return DataScope::apply(
+            $query, $user, 'work_task',
+            fn ($q) => $q->where('creator_id', $user->id)->orWhere('assignee_id', $user->id),
+            fn ($q, array $branchIds) => $q->whereIn('branch_id', $branchIds)
+                ->orWhereHas('assignee', fn ($a) => $a->whereIn('branch_id', $branchIds)),
+            branchIncludesOwn: true,
+        );
+    }
+
+    /**
+     * Việc thường chờ $user xác nhận hoàn thành (màn "Xác nhận hoàn thành việc", hộp "Việc cần duyệt"):
+     * người có quyền duyệt thấy trong phạm vi, người khác chỉ việc mình giao; không ai duyệt việc của chính mình.
+     * Việc "Trực lớp" có báo cáo chờ xác nhận đi theo luật Q8 (ClassReport), không lặp ở đây.
+     */
+    public function scopeAwaitingConfirmationBy(Builder $query, User $user): Builder
+    {
+        $query->where('status', 'pending_confirmation')
+            ->whereDoesntHave('classReport', fn ($q) => $q->where('status', ClassReport::STATUS_PENDING))
+            ->where(fn ($q) => $q->whereNull('assignee_id')->orWhere('assignee_id', '!=', $user->id));
+
+        return $user->can('work_task.approve') ? $query->visibleTo($user) : $query->where('creator_id', $user->id);
     }
 }

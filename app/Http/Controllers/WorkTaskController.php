@@ -846,15 +846,7 @@ class WorkTaskController extends Controller
         // Việc thường chờ xác nhận: người có quyền duyệt thấy trong phạm vi; người khác chỉ việc mình giao.
         // Việc "Trực lớp" có báo cáo chờ xác nhận đi theo luật Q8 (mục báo cáo bên dưới), không lặp ở đây.
         // Không ai duyệt việc của chính mình.
-        $pendingQuery = WorkTask::with(['assignee', 'creator', 'classModel'])
-            ->where('status', 'pending_confirmation')
-            ->whereDoesntHave('classReport', fn ($q) => $q->where('status', ClassReport::STATUS_PENDING))
-            ->where(fn ($q) => $q->whereNull('assignee_id')->orWhere('assignee_id', '!=', $user->id));
-        if ($user->can('work_task.approve')) {
-            $this->scopeVisibleTasks($pendingQuery, $user);
-        } else {
-            $pendingQuery->where('creator_id', $user->id);
-        }
+        $pendingQuery = WorkTask::with(['assignee', 'creator', 'classModel'])->awaitingConfirmationBy($user);
         $pendingTasks = $kind === 'report' ? collect() : $pendingQuery
             ->when($search !== '', fn ($q) => $q->where(fn ($s) => $s->where('title', 'like', "%{$search}%")
                 ->orWhereHas('assignee', fn ($a) => $a->where('name', 'like', "%{$search}%"))))
@@ -1010,13 +1002,7 @@ class WorkTaskController extends Controller
      */
     private function scopeVisibleTasks($query, User $user)
     {
-        return DataScope::apply(
-            $query, $user, 'work_task',
-            fn ($q) => $q->where('creator_id', $user->id)->orWhere('assignee_id', $user->id),
-            fn ($q, array $branchIds) => $q->whereIn('branch_id', $branchIds)
-                ->orWhereHas('assignee', fn ($a) => $a->whereIn('branch_id', $branchIds)),
-            branchIncludesOwn: true,
-        );
+        return $query->visibleTo($user);
     }
 
     /**
@@ -1097,11 +1083,7 @@ class WorkTaskController extends Controller
      */
     private function canReviewClassReport(ClassReport $report, User $user): bool
     {
-        if ((int) $report->reporter_id === (int) $user->id) {
-            return false;
-        }
-
-        return $report->currentConfirmerId() === (int) $user->id;
+        return $report->isConfirmableBy($user);
     }
 
     private function notifyAssignee(WorkTask $task, int $count = 1): void

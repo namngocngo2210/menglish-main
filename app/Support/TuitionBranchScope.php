@@ -81,6 +81,23 @@ class TuitionBranchScope
                 ->whereHas('student', fn (Builder $s) => self::students($s, $ids))));
     }
 
+    /**
+     * Yêu cầu hủy hóa đơn: theo phiếu thu gắn kèm, không có phiếu thì theo học viên. Yêu cầu không gắn phiếu lẫn
+     * học viên (dữ liệu cũ) không thuộc chi nhánh nào: vẫn hiện để xử lý (duyệt sẽ bị chặn vì không có phiếu để hoàn
+     * tác công nợ).
+     */
+    public static function cancellations(Builder $query, ?array $ids): Builder
+    {
+        if ($ids === null) {
+            return $query;
+        }
+
+        return $query->where(fn (Builder $q) => $q->whereHas('receipt', fn (Builder $r) => self::receipts($r, $ids))
+            ->orWhere(fn (Builder $q) => $q->whereNull('tuition_receipt_id')
+                ->whereHas('student', fn (Builder $s) => self::students($s, $ids)))
+            ->orWhere(fn (Builder $q) => $q->whereNull('tuition_receipt_id')->whereNull('student_id')));
+    }
+
     public static function branches(?array $ids): Builder
     {
         return Branch::query()->when($ids !== null, fn (Builder $q) => $q->whereIn('id', $ids));

@@ -12,6 +12,8 @@
     $settingsUrl = $sidebarMenu->settingsUrlFor(Auth::user(), request()) ? route('settings.index') : null;
     $settingsActive = $settingsUrl && ($sidebarMenu->isSettingsRoute(request()) || request()->routeIs('settings.*'));
     $dashboardActive = request()->routeIs('dashboard');
+    // "Việc cần duyệt": chỉ hiện khi duyệt được ít nhất 1 nguồn; badge = tổng chờ duyệt (cache 60s, 1 lần đọc cache).
+    $approvalBadge = Auth::user() ? app(\App\Support\Approvals\ApprovalInboxService::class)->badge(Auth::user()) : null;
     $roleLabels = [
         'admin' => 'Quản trị hệ thống', 'manager' => 'Quản lý', 'accountant' => 'Kế toán',
         'academic_staff' => 'Nhân viên học vụ', 'academic_lead' => 'Trưởng học vụ', 'sales_consultant' => 'Tư vấn tuyển sinh',
@@ -72,6 +74,9 @@
     {{-- Menu --}}
     <nav x-ref="navContainer" @scroll.passive.debounce.100ms="saveScroll()" class="custom-scrollbar flex-1 space-y-xs overflow-y-auto px-2 py-sm">
         @include('layouts.partials.sidebar-link', ['url' => route('dashboard'), 'label' => 'Tổng quan', 'icon' => 'dashboard', 'active' => $dashboardActive, 'id' => 'dashboard'])
+        @if ($approvalBadge !== null)
+            @include('layouts.partials.sidebar-link', ['url' => route('approvals.index'), 'label' => 'Việc cần duyệt', 'icon' => 'fact_check', 'active' => request()->routeIs('approvals.*'), 'id' => 'approvals', 'badge' => $approvalBadge])
+        @endif
 
         @foreach ($menuGroups as $group)
             @if ($loop->first || $group['section'] !== $menuGroups[$loop->index - 1]['section'])

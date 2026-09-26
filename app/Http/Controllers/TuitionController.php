@@ -1327,20 +1327,10 @@ class TuitionController extends Controller
         }, 'yeu-cau-huy-hoa-don-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
-    /** Yêu cầu hủy hóa đơn trong phạm vi chi nhánh: theo phiếu thu gắn kèm, thiếu phiếu thì theo học viên. */
+    /** Yêu cầu hủy hóa đơn trong phạm vi chi nhánh người xem (xem TuitionBranchScope::cancellations). */
     private function scopedCancellations(?array $scope)
     {
-        $query = InvoiceCancellation::query();
-        if ($scope === null) {
-            return $query;
-        }
-
-        return $query->where(fn ($q) => $q->whereHas('receipt', fn ($r) => TuitionBranchScope::receipts($r, $scope))
-            ->orWhere(fn ($q) => $q->whereNull('tuition_receipt_id')
-                ->whereHas('student', fn ($s) => TuitionBranchScope::students($s, $scope)))
-            // Yêu cầu không gắn phiếu lẫn học viên (dữ liệu cũ) không thuộc chi nhánh nào: vẫn hiện để xử lý
-            // (duyệt sẽ bị chặn vì không có phiếu để hoàn tác công nợ).
-            ->orWhere(fn ($q) => $q->whereNull('tuition_receipt_id')->whereNull('student_id')));
+        return TuitionBranchScope::cancellations(InvoiceCancellation::query(), $scope);
     }
 
     private function abortUnlessCancellationInScope($id): void
