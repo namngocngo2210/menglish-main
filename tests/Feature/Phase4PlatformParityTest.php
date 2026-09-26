@@ -316,6 +316,57 @@ class Phase4PlatformParityTest extends TestCase
             ->assertSee('Giáo viên KPI Một')->assertDontSee('Giáo viên KPI Hai')->assertSee('KPI của chính mình');
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // Tài khoản & vai trò
+    // ─────────────────────────────────────────────────────────────
+
+    public function test_accounts_list_shows_concurrent_roles_classes_contract_and_filters(): void
+    {
+        $lead = $this->makeUser('academic_lead', $this->branch, ['name' => 'Học thuật Một']);
+        $staff = $this->makeUser('academic_staff', $this->branch, ['name' => 'Học vụ Kiêm TA', 'contract_type' => 'Toàn thời gian', 'contract_end_date' => now()->subDay()]);
+        $staff->assignRole('assistant');
+        $this->makeClass(['assistant_id' => $staff->id, 'code' => 'KN-01', 'name' => 'Lớp kiêm nhiệm']);
+        $locked = $this->makeUser('teacher', $this->branch, ['name' => 'GV Bị khóa', 'locked_at' => now()]);
+
+        $response = $this->actingAs($this->admin)->get(route('users.index'))->assertOk()
+            ->assertSee('Quản lý Tài khoản &amp; Vai trò', false)
+            ->assertSee('Trợ giảng (kiêm nhiệm)')
+            ->assertSee('HĐ đã hết hạn')
+            ->assertSee('KN-01')                 // lớp phụ trách trong hồ sơ nhanh (drawer)
+            ->assertDontSee('Chưa có thông tin phân công kiêm nhiệm phát sinh');
+        $this->assertSame(3, $response->viewData('academicStaff')); // Học thuật + Học vụ + Giáo viên
+
+        $this->actingAs($this->admin)->get(route('users.index', ['status' => 'locked']))->assertOk()
+            ->assertSee('GV Bị khóa')->assertDontSee('Học thuật Một');
+
+        $this->actingAs($this->admin)->get(route('users.show', $staff))->assertOk()
+            ->assertSee('Đã hết hạn')->assertSee('Kiêm nhiệm: Trợ giảng')->assertSee('Lớp kiêm nhiệm');
+        $this->assertNotNull($lead);
+        $this->assertNotNull($locked);
+    }
+
+    public function test_account_form_sets_concurrent_roles_within_hierarchy(): void
+    {
+        $staff = $this->makeUser('teacher', $this->branch);
+        $academic = $this->makeUser('academic_staff', $this->branch);
+
+        $this->actingAs($this->admin)->get(route('users.edit', $staff))->assertOk()->assertSee('Vai trò kiêm nhiệm');
+
+        $payload = ['name' => $staff->name, 'email' => $staff->email, 'branch_id' => $this->branch->id, 'role' => 'teacher', 'concurrent_roles_present' => 1];
+        $this->actingAs($this->admin)->put(route('users.update', $staff), $payload + ['concurrent_roles' => ['assistant', 'academic_staff']])
+            ->assertSessionHasNoErrors();
+        $this->assertEqualsCanonicalizing(['teacher', 'assistant', 'academic_staff'], $staff->fresh()->getRoleNames()->all());
+
+        // Bỏ chọn hết → chỉ còn vai trò chính.
+        $this->actingAs($this->admin)->put(route('users.update', $staff), $payload)->assertSessionHasNoErrors();
+        $this->assertSame(['teacher'], $staff->fresh()->getRoleNames()->all());
+
+        // Học vụ chỉ gán được vai trò trong phân cấp của mình (không gán Admin làm kiêm nhiệm).
+        $this->actingAs($academic)->put(route('users.update', $staff), $payload + ['concurrent_roles' => ['admin']])
+            ->assertSessionHasErrors('concurrent_roles');
+        $this->assertFalse($staff->fresh()->hasRole('admin'));
+    }
+
     public function test_q8_report_form_lists_only_own_classes_and_roster(): void
     {
         $teacher = $this->makeUser('teacher', $this->branch);
