@@ -135,10 +135,16 @@ jobs:
       - name: Migrate + cache (hook)
         run: |
           set -e
-          status=$(curl -s -o hook.json -w '%{http_code}' -X POST \
-            -H "X-Deploy-Token: ${{ secrets.DEPLOY_HOOK_TOKEN }}" \
-            -d "seed=${{ inputs.seed }}" \
-            "${{ secrets.APP_URL }}/_deploy/hook")
+          # LiteSpeed cache .htaccess vài giây: ngay sau khi thay public_html, route Laravel có thể còn 404 → thử lại.
+          for i in 1 2 3 4 5 6; do
+            status=$(curl -s -o hook.json -w '%{http_code}' --max-time 300 -X POST \
+              -H "X-Deploy-Token: ${{ secrets.DEPLOY_HOOK_TOKEN }}" \
+              -d "seed=${{ inputs.seed }}" \
+              "${{ secrets.APP_URL }}/_deploy/hook")
+            [ "$status" != "404" ] && break
+            echo "Hook 404 (lần $i), thử lại sau 10s..."
+            sleep 10
+          done
           cat hook.json || true
           test "$status" = "200"
 
