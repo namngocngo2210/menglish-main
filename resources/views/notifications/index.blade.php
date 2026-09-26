@@ -3,71 +3,39 @@
 
     <div class="space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <h2 class="text-lg font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                <span class="material-symbols-outlined text-rose-600">notifications_active</span>
+            <h2 class="text-lg font-bold text-on-surface tracking-tight flex items-center gap-2">
+                <span class="material-symbols-outlined text-error">notifications_active</span>
                 Trung Tâm Cảnh Báo &amp; Thông Báo Quản Trị
             </h2>
             <div class="flex items-center gap-2">
                 <form action="{{ route('notifications.scan') }}" method="POST" class="inline">
                     @csrf
-                    <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition">
-                        <span class="material-symbols-outlined text-[18px]">sync</span>
-                        <span>Quét lại hệ thống</span>
-                    </button>
+                    <x-ui.button type="submit" variant="secondary" size="sm" icon="sync">Quét lại hệ thống</x-ui.button>
                 </form>
                 <form action="{{ route('notifications.read-all') }}" method="POST" class="inline">
                     @csrf
-                    <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
-                        <span class="material-symbols-outlined text-[18px]">done_all</span>
-                        <span>Đánh dấu tất cả đã đọc</span>
-                    </button>
+                    <x-ui.button type="submit" size="sm" icon="done_all">Đánh dấu tất cả đã đọc</x-ui.button>
                 </form>
             </div>
         </div>
 
         {{-- Stats Widgets --}}
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
-                <div>
-                    <div class="text-xs text-gray-500 font-medium">Tổng thông báo</div>
-                    <div class="text-2xl font-extrabold text-gray-900 font-mono mt-1">{{ $stats['total'] }}</div>
-                </div>
-                <div class="w-10 h-10 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center">
-                    <span class="material-symbols-outlined">notifications</span>
-                </div>
-            </div>
-
-            <div class="bg-white p-4 rounded-2xl border border-rose-200 shadow-sm flex items-center justify-between bg-rose-50/20">
-                <div>
-                    <div class="text-xs text-rose-700 font-medium">Lead bị sót >24h (Chưa xử lý)</div>
-                    <div class="text-2xl font-extrabold text-rose-900 font-mono mt-1">{{ $stats['stale_leads'] }}</div>
-                </div>
-                <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-800 flex items-center justify-center">
-                    <span class="material-symbols-outlined">person_alert</span>
-                </div>
-            </div>
-
-            <div class="bg-white p-4 rounded-2xl border border-amber-200 shadow-sm flex items-center justify-between bg-amber-50/20">
-                <div>
-                    <div class="text-xs text-amber-700 font-medium">Thông báo chưa đọc</div>
-                    <div class="text-2xl font-extrabold text-amber-900 font-mono mt-1">{{ $stats['unread'] }}</div>
-                </div>
-                <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
-                    <span class="material-symbols-outlined">mark_email_unread</span>
-                </div>
-            </div>
+            <x-ui.stat-card label="Tổng thông báo" :value="$stats['total']" icon="notifications" />
+            <x-ui.stat-card label="Lead bị sót >24h (Chưa xử lý)" :value="$stats['stale_leads']" tone="error" icon="person_alert" />
+            <x-ui.stat-card label="Thông báo chưa đọc" :value="$stats['unread']" tone="warning" icon="mark_email_unread" />
         </div>
 
         {{-- Filter Bar --}}
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-4 flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2">
-                <a href="{{ route('notifications.index') }}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition {{ !request('type') && !request('unread') ? 'bg-primary-container text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                <a href="{{ route('notifications.index') }}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition {{ !request('type') && !request('unread') ? 'bg-primary-container text-white' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high' }}">
                     Tất cả
                 </a>
-                <a href="{{ route('notifications.index', ['type' => 'stale_lead_24h']) }}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition {{ request('type') === 'stale_lead_24h' ? 'bg-rose-600 text-white' : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200' }}">
+                <a href="{{ route('notifications.index', ['type' => 'stale_lead_24h']) }}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition {{ request('type') === 'stale_lead_24h' ? 'bg-error text-white' : 'bg-error/10 text-error hover:bg-error/20 border border-error/30' }}">
                     ⚠️ Lead tồn đọng >24h ({{ $stats['stale_leads'] }})
                 </a>
-                <a href="{{ route('notifications.index', ['unread' => 1]) }}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition {{ request('unread') ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200' }}">
+                <a href="{{ route('notifications.index', ['unread' => 1]) }}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition {{ request('unread') ? 'bg-warning text-white' : 'bg-warning-container text-on-warning-container hover:bg-warning/20 border border-warning/30' }}">
                     Chưa đọc ({{ $stats['unread'] }})
                 </a>
             </div>
@@ -76,7 +44,7 @@
         {{-- Notifications Stream --}}
         <div class="space-y-3">
             @forelse ($notifications as $notif)
-                <div class="bg-white rounded-2xl border {{ !$notif->is_read ? 'border-rose-200 bg-rose-50/10 shadow-sm' : 'border-gray-200 opacity-80' }} p-5 transition hover:shadow-md">
+                <div class="bg-surface-container-lowest rounded-2xl border {{ !$notif->is_read ? 'border-error/30 bg-error/5 shadow-sm' : 'border-surface-container-highest opacity-80' }} p-5 transition hover:shadow-md">
                     <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                         <div class="flex items-start gap-3.5 flex-1">
                             <div class="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 {{ $notif->badge_color }}">
@@ -87,24 +55,24 @@
                                     <span class="px-2.5 py-0.5 rounded-full border text-[10px] font-bold {{ $notif->badge_color }}">
                                         {{ $notif->type_label }}
                                     </span>
-                                    <h3 class="font-bold text-gray-900 text-sm">{{ $notif->title }}</h3>
+                                    <h3 class="font-bold text-on-surface text-sm">{{ $notif->title }}</h3>
                                     @if (!$notif->is_read)
-                                        <span class="w-2 h-2 rounded-full bg-rose-500 inline-block animate-pulse"></span>
+                                        <span class="w-2 h-2 rounded-full bg-error inline-block animate-pulse"></span>
                                     @endif
                                 </div>
 
-                                <p class="text-xs text-gray-700 leading-relaxed">{{ $notif->message }}</p>
+                                <p class="text-xs text-on-surface-variant leading-relaxed">{{ $notif->message }}</p>
 
                                 @if ($notif->data && isset($notif->data['customer_id']))
-                                    <div class="flex items-center gap-4 text-xs text-gray-500 pt-1 font-medium flex-wrap">
-                                        <span>Khách hàng: <strong class="text-gray-900">{{ $notif->data['customer_name'] }}</strong></span>
-                                        <span>SĐT: <strong class="font-mono text-gray-900">{{ $notif->data['customer_phone'] }}</strong></span>
-                                        <span>Sales: <strong class="text-indigo-700">{{ $notif->data['assigned_user'] }}</strong></span>
-                                        <span>Thời gian trễ: <strong class="text-rose-600 font-mono font-bold">{{ $notif->data['hours_elapsed'] }}h</strong></span>
+                                    <div class="flex items-center gap-4 text-xs text-on-surface-variant pt-1 font-medium flex-wrap">
+                                        <span>Khách hàng: <strong class="text-on-surface">{{ $notif->data['customer_name'] }}</strong></span>
+                                        <span>SĐT: <strong class="font-mono text-on-surface">{{ $notif->data['customer_phone'] }}</strong></span>
+                                        <span>Sales: <strong class="text-secondary">{{ $notif->data['assigned_user'] }}</strong></span>
+                                        <span>Thời gian trễ: <strong class="text-error font-mono font-bold">{{ $notif->data['hours_elapsed'] }}h</strong></span>
                                     </div>
                                 @endif
 
-                                <div class="text-[10px] text-gray-400 font-mono pt-1">
+                                <div class="text-[10px] text-on-surface-variant/70 font-mono pt-1">
                                     Ghi nhận lúc: {{ $notif->created_at->format('d/m/Y H:i') }} ({{ $notif->created_at->diffForHumans() }})
                                 </div>
                             </div>
@@ -113,34 +81,27 @@
                         {{-- Actions --}}
                         <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
                             @if ($notif->data && isset($notif->data['customer_id']))
-                                <a href="{{ route('crm.customers.show', $notif->data['customer_id']) }}" class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition inline-flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-[16px]">call</span>
-                                    <span>Xử lý Lead ngay</span>
-                                </a>
+                                <x-ui.button variant="info" size="sm" icon="call" :href="route('crm.customers.show', $notif->data['customer_id'])">Xử lý Lead ngay</x-ui.button>
                             @endif
 
                             @if (!$notif->is_read)
                                 <form action="{{ route('notifications.read', $notif->id) }}" method="POST" class="inline">
                                     @csrf
-                                    <button type="submit" class="px-3 py-1.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-semibold transition" title="Đánh dấu đã đọc">
-                                        <span class="material-symbols-outlined text-[16px] align-middle">check</span>
-                                    </button>
+                                    <x-ui.button type="submit" variant="secondary" size="sm" icon="check" title="Đánh dấu đã đọc" aria-label="Đánh dấu đã đọc" />
                                 </form>
                             @endif
                         </div>
                     </div>
                 </div>
             @empty
-                <div class="bg-white rounded-2xl border border-gray-200 p-12 text-center text-gray-400 text-xs space-y-2">
-                    <span class="material-symbols-outlined text-4xl text-emerald-500 block mx-auto">task_alt</span>
-                    <div class="font-bold text-gray-700 text-sm">Hệ thống đang hoạt động tối ưu!</div>
-                    <div>Không có Lead nào bị sót quá 24h và không có thông báo cảnh báo chưa xử lý.</div>
+                <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest">
+                    <x-ui.empty-state icon="task_alt" title="Hệ thống đang hoạt động tối ưu!" description="Không có Lead nào bị sót quá 24h và không có thông báo cảnh báo chưa xử lý." />
                 </div>
             @endforelse
         </div>
 
-        <div class="pt-2 rounded-2xl overflow-hidden shadow-sm">
-            <x-pagination :paginator="$notifications" />
+        <div class="rounded-2xl overflow-hidden border border-outline-variant bg-surface-container-low shadow-sm">
+            <x-ui.pagination :paginator="$notifications" />
         </div>
     </div>
 </x-app-layout>

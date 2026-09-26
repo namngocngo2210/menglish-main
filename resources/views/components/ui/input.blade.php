@@ -27,6 +27,11 @@
                    {{ $attributes->except('id')->merge(['class' => $control]) }}>
         </div>
     </x-ui.field>
+@elseif (! $inlineLabel && ! $icon)
+    {{-- Không label / icon: chỉ ô nhập (co giãn đúng trong hàng flex / grid) --}}
+    <input type="{{ $type }}" @if ($name) name="{{ $name }}" @endif @if ($id) id="{{ $id }}" @endif @if (! is_null($val)) value="{{ $val }}" @endif
+           @if ($required) required @endif @if ($hasError) aria-invalid="true" @endif
+           {{ $attributes->except('id')->merge(['class' => $control]) }}>
 @else
     <label class="relative flex items-center gap-sm">
         @if ($inlineLabel)<span class="whitespace-nowrap font-body-small text-body-small font-medium text-on-surface-variant">{{ $inlineLabel }}</span>@endif

@@ -34,13 +34,7 @@
                     <x-ui.select name="status" label="Trạng thái" placeholder="Tất cả trạng thái" :options="['active' => 'Hoạt động', 'hidden' => 'Ẩn']" />
                 </div>
                 <div class="lg:col-span-5">
-                    <x-ui.field label="Tìm kiếm tên đề" for="f_test_search">
-                        <div class="relative">
-                            <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant">search</span>
-                            <input id="f_test_search" type="search" name="search" value="{{ request('search') }}" placeholder="Nhập tên đề cần tìm..."
-                                   class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-10 pr-md font-body-base text-body-base focus:border-primary-container focus:ring-2 focus:ring-primary-container/20">
-                        </div>
-                    </x-ui.field>
+                    <x-ui.input id="f_test_search" type="search" name="search" label="Tìm kiếm tên đề" icon="search" :value="request('search')" placeholder="Nhập tên đề cần tìm..." />
                 </div>
                 <div class="flex gap-sm lg:col-span-2">
                     <x-ui.button type="submit" variant="secondary" icon="filter_list" class="flex-1">Lọc</x-ui.button>
@@ -74,7 +68,7 @@
                             </td>
                             <td><code class="rounded bg-surface-container-low px-sm py-0.5 font-code text-caption text-on-surface-variant">{{ str_contains(strtoupper($t->code), 'SPEAKING') ? 'speaking_test' : 'placement_test' }}</code></td>
                             <td class="whitespace-nowrap">
-                                <span class="rounded-full bg-secondary/10 px-sm py-0.5 font-body-small text-body-small font-medium text-secondary">{{ $gradeGroups[$t->grade_group] ?? 'Chưa rõ khối' }}</span>
+                                <x-ui.badge color="secondary" pill :dot="false">{{ $gradeGroups[$t->grade_group] ?? 'Chưa rõ khối' }}</x-ui.badge>
                                 @if ($t->target_level)<div class="mt-xs font-caption text-caption text-on-surface-variant">{{ $t->target_level }}</div>@endif
                             </td>
                             <td class="whitespace-nowrap">
