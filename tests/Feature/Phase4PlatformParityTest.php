@@ -430,6 +430,40 @@ class Phase4PlatformParityTest extends TestCase
         $this->assertTrue($stopped->fresh()->is_active);
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // Nhật ký vận hành
+    // ─────────────────────────────────────────────────────────────
+
+    public function test_activity_log_module_chips_record_search_detail_panel_and_xlsx_export(): void
+    {
+        $staff = $this->makeUser('teacher', $this->branch, ['name' => 'Nhân sự Gốc']);
+        $this->actingAs($this->admin)->put(route('users.update', $staff), [
+            'name' => 'Nhân sự Đã đổi', 'email' => $staff->email, 'branch_id' => $this->branch->id, 'role' => 'teacher',
+        ])->assertSessionHasNoErrors();
+        \App\Models\SystemCategory::create(['type' => 'lead_source', 'code' => 'SRC_09', 'name' => 'Danh mục nhật ký', 'sort_order' => 9]);
+
+        $this->actingAs($this->admin)->get(route('activity-logs.index'))->assertOk()
+            ->assertSee('Nhật ký vận hành')
+            ->assertSeeInOrder(['Tất cả', 'CRM', 'Giáo trình', 'Lớp &amp; Điểm danh', 'Phân quyền'], false)
+            ->assertSee('Tìm tên người thực hiện, mã bản ghi...')
+            ->assertSee('Chi tiết đối chiếu')->assertSee('Dữ liệu trước')->assertSee('Dữ liệu sau')
+            ->assertSee('name: "Nhân sự Gốc"', false)
+            ->assertSee('Transaction ID')->assertSee('Hoàn tác')->assertSee('Đóng chi tiết');
+
+        // Chip "Phân quyền" chỉ còn nhật ký tài khoản; tìm theo mã bản ghi #id.
+        $this->actingAs($this->admin)->get(route('activity-logs.index', ['module' => 'permission']))->assertOk()
+            ->assertSee('Nhân sự Đã đổi')->assertDontSee('Danh mục nhật ký');
+        $this->actingAs($this->admin)->get(route('activity-logs.index', ['search' => '#'.$staff->id]))->assertOk()
+            ->assertSee('User #'.$staff->id);
+
+        $this->actingAs($this->admin)->get(route('activity-logs.index', ['date_from' => '2026-09-10', 'date_to' => '2026-09-01']))
+            ->assertSessionHasErrors('date_to');
+
+        $export = $this->actingAs($this->admin)->get(route('activity-logs.export', ['module' => 'permission']));
+        $export->assertOk();
+        $this->assertStringContainsString('.xlsx', (string) $export->headers->get('content-disposition'));
+    }
+
     public function test_q8_report_form_lists_only_own_classes_and_roster(): void
     {
         $teacher = $this->makeUser('teacher', $this->branch);

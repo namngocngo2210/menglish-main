@@ -148,7 +148,8 @@ class Phase4PlatformTest extends TestCase
             ->assertOk()
             ->assertDontSee('So sánh trước / sau');
 
-        $response = $this->actingAs($this->admin)->get(route('activity-logs.export'));
+        // Mặc định xuất .xlsx (Phase4PlatformParityTest); CSV streaming vẫn có qua ?format=csv.
+        $response = $this->actingAs($this->admin)->get(route('activity-logs.export', ['format' => 'csv']));
         $response->assertOk();
         $csv = $response->streamedContent();
         $this->assertStringContainsString('Nhân sự Đã sửa', $csv);

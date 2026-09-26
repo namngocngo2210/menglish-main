@@ -83,7 +83,7 @@ class ActivityLogModuleTest extends TestCase
         // 5. View Activity Log index page with filters
         $response = $this->actingAs($user)->get(route('activity-logs.index'));
         $response->assertOk();
-        $response->assertSee('Nhật Ký Vận Hành Toàn Hệ Thống');
+        $response->assertSee('Nhật ký vận hành'); // tiêu đề theo mockup epic-5/nhat-ky-van-hanh
         $response->assertSee('CRM & Leads');
         $response->assertSee('Khảo sát & Đề thi');
         $response->assertSee('Quản lý công việc');
