@@ -20,10 +20,17 @@ class PasswordController extends Controller
             'password' => ['required', Password::defaults(), 'confirmed'],
         ]);
 
+        $wasForced = (bool) $request->user()->must_change_password;
+
         $request->user()->update([
             'password' => Hash::make($validated['password']),
             'must_change_password' => false,
         ]);
+
+        // Đổi mật khẩu tạm lần đầu: về trang hồ sơ không kèm ?force_password (bỏ cảnh báo "mật khẩu tạm").
+        if ($wasForced) {
+            return redirect()->route('profile.edit')->with('status', 'password-updated');
+        }
 
         return back()->with('status', 'password-updated');
     }

@@ -1,5 +1,6 @@
 <x-app-layout>
-    @if(request()->boolean('force_password'))
+    {{-- Theo trạng thái tài khoản (không theo ?force_password) để tắt ngay sau khi đổi mật khẩu --}}
+    @if(auth()->user()?->must_change_password)
         <div class="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
             <div class="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-900">
                 Đây là mật khẩu tạm. Vui lòng đổi mật khẩu trước khi tiếp tục sử dụng hệ thống.

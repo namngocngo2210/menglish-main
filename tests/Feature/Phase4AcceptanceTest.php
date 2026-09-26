@@ -377,10 +377,13 @@ class Phase4AcceptanceTest extends TestCase
         $this->assertAuthenticated();
         $this->get(route('tuition.students'))->assertRedirect(route('profile.edit', ['force_password' => 1]));
         $this->get(route('dashboard'))->assertRedirect(route('profile.edit', ['force_password' => 1]));
-        $this->put(route('password.update'), [
+        $this->get(route('profile.edit', ['force_password' => 1]))->assertOk()->assertSee('Đây là mật khẩu tạm');
+        $this->from(route('profile.edit', ['force_password' => 1]))->put(route('password.update'), [
             'current_password' => 'MatKhauTam123', 'password' => 'MatKhauMoi@2026', 'password_confirmation' => 'MatKhauMoi@2026',
-        ])->assertSessionHasNoErrors();
+        ])->assertSessionHasNoErrors()->assertRedirect(route('profile.edit'));
         $this->assertFalse(User::where('email', 'ketoan.n4@menglish.edu.vn')->value('must_change_password'));
+        // Cảnh báo "mật khẩu tạm" không còn, kể cả khi URL cũ còn ?force_password=1.
+        $this->get(route('profile.edit', ['force_password' => 1]))->assertOk()->assertDontSee('Đây là mật khẩu tạm');
         $this->get(route('tuition.students'))->assertOk();
     }
 
