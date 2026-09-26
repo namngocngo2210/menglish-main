@@ -32,8 +32,21 @@ class DeployHookTest extends TestCase
 
         $response = $this->post('/_deploy/hook', [], ['X-Deploy-Token' => $token]);
 
-        $response->assertJsonPath('steps.0.command', 'optimize:clear');
+        $response->assertJsonPath('steps.0.command', 'config:clear');
         $this->assertContains('migrate', collect($response->json('steps'))->pluck('command')->all());
+    }
+
+    public function test_hook_works_before_session_and_cache_tables_exist(): void
+    {
+        // Cài mới: bảng sessions/cache chưa có — hook (chính là thứ chạy migrate) không được phụ thuộc chúng.
+        $token = str_repeat('d', 64);
+        config(['app.deploy_hook_token' => $token, 'session.driver' => 'database', 'cache.default' => 'database']);
+        \Illuminate\Support\Facades\Schema::drop('sessions');
+
+        $response = $this->post('/_deploy/hook', [], ['X-Deploy-Token' => $token]);
+
+        $response->assertJsonStructure(['ok', 'steps']);
+        $this->assertSame(0, collect($response->json('steps'))->firstWhere('command', 'migrate')['exit']);
     }
 
     public function test_seed_runs_only_when_requested_and_never_in_production(): void

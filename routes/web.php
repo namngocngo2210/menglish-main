@@ -91,9 +91,6 @@ Route::prefix('api/academic-system')->name('api.academic-system.')->middleware([
     Route::post('/records/{id}/action', [AcademicSystemController::class, 'apiActionRecord'])->middleware('can:system_category.manage')->name('records.action');
 });
 
-// Hook sau deploy cho shared hosting (DirectAdmin, không SSH): chỉ bật khi có DEPLOY_HOOK_TOKEN.
-Route::post('/_deploy/hook', \App\Http\Controllers\DeployHookController::class)->middleware('throttle:5,1')->name('deploy.hook');
-
 // SePay Webhook Endpoints (Public Callback từ SePay)
 Route::post('/hook/sepay-gateway/v1/add-payment', [SepayWebhookController::class, 'handleWebhook'])->name('sepay.webhook.gateway');
 Route::post('/api/sepay/webhook', [SepayWebhookController::class, 'handleWebhook'])->name('sepay.webhook.api');

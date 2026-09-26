@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use Throwable;
 
 /**
  * Hook chạy các lệnh sau deploy trên shared hosting không có SSH (DirectAdmin):
@@ -26,14 +27,26 @@ class DeployHookController extends Controller
         }
         $steps = [];
         $run = function (string $command, array $args = []) use (&$steps) {
-            $code = Artisan::call($command, $args);
-            $steps[] = ['command' => $command, 'exit' => $code, 'output' => trim(Artisan::output())];
+            try {
+                $code = Artisan::call($command, $args);
+                $output = trim(Artisan::output());
+            } catch (Throwable $e) {
+                $code = 1;
+                $output = $e::class.': '.$e->getMessage();
+            }
+            $steps[] = ['command' => $command, 'exit' => $code, 'output' => $output];
 
             return $code;
         };
 
-        $run('optimize:clear');
+        // Chỉ xoá cache dạng file trước migrate; cache:clear (store database) cần bảng "cache" — chạy sau migrate.
+        foreach (['config:clear', 'route:clear', 'view:clear', 'event:clear'] as $command) {
+            $run($command);
+        }
         $migrateCode = $run('migrate', ['--force' => true]);
+        if ($migrateCode === 0) {
+            $run('cache:clear');
+        }
 
         // Seed:
         //  - "bootstrap": vai trò, quyền, danh mục + 1 Admin từ .env — chỉ khi database CHƯA có người dùng (cài mới, kể cả production).
