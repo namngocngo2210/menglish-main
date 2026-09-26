@@ -31,7 +31,7 @@
 
     <div class="max-w-5xl mx-auto space-y-6 pb-10">
         {{-- Chọn giáo trình đang soạn --}}
-        <section class="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+        <section class="bg-surface-container-lowest border border-surface-container-highest rounded-2xl p-4 shadow-sm">
             <form method="GET" action="{{ route('syllabus.builder') }}" class="flex flex-col sm:flex-row sm:items-end gap-3">
                 <div class="flex-1">
                     <x-ui.select name="curriculum" label="Giáo trình đang soạn" :value="$curriculum?->id" onchange="this.form.submit()"
@@ -51,11 +51,11 @@
             @php($builderUrl = fn (array $params = []) => route('syllabus.builder', ['curriculum' => $curriculum->id] + $params))
 
             {{-- Thông tin giáo trình + Trình độ áp dụng --}}
-            <section class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-                <div class="flex items-center justify-between gap-2 mb-5 pb-3 border-b border-gray-100">
+            <section class="bg-surface-container-lowest border border-surface-container-highest rounded-2xl p-6 shadow-sm">
+                <div class="flex items-center justify-between gap-2 mb-5 pb-3 border-b border-surface-container-highest">
                     <div class="flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">info</span>
-                        <h2 class="text-sm font-bold text-gray-900">Thông tin giáo trình</h2>
+                        <h2 class="text-sm font-bold text-on-surface">Thông tin giáo trình</h2>
                         <x-ui.badge color="primary">{{ $stages->count() }} chặng · {{ $units->count() }} unit · {{ $lessons->count() }} buổi</x-ui.badge>
                     </div>
                     @if ($canManage)
@@ -79,16 +79,16 @@
                             @php($selectedLevels = collect(old('level_ids', $curriculum->levels->pluck('id')->all()))->map(fn ($id) => (int) $id))
                             <div class="flex flex-wrap gap-2">
                                 @forelse ($levels as $level)
-                                    <label class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-outline-variant text-xs {{ $level->syllabus_curriculum_id && $level->syllabus_curriculum_id !== $curriculum->id ? 'text-gray-400' : 'text-gray-700' }}">
-                                        <input type="checkbox" name="level_ids[]" value="{{ $level->id }}" class="rounded border-gray-300 text-primary focus:ring-primary-container"
+                                    <label class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-outline-variant text-xs {{ $level->syllabus_curriculum_id && $level->syllabus_curriculum_id !== $curriculum->id ? 'text-on-surface-variant/70' : 'text-on-surface-variant' }}">
+                                        <input type="checkbox" name="level_ids[]" value="{{ $level->id }}" class="rounded border-outline-variant text-primary focus:ring-primary-container"
                                                @checked($selectedLevels->contains($level->id)) @disabled(! $canManage)>
-                                        {{ $level->name }} <span class="font-mono text-[10px] text-gray-400">{{ $level->code }}</span>
+                                        {{ $level->name }} <span class="font-mono text-[10px] text-on-surface-variant/70">{{ $level->code }}</span>
                                         @if ($level->syllabus_curriculum_id && $level->syllabus_curriculum_id !== $curriculum->id)
                                             <span class="text-[10px]" title="Đang gắn giáo trình khác — chọn sẽ chuyển sang giáo trình này">(đang dùng GT khác)</span>
                                         @endif
                                     </label>
                                 @empty
-                                    <span class="text-xs text-gray-400">Chưa có trình độ nào — tạo ở màn Cấu hình trình độ.</span>
+                                    <span class="text-xs text-on-surface-variant/70">Chưa có trình độ nào — tạo ở màn Cấu hình trình độ.</span>
                                 @endforelse
                             </div>
                         </x-ui.field>
@@ -107,7 +107,7 @@
             {{-- Ô soạn thảo chặng / unit / buổi --}}
             @if ($editor)
                 @php($model = $editor['model'])
-                <section id="editor" class="bg-white border border-primary-container/40 rounded-2xl p-6 shadow-sm relative overflow-hidden">
+                <section id="editor" class="bg-surface-container-lowest border border-primary-container/40 rounded-2xl p-6 shadow-sm relative overflow-hidden">
                     <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary-container"></div>
                     @if ($editor['type'] === 'stage')
                         <div class="flex flex-wrap items-center gap-sm mb-lg">
@@ -121,11 +121,9 @@
                             @if ($model) @method('PUT') @else <input type="hidden" name="curriculum_id" value="{{ $curriculum->id }}"> @endif
                             <x-ui.input name="name" label="Tên chặng học" required :value="$model?->name" placeholder="Ví dụ: Chặng 1: Xây dựng nền tảng" />
                             {{-- A6 Q4: chặng chỉ tự mở khi Big Test chặng trước được duyệt & gửi PH — không cho chọn "mở theo tuần / thủ công". --}}
-                            <x-ui.field label="Chính sách mở khóa" hint="Mỗi lớp 1 chặng mở; Học thuật chỉ đóng/chuyển chặng tay khi có ngoại lệ.">
-                                <select disabled class="w-full rounded-lg border border-outline-variant bg-surface-container-low py-sm pl-md pr-xl font-body-base text-body-base text-on-surface">
-                                    <option selected>Hoàn thành Big Test chặng trước (duyệt &amp; gửi PH) mới được mở</option>
-                                </select>
-                            </x-ui.field>
+                            <x-ui.select label="Chính sách mở khóa" hint="Mỗi lớp 1 chặng mở; Học thuật chỉ đóng/chuyển chặng tay khi có ngoại lệ." id="stage_unlock_policy" disabled>
+                                <option selected>Hoàn thành Big Test chặng trước (duyệt &amp; gửi PH) mới được mở</option>
+                            </x-ui.select>
                             <div class="md:col-span-2 space-y-sm">
                                 <x-ui.field label="Link ảnh/tài liệu tổng quan chặng (overview_link)" name="overview_link">
                                     <div class="flex gap-md">
@@ -136,7 +134,7 @@
                                 </x-ui.field>
                                 <div class="w-full h-64 rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low flex flex-col items-center justify-center overflow-hidden relative">
                                     <template x-if="preview && isImage(preview)">
-                                        <img :src="preview" alt="Ảnh tổng quan chặng" class="absolute inset-0 w-full h-full object-contain bg-white">
+                                        <img :src="preview" alt="Ảnh tổng quan chặng" class="absolute inset-0 w-full h-full object-contain bg-surface-container-lowest">
                                     </template>
                                     <template x-if="preview && ! isImage(preview)">
                                         <a :href="preview" target="_blank" rel="noopener" class="inline-flex items-center gap-xs font-body-medium text-primary hover:underline">
@@ -161,7 +159,7 @@
                         </form>
                     @elseif ($editor['type'] === 'unit')
                         @php($stage = $model?->stage ?? $editor['parent'])
-                        <h2 class="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <h2 class="text-sm font-bold text-on-surface mb-4 flex items-center gap-2">
                             <span class="material-symbols-outlined text-primary">{{ $model ? 'edit' : 'add_circle' }}</span>
                             {{ $model ? 'Sửa Unit '.$model->unit_number.': '.$model->title : 'Thêm Unit vào '.$stage?->label }}
                         </h2>
@@ -174,14 +172,14 @@
                             </div>
                             <x-ui.select name="stage_id" label="Thuộc chặng" required :value="$stage?->id" :options="$stages->pluck('label', 'id')" />
                             <x-ui.textarea name="objectives" label="Mô tả / mục tiêu Unit" rows="2" :value="$model?->objectives" />
-                            <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
+                            <div class="flex justify-end gap-2 pt-3 border-t border-surface-container-highest">
                                 <x-ui.button variant="secondary" :href="$builderUrl()">Hủy</x-ui.button>
                                 <x-ui.button type="submit" icon="save">{{ $model ? 'Lưu Unit' : 'Thêm Unit' }}</x-ui.button>
                             </div>
                         </form>
                     @else
                         @php($unit = $model?->unit ?? $editor['parent'])
-                        <h2 class="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <h2 class="text-sm font-bold text-on-surface mb-4 flex items-center gap-2">
                             <span class="material-symbols-outlined text-primary">{{ $model ? 'edit' : 'add_circle' }}</span>
                             {{ $model ? 'Sửa Buổi '.$model->session_no.': '.$model->title : 'Thêm buổi vào Unit '.$unit?->unit_number.': '.$unit?->title }}
                         </h2>
@@ -203,7 +201,7 @@
                                 <x-ui.textarea name="vocabulary_focus" label="Trọng tâm từ vựng" rows="2" :value="$model?->vocabulary_focus" />
                                 <x-ui.textarea name="grammar_focus" label="Trọng tâm ngữ pháp" rows="2" :value="$model?->grammar_focus" />
                             </div>
-                            <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
+                            <div class="flex justify-end gap-2 pt-3 border-t border-surface-container-highest">
                                 <x-ui.button variant="secondary" :href="$builderUrl()">Hủy</x-ui.button>
                                 <x-ui.button type="submit" icon="save">{{ $model ? 'Lưu buổi học' : 'Thêm buổi học vào chặng' }}</x-ui.button>
                             </div>
@@ -217,7 +215,7 @@
                 <div class="flex items-center justify-between gap-2">
                     <div class="flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">account_tree</span>
-                        <h2 class="text-sm font-bold text-gray-900">Chặng học của giáo trình</h2>
+                        <h2 class="text-sm font-bold text-on-surface">Chặng học của giáo trình</h2>
                     </div>
                     @if ($canManage)
                         <x-ui.button size="sm" icon="add" :href="$builderUrl(['new_stage' => 1]).'#editor'">Thêm chặng</x-ui.button>
@@ -227,8 +225,8 @@
 
                 @foreach ($stages as $stage)
                     @php($openClasses = $openClassesByStage->get($stage->id, collect()))
-                    <article class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-                        <header class="p-5 border-b border-gray-100 bg-gray-50/60 flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                    <article class="bg-surface-container-lowest border border-surface-container-highest rounded-2xl shadow-sm overflow-hidden">
+                        <header class="p-5 border-b border-surface-container-highest bg-surface-container-low/60 flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                             <div class="flex items-start gap-3 min-w-0">
                                 <div class="w-9 h-9 shrink-0 rounded-xl bg-primary-container/10 text-primary font-bold flex items-center justify-center text-sm">{{ $stage->position }}</div>
                                 <div class="min-w-0">
@@ -236,13 +234,13 @@
                                     <h3 class="font-h3 text-h3 text-on-surface flex flex-wrap items-center gap-sm">{{ $stage->label }}
                                         <span class="px-md py-0.5 bg-primary-fixed/50 text-primary font-label text-label rounded-full">Tổng số: {{ str_pad((string) $stageLessonCount, 2, '0', STR_PAD_LEFT) }} buổi</span>
                                     </h3>
-                                    <p class="text-[11px] text-gray-500">{{ $stage->units->count() }} unit · {{ $stage->units->sum(fn ($u) => $u->lessons->count()) }} buổi
+                                    <p class="text-[11px] text-on-surface-variant">{{ $stage->units->count() }} unit · {{ $stage->units->sum(fn ($u) => $u->lessons->count()) }} buổi
                                         @if ($openClasses->isNotEmpty()) · Đang học: {{ $openClasses->map(fn ($a) => $a->classModel?->name)->filter()->implode(', ') }} @endif
                                     </p>
-                                    @if ($stage->description)<p class="text-xs text-gray-600 mt-1 whitespace-pre-line">{{ $stage->description }}</p>@endif
+                                    @if ($stage->description)<p class="text-xs text-on-surface-variant mt-1 whitespace-pre-line">{{ $stage->description }}</p>@endif
                                     <p class="text-[11px] mt-1.5 flex flex-wrap items-center gap-2">
-                                        <span class="inline-flex items-center gap-1 text-purple-700 font-semibold"><span class="material-symbols-outlined text-[14px]">quiz</span>{{ $stage->big_test_title ?: 'Big Test cuối chặng (chưa đặt tên)' }}</span>
-                                        @if ($stage->big_test_note)<span class="text-gray-500">— {{ $stage->big_test_note }}</span>@endif
+                                        <span class="inline-flex items-center gap-1 text-secondary font-semibold"><span class="material-symbols-outlined text-[14px]">quiz</span>{{ $stage->big_test_title ?: 'Big Test cuối chặng (chưa đặt tên)' }}</span>
+                                        @if ($stage->big_test_note)<span class="text-on-surface-variant">— {{ $stage->big_test_note }}</span>@endif
                                         @if ($stage->overview_link)
                                             <a href="{{ $stage->overview_link }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold text-primary hover:underline"><span class="material-symbols-outlined text-[14px]">open_in_new</span>Tổng quan chặng</a>
                                         @endif
@@ -273,11 +271,11 @@
 
                         <div class="p-4 space-y-3">
                             @forelse ($stage->units as $u)
-                                <div class="border border-gray-200 rounded-xl">
+                                <div class="border border-surface-container-highest rounded-xl">
                                     <div class="px-4 py-3 flex items-center justify-between gap-3">
                                         <div class="min-w-0">
-                                            <p class="text-xs font-bold text-gray-900">Unit {{ $u->unit_number }}: {{ $u->title }}</p>
-                                            @if ($u->objectives)<p class="text-[11px] text-gray-500 truncate">{{ $u->objectives }}</p>@endif
+                                            <p class="text-xs font-bold text-on-surface">Unit {{ $u->unit_number }}: {{ $u->title }}</p>
+                                            @if ($u->objectives)<p class="text-[11px] text-on-surface-variant truncate">{{ $u->objectives }}</p>@endif
                                         </div>
                                         @if ($canManage)
                                             <div class="flex items-center gap-1 shrink-0">
@@ -290,17 +288,17 @@
                                             </div>
                                         @endif
                                     </div>
-                                    <div class="border-t border-gray-100 divide-y divide-gray-100">
+                                    <div class="border-t border-surface-container-highest divide-y divide-surface-container-highest">
                                         @forelse ($u->lessons as $lesson)
                                             <details class="px-4 py-2.5 text-xs group">
                                                 <summary class="flex items-center justify-between gap-2 cursor-pointer list-none">
                                                     <span class="flex items-center gap-2 min-w-0">
-                                                        <span class="w-7 h-7 shrink-0 rounded-lg bg-orange-100 text-primary font-bold flex items-center justify-center text-[11px]">{{ $lesson->session_no }}</span>
-                                                        <span class="font-semibold text-gray-800 truncate">Buổi {{ $lesson->session_no }}: {{ $lesson->title }}</span>
+                                                        <span class="w-7 h-7 shrink-0 rounded-lg bg-primary-container/10 text-primary font-bold flex items-center justify-center text-[11px]">{{ $lesson->session_no }}</span>
+                                                        <span class="font-semibold text-on-surface truncate">Buổi {{ $lesson->session_no }}: {{ $lesson->title }}</span>
                                                     </span>
-                                                    <span class="material-symbols-outlined text-[18px] text-gray-400 group-open:rotate-180 transition">expand_more</span>
+                                                    <span class="material-symbols-outlined text-[18px] text-on-surface-variant/70 group-open:rotate-180 transition">expand_more</span>
                                                 </summary>
-                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 text-gray-700">
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 text-on-surface-variant">
                                                     <p class="whitespace-pre-line"><span class="font-semibold">Mục tiêu:</span> {{ $lesson->objectives ?: 'Chưa cập nhật' }}</p>
                                                     <p class="whitespace-pre-line"><span class="font-semibold">Nội dung chính:</span> {{ $lesson->content ?: 'Chưa cập nhật' }}</p>
                                                     <p class="whitespace-pre-line"><span class="font-semibold">Bài tập về nhà:</span> {{ $lesson->homework_guide ?: 'Chưa cập nhật' }}</p>
@@ -318,17 +316,17 @@
                                                 @endif
                                             </details>
                                         @empty
-                                            <p class="px-4 py-3 text-[11px] text-gray-400">Unit chưa có buổi học nào.</p>
+                                            <p class="px-4 py-3 text-[11px] text-on-surface-variant/70">Unit chưa có buổi học nào.</p>
                                         @endforelse
                                     </div>
                                 </div>
                             @empty
-                                <p class="text-center text-xs text-gray-400 py-6">Chặng chưa có unit nào.</p>
+                                <p class="text-center text-xs text-on-surface-variant/70 py-6">Chặng chưa có unit nào.</p>
                             @endforelse
                             @if ($canManage)
                                 @php($lastUnit = $stage->units->last())
                                 <a href="{{ $lastUnit ? $builderUrl(['new_lesson' => $lastUnit->id]).'#editor' : $builderUrl(['new_unit' => $stage->id]).'#editor' }}"
-                                   class="w-full py-lg border-2 border-dashed border-outline-variant rounded-xl flex flex-col items-center justify-center gap-sm text-on-surface-variant hover:bg-white hover:border-primary/50 hover:text-primary transition-all group">
+                                   class="w-full py-lg border-2 border-dashed border-outline-variant rounded-xl flex flex-col items-center justify-center gap-sm text-on-surface-variant hover:bg-surface-container-lowest hover:border-primary/50 hover:text-primary transition-all group">
                                     <span class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center group-hover:bg-primary-fixed transition-colors">
                                         <span class="material-symbols-outlined text-[24px]">add</span>
                                     </span>

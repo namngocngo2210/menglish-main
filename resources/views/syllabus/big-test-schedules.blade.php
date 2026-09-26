@@ -49,7 +49,7 @@
                                 <x-ui.badge color="error">{{ $row['exam'] === 'pending' ? 'Chưa duyệt đề' : 'Chưa order đề' }}</x-ui.badge>
                             </td>
                             <td class="text-right">
-                                <span class="font-h3 text-h3 {{ $row['days_left'] <= 2 ? 'text-error' : ($row['days_left'] <= 3 ? 'text-amber-600' : 'text-on-surface') }}">{{ $row['days_left'] }}</span>
+                                <span class="font-h3 text-h3 {{ $row['days_left'] <= 2 ? 'text-error' : ($row['days_left'] <= 3 ? 'text-warning' : 'text-on-surface') }}">{{ $row['days_left'] }}</span>
                                 <span class="font-caption text-caption text-on-surface-variant">ngày</span>
                             </td>
                         </tr>

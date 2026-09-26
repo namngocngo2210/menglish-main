@@ -98,13 +98,8 @@
                             <x-ui.field label="Tên mốc" :name="$isOld ? 'title' : null" required>
                                 <input type="text" name="title" value="{{ $isOld ? old('title') : $rule->title }}" required class="{{ $control }}">
                             </x-ui.field>
-                            <x-ui.field label="Thời điểm gửi" name="timing">
-                                <select name="timing" x-model="timing" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base">
-                                    <option value="before">Trước hạn đóng</option>
-                                    <option value="due">Đúng ngày đến hạn</option>
-                                    <option value="after">Sau hạn (quá hạn)</option>
-                                </select>
-                            </x-ui.field>
+                            <x-ui.select label="Thời điểm gửi" name="timing" id="timing_{{ $rule->milestone_key }}" x-model="timing"
+                                         :options="['before' => 'Trước hạn đóng', 'due' => 'Đúng ngày đến hạn', 'after' => 'Sau hạn (quá hạn)']" />
                             <div x-show="timing !== 'due'">
                                 <x-ui.field label="Số ngày" :name="$isOld ? 'days' : null">
                                     <input type="number" name="days" min="1" max="60" value="{{ $isOld ? old('days') : ($offset !== null && $offset !== 0 ? abs($offset) : '') }}" class="{{ $control }}">
@@ -148,13 +143,8 @@
                     <h2 class="font-h3 text-h3 text-on-surface">Thêm mốc nhắc</h2>
                     <div class="grid grid-cols-1 gap-md md:grid-cols-3">
                         <x-ui.input name="title" label="Tên mốc" placeholder="Ví dụ: Nhắc trước hạn 7 ngày" required />
-                        <x-ui.field label="Thời điểm gửi" name="timing">
-                            <select name="timing" x-model="timing" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base">
-                                <option value="before">Trước hạn đóng</option>
-                                <option value="due">Đúng ngày đến hạn</option>
-                                <option value="after">Sau hạn (quá hạn)</option>
-                            </select>
-                        </x-ui.field>
+                        <x-ui.select label="Thời điểm gửi" name="timing" id="timing_new" x-model="timing"
+                                     :options="['before' => 'Trước hạn đóng', 'due' => 'Đúng ngày đến hạn', 'after' => 'Sau hạn (quá hạn)']" />
                         <div x-show="timing !== 'due'">
                             <x-ui.input name="days" type="number" min="1" max="60" label="Số ngày" placeholder="7" />
                         </div>

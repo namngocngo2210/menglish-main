@@ -101,7 +101,7 @@
                         </div>
 
                         @if ($selectedOrder->status === 'approved')
-                            <div class="rounded-lg border border-tertiary/20 bg-tertiary/5 p-md font-body-small text-body-small text-on-surface space-y-1">
+                            <x-ui.alert type="success" class="font-body-small text-body-small space-y-1">
                                 <p class="font-semibold">Đã duyệt bởi {{ $selectedOrder->reviewer?->name }} lúc {{ $selectedOrder->reviewed_at?->format('H:i d/m/Y') }}</p>
                                 @if ($canReview)
                                     <a href="{{ $selectedOrder->test_link }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold text-primary underline"><span class="material-symbols-outlined text-[16px]">link</span>Link đề</a>
@@ -114,31 +114,19 @@
                                 @if ($selectedOrder->bigTest)
                                     <p>Đợt thi: <strong>{{ $selectedOrder->bigTest->code }}</strong> · {{ $selectedOrder->bigTest->scheduled_at?->format('H:i d/m/Y') }} · {{ $selectedOrder->bigTest->room }}</p>
                                 @endif
-                            </div>
+                            </x-ui.alert>
                         @elseif ($selectedOrder->status === 'rejected')
-                            <div class="rounded-lg border border-error/20 bg-error/5 p-md font-body-small text-body-small text-on-surface">
+                            <x-ui.alert type="error" class="font-body-small text-body-small">
                                 <p class="font-semibold">Đã từ chối bởi {{ $selectedOrder->reviewer?->name }} lúc {{ $selectedOrder->reviewed_at?->format('H:i d/m/Y') }}</p>
                                 <p class="mt-1">Lý do: {{ $selectedOrder->rejection_reason }}</p>
-                            </div>
+                            </x-ui.alert>
                         @elseif ($canReview)
                             <div x-data="{ link: @js((string) old('test_link', '')), rejecting: @js($errors->has('rejection_reason')) }" class="space-y-md">
                                 <h4 class="flex items-center gap-xs font-body-medium text-body-medium font-semibold text-on-surface"><span class="material-symbols-outlined text-[18px] text-primary">folder_shared</span>Phân phối đề</h4>
                                 <form id="approve-order-form" method="POST" action="{{ route('syllabus.big-tests.orders.approve', $selectedOrder->id) }}" class="space-y-md">
                                     @csrf
-                                    <x-ui.field label="Link đề Big Test (Folder lớp)" name="test_link" required>
-                                        <div class="relative">
-                                            <span class="material-symbols-outlined pointer-events-none absolute left-sm top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">link</span>
-                                            <input type="url" name="test_link" x-model="link" required placeholder="Dán link Google Drive hoặc OneDrive tại đây..."
-                                                   class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-xl pr-md font-body-base text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
-                                        </div>
-                                    </x-ui.field>
-                                    <x-ui.field label="Link phần Speaking (GV xem sau khi phân phối)" name="speaking_link">
-                                        <div class="relative">
-                                            <span class="material-symbols-outlined pointer-events-none absolute left-sm top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">record_voice_over</span>
-                                            <input type="url" name="speaking_link" value="{{ old('speaking_link') }}" placeholder="Link riêng phần Speaking (tùy chọn)..."
-                                                   class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-xl pr-md font-body-base text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
-                                        </div>
-                                    </x-ui.field>
+                                    <x-ui.input type="url" name="test_link" label="Link đề Big Test (Folder lớp)" icon="link" x-model="link" required placeholder="Dán link Google Drive hoặc OneDrive tại đây..." />
+                                    <x-ui.input type="url" name="speaking_link" label="Link phần Speaking (GV xem sau khi phân phối)" icon="record_voice_over" placeholder="Link riêng phần Speaking (tùy chọn)..." />
                                     @if ($selectedOrder->test_type === 'big')
                                         @php($classTests = \App\Models\BigTest::where('class_id', $selectedOrder->class_id)->whereNull('results_completed_at')->latest('scheduled_at')->get())
                                         <div x-data="{ mode: @js(old('big_test_id') ? 'link' : 'create') }" class="space-y-md rounded-lg border border-outline-variant p-md" data-testid="order-big-test-mode">
@@ -166,13 +154,9 @@
                                 </form>
 
                                 @if ($selectedOrder->isOverdue() || $selectedOrder->isSlaWarning())
-                                    <div class="flex items-start gap-sm rounded-lg border border-error/30 bg-error/5 p-md">
-                                        <span class="material-symbols-outlined text-[20px] text-error">warning</span>
-                                        <div class="font-body-small text-body-small text-on-surface">
-                                            <p class="font-semibold text-error">{{ $selectedOrder->isOverdue() ? 'Cảnh báo: Phân phối trễ hạn SLA' : 'Cảnh báo: Sắp hết hạn SLA' }}</p>
-                                            <p>Hệ thống ghi nhận cần hoàn thành phân phối trước {{ \App\Models\BigTestOrder::LEAD_DAYS }} ngày so với lịch thi (Hạn chót: {{ $selectedOrder->due_date->format('d/m/Y') }}). Vui lòng ưu tiên xử lý ngay.</p>
-                                        </div>
-                                    </div>
+                                    <x-ui.alert type="error" class="font-body-small text-body-small" :title="$selectedOrder->isOverdue() ? 'Cảnh báo: Phân phối trễ hạn SLA' : 'Cảnh báo: Sắp hết hạn SLA'">
+                                        <p>Hệ thống ghi nhận cần hoàn thành phân phối trước {{ \App\Models\BigTestOrder::LEAD_DAYS }} ngày so với lịch thi (Hạn chót: {{ $selectedOrder->due_date->format('d/m/Y') }}). Vui lòng ưu tiên xử lý ngay.</p>
+                                    </x-ui.alert>
                                 @endif
 
                                 <form id="reject-order-form" method="POST" action="{{ route('syllabus.big-tests.orders.reject', $selectedOrder->id) }}" x-show="rejecting" x-cloak>
@@ -237,7 +221,7 @@
                             </td>
                             <td>
                                 <span class="font-semibold text-primary">{{ $bt->classModel?->name }}</span>
-                                <span class="block font-caption text-caption {{ $bt->stage ? 'text-on-surface-variant' : 'text-amber-700' }}">{{ $bt->stage?->label ?? 'Chưa gắn chặng' }}</span>
+                                <span class="block font-caption text-caption {{ $bt->stage ? 'text-on-surface-variant' : 'text-warning' }}">{{ $bt->stage?->label ?? 'Chưa gắn chặng' }}</span>
                             </td>
                             <td>
                                 <div>{{ $bt->scheduled_at ? $bt->scheduled_at->format('d/m/Y H:i') : '—' }}</div>
@@ -279,14 +263,11 @@
                 <form id="big-test-stage-form" method="POST" :action="stageUrl" class="space-y-3 p-md">
                     @csrf
                     <p class="font-body-small text-body-small text-on-surface-variant">Đợt thi: <strong x-text="stageTest"></strong>. Big Test cuối chặng: khi kết quả được duyệt và gửi đủ phụ huynh, chặng đang mở tương ứng của lớp sẽ đóng và chặng kế tiếp tự mở.</p>
-                    <x-ui.field label="Chặng" name="syllabus_stage_id">
-                        <select name="syllabus_stage_id" x-model="stageValue" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base">
-                            <option value="">— Không gắn chặng —</option>
-                            <template x-for="(label, id) in stageOptions" :key="id">
-                                <option :value="String(id)" x-text="label" :selected="String(id) === stageValue"></option>
-                            </template>
-                        </select>
-                    </x-ui.field>
+                    <x-ui.select label="Chặng" name="syllabus_stage_id" x-model="stageValue" placeholder="— Không gắn chặng —">
+                        <template x-for="(label, id) in stageOptions" :key="id">
+                            <option :value="String(id)" x-text="label" :selected="String(id) === stageValue"></option>
+                        </template>
+                    </x-ui.select>
                 </form>
                 <x-slot:footer>
                     <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'big-test-stage')">Hủy</x-ui.button>

@@ -48,7 +48,7 @@
                     @if ($plan['exam'] === 'approved')
                         <div class="flex items-center gap-xs rounded-lg bg-tertiary/10 px-md py-sm font-body-small text-body-small font-medium text-tertiary"><span class="material-symbols-outlined text-[18px]">check_circle</span>Đã có đề</div>
                     @elseif ($plan['exam'] === 'pending')
-                        <div class="flex items-center gap-xs rounded-lg bg-amber-50 px-md py-sm font-body-small text-body-small font-medium text-amber-800"><span class="material-symbols-outlined text-[18px]">pending</span>Đã order - Chờ HT duyệt</div>
+                        <div class="flex items-center gap-xs rounded-lg bg-warning/10 px-md py-sm font-body-small text-body-small font-medium text-on-warning-container"><span class="material-symbols-outlined text-[18px]">pending</span>Đã order - Chờ HT duyệt</div>
                     @endif
 
                     {{-- Lịch dự kiến Big Test --}}
@@ -60,11 +60,10 @@
                         @if ($canSetDate && ! $plan['bigTest'])
                             <form method="POST" action="{{ route('syllabus.assignments.expected-date', $as->id) }}" class="flex items-end gap-sm">
                                 @csrf
-                                <label class="flex-1">
-                                    <span class="mb-xs block font-label text-label text-on-surface-variant">{{ $as->expected_big_test_date ? 'Sửa ngày' : 'Chọn ngày' }}</span>
-                                    <input type="date" name="expected_big_test_date" required min="{{ now()->toDateString() }}" value="{{ $as->expected_big_test_date?->toDateString() }}"
-                                           class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-body-small text-body-small">
-                                </label>
+                                <div class="flex-1">
+                                    <x-ui.date :label="$as->expected_big_test_date ? 'Sửa ngày' : 'Chọn ngày'" name="expected_big_test_date" id="expected_big_test_date_{{ $as->id }}"
+                                               required min="{{ now()->toDateString() }}" :value="$as->expected_big_test_date?->toDateString()" />
+                                </div>
                                 <x-ui.button type="submit" size="sm" :icon="$as->expected_big_test_date ? null : 'save'">{{ $as->expected_big_test_date ? 'Cập nhật' : 'Lưu' }}</x-ui.button>
                             </form>
                         @endif

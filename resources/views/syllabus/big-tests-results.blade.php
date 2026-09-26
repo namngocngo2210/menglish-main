@@ -43,7 +43,7 @@
                             </div>
                             <div>
                                 <p class="font-caption text-caption text-on-surface-variant">Chặng học</p>
-                                <span class="inline-flex rounded-md bg-secondary/10 px-sm py-0.5 font-label text-label uppercase text-secondary">{{ $test->stage ? 'Big Test - '.$test->stage->label : 'Big Test - '.($test->test_type === 'final' ? 'Cuối khóa' : 'Giữa kỳ') }}</span>
+                                <x-ui.badge color="secondary" :dot="false" class="uppercase">{{ $test->stage ? 'Big Test - '.$test->stage->label : 'Big Test - '.($test->test_type === 'final' ? 'Cuối khóa' : 'Giữa kỳ') }}</x-ui.badge>
                             </div>
                         </div>
                     </section>
@@ -82,9 +82,9 @@
                         <div class="flex items-center justify-between gap-sm">
                             <h3 class="font-h3 text-h3 text-on-surface">Tổng điểm (Big Test)</h3>
                             @if (! is_null($test->resultsDaysLeft()))
-                                <span title="Hạn trả kết quả" class="inline-flex items-center gap-xs rounded-full px-sm py-0.5 font-label text-label {{ $test->resultsDaysLeft() < 0 ? 'bg-error/10 text-error' : 'bg-amber-50 text-amber-800' }}">
+                                <x-ui.badge :color="$test->resultsDaysLeft() < 0 ? 'error' : 'warning'" :dot="false" :pill="true" title="Hạn trả kết quả">
                                     <span class="material-symbols-outlined text-[14px]">timer</span>{{ $test->resultsDaysLeft() < 0 ? 'Quá hạn '.abs($test->resultsDaysLeft()).' ngày' : 'Còn '.$test->resultsDaysLeft().' ngày' }}
-                                </span>
+                                </x-ui.badge>
                             @endif
                         </div>
                         <div class="font-h1 text-[48px] leading-none text-primary">{{ $selectedResult->is_absent ? 'Vắng thi' : ($selectedResult->overall_score ?? '—') }}</div>
@@ -124,21 +124,13 @@
                     </section>
 
                     @if ($selectedResult->parent_notified)
-                        <div class="flex items-start gap-sm rounded-xl border border-tertiary/20 bg-tertiary/5 p-md">
-                            <span class="material-symbols-outlined text-tertiary">verified</span>
-                            <div>
-                                <p class="font-body-medium text-body-medium font-semibold text-tertiary">Đã gửi phụ huynh</p>
-                                <p class="font-caption text-caption text-on-surface-variant">{{ $selectedResult->notified_at?->format('H:i d/m/Y') }} — kết quả đã ghi nhận vào hồ sơ học tập của học viên.</p>
-                            </div>
-                        </div>
+                        <x-ui.alert type="success" title="Đã gửi phụ huynh">
+                            <p class="font-caption text-caption">{{ $selectedResult->notified_at?->format('H:i d/m/Y') }} — kết quả đã ghi nhận vào hồ sơ học tập của học viên.</p>
+                        </x-ui.alert>
                     @elseif ($selectedResult->status !== 'draft')
-                        <div class="flex items-start gap-sm rounded-xl border border-tertiary/20 bg-tertiary/5 p-md">
-                            <span class="material-symbols-outlined text-tertiary">verified</span>
-                            <div>
-                                <p class="font-body-medium text-body-medium font-semibold text-tertiary">Hợp lệ</p>
-                                <p class="font-caption text-caption text-on-surface-variant">Thông tin sẽ được ghi nhận vào hệ thống học tập của học viên.</p>
-                            </div>
-                        </div>
+                        <x-ui.alert type="success" title="Hợp lệ">
+                            <p class="font-caption text-caption">Thông tin sẽ được ghi nhận vào hệ thống học tập của học viên.</p>
+                        </x-ui.alert>
                     @endif
                 </div>
             </div>
@@ -147,27 +139,24 @@
         {{-- 1. Test Filter & Quick Stats --}}
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
             {{-- Test Selector Card --}}
-            <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-2xs p-4 space-y-3">
-                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">Chọn Kỳ Thi Big Test:</label>
-                <div class="flex items-center gap-2">
-                    <select onchange="window.location.href='{{ route('syllabus.big-tests.results') }}/' + this.value" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-semibold text-gray-900 bg-white focus:ring-primary-container focus:border-primary-container">
-                        @foreach ($allTests as $t)
-                            <option value="{{ $t->id }}" {{ $test?->id === $t->id ? 'selected' : '' }}>
-                                [{{ $t->code }}] {{ $t->title }} · {{ $t->classModel?->name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
+            <div class="lg:col-span-2 bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-2xs p-4 space-y-3">
+                <x-ui.select label="Chọn Kỳ Thi Big Test:" id="big-test-selector" onchange="window.location.href='{{ route('syllabus.big-tests.results') }}/' + this.value" class="font-semibold">
+                    @foreach ($allTests as $t)
+                        <option value="{{ $t->id }}" {{ $test?->id === $t->id ? 'selected' : '' }}>
+                            [{{ $t->code }}] {{ $t->title }} · {{ $t->classModel?->name }}
+                        </option>
+                    @endforeach
+                </x-ui.select>
                 @if ($test)
-                    <div class="flex flex-wrap items-center gap-2 text-[11px] text-gray-500 font-mono pt-1">
-                        <span class="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold">Lớp: {{ $test->classModel?->name }}</span>
-                        <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">Mã: {{ $test->code }}</span>
-                        <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">Phòng: {{ $test->room }}</span>
+                    <div class="flex flex-wrap items-center gap-2 text-[11px] text-on-surface-variant font-mono pt-1">
+                        <span class="px-2 py-0.5 rounded-md bg-secondary/10 text-secondary font-bold">Lớp: {{ $test->classModel?->name }}</span>
+                        <span class="px-2 py-0.5 rounded-md bg-surface-container text-on-surface-variant">Mã: {{ $test->code }}</span>
+                        <span class="px-2 py-0.5 rounded-md bg-surface-container text-on-surface-variant">Phòng: {{ $test->room }}</span>
                         @if ($test->resultsDueAt())
-                            <span class="px-2 py-0.5 rounded-md {{ $test->resultsDaysLeft() < 0 && ! $test->results_completed_at ? 'bg-rose-50 text-rose-700 font-bold' : 'bg-amber-50 text-amber-800' }}" title="Hạn trả kết quả = ngày thi + {{ \App\Models\BigTest::RESULT_DEADLINE_DAYS }} ngày">Hạn trả KQ: {{ $test->resultsDueAt()->format('d/m/Y') }}</span>
+                            <span class="px-2 py-0.5 rounded-md {{ $test->resultsDaysLeft() < 0 && ! $test->results_completed_at ? 'bg-error/10 text-error font-bold' : 'bg-warning/10 text-on-warning-container' }}" title="Hạn trả kết quả = ngày thi + {{ \App\Models\BigTest::RESULT_DEADLINE_DAYS }} ngày">Hạn trả KQ: {{ $test->resultsDueAt()->format('d/m/Y') }}</span>
                         @endif
                         @if ($test->stage)
-                            <span class="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-bold" title="Duyệt và gửi đủ kết quả cho phụ huynh sẽ đóng chặng này và tự mở chặng kế tiếp">Big Test cuối {{ $test->stage->label }}{{ $test->results_completed_at ? ' · đã hoàn tất' : '' }}</span>
+                            <span class="px-2 py-0.5 rounded-md bg-secondary/10 text-secondary font-bold" title="Duyệt và gửi đủ kết quả cho phụ huynh sẽ đóng chặng này và tự mở chặng kế tiếp">Big Test cuối {{ $test->stage->label }}{{ $test->results_completed_at ? ' · đã hoàn tất' : '' }}</span>
                         @endif
                     </div>
                 @endif
@@ -182,42 +171,24 @@
                 $avgOverall = $takenCount > 0 ? round($taken->avg('overall_score'), 1) : 0;
                 $highestScore = $takenCount > 0 ? $taken->max('overall_score') : 0;
             @endphp
-            <div class="bg-white rounded-2xl border border-gray-200 shadow-2xs p-4 flex items-center justify-between">
-                <div>
-                    <div class="text-[11px] font-bold text-gray-500 uppercase">Điểm Trung Bình Cả Lớp</div>
-                    <div class="text-2xl font-black text-indigo-600 font-mono mt-1">{{ $avgOverall }} <span class="text-xs font-normal text-gray-400">/ 10</span></div>
-                    <div class="text-[10px] text-gray-400 mt-0.5">Dựa trên {{ $takenCount }} học viên dự thi ({{ $absentCount }} vắng)</div>
-                </div>
-                <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                    <span class="material-symbols-outlined text-xl">award_star</span>
-                </div>
-            </div>
+            <x-ui.stat-card label="Điểm Trung Bình Cả Lớp" tone="secondary" icon="award_star" hint="Dựa trên {{ $takenCount }} học viên dự thi ({{ $absentCount }} vắng)">
+                {{ $avgOverall }} <span class="text-xs font-normal text-on-surface-variant/70">/ 10</span>
+            </x-ui.stat-card>
 
             {{-- Stats Summary 2 --}}
-            <div class="bg-white rounded-2xl border border-gray-200 shadow-2xs p-4 flex items-center justify-between">
-                <div>
-                    <div class="text-[11px] font-bold text-gray-500 uppercase">Điểm Cao Nhất (Top Score)</div>
-                    <div class="text-2xl font-black text-emerald-600 font-mono mt-1">
-                        {{ $highestScore }} <span class="text-xs font-normal text-gray-400">/ 10</span>
-                    </div>
-                    <div class="text-[10px] text-emerald-600 font-semibold mt-0.5">
-                        Tổng số thí sinh: {{ $totalCount }} học viên
-                    </div>
-                </div>
-                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                    <span class="material-symbols-outlined text-xl">military_tech</span>
-                </div>
-            </div>
+            <x-ui.stat-card label="Điểm Cao Nhất (Top Score)" tone="success" icon="military_tech" hint="Tổng số thí sinh: {{ $totalCount }} học viên">
+                {{ $highestScore }} <span class="text-xs font-normal text-on-surface-variant/70">/ 10</span>
+            </x-ui.stat-card>
         </div>
 
         {{-- 2. Results Table --}}
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-2xs overflow-hidden">
-            <div class="p-4 bg-slate-50/70 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <x-ui.data-table>
+            <x-slot:header>
                 <div>
-                    <h2 class="text-xs font-bold text-gray-900 uppercase tracking-wider">Danh Sách Bảng Điểm Chi Tiết ({{ $results->count() }} Học viên)</h2>
-                    <p class="text-[11px] text-gray-500">Kết quả khảo thí định kỳ được lưu trữ phục vụ xếp lớp và đánh giá năng lực</p>
+                    <h2 class="text-xs font-bold text-on-surface uppercase tracking-wider">Danh Sách Bảng Điểm Chi Tiết ({{ $results->count() }} Học viên)</h2>
+                    <p class="text-[11px] text-on-surface-variant">Kết quả khảo thí định kỳ được lưu trữ phục vụ xếp lớp và đánh giá năng lực</p>
                 </div>
-            </div>
+            </x-slot:header>
 
             @php($resultsByStudent = $results->keyBy('student_id'))
             @php($canGrade = $test && auth()->user()->can('syllabus.update'))
@@ -234,52 +205,51 @@
             <form method="POST" action="{{ route('syllabus.big-tests.results.store', $test->id) }}">
                 @csrf
             @endif
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs min-w-[1100px]">
+                <table class="text-xs min-w-[1100px]">
                     <thead>
-                        <tr class="bg-gray-50/80 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
-                            <th class="py-3 px-4">Học viên &amp; Mã số</th>
-                            <th class="py-3 px-2 text-center">Vắng thi</th>
-                            <th class="py-3 px-3 text-center">Listening</th>
-                            <th class="py-3 px-3 text-center">Reading</th>
-                            <th class="py-3 px-3 text-center">Writing</th>
-                            <th class="py-3 px-3 text-center">Speaking</th>
-                            <th class="py-3 px-4 text-center bg-orange-50/60 text-orange-950">Overall</th>
-                            <th class="py-3 px-4">Nhận xét &amp; link video bài thi</th>
-                            <th class="py-3 px-4">Trạng thái</th>
-                            <th class="py-3 px-4">Đã gửi PH</th>
+                        <tr>
+                            <th>Học viên &amp; Mã số</th>
+                            <th class="text-center">Vắng thi</th>
+                            <th class="text-center">Listening</th>
+                            <th class="text-center">Reading</th>
+                            <th class="text-center">Writing</th>
+                            <th class="text-center">Speaking</th>
+                            <th class="text-center bg-primary-container/10 !text-primary">Overall</th>
+                            <th>Nhận xét &amp; link video bài thi</th>
+                            <th>Trạng thái</th>
+                            <th>Đã gửi PH</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
+                    <tbody>
                         @forelse ($students as $index => $student)
                             @php($res = $resultsByStudent->get($student->id))
                             @php($locked = ! $canGrade || ($res?->isLocked() ?? false))
                             @php($absent = (bool) old("results.$index.is_absent", $res?->is_absent))
-                            <tr class="hover:bg-blue-50/30 transition" x-data="{ absent: @js($absent) }">
-                                <td class="py-3.5 px-4">
+                            <tr x-data="{ absent: @js($absent) }">
+                                <td>
                                     <input type="hidden" name="results[{{ $index }}][student_id]" value="{{ $student->id }}" @disabled($locked)>
-                                    <div class="font-bold text-gray-900">{{ $student->name }}</div>
-                                    <div class="text-[11px] text-gray-400 font-mono mt-0.5">Mã HV: {{ $student->code ?? 'HV-' . $student->id }}</div>
+                                    <div class="font-bold text-on-surface">{{ $student->name }}</div>
+                                    <div class="text-[11px] text-on-surface-variant/70 font-mono mt-0.5">Mã HV: {{ $student->code ?? 'HV-' . $student->id }}</div>
                                 </td>
-                                <td class="py-3.5 px-2 text-center">
+                                <td class="text-center">
                                     <input type="checkbox" name="results[{{ $index }}][is_absent]" value="1" x-model="absent" @checked($absent) @disabled($locked)
-                                           class="rounded border-gray-300 text-rose-600 focus:ring-rose-500 h-4 w-4" title="Đánh dấu học viên vắng thi">
+                                           class="rounded border-outline-variant text-error focus:ring-error h-4 w-4" title="Đánh dấu học viên vắng thi">
                                 </td>
                                 @foreach (['listening_score', 'reading_score', 'writing_score', 'speaking_score'] as $skill)
-                                    <td class="py-3.5 px-3">
+                                    <td>
                                         <input type="number" step=".1" min="0" max="10" name="results[{{ $index }}][{{ $skill }}]" value="{{ old("results.$index.$skill", $res?->$skill) }}" placeholder="—"
-                                               @disabled($locked) :disabled="absent || @js($locked)" class="w-16 rounded border-gray-200 text-xs disabled:bg-gray-50">
+                                               @disabled($locked) :disabled="absent || @js($locked)" class="w-16 rounded border-surface-container-highest text-xs disabled:bg-surface-container-low">
                                     </td>
                                 @endforeach
-                                <td class="py-3.5 px-4 text-center font-mono font-black text-orange-600 bg-orange-50/40 text-base">
+                                <td class="text-center font-mono font-black !text-primary bg-primary-container/10 !text-base">
                                     @if ($res?->is_absent)
-                                        <span class="text-xs font-bold text-rose-600">Vắng thi</span>
+                                        <span class="text-xs font-bold text-error">Vắng thi</span>
                                     @else
                                         {{ $res?->overall_score ?? '—' }}
                                     @endif
                                 </td>
-                                <td class="py-3.5 px-4 space-y-1 min-w-[220px]">
-                                    <textarea name="results[{{ $index }}][progress_note]" rows="2" @disabled($locked) placeholder="Nhận xét tiến độ" class="w-full rounded border-gray-200 text-xs disabled:bg-gray-50">{{ old("results.$index.progress_note", $res?->progress_note) }}</textarea>
+                                <td class="space-y-1 min-w-[220px]">
+                                    <textarea name="results[{{ $index }}][progress_note]" rows="2" @disabled($locked) placeholder="Nhận xét tiến độ" class="w-full rounded border-surface-container-highest text-xs disabled:bg-surface-container-low">{{ old("results.$index.progress_note", $res?->progress_note) }}</textarea>
                                     @if ($locked)
                                         @if ($res?->video_url)
                                             <a href="{{ $res->video_url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline">
@@ -287,10 +257,10 @@
                                             </a>
                                         @endif
                                     @else
-                                        <input type="url" name="results[{{ $index }}][video_url]" value="{{ old("results.$index.video_url", $res?->video_url) }}" placeholder="Link video bài thi (https://...)" class="w-full rounded border-gray-200 text-xs">
+                                        <input type="url" name="results[{{ $index }}][video_url]" value="{{ old("results.$index.video_url", $res?->video_url) }}" placeholder="Link video bài thi (https://...)" class="w-full rounded border-surface-container-highest text-xs">
                                     @endif
                                 </td>
-                                <td class="py-3.5 px-4 whitespace-nowrap">
+                                <td class="whitespace-nowrap">
                                     <x-ui.badge :color="match ($res?->status) { 'approved' => 'success', 'sent' => 'info', 'pending_review' => 'warning', default => 'neutral' }">{{ $res?->status === 'draft' ? 'Nháp (GV chưa gửi duyệt)' : ($res?->status_label ?? 'Chưa nhập') }}</x-ui.badge>
                                     @if ($res && $res->status !== 'draft')
                                         <a href="{{ route('syllabus.big-tests.results', ['id' => $test->id, 'result' => $res->id]) }}" class="mt-1 flex items-center gap-0.5 text-[11px] font-semibold text-primary hover:underline">
@@ -298,17 +268,15 @@
                                         </a>
                                     @endif
                                 </td>
-                                <td class="py-3.5 px-4 whitespace-nowrap">
+                                <td class="whitespace-nowrap">
                                     @if ($res?->parent_notified)
-                                        <span class="inline-flex items-center gap-1 text-emerald-700 font-semibold text-[11px]">
+                                        <span class="inline-flex items-center gap-1 text-tertiary font-semibold text-[11px]">
                                             <span class="material-symbols-outlined text-[16px]">mark_email_read</span>{{ $res->notified_at?->format('d/m H:i') ?? 'Đã gửi' }}
                                         </span>
                                     @elseif ($canSend && $res?->status === 'approved' && ! $res->is_absent)
-                                        <button type="submit" form="send-ph-{{ $res->id }}" class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold inline-flex items-center gap-1">
-                                            <span class="material-symbols-outlined text-[14px]">send</span>Gửi PH
-                                        </button>
+                                        <x-ui.button type="submit" form="send-ph-{{ $res->id }}" variant="info" size="sm" icon="send">Gửi PH</x-ui.button>
                                     @else
-                                        <span class="text-[11px] text-gray-400">{{ $res?->is_absent ? 'Vắng thi' : 'Chưa gửi' }}</span>
+                                        <span class="text-[11px] text-on-surface-variant/70">{{ $res?->is_absent ? 'Vắng thi' : 'Chưa gửi' }}</span>
                                     @endif
                                     @if ($res && in_array((int) $res->student_id, $missingParentPhone, true))
                                         <span class="mt-1 block text-[11px] font-semibold text-error">{{ \App\Http\Controllers\SyllabusController::MISSING_PARENT_PHONE }}</span>
@@ -317,21 +285,17 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="text-center py-10 text-gray-400 text-xs">
-                                    <div class="flex flex-col items-center justify-center space-y-2">
-                                        <span class="material-symbols-outlined text-4xl text-gray-300">sentiment_neutral</span>
-                                        <span>Chưa có kết quả thi cho kỳ thi Big Test này.</span>
-                                    </div>
+                                <td colspan="10">
+                                    <x-ui.empty-state icon="sentiment_neutral" title="Chưa có kết quả thi cho kỳ thi Big Test này." />
                                 </td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
-            </div>
             @if($canGrade)
                 @if($students->contains(fn ($s) => ! ($resultsByStudent->get($s->id)?->isLocked() ?? false)))
-                    <div class="p-4 border-t flex items-center justify-between gap-3">
-                        <span class="text-[11px] text-gray-500">Học viên vắng: tích "Vắng thi" (không nhập điểm). Dòng để trống sẽ bỏ qua. "Lưu nháp" chưa gửi Học thuật (sửa tiếp được); "Gửi duyệt" cần đủ 4 kỹ năng. Điểm đã duyệt/đã gửi phụ huynh không thể sửa.</span>
+                    <div class="p-4 border-t border-surface-container-highest flex items-center justify-between gap-3">
+                        <span class="text-[11px] text-on-surface-variant">Học viên vắng: tích "Vắng thi" (không nhập điểm). Dòng để trống sẽ bỏ qua. "Lưu nháp" chưa gửi Học thuật (sửa tiếp được); "Gửi duyệt" cần đủ 4 kỹ năng. Điểm đã duyệt/đã gửi phụ huynh không thể sửa.</span>
                         <div class="flex items-center gap-2">
                             <x-ui.button type="submit" name="action" value="draft" variant="secondary" icon="draft">Lưu nháp</x-ui.button>
                             <x-ui.button type="submit" name="action" value="submit" icon="send">Gửi duyệt</x-ui.button>
@@ -340,7 +304,7 @@
                 @endif
             </form>
             @endif
-        </div>
+        </x-ui.data-table>
 
     </div>
 </x-app-layout>

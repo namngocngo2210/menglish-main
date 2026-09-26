@@ -23,14 +23,12 @@
 
                 <form action="{{ route('syllabus.adjustment-requests.store') }}" method="POST" class="space-y-md" x-data="{ sessions: @js((string) old('extra_sessions', '')) }">
                     @csrf
-                    <x-ui.field label="Lớp học / Chặng học" name="class_id" required>
-                        <select name="class_id" required class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base">
-                            <option disabled @selected(! old('class_id')) value="">Chọn lớp/chặng cần xin giãn</option>
-                            @foreach ($classes as $cl)
-                                <option value="{{ $cl->id }}" @selected((string) old('class_id') === (string) $cl->id)>{{ $cl->name }} - {{ $openAssignments[$cl->id]?->stage?->label ?? $openAssignments[$cl->id]?->stage_name }} ({{ $cl->code }})</option>
-                            @endforeach
-                        </select>
-                    </x-ui.field>
+                    <x-ui.select label="Lớp học / Chặng học" name="class_id" required>
+                        <option disabled @selected(! old('class_id')) value="">Chọn lớp/chặng cần xin giãn</option>
+                        @foreach ($classes as $cl)
+                            <option value="{{ $cl->id }}" @selected((string) old('class_id') === (string) $cl->id)>{{ $cl->name }} - {{ $openAssignments[$cl->id]?->stage?->label ?? $openAssignments[$cl->id]?->stage_name }} ({{ $cl->code }})</option>
+                        @endforeach
+                    </x-ui.select>
 
                     <x-ui.textarea name="reason" label="Lý do xin điều chỉnh" required rows="4" placeholder="Vui lòng ghi rõ lý do (VD: Học sinh chưa nắm vững kiến thức, cháy giáo án do mất điện...)" />
 
@@ -47,10 +45,9 @@
                         </div>
                     </x-ui.field>
 
-                    <div class="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-md font-body-small text-body-small text-amber-900">
-                        <span class="material-symbols-outlined shrink-0 text-[18px] text-amber-600">timer</span>
+                    <x-ui.alert type="warning" class="font-body-small text-body-small">
                         <p><strong>Quy định SLA:</strong> Yêu cầu được Ban Học thuật xem xét và phản hồi trong vòng {{ \App\Models\SyllabusAdjustmentRequest::SLA_HOURS }} giờ.</p>
-                    </div>
+                    </x-ui.alert>
 
                     <x-ui.button type="submit" icon="send" class="w-full">Gửi yêu cầu</x-ui.button>
                 </form>

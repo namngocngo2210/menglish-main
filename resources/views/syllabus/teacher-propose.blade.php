@@ -15,23 +15,17 @@
                  x-data="{ curriculum: @js((string) old('curriculum_id', '')), lessons: @js($curriculums->mapWithKeys(fn ($c) => [$c->id => $c->lessons->map(fn ($l) => ['id' => $l->id, 'label' => 'Buổi '.$l->session_no.': '.$l->title.($l->unit ? ' (Unit '.$l->unit->unit_number.')' : '')])->values()])) }">
                 <form method="POST" action="{{ route('syllabus.proposals.store') }}" enctype="multipart/form-data" class="flex flex-col gap-md">
                     @csrf
-                    <x-ui.field label="Chọn giáo trình" name="curriculum_id" required>
-                        <select name="curriculum_id" required x-model="curriculum" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base">
-                            <option value="">Chọn giáo trình...</option>
-                            @foreach ($curriculums as $c)
-                                <option value="{{ $c->id }}">{{ $c->title }} ({{ $c->version }})</option>
-                            @endforeach
-                        </select>
-                    </x-ui.field>
+                    <x-ui.select label="Chọn giáo trình" name="curriculum_id" id="propose_curriculum_id" required x-model="curriculum" placeholder="Chọn giáo trình...">
+                        @foreach ($curriculums as $c)
+                            <option value="{{ $c->id }}">{{ $c->title }} ({{ $c->version }})</option>
+                        @endforeach
+                    </x-ui.select>
 
-                    <x-ui.field label="Chọn buổi học (Tùy chọn)" name="lesson_id" hint="Bỏ trống nếu đề xuất áp dụng chung cho cả giáo trình.">
-                        <select name="lesson_id" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base">
-                            <option value="">Chọn buổi học...</option>
-                            <template x-for="lesson in (lessons[curriculum] || [])" :key="lesson.id">
-                                <option :value="lesson.id" x-text="lesson.label"></option>
-                            </template>
-                        </select>
-                    </x-ui.field>
+                    <x-ui.select label="Chọn buổi học (Tùy chọn)" name="lesson_id" hint="Bỏ trống nếu đề xuất áp dụng chung cho cả giáo trình." placeholder="Chọn buổi học...">
+                        <template x-for="lesson in (lessons[curriculum] || [])" :key="lesson.id">
+                            <option :value="lesson.id" x-text="lesson.label"></option>
+                        </template>
+                    </x-ui.select>
 
                     <x-ui.textarea name="new_content" label="Mô tả thay đổi đề xuất" rows="5" required placeholder="Nhập chi tiết nội dung cần sửa đổi..." />
 
@@ -51,7 +45,7 @@
                             <x-ui.textarea name="old_content" label="Nội dung hiện tại trong giáo trình" rows="2" />
                             <x-ui.textarea name="reason" label="Lý do thay đổi" rows="2" />
                             <x-ui.field label="File đính kèm" name="attachment" hint="PDF, Word, PowerPoint, Excel, ảnh hoặc audio — tối đa 20 MB.">
-                                <input type="file" name="attachment" class="block w-full text-xs text-gray-700 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-50 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-primary border border-dashed border-gray-300 rounded-xl p-2" />
+                                <input type="file" name="attachment" class="block w-full text-xs text-on-surface-variant file:mr-3 file:rounded-lg file:border-0 file:bg-primary-container/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-primary border border-dashed border-outline-variant rounded-xl p-2" />
                             </x-ui.field>
                         </div>
                     </details>

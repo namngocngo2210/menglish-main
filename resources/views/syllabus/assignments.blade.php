@@ -42,37 +42,29 @@
 
                 <form action="{{ route('syllabus.assignments.store') }}" method="POST" class="space-y-md">
                     @csrf
-                    <x-ui.field label="Chọn lớp học" name="class_id" required>
-                        <select name="class_id" required x-model="classId" @change="pickClass()" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base">
-                            <option value="" disabled>Chọn lớp học đang quản lý...</option>
-                            @foreach ($classes as $class)
-                                <option value="{{ $class->id }}">{{ $class->name }} ({{ $class->code }})</option>
-                            @endforeach
-                        </select>
-                    </x-ui.field>
-                    <p x-show="classOpen[classId]" x-cloak class="font-caption text-caption text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-sm">
+                    <x-ui.select label="Chọn lớp học" name="class_id" id="assign_class_id" required x-model="classId" x-on:change="pickClass()">
+                        <option value="" disabled>Chọn lớp học đang quản lý...</option>
+                        @foreach ($classes as $class)
+                            <option value="{{ $class->id }}">{{ $class->name }} ({{ $class->code }})</option>
+                        @endforeach
+                    </x-ui.select>
+                    <x-ui.alert type="warning" x-show="classOpen[classId]" x-cloak class="font-caption text-caption">
                         Lớp đang học <strong x-text="classOpen[classId]"></strong>. Chặng mới chỉ mở được sau khi chặng này đóng@if ($canOverride), hoặc chọn "Chuyển chặng" bên dưới@endif.
-                    </p>
+                    </x-ui.alert>
 
                     <x-ui.select name="user_id" label="Chọn giáo viên" placeholder="Chọn giáo viên phụ trách... (mặc định GV chính của lớp)" :options="$teacherOptions" />
 
-                    <x-ui.field label="Giáo trình" name="curriculum_id" hint="Mặc định theo Trình độ của lớp.">
-                        <select name="curriculum_id" x-model="curriculumId" @change="stageId = ''" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base">
-                            <option value="">— Theo trình độ của lớp —</option>
-                            @foreach ($curriculums as $c)
-                                <option value="{{ $c->id }}">{{ $c->title }} ({{ $c->code }})</option>
-                            @endforeach
-                        </select>
-                    </x-ui.field>
+                    <x-ui.select label="Giáo trình" name="curriculum_id" hint="Mặc định theo Trình độ của lớp." x-model="curriculumId" x-on:change="stageId = ''" placeholder="— Theo trình độ của lớp —">
+                        @foreach ($curriculums as $c)
+                            <option value="{{ $c->id }}">{{ $c->title }} ({{ $c->code }})</option>
+                        @endforeach
+                    </x-ui.select>
 
-                    <x-ui.field label="Chọn chặng học" name="stage_id" hint="Để trống: chặng đầu tiên lớp chưa học xong.">
-                        <select name="stage_id" x-model="stageId" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base">
-                            <option value="">Chọn chặng giáo trình... (chặng kế tiếp của lớp)</option>
-                            <template x-for="s in stages" :key="s.id">
-                                <option :value="String(s.id)" x-text="s.label" :selected="String(s.id) === stageId"></option>
-                            </template>
-                        </select>
-                    </x-ui.field>
+                    <x-ui.select label="Chọn chặng học" name="stage_id" hint="Để trống: chặng đầu tiên lớp chưa học xong." x-model="stageId" placeholder="Chọn chặng giáo trình... (chặng kế tiếp của lớp)">
+                        <template x-for="s in stages" :key="s.id">
+                            <option :value="String(s.id)" x-text="s.label" :selected="String(s.id) === stageId"></option>
+                        </template>
+                    </x-ui.select>
 
                     <div class="grid grid-cols-2 gap-md">
                         <x-ui.input type="date" name="start_date" label="Ngày bắt đầu" :value="old('start_date', now()->toDateString())" />
@@ -82,7 +74,7 @@
                     @if ($canOverride)
                         <div class="border-t border-outline-variant pt-sm space-y-2">
                             <label class="flex items-start gap-2 font-body-small text-body-small text-on-surface">
-                                <input type="checkbox" name="replace_current" value="1" x-model="replace" class="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary-container">
+                                <input type="checkbox" name="replace_current" value="1" x-model="replace" class="mt-0.5 rounded border-outline-variant text-primary focus:ring-primary-container">
                                 <span><strong>Chuyển chặng (Học thuật):</strong> đóng chặng đang mở của lớp rồi mở chặng đã chọn.</span>
                             </label>
                             <div x-show="replace" x-cloak>
@@ -91,10 +83,7 @@
                         </div>
                     @endif
 
-                    <div class="flex items-start gap-sm rounded-lg border border-secondary/20 bg-secondary/5 p-md">
-                        <span class="material-symbols-outlined text-[20px] text-secondary">info</span>
-                        <div class="font-body-small text-body-small text-on-surface">Mỗi LỚP HỌC chỉ được giao duy nhất 1 chặng học có hiệu lực tại một thời điểm. Hệ thống sẽ tự động đóng chặng hiện tại của lớp và mở chặng kế tiếp khi kết quả Big Test được duyệt gửi.</div>
-                    </div>
+                    <x-ui.alert type="info" class="font-body-small text-body-small">Mỗi LỚP HỌC chỉ được giao duy nhất 1 chặng học có hiệu lực tại một thời điểm. Hệ thống sẽ tự động đóng chặng hiện tại của lớp và mở chặng kế tiếp khi kết quả Big Test được duyệt gửi.</x-ui.alert>
 
                     <x-ui.button type="submit" icon="send" class="w-full justify-center">Xác nhận giao chặng</x-ui.button>
                 </form>
@@ -160,7 +149,7 @@
                                     <span class="inline-flex rounded-md bg-primary-fixed/50 px-sm py-0.5 font-label text-label text-primary">{{ $as->stage?->label ?? $as->stage_name ?? '—' }}</span>
                                     <p class="font-caption text-caption text-on-surface-variant mt-1">{{ $as->assigned_chapters }}</p>
                                     @if ($as->extra_sessions)
-                                        <p class="font-caption text-caption text-amber-700">+{{ $as->extra_sessions }} buổi giãn tiến độ</p>
+                                        <p class="font-caption text-caption text-warning">+{{ $as->extra_sessions }} buổi giãn tiến độ</p>
                                     @endif
                                 </td>
                                 <td class="font-caption text-caption space-y-1 whitespace-nowrap">
@@ -215,16 +204,10 @@
                 <form id="edit-stage-form" method="POST" :action="editUrl" class="space-y-3 p-md">
                     @csrf @method('PUT')
                     <p class="font-body-small text-body-small text-on-surface-variant">Chặng: <strong x-text="edit.label"></strong>. Muốn đổi sang chặng khác, dùng "Chuyển chặng" (Học thuật, bắt buộc lý do).</p>
-                    <x-ui.field label="Giáo viên phụ trách" required>
-                        <select name="user_id" x-model="edit.user_id" required class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base">
-                            @foreach ($teacherOptions as $id => $label)
-                                <option value="{{ $id }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </x-ui.field>
+                    <x-ui.select label="Giáo viên phụ trách" name="user_id" id="edit_user_id" x-model="edit.user_id" required :options="$teacherOptions" />
                     <div class="grid grid-cols-2 gap-md">
-                        <x-ui.field label="Ngày bắt đầu"><input type="date" name="start_date" x-model="edit.start_date" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base"></x-ui.field>
-                        <x-ui.field label="Dự kiến hoàn thành"><input type="date" name="deadline" x-model="edit.deadline" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base"></x-ui.field>
+                        <x-ui.date label="Ngày bắt đầu" name="start_date" id="edit_start_date" x-model="edit.start_date" />
+                        <x-ui.date label="Dự kiến hoàn thành" name="deadline" id="edit_deadline" x-model="edit.deadline" />
                     </div>
                 </form>
                 <x-slot:footer>
@@ -241,7 +224,7 @@
                     <p class="font-body-small text-body-small text-on-surface-variant">Chặng: <strong x-text="closeLabel"></strong>. Thông thường chặng tự đóng khi Big Test được duyệt và gửi phụ huynh — chỉ đóng tay khi có ngoại lệ.</p>
                     <x-ui.textarea name="reason" label="Lý do" required rows="3" />
                     <label class="flex items-center gap-2 font-body-small text-body-small text-on-surface">
-                        <input type="checkbox" name="open_next" value="1" checked class="rounded border-gray-300 text-primary focus:ring-primary-container">
+                        <input type="checkbox" name="open_next" value="1" checked class="rounded border-outline-variant text-primary focus:ring-primary-container">
                         Mở luôn chặng kế tiếp của giáo trình
                     </label>
                 </form>

@@ -64,16 +64,12 @@
                         <span class="ml-auto font-caption text-caption text-on-surface-variant">#{{ $selected->id }}</span>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-md">
-                        <x-ui.field label="Giáo trình">
-                            <select disabled class="w-full rounded-lg border border-outline-variant bg-surface-container-low py-sm pl-md pr-xl font-body-base text-body-base text-on-surface">
-                                <option selected>{{ $selected->curriculum?->title }} ({{ $selected->curriculum?->version }})</option>
-                            </select>
-                        </x-ui.field>
-                        <x-ui.field label="Buổi học/Unit cần sửa">
-                            <select disabled class="w-full rounded-lg border border-outline-variant bg-surface-container-low py-sm pl-md pr-xl font-body-base text-body-base text-on-surface">
-                                <option selected>{{ $selected->target_label }}</option>
-                            </select>
-                        </x-ui.field>
+                        <x-ui.select label="Giáo trình" id="version_curriculum" disabled>
+                            <option selected>{{ $selected->curriculum?->title }} ({{ $selected->curriculum?->version }})</option>
+                        </x-ui.select>
+                        <x-ui.select label="Buổi học/Unit cần sửa" id="version_target" disabled>
+                            <option selected>{{ $selected->target_label }}</option>
+                        </x-ui.select>
                         <div class="md:col-span-2">
                             <p class="mb-xs font-label text-label text-on-surface-variant uppercase">Người đề xuất</p>
                             <div class="flex items-center gap-sm rounded-lg border border-outline-variant bg-surface-container-low p-sm">

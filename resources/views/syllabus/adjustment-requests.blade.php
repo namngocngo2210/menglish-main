@@ -109,21 +109,19 @@
                         </div>
 
                         @if ($selected->status === 'approved')
-                            <div class="rounded-lg border border-tertiary/20 bg-tertiary/5 p-md font-body-small text-body-small text-on-surface">
+                            <x-ui.alert type="success" class="font-body-small text-body-small">
                                 <p class="font-semibold">Đã duyệt bởi {{ $selected->approver?->name }} {{ $selected->reviewed_at ? 'lúc '.$selected->reviewed_at->format('H:i d/m/Y') : '' }}</p>
                                 <p class="mt-1">{{ $selected->applied_note }}</p>
-                            </div>
+                            </x-ui.alert>
                         @elseif ($selected->status === 'rejected')
-                            <div class="rounded-lg border border-error/20 bg-error/5 p-md font-body-small text-body-small text-on-surface">
+                            <x-ui.alert type="error" class="font-body-small text-body-small">
                                 <p class="font-semibold">Đã từ chối bởi {{ $selected->approver?->name }} {{ $selected->reviewed_at ? 'lúc '.$selected->reviewed_at->format('H:i d/m/Y') : '' }}</p>
                                 <p class="mt-1">Lý do: {{ $selected->rejection_reason ?: '—' }}</p>
-                            </div>
+                            </x-ui.alert>
                         @elseif ($canReview)
                             <form id="reject-form" method="POST" action="{{ route('syllabus.adjustment-requests.reject', $selected->id) }}" x-show="rejecting" x-cloak class="rounded-lg border border-error/30 bg-error/5 p-md">
                                 @csrf
-                                <label for="reject-reason" class="mb-xs flex items-center gap-xs font-label text-label text-error"><span class="material-symbols-outlined text-[18px]">warning</span>Lý do từ chối (Bắt buộc)</label>
-                                <textarea id="reject-reason" name="rejection_reason" rows="3" placeholder="Nhập lý do chi tiết để phản hồi lại giáo viên..." class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest p-md font-body-base text-body-base focus:border-error focus:outline-none focus:ring-2 focus:ring-error/20">{{ old('rejection_reason') }}</textarea>
-                                @error('rejection_reason')<p class="mt-xs font-caption text-caption text-error">{{ $message }}</p>@enderror
+                                <x-ui.textarea label="Lý do từ chối (Bắt buộc)" name="rejection_reason" id="reject-reason" rows="3" placeholder="Nhập lý do chi tiết để phản hồi lại giáo viên..." />
                             </form>
                             <form id="approve-form" method="POST" action="{{ route('syllabus.adjustment-requests.approve', $selected->id) }}" x-show="! rejecting">
                                 @csrf
