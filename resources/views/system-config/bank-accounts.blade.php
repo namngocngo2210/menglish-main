@@ -9,38 +9,11 @@
 
     <div class="space-y-6" x-data="systemBankSepayManager()">
         {{-- Top Nav Tabs matching System Config --}}
-        <div class="flex items-center gap-2 border-b border-gray-200 pb-2 overflow-x-auto">
-            <a 
-                href="{{ route('system-config.bank-accounts') }}"
-                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-primary-container bg-primary-container text-white font-bold shadow-xs shrink-0"
-            >
-                <span class="material-symbols-outlined text-base">account_balance_wallet</span>
-                <span>Tài khoản Ngân hàng &amp; SePay</span>
-            </a>
-
-            <a 
-                href="{{ route('system-config.debt-reminders') }}"
-                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-gray-200 bg-white text-gray-600 hover:bg-gray-100 font-semibold shrink-0"
-            >
-                <span class="material-symbols-outlined text-base">notifications_active</span>
-                <span>Mẫu nhắc nợ</span>
-            </a>
-
-            <a 
-                href="{{ route('system-config.ticket-emails') }}"
-                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-gray-200 bg-white text-gray-600 hover:bg-gray-100 font-semibold shrink-0"
-            >
-                <span class="material-symbols-outlined text-base">mail</span>
-                <span>Email nhận Ticket</span>
-            </a>
-
-            <a 
-                href="{{ route('system-config.hosting') }}"
-                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-gray-200 bg-white text-gray-600 hover:bg-gray-100 font-semibold shrink-0"
-            >
-                <span class="material-symbols-outlined text-base">dns</span>
-                <span>Hosting &amp; Máy chủ</span>
-            </a>
+        <div class="flex items-center gap-2 border-b border-surface-container-highest pb-2 overflow-x-auto">
+            <x-ui.button size="sm" icon="account_balance_wallet" :href="route('system-config.bank-accounts')">Tài khoản Ngân hàng &amp; SePay</x-ui.button>
+            <x-ui.button variant="secondary" size="sm" icon="notifications_active" :href="route('system-config.debt-reminders')">Mẫu nhắc nợ</x-ui.button>
+            <x-ui.button variant="secondary" size="sm" icon="mail" :href="route('system-config.ticket-emails')">Email nhận Ticket</x-ui.button>
+            <x-ui.button variant="secondary" size="sm" icon="dns" :href="route('system-config.hosting')">Hosting &amp; Máy chủ</x-ui.button>
         </div>
 
         {{-- Sub Nav Tabs (Banks, SePay, Logs) --}}
@@ -48,8 +21,8 @@
             <button 
                 type="button" 
                 @click="activeTab = 'banks'"
-                :class="activeTab === 'banks' ? 'bg-primary-container text-white font-bold shadow-xs' : 'bg-white text-gray-600 hover:bg-gray-100 font-semibold'"
-                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-gray-200"
+                :class="activeTab === 'banks' ? 'bg-primary-container text-white font-bold shadow-xs' : 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container font-semibold'"
+                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-surface-container-highest"
             >
                 <span class="material-symbols-outlined text-base">account_balance_wallet</span>
                 <span>Tài khoản Ngân hàng ({{ count($accounts) }})</span>
@@ -59,12 +32,12 @@
             <button
                 type="button"
                 @click="activeTab = 'sepay'"
-                :class="activeTab === 'sepay' ? 'bg-primary-container text-white font-bold shadow-xs' : 'bg-white text-gray-600 hover:bg-gray-100 font-semibold'"
-                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-gray-200"
+                :class="activeTab === 'sepay' ? 'bg-primary-container text-white font-bold shadow-xs' : 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container font-semibold'"
+                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-surface-container-highest"
             >
                 <span class="material-symbols-outlined text-base">webhook</span>
                 <span>Cấu hình Webhook SePay Gateway</span>
-                <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold {{ $sepayConfig->is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-600' }}">
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold {{ $sepayConfig->is_active ? 'bg-tertiary/10 text-tertiary' : 'bg-surface-container-high text-on-surface-variant' }}">
                     {{ $sepayConfig->is_active ? 'ĐANG BẬT' : 'TẮT' }}
                 </span>
             </button>
@@ -72,14 +45,14 @@
             <button
                 type="button"
                 @click="activeTab = 'logs'"
-                :class="activeTab === 'logs' ? 'bg-primary-container text-white font-bold shadow-xs' : 'bg-white text-gray-600 hover:bg-gray-100 font-semibold'"
-                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-gray-200"
+                :class="activeTab === 'logs' ? 'bg-primary-container text-white font-bold shadow-xs' : 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container font-semibold'"
+                class="px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 border border-surface-container-highest"
             >
                 <span class="material-symbols-outlined text-base">receipt_long</span>
                 <span>Nhật ký Giao dịch SePay ({{ count($recentTransactions) }})</span>
             </button>
             @else
-            <div class="px-4 py-2 rounded-xl text-xs bg-gray-100 text-gray-500 border border-dashed border-gray-300 flex items-center gap-1.5" title="Đặt SEPAY_WEBHOOK_ENABLED=true trong .env để bật lại">
+            <div class="px-4 py-2 rounded-xl text-xs bg-surface-container text-on-surface-variant border border-dashed border-outline-variant flex items-center gap-1.5" title="Đặt SEPAY_WEBHOOK_ENABLED=true trong .env để bật lại">
                 <span class="material-symbols-outlined text-base">webhook_off</span>
                 <span>SePay webhook đang tắt tạm thời</span>
             </div>
@@ -176,40 +149,19 @@
                         <form method="POST" :action="form.id ? @js(url('/system-config/bank-accounts')) + '/' + form.id : @js(route('system-config.bank-accounts.store'))" class="space-y-sm">
                             @csrf
                             <template x-if="form.id"><input type="hidden" name="_method" value="PUT"></template>
-                            <label class="block">
-                                <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Loại tài khoản</span>
-                                <select name="account_type" x-model="form.account_type" class="w-full rounded-lg border-outline-variant font-body-base text-body-base">
-                                    <option value="company">Công ty (Chủ sở hữu chính)</option>
-                                    <option value="other">Khác (Cá nhân/Đại diện)</option>
-                                </select>
-                            </label>
-                            <label class="block">
-                                <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Số tài khoản <span class="text-error">*</span></span>
-                                <input type="text" name="account_number" x-model="form.account_number" required placeholder="Nhập số tài khoản ngân hàng" class="w-full rounded-lg border-outline-variant font-code text-code" />
-                            </label>
+                            <x-ui.select label="Loại tài khoản" name="account_type" x-model="form.account_type">
+                                <option value="company">Công ty (Chủ sở hữu chính)</option>
+                                <option value="other">Khác (Cá nhân/Đại diện)</option>
+                            </x-ui.select>
+                            <x-ui.input label="Số tài khoản" name="account_number" x-model="form.account_number" required placeholder="Nhập số tài khoản ngân hàng" class="font-code text-code" />
                             <div class="grid grid-cols-3 gap-sm">
-                                <label class="block">
-                                    <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Mã NH <span class="text-error">*</span></span>
-                                    <input type="text" name="bank_code" x-model="form.bank_code" required placeholder="VCB" title="Mã ngân hàng NAPAS dùng tạo VietQR" class="w-full rounded-lg border-outline-variant font-code text-code uppercase" />
-                                </label>
-                                <label class="col-span-2 block">
-                                    <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Tên ngân hàng <span class="text-error">*</span></span>
-                                    <input type="text" name="bank_name" x-model="form.bank_name" required placeholder="VD: Vietcombank, Techcombank..." class="w-full rounded-lg border-outline-variant font-body-base text-body-base" />
-                                </label>
+                                <x-ui.input label="Mã NH" name="bank_code" x-model="form.bank_code" required placeholder="VCB" title="Mã ngân hàng NAPAS dùng tạo VietQR" class="font-code text-code uppercase" />
+                                <div class="col-span-2">
+                                    <x-ui.input label="Tên ngân hàng" name="bank_name" x-model="form.bank_name" required placeholder="VD: Vietcombank, Techcombank..." />
+                                </div>
                             </div>
-                            <label class="block">
-                                <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Chủ tài khoản <span class="text-error">*</span></span>
-                                <input type="text" name="account_holder" x-model="form.account_holder" required placeholder="Nhập tên đầy đủ chủ tài khoản" class="w-full rounded-lg border-outline-variant font-body-base text-body-base uppercase" />
-                            </label>
-                            <label class="block">
-                                <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Cơ sở áp dụng</span>
-                                <select name="branch_id" x-model="form.branch_id" class="w-full rounded-lg border-outline-variant font-body-base text-body-base">
-                                    <option value="">Toàn hệ thống</option>
-                                    @foreach ($branches as $b)
-                                        <option value="{{ $b->id }}">{{ $b->name }}</option>
-                                    @endforeach
-                                </select>
-                            </label>
+                            <x-ui.input label="Chủ tài khoản" name="account_holder" x-model="form.account_holder" required placeholder="Nhập tên đầy đủ chủ tài khoản" class="uppercase" />
+                            <x-ui.select label="Cơ sở áp dụng" name="branch_id" x-model="form.branch_id" :options="$branches->pluck('name', 'id')" placeholder="Toàn hệ thống" />
                             <label class="flex items-center justify-between gap-sm rounded-lg border border-outline-variant p-sm">
                                 <span>
                                     <span class="block font-body-medium text-body-medium">Đặt làm tài khoản mặc định</span>
@@ -255,18 +207,18 @@
              ═════════════════════════════════════════════════════════════════ --}}
         @if ($sepayEnabled)
         <div x-show="activeTab === 'sepay'" class="space-y-6">
-            <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-xs space-y-6 max-w-4xl">
-                <div class="flex items-center justify-between pb-4 border-b border-gray-100">
+            <div class="bg-surface-container-lowest rounded-2xl p-6 border border-surface-container-highest shadow-xs space-y-6 max-w-4xl">
+                <div class="flex items-center justify-between pb-4 border-b border-surface-container-highest">
                     <div>
-                        <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                        <h2 class="text-sm font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
                             <span class="material-symbols-outlined text-primary-container">lock_reset</span>
                             <span>Cấu hình Webhook SePay Gateway (Tự động Gạch Nợ &amp; Xác Thực)</span>
                         </h2>
-                        <p class="text-xs text-gray-500 mt-0.5">Copy đường dẫn URL Webhook và Secret Key này lên trang quản trị SePay để kết nối</p>
+                        <p class="text-xs text-on-surface-variant mt-0.5">Copy đường dẫn URL Webhook và Secret Key này lên trang quản trị SePay để kết nối</p>
                     </div>
-                    <span class="px-3 py-1 rounded-full text-xs font-bold {{ $sepayConfig->is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-600' }}">
+                    <x-ui.badge :color="$sepayConfig->is_active ? 'success' : 'neutral'" :dot="false" :pill="true">
                         {{ $sepayConfig->is_active ? '● Đang Kích Hoạt' : '○ Tạm Dừng' }}
-                    </span>
+                    </x-ui.badge>
                 </div>
 
                 <form action="{{ route('system-config.sepay.update') }}" method="POST" class="space-y-5">
@@ -274,37 +226,18 @@
 
                     {{-- 1. Thông tin cơ bản --}}
                     <div class="space-y-4">
-                        <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wider text-primary flex items-center gap-1.5">
+                        <h3 class="text-xs font-bold text-on-surface uppercase tracking-wider text-primary flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-sm">tune</span>
                             <span>Thông tin cơ bản Webhook</span>
                         </h3>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-700 mb-1">
-                                    Tên webhook <span class="text-rose-500">*</span>
-                                </label>
-                                <input 
-                                    type="text" 
-                                    name="webhook_name" 
-                                    value="{{ old('webhook_name', $sepayConfig->webhook_name) }}" 
-                                    required 
-                                    class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold text-gray-800 focus:border-primary-container focus:ring-primary-container" 
-                                    placeholder="Xác Thực Thanh Toán Meducation" 
-                                />
-                                <p class="text-[11px] text-gray-400 mt-1">Đặt tên dễ nhớ để phân biệt các webhook trong danh sách SePay.</p>
-                            </div>
+                            <x-ui.input label="Tên webhook" name="webhook_name" :value="$sepayConfig->webhook_name" required
+                                placeholder="Xác Thực Thanh Toán Meducation" class="font-bold"
+                                hint="Đặt tên dễ nhớ để phân biệt các webhook trong danh sách SePay." />
 
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-700 mb-1">
-                                    Loại giao dịch <span class="text-rose-500">*</span>
-                                </label>
-                                <select name="transaction_type" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold text-gray-800 focus:border-primary-container focus:ring-primary-container">
-                                    <option value="in" {{ $sepayConfig->transaction_type === 'in' ? 'selected' : '' }}>Tiền vào (Thu học phí - Khuyên dùng)</option>
-                                    <option value="out" {{ $sepayConfig->transaction_type === 'out' ? 'selected' : '' }}>Tiền ra</option>
-                                    <option value="all" {{ $sepayConfig->transaction_type === 'all' ? 'selected' : '' }}>Tất cả (Tiền vào &amp; Tiền ra)</option>
-                                </select>
-                            </div>
+                            <x-ui.select label="Loại giao dịch" name="transaction_type" :value="$sepayConfig->transaction_type" required
+                                :options="['in' => 'Tiền vào (Thu học phí - Khuyên dùng)', 'out' => 'Tiền ra', 'all' => 'Tất cả (Tiền vào & Tiền ra)']" />
                         </div>
 
                         @php
@@ -315,28 +248,20 @@
                         @endphp
 
                         @if ($isDifferentHost)
-                            <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-                                <div class="flex items-start gap-2">
-                                    <span class="material-symbols-outlined text-amber-600 text-base shrink-0 mt-0.5">warning</span>
+                            <x-ui.alert type="warning" class="text-xs">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                     <div>
-                                        <span class="font-bold">Cảnh báo khác tên miền:</span> URL Webhook trong CSDL đang trỏ đến <code class="bg-amber-100 px-1 py-0.5 rounded text-amber-800 font-bold font-mono">{{ $savedHost }}</code>, khác với tên miền bạn đang truy cập (<code class="bg-white px-1 py-0.5 rounded text-gray-900 font-bold font-mono">{{ $currentHost }}</code>).
+                                        <span class="font-bold">Cảnh báo khác tên miền:</span> URL Webhook trong CSDL đang trỏ đến <code class="bg-warning/10 px-1 py-0.5 rounded text-on-warning-container font-bold font-mono">{{ $savedHost }}</code>, khác với tên miền bạn đang truy cập (<code class="bg-surface-container-lowest px-1 py-0.5 rounded text-on-surface font-bold font-mono">{{ $currentHost }}</code>).
                                     </div>
+                                    <x-ui.button size="sm" icon="sync" x-on:click="document.getElementById('sepayWebhookUrlInput').value = '{{ $currentEndpoint }}'">Đổi sang {{ $currentHost }}</x-ui.button>
                                 </div>
-                                <button 
-                                    type="button" 
-                                    @click="document.getElementById('sepayWebhookUrlInput').value = '{{ $currentEndpoint }}'"
-                                    class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition flex items-center justify-center gap-1 shrink-0 shadow-2xs"
-                                >
-                                    <span class="material-symbols-outlined text-sm">sync</span>
-                                    <span>Đổi sang {{ $currentHost }}</span>
-                                </button>
-                            </div>
+                            </x-ui.alert>
                         @endif
 
                         <div>
-                            <label class="block text-xs font-semibold text-gray-700 mb-1 flex items-center justify-between">
-                                <span>URL nhận webhook <span class="text-rose-500">*</span></span>
-                                <span class="text-[11px] text-gray-400">SePay gửi dữ liệu giao dịch đến URL này khi có tiền vào</span>
+                            <label class="block text-xs font-semibold text-on-surface-variant mb-1 flex items-center justify-between">
+                                <span>URL nhận webhook <span class="text-error">*</span></span>
+                                <span class="text-[11px] text-on-surface-variant/70">SePay gửi dữ liệu giao dịch đến URL này khi có tiền vào</span>
                             </label>
                             <div class="flex items-center gap-2">
                                 <input 
@@ -345,26 +270,22 @@
                                     name="webhook_url" 
                                     value="{{ old('webhook_url', $sepayConfig->webhook_url ?: $currentEndpoint) }}" 
                                     required 
-                                    class="flex-1 text-xs font-mono font-bold text-primary-container bg-orange-50/50 rounded-xl border border-orange-200 p-2.5 focus:border-primary-container focus:ring-primary-container" 
+                                    class="flex-1 text-xs font-mono font-bold text-primary-container bg-primary-container/10 rounded-xl border border-primary-container/30 p-2.5 focus:border-primary-container focus:ring-primary-container" 
                                 />
-                                <button 
-                                    type="button" 
-                                    @click="copyVal(document.getElementById('sepayWebhookUrlInput').value, 'webhook_url')" 
-                                    class="px-3.5 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition flex items-center gap-1.5 shrink-0 border border-gray-200"
-                                >
+                                <x-ui.button variant="secondary" x-on:click="copyVal(document.getElementById('sepayWebhookUrlInput').value, 'webhook_url')">
                                     <span class="material-symbols-outlined text-sm" x-text="copiedTag === 'webhook_url' ? 'check' : 'content_copy'"></span>
                                     <span x-text="copiedTag === 'webhook_url' ? 'Đã sao chép!' : 'Sao chép URL'"></span>
-                                </button>
+                                </x-ui.button>
                             </div>
-                            <div class="flex flex-wrap items-center justify-between gap-2 mt-2 text-[11px] text-gray-500">
+                            <div class="flex flex-wrap items-center justify-between gap-2 mt-2 text-[11px] text-on-surface-variant">
                                 <div class="flex items-center gap-2">
                                     <span>Đường dẫn endpoint chuẩn theo domain đang mở:</span>
-                                    <code class="font-mono text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded select-all">{{ $currentEndpoint }}</code>
+                                    <code class="font-mono text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded select-all">{{ $currentEndpoint }}</code>
                                 </div>
                                 <button 
                                     type="button" 
                                     @click="document.getElementById('sepayWebhookUrlInput').value = '{{ $currentEndpoint }}'"
-                                    class="text-indigo-600 hover:text-indigo-800 font-semibold underline flex items-center gap-1 transition"
+                                    class="text-secondary hover:text-secondary font-semibold underline flex items-center gap-1 transition"
                                 >
                                     <span class="material-symbols-outlined text-xs">sync</span>
                                     <span>Điền nhanh URL theo domain hiện tại</span>
@@ -373,19 +294,11 @@
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-700 mb-1">
-                                    Định dạng dữ liệu <span class="text-rose-500">*</span>
-                                </label>
-                                <select name="data_format" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold text-gray-800 focus:border-primary-container focus:ring-primary-container">
-                                    <option value="json" selected>JSON (khuyến nghị) — application/json</option>
-                                    <option value="form">Form (hỗ trợ tệp đính kèm) — multipart/form-data</option>
-                                    <option value="urlencoded">Form (URL-encoded) — application/x-www-form-urlencoded</option>
-                                </select>
-                            </div>
+                            <x-ui.select label="Định dạng dữ liệu" name="data_format" value="json" required
+                                :options="['json' => 'JSON (khuyến nghị) — application/json', 'form' => 'Form (hỗ trợ tệp đính kèm) — multipart/form-data', 'urlencoded' => 'Form (URL-encoded) — application/x-www-form-urlencoded']" />
 
                             <div class="flex items-center gap-2 pt-6">
-                                <label class="relative flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700">
+                                <label class="relative flex items-center gap-2 cursor-pointer text-xs font-medium text-on-surface-variant">
                                     <input type="checkbox" name="auto_retry" value="1" {{ $sepayConfig->auto_retry ? 'checked' : '' }} class="rounded text-primary-container focus:ring-primary-container" />
                                     <span>Tự động gửi lại khi server trả lỗi (tối đa 7 lần)</span>
                                 </label>
@@ -394,31 +307,25 @@
                     </div>
 
                     {{-- 2. Bảo mật & Xác thực HMAC-SHA256 --}}
-                    <div class="space-y-4 pt-4 border-t border-gray-100">
+                    <div class="space-y-4 pt-4 border-t border-surface-container-highest">
                         <div class="flex items-center justify-between">
-                            <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wider text-primary flex items-center gap-1.5">
+                            <h3 class="text-xs font-bold text-on-surface uppercase tracking-wider text-primary flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-sm">security</span>
                                 <span>Bảo mật &amp; Xác thực Chống Giả Mạo</span>
                             </h3>
-                            <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            <x-ui.badge color="success" :dot="false" :pill="true">
                                 Khuyến nghị: HMAC-SHA256
-                            </span>
+                            </x-ui.badge>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-700 mb-1">Phương thức xác thực <span class="text-rose-500">*</span></label>
-                                <select name="auth_method" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold text-gray-800 focus:border-primary-container focus:ring-primary-container">
-                                    <option value="hmac_sha256" {{ $sepayConfig->auth_method === 'hmac_sha256' ? 'selected' : '' }}>HMAC-SHA256 (Khuyến nghị)</option>
-                                    <option value="api_key" {{ $sepayConfig->auth_method === 'api_key' ? 'selected' : '' }}>API Key</option>
-                                    <option value="none" {{ $sepayConfig->auth_method === 'none' ? 'selected' : '' }}>Không xác thực</option>
-                                </select>
-                            </div>
+                            <x-ui.select label="Phương thức xác thực" name="auth_method" :value="$sepayConfig->auth_method" required
+                                :options="['hmac_sha256' => 'HMAC-SHA256 (Khuyến nghị)', 'api_key' => 'API Key', 'none' => 'Không xác thực']" />
 
                             <div>
-                                <label class="block text-xs font-semibold text-gray-700 mb-1 flex items-center justify-between">
-                                    <span>Secret Key HMAC-SHA256 <span class="text-rose-500">*</span></span>
-                                    <button type="button" @click="showSecret = !showSecret" class="text-[11px] text-gray-400 hover:text-gray-700 font-normal">
+                                <label class="block text-xs font-semibold text-on-surface-variant mb-1 flex items-center justify-between">
+                                    <span>Secret Key HMAC-SHA256 <span class="text-error">*</span></span>
+                                    <button type="button" @click="showSecret = !showSecret" class="text-[11px] text-on-surface-variant/70 hover:text-on-surface-variant font-normal">
                                         <span x-text="showSecret ? 'Ẩn' : 'Hiện'"></span>
                                     </button>
                                 </label>
@@ -429,36 +336,28 @@
                                         name="secret_key" 
                                         value="{{ old('secret_key', $sepayConfig->secret_key) }}" 
                                         required 
-                                        class="flex-1 text-xs font-mono font-bold text-gray-900 rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container bg-white" 
+                                        class="flex-1 text-xs font-mono font-bold text-on-surface rounded-xl border border-surface-container-highest p-2.5 focus:border-primary-container focus:ring-primary-container bg-surface-container-lowest" 
                                         placeholder="whsec_..."
                                     />
-                                    <button 
-                                        type="button" 
-                                        @click="copyVal(document.getElementById('sepaySecretKeyInput').value, 'secret_key')" 
-                                        class="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition flex items-center gap-1 border border-gray-200"
-                                        title="Sao chép Secret Key"
-                                    >
+                                    <x-ui.button variant="secondary" x-on:click="copyVal(document.getElementById('sepaySecretKeyInput').value, 'secret_key')" title="Sao chép Secret Key">
                                         <span class="material-symbols-outlined text-sm" x-text="copiedTag === 'secret_key' ? 'check' : 'content_copy'"></span>
-                                    </button>
+                                    </x-ui.button>
                                 </div>
-                                <p class="text-[11px] text-gray-400 mt-1">SePay ký dữ liệu bằng HMAC-SHA256 qua header <code class="font-mono text-gray-600">X-SePay-Signature</code>.</p>
+                                <p class="text-[11px] text-on-surface-variant/70 mt-1">SePay ký dữ liệu bằng HMAC-SHA256 qua header <code class="font-mono text-on-surface-variant">X-SePay-Signature</code>.</p>
                             </div>
                         </div>
 
                         <div class="pt-2">
-                            <label class="relative flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-800">
+                            <label class="relative flex items-center gap-2 cursor-pointer text-xs font-semibold text-on-surface">
                                 <input type="checkbox" name="is_active" value="1" {{ $sepayConfig->is_active ? 'checked' : '' }} class="rounded text-primary-container focus:ring-primary-container" />
                                 <span>Kích hoạt Webhook (Bật tính năng tự động gạch nợ khi có thông báo tiền về)</span>
                             </label>
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                        <span class="text-[11px] text-gray-400">Sau khi lưu, vui lòng đối soát URL và Secret Key khớp với trang SePay.vn</span>
-                        <button type="submit" class="px-6 py-2.5 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-base">save</span>
-                            <span>Lưu Cấu Hình SePay Webhook</span>
-                        </button>
+                    <div class="flex items-center justify-between pt-4 border-t border-surface-container-highest">
+                        <span class="text-[11px] text-on-surface-variant/70">Sau khi lưu, vui lòng đối soát URL và Secret Key khớp với trang SePay.vn</span>
+                        <x-ui.button type="submit" icon="save">Lưu Cấu Hình SePay Webhook</x-ui.button>
                     </div>
                 </form>
             </div>
@@ -468,77 +367,75 @@
              TAB 3: NHẬT KÝ GIAO DỊCH SEPAY
              ═════════════════════════════════════════════════════════════════ --}}
         <div x-show="activeTab === 'logs'" class="space-y-4">
-            <div class="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
-                <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+            <x-ui.data-table>
+                <x-slot:header>
                     <div>
-                        <h3 class="font-bold text-xs uppercase tracking-wider text-gray-900">Giao dịch SePay Webhook gần nhất</h3>
-                        <p class="text-[11px] text-gray-400">Tự động đối soát nội dung chuyển khoản và gạch nợ học phí</p>
+                        <h3 class="font-bold text-xs uppercase tracking-wider text-on-surface">Giao dịch SePay Webhook gần nhất</h3>
+                        <p class="text-[11px] text-on-surface-variant/70">Tự động đối soát nội dung chuyển khoản và gạch nợ học phí</p>
                     </div>
-                    <span class="text-xs font-bold text-gray-500">Tổng cộng: {{ count($recentTransactions) }} giao dịch</span>
-                </div>
+                    <span class="text-xs font-bold text-on-surface-variant">Tổng cộng: {{ count($recentTransactions) }} giao dịch</span>
+                </x-slot:header>
 
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-gray-50/80 text-gray-500 uppercase text-[10px] font-bold border-b border-gray-100">
+                <table class="text-xs">
+                    <thead>
+                        <tr>
+                            <th>Thời gian</th>
+                            <th>ID SePay</th>
+                            <th>STK Nhận</th>
+                            <th class="text-right">Số tiền</th>
+                            <th>Nội dung chuyển khoản</th>
+                            <th>Trạng thái</th>
+                            <th>Kết quả đối soát</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($recentTransactions as $tx)
                             <tr>
-                                <th class="p-3">Thời gian</th>
-                                <th class="p-3">ID SePay</th>
-                                <th class="p-3">STK Nhận</th>
-                                <th class="p-3 text-right">Số tiền</th>
-                                <th class="p-3">Nội dung chuyển khoản</th>
-                                <th class="p-3">Trạng thái</th>
-                                <th class="p-3">Kết quả đối soát</th>
+                                <td class="text-on-surface-variant font-mono text-[11px]">
+                                    {{ $tx->transaction_date ? $tx->transaction_date->format('d/m/Y H:i') : $tx->created_at->format('d/m/Y H:i') }}
+                                </td>
+                                <td class="font-mono font-semibold">
+                                    #{{ $tx->sepay_id ?? $tx->id }}
+                                </td>
+                                <td class="font-mono">
+                                    {{ $tx->account_number }}
+                                    <div class="text-[10px] text-on-surface-variant/70">{{ $tx->gateway }}</div>
+                                </td>
+                                <td class="text-right">
+                                    <x-ui.money :value="(float) $tx->transfer_amount" :sign="true" tone="success" class="font-bold" />
+                                </td>
+                                <td class="max-w-xs truncate" title="{{ $tx->content }}">
+                                    <span class="font-mono font-semibold text-on-surface">{{ $tx->content }}</span>
+                                </td>
+                                <td>
+                                    @if($tx->status === 'matched')
+                                        <x-ui.badge color="success" :dot="false" :pill="true">
+                                            ✓ Đã khớp học viên
+                                        </x-ui.badge>
+                                    @elseif($tx->status === 'unmatched')
+                                        <x-ui.badge color="warning" :dot="false" :pill="true">
+                                            ? Chưa khớp mã HS
+                                        </x-ui.badge>
+                                    @else
+                                        <x-ui.badge color="neutral" :dot="false" :pill="true">
+                                            {{ \App\Support\StatusLabel::for($tx->status) }}
+                                        </x-ui.badge>
+                                    @endif
+                                </td>
+                                <td class="text-[11px] text-on-surface-variant max-w-sm">
+                                    {{ $tx->response_message ?? 'Đang chờ xử lý' }}
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            @forelse ($recentTransactions as $tx)
-                                <tr class="hover:bg-gray-50/60 transition">
-                                    <td class="p-3 text-gray-500 font-mono text-[11px]">
-                                        {{ $tx->transaction_date ? $tx->transaction_date->format('d/m/Y H:i') : $tx->created_at->format('d/m/Y H:i') }}
-                                    </td>
-                                    <td class="p-3 font-mono font-semibold text-gray-800">
-                                        #{{ $tx->sepay_id ?? $tx->id }}
-                                    </td>
-                                    <td class="p-3 font-mono">
-                                        {{ $tx->account_number }}
-                                        <div class="text-[10px] text-gray-400">{{ $tx->gateway }}</div>
-                                    </td>
-                                    <td class="p-3 text-right font-mono font-bold text-emerald-600 text-sm">
-                                        +{{ number_format((float) $tx->transfer_amount, 0, ',', '.') }}đ
-                                    </td>
-                                    <td class="p-3 max-w-xs truncate" title="{{ $tx->content }}">
-                                        <span class="font-mono font-semibold text-gray-800">{{ $tx->content }}</span>
-                                    </td>
-                                    <td class="p-3">
-                                        @if($tx->status === 'matched')
-                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                ✓ Đã khớp học viên
-                                            </span>
-                                        @elseif($tx->status === 'unmatched')
-                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                ? Chưa khớp mã HS
-                                            </span>
-                                        @else
-                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600">
-                                                {{ \App\Support\StatusLabel::for($tx->status) }}
-                                            </span>
-                                        @endif
-                                    </td>
-                                    <td class="p-3 text-[11px] text-gray-600 max-w-sm">
-                                        {{ $tx->response_message ?? 'Đang chờ xử lý' }}
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="7" class="p-8 text-center text-gray-400 text-xs">
-                                        Chưa có giao dịch webhook nào từ SePay. Khi phụ huynh chuyển khoản quét mã VietQR, giao dịch sẽ tự động xuất hiện tại đây.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                        @empty
+                            <tr>
+                                <td colspan="7">
+                                    <x-ui.empty-state icon="receipt_long" title="Chưa có giao dịch webhook nào từ SePay." description="Khi phụ huynh chuyển khoản quét mã VietQR, giao dịch sẽ tự động xuất hiện tại đây." />
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </x-ui.data-table>
         </div>
         @endif
 

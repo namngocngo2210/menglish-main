@@ -21,20 +21,21 @@
         'success' => ['text-tertiary-container', 'bg-tertiary-fixed/50 text-tertiary'],
         'secondary' => ['text-secondary-container', 'bg-secondary-fixed text-secondary'],
         'error' => ['text-error', 'bg-error-container text-error'],
-        'warning' => ['text-amber-600', 'bg-amber-100 text-amber-700'],
+        'warning' => ['text-warning', 'bg-warning-container text-warning'],
     ];
     [$valueTone, $iconTone] = $tones[$tone] ?? $tones['default'];
 @endphp
 
 <div {{ $attributes->merge(['class' => 'flex items-center gap-md rounded-xl border border-surface-variant bg-surface-container-lowest p-md']) }}>
     @if ($icon)
-        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full {{ $iconTone }}">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full {{ $iconTone }}">
             <span class="material-symbols-outlined" aria-hidden="true">{{ $icon }}</span>
         </div>
     @endif
-    <div class="flex min-w-0 flex-col gap-xs">
-        <span class="truncate font-body-medium text-body-medium text-on-surface-variant">{{ $label }}</span>
-        <span class="font-h1 text-h1 {{ $valueTone }}">{{ $value ?? $slot }}</span>
+    <div class="flex min-w-0 flex-1 flex-col gap-xs">
+        {{-- Nhãn tối đa 2 dòng (không cắt cụt), số co theo độ rộng thẻ (tiền dài không tràn) --}}
+        <span class="line-clamp-2 font-body-medium text-body-medium text-on-surface-variant" title="{{ $label }}">{{ $label }}</span>
+        <span class="whitespace-nowrap font-h2 text-h2 font-bold leading-tight tabular-nums {{ $valueTone }}">{{ $value ?? $slot }}</span>
         @if ($hint)
             <span class="font-caption text-caption text-on-surface-variant">{{ $hint }}</span>
         @endif

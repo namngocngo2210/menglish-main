@@ -280,6 +280,10 @@ class CrmController extends Controller
         if ($stage = $request->input('stage')) {
             $query->where('stage', $stage);
         }
+        // Lọc nhanh "Chưa liên hệ >24h" (chip trên header CRM).
+        if ($request->boolean('sla')) {
+            $query->staleNew();
+        }
 
         $dbCustomers = $query->paginate($request->perPage(15))->withQueryString();
 
@@ -2354,16 +2358,16 @@ class CrmController extends Controller
             $commissionResult = $calculateCommission($userRevenue, (int) $user->id);
 
             $rating = 'Cần cải thiện';
-            $ratingBadge = 'bg-rose-100 text-rose-800 border-rose-200';
+            $ratingBadge = 'bg-error/10 text-error border-error/30';
             if ($userRevenue >= 100000000 || $userRate >= 30) {
                 $rating = 'Xuất sắc';
-                $ratingBadge = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+                $ratingBadge = 'bg-tertiary/10 text-tertiary border-tertiary/30';
             } elseif ($userRevenue >= 50000000 || $userRate >= 25) {
                 $rating = 'Tốt';
-                $ratingBadge = 'bg-blue-100 text-blue-800 border-blue-200';
+                $ratingBadge = 'bg-secondary/10 text-secondary border-secondary/30';
             } elseif ($userRevenue >= 20000000 || $userRate >= 15) {
                 $rating = 'Đạt yêu cầu';
-                $ratingBadge = 'bg-amber-100 text-amber-800 border-amber-200';
+                $ratingBadge = 'bg-warning/10 text-warning border-warning/30';
             }
 
             $avatarLetter = mb_strtoupper(mb_substr($user->name, 0, 1));

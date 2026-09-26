@@ -106,7 +106,7 @@
                                         </label>
                                         @if ($cr->description)<p class="font-caption text-caption text-on-surface-variant">{{ $cr->description }}</p>@endif
                                     </td>
-                                    <td class="text-right font-mono">{{ $money($itemFund($cr)) }}</td>
+                                    <td class="text-right"><x-ui.money :value="$itemFund($cr)" suffix="" /></td>
                                     <td class="font-body-small text-body-small">{{ $cr->threshold_full ?: ($cr->target ?: '—') }}</td>
                                     <td class="font-body-small text-body-small">{{ $cr->threshold_half ?: '—' }}</td>
                                     <td>
@@ -144,16 +144,16 @@
                                 <tr>
                                     <td>{{ $groupName }}</td>
                                     <td class="text-center font-mono">{{ $row['count'] }}</td>
-                                    <td class="text-right font-mono">{{ $money($row['fund']) }}</td>
-                                    <td class="text-right font-mono">{{ $money($row['earned']) }}</td>
+                                    <td class="text-right"><x-ui.money :value="$row['fund']" suffix="" /></td>
+                                    <td class="text-right"><x-ui.money :value="$row['earned']" suffix="" /></td>
                                     <td class="text-right font-mono">{{ $fmt($row['percent']) }}%</td>
                                 </tr>
                             @endforeach
                             <tr class="font-semibold">
                                 <td>Tổng cộng</td>
                                 <td class="text-center font-mono">{{ $groupSummary->sum('count') }}</td>
-                                <td class="text-right font-mono">{{ $money($groupSummary->sum('fund')) }}</td>
-                                <td class="text-right font-mono">{{ $money($groupSummary->sum('earned')) }}</td>
+                                <td class="text-right"><x-ui.money :value="$groupSummary->sum('fund')" suffix="" /></td>
+                                <td class="text-right"><x-ui.money :value="$groupSummary->sum('earned')" suffix="" /></td>
                                 <td class="text-right font-mono">{{ $fmt($total) }}%</td>
                             </tr>
                         </tbody>
@@ -179,12 +179,12 @@
                         @endif
                     </section>
                     <section class="rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
-                        <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface"><span class="material-symbols-outlined text-amber-600" aria-hidden="true">warning</span>Cảnh báo hiệu suất</h3>
+                        <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface"><span class="material-symbols-outlined text-warning" aria-hidden="true">warning</span>Cảnh báo hiệu suất</h3>
                         <div class="mt-sm grid grid-cols-2 gap-sm">
-                            <div class="rounded-lg bg-amber-50 p-sm">
-                                <p class="flex items-center gap-xs font-caption text-caption text-amber-800"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">trending_down</span>Mức cảnh báo (≤50%)</p>
-                                <p class="font-h2 text-h2 text-amber-700">{{ $warnings['low'] }}</p>
-                                <p class="font-caption text-caption text-amber-800">Tiêu chí cần chú ý</p>
+                            <div class="rounded-lg bg-warning/10 p-sm">
+                                <p class="flex items-center gap-xs font-caption text-caption text-on-warning-container"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">trending_down</span>Mức cảnh báo (≤50%)</p>
+                                <p class="font-h2 text-h2 text-warning">{{ $warnings['low'] }}</p>
+                                <p class="font-caption text-caption text-on-warning-container">Tiêu chí cần chú ý</p>
                             </div>
                             <div class="rounded-lg bg-error-container p-sm">
                                 <p class="flex items-center gap-xs font-caption text-caption text-on-error-container"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">cancel</span>Không đạt (0%)</p>

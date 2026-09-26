@@ -24,7 +24,7 @@
 
         @foreach ([
             ['rows' => $seriousOverdue, 'title' => 'Quá hạn nghiêm trọng (≥ '.$seriousDays.' ngày)', 'icon' => 'report', 'tone' => 'text-error', 'serious' => true],
-            ['rows' => $newOverdue, 'title' => 'Mới quá hạn (1–'.max(1, $seriousDays - 1).' ngày)', 'icon' => 'info', 'tone' => 'text-amber-700', 'serious' => false],
+            ['rows' => $newOverdue, 'title' => 'Mới quá hạn (1–'.max(1, $seriousDays - 1).' ngày)', 'icon' => 'info', 'tone' => 'text-warning', 'serious' => false],
         ] as $group)
             <div class="space-y-sm">
                 <h3 class="flex items-center gap-xs font-label text-label uppercase {{ $group['tone'] }}">

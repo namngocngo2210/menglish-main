@@ -11,15 +11,13 @@
 @endphp
 <x-app-layout title="Giao bài tập về nhà — {{ $class->name }}">
     <div class="mx-auto max-w-4xl space-y-lg pb-24 md:pb-0">
-        <header>
-            <a href="{{ route('teacher.home') }}" class="mb-xs inline-flex items-center gap-xs font-body-small text-body-small text-on-surface-variant hover:text-primary">
-                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span> Về lịch dạy
-            </a>
-            <h1 class="font-h2 text-h2 text-on-surface">{{ $editing ? 'Sửa bài tập về nhà' : 'Giao bài tập về nhà' }}</h1>
-            <p class="mt-xs inline-flex items-center gap-xs rounded-full bg-secondary-fixed/50 px-md py-[2px] font-body-small text-body-small text-on-secondary-fixed">
-                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">info</span> Lớp {{ $class->name }} <span class="font-code">({{ $class->code }})</span>
-            </p>
-        </header>
+        <x-ui.page-header :title="$editing ? 'Sửa bài tập về nhà' : 'Giao bài tập về nhà'" :back="route('teacher.home')" back-label="Về lịch dạy">
+            <x-slot:meta>
+                <span class="inline-flex items-center gap-xs rounded-full bg-secondary-fixed/50 px-md py-[2px] font-body-small text-body-small text-on-secondary-fixed">
+                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">info</span> Lớp {{ $class->name }} <span class="font-code">({{ $class->code }})</span>
+                </span>
+            </x-slot:meta>
+        </x-ui.page-header>
 
         @if ($errors->any())
             <x-ui.alert type="error">{{ $errors->first() }}</x-ui.alert>
@@ -35,20 +33,15 @@
             <section class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm md:p-lg">
                 <h2 class="flex items-center gap-xs font-h3 text-h3 text-on-surface"><span class="material-symbols-outlined text-primary-container" aria-hidden="true">info</span> Thông tin chung</h2>
                 <div class="grid grid-cols-1 gap-md md:grid-cols-2">
-                    <x-ui.field label="Buổi học" name="class_session_id" for="hw_session" required>
-                        <select id="hw_session" name="class_session_id" required class="{{ $input }}">
-                            <option value="">Chọn buổi học...</option>
+                    <x-ui.select label="Buổi học" id="hw_session" name="class_session_id" required placeholder="Chọn buổi học...">
                             @foreach ($sessions as $s)
                                 @php $lesson = $lessons[$s->id] ?? null; @endphp
                                 <option value="{{ $s->id }}" @selected((string) $selectedSessionId === (string) $s->id)>
                                     {{ $lesson ? 'Buổi '.$lesson['no'].': ' : '' }}{{ $s->date->format('d/m') }} {{ $s->start_time?->format('H:i') }}{{ $lesson['title'] ?? null ? ' — '.$lesson['title'] : ($lesson['unit'] ?? null ? ' — '.$lesson['unit'] : '') }}{{ $s->type === \App\Models\ClassSession::TYPE_MAKEUP ? ' (học bù)' : '' }}
                                 </option>
                             @endforeach
-                        </select>
-                    </x-ui.field>
-                    <x-ui.field label="Hạn nộp" name="due_at" for="hw_due" required>
-                        <input id="hw_due" type="datetime-local" name="due_at" required value="{{ old('due_at', $dueDefault) }}" class="{{ $input }}">
-                    </x-ui.field>
+                    </x-ui.select>
+                    <x-ui.input label="Hạn nộp" id="hw_due" type="datetime-local" name="due_at" required :value="$dueDefault" />
                 </div>
                 <x-ui.textarea name="class_note" label="Ghi chú nhắc nhở cả lớp (Không bắt buộc)" rows="2" :value="$editing?->class_note"
                     placeholder="Ví dụ: Các em nhớ làm bài tập trước 12h trưa chủ nhật nhé..." />
@@ -83,7 +76,7 @@
                             <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">{{ in_array($key, $locked, true) ? 'lock' : $icon }}</span>
                             @if (in_array($key, $locked, true))
                                 <input type="hidden" name="categories[]" value="{{ $key }}">
-                                <span class="absolute -top-2 right-2 rounded bg-amber-100 px-xs font-caption text-caption font-semibold text-amber-800">Đã có học sinh nộp</span>
+                                <span class="absolute -top-2 right-2 rounded bg-warning-container px-xs font-caption text-caption font-semibold text-on-warning-container">Đã có học sinh nộp</span>
                             @endif
                         </label>
                     @endforeach
@@ -97,7 +90,7 @@
                                 @if (in_array($key, $locked, true))
                                     <span class="material-symbols-outlined text-[18px] text-on-surface-variant" title="Không thể xóa do đã có người nộp" aria-hidden="true">lock</span>
                                 @else
-                                    <button type="button" class="rounded p-xs text-on-surface-variant hover:bg-surface-container-high" x-on:click="toggle('{{ $key }}')" aria-label="Bỏ hạng mục {{ $label }}"><span class="material-symbols-outlined text-[18px]">close</span></button>
+                                    <x-ui.button variant="ghost" size="sm" icon="close" x-on:click="toggle('{{ $key }}')" aria-label="Bỏ hạng mục {{ $label }}" />
                                 @endif
                             </div>
                             <textarea name="items[{{ $key }}]" rows="2" placeholder="{{ $placeholder }}" :required="picked.includes('{{ $key }}')" :disabled="!picked.includes('{{ $key }}')"

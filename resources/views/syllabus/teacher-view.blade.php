@@ -1,32 +1,22 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('syllabus.documents') }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <nav class="flex flex-wrap items-center gap-xs font-body-small text-body-small text-on-surface-variant" aria-label="Breadcrumb">
-                        <span class="material-symbols-outlined text-[16px]">menu_book</span>
-                        <span>Giáo trình &amp; Tài liệu</span>
-                        @if ($overviewCurriculum)
-                            <span class="material-symbols-outlined text-[16px]">chevron_right</span>
-                            <span class="font-semibold text-on-surface">{{ $overviewCurriculum->title }}</span>
-                        @endif
-                    </nav>
-                    <h1 class="font-h1 text-h1 text-on-surface">Xem tài liệu giáo trình</h1>
-                </div>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-                <form method="GET" action="{{ route('syllabus.teacher-view') }}" class="flex items-center gap-2">
-                    @if ($class)<input type="hidden" name="class" value="{{ $class->id }}">@endif
-                    <x-ui.input name="q" icon="search" :value="$search" placeholder="Tìm kiếm tài liệu..." />
-                    <x-ui.button type="submit" variant="secondary" icon="filter_list">Lọc</x-ui.button>
-                </form>
-                <x-ui.button variant="secondary" icon="edit_attributes" :href="route('syllabus.teacher-propose')">Đề xuất sửa</x-ui.button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Xem tài liệu giáo trình" :back="route('syllabus.documents')">
+        <x-slot:breadcrumbs>
+            <span class="material-symbols-outlined text-[16px]">menu_book</span>
+            <span>Giáo trình &amp; Tài liệu</span>
+            @if ($overviewCurriculum)
+                <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+                <span class="font-semibold text-on-surface">{{ $overviewCurriculum->title }}</span>
+            @endif
+        </x-slot:breadcrumbs>
+        <x-slot:actions>
+            <form method="GET" action="{{ route('syllabus.teacher-view') }}" class="flex items-center gap-2">
+                @if ($class)<input type="hidden" name="class" value="{{ $class->id }}">@endif
+                <x-ui.input name="q" icon="search" :value="$search" placeholder="Tìm kiếm tài liệu..." />
+                <x-ui.button type="submit" variant="secondary" icon="filter_list">Lọc</x-ui.button>
+            </form>
+            <x-ui.button variant="secondary" icon="edit_attributes" :href="route('syllabus.teacher-propose')">Đề xuất sửa</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
 
     @php($user = auth()->user())
@@ -56,7 +46,7 @@
                                    class="relative block p-md rounded-lg border transition-all {{ $selected?->id === $doc->id ? 'bg-primary-fixed/30 border-primary-container' : 'bg-surface-container-lowest border-outline-variant hover:bg-surface-container-low' }}">
                                     @if ($selected?->id === $doc->id)<span class="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg bg-primary-container"></span>@endif
                                     <div class="flex items-start gap-3">
-                                        <div class="bg-white p-2 rounded-lg text-primary border border-outline-variant">
+                                        <div class="bg-surface-container-lowest p-2 rounded-lg text-primary border border-outline-variant">
                                             <span class="material-symbols-outlined text-[20px]">{{ $doc->icon }}</span>
                                         </div>
                                         <div class="flex-1 min-w-0">
@@ -98,7 +88,7 @@
                         </div>
                         <div class="flex items-center gap-2">
                             @unless ($canDownloadSelected)
-                                <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-sm py-0.5 font-label text-label text-amber-800"><span class="material-symbols-outlined text-[14px]">shield</span>Bảo mật nội dung</span>
+                                <x-ui.badge color="warning" :dot="false" :pill="true"><span class="material-symbols-outlined text-[14px]">shield</span>Bảo mật nội dung</x-ui.badge>
                             @endunless
                             <x-ui.button variant="ghost" size="sm" icon="fullscreen" title="Toàn màn hình" @click="$refs.viewer.requestFullscreen && $refs.viewer.requestFullscreen()" />
                             @if ($canDownloadSelected)
@@ -107,13 +97,13 @@
                         </div>
                     </div>
                     @php($fileUrl = route('syllabus.documents.file', $selected->id))
-                    <div class="flex-1 bg-slate-100 flex justify-center items-center p-4 relative min-h-[560px] overflow-hidden">
+                    <div class="flex-1 bg-surface-container flex justify-center items-center p-4 relative min-h-[560px] overflow-hidden">
                         @switch($selected->kind)
                             @case('pdf')
-                                <iframe src="{{ $fileUrl }}#toolbar=0" class="w-full h-[680px] rounded-xl bg-white border border-gray-200" title="{{ $selected->title }}"></iframe>
+                                <iframe src="{{ $fileUrl }}#toolbar=0" class="w-full h-[680px] rounded-xl bg-surface-container-lowest border border-surface-container-highest" title="{{ $selected->title }}"></iframe>
                                 @break
                             @case('image')
-                                <img src="{{ $fileUrl }}" alt="{{ $selected->title }}" class="max-h-[680px] rounded-xl border border-gray-200 bg-white">
+                                <img src="{{ $fileUrl }}" alt="{{ $selected->title }}" class="max-h-[680px] rounded-xl border border-surface-container-highest bg-surface-container-lowest">
                                 @break
                             @case('audio')
                                 <audio controls controlsList="nodownload" src="{{ $fileUrl }}" class="w-full max-w-xl"></audio>
@@ -136,7 +126,7 @@
                     </div>
                     <div class="bg-surface-container-lowest p-md border-t border-outline-variant flex flex-wrap items-center justify-between gap-3">
                         <p class="font-body-small text-body-small text-on-surface-variant flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-[16px] {{ $canDownloadSelected ? 'text-tertiary' : 'text-amber-600' }}">info</span>
+                            <span class="material-symbols-outlined text-[16px] {{ $canDownloadSelected ? 'text-tertiary' : 'text-warning' }}">info</span>
                             {{ $canDownloadSelected ? 'Tài liệu được phép tải về.' : 'Tài liệu này không hỗ trợ tải về để bảo mật nội dung theo chính sách của MENGLISH.' }}
                         </p>
                         @if ($viewedIds->contains($selected->id))
@@ -205,7 +195,7 @@
                 <ol class="flex flex-wrap gap-2 text-[11px]">
                     @foreach ($stages as $s)
                         @php($state = $s->id === $assignment->stage_id ? 'open' : ($closedStageIds->contains($s->id) ? 'done' : 'todo'))
-                        <li class="px-2.5 py-1 rounded-lg border {{ ['open' => 'border-primary-container bg-primary-container/10 text-primary font-bold', 'done' => 'border-emerald-200 bg-emerald-50 text-emerald-700', 'todo' => 'border-gray-200 text-gray-400'][$state] }}">
+                        <li class="px-2.5 py-1 rounded-lg border {{ ['open' => 'border-primary-container bg-primary-container/10 text-primary font-bold', 'done' => 'border-tertiary/30 bg-tertiary/10 text-tertiary', 'todo' => 'border-surface-container-highest text-on-surface-variant/70'][$state] }}">
                             <span class="material-symbols-outlined text-[13px] align-middle">{{ ['open' => 'play_circle', 'done' => 'check_circle', 'todo' => 'lock'][$state] }}</span>
                             {{ $s->label }}
                         </li>
@@ -214,22 +204,22 @@
 
                 @php($current = $position['current'])
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                    <div class="rounded-xl border border-gray-200 p-3">
-                        <p class="text-[10px] uppercase font-bold text-gray-400">Chặng đang học</p>
-                        <p class="font-bold text-gray-900">{{ $assignment->stage?->label ?? $assignment->stage_name }}</p>
-                        <p class="text-gray-500">{{ $assignment->curriculum?->title }} · mở {{ ($assignment->opened_at ?? $assignment->created_at)?->format('d/m/Y') }}</p>
+                    <div class="rounded-xl border border-surface-container-highest p-3">
+                        <p class="text-[10px] uppercase font-bold text-on-surface-variant/70">Chặng đang học</p>
+                        <p class="font-bold text-on-surface">{{ $assignment->stage?->label ?? $assignment->stage_name }}</p>
+                        <p class="text-on-surface-variant">{{ $assignment->curriculum?->title }} · mở {{ ($assignment->opened_at ?? $assignment->created_at)?->format('d/m/Y') }}</p>
                     </div>
-                    <div class="rounded-xl border border-gray-200 p-3">
-                        <p class="text-[10px] uppercase font-bold text-gray-400">Tiến độ</p>
-                        <p class="font-bold text-gray-900">Đã dạy {{ $position['taught'] }} / {{ $position['lessons']->count() }} buổi của chặng</p>
+                    <div class="rounded-xl border border-surface-container-highest p-3">
+                        <p class="text-[10px] uppercase font-bold text-on-surface-variant/70">Tiến độ</p>
+                        <p class="font-bold text-on-surface">Đã dạy {{ $position['taught'] }} / {{ $position['lessons']->count() }} buổi của chặng</p>
                         @if ($assignment->extra_sessions)
-                            <p class="text-amber-700">+{{ $assignment->extra_sessions }} buổi giãn tiến độ đã duyệt</p>
+                            <p class="text-warning">+{{ $assignment->extra_sessions }} buổi giãn tiến độ đã duyệt</p>
                         @endif
                     </div>
-                    <div class="rounded-xl border border-gray-200 p-3">
-                        <p class="text-[10px] uppercase font-bold text-gray-400">Big Test cuối chặng</p>
-                        <p class="font-bold text-purple-700">{{ $assignment->stage?->big_test_title ?: 'Big Test cuối chặng' }}</p>
-                        <p class="text-gray-500">Chặng đóng khi kết quả được duyệt và gửi phụ huynh.</p>
+                    <div class="rounded-xl border border-surface-container-highest p-3">
+                        <p class="text-[10px] uppercase font-bold text-on-surface-variant/70">Big Test cuối chặng</p>
+                        <p class="font-bold text-secondary">{{ $assignment->stage?->big_test_title ?: 'Big Test cuối chặng' }}</p>
+                        <p class="text-on-surface-variant">Chặng đóng khi kết quả được duyệt và gửi phụ huynh.</p>
                     </div>
                 </div>
 
@@ -243,16 +233,16 @@
                     @forelse ($assignment->stage?->units()->with('lessons')->get() ?? [] as $u)
                         <div class="border border-outline-variant rounded-xl overflow-hidden">
                             <p class="px-4 py-2.5 font-body-medium text-body-medium font-semibold text-on-surface bg-surface-container-low">Unit {{ $u->unit_number }}: {{ $u->title }}</p>
-                            <div class="divide-y divide-gray-100">
+                            <div class="divide-y divide-surface-container-highest">
                                 @forelse ($u->lessons as $lesson)
-                                    <details class="px-4 py-2.5 text-xs group {{ $current?->id === $lesson->id ? 'bg-orange-50/60' : '' }}" @if ($current?->id === $lesson->id) open @endif>
-                                        <summary class="flex items-center justify-between gap-2 font-semibold text-gray-800 cursor-pointer list-none">
+                                    <details class="px-4 py-2.5 text-xs group {{ $current?->id === $lesson->id ? 'bg-primary-container/10' : '' }}" @if ($current?->id === $lesson->id) open @endif>
+                                        <summary class="flex items-center justify-between gap-2 font-semibold text-on-surface cursor-pointer list-none">
                                             <span>Buổi {{ $lesson->session_no }}: {{ $lesson->title }}
                                                 @if ($current?->id === $lesson->id)<x-ui.badge color="primary">Buổi tiếp theo</x-ui.badge>@endif
                                             </span>
-                                            <span class="material-symbols-outlined text-[18px] text-gray-400 group-open:rotate-180 transition">expand_more</span>
+                                            <span class="material-symbols-outlined text-[18px] text-on-surface-variant/70 group-open:rotate-180 transition">expand_more</span>
                                         </summary>
-                                        <div class="space-y-1.5 mt-3 text-gray-700">
+                                        <div class="space-y-1.5 mt-3 text-on-surface-variant">
                                             <p class="whitespace-pre-line"><strong>Mục tiêu:</strong> {{ $lesson->objectives ?: '—' }}</p>
                                             <p class="whitespace-pre-line"><strong>Từ vựng:</strong> {{ $lesson->vocabulary_focus ?: '—' }}</p>
                                             <p class="whitespace-pre-line"><strong>Ngữ pháp:</strong> {{ $lesson->grammar_focus ?: '—' }}</p>
@@ -261,7 +251,7 @@
                                         </div>
                                     </details>
                                 @empty
-                                    <p class="px-4 py-2.5 text-[11px] text-gray-400">Unit chưa có buổi học.</p>
+                                    <p class="px-4 py-2.5 text-[11px] text-on-surface-variant/70">Unit chưa có buổi học.</p>
                                 @endforelse
                             </div>
                         </div>

@@ -1,43 +1,21 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('classes.create') }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">school</span>
-                        Hồ sơ lớp học
-                    </h1>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                @if($class)
-                    @can('class.update')
-                    <a href="{{ route('classes.edit', $class->id) }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-secondary/10 hover:bg-secondary/20 text-secondary text-xs font-semibold transition">
-                        <span class="material-symbols-outlined text-[18px]">edit</span>
-                        <span>Chỉnh sửa</span>
-                    </a>
-                    @endcan
-                    @can('class.delete')
-                    <form method="POST" action="{{ route('classes.destroy', $class->id) }}" onsubmit="return confirm('Xóa lớp {{ $class->name }}?')" class="inline">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold transition">
-                            <span class="material-symbols-outlined text-[18px]">delete</span>
-                            <span>Xóa lớp</span>
-                        </button>
-                    </form>
-                    @endcan
-                @endif
-                <a href="{{ route('classes.academic-overview') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-dark transition">
-                    <span class="material-symbols-outlined text-[18px]">dashboard</span>
-                    <span>Sơ đồ khối lớp</span>
-                </a>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Hồ sơ lớp học" icon="school" :back="route('classes.create')">
+        <x-slot:actions>
+            @if($class)
+                @can('class.update')
+                    <x-ui.button variant="secondary" icon="edit" :href="route('classes.edit', $class->id)">Chỉnh sửa</x-ui.button>
+                @endcan
+                @can('class.delete')
+                <form method="POST" action="{{ route('classes.destroy', $class->id) }}" onsubmit="return confirm('Xóa lớp {{ $class->name }}?')" class="inline">
+                    @csrf
+                    @method('DELETE')
+                    <x-ui.button type="submit" variant="danger-text" icon="delete">Xóa lớp</x-ui.button>
+                </form>
+                @endcan
+            @endif
+            <x-ui.button icon="dashboard" :href="route('classes.academic-overview')">Sơ đồ khối lớp</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
 
     
@@ -48,27 +26,27 @@
     @endphp
     <div class="max-w-6xl mx-auto space-y-6">
         {{-- Chọn lớp --}}
-        <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
             {{-- Class Switcher --}}
             <div class="flex items-center gap-2.5">
-                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Đang xem lớp:</span>
-                <select class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container cursor-pointer"
-                        onchange="window.location.href = '{{ route('classes.profile') }}/' + this.value">
+                <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Đang xem lớp:</span>
+                <x-ui.select aria-label="Đang xem lớp" class="text-xs font-bold cursor-pointer"
+                             onchange="window.location.href = '{{ route('classes.profile') }}/' + this.value">
                     @foreach($classes as $c)
                         <option value="{{ $c->id }}" {{ ($class && $class->id === $c->id) ? 'selected' : '' }}>
                             {{ $c->name }} ({{ $c->code }})
                         </option>
                     @endforeach
-                </select>
+                </x-ui.select>
             </div>
 
         </div>
 
         {{-- Page Header --}}
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-gray-200 gap-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-surface-container-highest gap-4">
             <div>
                 <div class="flex items-center gap-3">
-                    <h1 class="text-2xl font-bold text-gray-900 tracking-tight">
+                    <h1 class="text-2xl font-bold text-on-surface tracking-tight">
                         {{ $class ? 'Hồ sơ lớp ' . $class->name : 'Chưa có lớp học' }}
                     </h1>
                 @php
@@ -81,26 +59,24 @@
                         default => 'Chưa xác định',
                     };
                 @endphp
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    {{ $statusLabel }}
-                </span>
+                <x-ui.badge color="success" :pill="true">{{ $statusLabel }}</x-ui.badge>
                 </div>
             </div>
 
             <div class="flex items-center gap-2">
                 @if($canManageClass)
-                    <a href="{{ route('classes.edit', $class->id) }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-secondary/10 hover:bg-secondary/20 text-secondary text-xs font-semibold transition">
+                    <x-ui.button variant="secondary" size="sm" :href="route('classes.edit', $class->id)">
                         <span>✏️</span>
                         <span>Sửa thông tin lớp</span>
-                    </a>
+                    </x-ui.button>
                 @endif
             </div>
         </div>
 
         {{-- General Information Card --}}
-        <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-            <div class="flex justify-between items-center pb-4 mb-6 border-b border-gray-100">
-                <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
+        <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest p-6 shadow-sm">
+            <div class="flex justify-between items-center pb-4 mb-6 border-b border-surface-container-highest">
+                <h2 class="text-base font-bold text-on-surface flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary text-[20px]">info</span>
                     Thông tin chung
                 </h2>
@@ -115,133 +91,127 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {{-- 1. Chi nhánh --}}
                 <div>
-                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Chi nhánh</span>
-                    <span class="text-xs font-bold text-gray-900">{{ $class?->branch?->name ?? 'Chưa cập nhật' }}</span>
+                    <span class="text-[11px] font-bold text-on-surface-variant/70 uppercase tracking-wider block mb-1">Chi nhánh</span>
+                    <span class="text-xs font-bold text-on-surface">{{ $class?->branch?->name ?? 'Chưa cập nhật' }}</span>
                 </div>
 
                 {{-- 2. CM quản lý --}}
                 <div>
-                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">CM quản lý</span>
-                    <span class="text-xs font-bold text-gray-900">{{ $class?->assistant?->name ?? 'Chưa phân công' }}</span>
+                    <span class="text-[11px] font-bold text-on-surface-variant/70 uppercase tracking-wider block mb-1">CM quản lý</span>
+                    <span class="text-xs font-bold text-on-surface">{{ $class?->assistant?->name ?? 'Chưa phân công' }}</span>
                 </div>
 
                 {{-- 3. Chương trình --}}
                 <div>
-                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Chương trình</span>
-                    <span class="text-xs font-bold text-gray-900">{{ $class?->program ?? $class?->course?->name ?? 'Chưa cập nhật' }}</span>
+                    <span class="text-[11px] font-bold text-on-surface-variant/70 uppercase tracking-wider block mb-1">Chương trình</span>
+                    <span class="text-xs font-bold text-on-surface">{{ $class?->program ?? $class?->course?->name ?? 'Chưa cập nhật' }}</span>
                 </div>
 
                 {{-- 4. Cấp độ --}}
                 <div>
-                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Cấp độ</span>
-                    <span class="text-xs font-bold text-gray-900">{{ $class?->level ?? 'Chưa cập nhật' }}</span>
+                    <span class="text-[11px] font-bold text-on-surface-variant/70 uppercase tracking-wider block mb-1">Cấp độ</span>
+                    <span class="text-xs font-bold text-on-surface">{{ $class?->level ?? 'Chưa cập nhật' }}</span>
                 </div>
 
                 {{-- 5. Phòng học --}}
                 <div>
-                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Phòng học</span>
-                    <span class="text-xs font-bold text-gray-900">{{ $class?->room ?? 'Chưa cập nhật' }}</span>
+                    <span class="text-[11px] font-bold text-on-surface-variant/70 uppercase tracking-wider block mb-1">Phòng học</span>
+                    <span class="text-xs font-bold text-on-surface">{{ $class?->room ?? 'Chưa cập nhật' }}</span>
                 </div>
 
                 {{-- 6. Sĩ số --}}
                 <div>
-                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Sĩ số</span>
+                    <span class="text-[11px] font-bold text-on-surface-variant/70 uppercase tracking-wider block mb-1">Sĩ số</span>
                     @if ($class)
                         @php $seat = $class->seatSummary(); @endphp
                         <span class="text-xs font-bold text-primary" data-seats="{{ $class->id }}">{{ $seat['occupied'] }} / {{ $seat['capacity'] ?: '∞' }} học viên</span>
-                        <span class="block text-[11px] mt-0.5 {{ $seat['left'] === 0 ? 'text-red-600 font-bold' : 'text-gray-500' }}">
+                        <span class="block text-[11px] mt-0.5 {{ $seat['left'] === 0 ? 'text-error font-bold' : 'text-on-surface-variant' }}">
                             {{ $seat['left'] === null ? 'Không giới hạn sĩ số' : ($seat['left'] === 0 ? 'Đã đủ sĩ số' : 'Còn '.$seat['left'].' chỗ') }}
                             · Ngưỡng khai giảng {{ $seat['min'] }}
                         </span>
                         @if ($seat['needed'] > 0)
-                            <span class="block text-[11px] font-semibold text-amber-700">Cần thêm {{ $seat['needed'] }} học viên để khai giảng</span>
+                            <span class="block text-[11px] font-semibold text-warning">Cần thêm {{ $seat['needed'] }} học viên để khai giảng</span>
                         @endif
                     @else
-                        <span class="text-xs text-gray-400">—</span>
+                        <span class="text-xs text-on-surface-variant/70">—</span>
                     @endif
                 </div>
 
                 {{-- 7. Giáo viên chính --}}
                 <div>
-                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Giáo viên chính</span>
-                    <span class="text-xs font-bold text-gray-900">{{ $class?->teacher?->name ?? 'Chưa phân công' }}</span>
+                    <span class="text-[11px] font-bold text-on-surface-variant/70 uppercase tracking-wider block mb-1">Giáo viên chính</span>
+                    <span class="text-xs font-bold text-on-surface">{{ $class?->teacher?->name ?? 'Chưa phân công' }}</span>
                 </div>
 
                 {{-- 8. Lịch học --}}
                 <div>
-                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Lịch học</span>
-                    <span class="text-xs font-bold text-gray-900">{{ $class?->schedule_text ?? 'Chưa cập nhật' }}</span>
+                    <span class="text-[11px] font-bold text-on-surface-variant/70 uppercase tracking-wider block mb-1">Lịch học</span>
+                    <span class="text-xs font-bold text-on-surface">{{ $class?->schedule_text ?? 'Chưa cập nhật' }}</span>
                 </div>
             </div>
         </div>
 
         {{-- Students List Table --}}
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+        <x-ui.data-table>
+            <x-slot:header>
                 <div>
-                    <h2 class="text-base font-bold text-gray-900">Danh sách học sinh</h2>
-                    <p class="text-xs text-gray-500">Danh sách xếp lớp chính thức của lớp {{ $class?->code ?? '' }}</p>
+                    <h2 class="text-base font-bold text-on-surface">Danh sách học sinh</h2>
+                    <p class="text-xs text-on-surface-variant">Danh sách xếp lớp chính thức của lớp {{ $class?->code ?? '' }}</p>
                 </div>
-                <span class="px-3 py-1 rounded-full bg-primary-container/10 text-primary font-bold text-xs">
-                    {{ $students->count() }} học sinh
-                </span>
-            </div>
+                <x-ui.badge color="primary" :dot="false" :pill="true">{{ $students->count() }} học sinh</x-ui.badge>
+            </x-slot:header>
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-xs border-collapse">
+                <table class="text-xs">
                     <thead>
-                        <tr class="bg-gray-50 border-b border-gray-200 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                            <th class="py-3 px-4 w-12 text-center">STT</th>
-                            <th class="py-3 px-4">Họ và tên</th>
-                            <th class="py-3 px-4">Ngày sinh</th>
-                            <th class="py-3 px-4">Trường học</th>
-                            <th class="py-3 px-4">Địa chỉ</th>
-                            <th class="py-3 px-4">Tên phụ huynh</th>
+                        <tr>
+                            <th class="w-12 text-center">STT</th>
+                            <th>Họ và tên</th>
+                            <th>Ngày sinh</th>
+                            <th>Trường học</th>
+                            <th>Địa chỉ</th>
+                            <th>Tên phụ huynh</th>
                             @if ($canManageClass)
-                                <th class="py-3 px-4 text-primary font-bold">SĐT</th>
+                                <th class="text-primary font-bold">SĐT</th>
                             @endif
-                            <th class="py-3 px-4">Ghi chú</th>
+                            <th>Ghi chú</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100">
+                    <tbody>
                         @forelse($students as $idx => $st)
-                            <tr class="hover:bg-gray-50 transition-colors">
-                                <td class="py-3 px-4 text-center font-bold text-gray-400">{{ $idx + 1 }}</td>
-                                <td class="py-3 px-4">
-                                    <div class="font-bold text-gray-900">{{ $st->name }}</div>
-                                    <div class="text-[10px] text-gray-400 font-mono">{{ $st->code ?? '—' }}</div>
+                            <tr>
+                                <td class="text-center font-bold text-on-surface-variant/70">{{ $idx + 1 }}</td>
+                                <td>
+                                    <div class="font-bold text-on-surface">{{ $st->name }}</div>
+                                    <div class="text-[10px] text-on-surface-variant/70 font-mono">{{ $st->code ?? '—' }}</div>
                                 </td>
-                                <td class="py-3 px-4 text-gray-600 font-mono">
+                                <td class="text-on-surface-variant font-mono">
                                     {{ $st->dob ? $st->dob->format('d/m/Y') : '—' }}
                                 </td>
-                                <td class="py-3 px-4 text-gray-700">
+                                <td class="text-on-surface-variant">
                                     {{ $st->target ?? '—' }}
                                 </td>
-                                <td class="py-3 px-4 text-gray-600 max-w-[200px] truncate">
+                                <td class="text-on-surface-variant max-w-[200px] truncate">
                                     {{ $st->address ?? '—' }}
                                 </td>
-                                <td class="py-3 px-4 text-gray-800 font-medium">
+                                <td class="text-on-surface font-medium">
                                     {{ $st->parent_name ?? '—' }}
                                 </td>
                                 @if ($canManageClass)
-                                    <td class="py-3 px-4 font-mono font-bold text-gray-900">
+                                    <td class="font-mono font-bold text-on-surface">
                                         {{ $st->phone ?? '—' }}
                                     </td>
                                 @endif
-                                <td class="py-3 px-4 text-gray-500">
+                                <td class="text-on-surface-variant">
                                     {{ $st->notes ?? '—' }}
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="p-8 text-center text-gray-400 text-xs">
-                                    Chưa có học sinh nào trong lớp.
-                                </td>
+                                <td colspan="8"><x-ui.empty-state icon="group_off" title="Chưa có học sinh nào trong lớp." /></td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
-            </div>
-        </div>
+        </x-ui.data-table>
     </div>
 </x-app-layout>

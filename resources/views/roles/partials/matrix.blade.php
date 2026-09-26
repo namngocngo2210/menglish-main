@@ -84,12 +84,11 @@
                         </td>
                         <td>
                             @if ($levels !== [])
-                                <select name="scope[{{ $module }}]" aria-label="Phạm vi dữ liệu {{ PermissionCatalog::moduleLabel($module) }}" @disabled($readonly)
-                                        class="w-full rounded-lg border border-outline-variant py-xs pl-sm pr-lg font-body-small text-body-small">
+                                <x-ui.select :name="'scope['.$module.']'" :aria-label="'Phạm vi dữ liệu '.PermissionCatalog::moduleLabel($module)" :disabled="$readonly" class="font-body-small text-body-small">
                                     @foreach ($levels as $level)
                                         <option value="{{ $level }}" @selected($currentLevel === $level) title="{{ PermissionCatalog::scopeLevelDescription($module, $level) }}">{{ $levelLabels[$level] ?? $level }}</option>
                                     @endforeach
-                                </select>
+                                </x-ui.select>
                                 <p class="mt-xs font-caption text-caption text-on-surface-variant">{{ PermissionCatalog::scopeLevelDescription($module, $currentLevel) }}</p>
                             @else
                                 <span class="font-body-small text-body-small text-on-surface-variant">Toàn hệ thống</span>

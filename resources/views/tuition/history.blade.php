@@ -52,43 +52,15 @@
 
     <form method="GET" action="{{ route('tuition.history') }}" class="mb-md flex flex-wrap items-end gap-sm rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
         @if ($filters['student_id'])<input type="hidden" name="student_id" value="{{ $filters['student_id'] }}">@endif
-        <label class="block min-w-[220px] flex-1">
-            <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Tìm kiếm</span>
-            <input type="search" name="search" value="{{ $filters['search'] }}" placeholder="Mã phiếu, số HĐ, mã GD, tên / mã học viên..." class="w-full rounded-lg border-outline-variant font-body-base text-body-base" />
-        </label>
-        <label class="block">
-            <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Trạng thái</span>
-            <select name="status" class="rounded-lg border-outline-variant font-body-base text-body-base">
-                <option value="">Tất cả</option>
-                @foreach (['draft' => 'Bản nháp', 'pending' => 'Chờ duyệt', 'approved' => 'Đã duyệt', 'rejected' => 'Bị từ chối', 'cancelled' => 'Đã hủy hóa đơn'] as $value => $label)
-                    <option value="{{ $value }}" @selected($filters['status'] === $value)>{{ $label }}</option>
-                @endforeach
-            </select>
-        </label>
-        <label class="block">
-            <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Hình thức</span>
-            <select name="method" class="rounded-lg border-outline-variant font-body-base text-body-base">
-                <option value="">Tất cả</option>
-                @foreach (\App\Models\TuitionReceipt::METHOD_LABELS as $value => $label)
-                    <option value="{{ $value }}" @selected($filters['method'] === $value)>{{ $label }}</option>
-                @endforeach
-            </select>
-        </label>
-        <label class="block">
-            <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Từ ngày</span>
-            <input type="date" name="from" value="{{ $filters['from'] }}" class="rounded-lg border-outline-variant font-code text-code" />
-        </label>
-        <label class="block">
-            <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Đến ngày</span>
-            <input type="date" name="to" value="{{ $filters['to'] }}" class="rounded-lg border-outline-variant font-code text-code" />
-        </label>
-        <label class="block">
-            <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Khoản thu</span>
-            <select name="kind" class="rounded-lg border-outline-variant font-body-base text-body-base">
-                <option value="all" @selected($filters['kind'] === 'all')>Tất cả khoản thu</option>
-                <option value="renewal" @selected($filters['kind'] === 'renewal')>Chỉ khoản thu tái tục</option>
-            </select>
-        </label>
+        <div class="min-w-[220px] flex-1">
+            <x-ui.input type="search" name="search" label="Tìm kiếm" :value="$filters['search']" placeholder="Mã phiếu, số HĐ, mã GD, tên / mã học viên..." />
+        </div>
+        <x-ui.select name="status" label="Trạng thái" placeholder="Tất cả" :value="$filters['status']"
+                     :options="['draft' => 'Bản nháp', 'pending' => 'Chờ duyệt', 'approved' => 'Đã duyệt', 'rejected' => 'Bị từ chối', 'cancelled' => 'Đã hủy hóa đơn']" />
+        <x-ui.select name="method" label="Hình thức" placeholder="Tất cả" :value="$filters['method']" :options="\App\Models\TuitionReceipt::METHOD_LABELS" />
+        <x-ui.date name="from" label="Từ ngày" :value="$filters['from']" />
+        <x-ui.date name="to" label="Đến ngày" :value="$filters['to']" />
+        <x-ui.select name="kind" label="Khoản thu" :value="$filters['kind']" :options="['all' => 'Tất cả khoản thu', 'renewal' => 'Chỉ khoản thu tái tục']" />
         <x-ui.button type="submit" icon="filter_list">Lọc</x-ui.button>
         @if (request()->hasAny(['search', 'status', 'method', 'from', 'to', 'kind', 'student_id']))
             <x-ui.button variant="ghost" icon="restart_alt" :href="route('tuition.history')">Xóa lọc</x-ui.button>
@@ -134,7 +106,7 @@
                                     <div class="font-caption text-caption text-on-surface-variant">+ Phụ thu {{ $money($rc->surcharge_amount) }}đ</div>
                                 @endif
                             </td>
-                            <td class="whitespace-nowrap text-right font-code text-code {{ $rc->amount < 0 ? 'text-error' : '' }}">{{ $money($rc->amount) }} VNĐ</td>
+                            <td><x-ui.money :value="$rc->amount" suffix="VNĐ" /></td>
                             <td class="whitespace-nowrap">
                                 <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[18px] text-on-surface-variant" aria-hidden="true">{{ $methodIcon[$rc->payment_method] ?? 'payments' }}</span>{{ \App\Models\TuitionReceipt::METHOD_LABELS[$rc->payment_method] ?? $rc->payment_method }}</span>
                             </td>
@@ -199,8 +171,8 @@
                         </dl>
                         @can('tuition.approve')
                             <div x-show="detail.status === 'pending'" class="flex gap-sm">
-                                <a :href="detail.approve_url" class="inline-flex flex-1 items-center justify-center gap-xs rounded-lg bg-primary-container px-md py-sm font-body-medium text-body-medium text-white shadow-sm hover:bg-primary"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">check</span>Phê duyệt phiếu</a>
-                                <a :href="detail.approve_url" class="inline-flex flex-1 items-center justify-center gap-xs rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-medium text-body-medium text-on-surface shadow-sm hover:bg-surface-container-low"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">undo</span>Yêu cầu chỉnh sửa</a>
+                                <x-ui.button href="#" x-bind:href="detail.approve_url" icon="check" class="flex-1">Phê duyệt phiếu</x-ui.button>
+                                <x-ui.button variant="secondary" href="#" x-bind:href="detail.approve_url" icon="undo" class="flex-1">Yêu cầu chỉnh sửa</x-ui.button>
                             </div>
                         @endcan
                         <section class="space-y-sm">

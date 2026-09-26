@@ -1,24 +1,13 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('syllabus.documents') }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="font-h1 text-h1 text-on-surface">Duyệt yêu cầu xin điều chỉnh tiến độ</h1>
-                    <p class="font-body-base text-on-surface-variant">Quản lý các yêu cầu giãn tiến độ từ giáo viên. Duyệt sẽ thêm buổi vào cuối lịch của lớp; từ chối bắt buộc nhập lý do.</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <form method="GET" class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[18px] text-on-surface-variant">filter_list</span>
-                    <x-ui.select name="status" :value="$status" :options="['all' => 'Tất cả'] + \App\Models\SyllabusAdjustmentRequest::STATUS_LABELS" onchange="this.form.submit()" aria-label="Lọc" />
-                </form>
-                <x-ui.button variant="secondary" icon="speed" :href="route('syllabus.teacher-adjust')">Gửi yêu cầu mới</x-ui.button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Duyệt yêu cầu xin điều chỉnh tiến độ" description="Quản lý các yêu cầu giãn tiến độ từ giáo viên. Duyệt sẽ thêm buổi vào cuối lịch của lớp; từ chối bắt buộc nhập lý do." :back="route('syllabus.documents')">
+        <x-slot:actions>
+            <form method="GET" class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px] text-on-surface-variant">filter_list</span>
+                <x-ui.select name="status" :value="$status" :options="['all' => 'Tất cả'] + \App\Models\SyllabusAdjustmentRequest::STATUS_LABELS" onchange="this.form.submit()" aria-label="Lọc" />
+            </form>
+            <x-ui.button variant="secondary" icon="speed" :href="route('syllabus.teacher-adjust')">Gửi yêu cầu mới</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
 
     @php($canReview = auth()->user()->can('syllabus.approve_adjustment'))
@@ -120,21 +109,19 @@
                         </div>
 
                         @if ($selected->status === 'approved')
-                            <div class="rounded-lg border border-tertiary/20 bg-tertiary/5 p-md font-body-small text-body-small text-on-surface">
+                            <x-ui.alert type="success" class="font-body-small text-body-small">
                                 <p class="font-semibold">Đã duyệt bởi {{ $selected->approver?->name }} {{ $selected->reviewed_at ? 'lúc '.$selected->reviewed_at->format('H:i d/m/Y') : '' }}</p>
                                 <p class="mt-1">{{ $selected->applied_note }}</p>
-                            </div>
+                            </x-ui.alert>
                         @elseif ($selected->status === 'rejected')
-                            <div class="rounded-lg border border-error/20 bg-error/5 p-md font-body-small text-body-small text-on-surface">
+                            <x-ui.alert type="error" class="font-body-small text-body-small">
                                 <p class="font-semibold">Đã từ chối bởi {{ $selected->approver?->name }} {{ $selected->reviewed_at ? 'lúc '.$selected->reviewed_at->format('H:i d/m/Y') : '' }}</p>
                                 <p class="mt-1">Lý do: {{ $selected->rejection_reason ?: '—' }}</p>
-                            </div>
+                            </x-ui.alert>
                         @elseif ($canReview)
                             <form id="reject-form" method="POST" action="{{ route('syllabus.adjustment-requests.reject', $selected->id) }}" x-show="rejecting" x-cloak class="rounded-lg border border-error/30 bg-error/5 p-md">
                                 @csrf
-                                <label for="reject-reason" class="mb-xs flex items-center gap-xs font-label text-label text-error"><span class="material-symbols-outlined text-[18px]">warning</span>Lý do từ chối (Bắt buộc)</label>
-                                <textarea id="reject-reason" name="rejection_reason" rows="3" placeholder="Nhập lý do chi tiết để phản hồi lại giáo viên..." class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest p-md font-body-base text-body-base focus:border-error focus:outline-none focus:ring-2 focus:ring-error/20">{{ old('rejection_reason') }}</textarea>
-                                @error('rejection_reason')<p class="mt-xs font-caption text-caption text-error">{{ $message }}</p>@enderror
+                                <x-ui.textarea label="Lý do từ chối (Bắt buộc)" name="rejection_reason" id="reject-reason" rows="3" placeholder="Nhập lý do chi tiết để phản hồi lại giáo viên..." />
                             </form>
                             <form id="approve-form" method="POST" action="{{ route('syllabus.adjustment-requests.approve', $selected->id) }}" x-show="! rejecting">
                                 @csrf

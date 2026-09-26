@@ -34,19 +34,19 @@
             @csrf
             <h2 class="font-h3 text-h3 text-on-surface">Thêm mục KPI mới</h2>
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <input type="text" name="group_name" list="kpi-groups" placeholder="Nhóm KPI (vd: Chăm sóc học viên)" class="text-sm rounded-lg border-outline-variant focus:border-primary-container focus:ring-primary-container" value="{{ old('group_name') }}">
-                <input type="text" name="code" placeholder="Mã (vd: 1.4)" class="text-sm rounded-lg border-outline-variant focus:border-primary-container focus:ring-primary-container" value="{{ old('code') }}">
-                <input type="text" name="name" required placeholder="Tên mục *" class="sm:col-span-2 text-sm rounded-lg border-outline-variant focus:border-primary-container focus:ring-primary-container" value="{{ old('name') }}">
+                <x-ui.input name="group_name" list="kpi-groups" placeholder="Nhóm KPI (vd: Chăm sóc học viên)" />
+                <x-ui.input name="code" placeholder="Mã (vd: 1.4)" />
+                <div class="sm:col-span-2"><x-ui.input name="name" required placeholder="Tên mục *" /></div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <input type="number" name="weight" required step="0.25" min="0" max="100" placeholder="Trọng số % quỹ *" class="text-sm rounded-lg border-outline-variant focus:border-primary-container focus:ring-primary-container" value="{{ old('weight') }}">
-                <input type="text" name="threshold_full" placeholder="Ngưỡng đạt 100%" class="text-sm rounded-lg border-outline-variant focus:border-primary-container focus:ring-primary-container" value="{{ old('threshold_full') }}">
-                <input type="text" name="threshold_half" placeholder="Ngưỡng đạt 50%" class="text-sm rounded-lg border-outline-variant focus:border-primary-container focus:ring-primary-container" value="{{ old('threshold_half') }}">
-                <input type="text" name="unit" placeholder="Đơn vị (vd: %, buổi)" class="text-sm rounded-lg border-outline-variant focus:border-primary-container focus:ring-primary-container" value="{{ old('unit') }}">
+                <x-ui.input type="number" name="weight" required step="0.25" min="0" max="100" placeholder="Trọng số % quỹ *" />
+                <x-ui.input name="threshold_full" placeholder="Ngưỡng đạt 100%" />
+                <x-ui.input name="threshold_half" placeholder="Ngưỡng đạt 50%" />
+                <x-ui.input name="unit" placeholder="Đơn vị (vd: %, buổi)" />
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input type="text" name="target" placeholder="Mục tiêu (vd: >= 95%)" class="text-sm rounded-lg border-outline-variant focus:border-primary-container focus:ring-primary-container" value="{{ old('target') }}">
-                <input type="text" name="description" placeholder="Mô tả" class="text-sm rounded-lg border-outline-variant focus:border-primary-container focus:ring-primary-container" value="{{ old('description') }}">
+                <x-ui.input name="target" placeholder="Mục tiêu (vd: >= 95%)" />
+                <x-ui.input name="description" placeholder="Mô tả" />
             </div>
             <datalist id="kpi-groups">
                 @foreach ($groups as $group)
@@ -54,9 +54,7 @@
                 @endforeach
             </datalist>
             <div class="flex justify-end">
-                <button type="submit" class="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-primary text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[18px]">add</span> Thêm mục
-                </button>
+                <x-ui.button type="submit" icon="add">Thêm mục</x-ui.button>
             </div>
         </form>
 
@@ -82,7 +80,7 @@
                                     <input type="checkbox" name="is_active" value="1" @checked($cr->is_active) class="rounded border-outline-variant text-primary focus:ring-primary-container"> Bật
                                 </label>
                                 <div class="sm:col-span-1 flex items-center justify-end gap-1">
-                                    <button type="submit" class="p-1.5 rounded-lg text-tertiary hover:bg-tertiary/10" title="Lưu"><span class="material-symbols-outlined text-[18px]">save</span></button>
+                                    <x-ui.button type="submit" variant="ghost" size="sm" icon="save" title="Lưu" class="!text-tertiary" />
                                 </div>
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center mt-2">
@@ -91,7 +89,7 @@
                                 <input type="text" name="unit" value="{{ $cr->unit }}" placeholder="Đơn vị" class="sm:col-span-1 text-xs rounded-lg border-outline-variant focus:border-primary-container focus:ring-primary-container">
                                 <input type="text" name="description" value="{{ $cr->description }}" placeholder="Mô tả" class="sm:col-span-4 text-xs rounded-lg border-outline-variant focus:border-primary-container focus:ring-primary-container">
                                 <div class="sm:col-span-1 flex justify-end">
-                                    <button type="submit" form="del-{{ $cr->id }}" class="text-[11px] text-error hover:underline">Xoá</button>
+                                    <x-ui.button type="submit" form="del-{{ $cr->id }}" variant="danger-text" size="sm">Xoá</x-ui.button>
                                 </div>
                             </div>
                         </form>
@@ -99,9 +97,8 @@
                     @endforeach
                 </div>
             @empty
-                <div class="bg-surface-container-lowest rounded-xl p-10 border border-outline-variant shadow-sm text-center text-on-surface-variant">
-                    <span class="material-symbols-outlined text-4xl text-on-surface-variant/40">tune</span>
-                    <p class="mt-2 text-sm">Chưa có mục KPI nào. Thêm ở form trên.</p>
+                <div class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm">
+                    <x-ui.empty-state icon="tune" title="Chưa có mục KPI nào. Thêm ở form trên." />
                 </div>
             @endforelse
         </div>

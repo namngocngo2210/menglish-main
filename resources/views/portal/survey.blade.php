@@ -1,30 +1,14 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('portal.student.home', ['studentId' => $student?->id]) }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-emerald-600">contact_support</span>
-                        Khảo sát chất lượng
-                    </h1>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('portal.student.feedback', ['studentId' => $student?->id]) }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 transition shadow-sm">
-                    <span class="material-symbols-outlined text-[18px]">rate_review</span>
-                    <span>Đánh giá chặng học</span>
-                </a>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Khảo sát chất lượng" icon="contact_support" :back="route('portal.student.home', ['studentId' => $student?->id])">
+        <x-slot:actions>
+            <x-ui.button icon="rate_review" :href="route('portal.student.feedback', ['studentId' => $student?->id])">Đánh giá chặng học</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     
 
     {{-- Mobile Frame for Survey --}}
-    <div class="max-w-[430px] mx-auto bg-white min-h-[844px] shadow-2xl rounded-3xl border border-gray-200 overflow-hidden flex flex-col relative pb-24 my-4"
+    <div class="max-w-[430px] mx-auto bg-surface-container-lowest min-h-[844px] shadow-2xl rounded-3xl border border-surface-container-highest overflow-hidden flex flex-col relative pb-24 my-4"
          x-data="{
             selectedSurvey: 'Đánh giá chất lượng cơ sở vật chất tháng 10',
             feedbackText: '',
@@ -47,14 +31,14 @@
         ])
 
         {{-- Subtab Switcher: Khảo sát chung vs Feedback chặng --}}
-        <div class="flex items-center border-b border-gray-200 bg-gray-50 px-3 pt-2">
+        <div class="flex items-center border-b border-surface-container-highest bg-surface-container-low px-3 pt-2">
             <a href="{{ route('portal.student.survey', ['studentId' => $student?->id]) }}"
                class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-primary-container text-primary font-bold text-xs">
                 <span class="material-symbols-outlined text-[16px]">assignment</span>
                 <span>Khảo sát định kỳ</span>
             </a>
             <a href="{{ route('portal.student.feedback', ['studentId' => $student?->id]) }}"
-               class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-transparent text-gray-500 hover:text-gray-900 font-semibold text-xs transition">
+               class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface font-semibold text-xs transition">
                 <span class="material-symbols-outlined text-[16px]">rate_review</span>
                 <span>Feedback chặng học</span>
             </a>
@@ -64,30 +48,30 @@
         <main class="w-full p-4 space-y-4 flex-1 overflow-y-auto">
             {{-- Header Context --}}
             <div class="pt-1">
-                <h2 class="text-xl font-bold text-gray-900">Khảo sát &amp; Đánh giá</h2>
-                <p class="text-xs text-gray-500 mt-0.5">Hãy chia sẻ ý kiến của bạn để chúng tôi nâng cao chất lượng dịch vụ đào tạo.</p>
+                <h2 class="text-xl font-bold text-on-surface">Khảo sát &amp; Đánh giá</h2>
+                <p class="text-xs text-on-surface-variant mt-0.5">Hãy chia sẻ ý kiến của bạn để chúng tôi nâng cao chất lượng dịch vụ đào tạo.</p>
             </div>
 
             {{-- Section 1: Khảo sát đang mở --}}
             <section class="space-y-2">
-                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Khảo sát đang mở</h3>
+                <h3 class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Khảo sát đang mở</h3>
 
                 @foreach($surveys as $idx => $srv)
                     <button type="button"
                             @click="select('{{ $srv['title'] }}')"
-                            class="w-full text-left bg-white rounded-xl p-3.5 transition-all relative overflow-hidden border shadow-2xs hover:bg-orange-50/20"
-                            :class="selectedSurvey === '{{ $srv['title'] }}' ? 'border-primary-container ring-1 ring-primary-container/20' : 'border-gray-200'">
+                            class="w-full text-left bg-surface-container-lowest rounded-xl p-3.5 transition-all relative overflow-hidden border shadow-2xs hover:bg-primary-container/10"
+                            :class="selectedSurvey === '{{ $srv['title'] }}' ? 'border-primary-container ring-1 ring-primary-container/20' : 'border-surface-container-highest'">
                         <div x-show="selectedSurvey === '{{ $srv['title'] }}'" class="absolute left-0 top-0 bottom-0 w-1 bg-primary-container rounded-l-xl"></div>
                         <div class="flex justify-between items-start gap-2">
                             <div class="pr-2">
-                                <h4 class="text-xs font-bold text-gray-900 mb-1 leading-snug">{{ $srv['title'] }}</h4>
-                                <p class="text-[11px] flex items-center gap-1 {{ !empty($srv['is_urgent']) ? 'text-rose-600 font-semibold' : 'text-gray-500' }}">
+                                <h4 class="text-xs font-bold text-on-surface mb-1 leading-snug">{{ $srv['title'] }}</h4>
+                                <p class="text-[11px] flex items-center gap-1 {{ !empty($srv['is_urgent']) ? 'text-error font-semibold' : 'text-on-surface-variant' }}">
                                     <span class="material-symbols-outlined text-[13px]">event</span>
                                     <span>{{ $srv['status_text'] }}</span>
                                 </p>
                             </div>
                             <span class="material-symbols-outlined text-lg shrink-0"
-                                  :class="selectedSurvey === '{{ $srv['title'] }}' ? 'text-primary' : 'text-gray-400'"
+                                  :class="selectedSurvey === '{{ $srv['title'] }}' ? 'text-primary' : 'text-on-surface-variant/70'"
                                   x-text="selectedSurvey === '{{ $srv['title'] }}' ? 'radio_button_checked' : 'radio_button_unchecked'">
                             </span>
                         </div>
@@ -96,10 +80,10 @@
             </section>
 
             {{-- Section 2: Form Phản Hồi --}}
-            <section class="bg-gray-50/80 border border-gray-200 rounded-2xl p-4 shadow-2xs space-y-3">
-                <div class="border-b border-gray-200 pb-2.5">
-                    <h3 class="text-xs font-bold text-gray-900">Nội dung phản hồi</h3>
-                    <p class="text-[11px] text-gray-500 mt-0.5">
+            <section class="bg-surface-container-low/80 border border-surface-container-highest rounded-2xl p-4 shadow-2xs space-y-3">
+                <div class="border-b border-surface-container-highest pb-2.5">
+                    <h3 class="text-xs font-bold text-on-surface">Nội dung phản hồi</h3>
+                    <p class="text-[11px] text-on-surface-variant mt-0.5">
                         Đang phản hồi cho: <span class="font-bold text-primary" x-text="selectedSurvey"></span>
                     </p>
                 </div>
@@ -110,62 +94,49 @@
                     <input type="hidden" name="survey_title" :value="selectedSurvey">
 
                     <div>
-                        <label class="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                        <label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
                             MỨC ĐỘ HÀI LÒNG CHUNG
                         </label>
-                        <div class="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-gray-200">
+                        <div class="flex items-center gap-2 bg-surface-container-lowest p-2.5 rounded-xl border border-surface-container-highest">
                             @for($s = 1; $s <= 5; $s++)
                                 <label class="flex-1 flex flex-col items-center gap-1 cursor-pointer">
-                                    <input type="radio" name="rating" value="{{ $s }}" {{ $s === 5 ? 'checked' : '' }} class="text-primary focus:ring-primary-container">
-                                    <span class="text-[10px] font-bold text-gray-600">{{ $s }} ★</span>
+                                    <input type="radio" name="rating" value="{{ $s }}" {{ $s === 5 ? 'checked' : '' }} class="border-outline-variant text-primary focus:ring-primary-container">
+                                    <span class="text-[10px] font-bold text-on-surface-variant">{{ $s }} ★</span>
                                 </label>
                             @endfor
                         </div>
                     </div>
 
-                    <div>
-                        <label for="feedback-textarea" class="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
-                            Ý KIẾN CỦA BẠN <span class="text-red-500">*</span>
-                        </label>
-                        <textarea id="feedback-textarea"
-                                  name="feedback"
-                                  rows="4"
-                                  required
-                                  placeholder="Vui lòng nhập chi tiết phản hồi của bạn tại đây..."
-                                  class="w-full bg-white border border-gray-300 rounded-xl p-3 text-xs text-gray-900 focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container resize-none transition-all placeholder:text-gray-400"></textarea>
-                    </div>
+                    <x-ui.textarea id="feedback-textarea" name="feedback" label="Ý KIẾN CỦA BẠN" rows="4" required
+                                   placeholder="Vui lòng nhập chi tiết phản hồi của bạn tại đây..." class="resize-none" />
 
-                    <button type="submit"
-                            class="w-full bg-primary-container hover:bg-primary text-white font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-md transition active:scale-[0.98]">
-                        <span class="material-symbols-outlined text-[18px]">send</span>
+                    <x-ui.button type="submit" icon="send" class="w-full">
                         <span>Gửi phản hồi khảo sát</span>
-                    </button>
+                    </x-ui.button>
                 </form>
             </section>
 
             {{-- History of Submissions with Delete CRUD --}}
             @if(isset($pastSurveys) && $pastSurveys->isNotEmpty())
                 <section class="space-y-2 pt-2">
-                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Khảo sát đã gửi</h3>
+                    <h3 class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Khảo sát đã gửi</h3>
                     @foreach($pastSurveys as $ps)
-                        <div class="p-3 bg-white border border-gray-200 rounded-xl text-xs space-y-1.5 shadow-2xs">
+                        <div class="p-3 bg-surface-container-lowest border border-surface-container-highest rounded-xl text-xs space-y-1.5 shadow-2xs">
                             <div class="flex justify-between items-center">
-                                <strong class="text-gray-900">{{ $ps->title }}</strong>
+                                <strong class="text-on-surface">{{ $ps->title }}</strong>
                                 <div class="flex items-center gap-1.5">
-                                    <span class="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-bold">
+                                    <x-ui.badge color="success" :pill="true" :dot="false">
                                         {{ $ps->data['rating'] ?? 5 }} ★
-                                    </span>
+                                    </x-ui.badge>
                                     <form action="{{ route('portal.student.survey.destroy', $ps->id) }}" method="POST" onsubmit="return confirm('Bạn có chắc muốn xóa bài khảo sát này?');">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="text-gray-400 hover:text-rose-600 transition p-1" title="Xóa khảo sát">
-                                            <span class="material-symbols-outlined text-[15px]">delete</span>
-                                        </button>
+                                        <x-ui.button type="submit" variant="ghost" size="sm" icon="delete" title="Xóa khảo sát" aria-label="Xóa khảo sát" />
                                     </form>
                                 </div>
                             </div>
-                            <p class="text-gray-600 italic text-[11px]">"{{ $ps->data['feedback'] ?? '' }}"</p>
-                            <span class="text-[10px] text-gray-400 block font-mono">{{ $ps->data['submitted_at'] ?? $ps->created_at->format('d/m/Y H:i') }}</span>
+                            <p class="text-on-surface-variant italic text-[11px]">"{{ $ps->data['feedback'] ?? '' }}"</p>
+                            <span class="text-[10px] text-on-surface-variant/70 block font-mono">{{ $ps->data['submitted_at'] ?? $ps->created_at->format('d/m/Y H:i') }}</span>
                         </div>
                     @endforeach
                 </section>

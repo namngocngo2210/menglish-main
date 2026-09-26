@@ -53,7 +53,7 @@
                             </div>
                         </td>
                         <td>{{ \App\Helpers\AclHelper::roleLabel((string) $s->getRoleNames()->first()) }}</td>
-                        <td class="text-right font-mono font-semibold {{ $eval ? ($eval->total_score >= 85 ? 'text-tertiary' : ($eval->total_score >= 70 ? 'text-amber-600' : 'text-error')) : 'text-on-surface-variant' }}">
+                        <td class="text-right font-mono font-semibold {{ $eval ? ($eval->total_score >= 85 ? 'text-tertiary' : ($eval->total_score >= 70 ? 'text-warning' : 'text-error')) : 'text-on-surface-variant' }}">
                             {{ $eval ? $fmt($eval->total_score).'%' : '—' }}
                         </td>
                         <td class="text-center">
@@ -63,7 +63,7 @@
                                 —
                             @endif
                         </td>
-                        <td class="text-right font-mono">{{ $isHv && $eval ? number_format(round($fund * (float) $eval->total_score / 100), 0, ',', '.').'đ' : '—' }}</td>
+                        <td class="text-right">@if ($isHv && $eval)<x-ui.money :value="round($fund * (float) $eval->total_score / 100)" />@else<span class="font-mono">—</span>@endif</td>
                         <td>
                             @if (! $eval)
                                 <x-ui.badge color="neutral">Chưa đánh giá</x-ui.badge>

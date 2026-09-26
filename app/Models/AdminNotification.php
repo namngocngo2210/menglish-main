@@ -56,19 +56,19 @@ class AdminNotification extends Model
     public function getBadgeColorAttribute(): string
     {
         return match ($this->type) {
-            'stale_lead_24h', 'stale_lead_care' => 'bg-rose-50 text-rose-700 border-rose-200',
-            'receipt_pending' => 'bg-amber-50 text-amber-700 border-amber-200',
-            'receipt_approved' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
-            'receipt_rejected', 'overdue_report' => 'bg-rose-50 text-rose-700 border-rose-200',
-            'test_today' => 'bg-indigo-50 text-indigo-700 border-indigo-200',
-            'urgent_ticket', 'ticket_new' => 'bg-red-50 text-red-700 border-red-200',
+            'stale_lead_24h', 'stale_lead_care' => 'bg-error/10 text-error border-error/30',
+            'receipt_pending' => 'bg-warning/10 text-warning border-warning/30',
+            'receipt_approved' => 'bg-tertiary/10 text-tertiary border-tertiary/30',
+            'receipt_rejected', 'overdue_report' => 'bg-error/10 text-error border-error/30',
+            'test_today' => 'bg-secondary/10 text-secondary border-secondary/30',
+            'urgent_ticket', 'ticket_new' => 'bg-error/10 text-error border-error/30',
             'ticket_assigned' => 'bg-purple-50 text-purple-700 border-purple-200',
-            'ticket_message' => 'bg-blue-50 text-blue-700 border-blue-200',
-            'ticket_status' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
-            'contract_expiring' => 'bg-amber-50 text-amber-700 border-amber-200',
-            'task_assigned' => 'bg-teal-50 text-teal-700 border-teal-200',
-            'class_report_pending' => 'bg-orange-50 text-orange-700 border-orange-200',
-            default => 'bg-gray-50 text-gray-700 border-gray-200',
+            'ticket_message' => 'bg-secondary/10 text-secondary border-secondary/30',
+            'ticket_status' => 'bg-tertiary/10 text-tertiary border-tertiary/30',
+            'contract_expiring' => 'bg-warning/10 text-warning border-warning/30',
+            'task_assigned' => 'bg-tertiary/10 text-tertiary border-tertiary/30',
+            'class_report_pending' => 'bg-primary-container/10 text-primary border-primary-container/30',
+            default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
     }
 

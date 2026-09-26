@@ -183,7 +183,7 @@
                     </table>
                     @if ($timesheets->count() > 10)
                         <x-slot:footer>
-                            <div class="p-sm text-center"><x-ui.button variant="ghost" size="sm" @click="all = ! all" x-text="all ? 'Thu gọn' : 'Xem toàn bộ ({{ $timesheets->count() }} buổi)'">Xem toàn bộ ({{ $timesheets->count() }} buổi)</x-ui.button></div>
+                            <div class="p-sm text-center"><x-ui.button variant="ghost" size="sm" x-on:click="all = ! all" x-text="all ? 'Thu gọn' : 'Xem toàn bộ ({{ $timesheets->count() }} buổi)'">Xem toàn bộ ({{ $timesheets->count() }} buổi)</x-ui.button></div>
                         </x-slot:footer>
                     @endif
                 </x-ui.data-table>
@@ -263,7 +263,7 @@
                             </div>
                         </div>
                         @if ($commissionTiers->isNotEmpty())
-                            <x-ui.button variant="ghost" size="sm" @click="tiers = ! tiers">Chi tiết bậc áp dụng <span class="material-symbols-outlined text-[16px]" aria-hidden="true" x-text="tiers ? 'expand_less' : 'expand_more'">expand_more</span></x-ui.button>
+                            <x-ui.button variant="ghost" size="sm" x-on:click="tiers = ! tiers">Chi tiết bậc áp dụng <span class="material-symbols-outlined text-[16px]" aria-hidden="true" x-text="tiers ? 'expand_less' : 'expand_more'">expand_more</span></x-ui.button>
                             <table x-show="tiers" x-cloak class="w-full text-left font-body-small text-body-small">
                                 <thead><tr class="text-on-surface-variant"><th class="py-xs">Bậc</th><th class="py-xs">Ngưỡng số HS chốt</th><th class="py-xs text-right">Tỷ lệ %</th></tr></thead>
                                 <tbody>
@@ -376,7 +376,7 @@
                                 <tr>
                                     <td>{{ $row['class'] }} <span class="block font-caption text-caption text-on-surface-variant">{{ $row['base'] }} HS đầu kỳ</span></td>
                                     <td class="text-right font-code text-code">{{ $row['quits'] }}</td>
-                                    <td class="text-right font-code text-code">{{ $pct($row['percent']) }}%@if ($row['pending']) <span class="block font-caption text-caption text-amber-700">chờ BA</span>@endif</td>
+                                    <td class="text-right font-code text-code">{{ $pct($row['percent']) }}%@if ($row['pending']) <span class="block font-caption text-caption text-warning">chờ BA</span>@endif</td>
                                     <td><x-ui.money :value="$row['revenue']" suffix="đ" /></td>
                                     <td><x-ui.money :value="$row['amount']" suffix="đ" /></td>
                                 </tr>
@@ -405,7 +405,7 @@
                             @endforeach
                             @foreach ($deferredCommission as $item)
                                 <tr>
-                                    <td>{{ $item->student?->name ?? '—' }} <span class="block font-caption text-caption text-amber-700">{{ $item->receipt?->receipt_number }} · {{ $item->deferred_reason ?? 'Hoãn sang kỳ sau' }}</span></td>
+                                    <td>{{ $item->student?->name ?? '—' }} <span class="block font-caption text-caption text-warning">{{ $item->receipt?->receipt_number }} · {{ $item->deferred_reason ?? 'Hoãn sang kỳ sau' }}</span></td>
                                     <td><x-ui.money :value="$item->base_amount" suffix="đ" /></td>
                                     <td class="text-right font-code text-code">{{ $pct($item->percent) }}%</td>
                                     <td class="text-right font-code text-code text-on-surface-variant">Hoãn {{ $money($item->amount) }}đ</td>

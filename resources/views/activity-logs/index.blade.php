@@ -53,18 +53,18 @@
                         <x-ui.select name="log_name" :options="collect($allLogNames)->mapWithKeys(fn ($n) => [$n => $n])" placeholder="Mọi phân hệ" aria-label="Phân hệ" />
                         <x-ui.select name="causer_id" :options="$users->pluck('name', 'id')" placeholder="Mọi người thực hiện" aria-label="Người thực hiện" />
                         <x-ui.select name="event" :options="$events->mapWithKeys(fn ($e) => [$e => \App\Support\Audit::eventLabel($e)])" placeholder="Mọi loại" aria-label="Loại thao tác" />
-                        <label class="flex items-center gap-xs font-body-small text-body-small text-on-surface-variant">
+                        <div class="flex items-center gap-xs font-body-small text-body-small text-on-surface-variant">
                             <span class="material-symbols-outlined text-[18px]" aria-hidden="true">calendar_today</span>
-                            <input type="date" name="date_from" value="{{ request('date_from') }}" aria-label="Từ ngày" class="rounded-lg border border-outline-variant px-sm py-xs font-body-small text-body-small">
+                            <x-ui.date name="date_from" :value="request('date_from')" aria-label="Từ ngày" />
                             đến
-                            <input type="date" name="date_to" value="{{ request('date_to') }}" aria-label="Đến ngày" class="rounded-lg border border-outline-variant px-sm py-xs font-body-small text-body-small">
-                        </label>
+                            <x-ui.date name="date_to" :value="request('date_to')" aria-label="Đến ngày" />
+                        </div>
                         <x-ui.button type="submit" icon="filter_list">Lọc</x-ui.button>
                         @if (request()->hasAny($filterKeys))
                             <x-ui.button variant="ghost" icon="close" :href="route('activity-logs.index')">Xóa lọc</x-ui.button>
                         @endif
                     </div>
-                    <x-input-error :messages="array_merge($errors->get('date_from'), $errors->get('date_to'))" />
+                    <x-ui.errors :messages="array_merge($errors->get('date_from'), $errors->get('date_to'))" />
                 </form>
             </x-slot:header>
             <table>

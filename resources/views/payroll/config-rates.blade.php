@@ -27,10 +27,8 @@
                      x-data="{ q: '', list: @js($teacherList),
                                match(id) { const q = this.q.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd'); return ! q || this.list.find(t => t.id === id)?.search.includes(q); } }">
                 <h3 class="mb-sm font-h3 text-h3 text-on-surface">1. Chọn giáo viên</h3>
-                <div class="relative mb-sm">
-                    <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
-                    <input type="search" x-model="q" placeholder="Tìm tên hoặc mã nhân viên..." aria-label="Tìm giáo viên"
-                           class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-10 pr-md font-body-base text-body-base placeholder:text-on-surface-variant/60 focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
+                <div class="mb-sm">
+                    <x-ui.input type="search" icon="search" x-model="q" placeholder="Tìm tên hoặc mã nhân viên..." aria-label="Tìm giáo viên" />
                 </div>
                 <ul class="custom-scrollbar max-h-72 space-y-xs overflow-y-auto">
                     @forelse ($teachers as $teacher)
@@ -117,10 +115,10 @@
                 </div>
                 <x-ui.textarea name="note" label="Ghi chú / Lý do thay đổi" rows="2" placeholder="Nhập ghi chú nếu có..." />
 
-                <p x-show="type === 'fulltime'" x-cloak class="rounded-lg bg-amber-50 px-md py-sm font-body-small text-body-small text-amber-900">
+                <p x-show="type === 'fulltime'" x-cloak class="rounded-lg bg-warning-container px-md py-sm font-body-small text-body-small text-on-warning-container">
                     GV Full-time hưởng lương cơ bản — đơn giá buổi chỉ dùng để đối soát, không cộng vào lương.
                 </p>
-                <p x-show="type === 'foreign'" x-cloak class="rounded-lg bg-amber-50 px-md py-sm font-body-small text-body-small text-amber-900">
+                <p x-show="type === 'foreign'" x-cloak class="rounded-lg bg-warning-container px-md py-sm font-body-small text-body-small text-on-warning-container">
                     Lương buổi có GVNN đang chờ BA chốt cách tính — Kế toán nhập tay trên phiếu lương.
                 </p>
 

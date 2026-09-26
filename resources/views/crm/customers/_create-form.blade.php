@@ -51,12 +51,8 @@
 
     @unless ($asModal)
         <div class="flex items-center justify-end gap-md pt-lg">
-            <a href="{{ route('crm.customers.index') }}"
-               class="rounded-lg border border-outline-variant px-xl py-sm font-body-medium text-body-medium text-on-surface-variant transition-all hover:bg-surface-variant hover:text-on-surface active:scale-95">Hủy</a>
-            <button type="submit"
-                    class="flex items-center gap-xs rounded-lg bg-primary-container px-xl py-sm font-body-medium text-body-medium text-white shadow-sm transition-all hover:shadow-md hover:brightness-110 active:scale-95">
-                Lưu thông tin
-            </button>
+            <x-ui.button variant="secondary" :href="route('crm.customers.index')">Hủy</x-ui.button>
+            <x-ui.button type="submit">Lưu thông tin</x-ui.button>
         </div>
     @endunless
 </form>

@@ -12,16 +12,15 @@
 @endphp
 <x-app-layout title="Cổng Giáo viên">
     <div class="mx-auto max-w-6xl space-y-lg pb-24 md:pb-0">
-        <header class="flex items-center justify-between gap-sm">
-            <div class="min-w-0">
-                <h1 class="font-h2 text-h2 text-on-surface">Tổng quan hôm nay</h1>
-                <p class="truncate font-body-small text-body-small text-on-surface-variant">
-                    Xin chào <span class="font-semibold text-on-surface">{{ $teacher->name }}</span> · Cổng Giáo viên ·
-                    <a href="{{ route('teacher.trial-guests') }}" class="font-semibold text-primary hover:underline">Khách học thử</a>
-                </p>
-            </div>
-            <x-ui.avatar :name="$teacher->name" />
-        </header>
+        <x-ui.page-header title="Tổng quan hôm nay">
+            <x-slot:meta>
+                Xin chào <span class="font-semibold text-on-surface">{{ $teacher->name }}</span> · Cổng Giáo viên ·
+                <a href="{{ route('teacher.trial-guests') }}" class="font-semibold text-primary hover:underline">Khách học thử</a>
+            </x-slot:meta>
+            <x-slot:actions>
+                <x-ui.avatar :name="$teacher->name" />
+            </x-slot:actions>
+        </x-ui.page-header>
 
         @if ($errors->any())
             <x-ui.alert type="error">{{ $errors->first() }}</x-ui.alert>

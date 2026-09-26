@@ -10,28 +10,26 @@
 <x-app-layout title="Nhiệm vụ hôm nay">
     <div class="mx-auto max-w-md pb-24 md:max-w-2xl md:pb-0"
          x-data="{
-            modalOpen: false,
             selectedTask: null,
             proofName: '',
-            openCompleteModal(task) { this.selectedTask = task; this.proofName = ''; this.modalOpen = true; }
+            openCompleteModal(task) { this.selectedTask = task; this.proofName = ''; this.$dispatch('open-modal', 'ta-complete'); }
          }">
 
         {{-- Tiêu đề + người được xem --}}
-        <header class="mb-md flex items-center justify-between gap-sm">
-            <div class="min-w-0">
-                <h1 class="font-h2 text-h2 text-primary">{{ $isToday ? 'Nhiệm vụ hằng ngày' : 'Nhiệm vụ ngày '.$date->format('d/m/Y') }}</h1>
-                <p class="truncate font-body-small text-body-small text-on-surface-variant">
-                    @if ($taUser)
-                        Trợ giảng: <span class="font-semibold text-on-surface">{{ $taUser->name }}</span> · {{ $date->format('d/m/Y') }}
-                    @else
-                        Chưa có trợ giảng nào trong hệ thống.
-                    @endif
-                </p>
-            </div>
+        <x-ui.page-header :title="$isToday ? 'Nhiệm vụ hằng ngày' : 'Nhiệm vụ ngày '.$date->format('d/m/Y')">
+            <x-slot:meta>
+                @if ($taUser)
+                    Trợ giảng: <span class="font-semibold text-on-surface">{{ $taUser->name }}</span> · {{ $date->format('d/m/Y') }}
+                @else
+                    Chưa có trợ giảng nào trong hệ thống.
+                @endif
+            </x-slot:meta>
             @if ($taUser)
-                <x-ui.avatar :name="$taUser->name" />
+                <x-slot:actions>
+                    <x-ui.avatar :name="$taUser->name" />
+                </x-slot:actions>
             @endif
-        </header>
+        </x-ui.page-header>
 
         @if (session('success'))
             <x-ui.alert type="success" class="mb-md" dismissible>{{ session('success') }}</x-ui.alert>
@@ -40,23 +38,19 @@
         {{-- Bộ lọc: ngày (+ chọn trợ giảng cho admin / quản lý) --}}
         <form method="GET" action="{{ route('portal.ta-tasks') }}" class="mb-md flex flex-wrap items-end gap-sm rounded-xl border border-outline-variant bg-surface-container-lowest p-sm">
             @if ($canPickTa)
-                <label class="min-w-[160px] flex-1">
-                    <span class="mb-xs block font-caption text-caption text-on-surface-variant">Trợ giảng</span>
-                    <select name="ta_id" onchange="this.form.submit()" aria-label="Chọn trợ giảng"
-                            class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-xs pl-sm pr-lg font-body-small text-body-small">
+                <div class="min-w-[160px] flex-1">
+                    <x-ui.select name="ta_id" label="Trợ giảng" onchange="this.form.submit()" aria-label="Chọn trợ giảng">
                         @forelse ($assistants as $assistant)
                             <option value="{{ $assistant->id }}" @selected($taUser && $taUser->id === $assistant->id)>{{ $assistant->name }}</option>
                         @empty
                             <option value="">Chưa có trợ giảng</option>
                         @endforelse
-                    </select>
-                </label>
+                    </x-ui.select>
+                </div>
             @endif
-            <label class="min-w-[140px] flex-1">
-                <span class="mb-xs block font-caption text-caption text-on-surface-variant">Ngày</span>
-                <input type="date" name="date" value="{{ $date->toDateString() }}" onchange="this.form.submit()" aria-label="Chọn ngày"
-                       class="w-full rounded-lg border border-outline-variant px-sm py-xs font-body-small text-body-small">
-            </label>
+            <div class="min-w-[140px] flex-1">
+                <x-ui.date name="date" label="Ngày" :value="$date->toDateString()" onchange="this.form.submit()" aria-label="Chọn ngày" />
+            </div>
             @unless ($isToday)
                 <x-ui.button size="sm" variant="ghost" icon="today" :href="route('portal.ta-tasks', array_filter(['ta_id' => $canPickTa ? $taUser?->id : null]))">Hôm nay</x-ui.button>
             @endunless
@@ -153,39 +147,29 @@
         </nav>
 
         {{-- Modal hoàn thành nhiệm vụ --}}
-        <div x-show="modalOpen" x-cloak class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-md">
-            <div x-on:click.outside="modalOpen = false" class="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-surface-container-lowest shadow-xl sm:rounded-2xl">
-                <div class="flex items-center justify-between border-b border-surface-container px-md py-sm">
-                    <h2 class="font-h3 text-h3 text-on-surface">Cập nhật tiến độ</h2>
-                    <button type="button" x-on:click="modalOpen = false" class="rounded-full p-xs text-on-surface-variant" aria-label="Đóng">
-                        <span class="material-symbols-outlined text-[20px]">close</span>
-                    </button>
+        <x-ui.modal name="ta-complete" title="Cập nhật tiến độ" max-width="md">
+            <form id="ta-complete-form" :action="'{{ url('/tasks') }}/' + (selectedTask ? selectedTask.id : '') + '/complete'" method="POST" enctype="multipart/form-data" class="space-y-md">
+                @csrf
+                <div class="rounded-lg bg-surface-container-low p-sm">
+                    <p class="font-body-medium text-body-medium font-semibold" x-text="selectedTask ? 'Nhiệm vụ: ' + selectedTask.title : ''"></p>
+                    <p class="font-caption text-caption text-on-surface-variant" x-text="'Hạn chót: ' + (selectedTask ? selectedTask.due_label : '—')"></p>
                 </div>
-                <form :action="'{{ url('/tasks') }}/' + (selectedTask ? selectedTask.id : '') + '/complete'" method="POST" enctype="multipart/form-data" class="space-y-md overflow-y-auto p-md">
-                    @csrf
-                    <div class="rounded-lg bg-surface-container-low p-sm">
-                        <p class="font-body-medium text-body-medium font-semibold" x-text="selectedTask ? 'Nhiệm vụ: ' + selectedTask.title : ''"></p>
-                        <p class="font-caption text-caption text-on-surface-variant" x-text="'Hạn chót: ' + (selectedTask ? selectedTask.due_label : '—')"></p>
-                    </div>
-                    <div class="space-y-xs">
-                        <span class="block font-label text-label uppercase text-on-surface-variant">Bằng chứng hình ảnh</span>
-                        <label for="ta_proof" class="flex cursor-pointer flex-col items-center justify-center gap-xs rounded-lg border-2 border-dashed border-outline-variant p-md text-center text-on-surface-variant hover:border-primary-container">
-                            <span class="material-symbols-outlined text-[32px]" aria-hidden="true">cloud_upload</span>
-                            <span class="font-body-small text-body-small font-semibold" x-text="proofName || 'Nhấn để tải ảnh lên'"></span>
-                            <span class="font-caption text-caption">PNG, JPG tối đa 10MB</span>
-                        </label>
-                        <input id="ta_proof" type="file" name="proof_image" accept="image/*" class="sr-only" x-on:change="proofName = $event.target.files[0]?.name || ''">
-                    </div>
-                    <x-ui.alert type="info"><strong>Lưu ý:</strong> Có ảnh đính kèm, nhiệm vụ sẽ được <strong>hoàn thành ngay</strong>. Nếu không có ảnh, trạng thái sẽ chuyển sang <strong>chờ người giao việc xác nhận</strong>.</x-ui.alert>
-                    <x-ui.field label="Ghi chú (tùy chọn)" name="note" for="ta_note">
-                        <textarea id="ta_note" name="note" rows="3" class="w-full rounded-lg border border-outline-variant p-sm font-body-small text-body-small" placeholder="Kết quả hoặc vấn đề phát sinh..."></textarea>
-                    </x-ui.field>
-                    <div class="flex justify-end gap-sm border-t border-surface-container pt-sm">
-                        <x-ui.button variant="secondary" x-on:click="modalOpen = false">Hủy</x-ui.button>
-                        <x-ui.button type="submit" icon="send">Xác nhận</x-ui.button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                <div class="space-y-xs">
+                    <span class="block font-label text-label uppercase text-on-surface-variant">Bằng chứng hình ảnh</span>
+                    <label for="ta_proof" class="flex cursor-pointer flex-col items-center justify-center gap-xs rounded-lg border-2 border-dashed border-outline-variant p-md text-center text-on-surface-variant hover:border-primary-container">
+                        <span class="material-symbols-outlined text-[32px]" aria-hidden="true">cloud_upload</span>
+                        <span class="font-body-small text-body-small font-semibold" x-text="proofName || 'Nhấn để tải ảnh lên'"></span>
+                        <span class="font-caption text-caption">PNG, JPG tối đa 10MB</span>
+                    </label>
+                    <input id="ta_proof" type="file" name="proof_image" accept="image/*" class="sr-only" x-on:change="proofName = $event.target.files[0]?.name || ''">
+                </div>
+                <x-ui.alert type="info"><strong>Lưu ý:</strong> Có ảnh đính kèm, nhiệm vụ sẽ được <strong>hoàn thành ngay</strong>. Nếu không có ảnh, trạng thái sẽ chuyển sang <strong>chờ người giao việc xác nhận</strong>.</x-ui.alert>
+                <x-ui.textarea name="note" id="ta_note" label="Ghi chú (tùy chọn)" rows="3" placeholder="Kết quả hoặc vấn đề phát sinh..." />
+            </form>
+            <x-slot:footer>
+                <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'ta-complete')">Hủy</x-ui.button>
+                <x-ui.button type="submit" form="ta-complete-form" icon="send">Xác nhận</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
     </div>
 </x-app-layout>

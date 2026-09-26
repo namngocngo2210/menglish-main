@@ -13,6 +13,10 @@
         {{-- Bộ lọc (mockup danh-sach-khach): Từ khóa, Nguồn, Người phụ trách, Giai đoạn, Chi nhánh, "Lọc dữ liệu" --}}
         <form method="GET" action="{{ route('crm.customers.index') }}" role="search"
               class="rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
+            {{-- Giữ lọc nhanh "Chưa liên hệ >24h" khi lọc thêm --}}
+            @if (request()->boolean('sla'))
+                <input type="hidden" name="sla" value="1">
+            @endif
             <div class="grid grid-cols-1 items-end gap-md md:grid-cols-2 lg:grid-cols-6">
                 <x-ui.field label="Từ khóa (Tên/SĐT)" name="search" for="f_search">
                     <div class="relative">
@@ -34,11 +38,8 @@
                     </x-ui.field>
                 @endif
                 <div class="flex gap-sm">
-                    <button type="submit" class="flex flex-1 items-center justify-center gap-xs rounded-lg bg-secondary px-md py-2 font-body-medium text-body-medium text-white transition-all hover:opacity-90">
-                        <span class="material-symbols-outlined text-[18px]">filter_list</span>
-                        Lọc dữ liệu
-                    </button>
-                    @if (request()->hasAny(['search', 'branch_id', 'stage', 'source', 'assigned_user_id']))
+                    <x-ui.button type="submit" variant="info" icon="filter_list" class="flex-1">Lọc dữ liệu</x-ui.button>
+                    @if (request()->hasAny(['search', 'branch_id', 'stage', 'source', 'assigned_user_id', 'sla']))
                         <x-ui.button variant="ghost" icon="filter_alt_off" :href="route('crm.customers.index')" aria-label="Xóa bộ lọc" title="Xóa bộ lọc" />
                     @endif
                 </div>

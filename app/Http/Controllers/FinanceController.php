@@ -716,10 +716,10 @@ class FinanceController extends Controller
     private function branchMarginStatus(float $margin): array
     {
         return match (true) {
-            $margin >= self::MARGIN_GOOD => ['label' => 'Tăng trưởng tốt', 'class' => 'text-emerald-700', 'dot' => 'bg-emerald-500', 'badge_bg' => 'bg-emerald-50 text-emerald-700'],
-            $margin >= self::MARGIN_TARGET => ['label' => 'Đạt chỉ tiêu', 'class' => 'text-emerald-700', 'dot' => 'bg-emerald-500', 'badge_bg' => 'bg-emerald-50 text-emerald-700'],
-            $margin >= 0 => ['label' => 'Ổn định', 'class' => 'text-blue-700', 'dot' => 'bg-blue-500', 'badge_bg' => 'bg-blue-50 text-blue-700'],
-            default => ['label' => 'Cần tối ưu', 'class' => 'text-rose-700', 'dot' => 'bg-rose-500', 'badge_bg' => 'bg-rose-50 text-rose-700'],
+            $margin >= self::MARGIN_GOOD => ['label' => 'Tăng trưởng tốt', 'class' => 'text-tertiary', 'dot' => 'bg-tertiary', 'badge_bg' => 'bg-tertiary/10 text-tertiary'],
+            $margin >= self::MARGIN_TARGET => ['label' => 'Đạt chỉ tiêu', 'class' => 'text-tertiary', 'dot' => 'bg-tertiary', 'badge_bg' => 'bg-tertiary/10 text-tertiary'],
+            $margin >= 0 => ['label' => 'Ổn định', 'class' => 'text-secondary', 'dot' => 'bg-secondary', 'badge_bg' => 'bg-secondary/10 text-secondary'],
+            default => ['label' => 'Cần tối ưu', 'class' => 'text-error', 'dot' => 'bg-error', 'badge_bg' => 'bg-error/10 text-error'],
         };
     }
 }

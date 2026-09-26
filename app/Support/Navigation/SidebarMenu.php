@@ -74,19 +74,21 @@ final class SidebarMenu
                 'section' => 'Tuyển sinh',
                 'label' => 'Khách hàng (CRM)',
                 'icon' => 'person_search',
+                // Tab: Kanban | Danh sách. Các màn còn lại hiển thị dạng lọc nhanh (`as` => chip, dưới tab `chip_of`)
+                // hoặc trong menu thả xuống (`as` => menu / action có `menu`) để thanh tab gọn.
                 'items' => self::anchored(self::CRM, [
                     ['label' => 'Kanban', 'route' => 'crm.pipeline'],
                     ['label' => 'Danh sách', 'route' => 'crm.customers.index', 'active' => ['crm.customers.index', 'crm.customers.show', 'crm.customers.edit', 'crm.customers.create', 'crm.import*']],
-                    ['label' => 'Chưa liên hệ (SLA 24h)', 'route' => 'notifications.index', 'active' => ['notifications.*']],
-                    ['label' => 'Chờ xếp lớp', 'route' => 'crm.waiting-list'],
-                    ['label' => 'Xác nhận chính thức', 'route' => 'crm.confirmations'],
-                    ['label' => 'Đã nhập học', 'route' => 'crm.customers.won'],
-                    ['label' => 'Thất bại', 'route' => 'crm.lost-deals'],
-                    ['label' => 'Đã xóa', 'route' => 'crm.customers.deleted'],
-                    ['label' => 'Báo cáo tuyển sinh', 'route' => 'crm.reports'],
+                    // Lọc theo query trên cùng route Danh sách (không phải màn riêng).
+                    ['label' => 'Chưa liên hệ >24h', 'route' => 'crm.customers.index', 'query' => ['sla' => 1], 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'sla', 'tone' => 'danger'],
+                    ['label' => 'Chờ xếp lớp', 'route' => 'crm.waiting-list', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'waiting_class'],
+                    ['label' => 'Đã nhập học', 'route' => 'crm.customers.won', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'won'],
+                    ['label' => 'Thất bại', 'route' => 'crm.lost-deals', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'lost'],
+                    ['label' => 'Đã xóa', 'route' => 'crm.customers.deleted', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'deleted'],
+                    ['label' => 'Xác nhận chính thức', 'route' => 'crm.confirmations', 'as' => 'menu', 'menu' => 'Xếp lớp', 'icon' => 'verified'],
                 ]),
                 'actions' => self::anchored(self::CLASS_MANAGER, [
-                    ['label' => 'Chốt học phí & Xếp lớp', 'route' => 'crm.closing-wizard', 'icon' => 'how_to_reg', 'variant' => 'secondary'],
+                    ['label' => 'Chốt học phí & Xếp lớp', 'route' => 'crm.closing-wizard', 'icon' => 'how_to_reg', 'variant' => 'secondary', 'menu' => 'Xếp lớp'],
                 ]),
             ],
             [
@@ -273,12 +275,25 @@ final class SidebarMenu
                 ]),
             ],
             [
+                'id' => 'reports',
+                'section' => 'Báo cáo',
+                'label' => 'Báo cáo',
+                'icon' => 'monitoring',
+                'items' => [
+                    ...self::anchored(self::CRM, [
+                        ['label' => 'Báo cáo tuyển sinh', 'route' => 'crm.reports'],
+                    ]),
+                ],
+            ],
+            [
                 'id' => 'personal',
                 'section' => 'Cá nhân',
                 'label' => 'Của tôi',
                 'icon' => 'person',
                 'items' => [
                     ['label' => 'Báo cáo định kỳ của tôi', 'route' => 'reports.my'],
+                    // Trung tâm thông báo (cũng mở từ chuông trên topbar).
+                    ['label' => 'Thông báo', 'route' => 'notifications.index', 'active' => ['notifications.*']],
                     ['label' => 'Lương của tôi', 'route' => 'portal.my-salary', 'can' => ['payroll.view_own']],
                 ],
             ],
@@ -464,7 +479,7 @@ final class SidebarMenu
 
         $current = $request->route()?->getName();
         $workspace['items'] = array_map(
-            fn (array $item) => $item['route'] === $current ? [...$item, 'url' => $request->fullUrl()] : $item,
+            fn (array $item) => $item['route'] === $current && empty($item['query']) && empty($item['as']) ? [...$item, 'url' => $request->fullUrl()] : $item,
             $workspace['items'],
         );
 
@@ -676,8 +691,9 @@ final class SidebarMenu
                 continue;
             }
 
-            $item['url'] = route($item['route']);
-            $item['active'] = $request !== null && $request->routeIs(...($item['active'] ?? [$item['route']]));
+            $item['url'] = route($item['route'], $item['query'] ?? []);
+            $item['active'] = $request !== null && $request->routeIs(...($item['active'] ?? [$item['route']]))
+                && collect($item['query'] ?? [])->every(fn ($value, $key) => (string) $request->query($key) === (string) $value);
             $visible[] = $item;
         }
 

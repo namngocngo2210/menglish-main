@@ -13,25 +13,25 @@
             <span class="material-symbols-outlined text-[14px]">schedule</span>Ưu tiên xử lý
         </span>
     </div>
-    <div class="custom-scrollbar overflow-x-auto">
-        <table class="w-full min-w-[900px] text-left">
-            <thead class="bg-surface-container-low">
-                <tr class="font-label text-label uppercase text-on-surface-variant">
-                    <th class="px-md py-sm">Họ tên</th>
-                    <th class="px-md py-sm">Số điện thoại</th>
-                    <th class="px-md py-sm">Chi nhánh</th>
-                    <th class="px-md py-sm">Thời điểm chốt</th>
-                    <th class="px-md py-sm text-right">Hành động</th>
+    <x-ui.data-table min-width="900px" class="!rounded-none !border-0">
+        <table>
+            <thead>
+                <tr>
+                    <th>Họ tên</th>
+                    <th>Số điện thoại</th>
+                    <th>Chi nhánh</th>
+                    <th>Thời điểm chốt</th>
+                    <th class="text-right">Hành động</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-surface-container font-body-base text-body-base">
+            <tbody>
                 @forelse ($waitingLeads as $lead)
                     @php
                         $matches = $matchingClassesByLead->get($lead->id, collect());
                         $waitDays = $lead->converted_at ? (int) $lead->converted_at->diffInDays(now()) : null;
                     @endphp
-                    <tr class="align-top hover:bg-surface-container-low">
-                        <td class="px-md py-sm">
+                    <tr class="align-top">
+                        <td>
                             <div class="flex items-center gap-sm">
                                 <x-ui.avatar :name="$lead->name" size="sm" />
                                 <div>
@@ -40,28 +40,28 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="px-md py-sm font-code text-code text-on-surface-variant">{{ $lead->phone }}</td>
-                        <td class="px-md py-sm"><span class="rounded bg-surface-container-high px-sm py-0.5 font-body-small text-body-small text-on-surface-variant">{{ $lead->waitingBranch?->name ?? $lead->branch?->name ?? '—' }}</span></td>
-                        <td class="px-md py-sm">
+                        <td class="font-code text-code text-on-surface-variant">{{ $lead->phone }}</td>
+                        <td><span class="rounded bg-surface-container-high px-sm py-0.5 font-body-small text-body-small text-on-surface-variant">{{ $lead->waitingBranch?->name ?? $lead->branch?->name ?? '—' }}</span></td>
+                        <td>
                             <div class="font-code text-code text-on-surface">{{ $lead->converted_at?->format('H:i d/m/Y') ?? '—' }}</div>
                             @if ($waitDays !== null)
                                 <div class="font-caption text-caption {{ $waitDays >= 7 ? 'font-bold text-error' : 'text-on-surface-variant' }}">Chờ {{ $waitDays }} ngày</div>
                             @endif
                         </td>
-                        <td class="px-md py-sm text-right">
+                        <td class="text-right">
                             @can('student.assign_class')
                                 @if ($matches->isNotEmpty())
                                     <form action="{{ route('crm.customers.assign-class', $lead->id) }}" method="POST" class="inline-flex items-center justify-end gap-sm">
                                         @csrf
-                                        <select name="class_id" required aria-label="Lớp gán cho {{ $lead->name }}" class="max-w-[320px] rounded-lg border-outline-variant font-body-small text-body-small">
+                                        <x-ui.select name="class_id" value="" required aria-label="Lớp gán cho {{ $lead->name }}" class="max-w-[320px] font-body-small text-body-small">
                                             @foreach ($matches as $class)
                                                 <option value="{{ $class->id }}">{{ $class->name }}{{ $class->status === 'upcoming' ? ' (sắp khai giảng)' : '' }} · còn {{ $class->max_capacity > 0 ? max(0, $class->max_capacity - $class->active_enrollments_count) : '∞' }} chỗ{{ $class->status === 'upcoming' && $class->active_enrollments_count < (int) $class->min_students ? ' · cần thêm '.((int) $class->min_students - $class->active_enrollments_count).' HV để khai giảng' : '' }}</option>
                                             @endforeach
-                                        </select>
+                                        </x-ui.select>
                                         <x-ui.button type="submit" size="sm" icon="assignment_turned_in">Gán lớp</x-ui.button>
                                     </form>
                                 @else
-                                    <span class="font-body-small text-body-small font-semibold text-amber-700">Chưa có lớp phù hợp</span>
+                                    <span class="font-body-small text-body-small font-semibold text-warning">Chưa có lớp phù hợp</span>
                                 @endif
                             @else
                                 <span class="font-body-small text-body-small text-on-surface-variant">Học vụ sẽ gán lớp</span>
@@ -73,5 +73,5 @@
                 @endforelse
             </tbody>
         </table>
-    </div>
+    </x-ui.data-table>
 </section>

@@ -1,15 +1,28 @@
 {{--
     Layout ứng dụng (App Shell theo mockup crm-ui-mockup/app-shell-layout).
     Dùng: <x-app-layout title="Tiêu đề trang"> ... </x-app-layout>
-      - slot `header` (tuỳ chọn): nội dung tiêu đề trên topbar (mặc định = title).
+      - Topbar chỉ gồm: tiêu đề trang (chữ thuần) · tìm kiếm chung · thông báo · tài khoản.
+      - slot `header` (tuỳ chọn): khối tiêu đề + nút hành động của trang, hiển thị ở ĐẦU NỘI DUNG (không trên topbar).
       - thuộc tính `title`: <title> của tab trình duyệt + tiêu đề topbar.
+        Không có `title` → tiêu đề của <x-ui.page-header> trong trang → h1/h2 đầu tiên của slot `header` (cũ)
+        → tên workspace hiện tại → "MEnglish". Trang mới: dùng <x-ui.page-header>, không dùng slot `header`.
       - thuộc tính `hide-errors`: tắt alert lỗi validate toàn cục (khi trang tự hiển thị danh sách lỗi).
 --}}
 @php
     $pageTitle = $attributes->get('title');
     $currentUser = Auth::user();
     $menu = app(\App\Support\Navigation\SidebarMenu::class);
-    $quickCreate = $menu->quickCreateFor($currentUser);
+    // Tiêu đề topbar (chữ thuần): title → h1/h2 đầu tiên của slot header (bỏ chữ icon) → tên workspace.
+    $topbarTitle = $pageTitle ?: request()->attributes->get('page_title');
+    if (! $topbarTitle && isset($header)) {
+        $headerHtml = preg_replace('/<span[^>]*material-symbols[^>]*>.*?<\/span>/su', '', (string) $header);
+        if (preg_match('/<h[12][^>]*>(.*?)<\/h[12]>/su', $headerHtml, $m)) {
+            $topbarTitle = trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($m[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+        }
+    }
+    if (! $topbarTitle && $currentUser) {
+        $topbarTitle = $menu->workspaceFor($currentUser, request())['label'] ?? null;
+    }
     // Ô tìm kiếm chung: tên màn hình + khách CRM / học viên / lớp (trang /search tự lọc theo quyền từng nhóm).
     $canGlobalSearch = $currentUser && Route::has('search');
     // Trang cấu hình / danh mục: bọc bằng menu con Cài đặt (URL cũ giữ nguyên).
@@ -30,6 +43,9 @@
         <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
         <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
 
+        {{-- Trạng thái thu gọn sidebar (≥1200px): áp trước khi vẽ để không nháy layout --}}
+        <script>try { if (localStorage.getItem('sidebar_collapsed') === '1') document.documentElement.classList.add('sidebar-collapsed'); } catch (e) {}</script>
+
         {{-- Font & icon được tự host qua Vite (resources/css/app.css) --}}
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
@@ -38,7 +54,7 @@
         <div class="flex min-h-screen flex-col" x-data="{ sidebarOpen: false }" @keydown.escape.window="sidebarOpen = false">
             @include('layouts.navigation')
 
-            <div class="flex min-w-0 flex-1 flex-col md:pl-sidebar-collapsed desktop:pl-sidebar-width">
+            <div class="flex min-w-0 flex-1 flex-col transition-[padding] duration-200 md:pl-sidebar-collapsed desktop:pl-sidebar-width" data-sidebar-shell>
                 {{-- Topbar --}}
                 <header class="sticky top-0 z-30 flex h-header-height shrink-0 items-center justify-between gap-md border-b border-surface-container-highest bg-surface px-md lg:px-lg">
                     <div class="flex min-w-0 flex-1 items-center gap-md lg:gap-lg">
@@ -46,13 +62,7 @@
                             <span class="material-symbols-outlined">menu</span>
                         </button>
 
-                        <div class="min-w-0 truncate font-h3 text-h3 text-on-surface">
-                            @isset($header)
-                                {{ $header }}
-                            @else
-                                {{ $pageTitle ?? 'MEnglish' }}
-                            @endisset
-                        </div>
+                        <div class="min-w-0 truncate font-h3 text-h3 text-on-surface" data-topbar-title>{{ $topbarTitle ?: 'MEnglish' }}</div>
 
                         @if ($canGlobalSearch)
                             <form method="GET" action="{{ route('search') }}" role="search" class="relative hidden w-[300px] shrink-0 lg:block">
@@ -74,7 +84,7 @@
                             $unreadNotifsCount = $notifService->getUnreadCount($currentUser);
                             $headerNotifs = $notifService->getUserNotifications($currentUser, 6);
                         @endphp
-                        <x-dropdown align="right" width="notification">
+                        <x-ui.dropdown align="right" width="notification">
                             <x-slot name="trigger">
                                 <button type="button" class="relative rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-primary" title="Thông báo & Cảnh báo" aria-label="Thông báo">
                                     <span class="material-symbols-outlined">notifications</span>
@@ -141,32 +151,10 @@
                                     </div>
                                 @endif
                             </x-slot>
-                        </x-dropdown>
-
-                        {{-- Tạo mới --}}
-                        @if ($quickCreate !== [])
-                            <x-dropdown align="right" width="56">
-                                <x-slot name="trigger">
-                                    <button type="button" class="inline-flex shrink-0 items-center gap-xs whitespace-nowrap rounded-lg bg-primary-container px-sm py-2 font-body-medium text-body-medium text-white shadow-md shadow-primary-container/20 transition-colors hover:bg-primary sm:px-md" aria-haspopup="menu">
-                                        <span class="material-symbols-outlined text-[20px]">add</span>
-                                        <span class="hidden sm:inline">Tạo mới</span>
-                                    </button>
-                                </x-slot>
-                                <x-slot name="content">
-                                    <div class="py-xs" role="menu">
-                                        @foreach ($quickCreate as $qc)
-                                            <a href="{{ $qc['url'] }}" role="menuitem" class="flex items-center gap-sm px-md py-sm font-body-medium text-body-medium text-on-surface transition-colors hover:bg-surface-container-low hover:text-primary">
-                                                <span class="material-symbols-outlined text-[20px] text-on-surface-variant">{{ $qc['icon'] }}</span>
-                                                {{ $qc['label'] }}
-                                            </a>
-                                        @endforeach
-                                    </div>
-                                </x-slot>
-                            </x-dropdown>
-                        @endif
+                        </x-ui.dropdown>
 
                         {{-- Tài khoản --}}
-                        <x-dropdown align="right" width="56">
+                        <x-ui.dropdown align="right" width="56">
                             <x-slot name="trigger">
                                 <button type="button" class="flex items-center gap-sm rounded-lg p-xs text-left transition-colors hover:bg-surface-container-low sm:border-l sm:border-surface-container-highest sm:pl-md" aria-label="Tài khoản">
                                     <span class="hidden text-right lg:block">
@@ -193,12 +181,17 @@
                                     </button>
                                 </form>
                             </x-slot>
-                        </x-dropdown>
+                        </x-ui.dropdown>
                     </div>
                 </header>
 
                 {{-- Nội dung trang --}}
                 <main class="flex-1 p-md lg:p-lg">
+                    {{-- Khối tiêu đề + nút hành động của trang (slot header) --}}
+                    @isset($header)
+                        <div class="mb-lg" data-page-header>{{ $header }}</div>
+                    @endisset
+
                     {{-- Tab của workspace: trang tự đặt <x-ui.workspace-tabs> thì không chèn lại --}}
                     @unless (request()->attributes->get('workspace_tabs_rendered'))
                         <x-ui.workspace-tabs />
@@ -224,17 +217,11 @@
                     @endif
                 </main>
 
-                <footer class="mt-auto flex select-none flex-col items-center justify-between gap-xs border-t border-surface-container-highest bg-surface px-md py-md font-caption text-caption text-on-surface-variant sm:flex-row lg:px-lg">
+                <footer class="mt-auto flex select-none flex-col items-center justify-center gap-xs border-t border-surface-container-highest bg-surface px-md py-md font-caption text-caption text-on-surface-variant sm:flex-row lg:px-lg">
                     <div class="flex items-center gap-xs">
                         <span class="font-semibold text-on-surface">MENGLISH</span>
                         <span aria-hidden="true">&bull;</span>
                         <span>Hệ thống quản trị giáo dục &amp; học vụ</span>
-                    </div>
-                    <div class="flex items-center gap-xs">
-                        <span>Phát triển bởi</span>
-                        <a href="https://vmst.vn" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-0.5 font-semibold text-primary hover:underline">
-                            VMST Media <span class="material-symbols-outlined text-[13px] opacity-70">open_in_new</span>
-                        </a>
                     </div>
                 </footer>
             </div>

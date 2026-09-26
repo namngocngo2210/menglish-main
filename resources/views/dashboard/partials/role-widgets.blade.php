@@ -21,11 +21,11 @@
             <div class="grid grid-cols-1 divide-y divide-surface-variant/60 sm:grid-cols-2 sm:divide-y-0 {{ count($roleDashboard['queues']) >= 4 ? 'xl:grid-cols-4' : 'xl:grid-cols-3' }}" data-role-queues>
                 @foreach ($roleDashboard['queues'] as $queue)
                     <a href="{{ $queue['href'] ?? '#' }}" class="flex items-center gap-sm px-md py-sm hover:bg-surface-container-low">
-                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full {{ $queue['value'] > 0 ? 'bg-amber-100 text-amber-700' : 'bg-surface-container-low text-on-surface-variant' }}">
+                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full {{ $queue['value'] > 0 ? 'bg-warning-container text-warning' : 'bg-surface-container-low text-on-surface-variant' }}">
                             <span class="material-symbols-outlined" aria-hidden="true">{{ $queue['icon'] }}</span>
                         </span>
                         <span class="min-w-0">
-                            <span class="block font-h3 text-h3 {{ $queue['value'] > 0 ? 'text-amber-700' : 'text-on-surface' }}">{{ number_format($queue['value']) }}</span>
+                            <span class="block font-h3 text-h3 {{ $queue['value'] > 0 ? 'text-warning' : 'text-on-surface' }}">{{ number_format($queue['value']) }}</span>
                             <span class="block truncate font-body-small text-body-small text-on-surface-variant">{{ $queue['label'] }}</span>
                             @if (! empty($queue['hint']))
                                 <span class="block truncate font-caption text-caption text-on-surface-variant">{{ $queue['hint'] }}</span>

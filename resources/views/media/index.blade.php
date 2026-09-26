@@ -1,86 +1,57 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2.5">
-                    <span class="material-symbols-outlined text-primary text-2xl">folder_managed</span>
-                    <span>Quản lý Media &amp; Tệp tin lưu trữ</span>
-                </h1>
-                <p class="text-xs text-gray-500 mt-0.5">
-                    Gom nhóm, tạo thư mục và kéo thả tệp tin như Google Drive trên đĩa cứng hệ thống
-                </p>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-2.5">
-                <span class="text-xs text-gray-500 bg-gray-100 px-3 py-1.5 rounded-xl font-medium hidden md:flex items-center gap-1.5">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+    <div class="space-y-5" x-data="mediaManager()">
+        <x-ui.page-header title="Quản lý Media & Tệp tin lưu trữ" icon="folder_managed" description="Gom nhóm, tạo thư mục và kéo thả tệp tin như Google Drive trên đĩa cứng hệ thống">
+            <x-slot:actions>
+                <span class="text-xs text-on-surface-variant bg-surface-container px-3 py-1.5 rounded-xl font-medium hidden md:flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
                     <span>Đĩa cứng: <strong>{{ $stats['total_size_human'] }}</strong> / {{ $stats['total_files'] }} tệp</span>
                 </span>
 
                 {{-- Button Tạo Thư Mục Mới --}}
-                <button 
-                    type="button" 
-                    @click="folderModal.open = true" 
-                    class="px-3.5 py-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-xs font-bold rounded-xl shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
-                >
-                    <span class="material-symbols-outlined text-base text-primary-container">create_new_folder</span>
-                    <span>Tạo thư mục mới</span>
-                </button>
+                <x-ui.button variant="secondary" icon="create_new_folder" x-on:click="$dispatch('open-modal', 'media-folder')">Tạo thư mục mới</x-ui.button>
 
                 {{-- Button Kéo Thả / Tải Lên --}}
-                <button 
-                    type="button" 
-                    @click="uploadCardOpen = !uploadCardOpen" 
-                    class="px-3.5 py-1.5 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-                >
-                    <span class="material-symbols-outlined text-base" x-text="uploadCardOpen ? 'expand_less' : 'cloud_upload'"></span>
+                <x-ui.button x-on:click="uploadCardOpen = !uploadCardOpen">
+                    <span class="material-symbols-outlined text-[18px]" x-text="uploadCardOpen ? 'expand_less' : 'cloud_upload'"></span>
                     <span x-text="uploadCardOpen ? 'Đóng tải lên' : 'Kéo thả tải tệp'"></span>
-                </button>
-            </div>
-        </div>
-    </x-slot>
+                </x-ui.button>
+            </x-slot:actions>
+        </x-ui.page-header>
 
-    <div class="space-y-5" x-data="mediaManager()">
         {{-- 0. Drag & Drop File Upload Zone Card --}}
         <div 
             x-show="uploadCardOpen" 
             x-transition:enter="transition ease-out duration-200"
             x-transition:enter-start="opacity-0 -translate-y-2"
             x-transition:enter-end="opacity-100 translate-y-0"
-            class="bg-white rounded-3xl border border-orange-200/80 shadow-sm p-6 space-y-4"
+            class="bg-surface-container-lowest rounded-3xl border border-primary-container/30 shadow-sm p-6 space-y-4"
         >
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-gray-100">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-surface-container-highest">
                 <div class="flex items-center gap-2">
-                    <span class="w-8 h-8 rounded-xl bg-orange-50 text-primary-container flex items-center justify-center font-bold">
+                    <span class="w-8 h-8 rounded-xl bg-primary-container/10 text-primary-container flex items-center justify-center font-bold">
                         <span class="material-symbols-outlined text-lg">cloud_upload</span>
                     </span>
                     <div>
-                        <h3 class="text-xs font-bold text-gray-900 uppercase tracking-wider">Kéo thả &amp; Tải lên tệp tin mới</h3>
-                        <p class="text-[11px] text-gray-500">Tự động tối ưu hóa và phân loại tệp tin trên cây thư mục hệ thống</p>
+                        <h3 class="text-xs font-bold text-on-surface uppercase tracking-wider">Kéo thả &amp; Tải lên tệp tin mới</h3>
+                        <p class="text-[11px] text-on-surface-variant">Tự động tối ưu hóa và phân loại tệp tin trên cây thư mục hệ thống</p>
                     </div>
                 </div>
 
                 {{-- Target Folder Selector --}}
-                <div class="flex items-center gap-2 text-xs">
-                    <span class="text-gray-500 font-medium">Lưu vào thư mục:</span>
-                    <select 
-                        x-model="targetFolder" 
-                        class="text-xs font-bold rounded-xl border border-gray-200 py-1.5 px-3 focus:ring-1 focus:ring-primary-container focus:border-primary-container bg-gray-50"
-                    >
-                        <option value="{{ $currentFolder ?: 'auto_date' }}">
-                            📁 {{ $currentFolder ? 'Thư mục hiện tại (uploads/media/' . $currentFolder . ')' : 'uploads/media/' . date('Y') . '/' . date('m') . ' (Theo ngày tháng năm)' }}
-                        </option>
-                        <option value="auto_date">📁 uploads/media/{{ date('Y') }}/{{ date('m') }} (Theo ngày tháng năm)</option>
-                        <option value="tickets">📁 uploads/media/tickets/ (Ảnh ticket báo lỗi &amp; hỗ trợ)</option>
-                        <option value="avatars">📁 uploads/media/avatars/ (Ảnh đại diện người dùng)</option>
-                        <option value="courses">📁 uploads/media/courses/ (Tài liệu khóa học &amp; giáo trình)</option>
-                        <option value="documents">📁 uploads/media/documents/ (Tài liệu chung &amp; hợp đồng)</option>
-                        <option value="marketing">📁 uploads/media/marketing/ (Banner &amp; truyền thông)</option>
-                        @foreach ($subFolders as $sf)
-                            <option value="{{ $sf['path'] }}">📁 uploads/media/{{ $sf['path'] }}/</option>
-                        @endforeach
-                    </select>
-                </div>
+                <x-ui.select x-model="targetFolder" inline-label="Lưu vào thư mục:" aria-label="Lưu vào thư mục" class="py-xs font-bold">
+                    <option value="{{ $currentFolder ?: 'auto_date' }}">
+                        📁 {{ $currentFolder ? 'Thư mục hiện tại (uploads/media/' . $currentFolder . ')' : 'uploads/media/' . date('Y') . '/' . date('m') . ' (Theo ngày tháng năm)' }}
+                    </option>
+                    <option value="auto_date">📁 uploads/media/{{ date('Y') }}/{{ date('m') }} (Theo ngày tháng năm)</option>
+                    <option value="tickets">📁 uploads/media/tickets/ (Ảnh ticket báo lỗi &amp; hỗ trợ)</option>
+                    <option value="avatars">📁 uploads/media/avatars/ (Ảnh đại diện người dùng)</option>
+                    <option value="courses">📁 uploads/media/courses/ (Tài liệu khóa học &amp; giáo trình)</option>
+                    <option value="documents">📁 uploads/media/documents/ (Tài liệu chung &amp; hợp đồng)</option>
+                    <option value="marketing">📁 uploads/media/marketing/ (Banner &amp; truyền thông)</option>
+                    @foreach ($subFolders as $sf)
+                        <option value="{{ $sf['path'] }}">📁 uploads/media/{{ $sf['path'] }}/</option>
+                    @endforeach
+                </x-ui.select>
             </div>
 
             {{-- Drag and Drop Dropzone --}}
@@ -97,31 +68,31 @@
                 @dragleave.prevent.stop="isDragging = false"
                 @drop.prevent.stop="handleFilesDrop($event)"
                 class="border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-200 flex flex-col items-center justify-center space-y-3"
-                :class="isDragging ? 'border-primary-container bg-orange-50/80 scale-[1.01]' : 'border-gray-300 bg-gray-50/50 hover:bg-orange-50/20 hover:border-primary-container/60'"
+                :class="isDragging ? 'border-primary-container bg-primary-container/10 scale-[1.01]' : 'border-outline-variant bg-surface-container-low/50 hover:bg-primary-container/10 hover:border-primary-container/60'"
             >
-                <div class="w-14 h-14 rounded-2xl bg-orange-100 text-primary-container flex items-center justify-center shadow-xs transition transform cursor-pointer" @click="$refs.fileInput.click()" :class="isDragging ? 'scale-110' : ''">
+                <div class="w-14 h-14 rounded-2xl bg-primary-container/10 text-primary-container flex items-center justify-center shadow-xs transition transform cursor-pointer" @click="$refs.fileInput.click()" :class="isDragging ? 'scale-110' : ''">
                     <span class="material-symbols-outlined text-3xl">upload_file</span>
                 </div>
 
                 <div class="space-y-1">
-                    <p class="text-sm font-bold text-gray-900">
+                    <p class="text-sm font-bold text-on-surface">
                         <span class="text-primary-container">Kéo thả tệp tin vào đây</span> hoặc 
                         <button type="button" @click.stop="$refs.fileInput.click()" class="text-primary-container underline hover:text-primary font-bold cursor-pointer inline">
                             chọn tệp từ máy tính
                         </button>
                     </p>
-                    <p class="text-[11px] text-gray-500">
-                        Hỗ trợ đa dạng: <span class="font-semibold text-gray-700">Audio (MP3/WAV), Word (DOCX), PDF, Excel, Hình ảnh, Video, ZIP</span> (Tối đa 100MB/tệp)
+                    <p class="text-[11px] text-on-surface-variant">
+                        Hỗ trợ đa dạng: <span class="font-semibold text-on-surface-variant">Audio (MP3/WAV), Word (DOCX), PDF, Excel, Hình ảnh, Video, ZIP</span> (Tối đa 100MB/tệp)
                     </p>
                 </div>
 
                 {{-- Upload Progress & Status Bar --}}
                 <div x-show="isUploading" x-cloak class="w-full max-w-md space-y-2 pt-2" @click.stop>
-                    <div class="flex items-center justify-between text-xs font-bold text-gray-700">
+                    <div class="flex items-center justify-between text-xs font-bold text-on-surface-variant">
                         <span x-text="uploadStatusText"></span>
-                        <span class="font-mono text-primary-container" x-text="uploadProgress + '%'"></span>
+                        <span class="font-code text-primary-container" x-text="uploadProgress + '%'"></span>
                     </div>
-                    <div class="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                    <div class="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
                         <div class="bg-primary-container h-full rounded-full transition-all duration-200" :style="`width: ${uploadProgress}%`"></div>
                     </div>
                 </div>
@@ -129,25 +100,25 @@
         </div>
 
         {{-- 1. Google Drive Breadcrumbs & Navigation Bar --}}
-        <div class="bg-white rounded-2xl border border-gray-200/90 shadow-xs p-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest/90 shadow-xs p-4 flex flex-wrap items-center justify-between gap-3">
             {{-- Breadcrumbs Trail --}}
             <div class="flex items-center gap-1.5 text-xs font-bold overflow-x-auto py-1">
                 @foreach ($breadcrumbs as $index => $bc)
                     @if ($index > 0)
-                        <span class="text-gray-300 material-symbols-outlined text-sm">chevron_right</span>
+                        <span class="text-on-surface-variant/70 material-symbols-outlined text-sm">chevron_right</span>
                     @endif
 
                     @if ($loop->last && $currentFolder !== '')
-                        <span class="px-2.5 py-1 rounded-xl bg-orange-50 text-primary-container border border-orange-200 flex items-center gap-1">
+                        <span class="px-2.5 py-1 rounded-xl bg-primary-container/10 text-primary-container border border-primary-container/30 flex items-center gap-1">
                             <span class="material-symbols-outlined text-sm">folder_open</span>
                             <span>{{ $bc['name'] }}</span>
                         </span>
                     @else
                         <a 
                             href="{{ route('media.index', $bc['path'] ? ['folder' => $bc['path']] : []) }}" 
-                            class="px-2.5 py-1 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition flex items-center gap-1"
+                            class="px-2.5 py-1 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition flex items-center gap-1"
                         >
-                            <span class="material-symbols-outlined text-sm text-gray-400">{{ $index === 0 ? 'home' : 'folder' }}</span>
+                            <span class="material-symbols-outlined text-sm text-on-surface-variant/70">{{ $index === 0 ? 'home' : 'folder' }}</span>
                             <span>{{ $bc['name'] }}</span>
                         </a>
                     @endif
@@ -155,49 +126,37 @@
             </div>
 
             {{-- Quick Action: Tạo thư mục con trong thư mục này --}}
-            <button 
-                type="button" 
-                @click="folderModal.open = true" 
-                class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl transition flex items-center gap-1 shrink-0"
-            >
-                <span class="material-symbols-outlined text-sm text-primary-container">add</span>
-                <span>Tạo thư mục con</span>
-            </button>
+            <x-ui.button variant="secondary" size="sm" icon="add" x-on:click="$dispatch('open-modal', 'media-folder')">Tạo thư mục con</x-ui.button>
         </div>
 
         {{-- 2. Folder Explorer Grid (Google Drive Folders) --}}
         @if ($subFolders->isNotEmpty())
             <div class="space-y-2.5">
-                <div class="text-[11px] font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                <div class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-sm">folder</span>
                     <span>Thư mục ({{ $subFolders->count() }})</span>
                 </div>
 
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5">
                     @foreach ($subFolders as $sf)
-                        <div class="bg-white rounded-2xl border border-gray-200/90 shadow-xs hover:shadow-md hover:border-primary-container/40 transition p-3.5 flex flex-col justify-between group relative">
+                        <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest/90 shadow-xs hover:shadow-md hover:border-primary-container/40 transition p-3.5 flex flex-col justify-between group relative">
                             <a href="{{ route('media.index', ['folder' => $sf['path']]) }}" class="block space-y-2">
                                 <div class="flex items-center justify-between">
-                                    <div class="w-10 h-10 rounded-xl bg-orange-50 text-primary-container flex items-center justify-center group-hover:scale-105 transition">
+                                    <div class="w-10 h-10 rounded-xl bg-primary-container/10 text-primary-container flex items-center justify-center group-hover:scale-105 transition">
                                         <span class="material-symbols-outlined text-2xl">folder</span>
                                     </div>
 
                                     {{-- Delete folder button --}}
-                                    <button 
-                                        type="button" 
-                                        @click.prevent.stop="confirmDeleteFolder('{{ $sf['path'] }}', '{{ $sf['name'] }}', {{ $sf['files_count'] }})"
-                                        class="p-1 rounded-lg text-gray-300 hover:text-rose-600 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition"
-                                        title="Xóa thư mục"
-                                    >
-                                        <span class="material-symbols-outlined text-sm">delete</span>
-                                    </button>
+                                    <x-ui.button variant="danger-text" size="sm" icon="delete" title="Xóa thư mục" aria-label="Xóa thư mục"
+                                        x-on:click.prevent.stop="confirmDeleteFolder('{{ $sf['path'] }}', '{{ $sf['name'] }}', {{ $sf['files_count'] }})"
+                                        class="opacity-0 group-hover:opacity-100 focus:opacity-100" />
                                 </div>
 
                                 <div>
-                                    <h4 class="text-xs font-bold text-gray-900 group-hover:text-primary-container transition truncate" title="{{ $sf['name'] }}">
+                                    <h4 class="text-xs font-bold text-on-surface group-hover:text-primary-container transition truncate" title="{{ $sf['name'] }}">
                                         {{ $sf['name'] }}
                                     </h4>
-                                    <p class="text-[10px] text-gray-400 font-mono mt-0.5">
+                                    <p class="text-[10px] text-on-surface-variant/70 font-code mt-0.5">
                                         {{ $sf['files_count'] }} tệp · {{ $sf['total_size_human'] }}
                                     </p>
                                 </div>
@@ -210,53 +169,14 @@
 
         {{-- 3. KPI Summary Cards --}}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-            {{-- Total Files --}}
-            <div class="bg-white rounded-2xl p-4 border border-gray-200/90 shadow-sm flex items-center justify-between">
-                <div>
-                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Tổng số tệp tin</span>
-                    <div class="text-xl font-black text-gray-900 mt-1 font-mono">{{ number_format($stats['total_files']) }}</div>
-                </div>
-                <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                    <span class="material-symbols-outlined text-2xl">description</span>
-                </div>
-            </div>
-
-            {{-- Total Size --}}
-            <div class="bg-white rounded-2xl p-4 border border-gray-200/90 shadow-sm flex items-center justify-between">
-                <div>
-                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Tổng dung lượng</span>
-                    <div class="text-xl font-black text-gray-900 mt-1 font-mono text-primary-container">{{ $stats['total_size_human'] }}</div>
-                </div>
-                <div class="w-11 h-11 rounded-xl bg-orange-50 text-primary-container flex items-center justify-center">
-                    <span class="material-symbols-outlined text-2xl">hard_drive</span>
-                </div>
-            </div>
-
-            {{-- Images Size --}}
-            <div class="bg-white rounded-2xl p-4 border border-gray-200/90 shadow-sm flex items-center justify-between">
-                <div>
-                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Hình ảnh ({{ $stats['images_count'] }})</span>
-                    <div class="text-xl font-black text-emerald-700 mt-1 font-mono">{{ $stats['images_size'] }}</div>
-                </div>
-                <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                    <span class="material-symbols-outlined text-2xl">image</span>
-                </div>
-            </div>
-
-            {{-- Documents Size --}}
-            <div class="bg-white rounded-2xl p-4 border border-gray-200/90 shadow-sm flex items-center justify-between">
-                <div>
-                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Tài liệu &amp; Excel</span>
-                    <div class="text-xl font-black text-indigo-700 mt-1 font-mono">{{ $stats['docs_size'] }}</div>
-                </div>
-                <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                    <span class="material-symbols-outlined text-2xl">article</span>
-                </div>
-            </div>
+            <x-ui.stat-card label="Tổng số tệp tin" :value="number_format($stats['total_files'])" icon="description" tone="secondary" />
+            <x-ui.stat-card label="Tổng dung lượng" :value="$stats['total_size_human']" icon="hard_drive" tone="primary" />
+            <x-ui.stat-card :label="'Hình ảnh ('.$stats['images_count'].')'" :value="$stats['images_size']" icon="image" tone="success" />
+            <x-ui.stat-card label="Tài liệu & Excel" :value="$stats['docs_size']" icon="article" tone="secondary" />
         </div>
 
         {{-- 4. Filter & Search Bar --}}
-        <div class="bg-white rounded-2xl border border-gray-200/90 shadow-sm p-4">
+        <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest/90 shadow-sm p-4">
             <form method="GET" action="{{ route('media.index') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
                 @if ($currentFolder)
                     <input type="hidden" name="folder" value="{{ $currentFolder }}">
@@ -264,102 +184,57 @@
 
                 {{-- Search --}}
                 <div class="lg:col-span-2">
-                    <label class="block text-[11px] font-bold text-gray-600 mb-1">Tìm kiếm tên tệp</label>
-                    <div class="relative">
-                        <span class="material-symbols-outlined absolute left-3 top-2 text-gray-400 text-base">search</span>
-                        <input 
-                            type="text" 
-                            name="search" 
-                            value="{{ $filters['search'] }}" 
-                            placeholder="Nhập tên tệp tin hoặc đường dẫn..." 
-                            class="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 focus:ring-1 focus:ring-primary-container focus:border-primary-container"
-                        />
-                    </div>
+                    <x-ui.input name="search" label="Tìm kiếm tên tệp" icon="search" :value="$filters['search']" placeholder="Nhập tên tệp tin hoặc đường dẫn..." />
                 </div>
 
                 {{-- File Type --}}
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-600 mb-1">Loại tệp</label>
-                    <select name="type" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
-                        <option value="all" {{ $filters['type'] === 'all' ? 'selected' : '' }}>Tất cả loại tệp</option>
-                        <option value="image" {{ $filters['type'] === 'image' ? 'selected' : '' }}>🖼️ Hình ảnh</option>
-                        <option value="document" {{ $filters['type'] === 'document' ? 'selected' : '' }}>📄 Tài liệu (PDF/Doc)</option>
-                        <option value="spreadsheet" {{ $filters['type'] === 'spreadsheet' ? 'selected' : '' }}>📊 Bảng tính (Excel)</option>
-                        <option value="audio" {{ $filters['type'] === 'audio' ? 'selected' : '' }}>🎧 Âm thanh (Audio/MP3)</option>
-                        <option value="video" {{ $filters['type'] === 'video' ? 'selected' : '' }}>🎬 Video</option>
-                        <option value="other" {{ $filters['type'] === 'other' ? 'selected' : '' }}>📁 Khác</option>
-                    </select>
-                </div>
+                <x-ui.select name="type" label="Loại tệp" :value="$filters['type']" :options="[
+                    'all' => 'Tất cả loại tệp', 'image' => '🖼️ Hình ảnh', 'document' => '📄 Tài liệu (PDF/Doc)', 'spreadsheet' => '📊 Bảng tính (Excel)',
+                    'audio' => '🎧 Âm thanh (Audio/MP3)', 'video' => '🎬 Video', 'other' => '📁 Khác',
+                ]" />
 
                 {{-- Directory / Folder --}}
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-600 mb-1">Thư mục lưu trữ</label>
-                    <select name="directory" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
-                        <option value="all" {{ $filters['directory'] === 'all' ? 'selected' : '' }}>Tất cả thư mục</option>
-                        @foreach ($directories as $dir)
-                            <option value="{{ $dir }}" {{ $filters['directory'] === $dir ? 'selected' : '' }}>📁 {{ $dir }}/</option>
-                        @endforeach
-                    </select>
-                </div>
+                <x-ui.select name="directory" label="Thư mục lưu trữ" :value="$filters['directory']"
+                             :options="['all' => 'Tất cả thư mục'] + collect($directories)->mapWithKeys(fn ($dir) => [$dir => '📁 '.$dir.'/'])->all()" />
 
                 {{-- Size Range --}}
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-600 mb-1">Kích thước</label>
-                    <select name="size_range" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
-                        <option value="all" {{ $filters['size_range'] === 'all' ? 'selected' : '' }}>Mọi kích thước</option>
-                        <option value="lt_1mb" {{ $filters['size_range'] === 'lt_1mb' ? 'selected' : '' }}>Dưới 1 MB</option>
-                        <option value="1mb_10mb" {{ $filters['size_range'] === '1mb_10mb' ? 'selected' : '' }}>1 MB — 10 MB</option>
-                        <option value="gt_10mb" {{ $filters['size_range'] === 'gt_10mb' ? 'selected' : '' }}>Trên 10 MB</option>
-                    </select>
-                </div>
+                <x-ui.select name="size_range" label="Kích thước" :value="$filters['size_range']"
+                             :options="['all' => 'Mọi kích thước', 'lt_1mb' => 'Dưới 1 MB', '1mb_10mb' => '1 MB — 10 MB', 'gt_10mb' => 'Trên 10 MB']" />
 
                 {{-- Date Range --}}
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-600 mb-1">Thời gian tải lên</label>
-                    <select name="date_range" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
-                        <option value="all" {{ $filters['date_range'] === 'all' ? 'selected' : '' }}>Tất cả thời gian</option>
-                        <option value="today" {{ $filters['date_range'] === 'today' ? 'selected' : '' }}>Hôm nay</option>
-                        <option value="last_7_days" {{ $filters['date_range'] === 'last_7_days' ? 'selected' : '' }}>7 ngày trước</option>
-                        <option value="last_30_days" {{ $filters['date_range'] === 'last_30_days' ? 'selected' : '' }}>30 ngày trước</option>
-                        <option value="this_month" {{ $filters['date_range'] === 'this_month' ? 'selected' : '' }}>Tháng này</option>
-                    </select>
-                </div>
+                <x-ui.select name="date_range" label="Thời gian tải lên" :value="$filters['date_range']"
+                             :options="['all' => 'Tất cả thời gian', 'today' => 'Hôm nay', 'last_7_days' => '7 ngày trước', 'last_30_days' => '30 ngày trước', 'this_month' => 'Tháng này']" />
 
                 {{-- Submit buttons --}}
-                <div class="lg:col-span-6 flex items-center justify-between pt-2 border-t border-gray-100 mt-1">
-                    <div class="text-xs text-gray-500">
-                        Kết quả lọc: <strong class="text-gray-900">{{ number_format($totalFilteredCount) }}</strong> tệp 
-                        (<strong class="text-primary-container font-mono">{{ $totalFilteredSize }}</strong>)
+                <div class="lg:col-span-6 flex items-center justify-between pt-2 border-t border-surface-container-highest mt-1">
+                    <div class="text-xs text-on-surface-variant">
+                        Kết quả lọc: <strong class="text-on-surface">{{ number_format($totalFilteredCount) }}</strong> tệp 
+                        (<strong class="text-primary-container font-code">{{ $totalFilteredSize }}</strong>)
                     </div>
 
                     <div class="flex items-center gap-2">
-                        <a href="{{ route('media.index', $currentFolder ? ['folder' => $currentFolder] : []) }}" class="px-3 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-xl transition">
-                            Đặt lại
-                        </a>
-                        <button type="submit" class="px-4 py-1.5 text-xs font-bold text-white bg-primary-container hover:bg-primary rounded-xl shadow-xs transition flex items-center gap-1">
-                            <span class="material-symbols-outlined text-[16px]">filter_alt</span>
-                            <span>Lọc tệp</span>
-                        </button>
+                        <x-ui.button variant="secondary" size="sm" :href="route('media.index', $currentFolder ? ['folder' => $currentFolder] : [])">Đặt lại</x-ui.button>
+                        <x-ui.button type="submit" size="sm" icon="filter_alt">Lọc tệp</x-ui.button>
                     </div>
                 </div>
             </form>
         </div>
 
         {{-- 5. Actions Toolbar & Bulk Operations --}}
-        <div class="bg-white rounded-2xl border border-gray-200/90 shadow-sm p-3.5 flex flex-wrap items-center justify-between gap-3">
+        <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest/90 shadow-sm p-3.5 flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-3">
                 {{-- Select All Checkbox --}}
-                <label class="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer select-none">
+                <label class="flex items-center gap-2 text-xs font-bold text-on-surface-variant cursor-pointer select-none">
                     <input 
                         type="checkbox" 
                         @change="toggleSelectAll($event)" 
                         :checked="isAllSelected"
-                        class="rounded text-primary-container focus:ring-primary-container border-gray-300 w-4 h-4 cursor-pointer"
+                        class="rounded text-primary-container focus:ring-primary-container border-outline-variant w-4 h-4 cursor-pointer"
                     />
                     <span>Chọn tất cả trang này</span>
                 </label>
 
-                <span class="text-gray-300">|</span>
+                <span class="text-on-surface-variant/70">|</span>
 
                 {{-- Bulk Delete Selected Files --}}
                 <form 
@@ -374,50 +249,28 @@
                         <input type="hidden" name="selected_files[]" :value="id">
                     </template>
 
-                    <button 
-                        type="submit" 
-                        :disabled="selectedFiles.length === 0"
-                        class="px-3.5 py-1.5 text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs"
-                        :class="selectedFiles.length > 0 ? 'bg-rose-600 hover:bg-rose-700 text-white cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-not-allowed'"
-                    >
-                        <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
+                    <x-ui.button type="submit" variant="danger" size="sm" icon="delete_sweep" x-bind:disabled="selectedFiles.length === 0">
                         <span>Xóa các tệp (<span x-text="selectedFiles.length"></span>)</span>
-                    </button>
+                    </x-ui.button>
                 </form>
 
                 {{-- Bulk Move Selected Files --}}
-                <button 
-                    type="button" 
-                    :disabled="selectedFiles.length === 0"
-                    @click="openMoveModal()"
-                    class="px-3.5 py-1.5 text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs"
-                    :class="selectedFiles.length > 0 ? 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-not-allowed'"
-                >
-                    <span class="material-symbols-outlined text-[16px]">drive_file_move</span>
-                    <span>Di chuyển vào thư mục</span>
-                </button>
+                <x-ui.button variant="secondary" size="sm" icon="drive_file_move" x-bind:disabled="selectedFiles.length === 0" x-on:click="openMoveModal()">Di chuyển vào thư mục</x-ui.button>
 
                 {{-- Clean Up by Filter (Xóa toàn bộ theo bộ lọc) --}}
                 @if ($totalFilteredCount > 0)
-                    <button 
-                        type="button" 
-                        @click="confirmCleanFiltered()"
-                        class="px-3.5 py-1.5 text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                        title="Xóa vĩnh viễn toàn bộ {{ $totalFilteredCount }} tệp tin khớp bộ lọc khỏi đĩa"
-                    >
-                        <span class="material-symbols-outlined text-[16px]">delete_forever</span>
-                        <span>Xóa theo bộ lọc ({{ $totalFilteredCount }} tệp)</span>
-                    </button>
+                    <x-ui.button variant="danger-text" size="sm" icon="delete_forever" x-on:click="confirmCleanFiltered()"
+                        title="Xóa vĩnh viễn toàn bộ {{ $totalFilteredCount }} tệp tin khớp bộ lọc khỏi đĩa">Xóa theo bộ lọc ({{ $totalFilteredCount }} tệp)</x-ui.button>
                 @endif
             </div>
 
             {{-- View Mode Switch (Grid vs Table) --}}
-            <div class="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200">
+            <div class="flex items-center gap-1 bg-surface-container p-1 rounded-xl border border-surface-container-highest">
                 <button 
                     type="button" 
                     @click="viewMode = 'grid'" 
                     class="p-1.5 rounded-lg text-xs font-semibold transition"
-                    :class="viewMode === 'grid' ? 'bg-white text-primary-container shadow-xs font-bold' : 'text-gray-600 hover:text-gray-900'"
+                    :class="viewMode === 'grid' ? 'bg-surface-container-lowest text-primary-container shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'"
                     title="Chế độ xem lưới (Grid)"
                 >
                     <span class="material-symbols-outlined text-[18px]">grid_view</span>
@@ -426,7 +279,7 @@
                     type="button" 
                     @click="viewMode = 'table'" 
                     class="p-1.5 rounded-lg text-xs font-semibold transition"
-                    :class="viewMode === 'table' ? 'bg-white text-primary-container shadow-xs font-bold' : 'text-gray-600 hover:text-gray-900'"
+                    :class="viewMode === 'table' ? 'bg-surface-container-lowest text-primary-container shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'"
                     title="Chế độ xem bảng (Table)"
                 >
                     <span class="material-symbols-outlined text-[18px]">table_rows</span>
@@ -437,47 +290,41 @@
         {{-- 6. Files List View --}}
         @if ($files->isEmpty())
             @if ($subFolders->isNotEmpty())
-                <div class="bg-gray-50/80 rounded-3xl border border-dashed border-gray-200 p-8 text-center">
-                    <p class="text-xs font-semibold text-gray-500">
+                <div class="bg-surface-container-low/80 rounded-3xl border border-dashed border-surface-container-highest p-8 text-center">
+                    <p class="text-xs font-semibold text-on-surface-variant">
                         Thư mục này gồm <strong>{{ $subFolders->count() }} thư mục con</strong> ở trên. Hãy bấm vào một thư mục để xem tệp hoặc kéo thả tệp tin mới vào đây.
                     </p>
                 </div>
             @else
-                <div class="bg-white rounded-3xl border border-gray-200 p-12 text-center">
-                    <div class="w-16 h-16 rounded-full bg-orange-50 text-primary-container mx-auto flex items-center justify-center mb-3">
-                        <span class="material-symbols-outlined text-3xl">folder_off</span>
-                    </div>
-                    <h3 class="text-sm font-bold text-gray-900">Không tìm thấy tệp tin nào trong thư mục này</h3>
-                    <p class="text-xs text-gray-500 mt-1">Hãy thử kéo thả tệp lên trên hoặc chuyển sang thư mục khác.</p>
-                    <a href="{{ route('media.index') }}" class="mt-4 inline-flex items-center gap-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition">
-                        <span class="material-symbols-outlined text-base">home</span>
-                        <span>Về thư mục gốc</span>
-                    </a>
+                <div class="rounded-3xl border border-surface-container-highest bg-surface-container-lowest">
+                    <x-ui.empty-state icon="folder_off" title="Không tìm thấy tệp tin nào trong thư mục này" description="Hãy thử kéo thả tệp lên trên hoặc chuyển sang thư mục khác.">
+                        <x-ui.button variant="secondary" icon="home" :href="route('media.index')">Về thư mục gốc</x-ui.button>
+                    </x-ui.empty-state>
                 </div>
             @endif
         @else
             {{-- 6A. Grid Card View --}}
             <div x-show="viewMode === 'grid'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5">
                 @foreach ($files as $file)
-                    <div class="bg-white rounded-2xl border border-gray-200/90 shadow-sm hover:shadow-md hover:border-primary-container/50 transition flex flex-col justify-between overflow-hidden group relative">
+                    <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest/90 shadow-sm hover:shadow-md hover:border-primary-container/50 transition flex flex-col justify-between overflow-hidden group relative">
                         {{-- Top Bar / Checkbox & Actions --}}
-                        <div class="p-2.5 flex items-center justify-between bg-gray-50/70 border-b border-gray-100">
+                        <div class="p-2.5 flex items-center justify-between bg-surface-container-low/70 border-b border-surface-container-highest">
                             <label class="cursor-pointer">
                                 <input 
                                     type="checkbox" 
                                     value="{{ $file['id'] }}" 
                                     x-model="selectedFiles" 
-                                    class="file-checkbox rounded text-primary-container focus:ring-primary-container border-gray-300 w-3.5 h-3.5 cursor-pointer"
+                                    class="file-checkbox rounded text-primary-container focus:ring-primary-container border-outline-variant w-3.5 h-3.5 cursor-pointer"
                                 />
                             </label>
 
-                            <span class="text-[10px] font-mono uppercase font-extrabold px-1.5 py-0.5 rounded bg-gray-200/70 text-gray-700">
+                            <span class="text-[10px] font-code uppercase font-extrabold px-1.5 py-0.5 rounded bg-surface-container-high/70 text-on-surface-variant">
                                 {{ $file['extension'] }}
                             </span>
                         </div>
 
                         {{-- Center Thumbnail / Preview --}}
-                        <div class="p-3 flex items-center justify-center bg-gray-100/40 min-h-[110px] relative overflow-hidden">
+                        <div class="p-3 flex items-center justify-center bg-surface-container/40 min-h-[110px] relative overflow-hidden">
                             @if ($file['is_image'])
                                 <img 
                                     src="{{ $file['url'] }}" 
@@ -489,7 +336,7 @@
                             @elseif ($file['type'] === 'audio')
                                 <div 
                                     @click="openPreview('{{ $file['url'] }}', '{{ $file['filename'] }}', '{{ $file['size_human'] }}', 'audio')"
-                                    class="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 hover:bg-amber-100 flex flex-col items-center justify-center cursor-pointer transition shadow-2xs group-hover:scale-105"
+                                    class="w-14 h-14 rounded-2xl bg-warning-container text-warning hover:bg-warning-container flex flex-col items-center justify-center cursor-pointer transition shadow-2xs group-hover:scale-105"
                                     title="Bấm để nghe tệp âm thanh"
                                 >
                                     <span class="material-symbols-outlined text-2xl">headphones</span>
@@ -497,10 +344,10 @@
                                 </div>
                             @else
                                 <div class="w-12 h-12 rounded-xl flex items-center justify-center 
-                                    {{ $file['type'] === 'document' ? 'bg-blue-50 text-blue-600' : '' }}
-                                    {{ $file['type'] === 'spreadsheet' ? 'bg-emerald-50 text-emerald-600' : '' }}
+                                    {{ $file['type'] === 'document' ? 'bg-secondary/10 text-secondary' : '' }}
+                                    {{ $file['type'] === 'spreadsheet' ? 'bg-tertiary/10 text-tertiary' : '' }}
                                     {{ $file['type'] === 'video' ? 'bg-purple-50 text-purple-600' : '' }}
-                                    {{ $file['type'] === 'other' ? 'bg-gray-100 text-gray-600' : '' }}
+                                    {{ $file['type'] === 'other' ? 'bg-surface-container text-on-surface-variant' : '' }}
                                 ">
                                     @if ($file['type'] === 'document')
                                         <span class="material-symbols-outlined text-2xl">description</span>
@@ -516,47 +363,25 @@
                         </div>
 
                         {{-- Bottom File Info --}}
-                        <div class="p-2.5 space-y-1 bg-white border-t border-gray-100 text-left">
-                            <h4 class="text-xs font-bold text-gray-900 truncate" title="{{ $file['filename'] }}">
+                        <div class="p-2.5 space-y-1 bg-surface-container-lowest border-t border-surface-container-highest text-left">
+                            <h4 class="text-xs font-bold text-on-surface truncate" title="{{ $file['filename'] }}">
                                 {{ $file['filename'] }}
                             </h4>
 
-                            <div class="flex items-center justify-between text-[10px] text-gray-400 font-mono">
-                                <span class="text-gray-600 font-bold">{{ $file['size_human'] }}</span>
+                            <div class="flex items-center justify-between text-[10px] text-on-surface-variant/70 font-code">
+                                <span class="text-on-surface-variant font-bold">{{ $file['size_human'] }}</span>
                                 <span class="truncate max-w-[75px]" title="{{ $file['directory'] }}">📁 {{ $file['directory'] }}</span>
                             </div>
 
-                            <div class="text-[9px] text-gray-400 pt-0.5">
+                            <div class="text-[9px] text-on-surface-variant/70 pt-0.5">
                                 {{ $file['created_at_human'] }}
                             </div>
 
                             {{-- Fast Action Toolbar --}}
-                            <div class="pt-2 border-t border-gray-100 flex items-center justify-between gap-1">
-                                <button 
-                                    type="button" 
-                                    @click="copyUrl('{{ $file['url'] }}')" 
-                                    class="p-1 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition cursor-pointer"
-                                    title="Sao chép URL"
-                                >
-                                    <span class="material-symbols-outlined text-sm">link</span>
-                                </button>
-
-                                <a 
-                                    href="{{ route('media.download', $file['id']) }}" 
-                                    class="p-1 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition"
-                                    title="Tải về máy"
-                                >
-                                    <span class="material-symbols-outlined text-sm">download</span>
-                                </a>
-
-                                <button 
-                                    type="button" 
-                                    @click="confirmSingleDelete('{{ $file['id'] }}', '{{ $file['filename'] }}', '{{ $file['size_human'] }}')" 
-                                    class="p-1 rounded-lg hover:bg-rose-50 text-gray-400 hover:text-rose-600 transition cursor-pointer"
-                                    title="Xóa vĩnh viễn"
-                                >
-                                    <span class="material-symbols-outlined text-sm">delete</span>
-                                </button>
+                            <div class="pt-2 border-t border-surface-container-highest flex items-center justify-between gap-1">
+                                <x-ui.button variant="ghost" size="sm" icon="link" x-on:click="copyUrl('{{ $file['url'] }}')" title="Sao chép URL" aria-label="Sao chép URL" />
+                                <x-ui.button variant="ghost" size="sm" icon="download" :href="route('media.download', $file['id'])" title="Tải về máy" aria-label="Tải về máy" />
+                                <x-ui.button variant="danger-text" size="sm" icon="delete" x-on:click="confirmSingleDelete('{{ $file['id'] }}', '{{ $file['filename'] }}', '{{ $file['size_human'] }}')" title="Xóa vĩnh viễn" aria-label="Xóa vĩnh viễn" />
                             </div>
                         </div>
                     </div>
@@ -564,87 +389,73 @@
             </div>
 
             {{-- 6B. Table View --}}
-            <div x-show="viewMode === 'table'" class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                <table class="w-full text-left text-xs">
-                    <thead class="bg-gray-50 text-gray-600 font-bold uppercase tracking-wider border-b border-gray-200 text-[11px]">
+            <x-ui.data-table x-show="viewMode === 'table'" class="shadow-sm">
+                <table class="text-xs">
+                    <thead>
                         <tr>
-                            <th class="p-3.5 w-10 text-center">
+                            <th class="w-10 text-center">
                                 <input 
                                     type="checkbox" 
                                     @change="toggleSelectAll($event)" 
                                     :checked="isAllSelected"
-                                    class="rounded text-primary-container focus:ring-primary-container border-gray-300 w-3.5 h-3.5 cursor-pointer"
+                                    aria-label="Chọn tất cả trang này"
+                                    class="rounded text-primary-container focus:ring-primary-container border-outline-variant w-3.5 h-3.5 cursor-pointer"
                                 />
                             </th>
-                            <th class="p-3.5">Tên tệp tin</th>
-                            <th class="p-3.5">Thư mục</th>
-                            <th class="p-3.5">Loại tệp</th>
-                            <th class="p-3.5 text-right">Dung lượng</th>
-                            <th class="p-3.5">Thời gian tạo</th>
-                            <th class="p-3.5 text-center">Hành động</th>
+                            <th>Tên tệp tin</th>
+                            <th>Thư mục</th>
+                            <th>Loại tệp</th>
+                            <th class="text-right">Dung lượng</th>
+                            <th>Thời gian tạo</th>
+                            <th class="text-center">Hành động</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100 text-gray-700">
+                    <tbody>
                         @foreach ($files as $file)
-                            <tr class="hover:bg-orange-50/20 transition">
-                                <td class="p-3.5 text-center">
+                            <tr>
+                                <td class="text-center">
                                     <input 
                                         type="checkbox" 
                                         value="{{ $file['id'] }}" 
                                         x-model="selectedFiles" 
-                                        class="rounded text-primary-container focus:ring-primary-container border-gray-300 w-3.5 h-3.5 cursor-pointer"
+                                        class="rounded text-primary-container focus:ring-primary-container border-outline-variant w-3.5 h-3.5 cursor-pointer"
                                     />
                                 </td>
-                                <td class="p-3.5 font-medium">
+                                <td class="font-medium">
                                     <div class="flex items-center gap-2.5">
                                         @if ($file['is_image'])
                                             <img src="{{ $file['url'] }}" class="w-7 h-7 object-cover rounded-lg shrink-0 cursor-pointer border" @click="openPreview('{{ $file['url'] }}', '{{ $file['filename'] }}', '{{ $file['size_human'] }}', 'image')" />
                                         @elseif ($file['type'] === 'audio')
-                                            <span class="material-symbols-outlined text-amber-500 text-lg cursor-pointer hover:scale-110 transition" @click="openPreview('{{ $file['url'] }}', '{{ $file['filename'] }}', '{{ $file['size_human'] }}', 'audio')" title="Nghe audio">headphones</span>
+                                            <span class="material-symbols-outlined text-warning text-lg cursor-pointer hover:scale-110 transition" @click="openPreview('{{ $file['url'] }}', '{{ $file['filename'] }}', '{{ $file['size_human'] }}', 'audio')" title="Nghe audio">headphones</span>
                                         @else
-                                            <span class="material-symbols-outlined text-gray-400 text-base">draft</span>
+                                            <span class="material-symbols-outlined text-on-surface-variant/70 text-base">draft</span>
                                         @endif
-                                        <span class="font-bold text-gray-900 truncate max-w-xs" title="{{ $file['filename'] }}">{{ $file['filename'] }}</span>
+                                        <span class="font-bold text-on-surface truncate max-w-xs" title="{{ $file['filename'] }}">{{ $file['filename'] }}</span>
                                     </div>
                                 </td>
-                                <td class="p-3.5 font-mono text-gray-500 text-[11px]">📁 {{ $file['directory'] }}</td>
-                                <td class="p-3.5">
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase
-                                        {{ $file['type'] === 'image' ? 'bg-emerald-50 text-emerald-700' : '' }}
-                                        {{ $file['type'] === 'document' ? 'bg-blue-50 text-blue-700' : '' }}
-                                        {{ $file['type'] === 'spreadsheet' ? 'bg-emerald-50 text-emerald-700' : '' }}
-                                        {{ $file['type'] === 'audio' ? 'bg-amber-50 text-amber-700' : '' }}
-                                        {{ $file['type'] === 'video' ? 'bg-purple-50 text-purple-700' : '' }}
-                                        {{ $file['type'] === 'other' ? 'bg-gray-100 text-gray-700' : '' }}
-                                    ">
+                                <td class="font-code text-on-surface-variant text-[11px]">📁 {{ $file['directory'] }}</td>
+                                <td>
+                                    <x-ui.badge :pill="true" :dot="false" class="uppercase" :color="['image' => 'success', 'document' => 'info', 'spreadsheet' => 'success', 'audio' => 'warning', 'video' => 'secondary'][$file['type']] ?? 'neutral'">
                                         {{ $file['type'] }} ({{ $file['extension'] }})
-                                    </span>
+                                    </x-ui.badge>
                                 </td>
-                                <td class="p-3.5 text-right font-mono font-bold text-gray-900">{{ $file['size_human'] }}</td>
-                                <td class="p-3.5 text-gray-400 text-[11px]">{{ $file['created_at_human'] }}</td>
-                                <td class="p-3.5 text-center">
+                                <td class="text-right font-code font-bold">{{ $file['size_human'] }}</td>
+                                <td class="text-on-surface-variant/70 text-[11px]">{{ $file['created_at_human'] }}</td>
+                                <td class="text-center">
                                     <div class="flex items-center justify-center gap-1.5">
-                                        <button type="button" @click="copyUrl('{{ $file['url'] }}')" class="p-1 rounded-lg hover:bg-gray-100 text-gray-500 cursor-pointer" title="Copy URL">
-                                            <span class="material-symbols-outlined text-sm">link</span>
-                                        </button>
-                                        <a href="{{ route('media.download', $file['id']) }}" class="p-1 rounded-lg hover:bg-gray-100 text-gray-500" title="Tải về">
-                                            <span class="material-symbols-outlined text-sm">download</span>
-                                        </a>
-                                        <button type="button" @click="confirmSingleDelete('{{ $file['id'] }}', '{{ $file['filename'] }}', '{{ $file['size_human'] }}')" class="p-1 rounded-lg hover:bg-rose-50 text-rose-600 cursor-pointer" title="Xóa">
-                                            <span class="material-symbols-outlined text-sm">delete</span>
-                                        </button>
+                                        <x-ui.button variant="ghost" size="sm" icon="link" x-on:click="copyUrl('{{ $file['url'] }}')" title="Copy URL" aria-label="Copy URL" />
+                                        <x-ui.button variant="ghost" size="sm" icon="download" :href="route('media.download', $file['id'])" title="Tải về" aria-label="Tải về" />
+                                        <x-ui.button variant="danger-text" size="sm" icon="delete" x-on:click="confirmSingleDelete('{{ $file['id'] }}', '{{ $file['filename'] }}', '{{ $file['size_human'] }}')" title="Xóa" aria-label="Xóa" />
                                     </div>
                                 </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
-            </div>
+            </x-ui.data-table>
 
             {{-- Pagination Links --}}
-            <div class="mt-4">
-                {{ $files->links() }}
-            </div>
+            <x-ui.pagination :paginator="$files" :options="[]" unit="tệp" class="mt-4" />
         @endif
 
         {{-- Forms for Delete & Move --}}
@@ -665,109 +476,51 @@
         </form>
 
         {{-- 7. Modal Tạo Thư Mục Mới (Google Drive Style) --}}
-        <div 
-            x-show="folderModal.open" 
-            x-cloak
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
-            @click="folderModal.open = false"
-        >
-            <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4" @click.stop>
-                <div class="flex items-center justify-between pb-3 border-b border-gray-100">
-                    <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary-container">create_new_folder</span>
-                        <span>Tạo thư mục mới</span>
-                    </h3>
-                    <button type="button" @click="folderModal.open = false" class="text-gray-400 hover:text-gray-600 p-1">
-                        <span class="material-symbols-outlined text-xl">close</span>
-                    </button>
+        <x-ui.modal name="media-folder" title="Tạo thư mục mới" max-width="md">
+            <form id="media-folder-form" action="{{ route('media.create-folder') }}" method="POST" class="space-y-4">
+                @csrf
+                <input type="hidden" name="parent_folder" value="{{ $currentFolder }}">
+
+                <div class="space-y-1">
+                    <x-ui.input name="folder_name" label="Tên thư mục" required placeholder="Ví dụ: hop_dong_2026, anh_su_kien..." class="font-semibold" autofocus />
+                    <p class="text-[10px] text-on-surface-variant/70">
+                        Vị trí tạo: <strong class="font-code text-on-surface-variant">/uploads/media/{{ $currentFolder ? $currentFolder . '/' : '' }}</strong>
+                    </p>
                 </div>
-
-                <form action="{{ route('media.create-folder') }}" method="POST" class="space-y-4">
-                    @csrf
-                    <input type="hidden" name="parent_folder" value="{{ $currentFolder }}">
-
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">Tên thư mục <span class="text-rose-500">*</span></label>
-                        <input 
-                            type="text" 
-                            name="folder_name" 
-                            required 
-                            placeholder="Ví dụ: hop_dong_2026, anh_su_kien..." 
-                            class="w-full text-xs font-semibold rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container"
-                            autofocus
-                        />
-                        <p class="text-[10px] text-gray-400 mt-1">
-                            Vị trí tạo: <strong class="font-mono text-gray-700">/uploads/media/{{ $currentFolder ? $currentFolder . '/' : '' }}</strong>
-                        </p>
-                    </div>
-
-                    <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
-                        <button type="button" @click="folderModal.open = false" class="px-4 py-2 border border-gray-200 text-xs font-semibold text-gray-700 rounded-xl hover:bg-gray-50 transition">
-                            Hủy
-                        </button>
-                        <button type="submit" class="px-5 py-2 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition">
-                            Tạo thư mục
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+            </form>
+            <x-slot:footer>
+                <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'media-folder')">Hủy</x-ui.button>
+                <x-ui.button type="submit" form="media-folder-form">Tạo thư mục</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
 
         {{-- 8. Modal Di Chuyển Tệp (Move Files Modal) --}}
-        <div 
-            x-show="moveModal.open" 
-            x-cloak
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
-            @click="moveModal.open = false"
-        >
-            <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4" @click.stop>
-                <div class="flex items-center justify-between pb-3 border-b border-gray-100">
-                    <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary-container">drive_file_move</span>
-                        <span>Di chuyển <span x-text="selectedFiles.length"></span> tệp tin</span>
-                    </h3>
-                    <button type="button" @click="moveModal.open = false" class="text-gray-400 hover:text-gray-600 p-1">
-                        <span class="material-symbols-outlined text-xl">close</span>
-                    </button>
-                </div>
+        <x-ui.modal name="media-move" title="Di chuyển vào thư mục" max-width="md">
+            <form id="media-move-form" action="{{ route('media.move-files') }}" method="POST" class="space-y-4">
+                @csrf
+                <template x-for="id in selectedFiles" :key="id">
+                    <input type="hidden" name="selected_files[]" :value="id">
+                </template>
 
-                <form action="{{ route('media.move-files') }}" method="POST" class="space-y-4">
-                    @csrf
-                    <template x-for="id in selectedFiles" :key="id">
-                        <input type="hidden" name="selected_files[]" :value="id">
-                    </template>
+                <p class="font-semibold text-on-surface">Di chuyển <span x-text="selectedFiles.length"></span> tệp tin</p>
 
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">Chọn thư mục đích <span class="text-rose-500">*</span></label>
-                        <select 
-                            name="target_folder" 
-                            required 
-                            class="w-full text-xs font-semibold rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container"
-                        >
-                            <option value="">📁 /uploads/media (Thư mục gốc)</option>
-                            <option value="{{ date('Y') }}/{{ date('m') }}">📁 /uploads/{{ date('Y') }}/{{ date('m') }}</option>
-                            <option value="tickets">📁 /uploads/tickets</option>
-                            <option value="avatars">📁 /uploads/avatars</option>
-                            <option value="courses">📁 /uploads/courses</option>
-                            <option value="documents">📁 /uploads/documents</option>
-                            <option value="marketing">📁 /uploads/marketing</option>
-                            @foreach ($subFolders as $sf)
-                                <option value="{{ $sf['path'] }}">📁 /uploads/{{ $sf['path'] }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
-                        <button type="button" @click="moveModal.open = false" class="px-4 py-2 border border-gray-200 text-xs font-semibold text-gray-700 rounded-xl hover:bg-gray-50 transition">
-                            Hủy
-                        </button>
-                        <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition">
-                            Di chuyển ngay
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                <x-ui.select name="target_folder" label="Chọn thư mục đích" required placeholder="📁 /uploads/media (Thư mục gốc)" class="font-semibold">
+                    <option value="{{ date('Y') }}/{{ date('m') }}">📁 /uploads/{{ date('Y') }}/{{ date('m') }}</option>
+                    <option value="tickets">📁 /uploads/tickets</option>
+                    <option value="avatars">📁 /uploads/avatars</option>
+                    <option value="courses">📁 /uploads/courses</option>
+                    <option value="documents">📁 /uploads/documents</option>
+                    <option value="marketing">📁 /uploads/marketing</option>
+                    @foreach ($subFolders as $sf)
+                        <option value="{{ $sf['path'] }}">📁 /uploads/{{ $sf['path'] }}</option>
+                    @endforeach
+                </x-ui.select>
+            </form>
+            <x-slot:footer>
+                <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'media-move')">Hủy</x-ui.button>
+                <x-ui.button type="submit" variant="info" form="media-move-form">Di chuyển ngay</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
 
         {{-- 9. Image / Audio Preview Lightbox Modal --}}
         <div 
@@ -776,32 +529,30 @@
             class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4"
             @click="preview.open = false"
         >
-            <div class="bg-white rounded-2xl max-w-3xl w-full overflow-hidden shadow-2xl" @click.stop>
-                <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+            <div class="bg-surface-container-lowest rounded-2xl max-w-3xl w-full overflow-hidden shadow-2xl" @click.stop>
+                <div class="px-5 py-3 border-b border-surface-container-highest flex items-center justify-between bg-surface-container-low">
                     <div>
-                        <h4 class="text-xs font-bold text-gray-900 truncate max-w-md" x-text="preview.name"></h4>
-                        <span class="text-[10px] text-gray-400 font-mono" x-text="preview.size"></span>
+                        <h4 class="text-xs font-bold text-on-surface truncate max-w-md" x-text="preview.name"></h4>
+                        <span class="text-[10px] text-on-surface-variant/70 font-code" x-text="preview.size"></span>
                     </div>
-                    <button type="button" @click="preview.open = false" class="text-gray-400 hover:text-gray-600 p-1">
+                    <button type="button" @click="preview.open = false" class="text-on-surface-variant/70 hover:text-on-surface-variant p-1">
                         <span class="material-symbols-outlined text-xl">close</span>
                     </button>
                 </div>
-                <div class="p-4 bg-gray-950 flex items-center justify-center min-h-[160px] max-h-[75vh] overflow-hidden">
+                <div class="p-4 bg-on-surface flex items-center justify-center min-h-[160px] max-h-[75vh] overflow-hidden">
                     <template x-if="preview.type === 'image'">
                         <img :src="preview.url" :alt="preview.name" class="max-h-[70vh] max-w-full object-contain rounded-lg">
                     </template>
                     <template x-if="preview.type === 'audio'">
-                        <div class="w-full max-w-md p-6 bg-gray-900 rounded-2xl flex flex-col items-center space-y-4">
-                            <span class="material-symbols-outlined text-5xl text-amber-400 animate-pulse">headphones</span>
-                            <p class="text-xs text-white font-mono truncate text-center w-full" x-text="preview.name"></p>
+                        <div class="w-full max-w-md p-6 bg-on-surface rounded-2xl flex flex-col items-center space-y-4">
+                            <span class="material-symbols-outlined text-5xl text-warning animate-pulse">headphones</span>
+                            <p class="text-xs text-white font-code truncate text-center w-full" x-text="preview.name"></p>
                             <audio :src="preview.url" controls class="w-full" autoplay></audio>
                         </div>
                     </template>
                 </div>
-                <div class="p-3 bg-gray-50 border-t border-gray-100 flex justify-end gap-2 text-xs">
-                    <button type="button" @click="copyUrl(preview.url)" class="px-3 py-1.5 rounded-xl border bg-white text-gray-700 font-semibold hover:bg-gray-100 transition">
-                        Sao chép Link
-                    </button>
+                <div class="p-3 bg-surface-container-low border-t border-surface-container-highest flex justify-end gap-2 text-xs">
+                    <x-ui.button variant="secondary" size="sm" x-on:click="copyUrl(preview.url)">Sao chép Link</x-ui.button>
                     <a :href="preview.url" target="_blank" class="px-3 py-1.5 rounded-xl bg-primary-container text-white font-bold hover:bg-primary transition">
                         Mở tệp gốc
                     </a>
@@ -814,9 +565,9 @@
             x-show="toast.show" 
             x-cloak
             x-transition
-            class="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-xl bg-gray-900 text-white text-xs font-semibold"
+            class="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-xl bg-on-surface text-white text-xs font-semibold"
         >
-            <span class="material-symbols-outlined text-base text-emerald-400">check_circle</span>
+            <span class="material-symbols-outlined text-base text-tertiary">check_circle</span>
             <span x-text="toast.message"></span>
         </div>
     </div>
@@ -833,12 +584,6 @@
                 uploadProgress: 0,
                 uploadStatusText: '',
                 targetFolder: '{{ $currentFolder ?: "auto_date" }}',
-                folderModal: {
-                    open: false,
-                },
-                moveModal: {
-                    open: false,
-                },
                 preview: {
                     open: false,
                     url: '',
@@ -865,7 +610,7 @@
 
                 openMoveModal() {
                     if (this.selectedFiles.length === 0) return;
-                    this.moveModal.open = true;
+                    this.$dispatch('open-modal', 'media-move');
                 },
 
                 handleFilesDrop(e) {

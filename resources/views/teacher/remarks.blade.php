@@ -17,13 +17,9 @@
             @csrf
             @if ($session)<input type="hidden" name="class_session_id" value="{{ $session->id }}">@endif
 
-            <header class="flex flex-col justify-between gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm md:flex-row md:items-center md:p-lg">
-                <div class="min-w-0">
-                    <a href="{{ route('teacher.home') }}" class="mb-xs inline-flex items-center gap-xs font-body-small text-body-small text-on-surface-variant hover:text-primary">
-                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span> Về lịch dạy
-                    </a>
-                    <h1 class="font-h2 text-h2 text-on-surface">Nhận xét buổi học cho từng học sinh</h1>
-                    <div class="mt-xs flex flex-wrap items-center gap-sm font-body-small text-body-small text-on-surface-variant">
+            <x-ui.page-header title="Nhận xét buổi học cho từng học sinh" :back="route('teacher.home')" back-label="Về lịch dạy">
+                <x-slot:meta>
+                    <div class="flex flex-wrap items-center gap-sm">
                         <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">class</span>Lớp {{ $class->name }}</span>
                         @if ($session)
                             <span class="h-1 w-1 rounded-full bg-outline-variant"></span>
@@ -31,14 +27,14 @@
                             @if ($record?->status === 'draft')<x-ui.badge color="warning">Bản nháp</x-ui.badge>@elseif ($record)<x-ui.badge color="success">Đã lưu</x-ui.badge>@endif
                         @endif
                     </div>
-                </div>
+                </x-slot:meta>
                 @if ($canSave)
-                    <div class="flex shrink-0 gap-sm">
+                    <x-slot:actions>
                         <x-ui.button type="submit" name="action" value="draft" variant="secondary" icon="save">Lưu nháp</x-ui.button>
                         <x-ui.button type="submit" name="action" value="final" icon="check_circle">Lưu nhận xét</x-ui.button>
-                    </div>
+                    </x-slot:actions>
                 @endif
-            </header>
+            </x-ui.page-header>
 
             @if ($errors->any())
                 <x-ui.alert type="error">{{ $errors->first() }}</x-ui.alert>
@@ -55,18 +51,17 @@
                     <x-ui.empty-state icon="group_off" title="Chưa có học viên" description="Buổi học này chưa có học viên nào trong danh sách lớp." />
                 </div>
             @else
-                <div class="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
-                    <div class="custom-scrollbar overflow-x-auto">
-                        <table class="w-full min-w-[1180px] border-collapse text-left">
-                            <thead class="bg-surface-container-low">
-                                <tr class="font-label-caps text-label-caps uppercase text-on-surface-variant">
-                                    <th class="sticky left-0 z-10 w-[200px] border-r border-surface-container bg-surface-container-low px-md py-sm">Học sinh</th>
-                                    <th class="px-md py-sm">Điểm danh</th>
-                                    @foreach ($fields as [$label])<th class="px-sm py-sm">{{ $label }}</th>@endforeach
-                                    <th class="min-w-[260px] px-sm py-sm">Nhận xét chi tiết</th>
+                <x-ui.data-table min-width="1180px" class="shadow-sm">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="sticky left-0 z-10 w-[200px] border-r border-surface-container bg-surface-container-low">Học sinh</th>
+                                    <th>Điểm danh</th>
+                                    @foreach ($fields as [$label])<th>{{ $label }}</th>@endforeach
+                                    <th class="min-w-[260px]">Nhận xét chi tiết</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-surface-container">
+                            <tbody>
                                 @foreach ($students as $student)
                                     @php
                                         $att = $attendance->get($student->id);
@@ -74,18 +69,18 @@
                                         $isAbsent = in_array($attStatus, ['absent', 'excused'], true);
                                         $remark = (array) ($existing->get($student->id) ?? $existing->get((string) $student->id) ?? []);
                                     @endphp
-                                    <tr class="{{ $isAbsent ? 'bg-surface-container-low/60' : 'hover:bg-surface-container-low/40' }}">
-                                        <td class="sticky left-0 z-10 border-r border-surface-container px-md py-sm {{ $isAbsent ? 'bg-surface-container-low' : 'bg-surface-container-lowest' }}">
+                                    <tr class="{{ $isAbsent ? 'bg-surface-container-low/60' : '' }}">
+                                        <td class="sticky left-0 z-10 border-r border-surface-container {{ $isAbsent ? 'bg-surface-container-low' : 'bg-surface-container-lowest' }}">
                                             <div class="flex items-center gap-sm">
                                                 <x-ui.avatar :name="$student->name" size="sm" />
                                                 <span class="font-body-medium text-body-medium text-on-surface">{{ $student->name }}</span>
                                             </div>
                                         </td>
-                                        <td class="whitespace-nowrap px-md py-sm">
+                                        <td class="whitespace-nowrap">
                                             @if ($attStatus === 'present')
                                                 <span class="inline-flex items-center gap-xs rounded bg-tertiary-fixed/40 px-sm py-[2px] font-caption text-caption font-semibold text-on-tertiary-fixed-variant"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">check</span>Có mặt</span>
                                             @elseif ($attStatus === 'late')
-                                                <span class="inline-flex items-center gap-xs rounded bg-amber-100 px-sm py-[2px] font-caption text-caption font-semibold text-amber-800"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">schedule</span>Đi muộn</span>
+                                                <span class="inline-flex items-center gap-xs rounded bg-warning-container px-sm py-[2px] font-caption text-caption font-semibold text-on-warning-container"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">schedule</span>Đi muộn</span>
                                             @elseif ($isAbsent)
                                                 <span class="inline-flex items-center gap-xs rounded bg-error-container px-sm py-[2px] font-caption text-caption font-semibold text-on-error-container"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">close</span>Vắng mặt</span>
                                             @else
@@ -93,13 +88,13 @@
                                             @endif
                                         </td>
                                         @foreach ($fields as $key => [$label, $placeholder, $width])
-                                            <td class="px-sm py-sm">
+                                            <td>
                                                 <input type="text" name="remarks[{{ $student->id }}][{{ $key }}]" value="{{ old('remarks.'.$student->id.'.'.$key, $remark[$key] ?? '') }}"
                                                        placeholder="{{ $isAbsent ? '-' : $placeholder }}" aria-label="{{ $label }} — {{ $student->name }}" @disabled($isAbsent)
                                                        class="{{ $cell }} {{ $width }}">
                                             </td>
                                         @endforeach
-                                        <td class="px-sm py-sm">
+                                        <td>
                                             <textarea name="remarks[{{ $student->id }}][comment]" rows="2" aria-label="Nhận xét chi tiết — {{ $student->name }}" @disabled($isAbsent)
                                                       placeholder="{{ $isAbsent ? 'Học sinh vắng mặt...' : 'Nhận xét chi tiết về quá trình học tập trong buổi học này...' }}"
                                                       class="{{ $cell }}">{{ old('remarks.'.$student->id.'.comment', $remark['comment'] ?? '') }}</textarea>
@@ -108,12 +103,13 @@
                                 @endforeach
                             </tbody>
                         </table>
-                    </div>
-                    <div class="flex flex-col justify-end gap-sm border-t border-surface-container bg-surface-container-low p-md sm:flex-row">
-                        <x-ui.button type="submit" name="action" value="draft" variant="secondary">Lưu nháp</x-ui.button>
-                        <x-ui.button type="submit" name="action" value="final" icon="save">Lưu nhận xét</x-ui.button>
-                    </div>
-                </div>
+                    <x-slot:footer>
+                        <div class="flex flex-col justify-end gap-sm p-md sm:flex-row">
+                            <x-ui.button type="submit" name="action" value="draft" variant="secondary">Lưu nháp</x-ui.button>
+                            <x-ui.button type="submit" name="action" value="final" icon="save">Lưu nhận xét</x-ui.button>
+                        </div>
+                    </x-slot:footer>
+                </x-ui.data-table>
             @endif
         </form>
 
@@ -121,13 +117,13 @@
         @if ($recentSessions->isNotEmpty())
             <form method="GET" action="{{ route('teacher.remarks', $class->id) }}" class="flex flex-col gap-sm rounded-xl border border-outline-variant bg-surface-container-lowest p-md sm:flex-row sm:items-center">
                 <label for="remark-session" class="shrink-0 font-label-caps text-label-caps uppercase text-on-surface-variant">Nhận xét buổi khác</label>
-                <select id="remark-session" name="session" onchange="this.form.submit()" class="flex-1 rounded-lg border border-outline-variant py-sm pl-md pr-xl font-body-small text-body-small">
+                <x-ui.select id="remark-session" name="session" onchange="this.form.submit()" class="flex-1">
                     @foreach ($recentSessions as $s)
                         <option value="{{ $s->id }}" @selected($session && $session->id === $s->id) @disabled($s->status === 'cancelled')>
                             {{ $s->date->format('d/m/Y') }} · {{ $s->start_time?->format('H:i') }}-{{ $s->end_time?->format('H:i') }}{{ $s->type === \App\Models\ClassSession::TYPE_MAKEUP ? ' · Học bù' : '' }}{{ $s->status === 'cancelled' ? ' · Đã hủy' : '' }}
                         </option>
                     @endforeach
-                </select>
+                </x-ui.select>
                 <noscript><x-ui.button type="submit" size="sm" variant="secondary">Chọn</x-ui.button></noscript>
             </form>
         @endif

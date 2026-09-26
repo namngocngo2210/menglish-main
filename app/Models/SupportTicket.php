@@ -103,21 +103,21 @@ class SupportTicket extends Model
     public function getPriorityBadgeAttribute(): string
     {
         return match ($this->priority) {
-            'urgent' => 'bg-rose-50 text-rose-700 border-rose-200 font-bold',
-            'high' => 'bg-orange-50 text-orange-700 border-orange-200 font-bold',
-            'medium' => 'bg-blue-50 text-blue-700 border-blue-200 font-medium',
-            default => 'bg-gray-50 text-gray-600 border-gray-200',
+            'urgent' => 'bg-error/10 text-error border-error/30 font-bold',
+            'high' => 'bg-primary-container/10 text-primary border-primary-container/30 font-bold',
+            'medium' => 'bg-secondary/10 text-secondary border-secondary/30 font-medium',
+            default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
     }
 
     public function getStatusBadgeAttribute(): string
     {
         return match ($this->status) {
-            'open' => 'bg-amber-50 text-amber-700 border-amber-200',
-            'in_progress' => 'bg-blue-50 text-blue-700 border-blue-200',
-            'resolved' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
-            'closed' => 'bg-gray-50 text-gray-600 border-gray-200',
-            default => 'bg-gray-50 text-gray-600 border-gray-200',
+            'open' => 'bg-warning/10 text-warning border-warning/30',
+            'in_progress' => 'bg-secondary/10 text-secondary border-secondary/30',
+            'resolved' => 'bg-tertiary/10 text-tertiary border-tertiary/30',
+            'closed' => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
+            default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
     }
 

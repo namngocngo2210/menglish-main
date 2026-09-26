@@ -45,24 +45,20 @@
                     <p>Tiếp tục quy trình nhắc nợ chuẩn, không khóa lịch học của học viên. Khi được duyệt, hạn đóng được dời sang ngày mới và nhắc nợ tạm dừng tới ngày đó.</p>
                 </div>
                 <div class="grid grid-cols-1 gap-md md:grid-cols-3">
-                    <label class="block md:col-span-2">
-                        <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Học viên đang nợ <span class="text-error">*</span></span>
-                        <select name="student_id" required class="w-full rounded-lg border-outline-variant font-body-base text-body-base focus:border-primary-container focus:ring-primary-container/20">
+                    <div class="md:col-span-2">
+                        <x-ui.select name="student_id" id="extension_student_id" label="Học viên đang nợ" required>
                             @forelse ($students->filter(fn ($st) => (float) ($st->tuition?->debt_amount ?? 0) > 0) as $st)
                                 <option value="{{ $st->id }}">{{ $st->code }} - {{ $st->name }} · Còn nợ {{ $money($st->tuition->debt_amount) }} · Hạn {{ $st->tuition->due_date?->format('d/m/Y') ?? 'chưa đặt' }}</option>
                             @empty
                                 <option value="">Không có học viên còn nợ</option>
                             @endforelse
-                        </select>
-                    </label>
-                    <label class="block">
-                        <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Hạn đóng mới <span class="text-error">*</span></span>
-                        <input type="date" name="extended_due_date" value="{{ old('extended_due_date') }}" min="{{ now()->addDay()->toDateString() }}" required class="w-full rounded-lg border-outline-variant font-code text-code focus:border-primary-container focus:ring-primary-container/20" />
-                    </label>
-                    <label class="block md:col-span-3">
-                        <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Lý do khất nợ (Bắt buộc)</span>
-                        <textarea name="reason" rows="2" required placeholder="Nhập chi tiết lý do học viên xin gia hạn thời gian nộp học phí..." class="w-full rounded-lg border-outline-variant font-body-base text-body-base focus:border-primary-container focus:ring-primary-container/20"></textarea>
-                    </label>
+                        </x-ui.select>
+                    </div>
+                    <x-ui.date name="extended_due_date" label="Hạn đóng mới" :min="now()->addDay()->toDateString()" required />
+                    {{-- Textarea thô: chỉ form khất nợ không điền lại old('reason') (form dưới dùng chung name "reason"). --}}
+                    <x-ui.field label="Lý do khất nợ (Bắt buộc)" for="extension_reason" class="md:col-span-3">
+                        <textarea id="extension_reason" name="reason" rows="2" required placeholder="Nhập chi tiết lý do học viên xin gia hạn thời gian nộp học phí..." class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20"></textarea>
+                    </x-ui.field>
                 </div>
                 <div class="mt-md flex justify-end">
                     <x-ui.button type="submit" icon="event_available">Xác nhận khất nợ</x-ui.button>
@@ -82,14 +78,13 @@
                 <input type="hidden" name="attended_lessons" :value="attendedLessons" />
                 <input type="hidden" name="admin_fee" :value="actionType === 'refund' ? adminFee : 0" />
 
-                <label class="mb-md block">
-                    <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Học viên nguồn <span class="text-error">*</span></span>
-                    <select name="student_id" x-model="selectedStudentId" @change="resetFromBasis()" required class="w-full rounded-lg border-outline-variant font-body-base text-body-base focus:border-primary-container focus:ring-primary-container/20">
+                <div class="mb-md">
+                    <x-ui.select name="student_id" id="refund_student_id" label="Học viên nguồn" x-model="selectedStudentId" x-on:change="resetFromBasis()" required>
                         @foreach ($students as $st)
                             <option value="{{ $st->id }}">{{ $st->code }} - {{ $st->name }} ({{ $st->currentClass?->name ?? 'Chưa gán lớp' }})</option>
                         @endforeach
-                    </select>
-                </label>
+                    </x-ui.select>
+                </div>
 
                 {{-- Tóm tắt học viên (số liệu thật từ hợp đồng & điểm danh) --}}
                 <div class="mb-lg grid grid-cols-2 gap-md rounded-lg border border-outline-variant bg-surface-container-low p-md sm:grid-cols-4">
@@ -140,7 +135,7 @@
                     <div class="relative">
                         <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
                         <input type="search" x-model="targetQuery" placeholder="Tìm tên hoặc mã học viên..." aria-label="Tìm học viên nhận chuyển nhượng"
-                               class="w-full rounded-lg border-outline-variant py-sm pl-10 font-body-base text-body-base focus:border-primary-container focus:ring-primary-container/20" />
+                               class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-10 pr-md font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20" />
                     </div>
                     <ul class="custom-scrollbar max-h-48 divide-y divide-surface-container overflow-y-auto rounded-lg border border-outline-variant">
                         <template x-for="t in targetMatches" :key="t.id">
@@ -163,27 +158,20 @@
                 </div>
 
                 {{-- Hoàn tiền: gợi ý chuyển nhượng trước + bắt buộc lý do không chuyển nhượng --}}
-                <div x-show="actionType === 'refund'" class="mb-lg space-y-sm rounded-lg border border-amber-300 bg-amber-50 p-md">
-                    <p class="flex items-start gap-sm font-body-small text-body-small text-amber-800">
+                <div x-show="actionType === 'refund'" class="mb-lg space-y-sm rounded-lg border border-warning/30 bg-warning-container p-md">
+                    <p class="flex items-start gap-sm font-body-small text-body-small text-on-warning-container">
                         <span class="material-symbols-outlined text-[18px]" aria-hidden="true">lightbulb</span>
                         <span>Hoàn tiền là <strong>phương án cuối</strong>. Hãy ưu tiên <strong>chuyển nhượng</strong> <span x-text="basis.total_sessions ? remainingLessons + ' buổi dư' : 'số buổi dư'"></span> cho học viên khác (không thu hồi hoa hồng, không phát sinh chi tiền).</span>
                     </p>
                     <x-ui.button size="sm" variant="secondary" icon="swap_horiz" @click="actionType = 'transfer'">Chuyển sang chuyển nhượng</x-ui.button>
-                    <label class="block">
-                        <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Lý do không chuyển nhượng (Bắt buộc)</span>
-                        <textarea name="no_transfer_reason" rows="2" :required="actionType === 'refund'" :disabled="actionType !== 'refund'"
-                                  placeholder="VD: gia đình chuyển nơi ở, không có học viên nhận, phụ huynh yêu cầu hoàn tiền..."
-                                  class="w-full rounded-lg border-outline-variant font-body-base text-body-base focus:border-primary-container focus:ring-primary-container/20">{{ old('no_transfer_reason') }}</textarea>
-                    </label>
+                    <x-ui.textarea name="no_transfer_reason" label="Lý do không chuyển nhượng (Bắt buộc)" rows="2" x-bind:required="actionType === 'refund'" x-bind:disabled="actionType !== 'refund'"
+                                   placeholder="VD: gia đình chuyển nơi ở, không có học viên nhận, phụ huynh yêu cầu hoàn tiền..." />
                 </div>
 
                 {{-- Bảng tính hoàn phí / chuyển nhượng --}}
                 <div x-show="actionType !== 'deferral'" class="mb-lg space-y-sm rounded-lg border border-outline-variant p-md">
                     <div class="grid grid-cols-2 gap-md sm:grid-cols-4">
-                        <label class="block">
-                            <span class="mb-xs block font-caption text-caption text-on-surface-variant">Số buổi đã học (điểm danh)</span>
-                            <input type="number" x-model.number="attendedLessons" min="0" class="w-full rounded-lg border-outline-variant p-xs font-code text-code" />
-                        </label>
+                        <x-ui.input type="number" label="Số buổi đã học (điểm danh)" id="attendedLessons" x-model.number="attendedLessons" min="0" class="font-code text-code" />
                         <div>
                             <span class="mb-xs block font-caption text-caption text-on-surface-variant">Đơn giá / buổi</span>
                             <span class="font-code text-code text-on-surface" x-text="money(unitPrice)"></span>
@@ -200,7 +188,7 @@
                     <div class="flex flex-col gap-sm border-t border-surface-container pt-sm sm:flex-row sm:items-center sm:justify-between">
                         <label for="refundAmount" class="font-body-medium text-body-medium text-on-surface" x-text="actionType === 'transfer' ? 'Số tiền chuyển nhượng' : 'Số tiền hoàn trả'"></label>
                         <div class="flex items-center gap-sm">
-                            <input id="refundAmount" type="number" name="refund_amount" x-model.number="refundAmount" min="0" :max="basis.paid" :disabled="actionType === 'deferral'" class="w-44 rounded-lg border-outline-variant text-right font-code text-code" />
+                            <input id="refundAmount" type="number" name="refund_amount" x-model.number="refundAmount" min="0" :max="basis.paid" :disabled="actionType === 'deferral'" class="w-44 rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm text-right font-code text-code text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20" />
                             <span class="font-body-small text-body-small text-on-surface-variant">VND</span>
                             <x-ui.button size="sm" variant="ghost" icon="calculate" @click="refundAmount = suggestedAmount" title="Tính lại theo chính sách">Theo chính sách</x-ui.button>
                         </div>
@@ -211,22 +199,15 @@
                 </div>
 
                 {{-- Bảo lưu --}}
-                <div x-show="actionType === 'deferral'" class="mb-lg grid grid-cols-1 gap-md rounded-lg border border-blue-200 bg-blue-50/60 p-md sm:grid-cols-2">
-                    <label class="block">
-                        <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Bảo lưu từ ngày <span class="text-error">*</span></span>
-                        <input type="date" name="defer_from" value="{{ old('defer_from', now()->toDateString()) }}" :disabled="actionType !== 'deferral'" class="w-full rounded-lg border-outline-variant font-code text-code" />
-                    </label>
-                    <label class="block">
-                        <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Đến ngày (học lại từ ngày kế tiếp) <span class="text-error">*</span></span>
-                        <input type="date" name="defer_to" value="{{ old('defer_to') }}" :disabled="actionType !== 'deferral'" class="w-full rounded-lg border-outline-variant font-code text-code" />
-                    </label>
-                    <p class="font-body-small text-body-small text-blue-900 sm:col-span-2">Khi được duyệt: học viên chuyển trạng thái <strong>Bảo lưu</strong>, đóng băng <strong x-text="basis.total_sessions ? remainingLessons + ' buổi còn lại' : 'số buổi còn lại'"></strong> và công nợ <strong class="font-code" x-text="money(basis.debt)"></strong>; nhắc nợ tạm dừng tới hết ngày bảo lưu.</p>
+                <div x-show="actionType === 'deferral'" class="mb-lg grid grid-cols-1 gap-md rounded-lg border border-info/30 bg-info-container/60 p-md sm:grid-cols-2">
+                    <x-ui.date name="defer_from" label="Bảo lưu từ ngày" :value="now()->toDateString()" x-bind:disabled="actionType !== 'deferral'" />
+                    <x-ui.date name="defer_to" label="Đến ngày (học lại từ ngày kế tiếp)" x-bind:disabled="actionType !== 'deferral'" />
+                    <p class="font-body-small text-body-small text-on-info-container sm:col-span-2">Khi được duyệt: học viên chuyển trạng thái <strong>Bảo lưu</strong>, đóng băng <strong x-text="basis.total_sessions ? remainingLessons + ' buổi còn lại' : 'số buổi còn lại'"></strong> và công nợ <strong class="font-code" x-text="money(basis.debt)"></strong>; nhắc nợ tạm dừng tới hết ngày bảo lưu.</p>
                 </div>
 
-                <label class="block">
-                    <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Lý do nghỉ giữa khóa (Bắt buộc)</span>
-                    <textarea name="reason" rows="3" required placeholder="Nhập chi tiết nguyên nhân học viên dừng học..." class="w-full rounded-lg border-outline-variant font-body-base text-body-base focus:border-primary-container focus:ring-primary-container/20">{{ old('type') !== 'extension' ? old('reason') : '' }}</textarea>
-                </label>
+                <x-ui.field label="Lý do nghỉ giữa khóa (Bắt buộc)" for="refund_reason">
+                    <textarea id="refund_reason" name="reason" rows="3" required placeholder="Nhập chi tiết nguyên nhân học viên dừng học..." class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">{{ old('type') !== 'extension' ? old('reason') : '' }}</textarea>
+                </x-ui.field>
 
                 <div class="mt-lg flex flex-col items-end gap-xs border-t border-surface-container pt-md">
                     <p x-show="actionType !== 'deferral'" class="font-caption text-caption text-on-surface-variant">
@@ -246,22 +227,19 @@
                         <h3 class="font-h3 text-h3 text-on-surface">Yêu cầu chờ phê duyệt</h3>
                     </div>
                     @if ($overdueCount > 0)
-                        <span class="flex items-center gap-xs rounded-full bg-error/10 px-md py-xs font-label text-label text-error">
-                            <span class="material-symbols-outlined text-[14px]" aria-hidden="true">warning</span>
-                            {{ $overdueCount }} QUÁ HẠN
-                        </span>
+                        <x-ui.badge color="error" pill>{{ $overdueCount }} QUÁ HẠN</x-ui.badge>
                     @endif
                 </div>
-                <div class="custom-scrollbar flex-1 overflow-x-auto">
-                    <table class="w-full border-collapse text-left">
+                <x-ui.data-table class="flex-1">
+                    <table>
                         <thead>
-                            <tr class="bg-surface-container-low">
-                                <th class="p-sm font-label text-label uppercase text-on-surface-variant">Học viên nguồn</th>
-                                <th class="p-sm font-label text-label uppercase text-on-surface-variant">Nội dung</th>
-                                <th class="p-sm font-label text-label uppercase text-on-surface-variant">Thao tác</th>
+                            <tr>
+                                <th>Học viên nguồn</th>
+                                <th>Nội dung</th>
+                                <th>Thao tác</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-outline-variant">
+                        <tbody>
                             @forelse ($pendingRequests as $rq)
                                 @php
                                     $overdue = $rq->isProcessingOverdue();
@@ -269,17 +247,17 @@
                                     $canApproveThis = in_array($rq->type, $approvableTypes, true);
                                     $canRejectAny = auth()->user()->can(\App\Models\TuitionRefundRequest::REJECT_PERMISSION);
                                 @endphp
-                                <tr class="align-top hover:bg-surface-container-high">
-                                    <td class="p-sm">
+                                <tr class="align-top">
+                                    <td>
                                         <p class="font-body-medium text-body-medium text-on-surface">{{ $rq->student?->name }}</p>
                                         <p class="font-code text-caption text-on-surface-variant">{{ $rq->student?->code }}</p>
                                         @if ($overdue)
-                                            <span class="mt-xs inline-block rounded bg-error-container px-xs py-[2px] text-[10px] font-bold uppercase text-on-error-container">Quá hạn xử lý · {{ $rq->processingOverdueDays() }} ngày</span>
+                                            <x-ui.badge color="error" class="mt-xs">Quá hạn xử lý · {{ $rq->processingOverdueDays() }} ngày</x-ui.badge>
                                         @elseif ($rq->processing_deadline)
                                             <span class="mt-xs block font-caption text-caption text-on-surface-variant">Hạn xử lý {{ $rq->processing_deadline->format('d/m/Y') }}</span>
                                         @endif
                                     </td>
-                                    <td class="p-sm">
+                                    <td>
                                         <x-ui.badge :color="$typeBadge[$rq->type] ?? 'neutral'" pill :dot="false">{{ $rq->type_label }}</x-ui.badge>
                                         <p class="mt-xs font-body-small text-body-small text-on-surface">
                                             @if ($rq->type === 'transfer')
@@ -294,22 +272,16 @@
                                         </p>
                                         <p class="mt-[2px] font-caption text-caption text-on-surface-variant">{{ $rq->created_at->format('d/m/Y') }} · {{ $rq->requester?->name ?? '—' }}</p>
                                     </td>
-                                    <td class="p-sm">
+                                    <td>
                                         @if ($canApproveThis || $canRejectAny)
                                             <div class="flex gap-sm">
                                                 @if (! $canApproveThis)
                                                     <span class="font-caption text-caption text-on-surface-variant" title="Cần quyền {{ \App\Models\TuitionRefundRequest::approvePermission($rq->type) }}">{{ $rq->type === 'refund' ? 'Chờ Admin duyệt' : 'Chờ người có quyền duyệt' }}</span>
                                                 @else
-                                                    <button type="button" @click="$dispatch('open-modal', 'approve-refund-{{ $rq->id }}')" title="Duyệt" aria-label="Duyệt"
-                                                            class="flex h-8 w-8 items-center justify-center rounded-lg bg-tertiary text-white shadow-sm hover:brightness-110 active:scale-90">
-                                                        <span class="material-symbols-outlined text-[18px]">check</span>
-                                                    </button>
+                                                    <x-ui.button variant="success" size="sm" icon="check" x-on:click="$dispatch('open-modal', 'approve-refund-{{ $rq->id }}')" title="Duyệt" aria-label="Duyệt" />
                                                 @endif
                                                 @if ($canRejectAny)
-                                                    <button type="button" @click="$dispatch('open-modal', 'reject-refund-{{ $rq->id }}')" title="Từ chối" aria-label="Từ chối"
-                                                            class="flex h-8 w-8 items-center justify-center rounded-lg border border-error text-error hover:bg-error/10 active:scale-90">
-                                                        <span class="material-symbols-outlined text-[18px]">close</span>
-                                                    </button>
+                                                    <x-ui.button variant="danger-text" size="sm" icon="close" x-on:click="$dispatch('open-modal', 'reject-refund-{{ $rq->id }}')" title="Từ chối" aria-label="Từ chối" />
                                                 @endif
                                             </div>
                                         @else
@@ -322,8 +294,8 @@
                             @endforelse
                         </tbody>
                     </table>
-                </div>
-                <a href="#all-requests" class="mt-md block w-full rounded-lg py-sm text-center font-body-medium text-body-medium text-primary hover:bg-primary/5">Xem tất cả yêu cầu</a>
+                </x-ui.data-table>
+                <x-ui.button variant="ghost" href="#all-requests" class="mt-md w-full">Xem tất cả yêu cầu</x-ui.button>
             </section>
         </div>
     </div>
@@ -360,22 +332,18 @@
                                 <div class="space-y-xs rounded-lg border border-outline-variant p-sm" x-data="{ claw: '{{ $hint['suggest'] ? '1' : '0' }}' }">
                                     <span class="block font-label text-label uppercase text-on-surface-variant">Thu hồi hoa hồng{{ $hint['owner'] ? ' ('.$hint['owner'].')' : '' }}</span>
                                     <div class="flex flex-wrap items-center gap-sm">
-                                        <select name="clawback_commission" x-model="claw" class="rounded-lg border-outline-variant py-xs font-body-small text-body-small">
-                                            <option value="1" @selected($hint['suggest'])>Có thu hồi</option>
-                                            <option value="0" @selected(! $hint['suggest'])>Không thu hồi</option>
-                                        </select>
+                                        <x-ui.select name="clawback_commission" id="clawback_commission_{{ $rq->id }}" x-model="claw" aria-label="Thu hồi hoa hồng"
+                                                     :value="$hint['suggest'] ? '1' : '0'" :options="['1' => 'Có thu hồi', '0' => 'Không thu hồi']" />
                                         <input type="number" name="clawback_amount" min="0" step="1000" value="{{ (int) $hint['amount'] }}" x-show="claw === '1'" aria-label="Số hoa hồng thu hồi (VNĐ)"
-                                               class="w-32 rounded-lg border-outline-variant py-xs font-code text-code" />
+                                               class="w-32 rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-code text-code text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20" />
                                     </div>
                                     <span class="block font-caption text-caption text-on-surface-variant">{{ $hint['start'] ? 'Bắt đầu học '.$hint['start']->format('d/m/Y') : 'Chưa bắt đầu học' }} · gợi ý: {{ $hint['suggest'] ? 'có' : 'không' }} thu hồi</span>
                                 </div>
                             @endif
-                            <label class="block">
-                                <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Ảnh bằng chứng chi tiền <span class="text-error">*</span></span>
-                                <input type="file" name="proof_image" accept="image/jpeg,image/png,image/webp" required
+                            <x-ui.field label="Ảnh bằng chứng chi tiền" name="proof_image" for="proof_image_{{ $rq->id }}" required hint="Ủy nhiệm chi / biên nhận đã ký (JPG, PNG, WEBP, tối đa 10MB).">
+                                <input type="file" id="proof_image_{{ $rq->id }}" name="proof_image" accept="image/jpeg,image/png,image/webp" required
                                        class="block w-full font-body-small text-body-small file:mr-sm file:rounded-lg file:border-0 file:bg-surface-container-high file:px-sm file:py-xs" />
-                                <span class="mt-xs block font-caption text-caption text-on-surface-variant">Ủy nhiệm chi / biên nhận đã ký (JPG, PNG, WEBP, tối đa 10MB).</span>
-                            </label>
+                            </x-ui.field>
                         @elseif ($rq->type === 'transfer')
                             <p class="font-caption text-caption text-on-surface-variant">Chuyển nhượng phí không thu hồi hoa hồng.</p>
                         @endif
@@ -390,10 +358,7 @@
             <x-ui.modal :name="'reject-refund-'.$rq->id" :title="'Từ chối hồ sơ — '.$rq->student?->name" max-width="md">
                 <form id="reject-refund-form-{{ $rq->id }}" action="{{ route('tuition.refunds.reject', $rq->id) }}" method="POST">
                     @csrf
-                    <label class="block">
-                        <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Lý do từ chối</span>
-                        <textarea name="rejection_reason" rows="3" placeholder="VD: đề nghị chuyển nhượng cho học viên khác thay vì hoàn tiền..." class="w-full rounded-lg border-outline-variant font-body-base text-body-base"></textarea>
-                    </label>
+                    <x-ui.textarea name="rejection_reason" id="rejection_reason_{{ $rq->id }}" label="Lý do từ chối" rows="3" placeholder="VD: đề nghị chuyển nhượng cho học viên khác thay vì hoàn tiền..." />
                 </form>
                 <x-slot:footer>
                     <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'reject-refund-{{ $rq->id }}')">Hủy</x-ui.button>
@@ -414,20 +379,10 @@
                     <span class="font-caption text-caption text-on-surface-variant">{{ $historyRequests->count() }} / {{ $refundRequests->count() }} hồ sơ</span>
                 </h3>
                 <form method="GET" action="{{ route('tuition.refunds') }}#all-requests" class="flex flex-wrap items-center gap-sm">
-                    <input type="search" name="search" value="{{ $filters['search'] }}" placeholder="Tìm học viên / mã HV..." class="w-48 rounded-lg border-outline-variant py-xs font-body-small text-body-small" />
-                    <select name="type" class="rounded-lg border-outline-variant py-xs font-body-small text-body-small" aria-label="Loại yêu cầu">
-                        <option value="">Tất cả loại</option>
-                        @foreach (\App\Models\TuitionRefundRequest::TYPES as $value => $label)
-                            <option value="{{ $value }}" @selected($filters['type'] === $value)>{{ $label }}</option>
-                        @endforeach
-                    </select>
-                    <select name="status" class="rounded-lg border-outline-variant py-xs font-body-small text-body-small" aria-label="Trạng thái">
-                        <option value="">Tất cả trạng thái</option>
-                        <option value="pending" @selected($filters['status'] === 'pending')>Chờ duyệt</option>
-                        <option value="overdue" @selected($filters['status'] === 'overdue')>Quá hạn xử lý</option>
-                        <option value="approved" @selected($filters['status'] === 'approved')>Đã duyệt</option>
-                        <option value="rejected" @selected($filters['status'] === 'rejected')>Đã từ chối</option>
-                    </select>
+                    <div class="w-48"><x-ui.input type="search" name="search" id="refund_filter_search" :value="$filters['search']" placeholder="Tìm học viên / mã HV..." /></div>
+                    <x-ui.select name="type" id="refund_filter_type" aria-label="Loại yêu cầu" placeholder="Tất cả loại" :value="$filters['type']" :options="\App\Models\TuitionRefundRequest::TYPES" />
+                    <x-ui.select name="status" id="refund_filter_status" aria-label="Trạng thái" placeholder="Tất cả trạng thái" :value="$filters['status']"
+                                 :options="['pending' => 'Chờ duyệt', 'overdue' => 'Quá hạn xử lý', 'approved' => 'Đã duyệt', 'rejected' => 'Đã từ chối']" />
                     <x-ui.button type="submit" size="sm" variant="secondary" icon="filter_list">Lọc</x-ui.button>
                 </form>
             </x-slot:header>
@@ -469,7 +424,7 @@
                                     <span class="text-on-surface-variant">—</span>
                                 @endif
                             </td>
-                            <td class="whitespace-nowrap text-right font-code text-code">{{ in_array($rq->type, ['refund', 'transfer'], true) ? $money($rq->refund_amount) : '—' }}</td>
+                            <td><x-ui.money :value="in_array($rq->type, ['refund', 'transfer'], true) ? $rq->refund_amount : null" /></td>
                             <td class="max-w-[260px]">
                                 <div class="truncate" title="{{ $rq->reason }}">{{ $rq->reason }}</div>
                                 @if ($rq->no_transfer_reason)

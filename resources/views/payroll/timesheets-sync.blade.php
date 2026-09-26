@@ -3,7 +3,7 @@
     @php
         $statusStyles = [
             'success' => ['success', 'check_circle', 'text-tertiary'],
-            'partial' => ['warning', 'warning', 'text-amber-600'],
+            'partial' => ['warning', 'warning', 'text-warning'],
             'failed' => ['error', 'error', 'text-error'],
         ];
     @endphp
@@ -77,7 +77,7 @@
                         </td>
                         <td class="text-right">
                             @if ($log->hasErrorDetails())
-                                <x-ui.button variant="ghost" size="sm" @click="open = open === {{ $log->id }} ? null : {{ $log->id }}">
+                                <x-ui.button variant="ghost" size="sm" x-on:click="open = open === {{ $log->id }} ? null : {{ $log->id }}">
                                     Xem chi tiết lỗi
                                     <span class="material-symbols-outlined text-[16px]" aria-hidden="true" x-text="open === {{ $log->id }} ? 'expand_less' : 'expand_more'">expand_more</span>
                                 </x-ui.button>
@@ -91,7 +91,7 @@
                             <td colspan="8" class="bg-surface-container-low/60">
                                 @if (! empty($log->error_rows))
                                     <div class="space-y-sm p-sm">
-                                        <p class="flex items-center gap-xs font-h3 text-h3 text-amber-700">
+                                        <p class="flex items-center gap-xs font-h3 text-h3 text-warning">
                                             <span class="material-symbols-outlined" aria-hidden="true">warning</span>Chi tiết {{ count($log->error_rows) }} dòng lỗi
                                         </p>
                                         <table class="w-full">

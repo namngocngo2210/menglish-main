@@ -10,121 +10,80 @@
 
     @include('tuition.partials.errors')
 
-    <div class="max-w-[1520px] mx-auto space-y-5" x-data="{ showApproveModal: false, showRejectModal: false, zoomImage: false }"
-         x-init="setInterval(() => { if (! showApproveModal && ! showRejectModal && ! zoomImage && document.visibilityState === 'visible' && ! document.querySelector('input:focus, textarea:focus')) window.location.reload(); }, 90000)">
+    {{-- Tự làm mới 90 giây/lần, trừ khi đang mở hộp thoại (x-ui.modal: open-modal / modal-closed) hoặc đang gõ. --}}
+    <div class="mx-auto max-w-[1520px] space-y-5" x-data="{ openModals: 0 }"
+         x-on:open-modal.window="openModals++" x-on:modal-closed.window="openModals = Math.max(0, openModals - 1)"
+         x-init="setInterval(() => { if (! openModals && document.visibilityState === 'visible' && ! document.querySelector('input:focus, textarea:focus')) window.location.reload(); }, 90000)">
 
         @if (isset($errors) && $errors->any())
-            <div class="p-4 bg-rose-50 border-l-4 border-rose-500 rounded-r-xl text-xs text-rose-800 space-y-1 shadow-xs">
-                <div class="font-bold flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-rose-600 text-base">error</span>
-                    Vui lòng kiểm tra các lỗi sau:
-                </div>
-                <ul class="list-disc list-inside pl-5">
+            <x-ui.alert type="error" title="Vui lòng kiểm tra các lỗi sau:">
+                <ul class="list-inside list-disc pl-5">
                     @foreach ($errors->all() as $err)
                         <li>{{ $err }}</li>
                     @endforeach
                 </ul>
-            </div>
+            </x-ui.alert>
         @endif
 
         {{-- BEGIN: HeaderPanel (Thống kê & Bộ lọc) --}}
-        <header class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 space-y-4">
-            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <header class="space-y-4 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm">
+            <div class="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
                 <div>
-                    <h2 class="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-3">
+                    <h2 class="flex items-center gap-3 text-lg font-bold tracking-tight text-on-surface">
                         <span>Hàng đợi duyệt</span>
-                        <span class="text-xs font-semibold px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200/80 rounded-full inline-flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                            {{ $pendingCount }} phiếu chờ xử lý
-                        </span>
+                        <x-ui.badge color="warning" pill>{{ $pendingCount }} phiếu chờ xử lý</x-ui.badge>
                     </h2>
-                    <p class="text-xs text-slate-500 mt-1">
+                    <p class="mt-1 text-xs text-on-surface-variant">
                         Kiểm tra, đối chiếu chứng từ và phê duyệt các phiếu thu học phí &amp; phụ thu từ nhân viên tư vấn/học vụ
                     </p>
                 </div>
 
                 {{-- 3 Thẻ chỉ số Counter --}}
-                <div class="flex flex-wrap items-center gap-3 text-xs">
-                    {{-- Chờ duyệt --}}
-                    <div class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-amber-50/70 border border-amber-200/70 text-amber-900 shadow-sm">
-                        <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 font-bold shrink-0">
-                            <span class="material-symbols-outlined text-lg">schedule</span>
-                        </div>
-                        <div>
-                            <div class="text-[10px] font-bold text-amber-700 uppercase">Chờ duyệt</div>
-                            <div class="text-sm font-bold leading-tight">{{ $pendingCount }} phiếu <span class="text-[11px] font-mono text-amber-800 font-normal">({{ number_format((float) $pendingTotal, 0, ',', '.') }} VNĐ)</span></div>
-                        </div>
-                    </div>
-
-                    {{-- Đã duyệt hôm nay --}}
-                    <div class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/70 text-emerald-900 shadow-sm">
-                        <div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold shrink-0">
-                            <span class="material-symbols-outlined text-lg">check_circle</span>
-                        </div>
-                        <div>
-                            <div class="text-[10px] font-bold text-emerald-700 uppercase">Đã duyệt hôm nay</div>
-                            <div class="text-sm font-bold leading-tight text-emerald-800">{{ $approvedTodayCount }} phiếu</div>
-                        </div>
-                    </div>
-
-                    {{-- Đã từ chối hôm nay --}}
-                    <div class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-rose-50/70 border border-rose-200/70 text-rose-900 shadow-sm">
-                        <div class="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center text-rose-700 font-bold shrink-0">
-                            <span class="material-symbols-outlined text-lg">cancel</span>
-                        </div>
-                        <div>
-                            <div class="text-[10px] font-bold text-rose-700 uppercase">Đã từ chối hôm nay</div>
-                            <div class="text-sm font-bold leading-tight text-rose-800">{{ $rejectedTodayCount }} phiếu</div>
-                        </div>
-                    </div>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <x-ui.stat-card label="Chờ duyệt" :value="$pendingCount.' phiếu'" tone="warning" icon="schedule"
+                                    :hint="'('.number_format((float) $pendingTotal, 0, ',', '.').' VNĐ)'" />
+                    <x-ui.stat-card label="Đã duyệt hôm nay" :value="$approvedTodayCount.' phiếu'" tone="success" icon="check_circle" />
+                    <x-ui.stat-card label="Đã từ chối hôm nay" :value="$rejectedTodayCount.' phiếu'" tone="error" icon="cancel" />
                 </div>
             </div>
 
             {{-- Form Lọc & Tìm kiếm --}}
-            <form method="GET" action="{{ route('tuition.receipts.approve') }}" class="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto text-xs">
+            <form method="GET" action="{{ route('tuition.receipts.approve') }}" class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-container-highest pt-4">
+                <div class="flex w-full flex-wrap items-center gap-2.5 lg:w-auto">
                     {{-- Branch Selector --}}
                     <div class="min-w-[160px]">
-                        <select name="branch_id" onchange="this.form.submit()" class="w-full text-xs font-semibold text-slate-700 bg-slate-50 border-slate-200 rounded-lg py-2 pl-3 pr-8 focus:ring-primary-container focus:border-primary-container cursor-pointer">
+                        <x-ui.select name="branch_id" onchange="this.form.submit()" aria-label="Cơ sở" class="cursor-pointer">
                             <option value="all">Tất cả Cơ sở</option>
                             @foreach ($branches as $b)
                                 <option value="{{ $b->id }}" {{ request('branch_id') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
                             @endforeach
-                        </select>
+                        </x-ui.select>
                     </div>
 
                     {{-- Payment Method Selector --}}
                     <div class="min-w-[150px]">
-                        <select name="payment_method" onchange="this.form.submit()" class="w-full text-xs font-semibold text-slate-700 bg-slate-50 border-slate-200 rounded-lg py-2 pl-3 pr-8 focus:ring-primary-container focus:border-primary-container cursor-pointer">
+                        <x-ui.select name="payment_method" onchange="this.form.submit()" aria-label="Hình thức" class="cursor-pointer">
                             <option value="all">Hình thức: Tất cả</option>
                             <option value="transfer" {{ request('payment_method') === 'transfer' || request('payment_method') === 'ck' ? 'selected' : '' }}>Chuyển khoản</option>
                             <option value="cash" {{ request('payment_method') === 'cash' ? 'selected' : '' }}>Tiền mặt</option>
-                        </select>
+                        </x-ui.select>
                     </div>
 
-                    {{-- Status Pills --}}
-                    <div class="inline-flex rounded-lg p-0.5 bg-slate-100 border border-slate-200 text-xs font-medium">
-                        <a href="{{ route('tuition.receipts.approve', array_merge(request()->except('status'), ['status' => 'pending'])) }}" class="px-3 py-1.5 rounded-md transition {{ request('status', $pendingCount > 0 ? 'pending' : 'all') === 'pending' ? 'bg-white text-slate-900 font-bold shadow-sm' : 'text-slate-600 hover:text-slate-900' }}">
-                            Chờ duyệt ({{ $pendingCount }})
-                        </a>
-                        <a href="{{ route('tuition.receipts.approve', array_merge(request()->except('status'), ['status' => 'approved'])) }}" class="px-3 py-1.5 rounded-md transition {{ request('status') === 'approved' ? 'bg-white text-slate-900 font-bold shadow-sm' : 'text-slate-600 hover:text-slate-900' }}">
-                            Đã duyệt
-                        </a>
-                        <a href="{{ route('tuition.receipts.approve', array_merge(request()->except('status'), ['status' => 'rejected'])) }}" class="px-3 py-1.5 rounded-md transition {{ request('status') === 'rejected' ? 'bg-white text-slate-900 font-bold shadow-sm' : 'text-slate-600 hover:text-slate-900' }}">
-                            Từ chối
-                        </a>
-                        <a href="{{ route('tuition.receipts.approve', array_merge(request()->except('status'), ['status' => 'all'])) }}" class="px-3 py-1.5 rounded-md transition {{ request('status', $pendingCount > 0 ? 'pending' : 'all') === 'all' ? 'bg-white text-slate-900 font-bold shadow-sm' : 'text-slate-600 hover:text-slate-900' }}">
-                            Tất cả
-                        </a>
-                    </div>
+                    {{-- Status tabs --}}
+                    @php $statusFilter = request('status', $pendingCount > 0 ? 'pending' : 'all'); @endphp
+                    <x-ui.tabs>
+                        <x-ui.tab :href="route('tuition.receipts.approve', array_merge(request()->except('status'), ['status' => 'pending']))" :active="$statusFilter === 'pending'">Chờ duyệt ({{ $pendingCount }})</x-ui.tab>
+                        <x-ui.tab :href="route('tuition.receipts.approve', array_merge(request()->except('status'), ['status' => 'approved']))" :active="request('status') === 'approved'">Đã duyệt</x-ui.tab>
+                        <x-ui.tab :href="route('tuition.receipts.approve', array_merge(request()->except('status'), ['status' => 'rejected']))" :active="request('status') === 'rejected'">Từ chối</x-ui.tab>
+                        <x-ui.tab :href="route('tuition.receipts.approve', array_merge(request()->except('status'), ['status' => 'all']))" :active="$statusFilter === 'all'">Tất cả</x-ui.tab>
+                    </x-ui.tabs>
                 </div>
 
                 {{-- Search Input --}}
                 <div class="relative w-full lg:w-80">
-                    <span class="material-symbols-outlined absolute left-3 top-2 text-slate-400 text-lg pointer-events-none">search</span>
-                    <input type="text" name="q" value="{{ request('q') }}" placeholder="Tìm theo tên học viên, mã phiếu..." class="w-full text-xs font-medium bg-slate-50 border-slate-200 rounded-lg pl-9 pr-8 py-2 focus:bg-white focus:ring-primary-container focus:border-primary-container transition" />
+                    <x-ui.input name="q" icon="search" :value="request('q')" placeholder="Tìm theo tên học viên, mã phiếu..." class="pr-8" />
                     @if (request('q'))
-                        <a href="{{ route('tuition.receipts.approve', request()->except('q')) }}" class="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600">
+                        <a href="{{ route('tuition.receipts.approve', request()->except('q')) }}" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant/70 hover:text-on-surface-variant" aria-label="Xóa từ khóa">
                             <span class="material-symbols-outlined text-base">close</span>
                         </a>
                     @endif
@@ -133,21 +92,21 @@
         </header>
 
         {{-- BEGIN: MasterDetailGrid (5 Cột danh sách hàng đợi + 7 Cột chi tiết kiểm tra) --}}
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        <div class="grid grid-cols-1 items-start gap-5 lg:grid-cols-12">
             {{-- CỘT TRÁI (5 Cột): Danh sách hàng đợi --}}
-            <section class="lg:col-span-5 bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col min-w-0">
-                <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+            <section class="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm lg:col-span-5">
+                <div class="flex items-center justify-between border-b border-surface-container-highest bg-surface-container-low p-4">
                     <div class="flex items-center gap-2">
-                        <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Hàng đợi phiếu thu</h3>
-                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 font-mono">{{ $pendingReceipts->count() }} phiếu</span>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface">Hàng đợi phiếu thu</h3>
+                        <x-ui.badge color="warning" pill :dot="false" class="font-code">{{ $pendingReceipts->count() }} phiếu</x-ui.badge>
                     </div>
-                    <span class="text-[11px] text-slate-400 flex items-center gap-1">
+                    <span class="flex items-center gap-1 text-[11px] text-on-surface-variant/70">
                         <span class="material-symbols-outlined text-xs">autorenew</span>
                         Tự động làm mới (90 giây)
                     </span>
                 </div>
 
-                <div class="divide-y divide-slate-100 max-h-[820px] overflow-y-auto custom-scrollbar">
+                <div class="custom-scrollbar max-h-[820px] divide-y divide-surface-container-highest overflow-y-auto">
                     @forelse ($pendingReceipts as $rc)
                         @php
                             $isSelected = $selectedReceipt && $selectedReceipt->id === $rc->id;
@@ -155,78 +114,69 @@
                             $branch = $student?->branch;
                             $className = $rc->tuition?->classModel?->name ?? $student?->currentClass?->name ?? 'Lớp học';
                         @endphp
-                        <a href="{{ route('tuition.receipts.approve', array_merge(request()->all(), ['selected_id' => $rc->id])) }}" class="block p-4 transition relative {{ $isSelected ? 'bg-orange-50/50 border-l-4 border-primary-container shadow-xs' : 'hover:bg-slate-50 border-l-4 border-transparent' }}">
-                            <div class="flex items-start justify-between gap-2 mb-1.5">
+                        <a href="{{ route('tuition.receipts.approve', array_merge(request()->all(), ['selected_id' => $rc->id])) }}" class="relative block p-4 transition {{ $isSelected ? 'border-l-4 border-primary-container bg-primary-container/5 shadow-xs' : 'border-l-4 border-transparent hover:bg-surface-container-low' }}">
+                            <div class="mb-1.5 flex items-start justify-between gap-2">
                                 <div class="flex items-center gap-1.5">
-                                    <span class="text-xs font-bold font-mono px-2 py-0.5 rounded {{ $isSelected ? 'bg-white text-slate-900 border border-primary-container/40' : 'bg-slate-100 text-slate-700 border border-slate-200' }}">
+                                    <span class="rounded px-2 py-0.5 font-code text-xs font-bold {{ $isSelected ? 'border border-primary-container/40 bg-surface-container-lowest text-on-surface' : 'border border-surface-container-highest bg-surface-container text-on-surface-variant' }}">
                                         {{ $rc->receipt_number }}
                                     </span>
                                     @if ($rc->payment_method === 'cash')
-                                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                                            <span class="material-symbols-outlined text-xs">payments</span>
-                                            Tiền mặt
-                                        </span>
+                                        <x-ui.badge color="success" :dot="false"><span class="material-symbols-outlined text-xs">payments</span>Tiền mặt</x-ui.badge>
                                     @else
-                                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
-                                            <span class="material-symbols-outlined text-xs">account_balance</span>
-                                            Chuyển khoản
-                                        </span>
+                                        <x-ui.badge color="secondary" :dot="false"><span class="material-symbols-outlined text-xs">account_balance</span>Chuyển khoản</x-ui.badge>
                                     @endif
                                 </div>
-                                <span class="text-[11px] text-slate-400 font-medium">{{ $rc->created_at->diffForHumans() }}</span>
+                                <span class="text-[11px] font-medium text-on-surface-variant/70">{{ $rc->created_at->diffForHumans() }}</span>
                             </div>
 
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <h4 class="text-xs font-bold text-slate-900 flex items-center gap-1">
+                                    <h4 class="flex items-center gap-1 text-xs font-bold text-on-surface">
                                         <span>{{ $student?->name ?? 'Học viên' }}</span>
-                                        <span class="text-[11px] font-mono text-slate-400 font-normal">({{ $student?->code ?? 'HV' }})</span>
+                                        <span class="font-code text-[11px] font-normal text-on-surface-variant/70">({{ $student?->code ?? 'HV' }})</span>
                                     </h4>
-                                    <p class="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5">
+                                    <p class="mt-0.5 flex items-center gap-1.5 text-[11px] text-on-surface-variant">
                                         <span>{{ $className }}</span>
                                         @if ($rc->surcharge_amount > 0)
-                                            <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800">+ Phụ thu</span>
+                                            <x-ui.badge color="warning" :dot="false">+ Phụ thu</x-ui.badge>
                                         @endif
                                     </p>
                                 </div>
                                 <div class="text-right">
-                                    <div class="text-sm font-bold font-mono {{ $isSelected ? 'text-primary' : 'text-slate-900' }}">{{ number_format((float) $rc->amount, 0, ',', '.') }} đ</div>
-                                    <div class="text-[10px] text-slate-400">{{ $branch?->name ?? 'Trụ sở chính' }}</div>
+                                    <div class="font-code text-sm font-bold {{ $isSelected ? 'text-primary' : 'text-on-surface' }}">{{ number_format((float) $rc->amount, 0, ',', '.') }} đ</div>
+                                    <div class="text-[10px] text-on-surface-variant/70">{{ $branch?->name ?? 'Trụ sở chính' }}</div>
                                 </div>
                             </div>
 
-                            <div class="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                                <span class="flex items-center gap-1 truncate max-w-[240px]">
-                                    <span class="material-symbols-outlined text-slate-400 text-xs">person</span>
-                                    Người tạo: <strong class="text-slate-700">{{ $rc->creator?->name ?? 'CM' }}</strong>
+                            <div class="mt-2.5 flex items-center justify-between border-t border-surface-container-highest pt-2 text-[11px] text-on-surface-variant">
+                                <span class="flex max-w-[240px] items-center gap-1 truncate">
+                                    <span class="material-symbols-outlined text-xs text-on-surface-variant/70">person</span>
+                                    Người tạo: <strong class="text-on-surface-variant">{{ $rc->creator?->name ?? 'CM' }}</strong>
                                 </span>
 
                                 @if ($rc->proof_image)
-                                    <span class="flex items-center gap-0.5 text-[10px] text-slate-500"><span class="material-symbols-outlined text-xs">attach_file</span>Có minh chứng</span>
+                                    <span class="flex items-center gap-0.5 text-[10px] text-on-surface-variant"><span class="material-symbols-outlined text-xs">attach_file</span>Có minh chứng</span>
                                 @elseif ($rc->paper_invoice_number)
-                                    <span class="text-[10px] text-slate-500">Biên lai số {{ $rc->paper_invoice_number }}</span>
+                                    <span class="text-[10px] text-on-surface-variant">Biên lai số {{ $rc->paper_invoice_number }}</span>
                                 @endif
                                 @if ($isSelected)
-                                    <span class="text-primary text-[11px] font-bold flex items-center gap-0.5">
+                                    <span class="flex items-center gap-0.5 text-[11px] font-bold text-primary">
                                         Đang xem
                                         <span class="material-symbols-outlined text-xs">chevron_right</span>
                                     </span>
                                 @elseif ($rc->status !== 'pending')
-                                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded border {{ $rc->status_badge }}">{{ $rc->status_label }}</span>
+                                    <x-ui.badge :color="$rc->status_color" :dot="false">{{ $rc->status_label }}</x-ui.badge>
                                 @endif
                             </div>
                         </a>
                     @empty
-                        <div class="p-8 text-center text-slate-400 text-xs space-y-2">
-                            <span class="material-symbols-outlined text-3xl text-slate-300">task</span>
-                            <p>Không có phiếu thu nào theo bộ lọc đã chọn.</p>
-                        </div>
+                        <x-ui.empty-state icon="task" title="Không có phiếu thu nào theo bộ lọc đã chọn." />
                     @endforelse
                 </div>
             </section>
 
             {{-- CỘT PHẢI (7 Cột): Chi tiết phiếu thu & Thao tác duyệt --}}
-            <section class="lg:col-span-7 flex flex-col gap-5 min-w-0">
+            <section class="flex min-w-0 flex-col gap-5 lg:col-span-7">
                 @if ($selectedReceipt)
                     @php
                         $st = $selectedReceipt->tuition?->student ?? $selectedReceipt->student;
@@ -249,29 +199,21 @@
                         </x-ui.alert>
                     @endif
 
-                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col">
+                    <div class="flex flex-col overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm">
                         {{-- Detail Header --}}
-                        <div class="p-5 lg:p-6 bg-slate-50/70 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-surface-container-highest bg-surface-container-low p-5 lg:p-6">
                             <div>
                                 <div class="flex items-center gap-2.5">
-                                    <h2 class="text-lg font-bold text-slate-900">Chi tiết phiếu thu: <span class="font-mono text-primary">{{ $selectedReceipt->receipt_number }}</span></h2>
+                                    <h2 class="text-lg font-bold text-on-surface">Chi tiết phiếu thu: <span class="font-code text-primary">{{ $selectedReceipt->receipt_number }}</span></h2>
                                     @if ($selectedReceipt->status === 'approved')
-                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
-                                            Đã duyệt (HĐ: {{ $selectedReceipt->invoice_number ?? 'Auto' }})
-                                        </span>
+                                        <x-ui.badge color="success" pill>Đã duyệt (HĐ: {{ $selectedReceipt->invoice_number ?? 'Auto' }})</x-ui.badge>
                                     @elseif ($selectedReceipt->status !== 'pending')
-                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border {{ $selectedReceipt->status_badge }}">
-                                            {{ $selectedReceipt->status_label }}
-                                        </span>
+                                        <x-ui.badge :color="$selectedReceipt->status_color" pill :dot="false">{{ $selectedReceipt->status_label }}</x-ui.badge>
                                     @else
-                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse mr-1.5"></span>
-                                            Chờ duyệt
-                                        </span>
+                                        <x-ui.badge color="warning" pill>Chờ duyệt</x-ui.badge>
                                     @endif
                                 </div>
-                                <div class="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-y-1 gap-x-3">
+                                <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-on-surface-variant">
                                     <span>Thời gian gửi: <strong>{{ $selectedReceipt->created_at?->format('H:i - d/m/Y') ?? now()->format('H:i - d/m/Y') }}</strong></span>
                                     <span>•</span>
                                     <span>Người lập: <strong>{{ $selectedReceipt->creator?->name ?? 'Chưa cập nhật' }}</strong> ({{ $branchName }})</span>
@@ -279,131 +221,122 @@
                             </div>
 
                             @if ($selectedReceipt->student_tuition_id)
-                                <a href="{{ route('crm.tuition-bill', $selectedReceipt->student_tuition_id) }}" target="_blank" class="text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 px-3.5 py-2 rounded-lg inline-flex items-center gap-1.5 transition">
-                                    <span class="material-symbols-outlined text-slate-500 text-base">print</span>
-                                    Xem trước mẫu in
-                                </a>
+                                <x-ui.button variant="secondary" size="sm" icon="print" :href="route('crm.tuition-bill', $selectedReceipt->student_tuition_id)" target="_blank">Xem trước mẫu in</x-ui.button>
                             @endif
                         </div>
 
-                        <div class="p-5 lg:p-6 flex flex-col gap-6">
+                        <div class="flex flex-col gap-6 p-5 lg:p-6">
                             {{-- KHỐI 1: Thông tin học viên & Lớp học --}}
-                            <div class="rounded-xl border border-slate-200/90 bg-slate-50/40 p-4 lg:p-5">
-                                <div class="flex items-center gap-2 mb-3.5">
-                                    <div class="w-7 h-7 rounded-lg bg-orange-100 text-primary flex items-center justify-center font-bold text-xs">
+                            <div class="rounded-xl border border-surface-container-highest bg-surface-container-low/40 p-4 lg:p-5">
+                                <div class="mb-3.5 flex items-center gap-2">
+                                    <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-container/10 text-xs font-bold text-primary">
                                         <span class="material-symbols-outlined text-base">person</span>
                                     </div>
-                                    <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide">1. Thông tin học viên &amp; Phụ huynh</h3>
+                                    <h3 class="text-sm font-bold uppercase tracking-wide text-on-surface">1. Thông tin học viên &amp; Phụ huynh</h3>
                                 </div>
 
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                                    <div class="bg-white p-3.5 rounded-lg border border-slate-200/70 space-y-0.5">
-                                        <span class="text-xs text-slate-400 block mb-0.5 uppercase">Học viên</span>
-                                        <div class="text-sm font-bold text-slate-900">{{ $st?->name ?? 'Học viên' }}</div>
-                                        <span class="text-xs font-mono font-semibold text-primary">{{ $st?->code ?? 'HV' }}</span>
+                                <div class="grid grid-cols-1 gap-4 text-xs md:grid-cols-3">
+                                    <div class="space-y-0.5 rounded-lg border border-surface-container-highest bg-surface-container-lowest p-3.5">
+                                        <span class="mb-0.5 block text-xs uppercase text-on-surface-variant/70">Học viên</span>
+                                        <div class="text-sm font-bold text-on-surface">{{ $st?->name ?? 'Học viên' }}</div>
+                                        <span class="font-code text-xs font-semibold text-primary">{{ $st?->code ?? 'HV' }}</span>
                                     </div>
-                                    <div class="bg-white p-3.5 rounded-lg border border-slate-200/70 space-y-0.5">
-                                        <span class="text-xs text-slate-400 block mb-0.5 uppercase">Lớp học hiện tại</span>
-                                        <div class="text-sm font-bold text-slate-900">{{ $tClass }}</div>
-                                        <span class="text-xs text-slate-500">{{ $branchName }}</span>
+                                    <div class="space-y-0.5 rounded-lg border border-surface-container-highest bg-surface-container-lowest p-3.5">
+                                        <span class="mb-0.5 block text-xs uppercase text-on-surface-variant/70">Lớp học hiện tại</span>
+                                        <div class="text-sm font-bold text-on-surface">{{ $tClass }}</div>
+                                        <span class="text-xs text-on-surface-variant">{{ $branchName }}</span>
                                     </div>
-                                    <div class="bg-white p-3.5 rounded-lg border border-slate-200/70 space-y-0.5">
-                                        <span class="text-xs text-slate-400 block mb-0.5 uppercase">Người nộp tiền (Phụ huynh)</span>
-                                        <div class="text-sm font-bold text-slate-900">{{ $selectedReceipt->payer_name ?: ($st?->parent_name ?: $st?->name) }}</div>
-                                        <span class="text-xs font-mono font-semibold text-slate-600">{{ $selectedReceipt->payer_phone ?: ($st?->parent_phone ?: $st?->phone) }}</span>
+                                    <div class="space-y-0.5 rounded-lg border border-surface-container-highest bg-surface-container-lowest p-3.5">
+                                        <span class="mb-0.5 block text-xs uppercase text-on-surface-variant/70">Người nộp tiền (Phụ huynh)</span>
+                                        <div class="text-sm font-bold text-on-surface">{{ $selectedReceipt->payer_name ?: ($st?->parent_name ?: $st?->name) }}</div>
+                                        <span class="font-code text-xs font-semibold text-on-surface-variant">{{ $selectedReceipt->payer_phone ?: ($st?->parent_phone ?: $st?->phone) }}</span>
                                     </div>
                                 </div>
                             </div>
 
                             {{-- KHỐI 2: Chi tiết nguồn tiền & Bảng kê tài chính --}}
-                            <div class="rounded-xl border border-slate-200/90 p-4 lg:p-5">
-                                <div class="flex items-center justify-between mb-3.5">
+                            <div class="rounded-xl border border-surface-container-highest p-4 lg:p-5">
+                                <div class="mb-3.5 flex items-center justify-between">
                                     <div class="flex items-center gap-2">
-                                        <div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
+                                        <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-tertiary/10 text-xs font-bold text-tertiary">
                                             <span class="material-symbols-outlined text-base">calculate</span>
                                         </div>
-                                        <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide">2. Bảng kê chi tiết các khoản thu</h3>
+                                        <h3 class="text-sm font-bold uppercase tracking-wide text-on-surface">2. Bảng kê chi tiết các khoản thu</h3>
                                     </div>
-                                    <span class="text-xs text-slate-500">
-                                        Phương thức: <strong class="text-blue-600 font-semibold">{{ $selectedReceipt->payment_method === 'cash' ? 'Tiền mặt' : 'Chuyển khoản Ngân hàng' }}</strong>
+                                    <span class="text-xs text-on-surface-variant">
+                                        Phương thức: <strong class="font-semibold text-secondary">{{ $selectedReceipt->payment_method === 'cash' ? 'Tiền mặt' : 'Chuyển khoản Ngân hàng' }}</strong>
                                     </span>
                                 </div>
 
-                                <div class="border border-slate-200 rounded-lg overflow-x-auto text-xs">
-                                    <table class="w-full text-left min-w-[480px]">
-                                        <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 text-xs">
+                                <x-ui.data-table min-width="480px">
+                                    <table>
+                                        <thead>
                                             <tr>
-                                                <th class="py-3 px-4">Khoản mục</th>
-                                                <th class="py-3 px-4">Nội dung diễn giải</th>
-                                                <th class="py-3 px-4 text-right">Số tiền</th>
+                                                <th>Khoản mục</th>
+                                                <th>Nội dung diễn giải</th>
+                                                <th class="text-right">Số tiền</th>
                                             </tr>
                                         </thead>
-                                        <tbody class="divide-y divide-slate-100">
+                                        <tbody>
                                             <tr>
-                                                <td class="py-3 px-4 font-semibold text-slate-900">
+                                                <td class="font-semibold">
                                                     Học phí
                                                     @if ($selectedReceipt->tuition?->due_date)
-                                                        <span class="block text-[11px] font-normal text-slate-500">(Hạn {{ $selectedReceipt->tuition->due_date->format('d/m/Y') }})</span>
+                                                        <span class="block text-[11px] font-normal text-on-surface-variant">(Hạn {{ $selectedReceipt->tuition->due_date->format('d/m/Y') }})</span>
                                                     @endif
                                                 </td>
-                                                <td class="py-3 px-4 text-slate-600">
+                                                <td class="text-on-surface-variant">
                                                     {{ $selectedReceipt->tuition?->fee_label ?? 'Không gắn khoản học phí (chỉ phụ thu)' }}
                                                     (Đã miễn giảm {{ number_format((float) ($selectedReceipt->discount_amount ?? 0), 0, ',', '.') }} đ)
                                                 </td>
-                                                <td class="py-3 px-4 font-bold font-mono text-slate-900 text-right">
-                                                    {{ number_format($selectedReceipt->tuitionPortion(), 0, ',', '.') }} đ
-                                                </td>
+                                                <td><x-ui.money :value="$selectedReceipt->tuitionPortion()" suffix="đ" class="font-bold" /></td>
                                             </tr>
 
                                             @if (($selectedReceipt->surcharge_amount ?? 0) > 0)
-                                                <tr class="bg-amber-50/40">
-                                                    <td class="py-3 px-4 font-semibold text-amber-900 flex items-center gap-1.5">
-                                                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                                <tr class="bg-warning-container/40">
+                                                    <td class="flex items-center gap-1.5 font-semibold text-on-warning-container">
+                                                        <span class="h-1.5 w-1.5 rounded-full bg-warning"></span>
                                                         Phụ thu phát sinh
                                                     </td>
-                                                    <td class="py-3 px-4 text-amber-800">
+                                                    <td class="text-on-warning-container">
                                                         {{ $selectedReceipt->surcharge_reason ?: '—' }}
                                                     </td>
-                                                    <td class="py-3 px-4 font-bold font-mono text-amber-900 text-right">
+                                                    <td class="text-right font-code font-bold text-on-warning-container">
                                                         + {{ number_format((float) $selectedReceipt->surcharge_amount, 0, ',', '.') }} đ
                                                     </td>
                                                 </tr>
                                             @endif
                                         </tbody>
-                                        <tfoot class="bg-orange-50/70 border-t border-orange-200">
+                                        <tfoot class="border-t border-primary-container/30 bg-primary-container/5">
                                             <tr>
-                                                <td class="py-3.5 px-4 text-xs font-bold text-slate-900" colspan="2">
+                                                <td class="text-xs font-bold" colspan="2">
                                                     TỔNG SỐ TIỀN THỰC THU
                                                 </td>
-                                                <td class="py-3.5 px-4 text-right">
-                                                    <span class="text-base font-bold font-mono text-primary">{{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} VNĐ</span>
+                                                <td class="text-right">
+                                                    <span class="font-code text-base font-bold text-primary">{{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} VNĐ</span>
                                                 </td>
                                             </tr>
                                         </tfoot>
                                     </table>
-                                </div>
+                                </x-ui.data-table>
 
                                 {{-- Metadata & Notes --}}
-                                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                                    <div class="p-3.5 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
-                                        <span class="text-[10px] font-bold text-slate-500 uppercase block">Trạng thái đối soát &amp; Hóa đơn VAT</span>
-                                        <div class="flex items-center gap-2 flex-wrap">
+                                <div class="mt-4 grid grid-cols-1 gap-3 text-xs md:grid-cols-2">
+                                    <div class="space-y-1 rounded-lg border border-surface-container-highest bg-surface-container-low p-3.5">
+                                        <span class="block text-[10px] font-bold uppercase text-on-surface-variant">Trạng thái đối soát &amp; Hóa đơn VAT</span>
+                                        <div class="flex flex-wrap items-center gap-2">
                                             <x-ui.badge :color="$reconciliation['tone'] ?? 'neutral'">{{ $reconciliation['label'] ?? '—' }}</x-ui.badge>
                                             @if ($selectedReceipt->is_vat_invoice)
-                                                <span class="inline-flex items-center text-blue-700 font-bold bg-blue-50 px-2.5 py-1 rounded border border-blue-200 text-xs">
-                                                    Yêu cầu hóa đơn đỏ (VAT)
-                                                </span>
+                                                <x-ui.badge color="info" :dot="false">Yêu cầu hóa đơn đỏ (VAT)</x-ui.badge>
                                             @else
-                                                <span class="inline-flex items-center text-slate-600 font-medium bg-slate-100 px-2.5 py-1 rounded border border-slate-200 text-xs">
-                                                    Không yêu cầu hóa đơn đỏ
-                                                </span>
+                                                <x-ui.badge color="neutral" :dot="false">Không yêu cầu hóa đơn đỏ</x-ui.badge>
                                             @endif
                                         </div>
                                     </div>
 
-                                    <div class="p-3.5 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
-                                        <span class="text-[10px] font-bold text-slate-500 uppercase block">Ghi chú từ nhân viên tạo phiếu (CM)</span>
-                                        <p class="text-slate-700 italic text-xs leading-relaxed">
+                                    <div class="space-y-1 rounded-lg border border-surface-container-highest bg-surface-container-low p-3.5">
+                                        <span class="block text-[10px] font-bold uppercase text-on-surface-variant">Ghi chú từ nhân viên tạo phiếu (CM)</span>
+                                        <p class="text-xs italic leading-relaxed text-on-surface-variant">
                                             {{ $selectedReceipt->notes ? '"'.$selectedReceipt->notes.'"' : 'Không có ghi chú.' }}
                                         </p>
                                     </div>
@@ -411,73 +344,69 @@
                             </div>
 
                             {{-- KHỐI 3: Minh chứng chuyển khoản (UNC) & Đối chiếu --}}
-                            <div class="rounded-xl border border-slate-200/90 p-4 lg:p-5">
-                                <div class="flex items-center justify-between mb-3.5">
+                            <div class="rounded-xl border border-surface-container-highest p-4 lg:p-5">
+                                <div class="mb-3.5 flex items-center justify-between">
                                     <div class="flex items-center gap-2">
-                                        <div class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">
+                                        <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-secondary/10 text-xs font-bold text-secondary">
                                             <span class="material-symbols-outlined text-base">receipt</span>
                                         </div>
                                         <div>
-                                            <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide">3. Minh chứng chuyển khoản (UNC) / Biên lai</h3>
-                                            <p class="text-xs text-slate-400">Đối chiếu mã giao dịch và số tài khoản nhận</p>
+                                            <h3 class="text-sm font-bold uppercase tracking-wide text-on-surface">3. Minh chứng chuyển khoản (UNC) / Biên lai</h3>
+                                            <p class="text-xs text-on-surface-variant/70">Đối chiếu mã giao dịch và số tài khoản nhận</p>
                                         </div>
                                     </div>
 
-                                    <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs">
-                                        <button type="button" @click="zoomImage = true" class="p-1.5 rounded hover:bg-white text-slate-600 transition" title="Phóng to">
-                                            <span class="material-symbols-outlined text-base">zoom_in</span>
-                                        </button>
+                                    <div class="flex items-center gap-1.5 rounded-lg border border-surface-container-highest bg-surface-container p-1">
+                                        <x-ui.button variant="ghost" size="sm" icon="zoom_in" x-on:click="$dispatch('open-modal', 'zoom-proof')" title="Phóng to" aria-label="Phóng to" />
                                         @if ($selectedReceipt->proof_image)
-                                            <a href="{{ $selectedReceipt->proof_image }}" target="_blank" download class="p-1.5 rounded hover:bg-white text-slate-600 transition" title="Tải ảnh gốc">
-                                                <span class="material-symbols-outlined text-base">download</span>
-                                            </a>
+                                            <x-ui.button variant="ghost" size="sm" icon="download" :href="$selectedReceipt->proof_image" target="_blank" download title="Tải ảnh gốc" aria-label="Tải ảnh gốc" />
                                         @endif
                                     </div>
                                 </div>
 
-                                <div class="bg-slate-900 rounded-xl p-5 flex flex-col md:flex-row items-center gap-5 border border-slate-800">
+                                <div class="flex flex-col items-center gap-5 rounded-xl border border-inverse-surface bg-inverse-surface p-5 md:flex-row">
                                     {{-- Proof Image Frame --}}
-                                    <div class="relative w-full md:w-64 h-52 bg-slate-800 rounded-lg overflow-hidden border border-slate-700 flex items-center justify-center shrink-0 cursor-pointer group/img" @click="zoomImage = true">
+                                    <div class="group/img relative flex h-52 w-full shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/5 md:w-64" x-on:click="$dispatch('open-modal', 'zoom-proof')">
                                         @if ($selectedReceipt->proof_image)
-                                            <img src="{{ $selectedReceipt->proof_image }}" alt="Minh chứng" class="w-full h-full object-contain" />
+                                            <img src="{{ $selectedReceipt->proof_image }}" alt="Minh chứng" class="h-full w-full object-contain" />
                                         @else
-                                            <div class="w-full h-full flex flex-col items-center justify-center gap-2 text-slate-400 text-xs">
-                                                <span class="material-symbols-outlined text-3xl text-slate-500">image_not_supported</span>
-                                                <span class="font-bold text-slate-300">Chưa có minh chứng</span>
-                                                <span class="text-[11px] text-slate-500 text-center px-3">Người lập chưa đính kèm ảnh chuyển khoản / biên lai.</span>
+                                            <div class="flex h-full w-full flex-col items-center justify-center gap-2 text-xs text-inverse-on-surface/70">
+                                                <span class="material-symbols-outlined text-3xl text-inverse-on-surface/60">image_not_supported</span>
+                                                <span class="font-bold text-inverse-on-surface">Chưa có minh chứng</span>
+                                                <span class="px-3 text-center text-[11px] text-inverse-on-surface/60">Người lập chưa đính kèm ảnh chuyển khoản / biên lai.</span>
                                             </div>
                                         @endif
-                                        <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover/img:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1">
+                                        <div class="absolute inset-0 flex items-center justify-center gap-1 bg-black/40 text-xs font-bold text-white opacity-0 transition group-hover/img:opacity-100">
                                             <span class="material-symbols-outlined text-base">zoom_in</span> Bấm để phóng to
                                         </div>
                                     </div>
 
                                     {{-- Proof Match Details --}}
-                                    <div class="flex-1 w-full space-y-2.5 text-xs">
-                                        <div class="bg-slate-800/80 p-3.5 rounded-lg border border-slate-700 space-y-2">
+                                    <div class="w-full flex-1 space-y-2.5 text-xs">
+                                        <div class="space-y-2 rounded-lg border border-white/10 bg-white/5 p-3.5">
                                             <div class="flex items-center justify-between">
-                                                <span class="text-slate-400">Mã tham chiếu:</span>
-                                                <span class="font-mono font-bold text-amber-400">{{ $selectedReceipt->transaction_code ?: ($selectedReceipt->paper_invoice_number ?: '—') }}</span>
+                                                <span class="text-inverse-on-surface/70">Mã tham chiếu:</span>
+                                                <span class="font-code font-bold text-warning-container">{{ $selectedReceipt->transaction_code ?: ($selectedReceipt->paper_invoice_number ?: '—') }}</span>
                                             </div>
                                             <div class="flex items-center justify-between">
-                                                <span class="text-slate-400">Tài khoản thụ hưởng:</span>
-                                                <span class="font-medium text-slate-200">{{ $beneficiaryAccount ? $beneficiaryAccount->account_number.' ('.$beneficiaryAccount->bank_name.')' : '—' }}</span>
+                                                <span class="text-inverse-on-surface/70">Tài khoản thụ hưởng:</span>
+                                                <span class="font-medium text-inverse-on-surface">{{ $beneficiaryAccount ? $beneficiaryAccount->account_number.' ('.$beneficiaryAccount->bank_name.')' : '—' }}</span>
                                             </div>
                                             <div class="flex items-center justify-between">
-                                                <span class="text-slate-400">Thời gian giao dịch:</span>
-                                                <span class="text-slate-200 font-mono">{{ $selectedReceipt->payment_date?->format('H:i - d/m/Y') ?? '—' }}</span>
+                                                <span class="text-inverse-on-surface/70">Thời gian giao dịch:</span>
+                                                <span class="font-code text-inverse-on-surface">{{ $selectedReceipt->payment_date?->format('H:i - d/m/Y') ?? '—' }}</span>
                                             </div>
                                             <div class="flex items-center justify-between">
-                                                <span class="text-slate-400">Trạng thái đối soát:</span>
-                                                <span @class(['font-bold flex items-center gap-1 text-xs', 'text-emerald-400' => ($reconciliation['tone'] ?? '') === 'success', 'text-rose-400' => ($reconciliation['tone'] ?? '') === 'error', 'text-amber-400' => ! in_array($reconciliation['tone'] ?? '', ['success', 'error'], true)])>
+                                                <span class="text-inverse-on-surface/70">Trạng thái đối soát:</span>
+                                                <span @class(['font-bold flex items-center gap-1 text-xs', 'text-tertiary-fixed-dim' => ($reconciliation['tone'] ?? '') === 'success', 'text-error-container' => ($reconciliation['tone'] ?? '') === 'error', 'text-warning-container' => ! in_array($reconciliation['tone'] ?? '', ['success', 'error'], true)])>
                                                     <span class="material-symbols-outlined text-sm">{{ ($reconciliation['tone'] ?? '') === 'success' ? 'verified' : 'pending' }}</span>
                                                     {{ $reconciliation['label'] ?? 'Cần đối chiếu thủ công' }}
                                                 </span>
                                             </div>
                                         </div>
 
-                                        <div class="p-3 rounded-lg bg-amber-900/20 border border-amber-700/40 text-amber-200 text-xs flex items-start gap-2">
-                                            <span class="material-symbols-outlined text-amber-400 text-base shrink-0 mt-0.5">info</span>
+                                        <div class="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/20 p-3 text-xs text-warning-container">
+                                            <span class="material-symbols-outlined mt-0.5 shrink-0 text-base text-warning-container">info</span>
                                             <span>
                                                 {{ $reconciliation['detail'] ?? '' }}
                                                 @if ($selectedReceipt->proof_image)
@@ -493,34 +422,22 @@
                         </div>
 
                         {{-- KHỐI 4: Thanh tác vụ phê duyệt --}}
-                        <footer class="p-4 lg:p-5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
-                            <div class="text-xs text-slate-500 flex items-center gap-1.5">
-                                <span class="material-symbols-outlined text-base text-slate-400">info</span>
+                        <footer class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-container-highest bg-surface-container-low p-4 lg:p-5">
+                            <div class="flex items-center gap-1.5 text-xs text-on-surface-variant">
+                                <span class="material-symbols-outlined text-base text-on-surface-variant/70">info</span>
                                 <span>Thao tác duyệt sẽ lập tức hạch toán số dư công nợ của học viên và cấp số hóa đơn.</span>
                             </div>
 
                             <div class="flex items-center gap-3">
                                 @if ($selectedReceipt->status === 'pending')
-                                    <button type="button" @click="showRejectModal = true" class="px-4 py-2.5 rounded-xl border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 font-bold text-xs transition inline-flex items-center gap-1.5 shadow-sm cursor-pointer">
-                                        <span class="material-symbols-outlined text-base text-rose-600">close</span>
-                                        Từ chối phiếu thu
-                                    </button>
-                                    <button type="button" @click="showApproveModal = true" class="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white font-bold text-xs transition shadow-sm inline-flex items-center gap-1.5 cursor-pointer">
-                                        <span class="material-symbols-outlined text-base">check</span>
-                                        Duyệt phiếu thu ({{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} VNĐ)
-                                    </button>
+                                    <x-ui.button variant="danger-text" icon="close" x-on:click="$dispatch('open-modal', 'reject-receipt')">Từ chối phiếu thu</x-ui.button>
+                                    <x-ui.button icon="check" x-on:click="$dispatch('open-modal', 'approve-receipt')">Duyệt phiếu thu ({{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} VNĐ)</x-ui.button>
                                 @elseif ($selectedReceipt->status === 'approved')
-                                    <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-3.5 py-2 rounded-xl border border-emerald-200 flex items-center gap-1.5">
-                                        <span class="material-symbols-outlined text-base">check_circle</span>
-                                        Đã duyệt bởi {{ $selectedReceipt->approver?->name ?? 'Admin' }}
-                                    </span>
+                                    <x-ui.badge color="success" pill>Đã duyệt bởi {{ $selectedReceipt->approver?->name ?? 'Admin' }}</x-ui.badge>
                                 @elseif (in_array($selectedReceipt->status, \App\Models\TuitionReceipt::EDITABLE_STATUSES, true)
                                     && (auth()->id() === $selectedReceipt->creator_id || auth()->user()?->isSuperAdmin()))
-                                    <span class="text-xs font-bold px-3.5 py-2 rounded-xl border {{ $selectedReceipt->status_badge }}">{{ $selectedReceipt->status_label }}</span>
-                                    <a href="{{ route('tuition.receipts.edit', $selectedReceipt->id) }}" class="px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition inline-flex items-center gap-1.5">
-                                        <span class="material-symbols-outlined text-base">edit</span>
-                                        Sửa phiếu
-                                    </a>
+                                    <x-ui.badge :color="$selectedReceipt->status_color" :dot="false">{{ $selectedReceipt->status_label }}</x-ui.badge>
+                                    <x-ui.button variant="secondary" icon="edit" :href="route('tuition.receipts.edit', $selectedReceipt->id)">Sửa phiếu</x-ui.button>
                                     {{-- Người lập gửi duyệt lại (giữ nguyên số liệu; sửa chi tiết qua màn Sửa phiếu) --}}
                                     <form method="POST" action="{{ route('tuition.receipts.update', $selectedReceipt->id) }}">
                                         @csrf
@@ -532,121 +449,67 @@
                                         <input type="hidden" name="surcharge_reason" value="{{ $selectedReceipt->surcharge_reason }}">
                                         <input type="hidden" name="payment_method" value="{{ $selectedReceipt->payment_method }}">
                                         <input type="hidden" name="submit_action" value="submit">
-                                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white font-bold text-xs transition shadow-sm inline-flex items-center gap-1.5">
-                                            <span class="material-symbols-outlined text-base">send</span>
-                                            Gửi duyệt lại
-                                        </button>
+                                        <x-ui.button type="submit" icon="send">Gửi duyệt lại</x-ui.button>
                                     </form>
                                 @else
-                                    <span class="text-xs font-bold px-3.5 py-2 rounded-xl border {{ $selectedReceipt->status_badge }}">{{ $selectedReceipt->status_label }}</span>
+                                    <x-ui.badge :color="$selectedReceipt->status_color" :dot="false">{{ $selectedReceipt->status_label }}</x-ui.badge>
                                 @endif
                             </div>
                         </footer>
                     </div>
 
                     {{-- MODAL 1: Xác nhận Duyệt phiếu thu --}}
-                    <div x-show="showApproveModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-                        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4" @click.away="showApproveModal = false">
-                            <div class="flex items-center gap-3">
-                                <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                                    <span class="material-symbols-outlined text-2xl">verified</span>
-                                </div>
-                                <div>
-                                    <h4 class="text-sm font-bold text-slate-900">Xác nhận duyệt phiếu thu</h4>
-                                    <span class="text-xs text-slate-500 font-mono">Mã: {{ $selectedReceipt->receipt_number }}</span>
-                                </div>
-                            </div>
-
-                            <div class="space-y-2.5 text-xs text-slate-600 leading-relaxed">
-                                <p>
-                                    Bạn có chắc chắn muốn duyệt phiếu thu <strong class="text-slate-900 font-mono">{{ $selectedReceipt->receipt_number }}</strong> với tổng số tiền <strong class="text-primary font-bold text-sm font-mono">{{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} VNĐ</strong> cho học viên <strong class="text-slate-900">{{ $st?->name }}</strong>?
-                                </p>
-                            </div>
-
-                            <form action="{{ route('tuition.receipts.approve.action', $selectedReceipt->id) }}" method="POST" class="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-end gap-2.5">
-                                @csrf
-                                @if (($sepayWarnings ?? collect())->isNotEmpty())
-                                    <label class="w-full flex items-start gap-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900">
-                                        <input type="checkbox" name="confirm_not_duplicate" value="1" class="mt-0.5 rounded text-primary focus:ring-primary-container">
-                                        <span>Xác nhận không trùng giao dịch SePay: tôi đã đối chiếu sao kê, đây là một khoản chuyển khác.</span>
-                                    </label>
-                                @endif
-                                <button type="button" @click="showApproveModal = false" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs transition">
-                                    Hủy bỏ
-                                </button>
-                                <button type="submit" class="px-5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white font-bold text-xs transition shadow-sm flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-sm">check</span>
-                                    Xác nhận phê duyệt
-                                </button>
-                            </form>
-                        </div>
-                    </div>
+                    <x-ui.modal name="approve-receipt" title="Xác nhận duyệt phiếu thu" max-width="md">
+                        <p class="mb-3 font-code text-xs text-on-surface-variant">Mã: {{ $selectedReceipt->receipt_number }}</p>
+                        <form id="approve-receipt-form" action="{{ route('tuition.receipts.approve.action', $selectedReceipt->id) }}" method="POST" class="space-y-3 text-xs leading-relaxed text-on-surface-variant">
+                            @csrf
+                            <p>
+                                Bạn có chắc chắn muốn duyệt phiếu thu <strong class="font-code text-on-surface">{{ $selectedReceipt->receipt_number }}</strong> với tổng số tiền <strong class="font-code text-sm font-bold text-primary">{{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} VNĐ</strong> cho học viên <strong class="text-on-surface">{{ $st?->name }}</strong>?
+                            </p>
+                            @if (($sepayWarnings ?? collect())->isNotEmpty())
+                                <label class="flex w-full items-start gap-2 rounded-xl border border-warning/30 bg-warning-container p-2.5 text-[11px] text-on-warning-container">
+                                    <input type="checkbox" name="confirm_not_duplicate" value="1" class="mt-0.5 rounded text-primary focus:ring-primary-container">
+                                    <span>Xác nhận không trùng giao dịch SePay: tôi đã đối chiếu sao kê, đây là một khoản chuyển khác.</span>
+                                </label>
+                            @endif
+                        </form>
+                        <x-slot:footer>
+                            <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'approve-receipt')">Hủy bỏ</x-ui.button>
+                            <x-ui.button type="submit" icon="check" form="approve-receipt-form">Xác nhận phê duyệt</x-ui.button>
+                        </x-slot:footer>
+                    </x-ui.modal>
 
                     {{-- MODAL 2: Từ chối phiếu thu (Nhập lý do) --}}
-                    <div x-show="showRejectModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-                        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4" @click.away="showRejectModal = false">
-                            <div class="flex items-center gap-3">
-                                <div class="w-12 h-12 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
-                                    <span class="material-symbols-outlined text-2xl">warning</span>
-                                </div>
-                                <div>
-                                    <h4 class="text-sm font-bold text-slate-900">Từ chối duyệt phiếu thu</h4>
-                                    <span class="text-xs text-slate-500 font-mono">Phiếu: {{ $selectedReceipt->receipt_number }} • Học viên: {{ $st?->name }}</span>
-                                </div>
-                            </div>
+                    <x-ui.modal name="reject-receipt" title="Từ chối duyệt phiếu thu" max-width="md">
+                        <p class="mb-3 font-code text-xs text-on-surface-variant">Phiếu: {{ $selectedReceipt->receipt_number }} • Học viên: {{ $st?->name }}</p>
+                        <form id="reject-receipt-form" action="{{ route('tuition.receipts.reject.action', $selectedReceipt->id) }}" method="POST" class="space-y-3">
+                            @csrf
+                            <x-ui.textarea name="rejection_reason" label="Lý do từ chối duyệt (Bắt buộc)" required rows="3" placeholder="Ví dụ: Ảnh chụp ủy nhiệm chi bị mất góc mã tham chiếu, số tiền chuyển khoản không khớp với phiếu..." />
 
-                            <form action="{{ route('tuition.receipts.reject.action', $selectedReceipt->id) }}" method="POST" class="space-y-3 text-xs">
-                                @csrf
-                                <div>
-                                    <label class="block font-bold text-slate-900 mb-1">
-                                        Lý do từ chối duyệt <span class="text-rose-500">* (Bắt buộc)</span>
-                                    </label>
-                                    <textarea name="rejection_reason" required rows="3" placeholder="Ví dụ: Ảnh chụp ủy nhiệm chi bị mất góc mã tham chiếu, số tiền chuyển khoản không khớp với phiếu..." class="w-full text-xs rounded-xl border-slate-200 focus:border-rose-500 focus:ring-rose-500/20 p-2.5"></textarea>
-                                </div>
-
-                                <div class="p-3 bg-rose-50 rounded-xl border border-rose-200 text-rose-800 text-[11px] leading-relaxed">
-                                    <strong>Thông báo hệ thống:</strong> Phiếu thu này sẽ chuyển về trạng thái <strong>"Bị từ chối"</strong> kèm thông báo lý do từ chối gửi trả lại nhân viên phụ trách <strong>{{ $selectedReceipt->creator?->name ?? 'CM' }}</strong> để bổ sung minh chứng.
-                                </div>
-
-                                <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
-                                    <button type="button" @click="showRejectModal = false" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs transition">
-                                        Quay lại
-                                    </button>
-                                    <button type="submit" class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition shadow-sm flex items-center gap-1">
-                                        <span class="material-symbols-outlined text-sm">close</span>
-                                        Xác nhận từ chối
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
+                            <x-ui.alert type="error">
+                                <span class="text-[11px] leading-relaxed"><strong>Thông báo hệ thống:</strong> Phiếu thu này sẽ chuyển về trạng thái <strong>"Bị từ chối"</strong> kèm thông báo lý do từ chối gửi trả lại nhân viên phụ trách <strong>{{ $selectedReceipt->creator?->name ?? 'CM' }}</strong> để bổ sung minh chứng.</span>
+                            </x-ui.alert>
+                        </form>
+                        <x-slot:footer>
+                            <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'reject-receipt')">Quay lại</x-ui.button>
+                            <x-ui.button variant="danger" type="submit" icon="close" form="reject-receipt-form">Xác nhận từ chối</x-ui.button>
+                        </x-slot:footer>
+                    </x-ui.modal>
 
                     {{-- MODAL 3: Phóng to minh chứng --}}
-                    <div x-show="zoomImage" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md" @click="zoomImage = false">
-                        <div class="relative max-w-3xl w-full bg-slate-900 rounded-2xl p-4 overflow-hidden border border-slate-700" @click.stop>
-                            <div class="flex justify-between items-center pb-3 border-b border-slate-800 text-xs text-white">
-                                <span class="font-bold">Minh chứng đối soát: {{ $selectedReceipt->receipt_number }}</span>
-                                <button type="button" @click="zoomImage = false" class="text-slate-400 hover:text-white">
-                                    <span class="material-symbols-outlined text-lg">close</span>
-                                </button>
-                            </div>
-                            <div class="p-4 flex items-center justify-center min-h-[300px]">
-                                @if ($selectedReceipt->proof_image)
-                                    <img src="{{ $selectedReceipt->proof_image }}" alt="Minh chứng" class="max-h-[70vh] object-contain rounded-lg" />
-                                @else
-                                    <div class="text-center text-slate-400 space-y-2">
-                                        <span class="material-symbols-outlined text-4xl text-slate-500">receipt_long</span>
-                                        <p class="text-xs">Chưa có minh chứng</p>
-                                    </div>
-                                @endif
-                            </div>
+                    <x-ui.modal name="zoom-proof" :title="'Minh chứng đối soát: '.$selectedReceipt->receipt_number" max-width="3xl">
+                        <div class="flex min-h-[300px] items-center justify-center">
+                            @if ($selectedReceipt->proof_image)
+                                <img src="{{ $selectedReceipt->proof_image }}" alt="Minh chứng" class="max-h-[70vh] rounded-lg object-contain" />
+                            @else
+                                <x-ui.empty-state icon="receipt_long" title="Chưa có minh chứng" />
+                            @endif
                         </div>
-                    </div>
+                    </x-ui.modal>
                 @else
-                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-12 text-center text-slate-400 space-y-3">
-                        <span class="material-symbols-outlined text-4xl text-slate-300">receipt_long</span>
-                        <h3 class="text-sm font-bold text-slate-700">Chưa chọn phiếu thu nào</h3>
-                        <p class="text-xs text-slate-400">Vui lòng bấm chọn một phiếu thu từ danh sách chờ duyệt bên trái để kiểm tra chi tiết và đối chiếu chứng từ.</p>
+                    <div class="rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-12 shadow-sm">
+                        <x-ui.empty-state icon="receipt_long" title="Chưa chọn phiếu thu nào"
+                                          description="Vui lòng bấm chọn một phiếu thu từ danh sách chờ duyệt bên trái để kiểm tra chi tiết và đối chiếu chứng từ." />
                     </div>
                 @endif
             </section>

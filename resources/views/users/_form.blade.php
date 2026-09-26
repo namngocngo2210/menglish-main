@@ -74,7 +74,7 @@
                         </label>
                     @endforeach
                 </div>
-                <x-input-error :messages="array_merge($errors->get('concurrent_roles'), collect($errors->get('concurrent_roles.*'))->flatten()->all())" class="mt-1 text-xs" />
+                <x-ui.errors class="mt-1" :messages="array_merge($errors->get('concurrent_roles'), collect($errors->get('concurrent_roles.*'))->flatten()->all())" />
             </fieldset>
         @endcan
 

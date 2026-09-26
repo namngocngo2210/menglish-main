@@ -1,4 +1,13 @@
-@props(['align' => 'right', 'width' => '48', 'contentClasses' => 'py-1 bg-white'])
+{{--
+    <x-ui.dropdown> — menu thả xuống (Alpine): slot `trigger` (nút mở) + slot `content` (danh sách mục).
+    Props: align (right | left | top), width (48 | 56 | 64 | 72 | 80 | 96 | notification | class w-*), contentClasses
+    Ví dụ:
+      <x-ui.dropdown align="right" width="56">
+          <x-slot name="trigger"><x-ui.button variant="secondary" type="button">Xếp lớp</x-ui.button></x-slot>
+          <x-slot name="content"><a href="..." class="block px-md py-sm hover:bg-surface-container-low">Mục</a></x-slot>
+      </x-ui.dropdown>
+--}}
+@props(['align' => 'right', 'width' => '48', 'contentClasses' => 'py-1 bg-surface-container-lowest'])
 
 @php
 $alignmentClasses = match ($align) {

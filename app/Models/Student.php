@@ -225,13 +225,13 @@ class Student extends Model
     public function getStatusBadgeAttribute(): string
     {
         return match ($this->status) {
-            'waiting_start' => 'bg-sky-50 text-sky-700 border-sky-200',
-            'studying' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
-            'deferred' => 'bg-amber-50 text-amber-700 border-amber-200',
-            'summer_break' => 'bg-cyan-50 text-cyan-700 border-cyan-200',
-            'completed' => 'bg-blue-50 text-blue-700 border-blue-200',
-            'dropped' => 'bg-rose-50 text-rose-700 border-rose-200',
-            default => 'bg-gray-50 text-gray-700 border-gray-200',
+            'waiting_start' => 'bg-info/10 text-info border-info/30',
+            'studying' => 'bg-tertiary/10 text-tertiary border-tertiary/30',
+            'deferred' => 'bg-warning/10 text-warning border-warning/30',
+            'summer_break' => 'bg-info/10 text-info border-info/30',
+            'completed' => 'bg-secondary/10 text-secondary border-secondary/30',
+            'dropped' => 'bg-error/10 text-error border-error/30',
+            default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
     }
 

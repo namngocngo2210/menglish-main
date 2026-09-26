@@ -15,14 +15,11 @@
         </x-slot:breadcrumbs>
         <x-slot:actions>
             @if ($stageControls['canLose'])
-                <button type="button" onclick="document.getElementById('markLostModal').classList.remove('hidden')"
-                        class="inline-flex items-center gap-xs rounded-lg border border-error px-md py-sm font-body-medium text-body-medium text-error transition-colors hover:bg-error-container/40">
-                    <span class="material-symbols-outlined text-[18px]">person_off</span><span>Thất bại</span>
-                </button>
+                <x-ui.button variant="danger-text" icon="person_off" class="!border-error" onclick="window.dispatchEvent(new CustomEvent('open-modal', { detail: 'crm-mark-lost' }))"><span>Thất bại</span></x-ui.button>
             @endif
             <x-ui.button variant="secondary" icon="print" :href="route('crm.customers.print', $customer->id)" target="_blank">In hồ sơ</x-ui.button>
             @if ($canReassign)
-                <x-ui.button icon="person_add" x-data @click="$dispatch('open-modal', 'reassign-customer')">Phân công lại</x-ui.button>
+                <x-ui.button icon="person_add" x-data x-on:click="$dispatch('open-modal', 'reassign-customer')">Phân công lại</x-ui.button>
             @endif
         </x-slot:actions>
     </x-ui.page-header>
@@ -37,7 +34,7 @@
             </form>
         @endif
         @if ($stageControls['backward'])
-            <x-ui.button variant="danger-text" size="sm" icon="undo" onclick="document.getElementById('stageBackwardModal').classList.remove('hidden')">Lùi giai đoạn</x-ui.button>
+            <x-ui.button variant="danger-text" size="sm" icon="undo" onclick="window.dispatchEvent(new CustomEvent('open-modal', { detail: 'crm-stage-backward' }))">Lùi giai đoạn</x-ui.button>
         @endif
         @can('lead.convert')
             @if (in_array($customer->stage, \App\Models\CrmCustomer::CLOSABLE_STAGES, true) && ! $customer->converted_student_id)
@@ -50,7 +47,7 @@
             @endcan
         @endif
         @if ($canBookTrial)
-            <x-ui.button variant="secondary" size="sm" icon="school" onclick="document.getElementById('scheduleTrialModal').classList.remove('hidden')">Đặt học thử</x-ui.button>
+            <x-ui.button variant="secondary" size="sm" icon="school" onclick="window.dispatchEvent(new CustomEvent('open-modal', { detail: 'crm-schedule-trial' }))">Đặt học thử</x-ui.button>
         @endif
         @can('lead.update')
             <x-ui.button variant="secondary" size="sm" icon="edit" :href="route('crm.customers.edit', $customer->id)">Sửa thông tin</x-ui.button>
@@ -76,163 +73,113 @@
                 <x-ui.textarea name="reason" label="Lý do phân công lại" required rows="3" placeholder="VD: Sales cũ nghỉ phép, chuyển khách cho cơ sở khác..." />
             </form>
             <x-slot:footer>
-                <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'reassign-customer')">Hủy</x-ui.button>
+                <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'reassign-customer')">Hủy</x-ui.button>
                 <x-ui.button type="submit" form="reassign-form" icon="assignment_ind">Phân công lại</x-ui.button>
             </x-slot:footer>
         </x-ui.modal>
     @endif
 
-    <div id="markLostModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 shadow-2xl">
-            <h3 class="font-h3 text-h3 mb-md">Ghi nhận lý do thất bại</h3>
-            <p class="text-xs text-gray-500 mb-3">Khách thất bại được lưu để đối soát và không mở lại.</p>
-            <form action="{{ route('crm.customers.stage', $customer->id) }}" method="POST" class="space-y-3 text-xs">
-                @csrf
-                <input type="hidden" name="stage" value="lost" />
-                <textarea name="lost_reason" rows="4" required placeholder="Ví dụ: chưa phù hợp học phí, lịch học, không liên hệ được..." class="w-full rounded-lg border-outline-variant font-body-small text-body-small"></textarea>
-                <div class="flex justify-end gap-2">
-                    <button type="button" onclick="document.getElementById('markLostModal').classList.add('hidden')" class="rounded-lg border border-outline-variant px-md py-sm">Hủy</button>
-                    <button type="submit" class="rounded-lg bg-error px-md py-sm font-body-medium text-white">Xác nhận</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <x-ui.modal name="crm-mark-lost" id="markLostModal" title="Ghi nhận lý do thất bại" max-width="md">
+        <p class="mb-3 text-xs text-on-surface-variant">Khách thất bại được lưu để đối soát và không mở lại.</p>
+        <form id="mark-lost-form" action="{{ route('crm.customers.stage', $customer->id) }}" method="POST" class="space-y-3 text-xs">
+            @csrf
+            <input type="hidden" name="stage" value="lost" />
+            <x-ui.textarea name="lost_reason" rows="4" required placeholder="Ví dụ: chưa phù hợp học phí, lịch học, không liên hệ được..." aria-label="Lý do thất bại" />
+        </form>
+        <x-slot:footer>
+            <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'crm-mark-lost')">Hủy</x-ui.button>
+            <x-ui.button type="submit" form="mark-lost-form" variant="danger">Xác nhận</x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal>
 
     @if ($stageControls['backward'])
-    <div id="stageBackwardModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 shadow-2xl">
-            <h3 class="font-h3 text-h3 mb-sm">Lùi giai đoạn khách</h3>
-            <p class="text-xs text-gray-500 mb-3">Chỉ Admin được lùi giai đoạn; lý do được lưu vào lịch sử.</p>
-            <form action="{{ route('crm.customers.stage', $customer->id) }}" method="POST" class="space-y-3 text-xs">
-                @csrf
-                <select name="stage" required class="w-full rounded-lg border-outline-variant font-body-small text-body-small">
-                    @foreach (array_reverse($stageControls['backward']) as $target)
-                        <option value="{{ $target }}">{{ \App\Models\CrmCustomer::stageLabel($target) }}</option>
-                    @endforeach
-                </select>
-                <textarea name="reason" rows="3" required placeholder="Lý do lùi giai đoạn (bắt buộc)" class="w-full rounded-lg border-outline-variant font-body-small text-body-small"></textarea>
-                <div class="flex justify-end gap-2">
-                    <button type="button" onclick="document.getElementById('stageBackwardModal').classList.add('hidden')" class="rounded-lg border border-outline-variant px-md py-sm">Hủy</button>
-                    <button type="submit" class="rounded-lg bg-error px-md py-sm font-body-medium text-white">Lùi giai đoạn</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <x-ui.modal name="crm-stage-backward" id="stageBackwardModal" title="Lùi giai đoạn khách" max-width="md">
+        <p class="mb-3 text-xs text-on-surface-variant">Chỉ Admin được lùi giai đoạn; lý do được lưu vào lịch sử.</p>
+        <form id="stage-backward-form" action="{{ route('crm.customers.stage', $customer->id) }}" method="POST" class="space-y-3 text-xs">
+            @csrf
+            <x-ui.select name="stage" value="" required aria-label="Giai đoạn lùi về">
+                @foreach (array_reverse($stageControls['backward']) as $target)
+                    <option value="{{ $target }}">{{ \App\Models\CrmCustomer::stageLabel($target) }}</option>
+                @endforeach
+            </x-ui.select>
+            <x-ui.textarea name="reason" rows="3" required placeholder="Lý do lùi giai đoạn (bắt buộc)" aria-label="Lý do lùi giai đoạn" />
+        </form>
+        <x-slot:footer>
+            <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'crm-stage-backward')">Hủy</x-ui.button>
+            <x-ui.button type="submit" form="stage-backward-form" variant="danger">Lùi giai đoạn</x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal>
     @endif
 
     @if ($canBookTrial)
     {{-- Học thử: hoạt động trong giai đoạn tư vấn (không đổi stage) --}}
-    <div id="scheduleTrialModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 shadow-2xl">
-            <h3 class="font-h3 text-h3 mb-xs">Đặt lịch học thử</h3>
-            <p class="text-xs text-gray-500 mb-2">Chọn 1–2 buổi học thật của lớp cùng trình độ tại {{ $customer->branch?->name ?? 'chi nhánh của khách' }}. Giáo viên của buổi sẽ thấy khách trong trang "Nhận xét học thử" và nhận xét như học sinh chính thức.</p>
-            <p class="text-xs mb-4 {{ $trialRemaining > 0 ? 'text-fuchsia-700' : 'text-rose-700' }} font-semibold">Còn đặt được {{ $trialRemaining }}/{{ \App\Models\CrmTrialBooking::MAX_ACTIVE_PER_LEAD }} buổi học thử.@if ($latestSubmission?->finalClass()) Trình độ theo test: {{ $latestSubmission->finalClass() }}.@endif</p>
-            <form action="{{ route('crm.customers.trial-bookings.store', $customer->id) }}" method="POST" class="space-y-3 text-xs">
-                @csrf
-                <div class="max-h-64 overflow-y-auto border border-gray-100 rounded-xl divide-y divide-gray-100">
-                    @forelse ($trialSessions as $session)
-                        <label class="flex items-start gap-2 p-2.5 hover:bg-fuchsia-50/40 cursor-pointer">
-                            <input type="checkbox" name="class_session_ids[]" value="{{ $session->id }}" class="mt-0.5 rounded border-gray-300 text-fuchsia-600" />
-                            <span>
-                                <span class="font-bold text-gray-900">{{ $session->classModel?->name }}</span>
-                                @if ($session->matches_level)<span class="ml-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold text-[10px]">Khớp trình độ</span>@endif
-                                <span class="text-gray-500">· {{ $session->classModel?->course?->name ?? 'Chưa gán khóa' }}{{ $session->classModel?->level ? ' · '.$session->classModel->level : '' }}</span>
-                                <span class="block text-gray-500">{{ $session->date->format('d/m/Y') }} · {{ $session->start_time?->format('H:i') }}–{{ $session->end_time?->format('H:i') }} · GV: {{ $session->teacher?->name ?? 'Chưa gán' }}</span>
-                            </span>
-                        </label>
-                    @empty
-                        <div class="p-4 text-center text-gray-400">Chưa có buổi học sắp tới phù hợp.</div>
-                    @endforelse
-                </div>
-                <textarea name="notes" rows="2" placeholder="Ghi chú cho giáo viên (trình độ, mục tiêu...)" class="w-full rounded-lg border-outline-variant font-body-small text-body-small"></textarea>
-                <div class="flex justify-end gap-2">
-                    <button type="button" onclick="document.getElementById('scheduleTrialModal').classList.add('hidden')" class="rounded-lg border border-outline-variant px-md py-sm">Hủy</button>
-                    <button type="submit" class="rounded-lg bg-primary-container px-md py-sm font-body-medium text-white">Lưu lịch học thử</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <x-ui.modal name="crm-schedule-trial" id="scheduleTrialModal" title="Đặt lịch học thử" max-width="lg">
+        <p class="mb-2 text-xs text-on-surface-variant">Chọn 1–2 buổi học thật của lớp cùng trình độ tại {{ $customer->branch?->name ?? 'chi nhánh của khách' }}. Giáo viên của buổi sẽ thấy khách trong trang "Nhận xét học thử" và nhận xét như học sinh chính thức.</p>
+        <p class="text-xs mb-4 {{ $trialRemaining > 0 ? 'text-secondary' : 'text-error' }} font-semibold">Còn đặt được {{ $trialRemaining }}/{{ \App\Models\CrmTrialBooking::MAX_ACTIVE_PER_LEAD }} buổi học thử.@if ($latestSubmission?->finalClass()) Trình độ theo test: {{ $latestSubmission->finalClass() }}.@endif</p>
+        <form id="schedule-trial-form" action="{{ route('crm.customers.trial-bookings.store', $customer->id) }}" method="POST" class="space-y-3 text-xs">
+            @csrf
+            <div class="max-h-64 overflow-y-auto border border-surface-container-highest rounded-xl divide-y divide-surface-container-highest">
+                @forelse ($trialSessions as $session)
+                    <label class="flex items-start gap-2 p-2.5 hover:bg-secondary/5 cursor-pointer">
+                        <input type="checkbox" name="class_session_ids[]" value="{{ $session->id }}" class="mt-0.5 rounded border-outline-variant text-secondary" />
+                        <span>
+                            <span class="font-bold text-on-surface">{{ $session->classModel?->name }}</span>
+                            @if ($session->matches_level)<x-ui.badge color="success" :dot="false" class="ml-1 font-bold !text-[10px]">Khớp trình độ</x-ui.badge>@endif
+                            <span class="text-on-surface-variant">· {{ $session->classModel?->course?->name ?? 'Chưa gán khóa' }}{{ $session->classModel?->level ? ' · '.$session->classModel->level : '' }}</span>
+                            <span class="block text-on-surface-variant">{{ $session->date->format('d/m/Y') }} · {{ $session->start_time?->format('H:i') }}–{{ $session->end_time?->format('H:i') }} · GV: {{ $session->teacher?->name ?? 'Chưa gán' }}</span>
+                        </span>
+                    </label>
+                @empty
+                    <div class="p-4 text-center text-on-surface-variant/70">Chưa có buổi học sắp tới phù hợp.</div>
+                @endforelse
+            </div>
+            <x-ui.textarea name="notes" rows="2" placeholder="Ghi chú cho giáo viên (trình độ, mục tiêu...)" aria-label="Ghi chú cho giáo viên" />
+        </form>
+        <x-slot:footer>
+            <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'crm-schedule-trial')">Hủy</x-ui.button>
+            <x-ui.button type="submit" form="schedule-trial-form">Lưu lịch học thử</x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal>
     @endif
 
     {{-- Schedule Test Modal --}}
-    <div id="scheduleTestModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div class="flex justify-between items-center pb-2 border-b border-gray-100">
-                <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2">
-                    <span class="material-symbols-outlined text-indigo-600">event</span>
-                    Hẹn lịch test đầu vào
-                </h3>
-                <button type="button" onclick="document.getElementById('scheduleTestModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
+    <x-ui.modal name="crm-schedule-test" id="scheduleTestModal" title="Hẹn lịch test đầu vào" max-width="md">
+        <form id="schedule-test-form" action="{{ route('crm.customers.schedule-test', $customer->id) }}" method="POST" class="space-y-3 text-xs">
+            @csrf
+            <div class="grid grid-cols-2 gap-3">
+                <x-ui.date name="appointment_date" id="modal_appointment_date" label="Ngày hẹn test" :value="date('Y-m-d')" required />
+                <x-ui.input type="time" name="appointment_time" id="modal_appointment_time" label="Giờ hẹn" value="14:00" required />
             </div>
-            <form action="{{ route('crm.customers.schedule-test', $customer->id) }}" method="POST" class="space-y-3 text-xs">
-                @csrf
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block font-semibold text-gray-700 mb-1">Ngày hẹn test <span class="text-rose-500">*</span></label>
-                        <input type="date" name="appointment_date" value="{{ date('Y-m-d') }}" required class="w-full text-xs rounded-xl border border-gray-200 p-2" />
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-gray-700 mb-1">Giờ hẹn <span class="text-rose-500">*</span></label>
-                        <input type="time" name="appointment_time" value="14:00" required class="w-full text-xs rounded-xl border border-gray-200 p-2" />
-                    </div>
-                </div>
 
-                <div>
-                    <label class="block font-semibold text-gray-700 mb-1">Hình thức làm bài <span class="text-rose-500">*</span></label>
-                    <select name="appointment_type" required class="w-full text-xs rounded-xl border border-gray-200 p-2 font-bold text-primary">
-                        <option value="online">Trực tuyến (Online qua link Portal)</option>
-                        <option value="offline">Tại cơ sở (Offline tại trung tâm)</option>
-                    </select>
-                </div>
+            <x-ui.select name="appointment_type" id="modal_appointment_type" label="Hình thức làm bài" value="" required class="font-bold !text-primary">
+                <option value="online">Trực tuyến (Online qua link Portal)</option>
+                <option value="offline">Tại cơ sở (Offline tại trung tâm)</option>
+            </x-ui.select>
 
-                <div>
-                    <label class="block font-semibold text-gray-700 mb-1">Đề test gán cho khách</label>
-                    <select name="assigned_test_id" class="w-full text-xs rounded-xl border border-gray-200 p-2">
-                        @foreach ($placementTests ?? [] as $test)
-                            <option value="{{ $test->id }}">{{ $test->title }} ({{ $test->code }})</option>
-                        @endforeach
-                    </select>
-                </div>
+            <x-ui.select name="assigned_test_id" id="modal_assigned_test_id" label="Đề test gán cho khách" value="">
+                @foreach ($placementTests ?? [] as $test)
+                    <option value="{{ $test->id }}">{{ $test->title }} ({{ $test->code }})</option>
+                @endforeach
+            </x-ui.select>
 
-                <div>
-                    <label class="block font-semibold text-gray-700 mb-1">Giáo viên / Giám thị phụ trách chấm</label>
-                    <select name="examiner_id" class="w-full text-xs rounded-xl border border-gray-200 p-2">
-                        <option value="">-- Tự động chấm AI / Chưa gán --</option>
-                        @foreach ($examiners ?? [] as $examiner)
-                            <option value="{{ $examiner->id }}">{{ $examiner->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
+            <x-ui.select name="examiner_id" id="modal_examiner_id" label="Giáo viên / Giám thị phụ trách chấm" value="" placeholder="-- Tự động chấm AI / Chưa gán --">
+                @foreach ($examiners ?? [] as $examiner)
+                    <option value="{{ $examiner->id }}">{{ $examiner->name }}</option>
+                @endforeach
+            </x-ui.select>
 
-                <div>
-                    <label class="block font-semibold text-gray-700 mb-1">Ghi chú nhắc hẹn</label>
-                    <textarea name="notes" rows="2" placeholder="Nhắc học viên mang theo tai nghe, CMND..." class="w-full text-xs rounded-xl border border-gray-200 p-2"></textarea>
-                </div>
-
-                <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
-                    <button type="button" onclick="document.getElementById('scheduleTestModal').classList.add('hidden')" class="px-3 py-1.5 rounded-lg border text-xs text-gray-600">Hủy</button>
-                    <button type="submit" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm">Xác nhận lịch hẹn</button>
-                </div>
-            </form>
-        </div>
-    </div>
+            <x-ui.textarea name="notes" id="modal_test_notes" label="Ghi chú nhắc hẹn" rows="2" placeholder="Nhắc học viên mang theo tai nghe, CMND..." />
+        </form>
+        <x-slot:footer>
+            <x-ui.button variant="secondary" size="sm" x-on:click="$dispatch('close-modal', 'crm-schedule-test')">Hủy</x-ui.button>
+            <x-ui.button type="submit" form="schedule-test-form" variant="info" size="sm" class="font-bold">Xác nhận lịch hẹn</x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal>
 
     {{-- Enter / Edit Test Score Modal --}}
-    <div id="editTestScoreModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-surface-container-lowest rounded-xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border border-gray-200 max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center pb-2 border-b border-gray-100">
-                <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary-container">military_tech</span>
-                    <span>Nhập điểm test đầu vào</span>
-                </h3>
-                <button type="button" onclick="document.getElementById('editTestScoreModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
-            </div>
-            <form action="{{ route('crm.customers.save-test-score', $customer->id) }}" method="POST" class="space-y-3.5 text-xs">
-                @csrf
+    <x-ui.modal name="crm-edit-test-score" id="editTestScoreModal" title="Nhập điểm test đầu vào" max-width="2xl">
+        <form id="edit-test-score-form" action="{{ route('crm.customers.save-test-score', $customer->id) }}" method="POST" class="space-y-3.5 text-xs">
+            @csrf
                 @php
                     // Chỉ điền sẵn khi sửa đúng lần thi đang chọn; nhập lần mới thì để trống, không bịa điểm mặc định.
                     $editSub = ($sub && $customer->stage !== 'test_scheduled') ? $sub : null;
@@ -241,41 +188,32 @@
                 @if ($editSub)
                     <input type="hidden" name="submission_id" value="{{ $editSub->id }}">
                 @endif
-                <div class="p-3 bg-orange-50/60 border border-orange-100 rounded-xl text-[11px] text-orange-950 flex items-start gap-2">
-                    <span class="material-symbols-outlined text-primary-container text-base mt-0.5">info</span>
-                    <div>
-                        <strong>Học viên:</strong> {{ $customer->name }} ({{ $customer->phone }})<br>
-                        <span>Chấm theo <strong>thang điểm khối lớp</strong>: Tổng = Nghe + Đọc &amp; Viết + Nói → lớp đề xuất. Lưu điểm sẽ tự chuyển khách sang "Đã test".</span>
-                    </div>
-                </div>
+                <x-ui.alert type="warning" class="text-[11px]">
+                    <strong>Học viên:</strong> {{ $customer->name }} ({{ $customer->phone }})<br>
+                    <span>Chấm theo <strong>thang điểm khối lớp</strong>: Tổng = Nghe + Đọc &amp; Viết + Nói → lớp đề xuất. Lưu điểm sẽ tự chuyển khách sang "Đã test".</span>
+                </x-ui.alert>
 
                 @unless ($editSub)
-                    <div>
-                        <label class="block font-bold text-gray-700 mb-1 uppercase text-[10px]">Đề kiểm tra đã dùng <span class="text-rose-500">*</span></label>
-                        <select name="placement_test_id" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 bg-white font-semibold text-gray-900 shadow-2xs">
-                            <option value="">— Chọn đề —</option>
-                            @foreach ($placementTests as $t)
-                                <option value="{{ $t->id }}" @selected((string) $scoreTestId === (string) $t->id)>[{{ $t->code }}] {{ $t->title }}</option>
-                            @endforeach
-                        </select>
-                    </div>
+                    <x-ui.select name="placement_test_id" id="modal_placement_test_id" label="Đề kiểm tra đã dùng" required placeholder="— Chọn đề —" :value="(string) $scoreTestId" class="font-semibold">
+                        @foreach ($placementTests as $t)
+                            <option value="{{ $t->id }}" @selected((string) $scoreTestId === (string) $t->id)>[{{ $t->code }}] {{ $t->title }}</option>
+                        @endforeach
+                    </x-ui.select>
                 @endunless
 
                 @include('placement-tests.partials.rubric-score-fields', [
                     'submission' => $editSub,
                     'defaultGroup' => \App\Services\PlacementRubricService::detectGradeGroup($editSub?->test?->code ?? $customer->assignedTest?->code),
                 ])
-
-                <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
-                    <button type="button" onclick="document.getElementById('editTestScoreModal').classList.add('hidden')" class="px-3 py-1.5 rounded-lg border text-xs text-gray-600 hover:bg-gray-50">Hủy</button>
-                    @if (! $editSub || $editSub->isPending())
-                        <button type="submit" name="action" value="draft" class="rounded-lg border border-outline-variant px-md py-sm font-body-medium text-body-medium text-on-surface hover:bg-surface-container-low">Lưu bản nháp</button>
-                    @endif
-                    <button type="submit" name="action" value="confirm" class="inline-flex items-center gap-xs rounded-lg bg-primary-container px-md py-sm font-body-medium text-body-medium text-white shadow-sm hover:bg-primary"><span class="material-symbols-outlined text-[18px]">check</span>Xác nhận kết quả</button>
-                </div>
-            </form>
-        </div>
-    </div>
+        </form>
+        <x-slot:footer>
+            <x-ui.button variant="secondary" size="sm" x-on:click="$dispatch('close-modal', 'crm-edit-test-score')">Hủy</x-ui.button>
+            @if (! $editSub || $editSub->isPending())
+                <x-ui.button type="submit" form="edit-test-score-form" name="action" value="draft" variant="secondary">Lưu bản nháp</x-ui.button>
+            @endif
+            <x-ui.button type="submit" form="edit-test-score-form" name="action" value="confirm" icon="check">Xác nhận kết quả</x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal>
 
 
     @if ($customer->stage === \App\Models\CrmCustomer::STAGE_LOST)
@@ -349,10 +287,10 @@
                             <p class="font-label text-label uppercase text-on-surface-variant">Liên hệ gần nhất</p>
                             <p class="font-body-medium text-body-medium text-on-surface">{{ $statusCard['last_contact']?->format('d/m/Y H:i') ?? 'Chưa có' }}</p>
                         </div>
-                        <div class="rounded-lg p-md {{ $statusCard['follow_up_status'] === 'overdue' ? 'bg-error-container/40' : ($statusCard['follow_up_status'] === 'due_soon' ? 'bg-amber-50' : 'bg-surface-container-low') }}">
+                        <div class="rounded-lg p-md {{ $statusCard['follow_up_status'] === 'overdue' ? 'bg-error-container/40' : ($statusCard['follow_up_status'] === 'due_soon' ? 'bg-warning-container' : 'bg-surface-container-low') }}">
                             <p class="font-label text-label uppercase text-on-surface-variant">Hạn liên hệ tiếp theo</p>
                             @if ($customer->next_follow_up_at)
-                                <div class="flex items-center gap-xs {{ $statusCard['follow_up_status'] === 'overdue' ? 'text-error' : ($statusCard['follow_up_status'] === 'due_soon' ? 'text-amber-700' : 'text-on-surface') }}">
+                                <div class="flex items-center gap-xs {{ $statusCard['follow_up_status'] === 'overdue' ? 'text-error' : ($statusCard['follow_up_status'] === 'due_soon' ? 'text-on-warning-container' : 'text-on-surface') }}">
                                     <span class="material-symbols-outlined text-[18px]">timer</span>
                                     <span class="font-body-semibold text-body-semibold">{{ $statusCard['follow_up_remaining'] }}</span>
                                 </div>
@@ -414,7 +352,7 @@
                             });
                         </script>
                         <div class="flex items-center gap-sm">
-                            <input type="text" name="note" maxlength="1000" placeholder="Ghi chú chăm sóc (tuỳ chọn)" class="flex-1 rounded-lg border-outline-variant font-body-small text-body-small">
+                            <div class="flex-1"><x-ui.input name="note" maxlength="1000" placeholder="Ghi chú chăm sóc (tuỳ chọn)" aria-label="Ghi chú chăm sóc" class="font-body-small text-body-small" /></div>
                             <x-ui.button type="submit" size="sm" icon="save">Lưu checklist</x-ui.button>
                         </div>
                     @endcan
@@ -460,27 +398,26 @@
                                     {{-- Mockup: "Chọn cấp độ" → "Danh sách đề tương ứng" --}}
                                     <div class="grid grid-cols-1 gap-md sm:grid-cols-2" x-data="{ level: '', groups: @js($testGroups), testId: @js((string) old('assigned_test_id', $placementTests->first()?->id)) }">
                                         <x-ui.field label="Chọn cấp độ" for="test_level">
-                                            <select id="test_level" x-model="level" @change="const first = Object.keys(groups).find((id) => !level || groups[id] === level); if (first) testId = first"
-                                                    class="w-full rounded-lg border-outline-variant bg-surface-container-lowest font-body-base text-body-base">
+                                            <x-ui.select id="test_level" x-model="level" x-on:change="const first = Object.keys(groups).find((id) => !level || groups[id] === level); if (first) testId = first">
                                                 <option value="">Tất cả cấp độ</option>
                                                 @foreach ($levelOptions as $groupKey => $groupLabel)
                                                     <option value="{{ $groupKey }}">{{ $groupLabel }}</option>
                                                 @endforeach
-                                            </select>
+                                            </x-ui.select>
                                         </x-ui.field>
-                                        <x-ui.field label="Danh sách đề tương ứng" for="assigned_test_id">
-                                            <select id="assigned_test_id" name="assigned_test_id" x-model="testId" class="w-full rounded-lg border-outline-variant bg-surface-container-lowest font-body-base text-body-base">
+                                        <x-ui.field label="Danh sách đề tương ứng" name="assigned_test_id" for="assigned_test_id">
+                                            <x-ui.select id="assigned_test_id" name="assigned_test_id" value="" x-model="testId">
                                                 @foreach ($placementTests as $t)
                                                     <option value="{{ $t->id }}" x-show="!level || groups[{{ $t->id }}] === level">[{{ $t->code }}] {{ $t->title }}{{ $t->duration_minutes ? ' ('.$t->duration_minutes.'\')' : '' }}</option>
                                                 @endforeach
-                                            </select>
+                                            </x-ui.select>
                                         </x-ui.field>
                                         <x-ui.date name="appointment_date" label="Ngày hẹn làm test" required min="{{ now()->toDateString() }}" :value="old('appointment_date', now()->addDay()->toDateString())" />
                                         <x-ui.input type="time" name="appointment_time" label="Giờ hẹn" required :value="old('appointment_time', '09:00')" />
                                     </div>
                                     <div class="flex flex-wrap items-center justify-end gap-sm">
                                         @can('entrance_test.grade')
-                                            <x-ui.button variant="secondary" icon="edit_note" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')">Nhập điểm trực tiếp</x-ui.button>
+                                            <x-ui.button variant="secondary" icon="edit_note" onclick="window.dispatchEvent(new CustomEvent('open-modal', { detail: 'crm-edit-test-score' }))">Nhập điểm trực tiếp</x-ui.button>
                                         @endcan
                                         <x-ui.button type="submit" icon="send">Gửi link test online</x-ui.button>
                                     </div>
@@ -489,24 +426,24 @@
                                 <p class="font-body-small text-body-small text-on-surface-variant">Chưa hẹn test. Học vụ / Quản lý cơ sở gửi link test cho khách.</p>
                             @endcan
                         @elseif (! $hasResult && $hasScheduled)
-                            <div class="flex items-start justify-between gap-md rounded-lg border border-blue-200 bg-blue-50/70 p-md">
+                            <div class="flex items-start justify-between gap-md rounded-lg border border-secondary/30 bg-info-container p-md">
                                 <div class="flex items-start gap-sm">
-                                    <span class="material-symbols-outlined mt-0.5 text-blue-600">schedule_send</span>
+                                    <span class="material-symbols-outlined mt-0.5 text-secondary">schedule_send</span>
                                     <div>
-                                        <p class="font-body-semibold text-body-semibold text-blue-950">Đã gửi link — chờ khách làm bài</p>
-                                        <p class="font-caption text-caption italic text-blue-700">Hẹn lúc {{ $customer->appointment_at?->format('H:i, d/m/Y') ?? '—' }} · {{ $customer->assignedTest?->title ?? 'Chưa gán đề' }}{{ $customer->assignedTest?->duration_minutes ? ' · '.$customer->assignedTest->duration_minutes.' phút' : '' }}</p>
+                                        <p class="font-body-semibold text-body-semibold text-on-surface">Đã gửi link — chờ khách làm bài</p>
+                                        <p class="font-caption text-caption italic text-info">Hẹn lúc {{ $customer->appointment_at?->format('H:i, d/m/Y') ?? '—' }} · {{ $customer->assignedTest?->title ?? 'Chưa gán đề' }}{{ $customer->assignedTest?->duration_minutes ? ' · '.$customer->assignedTest->duration_minutes.' phút' : '' }}</p>
                                     </div>
                                 </div>
                                 @can('entrance_test.grade')
-                                    <x-ui.button variant="secondary" size="sm" icon="edit" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')">Nhập điểm ngay</x-ui.button>
+                                    <x-ui.button variant="secondary" size="sm" icon="edit" onclick="window.dispatchEvent(new CustomEvent('open-modal', { detail: 'crm-edit-test-score' }))">Nhập điểm ngay</x-ui.button>
                                 @endcan
                             </div>
                             <p class="font-body-small text-body-small text-on-surface-variant">Cấp độ: <strong class="text-on-surface">{{ \App\Services\PlacementRubricService::groupLabel(\App\Services\PlacementRubricService::detectGradeGroup($customer->assignedTest?->code)) }}</strong></p>
                             @if ($portalTestLink)
                                 <div class="flex flex-wrap gap-sm" x-data="{ testLink: @js($portalTestLink) }">
-                                    <x-ui.button variant="secondary" size="sm" icon="refresh" @click="navigator.clipboard.writeText(testLink); $dispatch('toast', { message: 'Đã tạo và sao chép link mới (hiệu lực {{ \App\Services\PlacementPortalLinkService::LINK_TTL_DAYS }} ngày) — gửi lại cho khách qua Zalo/SMS.', type: 'success' })">Gửi lại link</x-ui.button>
+                                    <x-ui.button variant="secondary" size="sm" icon="refresh" x-on:click="navigator.clipboard.writeText(testLink); $dispatch('toast', { message: 'Đã tạo và sao chép link mới (hiệu lực {{ \App\Services\PlacementPortalLinkService::LINK_TTL_DAYS }} ngày) — gửi lại cho khách qua Zalo/SMS.', type: 'success' })">Gửi lại link</x-ui.button>
                                     <x-ui.button variant="secondary" size="sm" icon="open_in_new" :href="$portalTestLink" target="_blank">Mở cổng test</x-ui.button>
-                                    <x-ui.button variant="secondary" size="sm" icon="content_copy" @click="navigator.clipboard.writeText(testLink); $dispatch('toast', { message: 'Đã sao chép đường dẫn bài test.', type: 'success' })">Sao chép link test</x-ui.button>
+                                    <x-ui.button variant="secondary" size="sm" icon="content_copy" x-on:click="navigator.clipboard.writeText(testLink); $dispatch('toast', { message: 'Đã sao chép đường dẫn bài test.', type: 'success' })">Sao chép link test</x-ui.button>
                                     <p class="w-full font-caption text-caption italic text-on-surface-variant">Link riêng của khách, hiệu lực {{ \App\Services\PlacementPortalLinkService::LINK_TTL_DAYS }} ngày kể từ lúc mở trang này.</p>
                                 </div>
                             @else
@@ -518,7 +455,7 @@
                             </p>
                             @can('entrance_test.send')
                                 @if (in_array($customer->stage, ['consulting', 'test_scheduled', 'tested'], true))
-                                    <x-ui.button variant="ghost" size="sm" icon="event_repeat" onclick="document.getElementById('scheduleTestModal').classList.remove('hidden')">Hẹn test lại</x-ui.button>
+                                    <x-ui.button variant="ghost" size="sm" icon="event_repeat" onclick="window.dispatchEvent(new CustomEvent('open-modal', { detail: 'crm-schedule-test' }))">Hẹn test lại</x-ui.button>
                                 @endif
                             @endcan
                         @endif
@@ -577,7 +514,7 @@
                                     @endif
                                     @can('entrance_test.grade')
                                         @if (! in_array($customer->stage, ['won', 'lost'], true))
-                                            <x-ui.button variant="secondary" size="sm" icon="edit_note" onclick="document.getElementById('editTestScoreModal').classList.remove('hidden')">{{ $customer->stage === 'test_scheduled' ? 'Nhập điểm lần test lại' : 'Sửa điểm' }}</x-ui.button>
+                                            <x-ui.button variant="secondary" size="sm" icon="edit_note" onclick="window.dispatchEvent(new CustomEvent('open-modal', { detail: 'crm-edit-test-score' }))">{{ $customer->stage === 'test_scheduled' ? 'Nhập điểm lần test lại' : 'Sửa điểm' }}</x-ui.button>
                                         @endif
                                     @endcan
                                 </div>
@@ -611,7 +548,7 @@
                                 @if ($booking->status === 'scheduled' && $canBookTrial)
                                     <form action="{{ route('crm.customers.trial-bookings.cancel', [$customer->id, $booking->id]) }}" method="POST" class="mt-sm flex gap-xs">
                                         @csrf
-                                        <input name="reason" required placeholder="Lý do hủy" class="flex-1 rounded-lg border-outline-variant py-1 font-body-small text-body-small" />
+                                        <div class="flex-1"><x-ui.input name="reason" id="cancel_reason_{{ $booking->id }}" required placeholder="Lý do hủy" aria-label="Lý do hủy" class="py-1 font-body-small text-body-small" /></div>
                                         <x-ui.button type="submit" variant="danger-text" size="sm">Hủy buổi</x-ui.button>
                                     </form>
                                 @endif
@@ -657,16 +594,14 @@
                 <div class="flex flex-wrap items-center justify-between gap-md border-b border-surface-container-highest p-lg">
                     <h3 class="font-h3 text-h3 text-on-surface">Lịch sử hoạt động <span class="font-body-small text-body-small text-on-surface-variant">({{ $histories->count() }}{{ $logType ? '/'.$customer->histories->count() : '' }})</span></h3>
                     <form method="GET" action="{{ route('crm.customers.show', $customer->id) }}#timeline">
-                        <select name="log_type" onchange="this.form.submit()" aria-label="Lọc lịch sử"
-                                class="rounded-lg border-outline-variant bg-surface-container-lowest py-xs pl-sm pr-xl font-body-small text-body-small">
-                            <option value="">Tất cả hoạt động</option>
+                        <x-ui.select name="log_type" onchange="this.form.submit()" aria-label="Lọc lịch sử" placeholder="Tất cả hoạt động" class="py-xs font-body-small text-body-small">
                             @foreach (\App\Models\CrmCustomerHistory::FILTER_TYPES as $typeKey => $typeLabel)
                                 @php $typeCount = $customer->histories->where('type', $typeKey)->count(); @endphp
                                 @if ($typeCount > 0 || $logType === $typeKey)
                                     <option value="{{ $typeKey }}" @selected($logType === $typeKey)>{{ $typeLabel }} ({{ $typeCount }})</option>
                                 @endif
                             @endforeach
-                        </select>
+                        </x-ui.select>
                     </form>
                 </div>
 
@@ -676,7 +611,7 @@
                         <input type="hidden" name="type" :value="noteType" />
                         <div class="flex flex-col gap-md sm:flex-row sm:items-end">
                             <div class="flex-1 space-y-sm">
-                                <textarea name="content" rows="2" required placeholder="Ghi chú nội dung liên hệ mới..." class="w-full rounded-lg border-outline-variant bg-surface-container-lowest font-body-base text-body-base focus:border-primary-container focus:ring-primary-container/20"></textarea>
+                                <x-ui.textarea name="content" id="history_note_content" rows="2" required placeholder="Ghi chú nội dung liên hệ mới..." aria-label="Ghi chú nội dung liên hệ" />
                                 <div class="flex flex-wrap items-center gap-sm">
                                     <span class="font-body-small text-body-small text-on-surface-variant">Hình thức:</span>
                                     @foreach (['call' => 'Gọi điện', 'message' => 'Zalo/SMS', 'meet' => 'Trực tiếp', 'test' => 'Test đầu vào', 'note' => 'Ghi chú'] as $noteKey => $noteLabel)

@@ -80,7 +80,7 @@
                             </td>
                             <td class="whitespace-nowrap font-code text-code text-on-surface-variant">{{ $wc->converted_at?->format('H:i d/m/Y') ?? '—' }}</td>
                             <td class="whitespace-nowrap">
-                                <span class="inline-block rounded-full border px-sm py-0.5 text-[11px] font-bold {{ $pendingAmount > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : ($tuition?->status_badge ?? 'bg-surface-container-low text-on-surface-variant border-outline-variant') }}">
+                                <span class="inline-block rounded-full border px-sm py-0.5 text-[11px] font-bold {{ $pendingAmount > 0 ? 'bg-warning-container text-on-warning-container border-warning/30' : ($tuition?->status_badge ?? 'bg-surface-container-low text-on-surface-variant border-outline-variant') }}">
                                     {{ $pendingAmount > 0 ? 'Chờ đối soát '.number_format($pendingAmount).'đ' : ($tuition?->status_label ?? 'Chưa có học phí') }}
                                     @if ($tuition && $tuition->debt_amount > 0) · Còn {{ number_format(max(0, $tuition->debt_amount - $pendingAmount)) }}đ @endif
                                 </span>
@@ -91,7 +91,7 @@
                                         @can('student.assign_class')
                                             <x-ui.button variant="secondary" size="sm" icon="verified_user" :href="route('crm.confirmations', ['search' => $wc->convertedStudent?->code])">Xác nhận chính thức</x-ui.button>
                                         @else
-                                            <span class="font-body-small text-body-small font-semibold text-amber-700">Chờ xác nhận</span>
+                                            <span class="font-body-small text-body-small font-semibold text-warning">Chờ xác nhận</span>
                                         @endcan
                                     @elseif ($wcEnrollment?->confirmed_at)
                                         <span class="inline-flex items-center gap-xs font-body-small text-body-small font-semibold text-tertiary"><span class="material-symbols-outlined text-[16px]">check_circle</span>Đã là học viên</span>

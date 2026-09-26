@@ -1,16 +1,10 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="font-h1 text-h1 text-on-surface">Quản lý tài liệu giáo trình</h1>
-                <p class="font-body-base text-on-surface-variant">Quản lý và cập nhật tài liệu cho các khóa học.</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <x-ui.button variant="secondary" icon="edit_document" :href="route('syllabus.builder')">Soạn syllabus</x-ui.button>
-                <x-ui.button icon="menu_book" :href="route('syllabus.teacher-view')">Xem như giáo viên</x-ui.button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Quản lý tài liệu giáo trình" description="Quản lý và cập nhật tài liệu cho các khóa học.">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="edit_document" :href="route('syllabus.builder')">Soạn syllabus</x-ui.button>
+            <x-ui.button icon="menu_book" :href="route('syllabus.teacher-view')">Xem như giáo viên</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
 
     @php($canUpload = auth()->user()->can('syllabus.upload'))
@@ -41,14 +35,11 @@
                         drop(e) { this.dragging = false; if (e.dataTransfer.files.length) { this.$refs.file.files = e.dataTransfer.files; this.fileName = e.dataTransfer.files[0].name; } },
                       }">
                     @csrf
-                    <x-ui.field label="Chọn giáo trình" name="curriculum_id" required>
-                        <select name="curriculum_id" required x-model="curriculum" @change="stage = ''" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base">
-                            <option value="">-- Chọn giáo trình --</option>
-                            @foreach ($curriculums as $c)
-                                <option value="{{ $c->id }}">{{ $c->title }} ({{ $c->code }} · {{ $c->version }})</option>
-                            @endforeach
-                        </select>
-                    </x-ui.field>
+                    <x-ui.select label="Chọn giáo trình" name="curriculum_id" id="upload_curriculum_id" required x-model="curriculum" x-on:change="stage = ''" placeholder="-- Chọn giáo trình --">
+                        @foreach ($curriculums as $c)
+                            <option value="{{ $c->id }}">{{ $c->title }} ({{ $c->code }} · {{ $c->version }})</option>
+                        @endforeach
+                    </x-ui.select>
                     <x-ui.field label="Chọn chặng học" name="stage_id" required hint="Chặng lấy từ màn Soạn syllabus của giáo trình đã chọn.">
                         <select name="stage_id" x-model="stage" :required="(stages[curriculum] || []).length > 0" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base">
                             <option value="">-- Chọn chặng học --</option>
@@ -63,20 +54,20 @@
                         <div class="grid grid-cols-2 gap-sm bg-surface-container-low p-md rounded-lg border border-outline-variant font-body-small text-body-small">
                             @foreach (['Admin', 'Học vụ', 'Học thuật'] as $role)
                                 <label class="flex items-center gap-2 text-on-surface-variant">
-                                    <input type="checkbox" checked disabled class="rounded border-gray-300 text-primary h-4 w-4 opacity-70" />
+                                    <input type="checkbox" checked disabled class="rounded border-outline-variant text-primary h-4 w-4 opacity-70" />
                                     <span>{{ $role }}</span>
                                 </label>
                             @endforeach
                             <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" name="visible_to_teachers" value="1" x-model="teachers" class="rounded border-gray-300 text-primary focus:ring-primary-container h-4 w-4" />
+                                <input type="checkbox" name="visible_to_teachers" value="1" x-model="teachers" class="rounded border-outline-variant text-primary focus:ring-primary-container h-4 w-4" />
                                 <span class="font-medium text-on-surface">Giáo viên</span>
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" name="visible_to_assistants" value="1" x-model="assistants" class="rounded border-gray-300 text-primary focus:ring-primary-container h-4 w-4" />
+                                <input type="checkbox" name="visible_to_assistants" value="1" x-model="assistants" class="rounded border-outline-variant text-primary focus:ring-primary-container h-4 w-4" />
                                 <span class="font-medium text-on-surface">Trợ giảng</span>
                             </label>
                             <label class="col-span-2 flex items-center gap-2 cursor-pointer pt-sm border-t border-outline-variant">
-                                <input type="checkbox" name="downloadable" value="1" x-model="downloadable" class="rounded border-gray-300 text-primary focus:ring-primary-container h-4 w-4" />
+                                <input type="checkbox" name="downloadable" value="1" x-model="downloadable" class="rounded border-outline-variant text-primary focus:ring-primary-container h-4 w-4" />
                                 <span class="font-medium text-on-surface">Cho phép GV/TG tải về (bỏ chọn = chỉ xem trực tuyến)</span>
                             </label>
                         </div>
@@ -96,10 +87,9 @@
                         </label>
                     </x-ui.field>
 
-                    <div x-show="(teachers || assistants) && ! downloadable" x-cloak class="flex items-start gap-sm rounded-lg border border-amber-200 bg-amber-50 p-md text-amber-900">
-                        <span class="material-symbols-outlined text-[20px] text-amber-600" style="font-variation-settings: 'FILL' 1;">info</span>
+                    <x-ui.alert type="warning" x-show="(teachers || assistants) && ! downloadable" x-cloak>
                         <p class="font-body-small text-body-small">Khóa tải xuống — Giáo viên chỉ được phép xem trực tuyến để bảo vệ tài liệu.</p>
-                    </div>
+                    </x-ui.alert>
 
                     <div class="pt-sm border-t border-outline-variant">
                         <x-ui.button type="submit" icon="save" class="w-full">Lưu tài liệu</x-ui.button>
@@ -158,9 +148,9 @@
                                 </td>
                                 <td class="whitespace-nowrap">
                                     @if ($doc->downloadable)
-                                        <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-sm py-0.5 font-label text-label text-tertiary"><span class="material-symbols-outlined text-[14px]">download</span>Có thể tải</span>
+                                        <x-ui.badge color="success" :dot="false" :pill="true"><span class="material-symbols-outlined text-[14px]">download</span>Có thể tải</x-ui.badge>
                                     @else
-                                        <span class="inline-flex items-center gap-1 rounded-full bg-error/10 px-sm py-0.5 font-label text-label text-error"><span class="material-symbols-outlined text-[14px]">visibility</span>Chỉ xem online</span>
+                                        <x-ui.badge color="error" :dot="false" :pill="true"><span class="material-symbols-outlined text-[14px]">visibility</span>Chỉ xem online</x-ui.badge>
                                     @endif
                                 </td>
                                 <td class="text-right whitespace-nowrap">

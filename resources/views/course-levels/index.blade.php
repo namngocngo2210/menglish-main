@@ -99,7 +99,7 @@
                             </td>
                             <td>
                                 @if ($lv->syllabus)
-                                    <span class="rounded-full bg-blue-600/10 px-sm py-[2px] font-code text-caption font-semibold text-blue-700" title="{{ $lv->syllabus->title }}">{{ $lv->syllabus->code }}{{ $lv->syllabus->version ? '.'.$lv->syllabus->version : '' }}</span>
+                                    <x-ui.badge color="secondary" :dot="false" :pill="true" class="font-code font-semibold" title="{{ $lv->syllabus->title }}">{{ $lv->syllabus->code }}{{ $lv->syllabus->version ? '.'.$lv->syllabus->version : '' }}</x-ui.badge>
                                 @else
                                     <span class="font-caption text-caption italic text-on-surface-variant">Chưa gắn Syllabus</span>
                                 @endif
@@ -175,37 +175,25 @@
                         <h2 id="level-panel-title" class="font-h2 text-h2 text-on-surface">Thêm/Sửa Trình độ đào tạo</h2>
                         <p class="font-body-small text-body-small text-on-surface-variant" x-text="level.id ? 'Đang sửa ' + level.code + ' — nhập thông tin chi tiết và thiết lập Syllabus.' : 'Nhập thông tin chi tiết và thiết lập Syllabus.'"></p>
                     </div>
-                    <button type="button" x-on:click="open = false" class="rounded-full p-xs text-on-surface-variant hover:bg-surface-container-high" aria-label="Đóng"><span class="material-symbols-outlined">close</span></button>
+                    <x-ui.button variant="ghost" icon="close" x-on:click="open = false" aria-label="Đóng" />
                 </div>
 
                 <div class="flex-1 space-y-lg overflow-y-auto p-lg">
                     <section class="space-y-md">
                         <h3 class="font-label-caps text-label-caps uppercase text-on-surface-variant">Thông tin chung</h3>
                         <div class="grid grid-cols-2 gap-md">
-                            <x-ui.field label="Mã trình độ" name="code" for="lv_code" required>
-                                <input id="lv_code" name="code" x-model="level.code" :disabled="!!level.id" required maxlength="20" placeholder="KID-BEG-01" class="{{ $inputClass }} font-code">
-                            </x-ui.field>
-                            <x-ui.field label="Nhóm trình độ" name="level_group" for="lv_group" hint="VD: KIDS, TEENS, IELTS, ADULTS">
-                                <input id="lv_group" name="level_group" x-model="level.level_group" list="lv_groups" maxlength="50" class="{{ $inputClass }} uppercase">
+                            <x-ui.input label="Mã trình độ" name="code" id="lv_code" x-model="level.code" x-bind:disabled="!!level.id" required maxlength="20" placeholder="KID-BEG-01" class="font-code" />
+                            <div>
+                                <x-ui.input label="Nhóm trình độ" name="level_group" id="lv_group" hint="VD: KIDS, TEENS, IELTS, ADULTS" x-model="level.level_group" list="lv_groups" maxlength="50" class="uppercase" />
                                 <datalist id="lv_groups">@foreach ($groups->merge(['KIDS', 'TEENS', 'IELTS', 'ADULTS'])->unique() as $g)<option value="{{ $g }}">@endforeach</datalist>
-                            </x-ui.field>
+                            </div>
                         </div>
-                        <x-ui.field label="Tên trình độ" name="name" for="lv_name" required>
-                            <input id="lv_name" name="name" x-model="level.name" required placeholder="Nhập tên trình độ..." class="{{ $inputClass }}">
-                        </x-ui.field>
-                        <x-ui.field label="Mô tả" name="description" for="lv_description">
-                            <textarea id="lv_description" name="description" x-model="level.description" rows="3" maxlength="1000" placeholder="Mô tả tóm tắt về trình độ này..." class="{{ $inputClass }}"></textarea>
-                        </x-ui.field>
-                        <x-ui.field label="Chuẩn đầu ra (Target)" name="target" for="lv_target" required>
-                            <input id="lv_target" name="target" x-model="level.target" required placeholder="CEFR B1 / IELTS 5.0" class="{{ $inputClass }}">
-                        </x-ui.field>
+                        <x-ui.input label="Tên trình độ" name="name" id="lv_name" x-model="level.name" required placeholder="Nhập tên trình độ..." />
+                        <x-ui.textarea label="Mô tả" name="description" id="lv_description" x-model="level.description" rows="3" maxlength="1000" placeholder="Mô tả tóm tắt về trình độ này..." />
+                        <x-ui.input label="Chuẩn đầu ra (Target)" name="target" id="lv_target" x-model="level.target" required placeholder="CEFR B1 / IELTS 5.0" />
                         <div class="grid grid-cols-2 gap-md">
-                            <x-ui.field label="Số buổi học" name="lessons_count" for="lv_lessons" required>
-                                <input id="lv_lessons" type="number" min="1" name="lessons_count" x-model="level.lessons_count" required class="{{ $inputClass }}">
-                            </x-ui.field>
-                            <x-ui.field label="Thời lượng" name="duration" for="lv_duration">
-                                <input id="lv_duration" name="duration" x-model="level.duration" placeholder="12 tuần / 24 buổi" class="{{ $inputClass }}">
-                            </x-ui.field>
+                            <x-ui.input type="number" label="Số buổi học" name="lessons_count" id="lv_lessons" min="1" x-model="level.lessons_count" required />
+                            <x-ui.input label="Thời lượng" name="duration" id="lv_duration" x-model="level.duration" placeholder="12 tuần / 24 buổi" />
                         </div>
                         <label class="flex cursor-pointer items-center justify-between gap-md rounded-lg border border-outline-variant bg-surface-container-low p-md">
                             <span>
@@ -214,16 +202,14 @@
                             </span>
                             <input type="hidden" name="is_active" value="0">
                             <input type="checkbox" name="is_active" value="1" x-model="level.is_active" class="peer sr-only">
-                            <span class="relative h-6 w-11 shrink-0 rounded-full bg-surface-container-highest transition after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition peer-checked:bg-primary-container peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-container/40" aria-hidden="true"></span>
+                            <span class="relative h-6 w-11 shrink-0 rounded-full bg-surface-container-highest transition after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-surface-container-lowest after:shadow after:transition peer-checked:bg-primary-container peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-container/40" aria-hidden="true"></span>
                         </label>
                     </section>
 
                     <section class="space-y-md border-t border-surface-container pt-lg">
                         <div class="flex items-center justify-between">
                             <h3 class="font-label-caps text-label-caps uppercase text-on-surface-variant">Thiết lập Syllabus</h3>
-                            <button type="button" class="inline-flex items-center gap-xs font-body-small text-body-small font-semibold text-primary hover:underline" x-on:click="pickSyllabus = true">
-                                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add</span> Gắn Syllabus mới
-                            </button>
+                            <x-ui.button variant="ghost" size="sm" icon="add" class="font-semibold !text-primary" x-on:click="pickSyllabus = true">Gắn Syllabus mới</x-ui.button>
                         </div>
                         <input type="hidden" name="syllabus_curriculum_id" :value="level.syllabus_curriculum_id ?? ''">
                         <template x-if="level.syllabus_curriculum_id && syllabi[level.syllabus_curriculum_id]">
@@ -235,9 +221,7 @@
                                         <p class="font-caption text-caption text-on-surface-variant" x-text="'Cập nhật: ' + (syllabi[level.syllabus_curriculum_id].updated ?? '—') + ' | Trạng thái: Hiện tại'"></p>
                                     </div>
                                 </div>
-                                <button type="button" class="rounded-lg p-xs text-on-surface-variant hover:bg-error-container/50 hover:text-error" title="Gỡ Syllabus" aria-label="Gỡ Syllabus" x-on:click="level.syllabus_curriculum_id = ''">
-                                    <span class="material-symbols-outlined" aria-hidden="true">link_off</span>
-                                </button>
+                                <x-ui.button variant="ghost" icon="link_off" class="hover:!text-error" title="Gỡ Syllabus" aria-label="Gỡ Syllabus" x-on:click="level.syllabus_curriculum_id = ''" />
                             </div>
                         </template>
                         <template x-if="!level.syllabus_curriculum_id && !pickSyllabus">

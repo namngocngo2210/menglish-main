@@ -34,23 +34,14 @@
                 @endforeach
             </div>
             <div class="flex flex-col gap-md border-t border-surface-container pt-md lg:flex-row lg:items-end">
-                <div class="flex flex-col gap-xs">
-                    <label class="font-label text-label uppercase text-on-surface-variant">Khoảng thời gian</label>
+                <x-ui.field label="Khoảng thời gian">
                     <div class="flex items-center gap-sm">
-                        <input type="date" name="start_date" value="{{ $startDate->format('Y-m-d') }}" aria-label="Từ ngày" class="rounded-lg border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base focus:border-primary-container focus:ring-primary-container/20" />
+                        <x-ui.date name="start_date" :value="$startDate->format('Y-m-d')" aria-label="Từ ngày" />
                         <span class="font-body-small text-body-small text-on-surface-variant">đến</span>
-                        <input type="date" name="end_date" value="{{ $endDate->format('Y-m-d') }}" aria-label="Đến ngày" class="rounded-lg border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base focus:border-primary-container focus:ring-primary-container/20" />
+                        <x-ui.date name="end_date" :value="$endDate->format('Y-m-d')" aria-label="Đến ngày" />
                     </div>
-                </div>
-                <div class="flex min-w-[220px] flex-col gap-xs">
-                    <label for="report_branch" class="font-label text-label uppercase text-on-surface-variant">Chi nhánh</label>
-                    <select id="report_branch" name="branch_id" class="rounded-lg border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base focus:border-primary-container focus:ring-primary-container/20">
-                        <option value="">Tất cả</option>
-                        @foreach ($branches as $branch)
-                            <option value="{{ $branch->id }}" @selected((string) $branchId === (string) $branch->id)>{{ $branch->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
+                </x-ui.field>
+                <x-ui.select id="report_branch" name="branch_id" label="Chi nhánh" :options="$branches->pluck('name', 'id')" :value="(string) $branchId" placeholder="Tất cả" class="min-w-[220px]" />
                 <x-ui.button type="submit" name="preset" value="custom" icon="search">Lọc dữ liệu</x-ui.button>
             </div>
         </form>
@@ -137,12 +128,12 @@
 
         {{-- Sales Performance Table by Rep (Bảng hiệu suất & Tỷ lệ chốt theo người phụ trách) --}}
         <div class="space-y-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-lg shadow-sm">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-gray-100 gap-2">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-surface-container-highest gap-2">
                 <div>
                     <h2 class="font-h3 text-h3 text-on-surface">
                         Bảng hiệu suất &amp; Tỷ lệ chốt theo người phụ trách
                     </h2>
-                    <p class="text-xs text-gray-500">Thống kê số lượng khách, doanh số và hoa hồng theo từng chuyên viên</p>
+                    <p class="text-xs text-on-surface-variant">Thống kê số lượng khách, doanh số và hoa hồng theo từng chuyên viên</p>
                 </div>
 
                 <div class="flex items-center gap-2">
@@ -158,73 +149,73 @@
                 @endcan
             </div>
 
-            <div class="overflow-x-auto rounded-xl border border-gray-200">
-                <table class="w-full text-left text-xs">
-                    <thead class="bg-slate-50 text-gray-600 font-bold uppercase tracking-wider border-b border-gray-200 text-[11px]">
+            <x-ui.data-table>
+                <table>
+                    <thead>
                         <tr>
-                            <th class="py-3 px-4">Người phụ trách</th>
-                            <th class="py-3 px-3 text-center">Số lượng khách</th>
-                            <th class="py-3 px-3 text-center">SL chốt thành công</th>
-                            <th class="py-3 px-3 text-center">% Chốt thành công</th>
-                            <th class="py-3 px-4 text-right">Doanh thu</th>
-                            <th class="py-3 px-4 text-right bg-brand-surface text-on-primary-fixed-variant font-bold">Hoa hồng (Tier)</th>
-                            <th class="py-3 px-3 text-center">Biến động % vs kỳ trước</th>
-                            <th class="py-3 px-3 text-center">Đánh giá</th>
+                            <th>Người phụ trách</th>
+                            <th class="text-center">Số lượng khách</th>
+                            <th class="text-center">SL chốt thành công</th>
+                            <th class="text-center">% Chốt thành công</th>
+                            <th class="text-right">Doanh thu</th>
+                            <th class="text-right bg-brand-surface !text-on-primary-fixed-variant font-bold">Hoa hồng (Tier)</th>
+                            <th class="text-center">Biến động % vs kỳ trước</th>
+                            <th class="text-center">Đánh giá</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
+                    <tbody>
                         @foreach ($repsData as $rep)
-                            <tr class="hover:bg-orange-50/20 transition">
+                            <tr>
                                 {{-- Người phụ trách --}}
-                                <td class="py-3.5 px-4 font-bold text-gray-900">
+                                <td class="font-bold">
                                     <div class="flex items-center gap-2.5">
                                         <span class="w-7 h-7 rounded-full bg-primary-container text-white flex items-center justify-center font-bold text-xs shrink-0">
                                             {{ $rep['avatar_letter'] }}
                                         </span>
                                         <div>
-                                            <div class="font-bold text-gray-900">{{ $rep['name'] }}</div>
-                                            <div class="text-[10px] text-gray-400 font-normal">{{ $rep['role'] }}</div>
+                                            <div class="font-bold text-on-surface">{{ $rep['name'] }}</div>
+                                            <div class="text-[10px] text-on-surface-variant/70 font-normal">{{ $rep['role'] }}</div>
                                         </div>
                                     </div>
                                 </td>
 
                                 {{-- Số lượng Lead --}}
-                                <td class="py-3.5 px-3 text-center font-mono font-bold text-gray-800">
+                                <td class="text-center font-mono font-bold">
                                     {{ $rep['leads'] }}
                                 </td>
 
                                 {{-- SL chốt thành công --}}
-                                <td class="py-3.5 px-3 text-center font-mono font-bold text-emerald-600">
+                                <td class="text-center font-mono font-bold !text-tertiary">
                                     {{ $rep['won'] }}
                                 </td>
 
                                 {{-- % Chốt thành công --}}
-                                <td class="py-3.5 px-3 text-center font-mono font-bold text-gray-900">
+                                <td class="text-center font-mono font-bold">
                                     {{ $rep['rate'] }}%
                                 </td>
 
-                                {{-- Doanh thu --}}
-                                <td class="py-3.5 px-4 text-right font-mono font-bold text-gray-900">
+                                {{-- Doanh thu (giữ định dạng number_format mặc định — test đối chiếu "350,000") --}}
+                                <td class="text-right font-mono font-bold">
                                     {{ number_format($rep['revenue']) }} đ
                                 </td>
 
                                 {{-- Hoa hồng --}}
-                                <td class="py-3.5 px-4 text-right bg-brand-surface">
+                                <td class="text-right bg-brand-surface">
                                     <div class="font-mono font-bold text-primary-container">
                                         {{ number_format($rep['commission_amount']) }} đ
                                     </div>
-                                    <div class="text-[10px] text-gray-500 font-sans">
+                                    <div class="text-[10px] text-on-surface-variant font-sans">
                                         {{ $rep['tier_name'] }} ({{ $rep['commission_percent'] }}%{{ $rep['commission_bonus'] > 0 ? ' + ' . number_format($rep['commission_bonus']) . 'đ' : '' }})
                                     </div>
                                 </td>
 
                                 {{-- Biến động % vs kỳ trước --}}
-                                <td class="py-3.5 px-3 text-center font-mono font-bold {{ str_starts_with($rep['delta'], '+') ? 'text-emerald-600' : 'text-rose-600' }}">
+                                <td class="text-center font-mono font-bold {{ str_starts_with($rep['delta'], '+') ? '!text-tertiary' : '!text-error' }}">
                                     {{ $rep['delta'] }}
                                 </td>
 
                                 {{-- Đánh giá --}}
-                                <td class="py-3.5 px-3 text-center">
+                                <td class="text-center">
                                     <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border {{ $rep['rating_badge'] }}">
                                         {{ $rep['rating'] }}
                                     </span>
@@ -233,7 +224,7 @@
                         @endforeach
                     </tbody>
                 </table>
-            </div>
+            </x-ui.data-table>
 
         </div>
 

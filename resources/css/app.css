@@ -162,6 +162,56 @@ td[class*="text-center"] {
     background: rgba(148, 163, 184, 1);
 }
 
+/* Scrollbar của sidebar nền tối: track trong suốt (tránh vệt trắng), thumb mờ */
+.sidebar-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+.sidebar-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+.sidebar-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 9999px;
+}
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.28);
+}
+
+/* Sidebar thu gọn thủ công (≥1200px, class trên <html>): giống dạng icon của màn 768–1199px */
+@media (min-width: 1200px) {
+    html.sidebar-collapsed [data-sidebar] {
+        width: 72px;
+    }
+    html.sidebar-collapsed [data-sidebar-shell] {
+        padding-left: 72px;
+    }
+    html.sidebar-collapsed [data-sidebar] [data-sidebar-text] {
+        display: none;
+    }
+    html.sidebar-collapsed [data-sidebar] [data-sidebar-center] {
+        justify-content: center;
+        padding-left: 0;
+        padding-right: 0;
+    }
+    html.sidebar-collapsed [data-sidebar] [data-sidebar-divider] {
+        display: block;
+    }
+    html.sidebar-collapsed [data-sidebar] [data-approval-badge] {
+        position: absolute;
+        right: 0.5rem;
+        top: 0.25rem;
+        margin-left: 0;
+        min-width: 16px;
+        padding-left: 0.25rem;
+        padding-right: 0.25rem;
+        line-height: 1rem;
+    }
+}
+
 .scrollbar-none::-webkit-scrollbar,
 .no-scrollbar::-webkit-scrollbar {
     display: none;

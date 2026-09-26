@@ -29,10 +29,7 @@
         <div class="grid grid-cols-1 gap-md md:grid-cols-3">
             <x-ui.select name="assistant_id" :id="$asModal ? 'modal-ta-assistant_id' : 'f_assistant_id'" label="Chọn Trợ giảng" required placeholder="-- Chọn Trợ giảng --"
                          :options="$assistants->mapWithKeys(fn ($ta) => [$ta->id => $ta->name])" />
-            <x-ui.field label="Ngày giao việc" name="assign_date" :for="$p.'assign_date'" required>
-                <input type="date" id="{{ $p }}assign_date" name="assign_date" required x-model="assignDate"
-                       class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base">
-            </x-ui.field>
+            <x-ui.date label="Ngày giao việc" name="assign_date" :id="$p.'assign_date'" required x-model="assignDate" />
             <x-ui.select name="branch_id" :id="$asModal ? 'modal-ta-branch_id' : 'f_branch_id'" label="Chi nhánh" placeholder="-- Chọn Chi nhánh --" :options="$branches->pluck('name', 'id')" />
         </div>
         @if ($assistants->isEmpty())
@@ -46,13 +43,11 @@
                 </h2>
                 <span class="font-caption text-caption text-on-surface-variant" x-text="tasks.length + ' đầu việc'"></span>
             </div>
-            <x-input-error :messages="array_merge($errors->get('tasks'), collect($errors->get('tasks.*'))->flatten()->all())" />
+            <x-ui.errors :messages="array_merge($errors->get('tasks'), collect($errors->get('tasks.*'))->flatten()->all())" />
 
             <template x-for="(item, index) in tasks" :key="item.id">
                 <div class="relative space-y-sm rounded-lg border border-outline-variant bg-surface-container-low p-md">
-                    <button type="button" x-on:click="removeTask(index)" title="Xóa đầu việc" class="absolute right-sm top-sm rounded p-xs text-on-surface-variant hover:bg-error-container hover:text-error">
-                        <span class="material-symbols-outlined text-[18px]">delete</span>
-                    </button>
+                    <x-ui.button variant="ghost" icon="delete" x-on:click="removeTask(index)" title="Xóa đầu việc" aria-label="Xóa đầu việc" class="absolute right-sm top-sm p-xs hover:bg-error-container hover:text-error" />
                     <div class="grid grid-cols-1 gap-sm pr-xl md:grid-cols-12">
                         <label class="md:col-span-3">
                             <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Nhóm đầu mục</span>

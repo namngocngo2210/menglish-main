@@ -25,7 +25,7 @@
                 <span @class([
                     'inline-flex items-center gap-xs rounded-full px-sm py-0.5 font-caption text-caption font-semibold',
                     'bg-error-container text-error' => $followUp === 'overdue',
-                    'bg-orange-100 text-orange-700' => $followUp === 'due_soon',
+                    'bg-warning-container text-on-warning-container' => $followUp === 'due_soon',
                     'bg-surface-container-high text-on-surface-variant' => ! $followUp,
                 ])>
                     <span class="material-symbols-outlined text-[14px]" aria-hidden="true">alarm</span>

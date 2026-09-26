@@ -20,9 +20,8 @@
                 <div class="space-y-xs">
                     <label for="first_days" class="block font-body-medium text-body-medium text-on-surface">Mốc nhắc nợ trước hạn</label>
                     <p class="font-caption text-caption text-on-surface-variant">Số ngày trước ngày đáo hạn để hệ thống gửi thông báo nhắc nhở đầu tiên.</p>
-                    <div class="flex items-center gap-sm">
-                        <input id="first_days" type="number" name="first_days" min="1" max="60" value="{{ old('first_days', $firstDays) }}" required class="w-24 rounded-lg border-outline-variant font-code text-code" />
-                        <span class="font-body-small text-body-small text-on-surface-variant">Ngày</span>
+                    <div class="w-36">
+                        <x-ui.input id="first_days" type="number" name="first_days" min="1" max="60" :value="$firstDays" required suffix="Ngày" class="font-code text-code" />
                     </div>
                     @error('first_days')<p class="font-caption text-caption text-error">{{ $message }}</p>@enderror
                 </div>
@@ -41,9 +40,8 @@
                 <div class="space-y-xs">
                     <label for="must_contact_days" class="block font-body-medium text-body-medium text-on-surface">Mốc quá hạn bắt buộc liên hệ</label>
                     <p class="font-caption text-caption text-on-surface-variant">Tạo yêu cầu liên hệ trực tiếp (gọi điện) nếu quá hạn thanh toán.</p>
-                    <div class="flex items-center gap-sm">
-                        <input id="must_contact_days" type="number" name="must_contact_days" min="1" max="60" value="{{ old('must_contact_days', $mustContactDays) }}" required class="w-24 rounded-lg border-outline-variant font-code text-code" />
-                        <span class="font-body-small text-body-small text-on-surface-variant">Ngày</span>
+                    <div class="w-36">
+                        <x-ui.input id="must_contact_days" type="number" name="must_contact_days" min="1" max="60" :value="$mustContactDays" required suffix="Ngày" class="font-code text-code" />
                     </div>
                     @error('must_contact_days')<p class="font-caption text-caption text-error">{{ $message }}</p>@enderror
                 </div>
@@ -98,13 +96,8 @@
                             <x-ui.field label="Tên mốc" :name="$isOld ? 'title' : null" required>
                                 <input type="text" name="title" value="{{ $isOld ? old('title') : $rule->title }}" required class="{{ $control }}">
                             </x-ui.field>
-                            <x-ui.field label="Thời điểm gửi" name="timing">
-                                <select name="timing" x-model="timing" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base">
-                                    <option value="before">Trước hạn đóng</option>
-                                    <option value="due">Đúng ngày đến hạn</option>
-                                    <option value="after">Sau hạn (quá hạn)</option>
-                                </select>
-                            </x-ui.field>
+                            <x-ui.select label="Thời điểm gửi" name="timing" id="timing_{{ $rule->milestone_key }}" x-model="timing"
+                                         :options="['before' => 'Trước hạn đóng', 'due' => 'Đúng ngày đến hạn', 'after' => 'Sau hạn (quá hạn)']" />
                             <div x-show="timing !== 'due'">
                                 <x-ui.field label="Số ngày" :name="$isOld ? 'days' : null">
                                     <input type="number" name="days" min="1" max="60" value="{{ $isOld ? old('days') : ($offset !== null && $offset !== 0 ? abs($offset) : '') }}" class="{{ $control }}">
@@ -148,13 +141,8 @@
                     <h2 class="font-h3 text-h3 text-on-surface">Thêm mốc nhắc</h2>
                     <div class="grid grid-cols-1 gap-md md:grid-cols-3">
                         <x-ui.input name="title" label="Tên mốc" placeholder="Ví dụ: Nhắc trước hạn 7 ngày" required />
-                        <x-ui.field label="Thời điểm gửi" name="timing">
-                            <select name="timing" x-model="timing" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base">
-                                <option value="before">Trước hạn đóng</option>
-                                <option value="due">Đúng ngày đến hạn</option>
-                                <option value="after">Sau hạn (quá hạn)</option>
-                            </select>
-                        </x-ui.field>
+                        <x-ui.select label="Thời điểm gửi" name="timing" id="timing_new" x-model="timing"
+                                     :options="['before' => 'Trước hạn đóng', 'due' => 'Đúng ngày đến hạn', 'after' => 'Sau hạn (quá hạn)']" />
                         <div x-show="timing !== 'due'">
                             <x-ui.input name="days" type="number" min="1" max="60" label="Số ngày" placeholder="7" />
                         </div>

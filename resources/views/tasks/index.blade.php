@@ -19,7 +19,6 @@
 @endphp
 <x-app-layout title="Danh sách công việc">
     <div x-data="{
-            statusModal: false,
             currentTask: null,
             newStatus: '',
             statusLabel: '',
@@ -27,7 +26,7 @@
             openStatusModal(task, status, label) {
                 this.currentTask = task; this.newStatus = status; this.statusLabel = label;
                 this.reasonRequired = ['blocked', 'canceled'].includes(status);
-                this.statusModal = true;
+                this.$dispatch('open-modal', 'task-status');
             }
          }">
         <x-ui.page-header title="Danh sách công việc" description="Quản lý, phân công và theo dõi tiến độ công việc — giao việc hai chiều.">
@@ -174,36 +173,29 @@
         </div>
 
         {{-- Modal: Thay đổi trạng thái --}}
-        <div x-show="statusModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/40 p-md" role="dialog" aria-modal="true">
-            <div x-on:click.outside="statusModal = false" class="w-full max-w-md overflow-hidden rounded-xl bg-surface-container-lowest shadow-xl">
-                <div class="flex items-center justify-between border-b border-surface-container px-lg py-md">
-                    <h3 class="font-h3 text-h3 text-on-surface">Thay đổi trạng thái</h3>
-                    <button type="button" x-on:click="statusModal = false" class="rounded p-xs text-on-surface-variant" aria-label="Đóng"><span class="material-symbols-outlined">close</span></button>
+        <x-ui.modal name="task-status" title="Thay đổi trạng thái" max-width="md">
+            <form id="task-status-change-form" :action="'{{ url('/tasks') }}/' + (currentTask ? currentTask.id : '') + '/status'" method="POST" class="space-y-md">
+                @csrf
+                <input type="hidden" name="status" :value="newStatus">
+                <div>
+                    <p class="font-caption text-caption text-on-surface-variant">Công việc</p>
+                    <p class="font-body-medium text-body-medium font-semibold" x-text="currentTask ? currentTask.title : ''"></p>
                 </div>
-                <form :action="'{{ url('/tasks') }}/' + (currentTask ? currentTask.id : '') + '/status'" method="POST" class="space-y-md px-lg py-md">
-                    @csrf
-                    <input type="hidden" name="status" :value="newStatus">
-                    <div>
-                        <p class="font-caption text-caption text-on-surface-variant">Công việc</p>
-                        <p class="font-body-medium text-body-medium font-semibold" x-text="currentTask ? currentTask.title : ''"></p>
-                    </div>
-                    <div>
-                        <p class="font-caption text-caption text-on-surface-variant">Trạng thái mới</p>
-                        <p class="flex items-center gap-xs font-body-medium text-body-medium font-semibold text-primary" x-text="statusLabel"></p>
-                    </div>
-                    <label class="block">
-                        <span class="mb-xs block font-body-small text-body-small font-medium">
-                            <span x-text="reasonRequired ? 'Ghi chú lý do' : 'Ghi chú / kết quả (tùy chọn)'"></span><span x-show="reasonRequired" class="text-error"> *</span>
-                        </span>
-                        <textarea name="reason" rows="3" :required="reasonRequired" maxlength="1000" placeholder="Nhập lý do chi tiết khiến công việc bị chặn / kết quả..."
-                                  class="w-full rounded-lg border border-outline-variant px-md py-sm font-body-base text-body-base"></textarea>
-                    </label>
-                    <div class="flex justify-end gap-sm border-t border-surface-container pt-md">
-                        <x-ui.button variant="secondary" x-on:click="statusModal = false">Hủy</x-ui.button>
-                        <x-ui.button type="submit">Xác nhận</x-ui.button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                <div>
+                    <p class="font-caption text-caption text-on-surface-variant">Trạng thái mới</p>
+                    <p class="flex items-center gap-xs font-body-medium text-body-medium font-semibold text-primary" x-text="statusLabel"></p>
+                </div>
+                <label class="block">
+                    <span class="mb-xs block font-body-small text-body-small font-medium">
+                        <span x-text="reasonRequired ? 'Ghi chú lý do' : 'Ghi chú / kết quả (tùy chọn)'"></span><span x-show="reasonRequired" class="text-error"> *</span>
+                    </span>
+                    <x-ui.textarea name="reason" rows="3" x-bind:required="reasonRequired" maxlength="1000" placeholder="Nhập lý do chi tiết khiến công việc bị chặn / kết quả..." />
+                </label>
+            </form>
+            <x-slot:footer>
+                <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'task-status')">Hủy</x-ui.button>
+                <x-ui.button type="submit" form="task-status-change-form">Xác nhận</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
     </div>
 </x-app-layout>

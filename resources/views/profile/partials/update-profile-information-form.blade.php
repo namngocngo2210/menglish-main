@@ -1,10 +1,10 @@
 <section>
     <header class="space-y-1">
-        <h2 class="text-base font-bold text-gray-900">
+        <h2 class="text-base font-bold text-on-surface">
             Thông tin tài khoản
         </h2>
 
-        <p class="text-xs text-gray-500">
+        <p class="text-xs text-on-surface-variant">
             Cập nhật tên hiển thị và địa chỉ email đăng nhập của bạn
         </p>
     </header>
@@ -20,19 +20,15 @@
         @method('patch')
 
         <div>
-            <x-input-label for="name" :value="__('Họ và tên')" class="font-bold text-gray-700" />
-            <x-text-input id="name" name="name" type="text" class="mt-1 block w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold focus:border-primary-container focus:ring-primary-container" :value="old('name', $user->name)" required autofocus autocomplete="name" />
-            <x-input-error class="mt-1 text-xs" :messages="$errors->get('name')" />
+            <x-ui.input id="name" name="name" type="text" :label="__('Họ và tên')" :value="$user->name" required autofocus autocomplete="name" />
         </div>
 
         <div>
-            <x-input-label for="email" :value="__('Email đăng nhập')" class="font-bold text-gray-700" />
-            <x-text-input id="email" name="email" type="email" class="mt-1 block w-full text-xs rounded-xl border border-gray-200 p-2.5 font-semibold focus:border-primary-container focus:ring-primary-container" :value="old('email', $user->email)" required autocomplete="username" />
-            <x-input-error class="mt-1 text-xs" :messages="$errors->get('email')" />
+            <x-ui.input id="email" name="email" type="email" :label="__('Email đăng nhập')" :value="$user->email" required autocomplete="username" />
 
             @if ($user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && ! $user->hasVerifiedEmail())
                 <div>
-                    <p class="text-xs mt-2 text-gray-800">
+                    <p class="text-xs mt-2 text-on-surface">
                         {{ __('Địa chỉ email của bạn chưa được xác thực.') }}
 
                         @if (Route::has('verification.send'))
@@ -43,7 +39,7 @@
                     </p>
 
                     @if (session('status') === 'verification-link-sent')
-                        <p class="mt-2 font-medium text-xs text-emerald-600">
+                        <p class="mt-2 font-medium text-xs text-tertiary">
                             {{ __('Đã gửi liên kết xác thực mới đến email của bạn.') }}
                         </p>
                     @endif
@@ -52,9 +48,9 @@
         </div>
 
         <div class="flex items-center gap-3 pt-2">
-            <button type="submit" class="px-4 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition">
+            <x-ui.button type="submit">
                 Lưu thay đổi
-            </button>
+            </x-ui.button>
 
             @if (session('status') === 'profile-updated')
                 <p
@@ -62,7 +58,7 @@
                     x-show="show"
                     x-transition
                     x-init="setTimeout(() => show = false, 2500)"
-                    class="text-xs text-emerald-600 font-bold flex items-center gap-1"
+                    class="text-xs text-tertiary font-bold flex items-center gap-1"
                 >
                     <span class="material-symbols-outlined text-sm">check_circle</span>
                     <span>Đã cập nhật thông tin thành công!</span>

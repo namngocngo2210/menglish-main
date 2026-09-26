@@ -60,7 +60,7 @@
                         @forelse ($statsByBranch as $sb)
                             <tr><td>{{ $sb['branch_name'] }}</td><td class="text-center font-code">{{ $sb['count'] }}</td><td class="text-center font-code text-error">{{ $sb['overdue_count'] }}</td><td><x-ui.money :value="$sb['total_debt']" /></td></tr>
                         @empty
-                            <tr><td colspan="4" class="text-center text-on-surface-variant">Chưa có công nợ.</td></tr>
+                            <tr><td colspan="4"><x-ui.empty-state icon="account_balance_wallet" title="Chưa có công nợ." /></td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -73,7 +73,7 @@
                         @forelse ($statsByClass as $sc)
                             <tr><td>{{ $sc['class_name'] }} <span class="font-caption text-caption text-on-surface-variant">{{ $sc['class_code'] }}</span></td><td class="text-center font-code">{{ $sc['count'] }}</td><td class="text-center font-code text-error">{{ $sc['overdue_count'] }}</td><td><x-ui.money :value="$sc['total_debt']" /></td></tr>
                         @empty
-                            <tr><td colspan="4" class="text-center text-on-surface-variant">Chưa có công nợ.</td></tr>
+                            <tr><td colspan="4"><x-ui.empty-state icon="account_balance_wallet" title="Chưa có công nợ." /></td></tr>
                         @endforelse
                     </tbody>
                 </table>

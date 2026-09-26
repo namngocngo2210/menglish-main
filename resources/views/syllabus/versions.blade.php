@@ -1,25 +1,15 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('syllabus.documents') }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <nav class="flex flex-wrap items-center gap-xs font-body-small text-body-small text-on-surface-variant" aria-label="Breadcrumb">
-                        <span>Quản lý giáo trình</span>
-                        <span class="material-symbols-outlined text-[16px]">chevron_right</span>
-                        <span class="font-semibold text-on-surface">Chi tiết đề xuất</span>
-                    </nav>
-                    <h1 class="font-h1 text-h1 text-on-surface">Đề xuất sửa giáo trình</h1>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <x-ui.button variant="secondary" icon="edit_attributes" :href="route('syllabus.teacher-propose')">Gửi đề xuất</x-ui.button>
-                <x-ui.button icon="rule" :href="route('syllabus.adjustment-requests')">Duyệt tiến độ</x-ui.button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Đề xuất sửa giáo trình" :back="route('syllabus.documents')">
+        <x-slot:breadcrumbs>
+            <span>Quản lý giáo trình</span>
+            <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+            <span class="font-semibold text-on-surface">Chi tiết đề xuất</span>
+        </x-slot:breadcrumbs>
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="edit_attributes" :href="route('syllabus.teacher-propose')">Gửi đề xuất</x-ui.button>
+            <x-ui.button icon="rule" :href="route('syllabus.adjustment-requests')">Duyệt tiến độ</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
 
     @php($canReview = auth()->user()->can('syllabus.approve_adjustment'))
@@ -74,16 +64,12 @@
                         <span class="ml-auto font-caption text-caption text-on-surface-variant">#{{ $selected->id }}</span>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-md">
-                        <x-ui.field label="Giáo trình">
-                            <select disabled class="w-full rounded-lg border border-outline-variant bg-surface-container-low py-sm pl-md pr-xl font-body-base text-body-base text-on-surface">
-                                <option selected>{{ $selected->curriculum?->title }} ({{ $selected->curriculum?->version }})</option>
-                            </select>
-                        </x-ui.field>
-                        <x-ui.field label="Buổi học/Unit cần sửa">
-                            <select disabled class="w-full rounded-lg border border-outline-variant bg-surface-container-low py-sm pl-md pr-xl font-body-base text-body-base text-on-surface">
-                                <option selected>{{ $selected->target_label }}</option>
-                            </select>
-                        </x-ui.field>
+                        <x-ui.select label="Giáo trình" id="version_curriculum" disabled>
+                            <option selected>{{ $selected->curriculum?->title }} ({{ $selected->curriculum?->version }})</option>
+                        </x-ui.select>
+                        <x-ui.select label="Buổi học/Unit cần sửa" id="version_target" disabled>
+                            <option selected>{{ $selected->target_label }}</option>
+                        </x-ui.select>
                         <div class="md:col-span-2">
                             <p class="mb-xs font-label text-label text-on-surface-variant uppercase">Người đề xuất</p>
                             <div class="flex items-center gap-sm rounded-lg border border-outline-variant bg-surface-container-low p-sm">

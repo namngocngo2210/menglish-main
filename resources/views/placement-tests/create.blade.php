@@ -1,37 +1,19 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between flex-wrap gap-3">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('placement-tests.index') }}" class="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="font-h1 text-h1 text-on-surface">Tạo đề thi mới</h1>
-                    <p class="font-body-small text-body-small text-on-surface-variant">Soạn đề test đầu vào theo khối lớp — chấm theo "Thang điểm + hướng dẫn nhận xét"</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2 flex-wrap">
-                <a href="{{ route('placement-tests.index') }}" class="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 text-xs font-semibold shadow-2xs transition">Hủy</a>
-                <button type="submit" form="createPlacementTestForm" class="px-5 py-2 rounded-xl bg-primary-container hover:bg-primary text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer">
-                    <span class="material-symbols-outlined text-[18px]">save</span>
-                    <span>Lưu đề thi</span>
-                </button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Tạo đề thi mới" :back="route('placement-tests.index')" description='Soạn đề test đầu vào theo khối lớp — chấm theo "Thang điểm + hướng dẫn nhận xét"'>
+        <x-slot:actions>
+            <x-ui.button variant="secondary" :href="route('placement-tests.index')">Hủy</x-ui.button>
+            <x-ui.button type="submit" icon="save" form="createPlacementTestForm">Lưu đề thi</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     @if ($errors->any())
-        <div class="max-w-7xl mx-auto mb-4 p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 space-y-1">
-            <div class="font-bold flex items-center gap-1.5 text-rose-900">
-                <span class="material-symbols-outlined text-base">error</span>
-                <span>Vui lòng kiểm tra lại các thông tin:</span>
-            </div>
+        <x-ui.alert type="error" title="Vui lòng kiểm tra lại các thông tin:" class="max-w-7xl mx-auto mb-4">
             <ul class="list-disc list-inside space-y-0.5 pl-2">
                 @foreach ($errors->all() as $err)
                     <li>{{ $err }}</li>
                 @endforeach
             </ul>
-        </div>
+        </x-ui.alert>
     @endif
 
     @php
@@ -91,63 +73,45 @@
                 <aside class="w-full lg:w-[360px] xl:w-[400px] shrink-0 space-y-4">
                     
                     {{-- General Info Card --}}
-                    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
-                        <div class="flex items-center justify-between pb-2 border-b border-gray-100">
-                            <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-4 space-y-3">
+                        <div class="flex items-center justify-between pb-2 border-b border-surface-container-highest">
+                            <h3 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-primary-container text-[18px]">info</span>
                                 <span>Thông tin chung</span>
                             </h3>
-                            <span class="text-[10px] text-rose-500 font-medium">* Bắt buộc</span>
+                            <span class="text-[10px] text-error font-medium">* Bắt buộc</span>
                         </div>
 
                         <div class="space-y-2.5 text-xs">
-                            <div>
-                                <label class="block font-bold text-gray-700 mb-1 text-[11px]">Tên đề thi <span class="text-rose-500">*</span></label>
-                                <input type="text" name="title" value="{{ old('title') }}" required placeholder="VD: Đề Test Đầu Vào IELTS 6.5" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-bold focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs" />
-                            </div>
+                            <x-ui.input name="title" label="Tên đề thi" required placeholder="VD: Đề Test Đầu Vào IELTS 6.5" class="font-bold" />
 
                             <div class="grid grid-cols-2 gap-2">
-                                <div>
-                                    <label class="block font-bold text-gray-700 mb-1 text-[11px]">Mã đề (Code) <span class="text-rose-500">*</span></label>
-                                    <input type="text" name="code" x-model="code" @input="codeTouched = true" required placeholder="TEST-G3-G4-01" class="w-full text-xs font-mono font-bold rounded-xl border p-2.5 focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs {{ $errors->has('code') ? 'border-error' : 'border-gray-300' }}" />
-                                    @error('code')<p class="mt-1 text-[11px] text-error">{{ $message }}</p>@enderror
-                                </div>
-                                <div>
-                                    <label class="block font-bold text-gray-700 mb-1 text-[11px]">Thời gian (phút) <span class="text-rose-500">*</span></label>
-                                    <input type="number" name="duration_minutes" value="{{ old('duration_minutes', 45) }}" min="5" required class="w-full text-xs font-mono font-bold rounded-xl border border-gray-300 p-2.5 focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs" />
-                                </div>
+                                <x-ui.input name="code" label="Mã đề (Code)" x-model="code" x-on:input="codeTouched = true" required placeholder="TEST-G3-G4-01" class="font-mono font-bold" />
+                                <x-ui.input type="number" name="duration_minutes" label="Thời gian (phút)" :value="45" min="5" required class="font-mono font-bold" />
                             </div>
 
                             <div>
-                                <label class="block font-bold text-gray-700 mb-1 text-[11px]">Cấp độ (khối lớp) <span class="text-rose-500">*</span></label>
-                                <select name="grade_group" x-model="gradeGroup" @change="syncCode()" required class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-semibold focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs">
-                                    @foreach ($gradeGroups as $groupKey => $groupLabel)
-                                        <option value="{{ $groupKey }}">{{ $groupLabel }}</option>
-                                    @endforeach
-                                </select>
-                                <p class="mt-1 text-[11px] text-gray-500">Mã đề chứa khối lớp (vd. <span class="font-mono">G3-G4</span>) để hệ thống chấm theo thang điểm khối; khối chưa có thang điểm thì Học thuật chọn lớp thủ công.</p>
+                                <x-ui.select name="grade_group" label="Cấp độ (khối lớp)" x-model="gradeGroup" x-on:change="syncCode()" required :options="$gradeGroups" class="font-semibold" />
+                                <p class="mt-1 text-[11px] text-on-surface-variant">Mã đề chứa khối lớp (vd. <span class="font-mono">G3-G4</span>) để hệ thống chấm theo thang điểm khối; khối chưa có thang điểm thì Học thuật chọn lớp thủ công.</p>
                             </div>
 
-                            <div>
-                                <label class="block font-bold text-gray-700 mb-1 text-[11px]">Mô tả / Hướng dẫn làm bài</label>
-                                <textarea name="description" rows="2" placeholder="Ghi chú hướng dẫn..." class="w-full text-xs rounded-xl border border-gray-300 p-2.5 focus:border-primary-container focus:ring-primary-container bg-white shadow-2xs">{{ old('description') }}</textarea>
-                            </div>
+                            <x-ui.textarea name="description" label="Mô tả / Hướng dẫn làm bài" rows="2" placeholder="Ghi chú hướng dẫn..." />
                         </div>
                     </div>
 
                     {{-- Question List Navigation Card --}}
-                    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
-                        <div class="flex items-center justify-between pb-2 border-b border-gray-100">
-                            <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                                <span class="material-symbols-outlined text-indigo-600 text-[18px]">format_list_numbered</span>
+                    <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-4 space-y-3">
+                        <div class="flex items-center justify-between pb-2 border-b border-surface-container-highest">
+                            <h3 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-secondary text-[18px]">format_list_numbered</span>
                                 <span>Danh sách câu hỏi</span>
                             </h3>
-                            <span class="text-xs font-bold bg-orange-100 text-primary-container px-2.5 py-0.5 rounded-full font-mono" x-text="questions.length + ' Câu'"></span>
+                            <span class="text-xs font-bold bg-primary-container/10 text-primary-container px-2.5 py-0.5 rounded-full font-mono" x-text="questions.length + ' Câu'"></span>
                         </div>
 
                         {{-- Action Toolbar: Quick Add Types --}}
                         <div class="grid grid-cols-2 gap-1.5 text-xs">
-                            <button type="button" @click="addNewQuestion('multiple_choice', 'listening')" class="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-bold transition flex items-center justify-center gap-1 text-[11px] cursor-pointer">
+                            <button type="button" @click="addNewQuestion('multiple_choice', 'listening')" class="px-2.5 py-1.5 bg-secondary/10 hover:bg-secondary/20 text-secondary rounded-lg font-bold transition flex items-center justify-center gap-1 text-[11px] cursor-pointer">
                                 <span class="material-symbols-outlined text-[14px]">headphones</span>
                                 <span>+ Trắc nghiệm</span>
                             </button>
@@ -155,11 +119,11 @@
                                 <span class="material-symbols-outlined text-[14px]">edit_square</span>
                                 <span>+ Điền từ</span>
                             </button>
-                            <button type="button" @click="addNewQuestion('essay', 'writing')" class="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg font-bold transition flex items-center justify-center gap-1 text-[11px] cursor-pointer">
+                            <button type="button" @click="addNewQuestion('essay', 'writing')" class="px-2.5 py-1.5 bg-warning-container hover:bg-warning/20 text-on-warning-container rounded-lg font-bold transition flex items-center justify-center gap-1 text-[11px] cursor-pointer">
                                 <span class="material-symbols-outlined text-[14px]">edit_document</span>
                                 <span>+ Tự luận Writing</span>
                             </button>
-                            <button type="button" @click="addNewQuestion('speaking_prompt', 'speaking')" class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-bold transition flex items-center justify-center gap-1 text-[11px] cursor-pointer">
+                            <button type="button" @click="addNewQuestion('speaking_prompt', 'speaking')" class="px-2.5 py-1.5 bg-error/10 hover:bg-error/20 text-error rounded-lg font-bold transition flex items-center justify-center gap-1 text-[11px] cursor-pointer">
                                 <span class="material-symbols-outlined text-[14px]">mic</span>
                                 <span>+ Speaking</span>
                             </button>
@@ -170,13 +134,13 @@
                             <template x-for="(q, idx) in questions" :key="q.id">
                                 <div 
                                     @click="selectQuestion(idx)" 
-                                    :class="currentIndex === idx ? 'bg-primary-container text-white shadow-md border-primary ring-2 ring-orange-200' : 'bg-white text-gray-800 border-gray-200 hover:border-orange-300 hover:bg-slate-50'"
+                                    :class="currentIndex === idx ? 'bg-primary-container text-white shadow-md border-primary ring-2 ring-primary-container/30' : 'bg-surface-container-lowest text-on-surface border-surface-container-highest hover:border-primary-container/30 hover:bg-surface-container-low'"
                                     class="p-3 rounded-xl border transition-all cursor-pointer space-y-1"
                                 >
                                     <div class="flex justify-between items-center">
                                         <div class="flex items-center gap-1.5">
-                                            <span class="font-black text-xs font-mono" :class="currentIndex === idx ? 'text-white' : 'text-gray-900'" x-text="'Câu ' + String(idx + 1).padStart(2, '0')"></span>
-                                            <span class="text-[9px] uppercase font-extrabold px-1.5 py-0.5 rounded" :class="currentIndex === idx ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'" x-text="getTypeBadge(q.type)"></span>
+                                            <span class="font-black text-xs font-mono" :class="currentIndex === idx ? 'text-white' : 'text-on-surface'" x-text="'Câu ' + String(idx + 1).padStart(2, '0')"></span>
+                                            <span class="text-[9px] uppercase font-extrabold px-1.5 py-0.5 rounded" :class="currentIndex === idx ? 'bg-white/20 text-white' : 'bg-surface-container text-on-surface-variant'" x-text="getTypeBadge(q.type)"></span>
                                         </div>
                                         <div class="flex items-center gap-1" @click.stop>
                                             <button type="button" @click="moveQuestion(idx, -1)" :disabled="idx === 0" class="p-0.5 rounded hover:bg-black/10 disabled:opacity-30" title="Lên">
@@ -185,15 +149,15 @@
                                             <button type="button" @click="moveQuestion(idx, 1)" :disabled="idx === questions.length - 1" class="p-0.5 rounded hover:bg-black/10 disabled:opacity-30" title="Xuống">
                                                 <span class="material-symbols-outlined text-[14px]">arrow_downward</span>
                                             </button>
-                                            <button type="button" @click="deleteQuestion(idx)" :disabled="questions.length <= 1" class="p-0.5 rounded hover:bg-black/10 text-rose-300 hover:text-rose-100 disabled:opacity-30" title="Xóa">
+                                            <button type="button" @click="deleteQuestion(idx)" :disabled="questions.length <= 1" class="p-0.5 rounded hover:bg-black/10 text-error/70 hover:text-error-container disabled:opacity-30" title="Xóa">
                                                 <span class="material-symbols-outlined text-[14px]">close</span>
                                             </button>
                                         </div>
                                     </div>
-                                    <p class="text-[11px] line-clamp-1 leading-snug" :class="currentIndex === idx ? 'text-white/90' : 'text-gray-600'" x-text="q.title || '(Chưa nhập nội dung đề bài...)'"></p>
-                                    <div class="flex justify-between items-center pt-1 border-t text-[10px]" :class="currentIndex === idx ? 'border-white/20 text-white/90' : 'border-gray-100 text-gray-500'">
+                                    <p class="text-[11px] line-clamp-1 leading-snug" :class="currentIndex === idx ? 'text-white/90' : 'text-on-surface-variant'" x-text="q.title || '(Chưa nhập nội dung đề bài...)'"></p>
+                                    <div class="flex justify-between items-center pt-1 border-t text-[10px]" :class="currentIndex === idx ? 'border-white/20 text-white/90' : 'border-surface-container-highest text-on-surface-variant'">
                                         <span class="font-bold uppercase tracking-wider" x-text="q.skill"></span>
-                                        <span class="font-mono font-bold" :class="currentIndex === idx ? 'text-white' : 'text-orange-600'" x-text="(q.points || 1) + 'đ'"></span>
+                                        <span class="font-mono font-bold" :class="currentIndex === idx ? 'text-white' : 'text-primary'" x-text="(q.points || 1) + 'đ'"></span>
                                     </div>
                                 </div>
                             </template>
@@ -203,7 +167,7 @@
                         <button 
                             type="button" 
                             @click="addNewQuestion('multiple_choice', 'reading')" 
-                            class="w-full py-2.5 border-2 border-dashed border-orange-300 bg-orange-50/50 rounded-xl text-primary-container font-bold text-xs hover:bg-orange-100/50 hover:border-orange-400 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                            class="w-full py-2.5 border-2 border-dashed border-primary-container/30 bg-primary-container/5 rounded-xl text-primary-container font-bold text-xs hover:bg-primary-container/10 hover:border-primary-container transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
                         >
                             <span class="material-symbols-outlined text-[18px]">add_circle</span>
                             <span>Thêm câu hỏi mới vào đề</span>
@@ -215,74 +179,56 @@
                 {{-- ────────────────────────────────────────────── --}}
                 {{-- RIGHT MAIN PANEL: QUESTION DETAIL EDITOR --}}
                 {{-- ────────────────────────────────────────────── --}}
-                <main class="flex-1 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
+                <main class="flex-1 bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-6 space-y-6">
                     <template x-if="currentQ">
                         <div class="space-y-5">
                             
                             {{-- Editor Header --}}
-                            <div class="flex items-center justify-between pb-3 border-b border-gray-200 flex-wrap gap-2">
+                            <div class="flex items-center justify-between pb-3 border-b border-surface-container-highest flex-wrap gap-2">
                                 <div class="flex items-center gap-2">
                                     <span class="w-8 h-8 rounded-xl bg-primary-container text-white font-black text-sm flex items-center justify-center font-mono shadow-xs">
                                         #<span x-text="String(currentIndex + 1).padStart(2, '0')"></span>
                                     </span>
                                     <div>
-                                        <h2 class="text-sm font-black text-gray-900">
+                                        <h2 class="text-sm font-black text-on-surface">
                                             Soạn Thảo Chi Tiết Câu Hỏi Số <span class="text-primary-container font-mono" x-text="currentIndex + 1"></span>
                                         </h2>
-                                        <span class="text-[11px] text-gray-500">Thiết lập nội dung đề, phương án, đoạn văn, file nghe &amp; đáp án chấm tự động</span>
+                                        <span class="text-[11px] text-on-surface-variant">Thiết lập nội dung đề, phương án, đoạn văn, file nghe &amp; đáp án chấm tự động</span>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button 
-                                        type="button" 
-                                        @click="duplicateQuestion(currentIndex)" 
-                                        class="px-3 py-1.5 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer"
-                                    >
-                                        <span class="material-symbols-outlined text-[15px]">content_copy</span>
-                                        <span>Nhân bản câu</span>
-                                    </button>
-                                    <button 
-                                        type="button" 
-                                        @click="deleteQuestion(currentIndex)" 
-                                        :disabled="questions.length <= 1"
-                                        class="px-3 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                                    >
-                                        <span class="material-symbols-outlined text-[15px]">delete</span>
-                                        <span>Xóa câu</span>
-                                    </button>
+                                    <x-ui.button variant="secondary" size="sm" icon="content_copy" x-on:click="duplicateQuestion(currentIndex)">Nhân bản câu</x-ui.button>
+                                    <x-ui.button variant="danger-text" size="sm" icon="delete" x-on:click="deleteQuestion(currentIndex)" x-bind:disabled="questions.length <= 1">Xóa câu</x-ui.button>
                                 </div>
                             </div>
 
                             {{-- Section & Points & Skill --}}
                             <div class="grid grid-cols-1 md:grid-cols-12 gap-3 text-xs">
                                 <div class="md:col-span-6">
-                                    <label class="block font-bold text-gray-800 mb-1 text-[11px]">Phần thi (Section / Tiêu đề nhóm câu)</label>
-                                    <input type="text" x-model="currentQ.section" placeholder="VD: A. LISTENING - Exercise 1" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-semibold focus:ring-primary-container focus:border-primary-container bg-white shadow-2xs" />
+                                    <x-ui.input label="Phần thi (Section / Tiêu đề nhóm câu)" x-model="currentQ.section" placeholder="VD: A. LISTENING - Exercise 1" class="font-semibold" />
                                 </div>
-                                <div class="md:col-span-3">
-                                    <label class="block font-bold text-gray-800 mb-1 text-[11px]">Kỹ năng (Skill) <span class="text-rose-500">*</span></label>
-                                    <select x-model="currentQ.skill" class="w-full text-xs rounded-xl border border-gray-300 p-2.5 font-bold focus:ring-primary-container focus:border-primary-container bg-white shadow-2xs">
+                                <x-ui.field label="Kỹ năng (Skill)" required class="md:col-span-3">
+                                    <x-ui.select x-model="currentQ.skill" class="min-w-0 font-bold">
                                         <option value="listening">🎧 Listening (Nghe)</option>
                                         <option value="reading">📖 Reading (Đọc hiểu)</option>
                                         <option value="grammar">🔤 Grammar / Vocab</option>
                                         <option value="writing">✍️ Writing (Viết)</option>
                                         <option value="speaking">🗣️ Speaking (Nói)</option>
-                                    </select>
-                                </div>
+                                    </x-ui.select>
+                                </x-ui.field>
                                 <div class="md:col-span-3">
-                                    <label class="block font-bold text-gray-800 mb-1 text-[11px]">Điểm số (Points)</label>
-                                    <input type="number" x-model.number="currentQ.points" step="0.25" min="0.25" class="w-full text-xs font-mono font-black text-orange-600 rounded-xl border border-gray-300 p-2.5 focus:ring-primary-container focus:border-primary-container bg-white shadow-2xs" />
+                                    <x-ui.input type="number" label="Điểm số (Points)" x-model.number="currentQ.points" step="0.25" min="0.25" class="font-mono font-black text-primary" />
                                 </div>
                             </div>
 
                             {{-- Question Type Selector Buttons --}}
                             <div class="space-y-2 text-xs">
-                                <label class="block font-bold text-gray-800 uppercase tracking-wider text-[10px]">Định dạng loại câu hỏi</label>
+                                <label class="block font-bold text-on-surface uppercase tracking-wider text-[10px]">Định dạng loại câu hỏi</label>
                                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                     <button 
                                         type="button" 
                                         @click="setType('multiple_choice')" 
-                                        :class="currentQ.type === 'multiple_choice' ? 'border-2 border-primary-container bg-orange-50 text-primary-container font-black shadow-xs' : 'border border-gray-200 bg-white text-gray-700 hover:bg-slate-50'"
+                                        :class="currentQ.type === 'multiple_choice' ? 'border-2 border-primary-container bg-primary-container/10 text-primary-container font-black shadow-xs' : 'border border-surface-container-highest bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low'"
                                         class="p-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-xs"
                                     >
                                         <span class="material-symbols-outlined text-[18px]">list_alt</span>
@@ -292,7 +238,7 @@
                                     <button 
                                         type="button" 
                                         @click="setType('fill_blank')" 
-                                        :class="currentQ.type === 'fill_blank' ? 'border-2 border-primary-container bg-orange-50 text-primary-container font-black shadow-xs' : 'border border-gray-200 bg-white text-gray-700 hover:bg-slate-50'"
+                                        :class="currentQ.type === 'fill_blank' ? 'border-2 border-primary-container bg-primary-container/10 text-primary-container font-black shadow-xs' : 'border border-surface-container-highest bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low'"
                                         class="p-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-xs"
                                     >
                                         <span class="material-symbols-outlined text-[18px]">edit_square</span>
@@ -302,7 +248,7 @@
                                     <button 
                                         type="button" 
                                         @click="setType('essay')" 
-                                        :class="currentQ.type === 'essay' ? 'border-2 border-primary-container bg-orange-50 text-primary-container font-black shadow-xs' : 'border border-gray-200 bg-white text-gray-700 hover:bg-slate-50'"
+                                        :class="currentQ.type === 'essay' ? 'border-2 border-primary-container bg-primary-container/10 text-primary-container font-black shadow-xs' : 'border border-surface-container-highest bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low'"
                                         class="p-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-xs"
                                     >
                                         <span class="material-symbols-outlined text-[18px]">edit_note</span>
@@ -312,7 +258,7 @@
                                     <button 
                                         type="button" 
                                         @click="setType('speaking_prompt')" 
-                                        :class="currentQ.type === 'speaking_prompt' ? 'border-2 border-primary-container bg-orange-50 text-primary-container font-black shadow-xs' : 'border border-gray-200 bg-white text-gray-700 hover:bg-slate-50'"
+                                        :class="currentQ.type === 'speaking_prompt' ? 'border-2 border-primary-container bg-primary-container/10 text-primary-container font-black shadow-xs' : 'border border-surface-container-highest bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low'"
                                         class="p-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-xs"
                                     >
                                         <span class="material-symbols-outlined text-[18px]">record_voice_over</span>
@@ -322,21 +268,21 @@
                             </div>
 
                             {{-- Audio Track Upload & Player (for Listening) --}}
-                            <div class="p-4 bg-indigo-50/60 border border-indigo-200 rounded-2xl space-y-2 text-xs">
+                            <div class="p-4 bg-secondary/5 border border-secondary/30 rounded-2xl space-y-2 text-xs">
                                 <div class="flex items-center justify-between">
-                                    <span class="font-bold text-indigo-950 flex items-center gap-1.5">
-                                        <span class="material-symbols-outlined text-indigo-600 text-base">headphones</span>
+                                    <span class="font-bold text-on-secondary-fixed flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-secondary text-base">headphones</span>
                                         <span>Đường dẫn tệp Audio Nghe (.mp3)</span>
                                     </span>
-                                    <span class="text-[10px] text-indigo-700 font-mono italic">Phát trực tiếp trên giao diện thi</span>
+                                    <span class="text-[10px] text-secondary font-mono italic">Phát trực tiếp trên giao diện thi</span>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <label class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-indigo-300 bg-white px-3 py-2 font-bold text-indigo-700 hover:bg-indigo-50">
+                                    <label class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-secondary/30 bg-surface-container-lowest px-3 py-2 font-bold text-secondary hover:bg-secondary/10">
                                         <span class="material-symbols-outlined text-[16px]">upload_file</span>
                                         <span x-text="uploading === 'audio' ? 'Đang tải lên...' : 'Tải file nghe (.mp3)'"></span>
                                         <input type="file" accept="audio/*" class="sr-only" @change="uploadMedia($event, 'audio', (url) => currentQ.audio_url = url)" />
                                     </label>
-                                    <input type="text" x-model="currentQ.audio_url" placeholder="hoặc dán đường dẫn file nghe" class="min-w-[200px] flex-1 text-xs rounded-xl border border-indigo-300 p-2.5 bg-white font-mono shadow-2xs" />
+                                    <input type="text" x-model="currentQ.audio_url" placeholder="hoặc dán đường dẫn file nghe" class="min-w-[200px] flex-1 text-xs rounded-xl border border-secondary/30 p-2.5 bg-surface-container-lowest font-mono shadow-2xs" />
                                 </div>
                                 <template x-if="currentQ.audio_url">
                                     <div class="pt-1">
@@ -346,65 +292,56 @@
                             </div>
 
                             {{-- Reading / Context Passage Content --}}
-                            <div class="space-y-1 text-xs">
-                                <label class="block font-bold text-gray-800 text-[11px]">Đoạn văn đọc hiểu / Bối cảnh câu hỏi (Passage / Reading Text)</label>
-                                <textarea x-model="currentQ.passage" rows="3" placeholder="Nhập đoạn văn đọc hiểu hoặc ngữ cảnh của câu hỏi (nếu có)..." class="w-full text-xs rounded-xl border border-gray-300 p-3 focus:ring-primary-container focus:border-primary-container bg-white font-serif shadow-2xs leading-relaxed"></textarea>
-                            </div>
+                            <x-ui.textarea label="Đoạn văn đọc hiểu / Bối cảnh câu hỏi (Passage / Reading Text)" x-model="currentQ.passage" rows="3" placeholder="Nhập đoạn văn đọc hiểu hoặc ngữ cảnh của câu hỏi (nếu có)..." class="font-serif leading-relaxed" />
 
                             {{-- Question Text Content --}}
-                            <div class="space-y-1 text-xs">
-                                <label class="block font-bold text-gray-800 text-[11px]">Nội dung câu hỏi / Yêu cầu đề bài <span class="text-rose-500">*</span></label>
-                                <textarea x-model="currentQ.title" rows="2" placeholder="VD: According to the passage, what is the primary benefit of renewable energy?" class="w-full text-xs font-bold rounded-xl border border-gray-300 p-3 focus:ring-primary-container focus:border-primary-container bg-white shadow-2xs"></textarea>
-                            </div>
+                            <x-ui.field label="Nội dung câu hỏi / Yêu cầu đề bài" required>
+                                <x-ui.textarea x-model="currentQ.title" rows="2" placeholder="VD: According to the passage, what is the primary benefit of renewable energy?" class="font-bold" />
+                            </x-ui.field>
 
                             {{-- MULTIPLE CHOICE OPTIONS EDITOR --}}
                             <template x-if="currentQ.type === 'multiple_choice'">
-                                <div class="space-y-3 text-xs bg-slate-50/70 p-4 rounded-2xl border border-gray-200">
-                                    <div class="flex items-center justify-between pb-2 border-b border-gray-200">
-                                        <h4 class="font-bold text-gray-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                                <div class="space-y-3 text-xs bg-surface-container-low/70 p-4 rounded-2xl border border-surface-container-highest">
+                                    <div class="flex items-center justify-between pb-2 border-b border-surface-container-highest">
+                                        <h4 class="font-bold text-on-surface uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                                             <span class="material-symbols-outlined text-primary-container text-base">tune</span>
                                             <span>Các phương án trả lời (Tích chọn radio vào đáp án đúng)</span>
                                         </h4>
-                                        <button type="button" @click="addOption()" class="px-2.5 py-1 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
-                                            <span class="material-symbols-outlined text-[14px]">add</span>
-                                            <span>Thêm phương án</span>
-                                        </button>
+                                        <x-ui.button variant="secondary" size="sm" icon="add" x-on:click="addOption()">Thêm phương án</x-ui.button>
                                     </div>
 
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <template x-for="(opt, oIdx) in currentQ.options" :key="opt.key">
-                                            <div class="p-3 bg-white rounded-xl border border-gray-200 space-y-2 shadow-2xs">
+                                            <div class="p-3 bg-surface-container-lowest rounded-xl border border-surface-container-highest space-y-2 shadow-2xs">
                                                 <div class="flex items-center gap-2">
                                                     <input 
                                                         type="radio" 
                                                         :name="'correct_ans_' + currentQ.id" 
                                                         :checked="currentQ.correct_answer === opt.key" 
                                                         @change="currentQ.correct_answer = opt.key" 
-                                                        class="w-4 h-4 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                                                        class="w-4 h-4 text-primary focus:ring-primary-container cursor-pointer"
                                                     />
-                                                    <span class="font-black text-sm font-mono w-5" :class="currentQ.correct_answer === opt.key ? 'text-primary-container' : 'text-gray-700'" x-text="opt.key + '.'"></span>
-                                                    <input type="text" x-model="opt.text" placeholder="Nhập nội dung phương án..." class="flex-1 text-xs rounded-lg border border-gray-300 p-2 bg-white font-medium focus:ring-primary-container focus:border-primary-container" />
-                                                    <button type="button" @click="removeOption(oIdx)" :disabled="currentQ.options.length <= 2" class="p-1 text-gray-400 hover:text-rose-600 disabled:opacity-20 cursor-pointer" title="Xóa phương án">
-                                                        <span class="material-symbols-outlined text-[16px]">close</span>
-                                                    </button>
+                                                    <span class="font-black text-sm font-mono w-5" :class="currentQ.correct_answer === opt.key ? 'text-primary-container' : 'text-on-surface-variant'" x-text="opt.key + '.'"></span>
+                                                    <input type="text" x-model="opt.text" placeholder="Nhập nội dung phương án..." class="flex-1 text-xs rounded-lg border border-outline-variant p-2 bg-surface-container-lowest font-medium focus:ring-primary-container focus:border-primary-container" />
+                                                    <x-ui.button variant="ghost" size="sm" icon="close" x-on:click="removeOption(oIdx)" x-bind:disabled="currentQ.options.length <= 2" title="Xóa phương án" aria-label="Xóa phương án" />
                                                 </div>
                                                 <div class="flex items-center gap-2 pl-6">
-                                                    <label class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-dashed border-gray-300 px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-50">
+                                                    <label class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-dashed border-outline-variant px-2 py-1 text-[11px] font-semibold text-on-surface-variant hover:bg-surface-container-low">
                                                         <span class="material-symbols-outlined text-[14px]">add_photo_alternate</span>Tải ảnh lên
                                                         <input type="file" accept="image/*" class="sr-only" @change="uploadMedia($event, 'image', (url) => opt.image_url = url)" />
                                                     </label>
                                                     <template x-if="opt.image_url">
                                                         <div class="flex items-center gap-1">
-                                                            <img :src="opt.image_url" :alt="'Ảnh phương án ' + opt.key" class="h-10 w-10 rounded border border-gray-200 object-cover">
-                                                            <button type="button" @click="opt.image_url = ''" class="text-gray-400 hover:text-rose-600" title="Bỏ ảnh"><span class="material-symbols-outlined text-[14px]">close</span></button>
+                                                            <img :src="opt.image_url" :alt="'Ảnh phương án ' + opt.key" class="h-10 w-10 rounded border border-surface-container-highest object-cover">
+                                                            <x-ui.button variant="ghost" size="sm" icon="close" x-on:click="opt.image_url = ''" title="Bỏ ảnh" aria-label="Bỏ ảnh" />
                                                         </div>
                                                     </template>
                                                 </div>
                                             </div>
                                         </template>
                                     </div>
-                                    <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-[11px] flex items-center gap-2">
-                                        <span class="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
+                                    <div class="p-2.5 bg-tertiary/10 border border-tertiary/30 rounded-xl text-on-tertiary-container text-[11px] flex items-center gap-2">
+                                        <span class="material-symbols-outlined text-tertiary text-base">check_circle</span>
                                         <span>Đáp án đúng hiện tại: <strong class="font-mono text-sm" x-text="currentQ.correct_answer || 'Chưa chọn'"></strong></span>
                                     </div>
                                 </div>
@@ -412,62 +349,56 @@
 
                             {{-- FILL BLANK SETUP --}}
                             <template x-if="currentQ.type === 'fill_blank'">
-                                <div class="p-4 bg-slate-50 border border-gray-200 rounded-xl space-y-2 text-xs">
-                                    <label class="block font-bold text-gray-900 uppercase text-[11px]">Từ / Cụm từ đáp án chính xác <span class="text-rose-500">*</span></label>
-                                    <input type="text" x-model="currentQ.correct_answer" placeholder="VD: had studied, will go, beautiful..." class="w-full text-xs rounded-lg border border-gray-300 p-2.5 bg-white font-mono font-bold text-emerald-700 shadow-2xs" />
-                                    <p class="text-[11px] text-gray-500 italic">* Hệ thống sẽ tự động đối soát đáp án này không phân biệt hoa thường khi học viên nộp bài.</p>
+                                <div class="p-4 bg-surface-container-low border border-surface-container-highest rounded-xl space-y-2 text-xs">
+                                    <x-ui.field label="Từ / Cụm từ đáp án chính xác" required>
+                                        <x-ui.input x-model="currentQ.correct_answer" placeholder="VD: had studied, will go, beautiful..." class="font-mono font-bold text-tertiary" />
+                                    </x-ui.field>
+                                    <p class="text-[11px] text-on-surface-variant italic">* Hệ thống sẽ tự động đối soát đáp án này không phân biệt hoa thường khi học viên nộp bài.</p>
                                 </div>
                             </template>
 
                             {{-- ESSAY WRITING SETUP --}}
                             <template x-if="currentQ.type === 'essay'">
-                                <div class="p-4 bg-amber-50/60 border border-amber-200 rounded-xl space-y-3 text-xs">
+                                <div class="p-4 bg-warning/5 border border-warning/30 rounded-xl space-y-3 text-xs">
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div>
-                                            <label class="block font-bold text-amber-950 uppercase text-[10px] mb-1">Số từ tối thiểu (Minimum Words)</label>
-                                            <input type="number" x-model.number="currentQ.min_words" placeholder="120" min="10" class="w-full text-xs rounded-lg border border-amber-300 p-2.5 bg-white font-bold" />
-                                        </div>
-                                        <div>
-                                            <label class="block font-bold text-amber-950 uppercase text-[10px] mb-1">Tiêu chuẩn Rubric áp dụng</label>
-                                            <input type="text" x-model="currentQ.rubric_note" placeholder="IELTS Writing Task 1 / Task 2 Rubric" class="w-full text-xs rounded-lg border border-amber-300 p-2.5 bg-white font-medium" />
-                                        </div>
+                                        <x-ui.input type="number" label="Số từ tối thiểu (Minimum Words)" x-model.number="currentQ.min_words" placeholder="120" min="10" class="font-bold" />
+                                        <x-ui.input label="Tiêu chuẩn Rubric áp dụng" x-model="currentQ.rubric_note" placeholder="IELTS Writing Task 1 / Task 2 Rubric" class="font-medium" />
                                     </div>
-                                    <p class="text-[11px] text-amber-800 italic">* Bài làm tự luận sẽ được giáo viên chấm trực tiếp tại cổng kết quả.</p>
+                                    <p class="text-[11px] text-on-warning-container italic">* Bài làm tự luận sẽ được giáo viên chấm trực tiếp tại cổng kết quả.</p>
                                 </div>
                             </template>
 
                             {{-- SPEAKING SETUP --}}
                             <template x-if="currentQ.type === 'speaking_prompt'">
-                                <div class="p-4 bg-rose-50/60 border border-rose-200 rounded-xl space-y-2 text-xs">
-                                    <label class="block font-bold text-rose-950 uppercase text-[11px]">Gợi ý dàn ý / Cue points cho học viên</label>
-                                    <textarea x-model="currentQ.passage" rows="3" placeholder="• Where you went and who you went with\n• How you travelled there\n• What you did..." class="w-full text-xs rounded-lg border border-rose-300 p-2.5 bg-white leading-relaxed"></textarea>
+                                <div class="p-4 bg-error/5 border border-error/30 rounded-xl text-xs">
+                                    <x-ui.textarea label="Gợi ý dàn ý / Cue points cho học viên" x-model="currentQ.passage" rows="3" placeholder="• Where you went and who you went with\n• How you travelled there\n• What you did..." class="leading-relaxed" />
                                 </div>
                             </template>
 
                             {{-- Explanation Box --}}
-                            <div class="p-4 bg-amber-50/50 border border-amber-200 rounded-2xl space-y-1.5 text-xs">
-                                <label class="block font-bold text-amber-950 uppercase text-[11px] flex items-center gap-1.5">
+                            <div class="p-4 bg-warning/5 border border-warning/30 rounded-2xl space-y-1.5 text-xs">
+                                <label class="block font-bold text-on-warning-container uppercase text-[11px] flex items-center gap-1.5">
                                     <span class="material-symbols-outlined text-primary-container text-base">lightbulb</span>
                                     <span>Lời giải thích chi tiết &amp; Dẫn chứng bài làm (Explanation)</span>
                                 </label>
-                                <textarea x-model="currentQ.explanation" rows="2" placeholder="Giải thích vì sao đáp án này đúng, trích dẫn transcript bài nghe hoặc đoạn văn bài đọc..." class="w-full text-xs rounded-xl border border-amber-300 p-2.5 bg-white shadow-2xs leading-relaxed"></textarea>
+                                <x-ui.textarea x-model="currentQ.explanation" rows="2" placeholder="Giải thích vì sao đáp án này đúng, trích dẫn transcript bài nghe hoặc đoạn văn bài đọc..." class="leading-relaxed" />
                             </div>
 
                             {{-- Teacher Note Box --}}
-                            <div class="p-4 bg-slate-50 border border-gray-200 rounded-2xl space-y-1.5 text-xs">
-                                <label class="block font-bold text-gray-800 uppercase text-[11px] flex items-center gap-1.5">
-                                    <span class="material-symbols-outlined text-orange-600 text-base">settings_suggest</span>
+                            <div class="p-4 bg-surface-container-low border border-surface-container-highest rounded-2xl space-y-1.5 text-xs">
+                                <label class="block font-bold text-on-surface uppercase text-[11px] flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-primary text-base">settings_suggest</span>
                                     <span>Ghi chú chuyên môn cho Giáo viên khi chấm (Teacher's Note)</span>
                                 </label>
-                                <textarea x-model="currentQ.teacher_note" rows="2" placeholder="Ghi chú thêm về tiêu chí, bẫy từ vựng..." class="w-full text-xs rounded-xl border border-gray-300 p-2.5 bg-white shadow-2xs"></textarea>
+                                <x-ui.textarea x-model="currentQ.teacher_note" rows="2" placeholder="Ghi chú thêm về tiêu chí, bẫy từ vựng..." />
                             </div>
 
                             {{-- Form Action Footer: Lưu nháp = lưu đề ở trạng thái Ẩn; Lưu và Tiếp theo = sang câu kế tiếp --}}
                             <div class="flex flex-wrap items-center justify-end gap-sm border-t border-surface-container-highest pt-md">
-                                <button type="submit" name="save_mode" value="draft" class="rounded-lg border border-outline-variant px-lg py-sm font-body-medium text-body-medium text-on-surface hover:bg-surface-container-low">Lưu nháp</button>
-                                <button type="button" @click="saveAndNext()" class="inline-flex items-center gap-xs rounded-lg bg-secondary px-lg py-sm font-body-medium text-body-medium text-white hover:opacity-90">
-                                    Lưu và Tiếp theo<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
-                                </button>
+                                <x-ui.button type="submit" variant="secondary" name="save_mode" value="draft">Lưu nháp</x-ui.button>
+                                <x-ui.button variant="info" x-on:click="saveAndNext()">
+                                    Lưu và Tiếp theo<span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_forward</span>
+                                </x-ui.button>
                             </div>
 
                         </div>

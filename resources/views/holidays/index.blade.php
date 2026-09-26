@@ -76,7 +76,7 @@
                                             <x-ui.button variant="ghost" icon="edit" :href="route('holidays.edit', $row)" modal="md" title="Sửa" aria-label="Sửa {{ $row->name }}" />
                                             <x-ui.button variant="danger-text" icon="delete" title="Xóa" aria-label="Xóa {{ $row->name }}"
                                                          data-url="{{ route('holidays.destroy', $row) }}" data-name="{{ $row->name }}"
-                                                         @click="del = { url: $el.dataset.url, name: $el.dataset.name }; $dispatch('open-modal', 'delete-holiday')" />
+                                                         x-on:click="del = { url: $el.dataset.url, name: $el.dataset.name }; $dispatch('open-modal', 'delete-holiday')" />
                                         </td>
                                     @endif
                                 </tr>
@@ -117,7 +117,7 @@
                     @csrf @method('DELETE')
                 </form>
                 <x-slot:footer>
-                    <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'delete-holiday')">Hủy</x-ui.button>
+                    <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'delete-holiday')">Hủy</x-ui.button>
                     <x-ui.button variant="danger" type="submit" form="delete-holiday-form" icon="delete">Xóa</x-ui.button>
                 </x-slot:footer>
             </x-ui.modal>

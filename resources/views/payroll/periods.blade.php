@@ -8,7 +8,7 @@
     <x-ui.page-header title="Danh sách bảng lương theo kỳ" description="Quản lý, tổng hợp chấm công và chốt lương giáo viên, nhân sự theo từng kỳ.">
         <x-slot:actions>
             @can('payroll.create')
-                <x-ui.button icon="add_circle" @click="$dispatch('open-modal', 'new-period')">Tạo kỳ lương mới</x-ui.button>
+                <x-ui.button icon="add_circle" x-on:click="$dispatch('open-modal', 'new-period')">Tạo kỳ lương mới</x-ui.button>
             @endcan
         </x-slot:actions>
     </x-ui.page-header>
@@ -25,22 +25,14 @@
 
     <form method="GET" action="{{ route('payroll.periods.index') }}" role="search"
           class="mb-lg flex flex-wrap items-end gap-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
-        <label class="flex flex-col gap-xs">
-            <span class="font-label text-label uppercase tracking-wide text-on-surface-variant">Kỳ lương</span>
-            <select onchange="if (this.value) window.location.href = this.value" aria-label="Mở kỳ lương"
-                    class="rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
-                <option value="">-- Mở kỳ lương --</option>
-                @foreach ($allPeriods as $p)
-                    <option value="{{ route('payroll.periods.show', $p->id) }}">{{ $p->title }} ({{ $p->code }})</option>
-                @endforeach
-            </select>
-        </label>
-        <label class="relative min-w-[240px] flex-1">
-            <span class="sr-only">Tìm kiếm</span>
-            <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
-            <input type="search" name="search" value="{{ $search }}" placeholder="Tìm kỳ lương / giáo viên..."
-                   class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-10 pr-md font-body-base text-body-base placeholder:text-on-surface-variant/60 focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
-        </label>
+        <x-ui.select label="Kỳ lương" onchange="if (this.value) window.location.href = this.value" aria-label="Mở kỳ lương" placeholder="-- Mở kỳ lương --">
+            @foreach ($allPeriods as $p)
+                <option value="{{ route('payroll.periods.show', $p->id) }}">{{ $p->title }} ({{ $p->code }})</option>
+            @endforeach
+        </x-ui.select>
+        <div class="min-w-[240px] flex-1">
+            <x-ui.input type="search" name="search" :value="$search" icon="search" placeholder="Tìm kỳ lương / giáo viên..." aria-label="Tìm kiếm" />
+        </div>
         <x-ui.select name="status" :options="$statusTexts" placeholder="Mọi trạng thái" aria-label="Trạng thái" onchange="this.form.submit()" />
         <x-ui.button type="submit" variant="secondary" icon="filter_list">Lọc</x-ui.button>
     </form>
@@ -97,7 +89,7 @@
                 <x-ui.alert type="info">Hệ thống tự quét chấm công hợp lệ, KPI, hoa hồng (gate kép), thưởng tái tục và phạt quá hạn theo công thức Q3.</x-ui.alert>
             </form>
             <x-slot:footer>
-                <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'new-period')">Hủy</x-ui.button>
+                <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'new-period')">Hủy</x-ui.button>
                 <x-ui.button type="submit" form="new-period-form">Khởi tạo &amp; Tính toán</x-ui.button>
             </x-slot:footer>
         </x-ui.modal>

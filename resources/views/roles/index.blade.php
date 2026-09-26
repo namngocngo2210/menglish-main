@@ -65,7 +65,7 @@
                                     @if (! $isSuperAdmin && $role->users_count === 0)
                                         <x-ui.button size="sm" variant="danger-text" icon="delete" title="Xóa vai trò"
                                                      data-url="{{ route('roles.destroy', $role) }}" data-name="{{ \App\Helpers\AclHelper::roleLabel($role->name) }}"
-                                                     @click="del = { url: $el.dataset.url, name: $el.dataset.name }; $dispatch('open-modal', 'delete-role')">Xóa</x-ui.button>
+                                                     x-on:click="del = { url: $el.dataset.url, name: $el.dataset.name }; $dispatch('open-modal', 'delete-role')">Xóa</x-ui.button>
                                     @endif
                                 @endcan
                             </div>
@@ -86,7 +86,7 @@
                 @csrf @method('DELETE')
             </form>
             <x-slot:footer>
-                <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'delete-role')">Hủy</x-ui.button>
+                <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'delete-role')">Hủy</x-ui.button>
                 <x-ui.button variant="danger" type="submit" form="delete-role-form" icon="delete">Xóa</x-ui.button>
             </x-slot:footer>
         </x-ui.modal>

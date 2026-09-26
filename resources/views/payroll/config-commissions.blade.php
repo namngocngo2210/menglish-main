@@ -10,14 +10,13 @@
         <x-slot:actions>
             <label class="flex items-center gap-sm">
                 <span class="sr-only">Loại cấu hình</span>
-                <select onchange="window.location.href = this.value"
-                        class="rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-medium text-body-medium text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
+                <x-ui.select onchange="window.location.href = this.value">
                     <option value="{{ route('payroll.config.commission-tiers') }}" @selected($tab === 'commission')>Hoa hồng tuyển sinh</option>
                     <option value="{{ route('payroll.config.commission-tiers', ['tab' => 'renewal']) }}" @selected($tab === 'renewal')>Thưởng tái tục</option>
-                </select>
+                </x-ui.select>
             </label>
             @if ($tab === 'commission')
-                <x-ui.button icon="add" @click="document.getElementById('new-tier-form')?.scrollIntoView({ behavior: 'smooth' }); document.getElementById('f_min_students')?.focus()">Thêm mốc mới</x-ui.button>
+                <x-ui.button icon="add" x-on:click="document.getElementById('new-tier-form')?.scrollIntoView({ behavior: 'smooth' }); document.getElementById('f_min_students')?.focus()">Thêm mốc mới</x-ui.button>
             @endif
             <x-ui.button variant="secondary" icon="price_change" :href="route('payroll.config.teacher-rates')">Đơn giá GV</x-ui.button>
         </x-slot:actions>
@@ -80,7 +79,7 @@
                                             @if ($tier->effective_to === null)
                                                 <div class="flex justify-end gap-xs">
                                                     <x-ui.button variant="ghost" size="sm" icon="edit" aria-label="Sửa (tạo phiên bản mới)"
-                                                                 @click="editing = {{ Js::from($tier->only(['id', 'tier_name', 'min_students', 'max_students', 'new_sale_percent'])) }}; $dispatch('open-modal', 'edit-tier')" />
+                                                                 x-on:click="editing = {{ Js::from($tier->only(['id', 'tier_name', 'min_students', 'max_students', 'new_sale_percent'])) }}; $dispatch('open-modal', 'edit-tier')" />
                                                     <form action="{{ route('payroll.config.commission-tiers.destroy', $tier) }}" method="POST" data-confirm="Ngừng áp dụng mốc {{ $tier->tier_name }} từ hôm nay?">
                                                         @csrf
                                                         @method('DELETE')
@@ -148,13 +147,8 @@
                             <x-ui.input type="number" name="min_students" label="Từ (số học viên)" required min="0" step="1" placeholder="VD: 11" />
                             <x-ui.input type="number" name="max_students" label="Đến (số học viên)" min="0" step="1" placeholder="Để trống = Max" />
                         </div>
-                        <x-ui.field label="Tỷ lệ (%)" name="new_sale_percent" for="f_new_sale_percent" required>
-                            <div class="relative">
-                                <input type="number" id="f_new_sale_percent" name="new_sale_percent" required min="0" max="100" step="0.1" placeholder="0.0" value="{{ old('new_sale_percent') }}"
-                                       class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm pr-xl text-right font-mono text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
-                                <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-body-medium text-on-surface-variant">%</span>
-                            </div>
-                        </x-ui.field>
+                        <x-ui.input type="number" id="f_new_sale_percent" name="new_sale_percent" label="Tỷ lệ (%)" required suffix="%"
+                                    min="0" max="100" step="0.1" placeholder="0.0" class="text-right font-mono" />
                         <x-ui.date name="effective_from" label="Hiệu lực từ ngày" required :value="old('effective_from', now()->toDateString())" />
                         <x-ui.input name="tier_name" label="Tên bậc (tuỳ chọn)" placeholder="Bỏ trống = tự đặt theo ngưỡng" />
                         <x-ui.button type="submit" icon="save" class="w-full">Lưu cấu hình</x-ui.button>
@@ -189,61 +183,62 @@
                     </template>
                 </form>
                 <x-slot:footer>
-                    <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'edit-tier')">Hủy</x-ui.button>
+                    <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'edit-tier')">Hủy</x-ui.button>
                     <x-ui.button type="submit" form="edit-tier-form" icon="save">Lưu phiên bản mới</x-ui.button>
                 </x-slot:footer>
             </x-ui.modal>
         @else
             {{-- Thưởng tái tục (A6): % doanh thu lớp theo số HS nghỉ trong kỳ, cho GV Full-time phụ trách lớp --}}
             <form action="{{ route('payroll.config.renewal.store') }}" method="POST"
-                  class="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm"
                   x-data="{ rows: @js(array_values($renewalRows)) }">
                 @csrf
-                <div class="flex flex-wrap items-center justify-between gap-sm border-b border-surface-container p-md">
-                    <div>
-                        <h3 class="font-h3 text-h3 text-on-surface">Thưởng tái tục — % doanh thu lớp theo số HS nghỉ trong kỳ</h3>
-                        <p class="font-body-small text-body-small text-on-surface-variant">BA đã chốt: giữ đủ 100% → 1%, nghỉ 1 HS → 0,7%. Các mốc khác gắn <strong>chờ BA</strong> tới khi có bảng đầy đủ.</p>
-                    </div>
-                    <x-ui.button variant="secondary" size="sm" icon="add" @click="rows.push({ quits: rows.length, percent: 0, pending: true })">Thêm mốc mới</x-ui.button>
-                </div>
-                <div class="custom-scrollbar overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead class="bg-surface-container-low">
-                            <tr class="font-label text-label uppercase text-on-surface-variant">
-                                <th class="px-md py-sm">Số HS nghỉ trong lớp</th>
-                                <th class="px-md py-sm">Tỷ lệ (% doanh thu lớp)</th>
-                                <th class="px-md py-sm">Chờ BA</th>
-                                <th class="px-md py-sm"></th>
+                <x-ui.data-table class="shadow-sm">
+                    <x-slot:header>
+                        <div>
+                            <h3 class="font-h3 text-h3 text-on-surface">Thưởng tái tục — % doanh thu lớp theo số HS nghỉ trong kỳ</h3>
+                            <p class="font-body-small text-body-small text-on-surface-variant">BA đã chốt: giữ đủ 100% → 1%, nghỉ 1 HS → 0,7%. Các mốc khác gắn <strong>chờ BA</strong> tới khi có bảng đầy đủ.</p>
+                        </div>
+                        <x-ui.button variant="secondary" size="sm" icon="add" x-on:click="rows.push({ quits: rows.length, percent: 0, pending: true })">Thêm mốc mới</x-ui.button>
+                    </x-slot:header>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Số HS nghỉ trong lớp</th>
+                                <th>Tỷ lệ (% doanh thu lớp)</th>
+                                <th>Chờ BA</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
                             <template x-for="(row, i) in rows" :key="i">
-                                <tr class="border-t border-surface-container">
-                                    <td class="px-md py-sm"><input type="number" min="0" :name="`renewal[${i}][quits]`" x-model="row.quits" aria-label="Số HS nghỉ" class="w-28 rounded-lg border border-outline-variant px-sm py-xs font-code text-code"></td>
-                                    <td class="px-md py-sm">
+                                <tr>
+                                    <td><input type="number" min="0" :name="`renewal[${i}][quits]`" x-model="row.quits" aria-label="Số HS nghỉ" class="w-28 rounded-lg border border-outline-variant px-sm py-xs font-code text-code"></td>
+                                    <td>
                                         <span class="relative inline-block">
                                             <input type="number" min="0" max="100" step="0.05" :name="`renewal[${i}][percent]`" x-model="row.percent" aria-label="Tỷ lệ %" class="w-32 rounded-lg border border-outline-variant px-sm py-xs pr-lg text-right font-code text-code">
                                             <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-on-surface-variant">%</span>
                                         </span>
                                     </td>
-                                    <td class="px-md py-sm">
+                                    <td>
                                         <input type="hidden" :name="`renewal[${i}][pending]`" :value="row.pending ? 1 : 0">
-                                        <label class="inline-flex items-center gap-xs"><input type="checkbox" x-model="row.pending" class="rounded border-outline-variant text-primary-container"><span x-show="row.pending" class="font-caption text-caption font-semibold text-amber-700">chờ BA</span></label>
+                                        <label class="inline-flex items-center gap-xs"><input type="checkbox" x-model="row.pending" class="rounded border-outline-variant text-primary-container"><span x-show="row.pending" class="font-caption text-caption font-semibold text-warning">chờ BA</span></label>
                                     </td>
-                                    <td class="px-md py-sm text-right"><x-ui.button variant="danger-text" size="sm" icon="delete" aria-label="Xoá mốc" @click="rows.splice(i, 1)" /></td>
+                                    <td class="text-right"><x-ui.button variant="danger-text" size="sm" icon="delete" aria-label="Xoá mốc" x-on:click="rows.splice(i, 1)" /></td>
                                 </tr>
                             </template>
                         </tbody>
                     </table>
-                </div>
-                <div class="flex flex-wrap items-center justify-between gap-md border-t border-surface-container bg-surface-container-low/40 p-md">
-                    <label class="flex items-center gap-sm font-body-medium text-body-medium">
-                        Nghỉ nhiều hơn các mốc trên:
-                        <input type="number" name="renewal_beyond_percent" min="0" max="100" step="0.05" value="{{ old('renewal_beyond_percent', rtrim(rtrim(number_format((float) $settings['renewal_beyond_percent'], 2, '.', ''), '0'), '.')) }}"
-                               class="w-28 rounded-lg border border-outline-variant px-sm py-xs text-right font-code text-code"> % <span class="font-caption text-caption text-amber-700">(chờ BA)</span>
-                    </label>
-                    <x-ui.button type="submit" icon="save">Lưu cấu hình</x-ui.button>
-                </div>
+                    <x-slot:footer>
+                        <div class="flex flex-wrap items-center justify-between gap-md p-md">
+                            <label class="flex items-center gap-sm font-body-medium text-body-medium">
+                                Nghỉ nhiều hơn các mốc trên:
+                                <input type="number" name="renewal_beyond_percent" min="0" max="100" step="0.05" value="{{ old('renewal_beyond_percent', rtrim(rtrim(number_format((float) $settings['renewal_beyond_percent'], 2, '.', ''), '0'), '.')) }}"
+                                       class="w-28 rounded-lg border border-outline-variant px-sm py-xs text-right font-code text-code"> % <span class="font-caption text-caption text-warning">(chờ BA)</span>
+                            </label>
+                            <x-ui.button type="submit" icon="save">Lưu cấu hình</x-ui.button>
+                        </div>
+                    </x-slot:footer>
+                </x-ui.data-table>
             </form>
             <p class="font-body-small text-body-small text-on-surface-variant">
                 Thưởng tái tục = Σ theo lớp GV Full-time là GV chính: % theo số HS nghỉ trong kỳ × doanh thu lớp (phiếu thu đã duyệt trong kỳ, trừ tiền nhận chuyển nhượng).

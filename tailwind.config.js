@@ -90,6 +90,18 @@ export default {
                     container: '#ffdad6',
                 },
                 'on-error': '#ffffff',
+
+                // Cảnh báo / thông tin (thay cho amber-*, blue-* viết cứng). success = tertiary.
+                warning: {
+                    DEFAULT: '#b45309',
+                    container: '#fef3c7',
+                },
+                'on-warning-container': '#78350f',
+                info: {
+                    DEFAULT: '#1d4ed8',
+                    container: '#dbeafe',
+                },
+                'on-info-container': '#1e3a8a',
                 'on-error-container': '#93000a',
 
                 surface: {
@@ -182,22 +194,33 @@ export default {
                 code: mono,
             },
 
+            // Cỡ chữ gọn hơn cho toàn hệ thống (giữ nguyên spacing). Ghi đè cả thang mặc định của Tailwind
+            // từ sm trở lên; xs (12px) và các cỡ tuỳ biến text-[10px]/[11px] giữ nguyên để không quá nhỏ.
             fontSize: {
-                h1: ['28px', { lineHeight: '36px', letterSpacing: '-0.02em', fontWeight: '700' }],
-                h2: ['22px', { lineHeight: '30px', letterSpacing: '-0.01em', fontWeight: '600' }],
-                'h2-desktop': ['22px', { lineHeight: '32px', fontWeight: '700' }],
-                h3: ['18px', { lineHeight: '26px', fontWeight: '600' }],
-                'h3-card': ['18px', { lineHeight: '26px', fontWeight: '600' }],
-                'body-base': ['14px', { lineHeight: '20px', fontWeight: '400' }],
-                'body-main': ['14px', { lineHeight: '20px', fontWeight: '400' }],
-                'body-medium': ['14px', { lineHeight: '20px', fontWeight: '500' }],
-                'body-semibold': ['14px', { lineHeight: '20px', fontWeight: '600' }],
-                'body-small': ['13px', { lineHeight: '18px', fontWeight: '400' }],
+                sm: ['13px', { lineHeight: '18px' }],
+                base: ['14px', { lineHeight: '20px' }],
+                lg: ['15px', { lineHeight: '22px' }],
+                xl: ['17px', { lineHeight: '24px' }],
+                '2xl': ['20px', { lineHeight: '28px' }],
+                '3xl': ['24px', { lineHeight: '32px' }],
+                '4xl': ['28px', { lineHeight: '36px' }],
+                '5xl': ['36px', { lineHeight: '1' }],
+
+                h1: ['22px', { lineHeight: '30px', letterSpacing: '-0.02em', fontWeight: '700' }],
+                h2: ['18px', { lineHeight: '26px', letterSpacing: '-0.01em', fontWeight: '600' }],
+                'h2-desktop': ['18px', { lineHeight: '26px', fontWeight: '700' }],
+                h3: ['16px', { lineHeight: '24px', fontWeight: '600' }],
+                'h3-card': ['16px', { lineHeight: '24px', fontWeight: '600' }],
+                'body-base': ['13px', { lineHeight: '20px', fontWeight: '400' }],
+                'body-main': ['13px', { lineHeight: '20px', fontWeight: '400' }],
+                'body-medium': ['13px', { lineHeight: '20px', fontWeight: '500' }],
+                'body-semibold': ['13px', { lineHeight: '20px', fontWeight: '600' }],
+                'body-small': ['12px', { lineHeight: '18px', fontWeight: '400' }],
                 label: ['11px', { lineHeight: '16px', letterSpacing: '0.05em', fontWeight: '600' }],
-                'label-caps': ['12px', { lineHeight: '16px', letterSpacing: '0.05em', fontWeight: '700' }],
+                'label-caps': ['11px', { lineHeight: '16px', letterSpacing: '0.05em', fontWeight: '700' }],
                 caption: ['11px', { lineHeight: '16px', fontWeight: '400' }],
                 'caption-badge': ['11px', { lineHeight: '14px', fontWeight: '600' }],
-                code: ['13px', { lineHeight: '18px', fontWeight: '400' }],
+                code: ['12px', { lineHeight: '18px', fontWeight: '400' }],
             },
 
             borderRadius: {

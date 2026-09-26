@@ -154,7 +154,7 @@
                     @csrf @method('DELETE')
                 </form>
                 <x-slot:footer>
-                    <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'delete-user')">Hủy</x-ui.button>
+                    <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'delete-user')">Hủy</x-ui.button>
                     <x-ui.button variant="danger" type="submit" form="delete-user-form" icon="delete">Xóa tài khoản</x-ui.button>
                 </x-slot:footer>
             </x-ui.modal>
@@ -194,7 +194,7 @@
                             <div class="flex items-center justify-between">
                                 <h3 class="flex items-center gap-xs font-label text-label uppercase text-on-surface"><span class="material-symbols-outlined text-[16px] text-secondary">contract</span>Hợp đồng lao động</h3>
                                 <span class="rounded-full px-sm font-caption text-caption"
-                                      :class="{ 'bg-error-container text-error': activeUser.contract_status === 'Đã hết hạn', 'bg-amber-100 text-amber-800': activeUser.contract_status === 'Sắp hết hạn', 'bg-tertiary-fixed/50 text-tertiary': activeUser.contract_status === 'Đang hiệu lực', 'bg-surface-container-high text-on-surface-variant': activeUser.contract_status === 'Chưa cập nhật' }"
+                                      :class="{ 'bg-error-container text-error': activeUser.contract_status === 'Đã hết hạn', 'bg-warning-container text-on-warning-container': activeUser.contract_status === 'Sắp hết hạn', 'bg-tertiary-fixed/50 text-tertiary': activeUser.contract_status === 'Đang hiệu lực', 'bg-surface-container-high text-on-surface-variant': activeUser.contract_status === 'Chưa cập nhật' }"
                                       x-text="activeUser.contract_status"></span>
                             </div>
                             <dl class="grid grid-cols-2 gap-sm">
@@ -228,7 +228,7 @@
                 <footer class="flex gap-sm border-t border-surface-container bg-surface-container-low p-md">
                     <template x-if="activeUser"><x-ui.button variant="secondary" class="flex-1" x-bind:href="activeUser.show_url" href="#">Xem chi tiết</x-ui.button></template>
                     @can('permission.override')
-                        <template x-if="activeUser"><a :href="'{{ url('/users') }}/' + activeUser.id + '/permissions'" class="inline-flex flex-1 items-center justify-center rounded-lg bg-primary-container px-md py-sm font-body-medium text-body-medium text-white hover:bg-primary">Phân quyền</a></template>
+                        <template x-if="activeUser"><x-ui.button class="flex-1" x-bind:href="'{{ url('/users') }}/' + activeUser.id + '/permissions'" href="#">Phân quyền</x-ui.button></template>
                     @endcan
                 </footer>
             </aside>

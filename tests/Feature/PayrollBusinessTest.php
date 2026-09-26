@@ -371,7 +371,7 @@ class PayrollBusinessTest extends TestCase
         $this->assertNotNull($penalty);
         $this->assertStringStartsWith('BB-', $penalty->code);
         $this->assertEquals('Chờ giải trình', $penalty->status_label); // Phase 3: bước đầu là nhân sự giải trình
-        $this->assertStringContainsString('bg-amber-50', $penalty->status_badge);
+        $this->assertStringContainsString('bg-warning/10', $penalty->status_badge);
 
         // 2. Confirm penalty
         $responseConfirm = $this->actingAs($this->hrManager)->post(route('penalties.confirm', $penalty->id));
@@ -380,7 +380,7 @@ class PayrollBusinessTest extends TestCase
         $penalty->refresh();
         $this->assertEquals('confirmed', $penalty->status);
         $this->assertEquals('Đã xác nhận lỗi', $penalty->status_label);
-        $this->assertStringContainsString('bg-rose-50', $penalty->status_badge);
+        $this->assertStringContainsString('bg-error/10', $penalty->status_badge);
 
         // 3. Cancel another penalty
         $penalty2 = Penalty::create([

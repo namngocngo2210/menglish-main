@@ -51,15 +51,13 @@
         @endif
         <div class="flex items-center gap-sm">
             <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-fixed text-primary"><span class="material-symbols-outlined" aria-hidden="true">class</span></span>
-            <label class="min-w-0 flex-1">
-                <span class="block font-label text-label uppercase text-on-surface-variant">Lớp học</span>
-                <select name="class_id" onchange="this.form.requestSubmit()" @disabled($task?->class_id) aria-label="Lớp học"
-                        class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-xs pl-sm pr-lg font-body-base text-body-base">
+            <div class="min-w-0 flex-1">
+                <x-ui.select name="class_id" label="Lớp học" :id="$p.'pick_class_id'" onchange="this.form.requestSubmit()" :disabled="(bool) $task?->class_id" aria-label="Lớp học">
                     @foreach ($classes as $c)
                         <option value="{{ $c->id }}" @selected($selectedClass?->id === $c->id)>{{ $c->name }} ({{ $c->code }}){{ $c->schedule_text ? ' - '.$c->schedule_text : '' }}</option>
                     @endforeach
-                </select>
-            </label>
+                </x-ui.select>
+            </div>
         </div>
         @if ($task)
             <p class="mt-sm flex items-center gap-xs font-caption text-caption text-on-surface-variant">
@@ -76,7 +74,7 @@
         @if ($taskId)
             <input type="hidden" name="task_id" value="{{ $taskId }}">
         @endif
-        <x-input-error :messages="array_merge($errors->get('class_id'), $errors->get('task_id'))" />
+        <x-ui.errors :messages="array_merge($errors->get('class_id'), $errors->get('task_id'))" />
 
         <div class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
             <div class="flex items-start gap-sm">
@@ -84,17 +82,15 @@
                 <div class="min-w-0 flex-1 space-y-xs">
                     <span class="block font-label text-label uppercase text-on-surface-variant">Buổi học</span>
                     @if ($sessionOptions->isNotEmpty())
-                        <select name="class_session_id" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-xs pl-sm pr-lg font-body-base text-body-base">
-                            <option value="">-- Nhập tên buổi bên dưới --</option>
+                        <x-ui.select name="class_session_id" :id="$p.'class_session_id'" placeholder="-- Nhập tên buổi bên dưới --" aria-label="Buổi học">
                             @foreach ($sessionOptions as $sid => $label)
                                 <option value="{{ $sid }}" @selected((string) old('class_session_id', $defaultSessionId) === (string) $sid)>{{ $label }}</option>
                             @endforeach
-                        </select>
+                        </x-ui.select>
                     @endif
-                    <input type="text" name="session_name" value="{{ old('session_name', $task?->lesson_session) }}" maxlength="255"
-                           placeholder="{{ $sessionOptions->isNotEmpty() ? 'Hoặc nhập tên buổi (để trống = theo buổi đã chọn)' : 'VD: Buổi 5 - Listening Practice' }}"
-                           class="w-full rounded-lg border border-outline-variant px-sm py-xs font-body-base text-body-base">
-                    <x-input-error :messages="array_merge($errors->get('session_name'), $errors->get('class_session_id'))" />
+                    <x-ui.input name="session_name" :id="$p.'session_name'" :value="$task?->lesson_session" maxlength="255" aria-label="Tên buổi"
+                           placeholder="{{ $sessionOptions->isNotEmpty() ? 'Hoặc nhập tên buổi (để trống = theo buổi đã chọn)' : 'VD: Buổi 5 - Listening Practice' }}" />
+                    <x-ui.errors :messages="array_merge($errors->get('session_name'), $errors->get('class_session_id'))" />
                 </div>
             </div>
         </div>
@@ -121,7 +117,7 @@
                     </label>
                 </div>
                 <p class="font-caption text-caption text-on-surface-variant">JPG, PNG, WEBP — tối đa 10 ảnh, mỗi ảnh ≤ 10MB.</p>
-                <x-input-error :messages="array_merge($errors->get('board_images'), collect($errors->get('board_images.*'))->flatten()->all())" />
+                <x-ui.errors :messages="array_merge($errors->get('board_images'), collect($errors->get('board_images.*'))->flatten()->all())" />
             </div>
         </div>
 
@@ -133,13 +129,11 @@
                 </h2>
                 <span class="font-caption text-caption text-on-surface-variant" x-text="supports.length + ' học sinh'"></span>
             </div>
-            <x-input-error :messages="collect($errors->get('supports.*'))->flatten()->all()" />
+            <x-ui.errors :messages="collect($errors->get('supports.*'))->flatten()->all()" />
             <p x-show="supports.length === 0" class="text-center font-body-small text-body-small italic text-on-surface-variant">Chưa có học sinh cần bổ trợ.</p>
             <template x-for="(sup, idx) in supports" :key="sup.id">
                 <div class="relative space-y-sm rounded-lg border border-outline-variant bg-surface-container-low p-sm">
-                    <button type="button" x-on:click="removeSupport(idx)" title="Xóa" class="absolute right-xs top-xs rounded p-xs text-on-surface-variant hover:bg-error-container hover:text-error">
-                        <span class="material-symbols-outlined text-[18px]">delete</span>
-                    </button>
+                    <x-ui.button variant="ghost" icon="delete" x-on:click="removeSupport(idx)" title="Xóa" aria-label="Xóa" class="absolute right-xs top-xs p-xs hover:bg-error-container hover:text-error" />
                     <div class="grid grid-cols-1 gap-sm pr-lg sm:grid-cols-2">
                         <label>
                             <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">Học sinh</span>
