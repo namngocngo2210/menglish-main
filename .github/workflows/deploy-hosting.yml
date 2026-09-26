@@ -1,4 +1,8 @@
-# Deploy MEnglish lên shared hosting DirectAdmin qua FTP (không cần SSH).
+# Deploy MEnglish lên shared hosting DirectAdmin (không cần SSH).
+#
+# CI đóng gói code thành 1 file release.zip → upload qua FTPS (1 file, vài chục giây thay vì
+# hàng nghìn file lẻ) → gọi public_html/_deploy-release.php giải nén + đổi tên vào chỗ
+# → gọi /_deploy/hook (Laravel) migrate + làm mới cache.
 #
 # Cấu trúc trên hosting (mỗi môi trường một domain):
 #   /home/<user>/domains/<domain>/<APP_DIR>/   ← code Laravel (ngoài public_html, người ngoài không truy cập được)
@@ -90,44 +94,43 @@ jobs:
           rsync -a public/ dist/public/ \
             --exclude 'uploads/2*' --exclude 'uploads/media' --exclude 'uploads/tuition' \
             --exclude 'storage' --exclude 'hot' --exclude 'ui-full-tinh-nang-menglish'
-          # Giữ sẵn các thư mục ghi được (FTP không tạo thư mục rỗng)
+          # Giữ sẵn các thư mục ghi được (zip không giữ thư mục rỗng)
           for d in storage/logs storage/app/public storage/app/private storage/framework/sessions \
                    storage/framework/views storage/framework/cache/data bootstrap/cache; do
             mkdir -p "dist/app/$d" && touch "dist/app/$d/.keep"
           done
           sed "s#__APP_DIR__#${APP_DIR_NAME}#" deploy/directadmin-index.php > dist/public/index.php
 
-      - name: Upload code Laravel (FTP)
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          security: loose
-          local-dir: dist/app/
-          server-dir: ${{ secrets.FTP_APP_DIR }}
-          state-name: .ftp-deploy-sync-state.json
-          exclude: |
-            **/.git*
-            **/.git*/**
-            .env
+      - name: Đóng gói release.zip
+        run: |
+          set -e
+          (cd dist && zip -qr -X ../release.zip app public)
+          sed "s#__APP_DIR__#${APP_DIR_NAME}#" deploy/release-install.php > _deploy-release.php
+          ls -lh release.zip
 
-      - name: Upload public_html (FTP)
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          security: loose
-          local-dir: dist/public/
-          server-dir: ${{ secrets.FTP_PUBLIC_DIR }}
-          state-name: .ftp-deploy-sync-state.json
-          # Không xóa file người dùng đã upload lên hosting
-          exclude: |
-            uploads/**
-            storage/**
+      - name: Upload release (FTPS)
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USER: ${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}
+          FTP_APP_DIR: ${{ secrets.FTP_APP_DIR }}
+          FTP_PUBLIC_DIR: ${{ secrets.FTP_PUBLIC_DIR }}
+        run: |
+          set -e
+          upload() {
+            curl --fail --silent --show-error --ssl-reqd --insecure --ftp-create-dirs \
+              --retry 3 --retry-delay 5 --user "$FTP_USER" -T "$1" "ftp://${FTP_SERVER}/$2"
+          }
+          upload release.zip "${FTP_APP_DIR%/}/storage/deploy/release.zip"
+          upload _deploy-release.php "${FTP_PUBLIC_DIR%/}/_deploy-release.php"
+
+      - name: Cài release (giải nén + thay code)
+        run: |
+          set -e
+          status=$(curl -s -o install.json -w '%{http_code}' --max-time 300 -X POST \
+            -H "X-Deploy-Token: ${{ secrets.DEPLOY_HOOK_TOKEN }}" \
+            "${{ secrets.APP_URL }}/_deploy-release.php")
+          cat install.json || true
+          test "$status" = "200"
 
       - name: Migrate + cache (hook)
         run: |

@@ -1,6 +1,6 @@
 # Deploy MEnglish lên hosting DirectAdmin
 
-Hosting: DirectAdmin (`https://hostingvds.vmst.com.vn:2222`). Không cần SSH. Code được build trên GitHub Actions và upload qua FTP; lệnh `migrate` / làm mới cache chạy qua một hook có token bí mật.
+Hosting: DirectAdmin (`https://hostingvds.vmst.com.vn:2222`). Không cần SSH. Code được build trên GitHub Actions, đóng gói thành **1 file `release.zip`** upload qua FTPS; `public_html/_deploy-release.php` giải nén và thay code (đổi tên thư mục, gần như tức thời); lệnh `migrate` / làm mới cache chạy qua hook Laravel. Cả hai đều cần token bí mật.
 
 ## Cấu trúc thư mục trên hosting
 
@@ -14,7 +14,7 @@ Mỗi môi trường (staging `dungthu…`, production `portal…`) là một do
 
 ## Cài đặt lần đầu (làm 1 lần cho mỗi domain)
 
-1. **PHP**: DirectAdmin → *Select PHP version* (hoặc *PHP Version Selector*) → chọn **PHP 8.4** (composer.lock cần PHP ≥ 8.4.1). Bật extension: `pdo_mysql`, `mbstring`, `intl`, `gd`, `zip`, `bcmath`, `fileinfo`, `openssl`, `curl`.
+1. **PHP**: DirectAdmin → *Select PHP version* (hoặc *PHP Version Selector*) → chọn **PHP 8.4** (composer.lock cần PHP ≥ 8.4.1). Bật extension: `pdo_mysql`, `mbstring`, `intl`, `gd`, `zip` (bắt buộc cho deploy), `bcmath`, `fileinfo`, `openssl`, `curl`.
 2. **Database**: DirectAdmin → *MySQL Management* → tạo database + user (ghi lại tên DB, user, mật khẩu).
 3. **Tài khoản FTP**: DirectAdmin → *FTP Management* → tạo tài khoản FTP có quyền vào `domains/<domain>/` (hoặc dùng tài khoản chính). Ghi lại host FTP, user, mật khẩu.
 4. **File `.env`**: tạo trên máy từ `.env.example`, điền:
@@ -24,7 +24,7 @@ Mỗi môi trường (staging `dungthu…`, production `portal…`) là một do
    - `DEPLOY_HOOK_TOKEN=` chuỗi ngẫu nhiên ≥ 32 ký tự: `php -r "echo bin2hex(random_bytes(32));"`
    - Mail SMTP, SePay (khóa **mới** — khóa cũ đã lộ trong nhật ký, phải đổi)
 
-   Upload `.env` vào `domains/<domain>/menglish/.env` bằng *File Manager* của DirectAdmin (sau lần deploy đầu tạo ra thư mục `menglish/`), phân quyền 640.
+   Tạo thư mục `domains/<domain>/menglish/` rồi upload `.env` vào đó bằng *File Manager* của DirectAdmin **trước lần deploy đầu tiên** (bước cài release đọc `DEPLOY_HOOK_TOKEN` từ file này), phân quyền 640.
 5. **GitHub**: repo → *Settings → Environments* → tạo `staging` và `production`, mỗi môi trường thêm **Secrets**:
 
    | Secret | Ví dụ |
@@ -60,7 +60,11 @@ Sau khi `bootstrap` production: đăng nhập Admin → đổi mật khẩu → 
 
 GitHub → *Actions* → **Deploy hosting (DirectAdmin)** → *Run workflow* → chọn `staging` hoặc `production`.
 
-Workflow sẽ: chạy toàn bộ test → `composer install --no-dev` → build CSS/JS → upload code vào `menglish/` và `public/` vào `public_html/` (chỉ file thay đổi; **không** động tới `.env`, `storage`, file người dùng upload) → gọi hook chạy `migrate --force`, `storage:link`, làm mới cache → kiểm tra trang `/login` trả 200.
+Workflow sẽ: chạy toàn bộ test → `composer install --no-dev` → build CSS/JS → đóng gói `release.zip` (thư mục `app/` → `menglish/`, `public/` → `public_html/`) → upload qua FTPS vào `menglish/storage/deploy/` → gọi `_deploy-release.php`: giải nén, **thay trọn** từng thư mục cấp cao nhất (file đã xoá khỏi repo cũng biến mất trên hosting), **không** động tới `.env`, `storage`, `public_html/uploads` (chỉ thêm file mới) → gọi hook chạy `migrate --force`, `storage:link`, làm mới cache → kiểm tra trang `/login` trả 200.
+
+Thời gian mỗi lần deploy ~3–5 phút (test ~2–3 phút), không phụ thuộc số file thay đổi.
+
+**Rollback**: bản trước đó được giữ ở `menglish/storage/deploy/previous/{app,public}`. Khi cần quay lại: dùng *File Manager* chuyển các thư mục trong đó về `menglish/` và `public_html/` (hoặc chạy lại workflow trên commit cũ). Chú ý migration đã chạy không tự rollback.
 
 ## Trước lần deploy đầu tiên lên production
 
@@ -71,6 +75,8 @@ Workflow sẽ: chạy toàn bộ test → `composer install --no-dev` → build 
 
 ## Xử lý sự cố
 
+- `_deploy-release.php` trả 404: `menglish/.env` chưa có / sai `DEPLOY_HOOK_TOKEN`, hoặc `APP_DIR_NAME` không khớp tên thư mục trên hosting.
+- `_deploy-release.php` trả 500: xem `error` trong log bước *Cài release*; thường do hết dung lượng hosting hoặc thiếu extension `zip`.
 - Hook trả 404: `.env` chưa có `DEPLOY_HOOK_TOKEN` (≥ 32 ký tự) hoặc token trên GitHub khác `.env`.
 - Hook trả 500: xem `steps` trong log của bước *Migrate + cache (hook)* và `menglish/storage/logs/laravel.log`.
 - Trang trắng / 500 ngay sau upload lần đầu: kiểm tra `.env` đã có trong `menglish/`, phiên bản PHP, quyền ghi thư mục `menglish/storage` và `menglish/bootstrap/cache` (755/775).
