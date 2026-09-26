@@ -27,15 +27,19 @@ class PenaltyController extends Controller
             'search' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', Rule::in(array_merge(array_keys(Penalty::statusLabels()), ['overdue', 'open']))],
             'category' => ['nullable', Rule::in(array_keys(Penalty::CATEGORIES))],
+            'step' => ['nullable', Rule::in(array_keys(Penalty::STEPS))],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
         ]);
 
-        $penalties = Penalty::with(['user', 'classModel', 'reporter', 'decider'])
+        $penalties = Penalty::with(['user', 'classModel', 'reporter', 'decider', 'remedier', 'payrollRecord.period'])
             ->when(! $canViewAll, fn ($query) => $query->where('user_id', $user->id))
             ->when($validated['search'] ?? null, function ($query, string $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('code', 'like', "%{$search}%")
                         ->orWhere('violation_type', 'like', "%{$search}%")
-                        ->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%{$search}%"));
+                        ->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%{$search}%")
+                            ->orWhere('employee_code', 'like', "%{$search}%"));
                 });
             })
             ->when($validated['status'] ?? null, function ($query, string $status) {
@@ -46,6 +50,9 @@ class PenaltyController extends Controller
                 };
             })
             ->when($validated['category'] ?? null, fn ($query, string $category) => $query->where('error_category', $category))
+            ->when($validated['step'] ?? null, fn ($query, string $step) => $query->atStep($step))
+            ->when($validated['from'] ?? null, fn ($query, string $from) => $query->whereDate('violation_date', '>=', $from))
+            ->when($validated['to'] ?? null, fn ($query, string $to) => $query->whereDate('violation_date', '<=', $to))
             ->latest()
             ->paginate($request->perPage(15))
             ->withQueryString();
@@ -62,7 +69,10 @@ class PenaltyController extends Controller
             ->when(! $canViewAll, fn ($query) => $query->where('user_id', $user->id))
             ->where('status', 'fined')->whereDate('due_date', '<', today()->toDateString())->count();
 
-        return view('penalties.index', compact('penalties', 'users', 'classes', 'canViewAll', 'counts', 'overdueCount'));
+        // Ngày thuộc kỳ lương đã khóa: nút "Chốt mức phạt" bị khóa trên dòng tương ứng.
+        $lockedRanges = PayrollPeriod::whereIn('status', PayrollPeriod::LOCKED_STATUSES)->get(['start_date', 'end_date']);
+
+        return view('penalties.index', compact('penalties', 'users', 'classes', 'canViewAll', 'counts', 'overdueCount', 'lockedRanges'));
     }
 
     /**
@@ -149,7 +159,10 @@ class PenaltyController extends Controller
         ]);
         abort_unless(in_array($penalty->status, ['pending', 'explained', 'confirmed'], true), 422, 'Biên bản không ở trạng thái cho phép chốt.');
         if (PayrollPeriod::isLockedFor($penalty->violation_date)) {
-            return $this->rejectLockedDate($penalty->violation_date);
+            $message = 'Kỳ lương hiện tại của nhân viên '.($penalty->user?->name ?? '').' đã khóa. Không thể thực hiện chốt mức phạt. '
+                .'Vui lòng liên hệ bộ phận Kế toán để được hỗ trợ mở khóa kỳ lương nếu cần thiết.';
+
+            return redirect()->back()->withInput()->withErrors(['violation_date' => $message])->with('locked_penalty', $message);
         }
 
         $attributes = [
@@ -213,6 +226,25 @@ class PenaltyController extends Controller
         $penalty->update(['status' => 'resolved', 'payroll_record_id' => null]);
 
         return redirect()->back()->with('status', "Đã xử lý (miễn phạt) biên bản {$penalty->code}.");
+    }
+
+    /**
+     * "Ghi nhận khắc phục" (mockup): biên bản đã nộp phạt / đã trừ lương → nhân sự đã khắc phục lỗi.
+     * Chỉ lưu mốc, không đổi số tiền / trạng thái trừ lương nên vẫn ghi được khi kỳ lương đã khóa.
+     */
+    public function remedyPenalty(Request $request, $id)
+    {
+        $penalty = Penalty::findOrFail($id);
+        abort_unless(in_array($penalty->status, ['paid', 'deducted'], true) && $penalty->remedied_at === null, 422, 'Chỉ biên bản đã nộp / đã trừ lương mới ghi nhận khắc phục.');
+        $validated = $request->validate(['remedy_note' => ['nullable', 'string', 'max:1000']]);
+
+        $penalty->update([
+            'remedied_at' => now(),
+            'remedied_by' => $request->user()->id,
+            'remedy_note' => $validated['remedy_note'] ?? null,
+        ]);
+
+        return redirect()->back()->with('status', "Đã ghi nhận khắc phục biên bản {$penalty->code}.");
     }
 
     public function cancelPenalty($id)

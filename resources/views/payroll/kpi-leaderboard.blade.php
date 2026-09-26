@@ -1,169 +1,144 @@
+{{-- Mockup: ui-full-tinh-nang-menglish/epic-7/bang-kpi-cong-khai --}}
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    @php
+        $rankBadge = function (int $rank) {
+            return match ($rank) {
+                1 => ['bg-amber-100 text-amber-700', 'emoji_events'],
+                2 => ['bg-slate-100 text-slate-600', 'emoji_events'],
+                3 => ['bg-orange-100 text-orange-800', 'emoji_events'],
+                default => [null, null],
+            };
+        };
+    @endphp
+
+    <x-ui.page-header title="Bảng xếp hạng KPI & Hoa hồng"
+                      description="Dữ liệu công khai nhằm mục đích thi đua khen thưởng. Thông tin không bao gồm lương cơ bản, các khoản khấu trừ và thực nhận cá nhân.">
+        <x-slot:actions>
+            @can('commission_config.manage')
+                <x-ui.button variant="secondary" icon="settings" :href="route('payroll.config.commission-tiers')">Cấu hình mốc hoa hồng</x-ui.button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <form method="GET" action="{{ route('payroll.kpi-leaderboard') }}"
+          class="mb-lg flex flex-wrap items-end gap-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
+        <x-ui.select name="period" label="Kỳ lương" :options="$periodOptions" :value="sprintf('%04d-%02d', $year, $month)" onchange="this.form.submit()" />
+        <x-ui.select name="branch_id" label="Chi nhánh" :options="$branches->pluck('name', 'id')" placeholder="Tất cả" :value="$branchId" onchange="this.form.submit()" />
+        <x-ui.button type="submit" variant="secondary" icon="filter_list">Xem</x-ui.button>
+    </form>
+
+    {{-- 1. KPI giữ học sinh (GV Part-time) — từ phiếu lương của kỳ --}}
+    <x-ui.data-table min-width="760px" class="mb-lg">
+        <x-slot:header>
             <div>
-                <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-orange-600">emoji_events</span>
-                    <span>Bảng Xếp Hạng KPI &amp; Hoa Hồng Công Khai</span>
-                </h1>
-                <p class="text-xs text-gray-500">Dữ liệu công khai nhằm mục đích thi đua khen thưởng toàn hệ thống MEnglish</p>
+                <h3 class="font-h3 text-h3 text-on-surface">KPI giữ học sinh — giáo viên</h3>
+                <p class="font-body-small text-body-small text-on-surface-variant">Số HS giữ được × đơn giá bậc (đ/HS/tháng), cùng số liệu phiếu lương kỳ {{ sprintf('%02d/%04d', $month, $year) }}.</p>
             </div>
-            <a href="{{ route('payroll.config.commission-tiers') }}" class="px-3.5 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold shadow-2xs transition flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-[16px]">settings</span>
-                <span>Cấu hình Mốc hoa hồng</span>
-            </a>
-        </div>
-    </x-slot>
+            @if ($period && ! $period->isLocked())
+                <x-ui.badge color="warning">Số liệu tạm tính — kỳ chưa chốt</x-ui.badge>
+            @elseif ($period)
+                <x-ui.badge color="success">Kỳ đã chốt</x-ui.badge>
+            @endif
+        </x-slot:header>
+        <table>
+            <thead>
+                <tr>
+                    <th class="w-16 text-center">Hạng</th>
+                    <th>Nhân viên</th>
+                    <th>Chi nhánh</th>
+                    <th class="text-right">Số HS Giữ</th>
+                    <th class="text-right">Đơn giá (VNĐ/hs)</th>
+                    <th class="text-right">Tổng KPI (VNĐ)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($retentionPage as $i => $r)
+                    @php $rank = ($retentionPage->currentPage() - 1) * $retentionPage->perPage() + $i + 1; [$badgeClass, $badgeIcon] = $rankBadge($rank); @endphp
+                    <tr>
+                        <td class="text-center">
+                            @if ($badgeClass)
+                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-full {{ $badgeClass }}" aria-label="Hạng {{ $rank }}"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ $badgeIcon }}</span></span>
+                            @else
+                                <span class="font-mono font-semibold text-on-surface-variant">{{ $rank }}</span>
+                            @endif
+                        </td>
+                        <td>
+                            <div class="flex items-center gap-sm">
+                                <x-ui.avatar :name="$r->user?->name ?? '?'" size="sm" />
+                                <div>
+                                    <p class="font-semibold text-on-surface">{{ $r->user?->name }}</p>
+                                    <p class="font-caption text-caption text-on-surface-variant">{{ $r->user?->branch?->name ?? 'Hệ thống MEnglish' }}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ $r->user?->branch?->name ?? 'Hệ thống MEnglish' }}</td>
+                        <td class="text-right font-mono">{{ number_format((int) $r->retention_students) }} <span class="font-caption text-caption text-on-surface-variant">/ {{ (int) $r->retention_base_students }}</span></td>
+                        <td class="text-right font-mono">{{ $r->retention_tier !== null ? number_format($r->retention_tier) : 'Chưa chọn bậc' }}</td>
+                        <td class="text-right font-mono font-bold text-primary">{{ number_format($r->kpi_bonus) }}</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="6"><x-ui.empty-state icon="leaderboard" title="Chưa có KPI giữ học sinh"
+                        :description="$period ? 'Kỳ này chưa có giáo viên Part-time được tính KPI giữ học sinh.' : 'Chưa khởi tạo bảng lương tháng '.sprintf('%02d/%04d', $month, $year).'.'" /></td></tr>
+                @endforelse
+            </tbody>
+        </table>
+        <x-slot:footer><x-ui.pagination :paginator="$retentionPage" unit="nhân viên" :options="[]" /></x-slot:footer>
+    </x-ui.data-table>
 
-    <div class="space-y-6">
-        <form method="GET" class="flex flex-wrap items-end gap-2 text-xs">
-            <x-ui.select name="month" inline-label="Tháng:" :value="$month" :options="collect(range(1, 12))->mapWithKeys(fn ($m) => [$m => 'Tháng '.$m])->all()" />
-            <x-ui.input type="number" name="year" inline-label="Năm:" :value="$year" min="2020" max="2100" class="w-28" />
-            <x-ui.button type="submit" variant="secondary" icon="filter_list">Xem</x-ui.button>
-        </form>
-
-        <!-- Header Info Notice -->
-        <div class="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 flex items-start gap-3 text-xs">
-            <span class="material-symbols-outlined text-blue-600 text-xl shrink-0 mt-0.5">info</span>
-            <div class="space-y-0.5">
-                <p class="font-bold text-blue-950">Chính sách công khai KPI minh bạch:</p>
-                <p class="text-blue-700 leading-relaxed">
-                    Bảng xếp hạng chỉ hiển thị số lượng học sinh duy trì, doanh số chốt và tổng tiền thưởng KPI/hoa hồng nhằm tạo động lực thi đua. Thông tin không bao gồm lương cơ bản, các khoản giảm trừ và thực nhận cá nhân.
+    {{-- 2. Hoa hồng tuyển sinh (Sale) --}}
+    <x-ui.data-table min-width="860px">
+        <x-slot:header>
+            <div>
+                <h3 class="font-h3 text-h3 text-on-surface">Hoa hồng tuyển sinh — tư vấn</h3>
+                <p class="font-body-small text-body-small text-on-surface-variant">
+                    Doanh số tháng {{ $month }}/{{ $year }} = tiền thực thu (phiếu thu đã duyệt trong tháng) của khách mới, gồm cả tiền giáo trình / đồ dùng; không tính tái tục.
+                    Hoa hồng phát sinh trước gate kép (30 ngày + 3/3 mốc chăm sóc) — số trả thực tế theo phiếu lương.
                 </p>
             </div>
-        </div>
-
-        {{-- $usersWithSales được tính ở PayrollController::kpiLeaderboard() qua SalesCommissionService:
-             doanh số = tiền THỰC THU của khách mới (phiếu thu duyệt trong tháng, gồm giáo trình/đồ dùng),
-             bậc hoa hồng hiệu lực tại cuối tháng — cùng luật với tính lương. --}}
-        <p class="text-[11px] text-gray-500">
-            Doanh số tháng {{ $month }}/{{ $year }} = tiền thực thu (phiếu thu đã duyệt trong tháng) của khách mới, gồm cả tiền giáo trình / đồ dùng. Không tính tái tục.
-        </p>
-
-        <!-- Top 3 Podium Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            @if ($usersWithSales->count() > 0)
-                @php $top1 = $usersWithSales->get(0); @endphp
-                <div class="bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 rounded-2xl p-6 text-white shadow-lg space-y-3 relative overflow-hidden">
-                    <div class="absolute -right-4 -bottom-4 text-white/10 font-black text-8xl pointer-events-none select-none">1</div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-black uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full flex items-center gap-1">
-                            <span>🥇 QUÁN QUÂN KPI</span>
-                        </span>
-                        <span class="text-xs text-amber-100 font-medium">{{ $top1['branch_name'] }}</span>
-                    </div>
-                    <div>
-                        <h3 class="text-xl font-black">{{ $top1['user']->name }}</h3>
-                        <p class="text-xs text-amber-100">Duy trì <strong class="text-white font-mono">{{ $top1['retained_students'] }}</strong> học sinh</p>
-                    </div>
-                    <div class="pt-2 border-t border-white/20">
-                        <span class="text-[10px] text-amber-100 uppercase font-bold block">Tổng KPI / Hoa hồng:</span>
-                        <div class="text-2xl font-black font-mono tracking-tight text-white">{{ number_format($top1['commission']) }}đ</div>
-                    </div>
-                </div>
-            @endif
-
-            @if ($usersWithSales->count() > 1)
-                @php $top2 = $usersWithSales->get(1); @endphp
-                <div class="bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-md space-y-3 relative overflow-hidden">
-                    <div class="absolute -right-4 -bottom-4 text-white/10 font-black text-8xl pointer-events-none select-none">2</div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-black uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full flex items-center gap-1">
-                            <span>🥈 Á QUÂN KPI</span>
-                        </span>
-                        <span class="text-xs text-slate-300 font-medium">{{ $top2['branch_name'] }}</span>
-                    </div>
-                    <div>
-                        <h3 class="text-xl font-black">{{ $top2['user']->name }}</h3>
-                        <p class="text-xs text-slate-300">Duy trì <strong class="text-white font-mono">{{ $top2['retained_students'] }}</strong> học sinh</p>
-                    </div>
-                    <div class="pt-2 border-t border-white/20">
-                        <span class="text-[10px] text-slate-300 uppercase font-bold block">Tổng KPI / Hoa hồng:</span>
-                        <div class="text-2xl font-black font-mono tracking-tight text-white">{{ number_format($top2['commission']) }}đ</div>
-                    </div>
-                </div>
-            @endif
-
-            @if ($usersWithSales->count() > 2)
-                @php $top3 = $usersWithSales->get(2); @endphp
-                <div class="bg-gradient-to-br from-amber-700 via-amber-800 to-amber-900 rounded-2xl p-6 text-white shadow-md space-y-3 relative overflow-hidden">
-                    <div class="absolute -right-4 -bottom-4 text-white/10 font-black text-8xl pointer-events-none select-none">3</div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-black uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full flex items-center gap-1">
-                            <span>🥉 QUÝ QUÂN KPI</span>
-                        </span>
-                        <span class="text-xs text-amber-200 font-medium">{{ $top3['branch_name'] }}</span>
-                    </div>
-                    <div>
-                        <h3 class="text-xl font-black">{{ $top3['user']->name }}</h3>
-                        <p class="text-xs text-amber-200">Duy trì <strong class="text-white font-mono">{{ $top3['retained_students'] }}</strong> học sinh</p>
-                    </div>
-                    <div class="pt-2 border-t border-white/20">
-                        <span class="text-[10px] text-amber-200 uppercase font-bold block">Tổng KPI / Hoa hồng:</span>
-                        <div class="text-2xl font-black font-mono tracking-tight text-white">{{ number_format($top3['commission']) }}đ</div>
-                    </div>
-                </div>
-            @endif
-        </div>
-
-        <!-- Leaderboard Table Card -->
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div class="p-4 border-b border-gray-100 bg-slate-50/70 flex justify-between items-center">
-                <h3 class="font-bold text-xs uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-orange-600 text-base">leaderboard</span>
-                    <span>Bảng Tổng Sắp Thành Tích Toàn Hệ Thống</span>
-                </h3>
-            </div>
-
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
-                            <th class="py-3.5 px-4 text-center w-16">Hạng</th>
-                            <th class="py-3.5 px-4">Nhân viên / Giáo viên</th>
-                            <th class="py-3.5 px-4">Chi nhánh</th>
-                            <th class="py-3.5 px-4 text-right">Số HS Giữ / HV mới đóng phí</th>
-                            <th class="py-3.5 px-4 text-right">Thực thu khách mới</th>
-                            <th class="py-3.5 px-4 text-right font-black">Tổng KPI / Hoa hồng (VNĐ)</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
-                        @foreach ($usersWithSales as $index => $item)
-                            <tr class="hover:bg-orange-50/20 transition">
-                                <td class="py-3.5 px-4 text-center">
-                                    @if ($index === 0)
-                                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-100 text-amber-700 font-black text-xs">🥇</span>
-                                    @elseif ($index === 1)
-                                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-slate-700 font-black text-xs">🥈</span>
-                                    @elseif ($index === 2)
-                                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-50 text-amber-800 font-black text-xs">🥉</span>
-                                    @else
-                                        <span class="font-mono font-bold text-gray-500 text-xs">#{{ $index + 1 }}</span>
-                                    @endif
-                                </td>
-                                <td class="py-3.5 px-4 font-bold text-gray-900">
-                                    <div class="flex items-center gap-2.5">
-                                        <div class="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-xs">
-                                            {{ Str::substr($item['user']->name, 0, 1) }}
-                                        </div>
-                                        <div>
-                                            <p class="font-bold text-gray-900">{{ $item['user']->name }}</p>
-                                            <p class="text-[10px] text-gray-400 font-mono">{{ $item['tier_name'] }} · {{ $item['closed'] }} HS chốt · {{ rtrim(rtrim(number_format($item['percent'], 2), '0'), '.') }}%</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="py-3.5 px-4 text-gray-600 font-medium">{{ $item['branch_name'] }}</td>
-                                <td class="py-3.5 px-4 text-right font-mono font-bold text-gray-900">{{ $item['retained_students'] }} HS ({{ $item['deals'] }} HV mới)</td>
-                                <td class="py-3.5 px-4 text-right font-mono font-semibold text-indigo-700">{{ number_format($item['revenue']) }}đ</td>
-                                <td class="py-3.5 px-4 text-right font-mono font-black text-orange-600 text-sm">
-                                    {{ number_format($item['commission']) }}đ
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-    </div>
+        </x-slot:header>
+        <table>
+            <thead>
+                <tr>
+                    <th class="w-16 text-center">Hạng</th>
+                    <th>Nhân viên</th>
+                    <th>Chi nhánh</th>
+                    <th class="text-right">Số HS chốt</th>
+                    <th class="text-right">Tỷ lệ (%)</th>
+                    <th class="text-right">Thực thu khách mới</th>
+                    <th class="text-right">Tổng hoa hồng (VNĐ)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($salesPage as $i => $item)
+                    @php $rank = ($salesPage->currentPage() - 1) * $salesPage->perPage() + $i + 1; [$badgeClass, $badgeIcon] = $rankBadge($rank); @endphp
+                    <tr>
+                        <td class="text-center">
+                            @if ($badgeClass)
+                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-full {{ $badgeClass }}" aria-label="Hạng {{ $rank }}"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ $badgeIcon }}</span></span>
+                            @else
+                                <span class="font-mono font-semibold text-on-surface-variant">{{ $rank }}</span>
+                            @endif
+                        </td>
+                        <td>
+                            <div class="flex items-center gap-sm">
+                                <x-ui.avatar :name="$item['user']->name" size="sm" />
+                                <div>
+                                    <p class="font-semibold text-on-surface">{{ $item['user']->name }}</p>
+                                    <p class="font-caption text-caption text-on-surface-variant">{{ $item['tier_name'] }} · {{ $item['deals'] }} HV mới đóng phí</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ $item['branch_name'] }}</td>
+                        <td class="text-right font-mono">{{ $item['closed'] }}</td>
+                        <td class="text-right font-mono">{{ rtrim(rtrim(number_format($item['percent'], 2), '0'), '.') }}%</td>
+                        <td class="text-right font-mono">{{ number_format($item['revenue']) }}</td>
+                        <td class="text-right font-mono font-bold text-primary">{{ number_format($item['commission']) }}</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="7"><x-ui.empty-state icon="leaderboard" title="Chưa có nhân viên tư vấn trong phạm vi lọc" /></td></tr>
+                @endforelse
+            </tbody>
+        </table>
+        <x-slot:footer><x-ui.pagination :paginator="$salesPage" unit="nhân viên" :options="[]" /></x-slot:footer>
+    </x-ui.data-table>
 </x-app-layout>

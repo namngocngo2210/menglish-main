@@ -84,11 +84,38 @@ class PayrollController extends Controller
             ->with('status', "Đã khởi tạo và tự động tính toán bảng lương {$period->title} từ dữ liệu chấm công & hoa hồng!");
     }
 
-    public function showPeriod($id)
+    /**
+     * Danh sách bảng lương của một kỳ (mockup epic-7/danh-sach-bang-luong-theo-ky): chọn kỳ, tìm nhân sự,
+     * lọc loại nhân sự, trạng thái KPI từng người + cảnh báo còn người chưa chốt KPI trước khi chốt bảng lương.
+     */
+    public function showPeriod(Request $request, $id)
     {
         $period = PayrollPeriod::with(['records.user'])->where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $search = trim((string) $request->query('search', ''));
+        $type = in_array($request->query('type'), array_keys(PayrollRecord::SALARY_ROLE_LABELS), true) ? $request->query('type') : null;
+        $kpi = in_array($request->query('kpi'), ['done', 'pending'], true) ? $request->query('kpi') : null;
 
-        return view('payroll.show', compact('period'));
+        $filtered = $period->records
+            ->when($search !== '', fn ($rows) => $rows->filter(fn (PayrollRecord $r) => str_contains(
+                mb_strtolower(($r->user?->name ?? '').' '.($r->user?->email ?? '').' '.($r->user?->employee_code ?? '')),
+                mb_strtolower($search)
+            )))
+            ->when($type, fn ($rows) => $rows->where('salary_role', $type))
+            ->when($kpi, fn ($rows) => $rows->filter(fn (PayrollRecord $r) => $r->kpi_state[0] === $kpi))
+            ->sortBy(fn (PayrollRecord $r) => $r->user?->name)
+            ->values();
+
+        $perPage = $request->perPage(20);
+        $page = max(1, $request->integer('page', 1));
+        $records = new \Illuminate\Pagination\LengthAwarePaginator(
+            $filtered->forPage($page, $perPage)->values(), $filtered->count(), $perPage, $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
+        $kpiPending = $period->records->filter(fn (PayrollRecord $r) => $r->kpi_state[0] === 'pending')->values();
+        $allPeriods = PayrollPeriod::orderByDesc('year')->orderByDesc('month')->get(['id', 'code', 'title', 'month', 'year']);
+
+        return view('payroll.show', compact('period', 'records', 'kpiPending', 'allPeriods', 'search', 'type', 'kpi'));
     }
 
     /**
@@ -105,32 +132,60 @@ class PayrollController extends Controller
             ->orderBy('department')->orderBy('id')
             ->get();
 
+        $kpiSources = [PayrollRecord::KPI_RETENTION => 'Giữ học sinh', PayrollRecord::KPI_ACADEMIC => 'KPI Học vụ (tự động)', PayrollRecord::KPI_MANUAL => 'Nhập tự do'];
+        $lineText = fn (PayrollRecord $r, string $kind) => collect($r->manualLines($kind))
+            ->map(fn ($l) => $l['label'].': '.number_format($l['amount'], 0, ',', '.'))->implode('; ');
+
+        // Đủ mọi dòng của phiếu lương Q3 (cùng căn cứ với màn phiếu lương) để Kế toán đối chiếu Excel đang dùng.
         $rows = $records->map(fn (PayrollRecord $r) => [
             $r->user?->name ?? 'Chưa cập nhật',
+            $r->user?->employee_code,
             $r->user?->email,
             $departments[$r->department] ?? $r->department,
             $r->employee_type_label,
+            $r->salary_role_label,
             (float) $r->base_salary,
             (int) $r->teaching_sessions,
+            (float) $r->actual_hours,
             (float) $r->teaching_salary,
+            $kpiSources[$r->kpi_source] ?? '',
+            $r->kpi_state[1],
+            $r->kpi_source === PayrollRecord::KPI_RETENTION ? (int) $r->retention_students.'/'.(int) $r->retention_base_students : '',
+            $r->retention_tier !== null ? (float) $r->retention_tier : '',
+            $r->kpi_score !== null ? (float) $r->kpi_score : '',
             (float) $r->kpi_bonus,
+            (int) $r->foreign_teacher_sessions_count,
             (float) $r->foreign_session_pay,
+            (int) $r->commission_closed_count,
+            $r->commission_percent !== null ? (float) $r->commission_percent : '',
+            (float) $r->commission_base,
             (float) $r->commission_bonus,
             (float) $r->commission_deferred,
             (float) $r->renew_bonus,
+            $lineText($r, 'earning'),
             (float) $r->allowance + (float) $r->other_bonus,
+            (float) $r->gross_income,
             (float) $r->insurance_deduction,
             (float) $r->union_deduction,
             (float) $r->tax_deduction,
             (float) $r->penalty_deduction,
             (float) $r->commission_clawback,
+            $lineText($r, 'deduction'),
             (float) $r->other_deduction + (float) $r->foreign_teacher_deduction,
+            (float) $r->total_deductions,
             (float) $r->net_salary,
+            (string) $r->adjustment_notes,
         ])->all();
 
         return \App\Exports\ArrayExport::download(
             'bang-luong-'.\Illuminate\Support\Str::slug($period->code ?: $period->id).($department ? '-'.$department : ''),
-            ['Nhân sự', 'Email', 'Khối', 'Loại', 'Lương cơ bản', 'Số buổi', 'Lương buổi dạy', 'KPI', 'Buổi có GVNN (chờ BA)', 'Hoa hồng', 'Hoa hồng hoãn', 'Thưởng tái tục', 'Phụ cấp / cộng khác', 'BHXH', 'Công đoàn', 'Thuế TNCN', 'Phạt', 'Thu hồi hoa hồng', 'Khấu trừ khác', 'Thực lĩnh'],
+            [
+                'Nhân sự', 'Mã NV', 'Email', 'Khối', 'Loại', 'Vai trò lương', 'Lương cơ bản', 'Số buổi', 'Số giờ', 'Lương buổi dạy',
+                'Nguồn KPI', 'Trạng thái KPI', 'HS giữ được / đầu kỳ', 'Bậc KPI giữ HS (đ/HS)', 'Điểm KPI Học vụ (%)', 'KPI',
+                'Số buổi có GVNN', 'Buổi có GVNN (chờ BA)', 'Số HS chốt (hoa hồng)', '% hoa hồng', 'Căn cứ thực thu', 'Hoa hồng', 'Hoa hồng hoãn',
+                'Thưởng tái tục', 'Chi tiết cộng tự do', 'Phụ cấp / cộng khác', 'Tổng thu nhập',
+                'BHXH', 'Công đoàn', 'Thuế TNCN', 'Phạt', 'Thu hồi hoa hồng', 'Chi tiết trừ tự do', 'Khấu trừ khác', 'Tổng khấu trừ', 'Thực lĩnh', 'Ghi chú',
+            ],
             $rows,
             $request->query('format', 'xlsx')
         );
@@ -166,6 +221,21 @@ class PayrollController extends Controller
                 ->whereNull('settled_at')
                 ->update(['settled_at' => now(), 'status' => CommissionItem::STATUS_PAID]);
         });
+
+        // "Chốt bảng lương để khóa dữ liệu và gửi thông báo cho giáo viên" (mockup phiếu lương): báo trong app cho từng người.
+        foreach ($period->records()->with('user')->get() as $record) {
+            if (! $record->user) {
+                continue;
+            }
+            \App\Models\AdminNotification::create([
+                'user_id' => $record->user_id,
+                'type' => 'payroll_approved',
+                'title' => "Phiếu lương {$period->title} đã được duyệt",
+                'message' => 'Thực nhận '.number_format((float) $record->net_salary, 0, ',', '.').'đ — xem chi tiết tại "Lương của tôi".',
+                'data' => ['payroll_period_id' => $period->id, 'link' => route('portal.my-salary', ['period_id' => $period->id])],
+                'is_read' => false,
+            ]);
+        }
 
         return redirect()->back()->with('status', "Đã phê duyệt bảng lương {$period->title}!");
     }
@@ -255,10 +325,31 @@ class PayrollController extends Controller
         $lostStudents = app(PayrollFormulaService::class)->studentNames((array) data_get($record->calculation_details, 'retention.lost_ids', []));
         $settings = PayrollPeriod::payrollSettings();
 
+        // Mẫu phiếu theo loại nhân sự (4 mockup chi tiết lương): GV Part-time, GV Full-time, Học vụ, Học thuật; Sale / khác dùng mẫu Full-time.
+        $variant = self::payslipVariant($record);
+        $currentRate = TeacherHourlyRate::effectiveFor((int) $record->user_id, $period->end_date);
+        // Bậc hoa hồng hiệu lực tại ngày cuối kỳ ("Chi tiết bậc áp dụng").
+        $commissionTiers = ($record->salary_role === 'sales' || (float) $record->commission_bonus > 0 || (float) $record->commission_deferred > 0)
+            ? CommissionTier::byStudents()->effectiveAt($period->end_date)->orderBy('min_students')->get()
+            : collect();
+
         return view('payroll.record-show', compact(
             'record', 'period', 'timesheets', 'penalties', 'clawbacks', 'commissionReceipts',
-            'paidCommission', 'deferredCommission', 'lostStudents', 'settings'
+            'paidCommission', 'deferredCommission', 'lostStudents', 'settings', 'variant', 'currentRate', 'commissionTiers'
         ));
+    }
+
+    /** @return array{key: string, title: string, type: string} */
+    public static function payslipVariant(PayrollRecord $record): array
+    {
+        return match (true) {
+            ! $record->usesQ3Formula() => ['key' => 'legacy', 'title' => 'Chi tiết bảng lương', 'type' => 'Phiếu trước Q3'],
+            $record->isPartTime() => ['key' => 'parttime', 'title' => 'Chi tiết bảng lương GV Part-time', 'type' => 'Giáo viên (Part-time)'],
+            $record->salary_role === 'academic_staff' => ['key' => 'academic_staff', 'title' => 'Chi tiết bảng lương Học vụ', 'type' => 'Học vụ (Full-time)'],
+            $record->salary_role === 'academic_lead' => ['key' => 'academic_lead', 'title' => 'Chi tiết bảng lương Học thuật', 'type' => 'Học thuật (Full-time)'],
+            $record->salary_role === 'teacher_fulltime' => ['key' => 'fulltime', 'title' => 'Chi tiết bảng lương GV Full-time', 'type' => 'Giáo viên (Full-time)'],
+            default => ['key' => 'fulltime', 'title' => 'Chi tiết bảng lương '.$record->salary_role_label, 'type' => $record->salary_role_label.' (Full-time)'],
+        };
     }
 
     /**
@@ -355,14 +446,25 @@ class PayrollController extends Controller
         return view('payroll.operations', compact('period', 'records'));
     }
 
-    public function manualTimesheet()
+    public function manualTimesheet(Request $request)
     {
-        // Chỉ liệt kê lớp đang/opening và nhân sự giảng dạy — User::all() trước đây
+        // Chỉ liệt kê lớp đang/opening trong phạm vi người chấm và nhân sự giảng dạy — User::all() trước đây
         // đưa cả học viên vào dropdown chấm công.
-        $classes = ClassModel::whereIn('status', ['active', 'upcoming', 'pending_schedule'])->orderBy('name')->get();
+        $classes = ClassModel::with('branch')->visibleTo($request->user())
+            ->whereIn('status', ['active', 'upcoming', 'pending_schedule'])->orderBy('name')->get();
         $teachers = $this->teachingStaff();
+        $branches = $classes->pluck('branch')->filter()->unique('id')->sortBy('name')->values();
 
-        return view('payroll.timesheets-manual', compact('classes', 'teachers'));
+        // Khoảng ngày của các kỳ lương đã duyệt/đã chi trả: màn hình cảnh báo và khóa nút lưu ngay khi chọn ngày.
+        $lockedRanges = PayrollPeriod::whereIn('status', PayrollPeriod::LOCKED_STATUSES)
+            ->get(['start_date', 'end_date', 'title'])
+            ->map(fn (PayrollPeriod $p) => [
+                'from' => Carbon::parse($p->start_date)->toDateString(),
+                'to' => Carbon::parse($p->end_date)->toDateString(),
+                'title' => $p->title,
+            ])->values();
+
+        return view('payroll.timesheets-manual', compact('classes', 'teachers', 'branches', 'lockedRanges'));
     }
 
     /**
@@ -373,6 +475,7 @@ class PayrollController extends Controller
     {
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
+            'branch_id' => 'nullable|exists:branches,id',
             'class_id' => 'required|exists:classes,id',
             // Chỉ chấm công cho ca đã diễn ra (không chấm trước cho ngày tương lai).
             'teaching_date' => 'required|date|before_or_equal:today',
@@ -397,6 +500,11 @@ class PayrollController extends Controller
             403,
             'Lớp này nằm ngoài phạm vi bạn được chấm công.'
         );
+
+        if (filled($validated['branch_id'] ?? null)
+            && (int) ClassModel::whereKey($validated['class_id'])->value('branch_id') !== (int) $validated['branch_id']) {
+            throw ValidationException::withMessages(['class_id' => 'Lớp đã chọn không thuộc chi nhánh đã chọn.']);
+        }
 
         if (PayrollPeriod::isLockedFor($validated['teaching_date'])) {
             return $this->rejectLockedDate('teaching_date', $validated['teaching_date']);
@@ -458,19 +566,149 @@ class PayrollController extends Controller
                 .') — chờ duyệt.');
     }
 
+    /**
+     * Chi tiết chấm công GV + đối soát (mockup epic-7/chi-tiet-cham-cong-theo-gv, 01_Web_Admin/10_doi_soat_chot_bang_cong):
+     * lọc theo kỳ lương (tháng), chi nhánh, lớp, giáo viên, trạng thái; chọn một giáo viên → thẻ thông tin GV,
+     * trạng thái khóa kỳ, số buổi thiếu chấm công (buổi được phân công đã qua mà chưa có ca chấm công hợp lệ).
+     */
     public function teacherTimesheets(Request $request)
     {
         $user = $request->user();
         $canViewAll = $user->can('attendance_staff.view');
         abort_unless($canViewAll || $user->can('payroll.view_own'), 403);
 
-        $timesheets = TeacherTimesheet::with(['teacher', 'classModel', 'reviewer'])
-            ->when(! $canViewAll, fn ($query) => $query->where('user_id', $user->id))
-            ->latest()
-            ->paginate($request->perPage(15))
+        $month = preg_match('/^\d{4}-\d{2}$/', (string) $request->query('month')) ? $request->query('month') : now()->format('Y-m');
+        $monthStart = Carbon::createFromFormat('Y-m-d', $month.'-01')->startOfDay();
+        $monthEnd = $monthStart->copy()->endOfMonth();
+        $status = in_array($request->query('status'), ['pending_review', 'valid', 'invalid'], true) ? $request->query('status') : null;
+        // Loại ca (VD "sub" = danh sách buổi dạy thay chờ xác nhận — mockup 01_Web_Admin/11).
+        $type = in_array($request->query('type'), ['regular', 'sub', '1on1', 'grading', 'workshop'], true) ? $request->query('type') : null;
+        $search = trim((string) $request->query('search', ''));
+        $branchId = $canViewAll ? ($request->integer('branch_id') ?: null) : null;
+        $classId = $request->integer('class_id') ?: null;
+        $teacherId = $canViewAll ? ($request->integer('user_id') ?: null) : $user->id;
+
+        $visibleClassIds = $canViewAll ? ClassModel::query()->visibleTo($user)->pluck('id') : null;
+
+        $query = TeacherTimesheet::with(['teacher.branch', 'classModel', 'reviewer', 'adjuster', 'classSession'])
+            ->whereBetween('teaching_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+            ->when(! $canViewAll, fn ($q) => $q->where('user_id', $user->id))
+            // Quản lý cơ sở / Học vụ chỉ thấy ca của lớp trong phạm vi mình (Admin thấy tất cả).
+            ->when($canViewAll && $user->managedBranchIds() !== null, fn ($q) => $q->whereIn('class_id', $visibleClassIds))
+            ->when($teacherId, fn ($q) => $q->where('user_id', $teacherId))
+            ->when($branchId, fn ($q) => $q->whereHas('classModel', fn ($c) => $c->where('branch_id', $branchId)))
+            ->when($classId, fn ($q) => $q->where('class_id', $classId))
+            ->when($status, fn ($q) => $q->where('status', $status))
+            ->when($type, fn ($q) => $q->where('type', $type))
+            ->when($search !== '', fn ($q) => $q->whereHas('teacher', fn ($t) => $t->where('name', 'like', "%{$search}%")
+                ->orWhere('employee_code', 'like', "%{$search}%")));
+
+        $summary = (clone $query)->reorder()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+        $timesheets = $query->orderByDesc('teaching_date')->orderByDesc('id')
+            ->paginate($request->perPage(20))
             ->withQueryString();
 
-        return view('payroll.timesheets-teachers', compact('timesheets'));
+        $period = PayrollPeriod::where('year', $monthStart->year)->where('month', $monthStart->month)->first();
+        $periodLocked = $period?->isLocked() || PayrollPeriod::isLockedFor($monthStart);
+
+        // Thẻ giáo viên: số buổi được phân công đã diễn ra trong tháng mà chưa có ca chấm công (không tính ca bị từ chối).
+        $teacher = $teacherId ? User::with('branch')->find($teacherId) : null;
+        $missingSessions = collect();
+        if ($teacher) {
+            $missingSessions = \App\Models\ClassSession::with('classModel')
+                ->forStaff($teacher->id)
+                ->where('status', '!=', 'cancelled')
+                ->whereBetween('date', [$monthStart->toDateString(), min($monthEnd, today())->toDateString()])
+                ->whereDoesntHave('timesheets', fn ($t) => $t->where('user_id', $teacher->id)->where('status', '!=', 'invalid'))
+                ->when($classId, fn ($q) => $q->where('class_id', $classId))
+                ->orderBy('date')->orderBy('start_time')
+                ->get()
+                // Ca chấm tay không gắn buổi (cùng lớp + ngày) cũng coi là đã chấm.
+                ->reject(fn ($s) => TeacherTimesheet::findDuplicate($teacher->id, (int) $s->class_id, $s->date->toDateString(), $s->id) !== null)
+                ->values();
+        }
+
+        // Chấm công theo lịch (mockup 01_Web_Admin/09): buổi học của ngày chọn + trạng thái chấm công của GV dự kiến.
+        $scheduleDay = $canViewAll
+            ? (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $request->query('day')) ? Carbon::parse($request->query('day')) : today())
+            : null;
+        $scheduleSessions = collect();
+        if ($scheduleDay) {
+            $scheduleSessions = \App\Models\ClassSession::with(['classModel', 'teacher', 'timesheets.reviewer'])
+                ->whereDate('date', $scheduleDay->toDateString())
+                ->where('status', '!=', 'cancelled')
+                ->whereNotNull('teacher_id')
+                ->whereIn('class_id', ClassModel::query()->visibleTo($user)->select('id'))
+                ->when($branchId, fn ($q) => $q->whereHas('classModel', fn ($c) => $c->where('branch_id', $branchId)))
+                ->orderBy('start_time')->get()
+                ->map(function ($session) {
+                    $ts = $session->timesheets->first(fn ($t) => (int) $t->user_id === (int) $session->teacher_id && $t->status !== 'invalid')
+                        ?? TeacherTimesheet::findDuplicate((int) $session->teacher_id, (int) $session->class_id, $session->date->toDateString(), $session->id);
+                    $session->setAttribute('schedule_timesheet', $ts);
+
+                    return $session;
+                });
+        }
+        $subPendingCount = $canViewAll
+            ? TeacherTimesheet::where('type', 'sub')->where('status', 'pending_review')
+                ->when($user->managedBranchIds() !== null, fn ($q) => $q->whereIn('class_id', $visibleClassIds))->count()
+            : 0;
+
+        $filterClasses = $canViewAll ? ClassModel::query()->visibleTo($user)->orderBy('name')->get(['id', 'name', 'code', 'branch_id']) : collect();
+        $filterBranches = $canViewAll ? \App\Models\Branch::whereIn('id', $filterClasses->pluck('branch_id')->filter()->unique())->orderBy('name')->get(['id', 'name']) : collect();
+        $filterTeachers = $canViewAll ? $this->teachingStaff() : collect();
+
+        return view('payroll.timesheets-teachers', compact(
+            'timesheets', 'summary', 'month', 'monthStart', 'status', 'period', 'periodLocked',
+            'teacher', 'missingSessions', 'filterClasses', 'filterBranches', 'filterTeachers', 'canViewAll',
+            'scheduleDay', 'scheduleSessions', 'subPendingCount', 'type'
+        ));
+    }
+
+    /**
+     * "Xác nhận" một buổi học trên lịch (mockup Chấm công theo lịch): ghi / duyệt ca chấm công của GV dự kiến
+     * với giờ theo lịch. Ca GV đã check-in hoặc đã chấm tay → duyệt ca đó; chưa có → tạo ca "Xác nhận theo lịch" hợp lệ.
+     * Chỉ buổi thật, đã tới ngày, chưa hủy, ngoài kỳ lương đã khóa.
+     */
+    public function confirmScheduledSession(Request $request, int $sessionId)
+    {
+        abort_unless($request->user()->can('attendance_staff.view'), 403);
+        $session = \App\Models\ClassSession::with('classModel')->findOrFail($sessionId);
+        abort_unless(ClassModel::query()->visibleTo($request->user())->whereKey($session->class_id)->exists(), 403);
+        abort_if($session->status === 'cancelled' || ! $session->teacher_id, 422, 'Buổi học đã hủy hoặc chưa phân công giáo viên.');
+        if ($session->date->isAfter(today())) {
+            throw ValidationException::withMessages(['session' => 'Chưa tới ngày học — không thể xác nhận chấm công trước.']);
+        }
+        if (PayrollPeriod::isLockedFor($session->date)) {
+            return $this->rejectLockedDate('session', $session->date);
+        }
+
+        $review = ['status' => 'valid', 'reviewed_by' => $request->user()->id, 'reviewed_at' => now(), 'rejection_reason' => null];
+        $existing = TeacherTimesheet::where('user_id', $session->teacher_id)->where('class_session_id', $session->id)->first()
+            ?? TeacherTimesheet::findDuplicate((int) $session->teacher_id, (int) $session->class_id, $session->date->toDateString(), $session->id);
+
+        if ($existing && $existing->status !== 'invalid') {
+            $existing->update($review);
+        } else {
+            $start = $session->start_time?->format('H:i');
+            $end = $session->end_time?->format('H:i');
+            $attributes = $review + [
+                'user_id' => $session->teacher_id,
+                'class_id' => $session->class_id,
+                'class_session_id' => $session->id,
+                'teaching_date' => $session->date->toDateString(),
+                'scheduled_time' => $start && $end ? $start.'-'.$end : null,
+                'checkin_time' => $start,
+                'checkout_time' => $end,
+                'hours' => $start && $end ? max(0.5, round(abs(Carbon::parse($start)->diffInMinutes(Carbon::parse($end))) / 60, 2)) : 0,
+                'type' => $session->type === \App\Models\ClassSession::TYPE_SUPPORT ? '1on1' : 'regular',
+                'source' => TeacherTimesheet::SOURCE_SCHEDULE,
+                'notes' => 'Học vụ xác nhận theo lịch buổi học',
+            ];
+            $existing ? $existing->update($attributes) : TeacherTimesheet::create($attributes);
+        }
+
+        return redirect()->back()->with('status', 'Đã xác nhận chấm công buổi '.($session->classModel?->code ?? '').' ngày '.$session->date->format('d/m/Y').'.');
     }
 
     public function reviewTimesheet(Request $request, int $id)
@@ -479,7 +717,7 @@ class PayrollController extends Controller
         $validated = $request->validate([
             'decision' => ['required', 'in:valid,invalid'],
             'rejection_reason' => ['nullable', 'required_if:decision,invalid', 'string', 'max:1000'],
-        ]);
+        ], ['rejection_reason.required_if' => 'Vui lòng nhập lý do từ chối ca dạy.']);
         $timesheet = TeacherTimesheet::findOrFail($id);
         if (PayrollPeriod::isLockedFor($timesheet->teaching_date)) {
             return $this->rejectLockedDate('teaching_date', $timesheet->teaching_date);
@@ -495,31 +733,161 @@ class PayrollController extends Controller
     }
 
     /**
-     * Lịch sử đồng bộ máy chấm công. Hiện chưa có tích hợp thiết bị nào ghi
-     * TimesheetSyncLog → trang hiển thị trạng thái trống trung thực thay vì giả lập.
+     * "Chốt bảng công (N)" — duyệt hàng loạt các ca đang chờ đối soát đã chọn (mockup 10_doi_soat_chot_bang_cong).
+     * Ca thuộc kỳ lương đã khóa hoặc không còn "Chờ duyệt" được bỏ qua.
      */
-    public function syncHistory()
+    public function bulkReviewTimesheets(Request $request)
     {
-        $syncLogs = TimesheetSyncLog::with('branch')->latest()->get();
+        abort_unless($request->user()->can('attendance_staff.view'), 403);
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['integer'],
+        ], ['ids.required' => 'Chọn ít nhất một ca dạy để chốt.']);
 
-        return view('payroll.timesheets-sync', compact('syncLogs'));
+        $approved = 0;
+        $skipped = 0;
+        TeacherTimesheet::whereIn('id', $validated['ids'])->get()->each(function (TeacherTimesheet $ts) use (&$approved, &$skipped) {
+            if ($ts->status !== 'pending_review' || PayrollPeriod::isLockedFor($ts->teaching_date)) {
+                $skipped++;
+
+                return;
+            }
+            $ts->update(['status' => 'valid', 'reviewed_by' => Auth::id(), 'reviewed_at' => now(), 'rejection_reason' => null]);
+            $approved++;
+        });
+
+        return redirect()->back()->with('status', "Đã chốt {$approved} ca dạy vào bảng công".($skipped ? " — bỏ qua {$skipped} ca (không còn chờ duyệt hoặc thuộc kỳ lương đã khóa)." : '.'));
     }
 
     /**
-     * BXH KPI & hoa hồng tuyển sinh theo tháng: cùng căn cứ với bảng lương
-     * (tiền thực thu của khách mới, phiếu duyệt trong tháng — SalesCommissionService).
+     * "Chỉnh tay bổ sung": sửa giờ vào / ra của một ca đã ghi nhận, bắt buộc lý do; ca quay về "Chờ duyệt"
+     * để đối soát lại. Không sửa được ca thuộc kỳ lương đã duyệt/đã chi trả.
+     */
+    public function adjustTimesheet(Request $request, int $id)
+    {
+        $timesheet = TeacherTimesheet::findOrFail($id);
+        abort_unless(ClassModel::query()->visibleTo($request->user())->whereKey($timesheet->class_id)->exists(), 403);
+        if (PayrollPeriod::isLockedFor($timesheet->teaching_date)) {
+            return $this->rejectLockedDate('time_in', $timesheet->teaching_date);
+        }
+
+        $validated = $request->validate([
+            'time_in' => ['required', 'date_format:H:i'],
+            'time_out' => ['required', 'date_format:H:i', 'after:time_in'],
+            'adjustment_reason' => ['required', 'string', 'min:5', 'max:500'],
+        ], [
+            'time_in.required' => 'Vui lòng nhập giờ vào.',
+            'time_out.required' => 'Vui lòng nhập giờ ra.',
+            'time_out.after' => 'Giờ ra phải sau giờ vào.',
+            'adjustment_reason.required' => 'Chỉnh tay bắt buộc ghi lý do.',
+            'adjustment_reason.min' => 'Lý do điều chỉnh cần ít nhất 5 ký tự.',
+        ]);
+
+        $hours = round(abs(Carbon::createFromFormat('H:i', $validated['time_in'])->diffInMinutes(Carbon::createFromFormat('H:i', $validated['time_out']))) / 60, 2);
+        if ($hours < 0.5) {
+            throw ValidationException::withMessages(['time_out' => 'Ca dạy phải kéo dài ít nhất 30 phút.']);
+        }
+
+        $before = $timesheet->only(['checkin_time', 'checkout_time', 'hours', 'status']);
+        $timesheet->update([
+            'checkin_time' => $validated['time_in'],
+            'checkout_time' => $validated['time_out'],
+            'hours' => $hours,
+            'status' => 'pending_review',
+            'reviewed_by' => null,
+            'reviewed_at' => null,
+            'rejection_reason' => null,
+            'adjusted_at' => now(),
+            'adjusted_by' => $request->user()->id,
+            'adjustment_reason' => $validated['adjustment_reason'],
+        ]);
+
+        activity('teacher_timesheet')->causedBy($request->user())->performedOn($timesheet)
+            ->withProperties(['before' => $before, 'after' => $timesheet->only(array_keys($before)), 'reason' => $validated['adjustment_reason']])
+            ->log('Chỉnh tay giờ chấm công của '.$timesheet->teacher?->name.' ngày '.$timesheet->teaching_date->format('d/m/Y'));
+
+        return redirect()->back()->with('status', 'Đã chỉnh tay giờ vào/ra ('.rtrim(rtrim(number_format($hours, 2, '.', ''), '0'), '.').'h) — ca chuyển về Chờ duyệt để đối soát lại.');
+    }
+
+    /**
+     * Lịch sử đồng bộ máy chấm công. Hiện chưa có tích hợp thiết bị nào ghi
+     * TimesheetSyncLog → trang hiển thị trạng thái trống trung thực thay vì giả lập.
+     */
+    public function syncHistory(Request $request)
+    {
+        $from = $request->filled('from') ? Carbon::parse($request->query('from'))->startOfDay() : null;
+        $to = $request->filled('to') ? Carbon::parse($request->query('to'))->endOfDay() : null;
+        $status = array_key_exists((string) $request->query('status'), TimesheetSyncLog::STATUS_LABELS) ? $request->query('status') : null;
+
+        $syncLogs = TimesheetSyncLog::with('branch')
+            ->when($from, fn ($q) => $q->where('created_at', '>=', $from))
+            ->when($to, fn ($q) => $q->where('created_at', '<=', $to))
+            ->when($status === 'failed', fn ($q) => $q->whereIn('status', ['failed', 'error']))
+            ->when($status && $status !== 'failed', fn ($q) => $q->where('status', $status))
+            ->latest()->latest('id')
+            ->paginate($request->perPage(10))
+            ->withQueryString();
+        $hasAnyLog = TimesheetSyncLog::exists();
+
+        return view('payroll.timesheets-sync', compact('syncLogs', 'hasAnyLog'));
+    }
+
+    /** "Xuất file Excel lỗi" của một đợt đồng bộ: các dòng lỗi (Mã NV, Tên, Mã lỗi, Nội dung). */
+    public function exportSyncErrors(Request $request, int $id)
+    {
+        $log = TimesheetSyncLog::findOrFail($id);
+        $rows = collect($log->error_rows ?? [])->map(fn ($row) => [
+            $row['employee_code'] ?? '', $row['employee_name'] ?? '', $row['code'] ?? '', $row['message'] ?? '',
+        ])->all();
+        if ($rows === [] && filled($log->error_message)) {
+            $rows[] = ['', '', $log->error_code, $log->error_message];
+        }
+
+        return \App\Exports\ArrayExport::download(
+            'loi-dong-bo-cham-cong-'.$log->id,
+            ['Mã NV', 'Tên nhân viên', 'Mã lỗi', 'Nội dung chi tiết'],
+            $rows,
+            $request->query('format', 'xlsx')
+        );
+    }
+
+    /**
+     * BXH KPI & hoa hồng (mockup epic-7/bang-kpi-cong-khai) — dữ liệu công khai, không có lương cơ bản / khấu trừ / thực nhận:
+     * 1. KPI giữ học sinh của GV: lấy từ phiếu lương của kỳ (Số HS giữ × đơn giá bậc = KPI) — cùng số với bảng lương.
+     * 2. Hoa hồng tuyển sinh của Sale: tiền thực thu khách mới trong tháng × % bậc theo số HS chốt (SalesCommissionService).
+     * Lọc kỳ lương (tháng) + chi nhánh, phân trang.
      */
     public function kpiLeaderboard(Request $request)
     {
-        $month = min(12, max(1, $request->integer('month') ?: now()->month));
-        $year = min(2100, max(2020, $request->integer('year') ?: now()->year));
+        if (preg_match('/^(\d{4})-(\d{2})$/', (string) $request->query('period'), $m)) {
+            [$year, $month] = [(int) $m[1], (int) $m[2]];
+        } else {
+            $month = $request->integer('month') ?: now()->month;
+            $year = $request->integer('year') ?: now()->year;
+        }
+        $month = min(12, max(1, $month));
+        $year = min(2100, max(2020, $year));
+        $branchId = $request->integer('branch_id') ?: null;
         $start = Carbon::create($year, $month, 1)->startOfMonth();
         $end = $start->copy()->endOfMonth();
 
-        $salesUsers = User::role('sales_consultant')->get();
+        // 1. KPI giữ học sinh từ phiếu lương của kỳ.
+        $period = PayrollPeriod::where('year', $year)->where('month', $month)->first();
+        $retention = $period
+            ? PayrollRecord::with('user.branch')->where('payroll_period_id', $period->id)
+                ->where('kpi_source', PayrollRecord::KPI_RETENTION)
+                ->when($branchId, fn ($q) => $q->whereHas('user', fn ($u) => $u->where('branch_id', $branchId)))
+                ->get()
+                ->sortByDesc(fn (PayrollRecord $r) => [(float) $r->kpi_bonus, (int) $r->retention_students])
+                ->values()
+            : collect();
+
+        // 2. Hoa hồng tuyển sinh (sale).
+        $salesUsers = User::role('sales_consultant')->with('branch')->get();
         if ($salesUsers->isEmpty()) {
-            $salesUsers = User::whereHas('crmCustomers')->get();
+            $salesUsers = User::whereHas('crmCustomers')->with('branch')->get();
         }
+        $salesUsers = $salesUsers->when($branchId, fn ($users) => $users->where('branch_id', $branchId));
 
         $service = app(SalesCommissionService::class);
         $receiptsBySales = $service->commissionableReceipts($start, $end)->groupBy('commission_owner_id');
@@ -530,24 +898,37 @@ class PayrollController extends Controller
             $revenue = (float) $receipts->sum('amount');
             // Hoa hồng phát sinh (trước gate kép) — trả thực tế theo phiếu lương.
             $commission = $service->commissionFor($revenue, (int) ($closedBySales->get($user->id) ?? 0), $end);
-            $studentsRetained = $user->branch_id
-                ? Student::where('branch_id', $user->branch_id)->where('status', 'studying')->count()
-                : 0;
 
             return [
                 'user' => $user,
                 'revenue' => $revenue,
                 'deals' => $receipts->pluck('student_id')->unique()->count(),
-                'retained_students' => $studentsRetained,
                 'tier_name' => $commission['tier']?->tier_name ?? 'Chưa cấu hình bậc',
                 'closed' => $commission['closed'],
                 'percent' => $commission['percent'],
                 'commission' => $commission['amount'],
                 'branch_name' => $user->branch?->name ?? 'Hệ thống MEnglish',
             ];
-        })->sortByDesc('revenue')->values();
+        })->sortByDesc(fn ($row) => [$row['commission'], $row['revenue']])->values();
 
-        return view('payroll.kpi-leaderboard', compact('usersWithSales', 'month', 'year'));
+        $perPage = $request->perPage(20);
+        $paginate = fn ($items, string $pageName) => new \Illuminate\Pagination\LengthAwarePaginator(
+            $items->forPage($request->integer($pageName, 1) ?: 1, $perPage)->values(), $items->count(), $perPage,
+            $request->integer($pageName, 1) ?: 1, ['path' => $request->url(), 'query' => $request->query(), 'pageName' => $pageName]
+        );
+        $retentionPage = $paginate($retention, 'kpi_page');
+        $salesPage = $paginate($usersWithSales, 'sales_page');
+
+        $periodOptions = PayrollPeriod::orderByDesc('year')->orderByDesc('month')->get(['month', 'year', 'status'])
+            ->mapWithKeys(fn ($p) => [sprintf('%04d-%02d', $p->year, $p->month) => 'Tháng '.sprintf('%02d/%04d', $p->month, $p->year)])
+            ->prepend('Tháng '.now()->format('m/Y'), now()->format('Y-m'))
+            ->put(sprintf('%04d-%02d', $year, $month), 'Tháng '.sprintf('%02d/%04d', $month, $year))
+            ->sortKeysDesc();
+        $branches = \App\Models\Branch::orderBy('name')->get(['id', 'name']);
+
+        return view('payroll.kpi-leaderboard', compact(
+            'usersWithSales', 'salesPage', 'retentionPage', 'period', 'month', 'year', 'branchId', 'periodOptions', 'branches'
+        ));
     }
 
     public function configSettings()
@@ -611,6 +992,18 @@ class PayrollController extends Controller
             ->paginate($request->perPage(15))
             ->withQueryString();
 
+        // "Đến ngày" của từng phiên bản = ngày trước phiên bản kế tiếp của cùng GV (null = hiện tại).
+        $versionsByUser = TeacherHourlyRate::whereIn('user_id', $history->getCollection()->pluck('user_id')->unique())
+            ->orderBy('effective_from')->orderBy('id')->get(['id', 'user_id', 'effective_from'])->groupBy('user_id');
+        $endDates = [];
+        foreach ($versionsByUser as $versions) {
+            $versions = $versions->values();
+            foreach ($versions as $i => $version) {
+                $next = $versions->slice($i + 1)->first(fn ($v) => $v->effective_from->gt($version->effective_from));
+                $endDates[$version->id] = $next?->effective_from->copy()->subDay();
+            }
+        }
+
         // Đơn giá đang hiệu lực hôm nay của từng GV (dòng effective_from gần nhất ≤ hôm nay).
         $currentRates = TeacherHourlyRate::whereDate('effective_from', '<=', now()->toDateString())
             ->orderBy('effective_from')
@@ -618,8 +1011,11 @@ class PayrollController extends Controller
             ->keyBy('user_id');
 
         $selectedTeacher = $teacherId ? $teachers->firstWhere('id', $teacherId) : null;
+        $selectedType = $selectedTeacher
+            ? ($currentRates->get($selectedTeacher->id)?->teacher_type ?? TeacherHourlyRate::defaultTeacherType($selectedTeacher))
+            : null;
 
-        return view('payroll.config-rates', compact('rates', 'teachers', 'history', 'currentRates', 'selectedTeacher'));
+        return view('payroll.config-rates', compact('rates', 'teachers', 'history', 'currentRates', 'selectedTeacher', 'selectedType', 'endDates'));
     }
 
     /**
@@ -633,6 +1029,7 @@ class PayrollController extends Controller
             'hourly_rate' => ['required', 'numeric', 'min:1000'],
             // Q3 Part-time: mặc định đơn giá theo BUỔI; 'hour' giữ cho trường hợp cũ.
             'rate_unit' => ['nullable', 'in:session,hour'],
+            'teacher_type' => ['nullable', 'in:'.implode(',', array_keys(TeacherHourlyRate::TEACHER_TYPES))],
             'effective_from' => [
                 'required', 'date',
                 function ($attribute, $value, $fail) use ($request) {
@@ -647,6 +1044,7 @@ class PayrollController extends Controller
         ]);
 
         $validated['rate_unit'] ??= TeacherHourlyRate::UNIT_HOUR;
+        $validated['teacher_type'] ??= TeacherHourlyRate::defaultTeacherType(User::findOrFail($validated['user_id']));
         $rate = TeacherHourlyRate::create($validated + ['created_by' => $request->user()->id]);
 
         activity('teacher_rate')->causedBy($request->user())->performedOn($rate)
@@ -689,7 +1087,10 @@ class PayrollController extends Controller
             ->paginate($request->perPage(15))
             ->withQueryString();
 
-        return view('payroll.config-commissions', compact('tiers', 'history', 'asOf'));
+        $tab = $request->query('tab') === 'renewal' ? 'renewal' : 'commission';
+        $settings = PayrollPeriod::payrollSettings();
+
+        return view('payroll.config-commissions', compact('tiers', 'history', 'asOf', 'tab', 'settings'));
     }
 
     /**
@@ -699,7 +1100,8 @@ class PayrollController extends Controller
     private function commissionTierRules(): array
     {
         return [
-            'tier_name' => 'required|string|max:255',
+            // Mockup không có ô tên bậc: bỏ trống thì tự đặt theo ngưỡng số HS.
+            'tier_name' => 'nullable|string|max:255',
             'min_students' => 'required|integer|min:0',
             'max_students' => 'nullable|integer|gte:min_students',
             'min_revenue' => 'nullable|numeric|min:0',
@@ -711,9 +1113,54 @@ class PayrollController extends Controller
         ];
     }
 
+    private function tierName(array $validated): string
+    {
+        if (filled($validated['tier_name'] ?? null)) {
+            return trim($validated['tier_name']);
+        }
+        $max = $validated['max_students'] ?? null;
+
+        return 'Bậc '.$validated['min_students'].($max !== null && $max !== '' ? '–'.$max : '+').' HS';
+    }
+
+    /**
+     * Tab "Thưởng tái tục" của màn Mốc hoa hồng & thưởng tái tục: bảng % doanh thu lớp theo số HS nghỉ trong kỳ
+     * (A6) + mức khi nghỉ nhiều hơn bảng; các mốc chưa được BA chốt gắn cờ "chờ BA". Áp dụng cho lần tính / tính lại sau.
+     */
+    public function storeRenewalTable(Request $request)
+    {
+        $validated = $request->validate([
+            'renewal' => ['required', 'array', 'min:1', 'max:20'],
+            'renewal.*.quits' => ['required', 'integer', 'min:0', 'max:50', 'distinct'],
+            'renewal.*.percent' => ['required', 'numeric', 'min:0', 'max:100'],
+            'renewal.*.pending' => ['nullable', 'boolean'],
+            'renewal_beyond_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+        ], [
+            'renewal.required' => 'Cần ít nhất một mốc thưởng tái tục.',
+            'renewal.*.quits.distinct' => 'Mỗi mức số HS nghỉ chỉ được khai báo một lần.',
+        ]);
+
+        $before = PayrollPeriod::payrollSettings()['renewal_table'];
+        $table = collect($validated['renewal'])
+            ->mapWithKeys(fn ($row) => [(int) $row['quits'] => ['percent' => (float) $row['percent'], 'pending' => (bool) ($row['pending'] ?? false)]])
+            ->sortKeys()->all();
+        SystemSetting::set('payroll_renewal_table', $table, 'Thưởng tái tục: % doanh thu lớp theo số HS nghỉ trong kỳ');
+        if (($validated['renewal_beyond_percent'] ?? null) !== null) {
+            SystemSetting::set('payroll_renewal_beyond_percent', $validated['renewal_beyond_percent'], 'Thưởng tái tục khi số HS nghỉ vượt bảng (%)');
+        }
+
+        activity('payroll_settings')->causedBy($request->user())
+            ->withProperties(['before' => $before, 'after' => $table])
+            ->log('Cập nhật bảng thưởng tái tục');
+
+        return redirect()->route('payroll.config.commission-tiers', ['tab' => 'renewal'])
+            ->with('status', 'Đã lưu bảng thưởng tái tục — áp dụng cho các lần tính / tính lại kỳ lương sau.');
+    }
+
     public function storeCommissionTier(Request $request)
     {
         $validated = $request->validate($this->commissionTierRules());
+        $validated['tier_name'] = $this->tierName($validated);
         $validated['effective_from'] ??= today()->toDateString();
         $validated['min_revenue'] ??= 0;
         $validated['renew_percent'] ??= 0;
@@ -735,6 +1182,7 @@ class PayrollController extends Controller
     public function updateCommissionTier(Request $request, CommissionTier $commissionTier)
     {
         $validated = $request->validate($this->commissionTierRules());
+        $validated['tier_name'] = $this->tierName($validated);
         abort_if($commissionTier->effective_to !== null, 422, 'Phiên bản này đã hết hiệu lực — hãy sửa phiên bản đang hiệu lực.');
 
         $effectiveFrom = Carbon::parse($validated['effective_from'] ?? today())->startOfDay();
@@ -813,7 +1261,23 @@ class PayrollController extends Controller
             : $records->first();
         abort_if($request->filled('period_id') && $record === null, 404);
 
-        return view('payroll.my-salary', compact('user', 'record', 'records'));
+        // Căn cứ hiển thị theo mockup "Lương của tôi": buổi dạy hợp lệ của kỳ, biên bản phạt đã trừ, so sánh tháng trước.
+        $timesheets = collect();
+        $penalties = collect();
+        $previous = null;
+        if ($record) {
+            $period = $record->period;
+            $timesheets = TeacherTimesheet::with('classModel')
+                ->where('user_id', $user->id)
+                ->whereBetween('teaching_date', [$period->start_date, $period->end_date])
+                ->where('status', 'valid')
+                ->orderBy('teaching_date')->get();
+            $penalties = Penalty::with('classModel')->where('payroll_record_id', $record->id)->orderBy('violation_date')->get();
+            $previous = $records->first(fn (PayrollRecord $r) => $r->period->start_date->lt($period->start_date));
+        }
+        $variant = $record ? self::payslipVariant($record) : null;
+
+        return view('payroll.my-salary', compact('user', 'record', 'records', 'timesheets', 'penalties', 'previous', 'variant'));
     }
 
     private function rejectLockedDate(string $field, $date): RedirectResponse

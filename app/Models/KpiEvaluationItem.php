@@ -14,11 +14,14 @@ class KpiEvaluationItem extends Model
         'kpi_evaluation_id',
         'kpi_criterion_id',
         'score',
+        'actual',
+        'critical_error',
         'note',
     ];
 
     protected $casts = [
         'score' => 'decimal:2',
+        'critical_error' => 'boolean',
     ];
 
     public function evaluation(): BelongsTo

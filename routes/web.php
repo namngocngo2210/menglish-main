@@ -315,7 +315,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/timesheets/manual', [PayrollController::class, 'storeTimesheet'])->middleware('can:attendance_staff.manual_record')->name('timesheets.manual.store');
         Route::get('/timesheets/teachers', [PayrollController::class, 'teacherTimesheets'])->name('timesheets.teachers');
         Route::post('/timesheets/teachers/{id}/review', [PayrollController::class, 'reviewTimesheet'])->middleware('can:attendance_staff.view')->name('timesheets.review');
+        Route::post('/timesheets/teachers/bulk-review', [PayrollController::class, 'bulkReviewTimesheets'])->middleware('can:attendance_staff.view')->name('timesheets.bulk-review');
+        Route::post('/timesheets/sessions/{sessionId}/confirm', [PayrollController::class, 'confirmScheduledSession'])->whereNumber('sessionId')->middleware('can:attendance_staff.view')->name('timesheets.sessions.confirm');
+        Route::put('/timesheets/teachers/{id}/adjust', [PayrollController::class, 'adjustTimesheet'])->whereNumber('id')->middleware('can:attendance_staff.manual_record')->name('timesheets.adjust');
         Route::get('/timesheets/sync-history', [PayrollController::class, 'syncHistory'])->middleware('can:attendance_staff.sync')->name('timesheets.sync-history');
+        Route::get('/timesheets/sync-history/{id}/errors', [PayrollController::class, 'exportSyncErrors'])->whereNumber('id')->middleware('can:attendance_staff.sync')->name('timesheets.sync-history.errors');
         Route::get('/kpi-leaderboard', [PayrollController::class, 'kpiLeaderboard'])->middleware('can:kpi.view')->name('kpi-leaderboard');
         Route::get('/config/settings', [PayrollController::class, 'configSettings'])->middleware('can:teacher_rate.manage')->name('config.settings');
         Route::post('/config/settings', [PayrollController::class, 'storeSettings'])->middleware('can:teacher_rate.manage')->name('config.settings.store');
@@ -326,6 +330,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/config/commission-tiers', [PayrollController::class, 'storeCommissionTier'])->middleware('can:commission_config.manage')->name('config.commission-tiers.store');
         Route::put('/config/commission-tiers/{commissionTier}', [PayrollController::class, 'updateCommissionTier'])->middleware('can:commission_config.manage')->name('config.commission-tiers.update');
         Route::delete('/config/commission-tiers/{commissionTier}', [PayrollController::class, 'destroyCommissionTier'])->middleware('can:commission_config.manage')->name('config.commission-tiers.destroy');
+        Route::post('/config/renewal-bonus', [PayrollController::class, 'storeRenewalTable'])->middleware('can:commission_config.manage')->name('config.renewal.store');
     });
 
     Route::get('/portal/my-salary', [PayrollController::class, 'mySalary'])->name('portal.my-salary');
@@ -341,6 +346,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/penalties/{id}/mark-paid', [PenaltyController::class, 'markPaidPenalty'])->middleware('can:violation.mark_paid')->name('penalties.mark-paid');
     Route::post('/penalties/{id}/resolve', [PenaltyController::class, 'resolvePenalty'])->middleware('can:violation.mark_resolved')->name('penalties.resolve');
     Route::post('/penalties/{id}/cancel', [PenaltyController::class, 'cancelPenalty'])->middleware('can:violation.cancel')->name('penalties.cancel');
+    Route::post('/penalties/{id}/remedy', [PenaltyController::class, 'remedyPenalty'])->middleware('can:violation.mark_resolved')->name('penalties.remedy');
 
     // ─────────────────────────────────────────────
     // 6. Khóa học, Bảng giá học phí & Trình độ

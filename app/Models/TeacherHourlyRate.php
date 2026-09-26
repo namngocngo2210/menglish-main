@@ -20,6 +20,7 @@ class TeacherHourlyRate extends Model
         'user_id',
         'hourly_rate',
         'rate_unit',
+        'teacher_type',
         'effective_from',
         'note',
         'created_by',
@@ -35,6 +36,33 @@ class TeacherHourlyRate extends Model
     public const UNIT_HOUR = 'hour';
 
     public const UNITS = [self::UNIT_SESSION => 'đ/buổi', self::UNIT_HOUR => 'đ/giờ'];
+
+    /** Loại giáo viên hiển thị trên phiên bản đơn giá (mockup). */
+    public const TEACHER_TYPES = [
+        'parttime' => 'Part-time',
+        'fulltime' => 'Full-time',
+        'foreign' => 'Giáo viên nước ngoài',
+        'assistant' => 'Trợ giảng',
+    ];
+
+    /** Loại giáo viên mặc định theo vai trò / hợp đồng (Q3). */
+    public static function defaultTeacherType(User $user): string
+    {
+        if ($user->hasRole('foreign_teacher')) {
+            return 'foreign';
+        }
+        if ($user->hasRole('assistant') && ! $user->hasAnyRole(['teacher', 'teacher_parttime', 'teacher_fulltime'])) {
+            return 'assistant';
+        }
+
+        return app(\App\Services\PayrollFormulaService::class)->profile($user)['employee_type'] === PayrollRecord::TYPE_PARTTIME
+            ? 'parttime' : 'fulltime';
+    }
+
+    public function getTeacherTypeLabelAttribute(): string
+    {
+        return self::TEACHER_TYPES[$this->teacher_type] ?? '—';
+    }
 
     public function user(): BelongsTo
     {

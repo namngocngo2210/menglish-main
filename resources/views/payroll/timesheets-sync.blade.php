@@ -1,72 +1,138 @@
+{{-- Mockup: ui-full-tinh-nang-menglish/epic-7/lich-su-dong-bo-cham-cong --}}
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('payroll.periods.index') }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">sync</span>
-                        Lịch Sử Đồng Bộ Dữ Liệu Máy Chấm Công
-                    </h1>
-                    <p class="text-xs text-gray-500">Nhật ký quét vân tay / FaceID từ thiết bị phần học viện tại các cơ sở</p>
-                </div>
-            </div>
-        </div>
-    </x-slot>
+    @php
+        $statusStyles = [
+            'success' => ['success', 'check_circle', 'text-tertiary'],
+            'partial' => ['warning', 'warning', 'text-amber-600'],
+            'failed' => ['error', 'error', 'text-error'],
+        ];
+    @endphp
 
-    <div class="space-y-4">
-        @if ($syncLogs->isEmpty())
-            <x-ui.alert type="info" title="Chưa kết nối máy chấm công">
-                Hệ thống hiện <strong>chưa tích hợp</strong> thiết bị vân tay / FaceID nào, nên chưa có lần đồng bộ nào.
-                Chấm công giáo viên đang được ghi nhận qua <strong>check-in theo buổi học</strong> trên cổng giáo viên
-                và <strong>chấm công tay</strong> của Học vụ (xem tại
-                <a href="{{ route('payroll.timesheets.teachers') }}" class="font-semibold underline">Nhật ký chấm công</a>).
-            </x-ui.alert>
-        @endif
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <table class="w-full text-left border-collapse text-xs">
-                <thead>
-                    <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
-                        <th class="py-3 px-4">Thời gian đồng bộ</th>
-                        <th class="py-3 px-4">Cơ sở thiết bị</th>
-                        <th class="py-3 px-4">Tên máy chấm công</th>
-                        <th class="py-3 px-4 text-center">Số lượt Check-in</th>
-                        <th class="py-3 px-4 text-center">Khớp lịch dạy</th>
-                        <th class="py-3 px-4">Trạng thái</th>
+    <x-ui.page-header title="Lịch sử đồng bộ chấm công"
+                      description="Theo dõi các đợt đồng bộ dữ liệu chấm công tự động (AppSheet / máy chấm công) vào hệ thống.">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="refresh" :href="request()->fullUrl()">Làm mới</x-ui.button>
+            <span title="Chưa kết nối AppSheet / máy chấm công — chưa thể đồng bộ">
+                <x-ui.button icon="sync" disabled aria-disabled="true">Đồng bộ ngay</x-ui.button>
+            </span>
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    @unless ($hasAnyLog)
+        <x-ui.alert type="info" title="Chưa kết nối nguồn đồng bộ" class="mb-lg">
+            Hệ thống hiện <strong>chưa tích hợp</strong> AppSheet hay thiết bị vân tay / FaceID nào, nên chưa có đợt đồng bộ nào và nút
+            "Đồng bộ ngay" đang khóa. Chấm công giáo viên đang được ghi nhận qua <strong>check-in theo buổi học</strong> trên cổng giáo viên
+            và <strong>chấm công thủ công</strong> của Học vụ (xem tại
+            <a href="{{ route('payroll.timesheets.teachers') }}" class="font-semibold underline">Chi tiết chấm công giáo viên</a>).
+        </x-ui.alert>
+    @endunless
+
+    <x-ui.filter-bar :search="null">
+        <x-ui.date name="from" inline-label="Từ ngày" :value="request('from')" />
+        <x-ui.date name="to" inline-label="Đến ngày" :value="request('to')" />
+        <x-ui.select name="status" inline-label="Trạng thái" :options="\App\Models\TimesheetSyncLog::STATUS_LABELS" placeholder="Tất cả trạng thái" />
+        <x-ui.button type="submit" icon="search">Lọc dữ liệu</x-ui.button>
+    </x-ui.filter-bar>
+
+    <x-ui.data-table min-width="900px" x-data="{ open: null }">
+        <table>
+            <thead>
+                <tr>
+                    <th>Thời điểm chạy</th>
+                    <th>Nguồn / Cơ sở</th>
+                    <th class="text-center">Tổng số dòng</th>
+                    <th class="text-center">Thành công</th>
+                    <th class="text-center">Lỗi</th>
+                    <th class="text-center">
+                        <span class="inline-flex items-center gap-xs">Bỏ qua
+                            <span class="material-symbols-outlined cursor-help text-[16px]" title="Hệ thống bỏ qua không ghi đè dữ liệu của các nhân sự đã chốt kỳ lương.">info</span>
+                        </span>
+                    </th>
+                    <th>Trạng thái</th>
+                    <th class="text-right">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($syncLogs as $log)
+                    @php [$color, $icon, $tone] = $statusStyles[$log->normalized_status] ?? ['neutral', 'help', 'text-on-surface-variant']; @endphp
+                    <tr>
+                        <td class="font-mono">{{ $log->created_at->format('H:i d/m/Y') }}</td>
+                        <td>
+                            <span class="block font-semibold">{{ $log->device_name }}</span>
+                            <span class="block font-body-small text-body-small text-on-surface-variant">{{ $log->branch?->name ?? 'Toàn hệ thống' }}</span>
+                        </td>
+                        <td class="text-center font-mono">{{ number_format($log->records_count) }}</td>
+                        <td class="text-center font-mono text-tertiary">{{ number_format($log->matched_count) }}</td>
+                        <td class="text-center font-mono {{ $log->failed_count ? 'text-error font-semibold' : '' }}">{{ number_format($log->failed_count) }}</td>
+                        <td class="text-center font-mono">{{ number_format($log->skipped_count) }}</td>
+                        <td>
+                            <span class="inline-flex items-center gap-xs font-body-medium text-body-medium {{ $tone }}">
+                                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ $icon }}</span>{{ $log->status_label }}
+                            </span>
+                            @if ($log->normalized_status === 'partial' && $log->failed_count)
+                                <span class="block font-body-small text-body-small text-on-surface-variant">{{ $log->failed_count }} dòng lỗi</span>
+                            @elseif ($log->normalized_status === 'failed' && $log->error_code)
+                                <span class="block font-body-small text-body-small text-on-surface-variant">{{ $log->error_code }}</span>
+                            @endif
+                        </td>
+                        <td class="text-right">
+                            @if ($log->hasErrorDetails())
+                                <x-ui.button variant="ghost" size="sm" @click="open = open === {{ $log->id }} ? null : {{ $log->id }}">
+                                    Xem chi tiết lỗi
+                                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true" x-text="open === {{ $log->id }} ? 'expand_less' : 'expand_more'">expand_more</span>
+                                </x-ui.button>
+                            @else
+                                <span class="font-body-small text-body-small text-on-surface-variant">Không có lỗi</span>
+                            @endif
+                        </td>
                     </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
-                    @forelse ($syncLogs as $log)
-                        <tr class="hover:bg-gray-50 transition">
-                            <td class="py-3.5 px-4 font-mono font-medium">{{ $log->created_at->format('d/m/Y H:i:s') }}</td>
-                            <td class="py-3.5 px-4 font-bold text-gray-900">{{ $log->branch?->name ?? 'Toàn hệ thống' }}</td>
-                            <td class="py-3.5 px-4">{{ $log->device_name }}</td>
-                            <td class="py-3.5 px-4 font-bold font-mono text-center">{{ $log->records_count }} lượt</td>
-                            <td class="py-3.5 px-4 font-bold text-emerald-600 text-center">{{ $log->matched_count }} / {{ $log->records_count }}</td>
-                            <td class="py-3.5 px-4">
-                                @php
-                                    [$syncBadge, $syncLabel] = match ($log->status) {
-                                        'success' => ['bg-emerald-50 text-emerald-700', 'Đồng bộ thành công'],
-                                        'partial' => ['bg-amber-50 text-amber-700', 'Đồng bộ một phần'],
-                                        'failed', 'error' => ['bg-rose-50 text-rose-700', 'Thất bại'],
-                                        default => ['bg-gray-50 text-gray-700', $log->status],
-                                    };
-                                @endphp
-                                <span class="px-2 py-0.5 rounded {{ $syncBadge }} font-bold text-[10px]">{{ $syncLabel }}</span>
+                    @if ($log->hasErrorDetails())
+                        <tr x-show="open === {{ $log->id }}" x-cloak>
+                            <td colspan="8" class="bg-surface-container-low/60">
+                                @if (! empty($log->error_rows))
+                                    <div class="space-y-sm p-sm">
+                                        <p class="flex items-center gap-xs font-h3 text-h3 text-amber-700">
+                                            <span class="material-symbols-outlined" aria-hidden="true">warning</span>Chi tiết {{ count($log->error_rows) }} dòng lỗi
+                                        </p>
+                                        <table class="w-full">
+                                            <thead><tr><th>Mã NV</th><th>Tên nhân viên</th><th>Mã lỗi</th><th>Nội dung chi tiết</th></tr></thead>
+                                            <tbody>
+                                                @foreach ($log->error_rows as $row)
+                                                    <tr>
+                                                        <td class="font-mono">{{ $row['employee_code'] ?? '—' }}</td>
+                                                        <td>{{ $row['employee_name'] ?? '—' }}</td>
+                                                        <td><x-ui.badge color="error">{{ $row['code'] ?? 'ERROR' }}</x-ui.badge></td>
+                                                        <td>{{ $row['message'] ?? '' }}</td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                        <div class="flex justify-end">
+                                            <x-ui.button variant="secondary" size="sm" icon="download" :href="route('payroll.timesheets.sync-history.errors', $log->id)">Xuất file Excel lỗi</x-ui.button>
+                                        </div>
+                                    </div>
+                                @else
+                                    <div class="flex items-start gap-sm p-sm">
+                                        <span class="material-symbols-outlined text-error" aria-hidden="true">error</span>
+                                        <div>
+                                            <p class="font-body-semibold text-body-semibold text-on-surface">{{ $log->error_code ?: 'Lỗi hệ thống' }}</p>
+                                            <p class="font-body-small text-body-small text-on-surface-variant">{{ $log->error_message }}</p>
+                                        </div>
+                                    </div>
+                                @endif
                             </td>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="6">
-                                <x-ui.empty-state icon="sync_disabled" title="Chưa có lịch sử đồng bộ"
-                                                  description="Màn này sẽ hiển thị các lần đồng bộ thật khi có tích hợp máy chấm công." />
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
+                    @endif
+                @empty
+                    <tr>
+                        <td colspan="8">
+                            <x-ui.empty-state icon="history" :title="$hasAnyLog ? 'Không có đợt đồng bộ khớp bộ lọc' : 'Chưa có lịch sử đồng bộ'"
+                                              :description="$hasAnyLog ? 'Thử đổi khoảng ngày hoặc trạng thái.' : 'Màn này sẽ hiển thị các đợt đồng bộ thật khi có tích hợp AppSheet / máy chấm công.'" />
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+        <x-slot:footer><x-ui.pagination :paginator="$syncLogs" unit="đợt đồng bộ" /></x-slot:footer>
+    </x-ui.data-table>
 </x-app-layout>
