@@ -149,9 +149,12 @@ class PlacementTestSubmission extends Model
     {
         if ($this->hasRubricGrade()) {
             $total = rtrim(rtrim(number_format((float) $this->total_score, 1, '.', ''), '0'), '.');
-            $max = PlacementRubricService::maxTotal($this->grade_group);
+            // Khối không có thang điểm (lớp 5–9…): điểm thô, không có điểm tối đa cố định.
+            $score = PlacementRubricService::hasRubric($this->grade_group)
+                ? $total.'/'.PlacementRubricService::maxTotal($this->grade_group)
+                : $total.' điểm';
 
-            return "{$total}/{$max}".($this->finalClass() ? ' · '.$this->finalClass() : '');
+            return $score.($this->finalClass() ? ' · '.$this->finalClass() : '');
         }
         if ($this->overall_score === null) {
             return null;

@@ -130,7 +130,7 @@
                         Điểm {{ $label }}
                         @if ($skill === 'speaking')<span class="block normal-case text-on-surface-variant">(Nhập tay)</span>@endif
                     </label>
-                    <span class="font-code text-code" x-text="'/ ' + max('{{ $skill }}')"></span>
+                    <span class="font-code text-code" x-text="hasRubric ? '/ ' + max('{{ $skill }}') : 'điểm'"></span>
                 </div>
                 <input id="score_{{ $skill }}" type="number" step="0.5" min="0" :max="max('{{ $skill }}')" name="{{ $skill }}_score" x-model="scores.{{ $skill }}" @if ($skill === 'speaking') :required="hasRubric" @else required @endif
                        :class="overMax('{{ $skill }}') ? 'border-error ring-2 ring-error/20' : 'border-outline-variant'"
@@ -178,7 +178,7 @@
             <div class="flex h-14 w-14 items-center justify-center rounded-full bg-primary-container font-h3 text-h3 text-white" x-text="complete ? total : '—'"></div>
             <div>
                 <p class="font-label text-label uppercase opacity-80">Tổng điểm hệ thống</p>
-                <p class="font-h2 text-h2"><span x-text="complete ? total : '—'"></span> <span class="font-body-medium text-body-medium opacity-70" x-text="'/ ' + maxTotal + ' điểm'"></span></p>
+                <p class="font-h2 text-h2"><span x-text="complete ? total : '—'"></span> <span class="font-body-medium text-body-medium opacity-70" x-text="hasRubric ? '/ ' + maxTotal + ' điểm' : 'điểm'"></span></p>
             </div>
         </div>
         <div class="hidden h-10 w-px bg-white/20 sm:block"></div>
