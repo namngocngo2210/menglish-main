@@ -10,7 +10,7 @@
     <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
         <x-ui.select name="assignee" :id="$fid('assignee')" label="Người nhận" required placeholder="Chọn nhân sự..."
                      :options="$users->mapWithKeys(fn ($u) => [$u->id => $u->name.' ('.($u->getRoleNames()->map(fn ($r) => \App\Helpers\AclHelper::shortRoleLabel($r))->implode(', ') ?: 'Nhân viên').')'])" />
-        <x-ui.input type="date" name="dueDate" :id="$fid('dueDate')" label="Hạn hoàn thành" required :value="old('dueDate', now()->addDays(2)->format('Y-m-d'))" />
+        <x-ui.date name="dueDate" :id="$fid('dueDate')" label="Hạn hoàn thành" required :value="old('dueDate', now()->addDays(2)->format('Y-m-d'))" />
     </div>
     <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
         <x-ui.select name="branch_id" :id="$fid('branch_id')" label="Chi nhánh" placeholder="-- Không chỉ định --" :options="$branches->pluck('name', 'id')" />

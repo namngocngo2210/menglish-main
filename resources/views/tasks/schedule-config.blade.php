@@ -49,11 +49,9 @@
                 @if ($canSchedule)
                     <form action="{{ route('tasks.schedule-config.update') }}" method="POST" class="space-y-md">
                         @csrf
-                        <x-ui.field label="Lớp học" name="class_id" for="tkb_class_id" required
-                            hint="Lớp đã có TKB có thể sửa: buổi đã qua, đã điểm danh hoặc đã chấm công được giữ nguyên, chỉ các buổi sắp tới được xếp lại.">
-                            <select id="tkb_class_id" name="class_id" x-model="form.class_id" @change="pick()" required
-                                    class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base focus:border-primary-container focus:ring-2 focus:ring-primary-container/20">
-                                <option value="">-- Chọn lớp học --</option>
+                        <x-ui.select label="Lớp học" name="class_id" id="tkb_class_id" required placeholder="-- Chọn lớp học --"
+                            hint="Lớp đã có TKB có thể sửa: buổi đã qua, đã điểm danh hoặc đã chấm công được giữ nguyên, chỉ các buổi sắp tới được xếp lại."
+                            x-model="form.class_id" x-on:change="pick()">
                                 <optgroup label="Chưa có TKB">
                                     @foreach ($classes->filter(fn ($c) => ! $c->scheduleConfig && ! in_array($c->status, ['cancelled', 'completed'], true)) as $c)
                                         <option value="{{ $c->id }}">{{ $c->name }} ({{ $c->code }})</option>
@@ -64,28 +62,20 @@
                                         <option value="{{ $c->id }}">{{ $c->name }} ({{ $c->code }}) · {{ $c->schedule_text }}</option>
                                     @endforeach
                                 </optgroup>
-                            </select>
-                        </x-ui.field>
+                        </x-ui.select>
 
                         <template x-if="hasSchedule">
                             <x-ui.alert type="info">Lớp này đã có thời khóa biểu — lưu lại sẽ xếp lại các buổi <strong>từ hôm nay</strong>; buổi quá khứ và buổi đã có dữ liệu thực tế không bị thay đổi.</x-ui.alert>
                         </template>
 
                         <div class="grid grid-cols-1 gap-md sm:grid-cols-3">
-                            <x-ui.field label="Năm học áp dụng" name="academic_year" for="tkb_year">
-                                <select id="tkb_year" name="academic_year" x-model="form.academic_year"
-                                        class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base">
-                                    @foreach ($academicYears as $year)
-                                        <option value="{{ $year }}">Năm học {{ $year }}</option>
-                                    @endforeach
-                                </select>
-                            </x-ui.field>
-                            <x-ui.field label="Khai giảng" name="start_date" for="tkb_start" required>
-                                <input id="tkb_start" type="date" name="start_date" x-model="form.start_date" required class="w-full rounded-lg border border-outline-variant px-md py-sm font-body-base text-body-base">
-                            </x-ui.field>
-                            <x-ui.field label="Kết thúc" name="end_date" for="tkb_end" required>
-                                <input id="tkb_end" type="date" name="end_date" x-model="form.end_date" required class="w-full rounded-lg border border-outline-variant px-md py-sm font-body-base text-body-base">
-                            </x-ui.field>
+                            <x-ui.select label="Năm học áp dụng" name="academic_year" id="tkb_year" x-model="form.academic_year">
+                                @foreach ($academicYears as $year)
+                                    <option value="{{ $year }}">Năm học {{ $year }}</option>
+                                @endforeach
+                            </x-ui.select>
+                            <x-ui.date label="Khai giảng" name="start_date" id="tkb_start" required x-model="form.start_date" />
+                            <x-ui.date label="Kết thúc" name="end_date" id="tkb_end" required x-model="form.end_date" />
                         </div>
 
                         <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
@@ -95,22 +85,11 @@
                                         <span class="material-symbols-outlined text-[18px] text-tertiary" aria-hidden="true">{{ $n === 1 ? 'looks_one' : 'looks_two' }}</span>
                                         Slot {{ $n }}
                                     </h3>
-                                    <x-ui.field label="Ngày trong tuần" name="slot{{ $n }}_day" for="tkb_slot{{ $n }}_day">
-                                        <select id="tkb_slot{{ $n }}_day" name="slot{{ $n }}_day" x-model="form.slot{{ $n }}_day"
-                                                class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base">
-                                            @if ($n === 2)<option value="">-- Không học ca 2 --</option>@endif
-                                            @foreach ($days as $day)
-                                                <option value="{{ $day }}">{{ $day }}</option>
-                                            @endforeach
-                                        </select>
-                                    </x-ui.field>
+                                    <x-ui.select label="Ngày trong tuần" name="slot{{ $n }}_day" id="tkb_slot{{ $n }}_day" x-model="form.slot{{ $n }}_day"
+                                        :placeholder="$n === 2 ? '-- Không học ca 2 --' : null" :options="array_combine($days, $days)" />
                                     <div class="grid grid-cols-2 gap-sm">
-                                        <x-ui.field label="Giờ bắt đầu" name="slot{{ $n }}_start" for="tkb_slot{{ $n }}_start">
-                                            <input id="tkb_slot{{ $n }}_start" type="time" name="slot{{ $n }}_start" x-model="form.slot{{ $n }}_start" class="w-full rounded-lg border border-outline-variant px-sm py-sm font-code">
-                                        </x-ui.field>
-                                        <x-ui.field label="Giờ kết thúc" name="slot{{ $n }}_end" for="tkb_slot{{ $n }}_end">
-                                            <input id="tkb_slot{{ $n }}_end" type="time" name="slot{{ $n }}_end" x-model="form.slot{{ $n }}_end" class="w-full rounded-lg border border-outline-variant px-sm py-sm font-code">
-                                        </x-ui.field>
+                                        <x-ui.input type="time" label="Giờ bắt đầu" name="slot{{ $n }}_start" id="tkb_slot{{ $n }}_start" x-model="form.slot{{ $n }}_start" class="font-code" />
+                                        <x-ui.input type="time" label="Giờ kết thúc" name="slot{{ $n }}_end" id="tkb_slot{{ $n }}_end" x-model="form.slot{{ $n }}_end" class="font-code" />
                                     </div>
                                 </div>
                             @endforeach
@@ -135,7 +114,7 @@
                 <x-ui.data-table>
                     <x-slot:header>
                         <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
-                            <span class="material-symbols-outlined text-amber-600" aria-hidden="true">event_busy</span>
+                            <span class="material-symbols-outlined text-warning" aria-hidden="true">event_busy</span>
                             Buổi học bị hủy do ngày nghỉ
                         </h3>
                         <span class="font-body-small text-body-small text-on-surface-variant">{{ $holidaySessions->count() }} buổi sắp tới</span>

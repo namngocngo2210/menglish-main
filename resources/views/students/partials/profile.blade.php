@@ -12,10 +12,9 @@
     $viewerRole = auth()->user()?->getRoleNames()->first();
     $viewerRoleLabel = $viewerRole ? \App\Helpers\AclHelper::roleLabel($viewerRole) : 'Người dùng';
     $weekdays = [1 => 'Thứ 2', 2 => 'Thứ 3', 3 => 'Thứ 4', 4 => 'Thứ 5', 5 => 'Thứ 6', 6 => 'Thứ 7', 7 => 'Chủ nhật'];
-    $attendanceTones = ['present' => 'text-tertiary', 'late' => 'text-amber-600', 'excused' => 'text-secondary', 'absent' => 'text-error'];
-    $inputClass = 'w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20 disabled:cursor-not-allowed disabled:bg-surface-container-low disabled:text-on-surface-variant';
+    $attendanceTones = ['present' => 'text-tertiary', 'late' => 'text-warning', 'excused' => 'text-secondary', 'absent' => 'text-error'];
     $cardClass = 'rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm';
-    $receiptLabels = ['approved' => ['Đã thanh toán', 'text-tertiary'], 'pending' => ['Chờ xử lý', 'text-amber-600'], 'draft' => ['Bản nháp', 'text-on-surface-variant'], 'rejected' => ['Bị trả về', 'text-error'], 'cancelled' => ['Đã hủy', 'text-on-surface-variant']];
+    $receiptLabels = ['approved' => ['Đã thanh toán', 'text-tertiary'], 'pending' => ['Chờ xử lý', 'text-warning'], 'draft' => ['Bản nháp', 'text-on-surface-variant'], 'rejected' => ['Bị trả về', 'text-error'], 'cancelled' => ['Đã hủy', 'text-on-surface-variant']];
     $now = now();
     $nextSessionId = $sessions->first(fn ($s) => $s->status !== 'cancelled' && $s->date && $s->date->copy()->setTimeFromTimeString($s->start_time?->format('H:i') ?? '00:00')->gte($now))?->id;
 @endphp
@@ -87,18 +86,18 @@
                 </form>
             @else
                 <div class="space-y-md">
-                    <x-ui.field label="Trường học"><input type="text" value="{{ $student->school }}" disabled class="{{ $inputClass }}"></x-ui.field>
+                    <x-ui.input id="ro_school" label="Trường học" :value="$student->school" disabled />
                     @if ($canViewContact)
                         <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
-                            <x-ui.field label="Họ tên phụ huynh"><input type="text" value="{{ $student->parent_name }}" disabled class="{{ $inputClass }}"></x-ui.field>
-                            <x-ui.field label="SĐT phụ huynh"><input type="text" value="{{ $student->parent_phone }}" disabled class="{{ $inputClass }}"></x-ui.field>
+                            <x-ui.input id="ro_parent_name" label="Họ tên phụ huynh" :value="$student->parent_name" disabled />
+                            <x-ui.input id="ro_parent_phone" label="SĐT phụ huynh" :value="$student->parent_phone" disabled />
                         </div>
-                        <x-ui.field label="Địa chỉ liên hệ"><textarea rows="2" disabled class="{{ $inputClass }}">{{ $student->address }}</textarea></x-ui.field>
+                        <x-ui.textarea id="ro_address" label="Địa chỉ liên hệ" rows="2" :value="$student->address" disabled />
                     @endif
-                    <x-ui.field label="Ghi chú đặc biệt"><textarea rows="3" disabled class="{{ $inputClass }}">{{ $student->notes }}</textarea></x-ui.field>
+                    <x-ui.textarea id="ro_notes" label="Ghi chú đặc biệt" rows="3" :value="$student->notes" disabled />
                     <div class="grid grid-cols-2 gap-md">
-                        <x-ui.field label="Mục tiêu học tập"><input type="text" value="{{ $student->target }}" disabled class="{{ $inputClass }}"></x-ui.field>
-                        <x-ui.field label="Lớp đang học"><input type="text" value="{{ $student->currentClass?->name ?? 'Chưa xếp lớp' }}" disabled class="{{ $inputClass }}"></x-ui.field>
+                        <x-ui.input id="ro_target" label="Mục tiêu học tập" :value="$student->target" disabled />
+                        <x-ui.input id="ro_current_class" label="Lớp đang học" :value="$student->currentClass?->name ?? 'Chưa xếp lớp'" disabled />
                     </div>
                     <div class="flex items-center justify-end gap-sm border-t border-surface-container pt-md">
                         <x-ui.button variant="secondary" :href="route('students.index')">Hủy</x-ui.button>
@@ -169,45 +168,38 @@
 
     @if ($canViewAcademic)
         {{-- ─── 3. Lộ trình học tập & Danh sách buổi học (buổi học thật + điểm danh của chính học viên) ─── --}}
-        <section id="roadmap" class="{{ $cardClass }} overflow-hidden" data-section="roadmap" x-data="{ filter: 'all', showAll: false }">
-            <div class="flex flex-col gap-sm border-b border-surface-container p-md sm:flex-row sm:items-center sm:justify-between">
+        <x-ui.data-table id="roadmap" class="shadow-sm" data-section="roadmap" x-data="{ filter: 'all', showAll: false }" min-width="860px">
+            <x-slot:header>
                 <div class="flex items-center gap-sm">
                     <span class="material-symbols-outlined text-primary-container" aria-hidden="true">auto_stories</span>
                     <h3 class="font-h3 text-h3 text-on-surface">Lộ trình học tập &amp; Danh sách buổi học</h3>
                 </div>
                 <div class="flex items-center gap-sm">
-                    <label class="flex items-center gap-xs">
-                        <span class="material-symbols-outlined text-[20px] text-on-surface-variant" aria-hidden="true">filter_list</span>
-                        <select x-model="filter" aria-label="Lọc buổi học" class="rounded-lg border border-outline-variant py-xs pl-sm pr-lg font-body-small text-body-small">
-                            <option value="all">Tất cả buổi</option>
-                            <option value="done">Đã hoàn thành</option>
-                            <option value="upcoming">Sắp tới</option>
-                            <option value="cancelled">Đã hủy</option>
-                        </select>
-                    </label>
+                    <span class="material-symbols-outlined text-[20px] text-on-surface-variant" aria-hidden="true">filter_list</span>
+                    <x-ui.select x-model="filter" aria-label="Lọc buổi học" class="py-xs"
+                                 :options="['all' => 'Tất cả buổi', 'done' => 'Đã hoàn thành', 'upcoming' => 'Sắp tới', 'cancelled' => 'Đã hủy']" />
                     @unless ($scopedView)
                         <x-ui.button variant="ghost" icon="download" :href="route('students.show', ['id' => $student->id, 'export' => 'roadmap'])" title="Tải lộ trình (Excel)" aria-label="Tải lộ trình" />
                     @endunless
                 </div>
-            </div>
+            </x-slot:header>
 
             @if ($sessions->isEmpty())
                 <x-ui.empty-state icon="event_busy" title="Chưa có buổi học nào"
                     :description="$classes->isEmpty() ? 'Học viên chưa được xếp lớp nên chưa có lộ trình buổi học.' : 'Lớp của học viên chưa được sinh lịch buổi học.'" />
             @else
-                <div class="custom-scrollbar overflow-x-auto">
-                    <table class="w-full min-w-[860px] border-collapse text-left">
-                        <thead class="bg-surface-container-low">
-                            <tr class="font-label-caps text-label-caps uppercase text-on-surface-variant">
-                                <th class="px-md py-sm">Ngày học</th>
-                                <th class="px-md py-sm">Thời gian</th>
-                                <th class="px-md py-sm">Nội dung bài học</th>
-                                <th class="px-md py-sm">Giáo viên</th>
-                                <th class="px-md py-sm">Trạng thái</th>
-                                <th class="px-md py-sm text-right">Điểm danh</th>
+                    <table class="font-body-small text-body-small">
+                        <thead>
+                            <tr>
+                                <th>Ngày học</th>
+                                <th>Thời gian</th>
+                                <th>Nội dung bài học</th>
+                                <th>Giáo viên</th>
+                                <th>Trạng thái</th>
+                                <th class="text-right">Điểm danh</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-surface-container font-body-small text-body-small text-on-surface">
+                        <tbody>
                             @foreach ($sessions as $idx => $session)
                                 @php
                                     $att = $attendanceBySession->get($session->id);
@@ -216,10 +208,10 @@
                                     $state = $session->status === 'cancelled' ? 'cancelled' : (($session->status === 'completed' || $isPast) ? 'done' : 'upcoming');
                                     $teacherName = $session->teacher?->name ?? $session->classModel?->teacher?->name;
                                 @endphp
-                                <tr x-show="(showAll || {{ $idx }} < 10) && (filter === 'all' || filter === '{{ $state }}')" class="hover:bg-surface-container-low/60">
-                                    <td class="whitespace-nowrap px-md py-sm font-semibold">{{ $session->date ? $weekdays[$session->date->isoWeekday()].', '.$session->date->format('d/m/Y') : '—' }}</td>
-                                    <td class="whitespace-nowrap px-md py-sm font-code">{{ $session->start_time?->format('H:i') }}@if ($session->end_time) - {{ $session->end_time->format('H:i') }}@endif</td>
-                                    <td class="px-md py-sm">
+                                <tr x-show="(showAll || {{ $idx }} < 10) && (filter === 'all' || filter === '{{ $state }}')">
+                                    <td class="whitespace-nowrap font-semibold">{{ $session->date ? $weekdays[$session->date->isoWeekday()].', '.$session->date->format('d/m/Y') : '—' }}</td>
+                                    <td class="whitespace-nowrap font-code">{{ $session->start_time?->format('H:i') }}@if ($session->end_time) - {{ $session->end_time->format('H:i') }}@endif</td>
+                                    <td>
                                         @if ($lesson && ($lesson['unit'] || $lesson['title']))
                                             <span class="block font-semibold">{{ $lesson['unit'] ?? 'Buổi '.$lesson['no'] }}</span>
                                             @if ($lesson['title'])<span class="block text-on-surface-variant">{{ $lesson['title'] }}</span>@endif
@@ -229,17 +221,17 @@
                                         @endif
                                         <span class="block font-caption text-caption text-on-surface-variant">
                                             {{ $session->classModel?->name ?? '—' }}@if ($session->room) · {{ str_starts_with(mb_strtolower($session->room), 'phòng') ? $session->room : 'Phòng '.$session->room }}@endif
-                                            @if ($session->type === \App\Models\ClassSession::TYPE_MAKEUP) · <span class="font-semibold text-amber-700">Học bù</span>@elseif ($session->type === \App\Models\ClassSession::TYPE_SUPPORT) · <span class="font-semibold text-secondary">Phụ đạo</span>@endif
+                                            @if ($session->type === \App\Models\ClassSession::TYPE_MAKEUP) · <span class="font-semibold text-warning">Học bù</span>@elseif ($session->type === \App\Models\ClassSession::TYPE_SUPPORT) · <span class="font-semibold text-secondary">Phụ đạo</span>@endif
                                         </span>
                                     </td>
-                                    <td class="px-md py-sm">
+                                    <td>
                                         @if ($teacherName)
                                             <span class="flex items-center gap-sm whitespace-nowrap"><x-ui.avatar :name="$teacherName" size="sm" />{{ $teacherName }}</span>
                                         @else
                                             <span class="text-on-surface-variant">Chưa gán GV</span>
                                         @endif
                                     </td>
-                                    <td class="whitespace-nowrap px-md py-sm">
+                                    <td class="whitespace-nowrap">
                                         @if ($state === 'cancelled')
                                             <span class="inline-flex items-center gap-xs text-on-surface-variant"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">event_busy</span>Đã hủy</span>
                                         @elseif ($state === 'done')
@@ -250,7 +242,7 @@
                                             <span class="inline-flex items-center gap-xs text-on-surface-variant"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">radio_button_unchecked</span>Chưa bắt đầu</span>
                                         @endif
                                     </td>
-                                    <td class="whitespace-nowrap px-md py-sm text-right font-semibold">
+                                    <td class="whitespace-nowrap text-right font-semibold">
                                         @if ($att)
                                             <span class="{{ $attendanceTones[$att->status] ?? '' }}">{{ $att->status_label }}</span>
                                         @elseif ($state === 'cancelled')
@@ -258,24 +250,25 @@
                                         @elseif ($state === 'upcoming')
                                             <span class="text-on-surface-variant">Sắp tới</span>
                                         @else
-                                            <span class="text-amber-600">Chưa điểm danh</span>
+                                            <span class="text-warning">Chưa điểm danh</span>
                                         @endif
                                     </td>
                                 </tr>
                             @endforeach
                         </tbody>
                     </table>
-                </div>
                 @if ($sessions->count() > 10)
-                    <div class="border-t border-surface-container p-sm text-center">
+                    <x-slot:footer>
+                    <div class="p-sm text-center">
                         <button type="button" class="inline-flex items-center gap-xs font-body-small text-body-small font-semibold text-primary hover:underline" x-on:click="showAll = !showAll">
                             <span x-text="showAll ? 'Thu gọn' : 'Xem toàn bộ {{ $sessions->count() }} buổi học'">Xem toàn bộ {{ $sessions->count() }} buổi học</span>
                             <span class="material-symbols-outlined text-[18px]" aria-hidden="true" x-text="showAll ? 'expand_less' : 'expand_more'">expand_more</span>
                         </button>
                     </div>
+                    </x-slot:footer>
                 @endif
             @endif
-        </section>
+        </x-ui.data-table>
     @endif
 
     {{-- ─── 4. Hồ sơ tổng hợp: Lớp học · Chuyên cần · Học phí ─── --}}
@@ -333,17 +326,14 @@
                     @else
                         <form action="{{ route('students.link-class', $student->id) }}" method="POST" class="space-y-sm border-t border-surface-container pt-md" data-testid="link-class-form">
                             @csrf
-                            <x-ui.field label="Liên kết lớp khác" name="class_id" for="link_class_id">
-                                <select id="link_class_id" name="class_id" required class="{{ $inputClass }}">
-                                    <option value="">-- Chọn lớp --</option>
+                            <x-ui.select label="Liên kết lớp khác" name="class_id" id="link_class_id" required placeholder="-- Chọn lớp --">
                                     @foreach ($linkableClasses as $lc)
                                         @php $full = $lc->max_capacity > 0 && $lc->active_enrollments_count >= $lc->max_capacity; @endphp
                                         <option value="{{ $lc->id }}" @disabled($full)>
                                             {{ $lc->name }} ({{ $lc->active_enrollments_count }}/{{ $lc->max_capacity > 0 ? $lc->max_capacity : '∞' }}){{ $full ? ' — Đã đủ sĩ số' : '' }}
                                         </option>
                                     @endforeach
-                                </select>
-                            </x-ui.field>
+                            </x-ui.select>
                             <x-ui.button type="submit" variant="secondary" icon="add_link" class="w-full">Liên kết lớp</x-ui.button>
                         </form>
                     @endif
@@ -483,7 +473,7 @@
                         <div class="font-caption text-caption">
                             @if ($item['task'])
                                 <span class="font-semibold text-on-surface">{{ $item['task']->assignee?->name }}</span>
-                                · <span class="font-semibold {{ $item['task']->status === 'completed' ? 'text-tertiary' : 'text-amber-700' }}">{{ $item['task']->status_label }}</span>
+                                · <span class="font-semibold {{ $item['task']->status === 'completed' ? 'text-tertiary' : 'text-warning' }}">{{ $item['task']->status_label }}</span>
                             @else
                                 <span class="text-on-surface-variant">Chưa tạo việc</span>
                             @endif
@@ -495,30 +485,30 @@
     @endif
 
     @if ($canViewAcademic && $attendances->isNotEmpty())
-        <section id="attendance-history" class="{{ $cardClass }} overflow-hidden">
-            <div class="flex items-center gap-sm border-b border-surface-container p-md">
-                <span class="material-symbols-outlined text-tertiary" aria-hidden="true">fact_check</span>
-                <h3 class="font-h3 text-h3 text-on-surface">Lịch sử điểm danh</h3>
-            </div>
-            <div class="custom-scrollbar max-h-[420px] overflow-auto">
-                <table class="w-full min-w-[560px] border-collapse text-left font-body-small text-body-small">
-                    <thead class="bg-surface-container-low">
-                        <tr class="font-label-caps text-label-caps uppercase text-on-surface-variant">
-                            <th class="px-md py-sm">Ngày</th><th class="px-md py-sm">Lớp</th><th class="px-md py-sm">Trạng thái</th><th class="px-md py-sm">Ghi chú</th>
-                        </tr>
+        <x-ui.data-table id="attendance-history" class="shadow-sm" min-width="560px">
+            <x-slot:header>
+                <h3 class="flex items-center gap-sm font-h3 text-h3 text-on-surface">
+                    <span class="material-symbols-outlined text-tertiary" aria-hidden="true">fact_check</span>
+                    Lịch sử điểm danh
+                </h3>
+            </x-slot:header>
+            <div class="custom-scrollbar max-h-[420px] overflow-y-auto">
+                <table class="font-body-small text-body-small">
+                    <thead>
+                        <tr><th>Ngày</th><th>Lớp</th><th>Trạng thái</th><th>Ghi chú</th></tr>
                     </thead>
-                    <tbody class="divide-y divide-surface-container">
+                    <tbody>
                         @foreach ($attendances as $att)
                             <tr>
-                                <td class="px-md py-sm font-code">{{ $att->session_date?->format('d/m/Y') ?? '—' }}</td>
-                                <td class="px-md py-sm font-semibold">{{ $att->classModel?->name ?? '—' }}</td>
-                                <td class="px-md py-sm font-semibold {{ $attendanceTones[$att->status] ?? '' }}">{{ $att->status_label }}</td>
-                                <td class="px-md py-sm text-on-surface-variant">{{ $att->note ?: '—' }}</td>
+                                <td class="font-code">{{ $att->session_date?->format('d/m/Y') ?? '—' }}</td>
+                                <td class="font-semibold">{{ $att->classModel?->name ?? '—' }}</td>
+                                <td class="font-semibold {{ $attendanceTones[$att->status] ?? '' }}">{{ $att->status_label }}</td>
+                                <td class="text-on-surface-variant">{{ $att->note ?: '—' }}</td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
-        </section>
+        </x-ui.data-table>
     @endif
 </div>

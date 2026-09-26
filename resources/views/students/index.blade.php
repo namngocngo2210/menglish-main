@@ -12,11 +12,10 @@
 @endphp
 <x-app-layout title="Hồ sơ học sinh">
     <div x-data="{
-            linkOpen: false,
             linkStudent: null,
             classes: @js($linkOptions),
             baseUrl: @js(url('/students')),
-            openLink(student) { this.linkStudent = student; this.linkOpen = true; },
+            openLink(student) { this.linkStudent = student; this.$dispatch('open-modal', 'link-class'); },
             get options() { return this.linkStudent ? this.classes.filter(c => !this.linkStudent.branch_id || c.branch_id === this.linkStudent.branch_id).filter(c => !this.linkStudent.class_ids.includes(c.id)) : []; },
          }">
         <x-ui.page-header title="Hồ sơ học sinh" description="Quản lý và tra cứu thông tin học sinh toàn hệ thống.">
@@ -34,13 +33,7 @@
         <form method="GET" action="{{ route('students.index') }}" role="search"
               class="mb-lg space-y-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
             <div class="grid grid-cols-1 items-end gap-md md:grid-cols-[2fr_1fr_1fr_auto]">
-                <x-ui.field label="Tìm kiếm" for="st_search">
-                    <div class="relative">
-                        <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
-                        <input id="st_search" type="search" name="search" value="{{ request('search') }}" placeholder="Tìm học sinh hoặc SĐT..."
-                               class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-10 pr-md font-body-base text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
-                    </div>
-                </x-ui.field>
+                <x-ui.input type="search" name="search" id="st_search" label="Tìm kiếm" icon="search" :value="request('search')" placeholder="Tìm học sinh hoặc SĐT..." />
                 <x-ui.select name="branch_id" label="Chi nhánh" :options="$branches->pluck('name', 'id')" placeholder="Tất cả chi nhánh" />
                 <x-ui.select name="class_id" label="Lớp học" :options="$classes->pluck('name', 'id')" placeholder="Tất cả các lớp" aria-label="Lọc theo lớp" />
                 <x-ui.button type="submit" icon="filter_list">Lọc dữ liệu</x-ui.button>
@@ -131,32 +124,22 @@
 
         {{-- Popup "Liên kết lớp khác" (học song song, không đổi lớp chính) --}}
         @if ($canLink)
-            <div x-show="linkOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/40 p-md" x-on:keydown.escape.window="linkOpen = false" role="dialog" aria-modal="true">
-                <form method="POST" :action="baseUrl + '/' + linkStudent?.id + '/link-class'" x-on:click.outside="linkOpen = false"
-                      class="w-full max-w-md space-y-md rounded-xl bg-surface-container-lowest p-lg shadow-level-3" data-testid="list-link-class-form">
+            <x-ui.modal name="link-class" title="Liên kết lớp khác" max-width="md">
+                <form id="list-link-class-form" method="POST" :action="baseUrl + '/' + linkStudent?.id + '/link-class'" class="space-y-md" data-testid="list-link-class-form">
                     @csrf
-                    <div class="flex items-start justify-between gap-md">
-                        <div>
-                            <h3 class="font-h3 text-h3 text-on-surface">Liên kết lớp khác</h3>
-                            <p class="font-body-small text-body-small text-on-surface-variant">Học viên <strong x-text="linkStudent?.name"></strong> học thêm lớp này, lớp chính giữ nguyên.</p>
-                        </div>
-                        <button type="button" class="text-on-surface-variant" x-on:click="linkOpen = false" aria-label="Đóng"><span class="material-symbols-outlined">close</span></button>
-                    </div>
-                    <x-ui.field label="Lớp liên kết" for="list_link_class" required>
-                        <select id="list_link_class" name="class_id" required class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base">
-                            <option value="">-- Chọn lớp cùng chi nhánh --</option>
-                            <template x-for="c in options" :key="c.id">
-                                <option :value="c.id" :disabled="c.full" x-text="c.label + ' — ' + c.seats + (c.full ? ' (Đã đủ sĩ số)' : '')"></option>
-                            </template>
-                        </select>
-                    </x-ui.field>
+                    <p class="font-body-small text-body-small text-on-surface-variant">Học viên <strong x-text="linkStudent?.name"></strong> học thêm lớp này, lớp chính giữ nguyên.</p>
+                    <x-ui.select name="class_id" id="list_link_class" label="Lớp liên kết" required placeholder="-- Chọn lớp cùng chi nhánh --" :value="''">
+                        <template x-for="c in options" :key="c.id">
+                            <option :value="c.id" :disabled="c.full" x-text="c.label + ' — ' + c.seats + (c.full ? ' (Đã đủ sĩ số)' : '')"></option>
+                        </template>
+                    </x-ui.select>
                     <p x-show="options.length === 0" class="font-caption text-caption text-on-surface-variant">Không còn lớp cùng chi nhánh để liên kết.</p>
-                    <div class="flex justify-end gap-sm">
-                        <x-ui.button variant="secondary" x-on:click="linkOpen = false">Hủy</x-ui.button>
-                        <x-ui.button type="submit" icon="add_link">Liên kết lớp</x-ui.button>
-                    </div>
                 </form>
-            </div>
+                <x-slot:footer>
+                    <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'link-class')">Hủy</x-ui.button>
+                    <x-ui.button type="submit" form="list-link-class-form" icon="add_link">Liên kết lớp</x-ui.button>
+                </x-slot:footer>
+            </x-ui.modal>
         @endif
     </div>
 </x-app-layout>

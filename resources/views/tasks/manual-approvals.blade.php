@@ -137,7 +137,7 @@
 
                         <div class="space-y-sm">
                             <p class="flex items-center gap-xs font-label text-label uppercase text-on-surface-variant">
-                                <span class="material-symbols-outlined text-[16px] text-amber-600" aria-hidden="true">warning</span>
+                                <span class="material-symbols-outlined text-[16px] text-warning" aria-hidden="true">warning</span>
                                 {{ $isReport ? 'Báo cáo trực lớp' : 'Báo cáo từ Trợ giảng' }}
                             </p>
                             <div class="space-y-sm rounded-lg border border-primary-fixed bg-primary-light p-sm text-on-surface">
