@@ -183,20 +183,28 @@ class User extends Authenticatable
     }
 
     /**
-     * Chi nhánh mà người dùng bị giới hạn dữ liệu (Quản lý cơ sở chỉ thấy chi
-     * nhánh của mình: branch_id + user_branches). Trả về null nếu không bị giới
-     * hạn theo chi nhánh (Admin tổng, hoặc vai trò không phải Quản lý cơ sở).
-     *
-     * @return int[]|null
+     * Super Admin (vai trò `admin`): luôn có mọi quyền thao tác (Gate::before), vai trò bất biến. Đây là nơi DUY NHẤT
+     * trong code nghiệp vụ kiểm tra tên vai trò (xem tests/Feature/RbacNoHardcodedRolesTest.php); mọi chỗ khác kiểm
+     * tra permission (`can()`), phạm vi dữ liệu (App\Support\DataScope) hoặc quan hệ (người lập, GV của lớp…).
      */
-    public function managedBranchIds(): ?array
+    public function isSuperAdmin(): bool
     {
-        if ($this->hasRole('admin') || ! $this->hasRole('manager')) {
-            return null;
-        }
+        return $this->hasRole(\App\Support\Rbac::SUPER_ADMIN);
+    }
 
-        return $this->branches()->pluck('branches.id')
-            ->push($this->branch_id)
+    /**
+     * Chi nhánh của người dùng: chi nhánh chính (branch_id) + chi nhánh được cấp thêm (user_branches).
+     * Mức phạm vi dữ liệu "Chi nhánh" (DataScope) dùng danh sách này.
+     *
+     * @return list<int>
+     */
+    public function branchIds(): array
+    {
+        $extra = $this->relationLoaded('branches')
+            ? $this->getRelation('branches')->pluck('id')
+            : $this->branches()->pluck('branches.id');
+
+        return $extra->push($this->branch_id)
             ->filter()
             ->map(fn ($id) => (int) $id)
             ->unique()
@@ -240,6 +248,10 @@ class User extends Authenticatable
     public function hasModuleAction(string $module, string $action, ?string $scopeType = null, ?int $scopeId = null): bool
     {
         $permission = "{$module}.{$action}";
+
+        if ($this->isSuperAdmin() && ! \App\Support\PermissionCatalog::isAudience($permission)) {
+            return true;
+        }
 
         $candidates = $this->permissionOverrides()
             ->where('module', $module)

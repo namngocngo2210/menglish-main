@@ -31,12 +31,6 @@ use Illuminate\Support\Str;
  */
 class TeacherPortalController extends Controller
 {
-    /** Các vai trò được truy cập cổng giáo viên. */
-    private const TEACHER_ROLES = ['teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant', 'academic_staff', 'academic_lead', 'manager'];
-
-    /** Vai trò được điểm danh thay giáo viên (trong phạm vi lớp mình được xem). */
-    private const ON_BEHALF_ROLES = ['academic_staff', 'academic_lead', 'manager'];
-
     /** Khóa màn của bản ghi nhận xét buổi học (academic_records, module teacher_remarks). */
     public const REMARKS_SCREEN_KEY = '03_Cong_Giao_Vien/nhan_xet_buoi_hoc';
 
@@ -46,8 +40,10 @@ class TeacherPortalController extends Controller
     private function guardTeacher(): void
     {
         $user = Auth::user();
+        // Cổng giáo viên: người điểm danh / nhập liệu lớp mình (attendance_student.record) hoặc làm thay GV
+        // (attendance_student.record_any). Lớp cụ thể kiểm tra thêm ở authorizeClass().
         abort_unless(
-            $user && ($user->hasAnyRole(self::TEACHER_ROLES) || $user->hasRole('admin')),
+            $user && ($user->can('attendance_student.record') || $user->can('attendance_student.record_any')),
             403,
             'Chỉ giáo viên / trợ giảng mới truy cập được cổng này.'
         );
@@ -78,14 +74,13 @@ class TeacherPortalController extends Controller
         return in_array((int) $user->id, array_map('intval', array_filter($ids)), true);
     }
 
-    /** Học vụ / Học thuật / Quản lý (trong phạm vi lớp được xem) hoặc Admin: điểm danh thay GV. */
+    /**
+     * Làm thay giáo viên (điểm danh, giao bài, nhận xét, order đề): quyền attendance_student.record_any (mặc định Học vụ,
+     * Học thuật, Quản lý cơ sở; Admin) và lớp nằm trong phạm vi dữ liệu Lớp học của người đó.
+     */
     private function canActOnBehalf(User $user, ClassModel $class): bool
     {
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        return $user->hasAnyRole(self::ON_BEHALF_ROLES)
+        return $user->can('attendance_student.record_any')
             && ClassModel::query()->visibleTo($user)->whereKey($class->id)->exists();
     }
 

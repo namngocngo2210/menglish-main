@@ -18,7 +18,7 @@ use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\PayrollFormulaService;
 use App\Services\SalesCommissionService;
-use App\Support\TuitionBranchScope;
+use App\Support\DataScope;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -87,9 +87,36 @@ class PayrollController extends Controller
      * Danh sách bảng lương của một kỳ (mockup epic-7/danh-sach-bang-luong-theo-ky): chọn kỳ, tìm nhân sự,
      * lọc loại nhân sự, trạng thái KPI từng người + cảnh báo còn người chưa chốt KPI trước khi chốt bảng lương.
      */
+    /**
+     * Phiếu lương người xem được xem theo phạm vi "payroll.scope_*": Toàn hệ thống (mặc định người có payroll.view) →
+     * mọi phiếu; Chi nhánh → phiếu của nhân sự thuộc chi nhánh mình; Của tôi → chỉ phiếu của mình.
+     */
+    private function scopeRecords($query, ?User $viewer = null)
+    {
+        $viewer ??= Auth::user();
+
+        return DataScope::apply(
+            $query, $viewer, 'payroll',
+            fn ($q) => $q->where('user_id', $viewer->id),
+            fn ($q, array $branchIds) => $q->whereHas('user', fn ($u) => $u->whereIn('branch_id', $branchIds)
+                ->orWhereHas('branches', fn ($b) => $b->whereIn('branches.id', $branchIds))),
+            branchIncludesOwn: true,
+        );
+    }
+
+    /** Nạp phiếu lương của kỳ trong phạm vi người xem. */
+    private function loadScopedRecords(PayrollPeriod $period): PayrollPeriod
+    {
+        if (! DataScope::isAll(Auth::user(), 'payroll')) {
+            $period->setRelation('records', $this->scopeRecords($period->records()->with('user'))->get());
+        }
+
+        return $period;
+    }
+
     public function showPeriod(Request $request, $id)
     {
-        $period = PayrollPeriod::with(['records.user'])->where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $period = $this->loadScopedRecords(PayrollPeriod::with(['records.user'])->where('id', $id)->orWhere('code', $id)->firstOrFail());
         $search = trim((string) $request->query('search', ''));
         $type = in_array($request->query('type'), array_keys(PayrollRecord::SALARY_ROLE_LABELS), true) ? $request->query('type') : null;
         $kpi = in_array($request->query('kpi'), ['done', 'pending'], true) ? $request->query('kpi') : null;
@@ -126,7 +153,7 @@ class PayrollController extends Controller
         $department = $request->query('department');
         $departments = ['teacher' => 'Giáo viên', 'fulltime' => 'GV Full-time', 'academic' => 'Học thuật', 'operations' => 'Vận hành'];
 
-        $records = $period->records()->with('user')
+        $records = $this->scopeRecords($period->records()->with('user'))
             ->when(is_string($department) && $department !== '', fn ($q) => $q->where('department', $department))
             ->orderBy('department')->orderBy('id')
             ->get();
@@ -313,7 +340,7 @@ class PayrollController extends Controller
      */
     public function showRecord(int $id)
     {
-        $record = PayrollRecord::with(['user.roles', 'period'])->findOrFail($id);
+        $record = $this->scopeRecords(PayrollRecord::with(['user.roles', 'period']))->findOrFail($id);
         $period = $record->period;
 
         $timesheets = TeacherTimesheet::with('classModel')
@@ -435,7 +462,7 @@ class PayrollController extends Controller
     public function fulltimePeriod($id)
     {
         $period = PayrollPeriod::with(['records.user'])->where('id', $id)->orWhere('code', $id)->firstOrFail();
-        $records = $period->records()->where('department', 'fulltime')->get();
+        $records = $this->scopeRecords($period->records())->where('department', 'fulltime')->get();
 
         return view('payroll.fulltime', compact('period', 'records'));
     }
@@ -443,7 +470,7 @@ class PayrollController extends Controller
     public function academicPeriod($id)
     {
         $period = PayrollPeriod::with(['records.user'])->where('id', $id)->orWhere('code', $id)->firstOrFail();
-        $records = $period->records()->where('department', 'academic')->get();
+        $records = $this->scopeRecords($period->records())->where('department', 'academic')->get();
 
         return view('payroll.academic', compact('period', 'records'));
     }
@@ -451,31 +478,25 @@ class PayrollController extends Controller
     public function operationsPeriod($id)
     {
         $period = PayrollPeriod::with(['records.user'])->where('id', $id)->orWhere('code', $id)->firstOrFail();
-        $records = $period->records()->where('department', 'operations')->get();
+        $records = $this->scopeRecords($period->records())->where('department', 'operations')->get();
 
         return view('payroll.operations', compact('period', 'records'));
     }
 
     /**
-     * Lớp người dùng được chấm công tay / chỉnh ca / xác nhận theo lịch / lọc ca.
-     * - Người quản lý lớp (Admin, Học vụ, Quản lý cơ sở…): như ClassModel::visibleTo (Quản lý cơ sở: chi nhánh mình).
-     * - Người được Admin cấp quyền chấm công mà không quản lý lớp (vd. Kế toán được cấp attendance_staff.manual_record —
-     *   BA 26/09/2026, chấm công chỉ theo quyền, không theo vai trò): lớp thuộc chi nhánh của mình (TuitionBranchScope;
-     *   có `tuition.all_branches` → mọi lớp), cộng lớp mình phụ trách.
+     * Lớp người dùng được chấm công tay / chỉnh ca / xác nhận theo lịch / lọc ca — phạm vi "attendance_staff.scope_*":
+     * - Toàn hệ thống (Admin, Học vụ; kế toán tổng được cấp): mọi lớp.
+     * - Chi nhánh (Quản lý cơ sở, Kế toán): lớp thuộc chi nhánh của mình + lớp mình được xem (ClassModel::visibleTo).
+     * - Của tôi: lớp mình được xem (ClassModel::visibleTo).
      */
     private function timesheetClasses(User $user): \Illuminate\Database\Eloquent\Builder
     {
-        if (ClassModel::userManagesAll($user)) {
-            return ClassModel::query()->visibleTo($user);
-        }
-
-        $branchIds = TuitionBranchScope::branchIds($user);
-        if ($branchIds === null) {
-            return ClassModel::query();
-        }
-
-        return ClassModel::query()->where(fn ($q) => $q->whereIn('branch_id', $branchIds)
-            ->orWhereIn('id', ClassModel::query()->visibleTo($user)->select('id')));
+        return match (DataScope::level($user, 'attendance_staff')) {
+            DataScope::ALL => ClassModel::query(),
+            DataScope::BRANCH => ClassModel::query()->where(fn ($q) => $q->whereIn('branch_id', $user->branchIds())
+                ->orWhereIn('id', ClassModel::query()->visibleTo($user)->select('id'))),
+            default => ClassModel::query()->visibleTo($user),
+        };
     }
 
     public function manualTimesheet(Request $request)
@@ -621,7 +642,7 @@ class PayrollController extends Controller
         $teacherId = $canViewAll ? ($request->integer('user_id') ?: null) : $user->id;
 
         $visibleClassIds = $canViewAll ? $this->timesheetClasses($user)->pluck('id') : null;
-        $limitToVisibleClasses = $canViewAll && ($user->managedBranchIds() !== null || ! ClassModel::userManagesAll($user));
+        $limitToVisibleClasses = $canViewAll && ! DataScope::isAll($user, 'attendance_staff');
 
         $query = TeacherTimesheet::with(['teacher.branch', 'classModel', 'reviewer', 'adjuster', 'classSession'])
             ->whereBetween('teaching_date', [$monthStart->toDateString(), $monthEnd->toDateString()])

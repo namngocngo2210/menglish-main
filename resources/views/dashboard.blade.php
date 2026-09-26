@@ -13,7 +13,7 @@
 
     @php
         $user = Auth::user();
-        $isAdminOrManager = $user && ($user->hasRole('admin') || $user->hasRole('manager'));
+        $isAdminOrManager = $user && $user->can('dashboard.operations');
         $canLead = $user && $user->can('lead.view');
         $canTuition = $user && $user->can('tuition.view');
         $canStudent = $user && $user->can('student.view');

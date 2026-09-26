@@ -93,7 +93,7 @@ class BaPermissionsTest extends TestCase
     public function test_finance_defaults_preserve_current_behaviour(): void
     {
         $role = fn (string $name) => Role::findByName($name, 'web');
-        foreach (['tuition.all_branches', 'finance.all_branches', 'invoice_range.manage_default', 'refund_transfer.approve_refund', 'invoice.approve_cancel', 'payroll.approve'] as $adminOnly) {
+        foreach (['tuition.scope_all', 'finance.scope_all', 'invoice_range.manage_default', 'refund_transfer.approve_refund', 'invoice.approve_cancel', 'payroll.approve'] as $adminOnly) {
             $this->assertTrue($role('admin')->hasPermissionTo($adminOnly), $adminOnly);
             foreach (['manager', 'accountant', 'academic_staff'] as $other) {
                 $this->assertFalse($role($other)->hasPermissionTo($adminOnly), "{$other} không có {$adminOnly} theo mặc định");
@@ -128,7 +128,7 @@ class BaPermissionsTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('roles.edit', Role::findByName('accountant', 'web')))->assertOk()
             ->assertSee('Kế toán / Học phí')->assertSee('Duyệt hoàn tiền (chi tiền)')->assertSee('refund_transfer.approve_refund')
-            ->assertSee('Xem &amp; xử lý học phí mọi chi nhánh (kế toán tổng)', false)->assertSee('Duyệt / từ chối hủy hóa đơn');
+            ->assertSee('Phạm vi dữ liệu')->assertSee('Học phí mọi chi nhánh (kế toán tổng)')->assertSee('Duyệt / từ chối hủy hóa đơn');
 
         $this->actingAs($this->accountant)->get(route('tuition.refunds'))->assertOk()
             ->assertDontSee(route('tuition.refunds.approve', $refund->id), false)->assertSee(route('tuition.refunds.approve', $transfer->id), false);
@@ -197,11 +197,10 @@ class BaPermissionsTest extends TestCase
             'template_code' => '1/001', 'series_code' => 'C26DEF', 'start_number' => 1, 'end_number' => 100,
         ])->assertForbidden();
 
-        // Admin cấp theo người: tuition.all_branches / finance.all_branches / invoice_range.manage_default.
+        // Admin cấp theo người: phạm vi dữ liệu Học phí / Thu chi "Toàn hệ thống" + invoice_range.manage_default.
         $this->actingAs($this->admin)->put(route('users.permissions.update', $noBranch), [
-            'overrides' => [
-                'tuition' => ['all_branches' => 'allow'], 'finance' => ['all_branches' => 'allow'], 'invoice_range' => ['manage_default' => 'allow'],
-            ],
+            'overrides' => ['invoice_range' => ['manage_default' => 'allow']],
+            'data_scope' => ['tuition' => 'all', 'finance' => 'all'],
         ])->assertSessionHasNoErrors();
         $noBranch = $noBranch->fresh(); // request mới nạp lại quyền (test dùng chung đối tượng user giữa các request)
         $this->actingAs($noBranch)->get(route('tuition.students'))->assertOk()->assertSee('HV-PQ-KHAC');
@@ -211,8 +210,8 @@ class BaPermissionsTest extends TestCase
         ])->assertSessionHasNoErrors();
         $this->assertDatabaseHas('invoice_configurations', ['series_code' => 'C26DEF', 'branch_id' => null]);
 
-        // Kế toán có chi nhánh được cấp tuition.all_branches cũng thấy toàn hệ thống (phạm vi theo quyền, không theo gán chi nhánh).
-        $this->grantPersonal($this->accountant, 'tuition.all_branches');
+        // Kế toán có chi nhánh được cấp phạm vi "Toàn hệ thống" cũng thấy mọi chi nhánh (phạm vi theo quyền, không theo gán chi nhánh).
+        $this->grantPersonal($this->accountant, 'tuition.scope_all');
         $this->actingAs($this->accountant)->get(route('tuition.students'))->assertOk()->assertSee('HV-PQ-KHAC');
     }
 
@@ -298,6 +297,21 @@ class BaPermissionsTest extends TestCase
         $this->assertSame(0, UserPermissionOverride::where('user_id', $this->accountant->id)->count(), 'Kế toán chi nhánh không được cấp.');
         $this->assertTrue($headAccountant->fresh()->can('tuition.all_branches'));
         $this->assertFalse($this->accountant->fresh()->can('tuition.all_branches'));
+
+        // RBAC (2026_10_07_100100): *.all_branches → phạm vi dữ liệu "Toàn hệ thống" (vai trò + cá nhân), quyền cũ bị xóa.
+        $rbac = require database_path('migrations/2026_10_07_100100_introduce_flexible_rbac_permissions.php');
+        $rbac->up();
+        $rbac->up(); // chạy lại không tạo trùng
+        $this->assertFalse(Permission::where('name', 'tuition.all_branches')->exists());
+        $this->assertFalse(Permission::where('name', 'finance.all_branches')->exists());
+        $head = $headAccountant->fresh();
+        foreach (['tuition', 'finance', 'attendance_staff'] as $module) {
+            $this->assertSame('all', \App\Support\DataScope::level($head, $module), $module);
+            $this->assertSame('branch', \App\Support\DataScope::level($this->accountant->fresh(), $module), $module);
+        }
+        $this->assertTrue($head->can('invoice_range.manage_default'));
+        $this->assertTrue($role('admin')->hasPermissionTo('tuition.scope_all'));
+        $this->assertSame(0, UserPermissionOverride::where('user_id', $this->accountant->id)->count());
     }
 
     // ── Quyết định 2: Học vụ toàn quyền CRM trừ xóa ────────────────────────────────────────────

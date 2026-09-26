@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\DataScope;
+use App\Support\Rbac;
 use App\Models\AcademicRecord;
 use App\Models\Branch;
 use App\Models\ClassModel;
@@ -118,12 +120,7 @@ class ClassManagementController extends Controller
         $courses = Course::where('is_active', true)->get();
         $levels = CourseLevel::where('is_active', true)->get();
 
-        $teachers = User::where('is_active', true)
-            ->whereHas('roles', fn ($query) => $query->whereIn('name', ['teacher', 'academic_lead', 'manager']))
-            ->orderBy('name')->get();
-        $assistants = User::where('is_active', true)
-            ->whereHas('roles', fn ($query) => $query->whereIn('name', ['assistant', 'academic_staff']))
-            ->orderBy('name')->get();
+        [$teachers, $assistants] = $this->teachingStaffOptions();
         $foreignTeachers = $teachers;
 
         return view('classes.create', compact('branches', 'courses', 'levels', 'teachers', 'assistants', 'foreignTeachers'));
@@ -171,8 +168,7 @@ class ClassManagementController extends Controller
             throw ValidationException::withMessages(['chi_nhanh' => 'Chi nhánh không tồn tại, vui lòng chọn lại.']);
         }
         $branchId = (int) $branchId;
-        $managedBranchIds = auth()->user()->managedBranchIds();
-        abort_if($managedBranchIds !== null && ! in_array($branchId, $managedBranchIds, true), 403, 'Bạn chỉ được quản lý lớp thuộc chi nhánh của mình.');
+        abort_unless(DataScope::coversBranch(auth()->user(), 'class', $branchId), 403, 'Bạn chỉ được quản lý lớp thuộc chi nhánh của mình.');
 
         // TKB do client render chưa biết lịch nghỉ lễ: loại các buổi rơi vào ngày nghỉ
         // toàn hệ thống hoặc ngày nghỉ riêng của chi nhánh trước khi tạo buổi học.
@@ -288,23 +284,36 @@ class ClassManagementController extends Controller
     }
 
     /**
-     * GV chính/GVNN phải là giáo viên hoặc quản lý đang hoạt động;
-     * trợ giảng phải là assistant/học vụ. Chặn gán tài khoản sai vai trò
-     * (UI đã lọc dropdown nhưng API vẫn có thể gửi id tùy ý).
+     * Danh sách chọn GV chính / GVNN (quyền đối tượng class.teach) và trợ giảng (class.assist), đang hoạt động.
+     *
+     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
+     */
+    private function teachingStaffOptions(): array
+    {
+        return [
+            Rbac::scopeUsersWithPermission(User::where('is_active', true), 'class.teach')->orderBy('name')->get(),
+            Rbac::scopeUsersWithPermission(User::where('is_active', true), 'class.assist')->orderBy('name')->get(),
+        ];
+    }
+
+    /**
+     * GV chính/GVNN phải có quyền "Được xếp dạy lớp" (class.teach — mặc định giáo viên, Học thuật, Quản lý cơ sở);
+     * trợ giảng phải có "Được xếp làm trợ giảng" (class.assist — mặc định trợ giảng, Học vụ), đang hoạt động.
+     * Chặn gán tài khoản sai (UI đã lọc dropdown nhưng API vẫn có thể gửi id tùy ý).
      */
     protected function assertValidTeachingStaff(array $validated): void
     {
         $rules = [
-            'giao_vien_chinh' => ['teacher', 'teacher_fulltime', 'teacher_parttime', 'academic_lead', 'manager'],
-            'giao_vien_nn' => ['teacher', 'teacher_fulltime', 'teacher_parttime', 'academic_lead', 'manager'],
-            'tro_giang' => ['assistant', 'academic_staff'],
+            'giao_vien_chinh' => 'class.teach',
+            'giao_vien_nn' => 'class.teach',
+            'tro_giang' => 'class.assist',
         ];
-        foreach ($rules as $field => $roles) {
+        foreach ($rules as $field => $permission) {
             if (empty($validated[$field])) {
                 continue;
             }
             $user = User::whereKey($validated[$field])->where('is_active', true)->first();
-            if (! $user || ! $user->hasAnyRole($roles)) {
+            if (! $user || ! $user->can($permission)) {
                 throw ValidationException::withMessages([
                     $field => 'Người được gán phải đang hoạt động và đúng vai trò (giáo viên/quản lý hoặc trợ giảng/học vụ).',
                 ]);
@@ -598,12 +607,7 @@ class ClassManagementController extends Controller
         $branches = Branch::where('is_active', true)->get();
         $courses = Course::where('is_active', true)->get();
         $levels = CourseLevel::where('is_active', true)->get();
-        $teachers = User::where('is_active', true)
-            ->whereHas('roles', fn ($query) => $query->whereIn('name', ['teacher', 'academic_lead', 'manager']))
-            ->orderBy('name')->get();
-        $assistants = User::where('is_active', true)
-            ->whereHas('roles', fn ($query) => $query->whereIn('name', ['assistant', 'academic_staff']))
-            ->orderBy('name')->get();
+        [$teachers, $assistants] = $this->teachingStaffOptions();
 
         return view('classes.edit', compact('class', 'branches', 'courses', 'levels', 'teachers', 'assistants'));
     }
@@ -646,8 +650,7 @@ class ClassManagementController extends Controller
             throw ValidationException::withMessages(['chi_nhanh' => 'Chi nhánh không tồn tại, vui lòng chọn lại.']);
         }
         $branchId = (int) $branchId;
-        $managedBranchIds = auth()->user()->managedBranchIds();
-        abort_if($managedBranchIds !== null && ! in_array($branchId, $managedBranchIds, true), 403, 'Bạn chỉ được quản lý lớp thuộc chi nhánh của mình.');
+        abort_unless(DataScope::coversBranch(auth()->user(), 'class', $branchId), 403, 'Bạn chỉ được quản lý lớp thuộc chi nhánh của mình.');
 
         $this->assertValidTeachingStaff($validated);
 
@@ -811,12 +814,12 @@ class ClassManagementController extends Controller
     }
 
     /**
-     * Học viên (và vai trò không phụ trách lớp) không được mở màn quản lý lớp;
+     * Tài khoản cổng học viên (không quản lý lớp) không được mở màn quản lý lớp;
      * họ xem lớp của mình qua cổng học viên.
      */
     private function ensureCanBrowseClasses(): void
     {
         $user = auth()->user();
-        abort_if(! $user || (! ClassModel::userManagesAll($user) && $user->hasRole('student')), 403);
+        abort_if(! $user || (! ClassModel::userManagesAll($user) && $user->can('portal.student')), 403);
     }
 }

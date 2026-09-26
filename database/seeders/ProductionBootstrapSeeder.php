@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Support\Rbac;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use RuntimeException;
@@ -11,6 +12,10 @@ use RuntimeException;
  * Khởi tạo production lần đầu (database trống): vai trò, quyền, danh mục hệ thống và MỘT tài khoản Admin
  * lấy từ .env (INITIAL_ADMIN_NAME / INITIAL_ADMIN_EMAIL / INITIAL_ADMIN_PASSWORD). Không tạo chi nhánh,
  * nhân sự, học viên hay dữ liệu demo — Admin tự tạo trong hệ thống. Admin bị bắt đổi mật khẩu lần đầu.
+ *
+ * RBAC (docs/rbac.md): PermissionSeeder + RoleSeeder chỉ THÊM (vai trò đã có không bị ghi đè), nên chạy lại an toàn.
+ * Tài khoản khởi tạo nhận vai trò Super Admin (Rbac::SUPER_ADMIN) — luôn toàn quyền qua Gate::before; mọi vai trò
+ * khác Admin tự cấu hình ở màn Vai trò / Phân quyền cá nhân.
  */
 class ProductionBootstrapSeeder extends Seeder
 {
@@ -34,6 +39,7 @@ class ProductionBootstrapSeeder extends Seeder
             'is_active' => true,
         ]);
         $admin->forceFill(['must_change_password' => true])->save();
-        $admin->syncRoles(['admin']);
+        $admin->syncRoles([Rbac::SUPER_ADMIN]);
+        Rbac::flushCache();
     }
 }

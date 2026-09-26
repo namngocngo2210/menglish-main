@@ -32,7 +32,7 @@
                     $order = $plan['order'];
                     $isMainTeacher = (int) $class?->teacher_id === (int) $user->id || (int) $class?->foreign_teacher_id === (int) $user->id;
                     $isAssistant = (int) $class?->assistant_id === (int) $user->id && ! $isMainTeacher;
-                    $canOrder = $user->hasRole('admin') || $isMainTeacher;
+                    $canOrder = $isMainTeacher || $user->can('attendance_student.record_any');
                     $canSetDate = $isMainTeacher || $isAcademic;
                 @endphp
                 <article class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm p-lg flex flex-col gap-md">

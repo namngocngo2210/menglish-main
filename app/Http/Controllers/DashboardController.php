@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\DataScope;
 use App\Models\BigTest;
 use App\Models\BigTestOrder;
 use App\Models\BigTestResult;
@@ -20,11 +21,11 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * Dashboard theo vai trò (BPMN bước 22):
- *  - Admin: số liệu toàn hệ thống.
- *  - Quản lý cơ sở: cùng bộ số liệu nhưng giới hạn chi nhánh mình.
- *  - Học thuật (academic_lead): lớp đang chạy, đề xuất giáo trình/giãn tiến độ chờ duyệt, Big Test sắp tới.
- * Vai trò khác giữ lưới lối tắt theo quyền như trước.
+ * Dashboard theo quyền (BPMN bước 22):
+ *  - dashboard.operations: bảng điều hành — phạm vi "dashboard.scope_all" (Admin) số liệu toàn hệ thống, mức
+ *    "Chi nhánh" (Quản lý cơ sở) giới hạn chi nhánh mình.
+ *  - dashboard.academic (Học thuật): lớp đang chạy, đề xuất giáo trình/giãn tiến độ chờ duyệt, Big Test sắp tới.
+ * Người khác giữ lưới lối tắt theo quyền như trước.
  */
 class DashboardController extends Controller
 {
@@ -33,12 +34,11 @@ class DashboardController extends Controller
         $user = $request->user();
         $roleDashboard = null;
 
-        if ($user->hasRole('admin')) {
-            $roleDashboard = $this->operationsDashboard(null, 'Toàn hệ thống');
-        } elseif ($user->hasRole('manager')) {
-            $branchIds = $user->managedBranchIds() ?? [];
-            $roleDashboard = $this->operationsDashboard($branchIds, $user->branch?->name ?? 'Chi nhánh của bạn');
-        } elseif ($user->hasRole('academic_lead')) {
+        if ($user->can('dashboard.operations')) {
+            $roleDashboard = DataScope::isAll($user, 'dashboard')
+                ? $this->operationsDashboard(null, 'Toàn hệ thống')
+                : $this->operationsDashboard($user->branchIds(), $user->branch?->name ?? 'Chi nhánh của bạn');
+        } elseif ($user->can('dashboard.academic')) {
             $roleDashboard = $this->academicDashboard($user);
         }
 

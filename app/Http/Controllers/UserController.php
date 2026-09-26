@@ -9,6 +9,8 @@ use App\Models\Branch;
 use App\Models\User;
 use App\Services\SafeUploadService;
 use App\Support\Audit;
+use App\Support\DataScope;
+use App\Support\Rbac;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -23,22 +25,14 @@ class UserController extends Controller
     public function index(Request $request): View
     {
         $currentUser = auth()->user();
-        abort_if($currentUser && ($currentUser->hasRole('student') || $currentUser->hasRole('teacher')), 403);
 
-        // Admin xem toàn bộ; Quản lý cơ sở chỉ thấy nhân sự thuộc chi nhánh
-        // mình (branch_id + user_branches); các vai trò khác (ví dụ học vụ) chỉ
-        // được thấy tài khoản do chính mình tạo (created_by).
-        $isPrivileged = $currentUser && ($currentUser->hasRole('admin') || $currentUser->hasRole('manager'));
-        $managedBranchIds = $currentUser?->managedBranchIds();
-        $scope = function ($q) use ($currentUser, $isPrivileged, $managedBranchIds) {
-            if (! $isPrivileged && $currentUser) {
-                $q->where('created_by', $currentUser->id);
-            } elseif ($managedBranchIds !== null) {
-                $q->whereIn('branch_id', $managedBranchIds);
-            }
-
-            return $q;
-        };
+        // Phạm vi "user.scope_*" (DataScope): Toàn hệ thống (Admin) xem toàn bộ; Chi nhánh (Quản lý cơ sở) chỉ nhân
+        // sự thuộc chi nhánh mình (branch_id chính); Của tôi (Học vụ, Học thuật) chỉ tài khoản do chính mình tạo.
+        $scope = fn ($q) => DataScope::apply(
+            $q, $currentUser, 'user',
+            fn ($own) => $own->where('created_by', $currentUser->id),
+            fn ($branch, array $branchIds) => $branch->whereIn('branch_id', $branchIds),
+        );
 
         $query = User::query()->with(['branch', 'roles'])->orderBy('name');
         $scope($query);
@@ -108,6 +102,7 @@ class UserController extends Controller
 
         $branches = $this->assignableBranches();
         $roles = Role::query()->orderBy('name')->pluck('name');
+        $assignableRoles = Rbac::assignableRoles($currentUser);
 
         return view('users.index', compact(
             'expiringContracts',
@@ -118,7 +113,8 @@ class UserController extends Controller
             'academicStaff',
             'lockedStaff',
             'branches',
-            'roles'
+            'roles',
+            'assignableRoles'
         ));
     }
 
@@ -161,7 +157,7 @@ class UserController extends Controller
         return view('users.form', [
             'user' => new User,
             'branches' => $this->assignableBranches(),
-            'roles' => collect($this->creatableRoles(auth()->user())),
+            'roles' => collect(Rbac::assignableRoles(auth()->user())),
         ]);
     }
 
@@ -193,7 +189,7 @@ class UserController extends Controller
         return view('users.form', [
             'user' => $user,
             'branches' => $this->assignableBranches(),
-            'roles' => collect($this->creatableRoles(auth()->user())),
+            'roles' => collect(Rbac::assignableRoles(auth()->user())),
         ]);
     }
 
@@ -286,20 +282,30 @@ class UserController extends Controller
         return view('users.roles', [
             'user' => $user,
             'roles' => Role::query()->orderBy('name')->get(),
+            'assignable' => Rbac::assignableRoles(auth()->user()),
         ]);
     }
 
     public function updateRoles(AssignRoleRequest $request, User $user): RedirectResponse
     {
         $this->ensureCanManageTarget($user);
-        foreach ((array) $request->validated('roles') as $roleName) {
+        $before = $user->getRoleNames()->all();
+        $after = array_values(array_unique((array) $request->validated('roles')));
+        // Chỉ được thêm / bớt vai trò mình được phép gán (vai trò khác của người này giữ nguyên nếu không đổi).
+        foreach (array_merge(array_diff($after, $before), array_diff($before, $after)) as $roleName) {
             $this->ensureCanAssignRole($roleName);
         }
+        // Không tự tước quyền quản trị phân quyền của chính mình.
+        if ((int) $user->id === (int) auth()->id()) {
+            Rbac::ensureKeepsAccessManagement($user, $after);
+        }
 
-        $user->syncRoles($request->validated('roles'));
+        $user->syncRoles($after);
+        Rbac::flushCache();
 
-        activity('user')->causedBy(auth()->user())->performedOn($user)
-            ->withProperties(['roles' => $request->validated('roles')])
+        activity('Người dùng & Phân quyền')->causedBy(auth()->user())->performedOn($user)
+            ->event('updated')
+            ->withProperties(['old' => ['roles' => $before], 'attributes' => ['roles' => $after], 'roles' => $after])
             ->log('Cập nhật vai trò nhân viên');
 
         return redirect()->route('users.index')->with('status', 'Đã cập nhật vai trò.');
@@ -340,7 +346,7 @@ class UserController extends Controller
         if ($request->boolean('concurrent_roles_present') && auth()->user()?->can('user.assign_role')) {
             $concurrent = array_values(array_unique((array) $request->validated('concurrent_roles', [])));
             foreach ($concurrent as $role) {
-                if (! in_array($role, $this->creatableRoles(auth()->user()), true)) {
+                if (! Rbac::canAssignRole(auth()->user(), $role)) {
                     throw ValidationException::withMessages(['concurrent_roles' => 'Bạn không được phép gán vai trò kiêm nhiệm "'.\App\Helpers\AclHelper::shortRoleLabel($role).'".']);
                 }
             }
@@ -372,12 +378,18 @@ class UserController extends Controller
         }
     }
 
+    /** Chi nhánh bị giới hạn khi quản lý nhân sự: phạm vi "Chi nhánh" → chi nhánh của mình; mức khác → không giới hạn. */
+    private static function branchLimit(?User $actor): ?array
+    {
+        return $actor && DataScope::level($actor, 'user') === DataScope::BRANCH ? $actor->branchIds() : null;
+    }
+
     /**
-     * Chi nhánh được chọn khi tạo/sửa tài khoản: Quản lý cơ sở chỉ chọn chi nhánh mình.
+     * Chi nhánh được chọn khi tạo/sửa tài khoản: phạm vi "Chi nhánh" (Quản lý cơ sở) chỉ chọn chi nhánh mình.
      */
     private function assignableBranches()
     {
-        $managed = auth()->user()?->managedBranchIds();
+        $managed = self::branchLimit(auth()->user());
 
         return Branch::query()->active()
             ->when($managed !== null, fn ($q) => $q->whereIn('id', $managed))
@@ -387,7 +399,7 @@ class UserController extends Controller
 
     private function ensureBranchInScope(int $branchId): void
     {
-        $managed = auth()->user()?->managedBranchIds();
+        $managed = self::branchLimit(auth()->user());
 
         if ($managed !== null && ! in_array($branchId, $managed, true)) {
             throw ValidationException::withMessages([
@@ -397,55 +409,23 @@ class UserController extends Controller
     }
 
     /**
-     * Danh sách vai trò mà người dùng hiện tại được phép tạo / gán theo
-     * phân cấp:
-     *  - admin: toàn bộ
-     *  - manager: tất cả trừ admin
-     *  - academic_staff (học vụ): trợ giảng, giáo viên (fulltime/parttime), học viên
-     *  - academic_lead (học thuật độc lập): chỉ giáo viên
-     *  - các vai trò khác: không được tạo tài khoản
-     */
-    private function creatableRoles(?User $actor): array
-    {
-        if (! $actor) {
-            return [];
-        }
-        if ($actor->hasRole('admin')) {
-            return Role::query()->orderBy('name')->pluck('name')->all();
-        }
-        if ($actor->hasRole('manager')) {
-            return Role::query()->where('name', '!=', 'admin')->orderBy('name')->pluck('name')->all();
-        }
-        if ($actor->hasRole('academic_staff')) {
-            return ['assistant', 'teacher', 'teacher_fulltime', 'teacher_parttime', 'student'];
-        }
-        if ($actor->hasRole('academic_lead')) {
-            return ['teacher', 'teacher_fulltime', 'teacher_parttime'];
-        }
-
-        return [];
-    }
-
-    /**
-     * Chặn thao tác lên tài khoản có vai trò vượt phân cấp của người thực hiện
-     * (ví dụ Học vụ/Quản lý đổi mật khẩu, hạ quyền hoặc khóa tài khoản Admin).
-     * Admin quản lý được mọi tài khoản; vai trò khác chỉ quản lý được tài khoản
-     * mà mọi vai trò hiện có đều nằm trong danh sách mình được phép tạo.
+     * Chặn thao tác lên tài khoản vượt phân cấp của người thực hiện (ví dụ Học vụ/Quản lý đổi mật khẩu, hạ quyền hoặc
+     * khóa tài khoản Admin). Super Admin quản lý được mọi tài khoản; người khác chỉ quản lý được tài khoản mà MỌI vai
+     * trò hiện có đều nằm trong các vai trò mình được gán (user.assign_role.<vai trò>) — tài khoản Super Admin chỉ
+     * Super Admin thao tác. Phạm vi "Chi nhánh" chỉ thao tác trên nhân sự thuộc chi nhánh mình.
      */
     private function ensureCanManageTarget(User $target): void
     {
         $actor = auth()->user();
-        if ($actor?->hasRole('admin')) {
+        if ($actor?->isSuperAdmin()) {
             return;
         }
 
-        $manageable = $this->creatableRoles($actor);
-        $outOfScope = $target->getRoleNames()->diff($manageable);
+        $outOfScope = $target->getRoleNames()->reject(fn (string $role) => Rbac::canAssignRole($actor, $role));
 
-        abort_if($target->hasRole('admin') || $outOfScope->isNotEmpty(), 403, 'Bạn không có quyền thao tác trên tài khoản này.');
+        abort_if($target->isSuperAdmin() || $outOfScope->isNotEmpty(), 403, 'Bạn không có quyền thao tác trên tài khoản này.');
 
-        // Quản lý cơ sở chỉ thao tác trên nhân sự thuộc chi nhánh của mình.
-        $managed = $actor?->managedBranchIds();
+        $managed = self::branchLimit($actor);
         abort_if(
             $managed !== null && ! in_array((int) $target->branch_id, $managed, true),
             403,
@@ -507,7 +487,7 @@ class UserController extends Controller
      */
     public static function canViewSensitive(?User $actor): bool
     {
-        return (bool) $actor && ($actor->hasRole('admin') || $actor->can('payroll.view'));
+        return (bool) $actor && $actor->can('payroll.view');
     }
 
     /**
@@ -515,7 +495,7 @@ class UserController extends Controller
      */
     private function ensureCanAssignRole(string $role): void
     {
-        if (! in_array($role, $this->creatableRoles(auth()->user()), true)) {
+        if (! Rbac::canAssignRole(auth()->user(), $role)) {
             throw ValidationException::withMessages([
                 'role' => 'Bạn không được phép tạo/gán vai trò này.',
             ]);

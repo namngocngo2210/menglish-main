@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\DataScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,9 +12,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class BigTest extends Model
 {
     use HasFactory;
-
-    /** Vai trò học thuật được thao tác trên mọi lớp (không bị giới hạn theo phân công). */
-    public const ACADEMIC_ROLES = ['admin', 'manager', 'academic_staff', 'academic_lead'];
 
     /**
      * Hạn trả kết quả cho phụ huynh = ngày thi + N ngày (mockup "Hạn trả kết quả: Còn N ngày").
@@ -85,20 +83,26 @@ class BigTest extends Model
     }
 
     /**
-     * Lọc các đợt thi mà user được xem: học thuật xem tất cả, giáo viên/trợ giảng
-     * chỉ xem đợt thi của lớp mình được phân công.
+     * Lọc các đợt thi user được xem theo phạm vi "big_test.scope_*" (DataScope): Toàn hệ thống (mặc định Admin,
+     * Quản lý cơ sở, Học vụ, Học thuật) → mọi đợt thi; Chi nhánh → lớp mình + lớp thuộc chi nhánh mình;
+     * Của tôi (giáo viên / trợ giảng) → đợt thi của lớp mình được phân công.
      */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
-        if ($user->hasAnyRole(self::ACADEMIC_ROLES)) {
-            return $query;
-        }
+        return DataScope::apply(
+            $query, $user, 'big_test',
+            fn (Builder $q) => $q->whereHas('classModel', fn (Builder $class) => self::assignedTo($class, $user)),
+            fn (Builder $q, array $branchIds) => $q->whereHas('classModel', fn (Builder $class) => $class->whereIn('branch_id', $branchIds)),
+            branchIncludesOwn: true,
+        );
+    }
 
-        return $query->whereHas('classModel', fn (Builder $class) => $class->where(
-            fn (Builder $q) => $q->where('teacher_id', $user->id)
-                ->orWhere('foreign_teacher_id', $user->id)
-                ->orWhere('assistant_id', $user->id)
-        ));
+    /** Lớp user được phân công (GV chính / GVNN / trợ giảng). */
+    public static function assignedTo(Builder $class, User $user): Builder
+    {
+        return $class->where(fn (Builder $q) => $q->where('teacher_id', $user->id)
+            ->orWhere('foreign_teacher_id', $user->id)
+            ->orWhere('assistant_id', $user->id));
     }
 
     /** Hạn trả kết quả cho phụ huynh (ngày thi + RESULT_DEADLINE_DAYS). */
@@ -117,13 +121,20 @@ class BigTest extends Model
 
     public function isAccessibleBy(User $user): bool
     {
-        if ($user->hasAnyRole(self::ACADEMIC_ROLES)) {
+        $level = DataScope::level($user, 'big_test');
+        if ($level === DataScope::ALL) {
             return true;
         }
 
         $class = $this->classModel;
+        if ($class === null) {
+            return false;
+        }
+        if ($level === DataScope::BRANCH && $class->branch_id && in_array((int) $class->branch_id, $user->branchIds(), true)) {
+            return true;
+        }
 
-        return $class !== null && in_array((int) $user->id, array_map('intval', array_filter([
+        return in_array((int) $user->id, array_map('intval', array_filter([
             $class->teacher_id, $class->foreign_teacher_id, $class->assistant_id,
         ])), true);
     }

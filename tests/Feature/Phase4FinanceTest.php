@@ -384,7 +384,7 @@ class Phase4FinanceTest extends TestCase
     public function test_new_receipt_notifies_branch_accountants_personally(): void
     {
         $otherBranchAccountant = $this->makeUser('accountant', $this->branch2);
-        // Kế toán tổng: Admin cấp tuition.all_branches (BA 26/09/2026). Kế toán không gán chi nhánh mà chưa được cấp → không nhận.
+        // Kế toán tổng: Admin cấp phạm vi tuition.scope_all (BA 26/09/2026). Kế toán không gán chi nhánh mà chưa được cấp → không nhận.
         $hqAccountant = User::factory()->create(['branch_id' => null, 'is_active' => true]);
         $hqAccountant->assignRole('accountant');
         $this->grantHeadOffice($hqAccountant);

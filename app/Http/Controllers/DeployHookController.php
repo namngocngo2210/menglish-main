@@ -20,7 +20,10 @@ class DeployHookController extends Controller
         $given = (string) $request->header('X-Deploy-Token', '');
         abort_if($expected === '' || strlen($expected) < 32 || ! hash_equals($expected, $given), 404);
 
-        @set_time_limit(300);
+        // Chỉ giới hạn thời gian khi chạy qua web: set_time_limit() trong CLI (test) sẽ giết cả tiến trình sau 300 giây.
+        if (! app()->runningInConsole()) {
+            @set_time_limit(300);
+        }
         $steps = [];
         $run = function (string $command, array $args = []) use (&$steps) {
             $code = Artisan::call($command, $args);

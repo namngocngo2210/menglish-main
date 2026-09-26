@@ -206,13 +206,14 @@ class CrmImportController extends Controller
      */
     protected function formOptions(User $user): array
     {
-        $branches = $user->hasRole('admin')
+        $allBranches = \App\Support\DataScope::isAll($user, 'lead');
+        $branches = $allBranches
             ? Branch::where('is_active', true)->orderBy('name')->get(['id', 'name'])
-            : Branch::whereIn('id', CrmCustomer::branchIdsOf($user))->orderBy('name')->get(['id', 'name']);
+            : Branch::whereIn('id', $user->branchIds())->orderBy('name')->get(['id', 'name']);
         $canAssign = $user->can('lead.assign');
         $salesUsers = $canAssign
-            ? User::query()->where('is_active', true)->role(['sales_consultant', 'manager', 'admin'])
-                ->when(! $user->hasRole('admin'), fn ($q) => $q->where(fn ($inner) => $inner
+            ? \App\Support\Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), 'lead.be_assigned')
+                ->when(! $allBranches, fn ($q) => $q->where(fn ($inner) => $inner
                     ->whereIn('branch_id', $branches->pluck('id'))
                     ->orWhereHas('branches', fn ($b) => $b->whereIn('branches.id', $branches->pluck('id')))))
                 ->orderBy('name')->get(['id', 'name', 'email'])

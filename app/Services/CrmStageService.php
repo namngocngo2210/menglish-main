@@ -24,12 +24,6 @@ use App\Models\User;
  */
 class CrmStageService
 {
-    /** Vai trò CM được chuyển tiến giai đoạn bằng tay. */
-    public const CM_ROLES = ['admin', 'manager', 'academic_staff'];
-
-    /** Chỉ Admin được lùi giai đoạn. */
-    public const BACKWARD_ROLES = ['admin'];
-
     /**
      * Nguồn hợp lệ cho các bước chuyển tự động: stage đích => stage nguồn.
      * testing/tested chấp nhận nguồn sớm hơn vì thí sinh có thể làm bài khi chưa hẹn (link / offline).
@@ -156,14 +150,16 @@ class CrmStageService
         return array_slice(array_keys(CrmCustomer::PIPELINE_STAGES), 0, $index);
     }
 
+    /** CM chuyển tiến từng bước (lead.stage_forward — mặc định Admin, Quản lý cơ sở, Học vụ). */
     public function canMoveForward(User $user): bool
     {
-        return $user->hasAnyRole(self::CM_ROLES);
+        return $user->can('lead.stage_forward');
     }
 
+    /** Lùi giai đoạn (lead.stage_back — A6 Q1: mặc định chỉ Admin). */
     public function canMoveBackward(User $user): bool
     {
-        return $user->hasAnyRole(self::BACKWARD_ROLES);
+        return $user->can('lead.stage_back');
     }
 
     private function indexOf(?string $stage): ?int

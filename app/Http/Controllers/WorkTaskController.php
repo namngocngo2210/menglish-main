@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\DataScope;
+use App\Support\Rbac;
 use App\Models\AdminNotification;
 use App\Models\Branch;
 use App\Models\ClassModel;
@@ -40,7 +42,8 @@ class WorkTaskController extends Controller
         // Tab "Tất cả" chỉ dành cho người có quyền duyệt công việc; người khác
         // chỉ thấy việc mình được giao hoặc mình tạo.
         $canViewAll = $currentUser->can('work_task.approve');
-        $defaultTab = ($currentUser && $currentUser->hasRole('admin')) ? 'all' : 'mine';
+        // Tab mặc định (giao diện): Super Admin mở "Tất cả", người khác "Việc của tôi".
+        $defaultTab = ($currentUser && $currentUser->isSuperAdmin()) ? 'all' : 'mine';
         $tab = $request->get('tab', $defaultTab); // 'mine', 'assigned', 'all'
         if (! in_array($tab, ['mine', 'assigned', 'all'], true) || ($tab === 'all' && ! $canViewAll)) {
             $tab = 'mine';
@@ -322,12 +325,12 @@ class WorkTaskController extends Controller
     /** Mốc khuyến nghị gửi nhiệm vụ trợ giảng trong ngày (mockup: "Khuyến nghị gửi trước 15h30"). */
     public const TA_ASSIGN_CUTOFF = '15:30';
 
-    /** Trợ giảng được giao: vai trò assistant đang hoạt động (Quản lý cơ sở: trong chi nhánh mình). */
+    /** Trợ giảng được giao: người có quyền đối tượng "Cổng trợ giảng" (portal.assistant) đang hoạt động (phạm vi Chi nhánh: trong chi nhánh mình). */
     private function assignableAssistants(User $user)
     {
-        $managed = $user->managedBranchIds();
+        $managed = self::branchLimit($user);
 
-        return User::role('assistant')
+        return Rbac::scopeUsersWithPermission(User::query(), 'portal.assistant')
             ->where('is_active', true)
             ->whereNull('locked_at')
             ->when($managed !== null, fn ($q) => $q->whereIn('branch_id', $managed))
@@ -339,7 +342,7 @@ class WorkTaskController extends Controller
     {
         $user = $request->user();
         $assistants = $this->assignableAssistants($user);
-        $managed = $user->managedBranchIds();
+        $managed = self::branchLimit($user);
         $branches = Branch::where('is_active', true)
             ->when($managed !== null, fn ($q) => $q->whereIn('id', $managed))
             ->orderBy('name')->get();
@@ -390,7 +393,7 @@ class WorkTaskController extends Controller
         if (! $this->assignableAssistants($user)->contains('id', (int) $validated['assistant_id'])) {
             throw ValidationException::withMessages(['assistant_id' => 'Chỉ giao cho trợ giảng đang hoạt động trong phạm vi bạn quản lý.']);
         }
-        $managed = $user->managedBranchIds();
+        $managed = self::branchLimit($user);
         if (! empty($validated['branch_id']) && $managed !== null && ! in_array((int) $validated['branch_id'], $managed, true)) {
             throw ValidationException::withMessages(['branch_id' => 'Bạn chỉ giao việc trong chi nhánh mình quản lý.']);
         }
@@ -451,7 +454,7 @@ class WorkTaskController extends Controller
             || ($assignDate === today()->toDateString() && now()->format('H:i') > self::TA_ASSIGN_CUTOFF);
         if ($late) {
             $assistant = User::find($validated['assistant_id']);
-            User::role('admin')->where('is_active', true)->whereNull('locked_at')->pluck('id')
+            User::role(\App\Support\Rbac::SUPER_ADMIN)->where('is_active', true)->whereNull('locked_at')->pluck('id')
                 ->reject(fn ($id) => (int) $id === (int) Auth::id())
                 ->each(fn ($adminId) => $this->notifyUser($adminId, 'task_assigned', 'Giao việc trợ giảng sau '.self::TA_ASSIGN_CUTOFF,
                     Auth::user()->name." giao {$created->count()} nhiệm vụ ngày ".Carbon::parse($assignDate)->format('d/m/Y')." cho {$assistant?->name} lúc ".now()->format('H:i').'.',
@@ -501,7 +504,7 @@ class WorkTaskController extends Controller
                 abort_unless($taId === (int) $viewer->id || $assistants->contains('id', $taId), 403, 'Trợ giảng này nằm ngoài phạm vi bạn quản lý.');
                 $taUser = User::find($taId);
             } else {
-                $taUser = $viewer->hasRole('assistant') ? $viewer : $assistants->first();
+                $taUser = $viewer->can('portal.assistant') ? $viewer : $assistants->first();
             }
         } else {
             $taUser = $viewer;
@@ -983,23 +986,24 @@ class WorkTaskController extends Controller
      */
     private function scopeVisibleTasks($query, User $user)
     {
-        if ($user->can('work_task.approve')) {
-            $managed = $user->managedBranchIds();
-            if ($managed !== null) {
-                $query->where(function ($q) use ($user, $managed) {
-                    $q->whereIn('branch_id', $managed)
-                        ->orWhereHas('assignee', fn ($a) => $a->whereIn('branch_id', $managed))
-                        ->orWhere('creator_id', $user->id)
-                        ->orWhere('assignee_id', $user->id);
-                });
-            }
+        return DataScope::apply(
+            $query, $user, 'work_task',
+            fn ($q) => $q->where('creator_id', $user->id)->orWhere('assignee_id', $user->id),
+            fn ($q, array $branchIds) => $q->whereIn('branch_id', $branchIds)
+                ->orWhereHas('assignee', fn ($a) => $a->whereIn('branch_id', $branchIds)),
+            branchIncludesOwn: true,
+        );
+    }
 
-            return $query;
-        }
-
-        return $query->where(function ($q) use ($user) {
-            $q->where('creator_id', $user->id)->orWhere('assignee_id', $user->id);
-        });
+    /**
+     * Chi nhánh giới hạn khi giao việc / xem KPI nhân sự: phạm vi Công việc "Chi nhánh" (mặc định Quản lý cơ sở) → chi
+     * nhánh của mình; mức khác → null (không giới hạn theo chi nhánh).
+     *
+     * @return list<int>|null
+     */
+    private static function branchLimit(User $user): ?array
+    {
+        return DataScope::level($user, 'work_task') === DataScope::BRANCH ? $user->branchIds() : null;
     }
 
     /**
@@ -1039,15 +1043,14 @@ class WorkTaskController extends Controller
         $query = User::where('is_active', true)->whereNull('locked_at')->orderBy('name');
 
         if (! $user->can('work_task.create')) {
-            $query->whereHas('roles', fn ($r) => $r->whereIn('name', self::REQUEST_TARGET_ROLES));
-        } elseif (($managed = $user->managedBranchIds()) !== null) {
+            // Đề xuất ngược (GV / TA): chỉ giao cho người có quyền duyệt công việc.
+            Rbac::scopeUsersWithPermission($query, 'work_task.approve');
+        } elseif (($managed = self::branchLimit($user)) !== null) {
             $query->where(fn ($q) => $q->whereIn('branch_id', $managed)->orWhere('id', $user->id));
         }
 
         return $query->get();
     }
-
-    public const REQUEST_TARGET_ROLES = ['admin', 'manager', 'academic_staff', 'academic_lead'];
 
     private function ensureCanCreateTask(): void
     {
@@ -1683,10 +1686,11 @@ class WorkTaskController extends Controller
         $from = CarbonImmutable::createFromFormat('!Y-m', $month)->startOfMonth();
         $to = CarbonImmutable::createFromFormat('!Y-m', $monthTo)->endOfMonth();
 
-        // Người có quyền duyệt công việc xem KPI nhân sự (Quản lý cơ sở: chi nhánh mình); người khác chỉ xem KPI của mình.
+        // KPI nhân sự theo phạm vi Công việc: Toàn hệ thống → mọi nhân sự; Chi nhánh (Quản lý cơ sở) → chi nhánh mình;
+        // Của tôi → chỉ KPI của mình.
         $viewer = $request->user();
-        $managed = $viewer->managedBranchIds();
-        $canSeeStaff = $viewer->can('work_task.approve');
+        $managed = self::branchLimit($viewer);
+        $canSeeStaff = DataScope::level($viewer, 'work_task') !== DataScope::OWN;
         $scopedStaff = fn () => $kpi->staffQuery()
             ->when(! $canSeeStaff, fn ($q) => $q->whereKey($viewer->id))
             ->when($canSeeStaff && $managed !== null, fn ($q) => $q->whereIn('branch_id', $managed));

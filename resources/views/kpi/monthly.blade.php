@@ -39,7 +39,7 @@
                 @forelse ($staff as $s)
                     @php
                         $eval = $evaluations->get($s->id);
-                        $isHv = $s->hasRole('academic_staff');
+                        $isHv = \App\Support\StaffType::usesAcademicStaffKpi($s);
                         [$grade, $gradeLabel] = $eval ? \App\Models\KpiEvaluation::gradeFor((float) $eval->total_score) : [null, null];
                     @endphp
                     <tr>

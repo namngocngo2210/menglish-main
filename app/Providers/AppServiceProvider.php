@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Models\UserPermissionOverride;
+use App\Support\PermissionCatalog;
 use App\Support\SensitiveData;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -123,8 +124,9 @@ class AppServiceProvider extends ServiceProvider
                 return null;
             }
 
-            // Admin luôn có toàn quyền.
-            if ($user->hasRole('admin')) {
+            // Super Admin luôn có mọi quyền thao tác — trừ quyền "đối tượng" (cổng học viên / giáo viên, được xếp dạy
+            // lớp…): các quyền này mô tả người dùng là ai, Admin chỉ có khi được cấp rõ (PermissionCatalog::isAudience).
+            if ($user->isSuperAdmin() && ! PermissionCatalog::isAudience($ability)) {
                 return true;
             }
 

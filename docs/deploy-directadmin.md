@@ -50,7 +50,7 @@ Chạy workflow với tham số **`seed`**:
 
 | Giá trị | Dùng khi | Tạo gì |
 |---|---|---|
-| `bootstrap` | **Production** cài lần đầu (cũng dùng được cho staging) | Vai trò, quyền, danh mục hệ thống và **1 tài khoản Admin** lấy từ `.env` (`INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` ≥ 10 ký tự), bị bắt đổi mật khẩu lần đầu. Không tạo chi nhánh / nhân sự / dữ liệu demo. **Chỉ chạy khi database chưa có người dùng**; chạy lại sẽ tự bỏ qua. |
+| `bootstrap` | **Production** cài lần đầu (cũng dùng được cho staging) | Vai trò mặc định (`config/access.php`), toàn bộ quyền của danh mục (`config/permission_catalog.php`), danh mục hệ thống và **1 tài khoản Admin** lấy từ `.env` (`INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` ≥ 10 ký tự), bị bắt đổi mật khẩu lần đầu. Không tạo chi nhánh / nhân sự / dữ liệu demo. **Chỉ chạy khi database chưa có người dùng**; chạy lại sẽ tự bỏ qua. |
 | `demo` | Staging để thử nghiệm | Toàn bộ dữ liệu demo + tài khoản demo (README "Kiểm tra nhanh toàn hệ thống"), mật khẩu = `SEED_DEFAULT_PASSWORD`. **Bị chặn trên production.** |
 | `none` | Các lần deploy sau | Không seed |
 
@@ -67,7 +67,7 @@ Workflow sẽ: chạy toàn bộ test → `composer install --no-dev` → build 
 - **Sao lưu database** (DirectAdmin → *MySQL Management* → *Backup*) — đợt này có nhiều migration chuyển dữ liệu (CRM, giáo trình theo chặng, mốc chăm sóc, lương, phân quyền).
 - Deploy **staging** trước, kiểm tra các luồng chính (xem README "Kiểm tra nhanh toàn hệ thống").
 - **Không** chạy `db:seed` trên production (dữ liệu demo chỉ cho local/staging).
-- Sau deploy: nhập tài khoản ngân hàng từng chi nhánh trước khi bật SePay; kiểm tra quyền (kế toán tổng có "Xem & xử lý học phí mọi chi nhánh", Quản lý / Học vụ đã gán chi nhánh); tài khoản Zalo OA / ZNS khi có.
+- Sau deploy: nhập tài khoản ngân hàng từng chi nhánh trước khi bật SePay; kiểm tra quyền ở **Vai trò** / **Phân quyền cá nhân** (kế toán tổng có "Phạm vi dữ liệu: Toàn hệ thống" cho Học phí / Thu chi / Chấm công, Quản lý / Học vụ đã gán chi nhánh) — xem `docs/rbac.md` §7; tài khoản Zalo OA / ZNS khi có.
 
 ## Xử lý sự cố
 

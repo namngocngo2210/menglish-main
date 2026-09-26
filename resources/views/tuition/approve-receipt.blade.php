@@ -520,7 +520,7 @@
                                         Đã duyệt bởi {{ $selectedReceipt->approver?->name ?? 'Admin' }}
                                     </span>
                                 @elseif (in_array($selectedReceipt->status, \App\Models\TuitionReceipt::EDITABLE_STATUSES, true)
-                                    && (auth()->id() === $selectedReceipt->creator_id || auth()->user()?->hasRole('admin')))
+                                    && (auth()->id() === $selectedReceipt->creator_id || auth()->user()?->isSuperAdmin()))
                                     <span class="text-xs font-bold px-3.5 py-2 rounded-xl border {{ $selectedReceipt->status_badge }}">{{ $selectedReceipt->status_label }}</span>
                                     <a href="{{ route('tuition.receipts.edit', $selectedReceipt->id) }}" class="px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition inline-flex items-center gap-1.5">
                                         <span class="material-symbols-outlined text-base">edit</span>

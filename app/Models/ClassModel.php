@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\AuditsChanges;
+use App\Support\DataScope;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -60,13 +61,14 @@ class ClassModel extends Model
             return $query->whereRaw('1 = 0');
         }
 
-        // Quản lý cơ sở (không phải Admin) chỉ thấy lớp thuộc chi nhánh mình.
-        $managedBranchIds = $user->managedBranchIds();
-        $managesClasses = self::userManagesAll($user);
+        // Phạm vi "class.scope_*" (DataScope): Toàn hệ thống → mọi lớp; Chi nhánh → lớp của mình + lớp thuộc chi
+        // nhánh mình (Quản lý cơ sở); Của tôi → lớp mình dạy / trợ giảng / GVNN / dạy thay theo buổi.
+        $level = DataScope::level($user, 'class');
 
-        if ($managesClasses && $managedBranchIds === null) {
+        if ($level === DataScope::ALL) {
             return $query;
         }
+        $managedBranchIds = $level === DataScope::BRANCH ? $user->branchIds() : [];
 
         // Phạm vi được cấp riêng qua "Phân quyền cá nhân" (class.view/update/delete theo chi nhánh/lớp).
         $grantedBranchIds = [];
@@ -76,7 +78,7 @@ class ClassModel extends Model
             $grantedClassIds = array_merge($grantedClassIds, $user->scopedOverrideIds('class', $action, UserPermissionOverride::SCOPE_CLASS));
         }
 
-        return $query->where(function (Builder $query) use ($user, $managesClasses, $managedBranchIds, $grantedBranchIds, $grantedClassIds) {
+        return $query->where(function (Builder $query) use ($user, $managedBranchIds, $grantedBranchIds, $grantedClassIds) {
             $query->where('teacher_id', $user->id)
                 ->orWhere('assistant_id', $user->id)
                 ->orWhere('foreign_teacher_id', $user->id)
@@ -84,7 +86,7 @@ class ClassModel extends Model
                     $sessions->forStaff($user->id);
                 });
 
-            if ($managesClasses && ! empty($managedBranchIds)) {
+            if (! empty($managedBranchIds)) {
                 $query->orWhereIn('branch_id', $managedBranchIds);
             }
             if (! empty($grantedBranchIds)) {
@@ -239,12 +241,12 @@ class ClassModel extends Model
     }
 
     /**
-     * Nhân sự quản lý lớp theo vai trò (hoặc override "Toàn hệ thống"). Override
-     * theo chi nhánh/lớp KHÔNG tính ở đây (chỉ mở rộng trong phạm vi được cấp).
+     * Người quản lý lớp (phạm vi dữ liệu Lớp học từ "Chi nhánh" trở lên — mặc định Admin, Quản lý cơ sở, Học vụ,
+     * Học thuật): xem màn quản lý lớp / dashboard lớp theo phạm vi, không chỉ lớp mình dạy.
      */
     public static function userManagesAll(User $user): bool
     {
-        return $user->hasModuleAction('class', 'create') || $user->hasModuleAction('class', 'update');
+        return DataScope::level($user, 'class') !== DataScope::OWN;
     }
 
     /**
@@ -254,10 +256,6 @@ class ClassModel extends Model
      */
     public function userCan(User $user, string $action): bool
     {
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
         if (! static::query()->visibleTo($user)->whereKey($this->getKey())->exists()) {
             return false;
         }

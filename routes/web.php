@@ -129,7 +129,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/customers/create', [CrmController::class, 'createCustomer'])->middleware('can:lead.create')->name('customers.create');
         Route::get('/customers/{id}', [CrmController::class, 'showCustomer'])->name('customers.show');
         Route::put('/customers/{id}', [CrmController::class, 'updateCustomer'])->middleware('can:lead.update')->name('customers.update');
-        // Quyền chuyển giai đoạn theo vai trò (CM tiến 1 bước, Admin lùi bước) do CrmStageService kiểm tra.
+        // Chuyển giai đoạn: lead.stage_forward (CM tiến 1 bước) / lead.stage_back (lùi bước) — CrmStageService kiểm tra theo hướng.
         Route::post('/customers/{id}/stage', [CrmController::class, 'updateStage'])->name('customers.stage');
         Route::post('/customers/{id}/next-stage', [CrmController::class, 'nextStage'])->name('customers.next-stage');
         Route::delete('/customers/{id}', [CrmController::class, 'destroyCustomer'])->middleware('can:lead.delete')->name('customers.destroy');
@@ -294,10 +294,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/feedback/submit', [StudentPortalController::class, 'submitFeedback'])->name('student.feedback.store');
         Route::delete('/feedback/{id}/destroy', [StudentPortalController::class, 'deleteFeedback'])->name('student.feedback.destroy');
 
-        // Cổng Giáo viên chấm bài nộp của lớp
-        Route::get('/teacher-submissions/{classId?}', [StudentPortalController::class, 'teacherSubmissions'])->name('teacher.submissions');
-        Route::get('/teacher/submissions/{classId?}', [StudentPortalController::class, 'teacherSubmissions'])->name('teacher.submissions.alias');
-        Route::post('/teacher-submissions/{id}/mark', [StudentPortalController::class, 'markSubmission'])->name('teacher.submissions.mark');
+        // Cổng Giáo viên chấm bài nộp của lớp (homework.grade; lớp kiểm tra trong controller)
+        Route::get('/teacher-submissions/{classId?}', [StudentPortalController::class, 'teacherSubmissions'])->middleware('can:homework.grade')->name('teacher.submissions');
+        Route::get('/teacher/submissions/{classId?}', [StudentPortalController::class, 'teacherSubmissions'])->middleware('can:homework.grade')->name('teacher.submissions.alias');
+        Route::post('/teacher-submissions/{id}/mark', [StudentPortalController::class, 'markSubmission'])->middleware('can:homework.grade')->name('teacher.submissions.mark');
     });
 
     // ─────────────────────────────────────────────
@@ -511,6 +511,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/', 'store')->middleware('can:role.create')->name('store');
         Route::get('/{role}/edit', 'edit')->middleware('can:role.update')->name('edit');
         Route::put('/{role}', 'update')->middleware('can:role.update')->name('update');
+        Route::post('/{role}/duplicate', 'duplicate')->middleware('can:role.create')->name('duplicate');
         Route::delete('/{role}', 'destroy')->middleware('can:role.delete')->name('destroy');
     });
 
@@ -565,8 +566,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('holidays', HolidayController::class)->except('show')->middleware('can:holiday.manage');
     Route::get('/activity-logs', [ActivityLogController::class, 'index'])->middleware('can:activity_log.view')->name('activity-logs.index');
     Route::get('/activity-logs/export', [ActivityLogController::class, 'export'])->middleware('can:activity_log.view')->name('activity-logs.export');
-    // Hoàn tác chỉ dành cho Admin (kiểm tra trong controller).
-    Route::post('/activity-logs/{id}/undo', [ActivityLogController::class, 'undo'])->middleware('can:activity_log.view')->name('activity-logs.undo');
+    // Hoàn tác: quyền activity_log.undo (mặc định chỉ Admin), bản ghi trong phạm vi nhật ký được xem.
+    Route::post('/activity-logs/{id}/undo', [ActivityLogController::class, 'undo'])->middleware(['can:activity_log.view', 'can:activity_log.undo'])->name('activity-logs.undo');
 
     // ─────────────────────────────────────────────
     // 11. Trung Tâm Thông Báo & Cảnh Báo Lead Sót (Notifications)
@@ -640,14 +641,14 @@ Route::middleware('auth')->group(function () {
     // ──────────────────────────────────────
     // Báo cáo & Nhật ký (Học vụ ngày / Học thuật tuần / GV tháng / Admin tổng)
     // ──────────────────────────────────────
-    Route::controller(StaffReportController::class)->prefix('reports')->name('reports.')->group(function () {
+    Route::controller(StaffReportController::class)->prefix('reports')->name('reports.')->middleware('can:staff_report.submit')->group(function () {
         Route::get('/journal', 'journal')->name('journal');
         Route::post('/journal', 'journalStore')->name('journal.store');
         Route::post('/journal/{id}/followup', 'journalFollowup')->name('journal.followup');
         Route::post('/journal/{id}/status', 'journalStatus')->name('journal.status');
         Route::get('/my', 'myReports')->name('my');
         Route::post('/my', 'reportStore')->name('my.store');
-        Route::get('/all', 'allReports')->name('all');
+        Route::get('/all', 'allReports')->middleware('can:staff_report.view_all')->name('all');
     });
 
     // ──────────────────────────────────────

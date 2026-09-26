@@ -128,7 +128,7 @@ class StudentDeferralService
             $recipients = User::role('manager')->with('branches:id')->where($active)->get()->filter($inBranch);
         }
         if ($recipients->isEmpty()) {
-            $recipients = User::role('admin')->where($active)->get();
+            $recipients = User::role(\App\Support\Rbac::SUPER_ADMIN)->where($active)->get();
         }
 
         $recipients = $recipients->reject(fn (User $user) => $actor && $user->id === $actor->id);

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\AuditsChanges;
+use App\Support\DataScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -43,9 +44,6 @@ class Student extends Model
 
     /** Trạng thái xếp lớp khi học viên thôi học (không tính sĩ số, giữ lịch sử). */
     public const ENROLLMENT_DROPPED = 'dropped';
-
-    /** Vai trò chỉ thấy học viên của chi nhánh mình (BA chốt Q7). Admin thấy tất cả. */
-    public const BRANCH_SCOPED_ROLES = ['manager', 'academic_staff', 'academic_lead', 'accountant'];
 
     protected $fillable = [
         'code',
@@ -99,42 +97,25 @@ class Student extends Model
     }
 
     /**
-     * Học viên người dùng được xem (BA chốt Q7):
-     * - Admin: toàn bộ.
-     * - Quản lý cơ sở / Học vụ (và vai trò văn phòng khác trong BRANCH_SCOPED_ROLES): học viên
-     *   thuộc chi nhánh của mình (users.branch_id + user_branches); học viên chưa gán chi nhánh
-     *   thì xét theo chi nhánh của lớp đang học.
-     * - Giáo viên / trợ giảng / vai trò khác: chỉ học viên thuộc các lớp mình phụ trách.
+     * Học viên người dùng được xem — phạm vi "student.scope_*" (DataScope; mặc định theo BA Q7):
+     * - Toàn hệ thống (Admin): mọi học viên.
+     * - Chi nhánh (Quản lý cơ sở / Học vụ / Học thuật / Kế toán): học viên thuộc chi nhánh của mình
+     *   (users.branch_id + user_branches); học viên chưa gán chi nhánh thì xét theo chi nhánh của lớp đang học.
+     * - Của tôi (Giáo viên / trợ giảng…): học viên thuộc các lớp mình được xem (ClassModel::visibleTo).
      */
     public function scopeVisibleTo(Builder $query, ?User $user): Builder
     {
-        if (! $user) {
-            return $query->whereRaw('1 = 0');
-        }
+        return DataScope::apply(
+            $query, $user, 'student',
+            function (Builder $q) use ($user) {
+                $classIds = ClassModel::query()->visibleTo($user)->pluck('id')->all();
 
-        if ($user->hasRole('admin')) {
-            return $query;
-        }
-
-        if ($user->hasAnyRole(self::BRANCH_SCOPED_ROLES)) {
-            $branchIds = self::branchIdsFor($user);
-            if ($branchIds === []) {
-                return $query->whereRaw('1 = 0');
-            }
-
-            return $query->where(function (Builder $q) use ($branchIds) {
-                $q->whereIn('branch_id', $branchIds)
-                    ->orWhere(fn (Builder $q) => $q->whereNull('branch_id')
-                        ->whereHas('currentClass', fn (Builder $c) => $c->whereIn('branch_id', $branchIds)));
-            });
-        }
-
-        $classIds = ClassModel::query()->visibleTo($user)->pluck('id')->all();
-        if ($classIds === []) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        return $query->inClasses($classIds);
+                return $classIds === [] ? $q->whereRaw('1 = 0') : $q->inClasses($classIds);
+            },
+            fn (Builder $q, array $branchIds) => $q->whereIn('branch_id', $branchIds)
+                ->orWhere(fn (Builder $q) => $q->whereNull('branch_id')
+                    ->whereHas('currentClass', fn (Builder $c) => $c->whereIn('branch_id', $branchIds))),
+        );
     }
 
     /**
@@ -160,13 +141,7 @@ class Student extends Model
      */
     public static function branchIdsFor(User $user): array
     {
-        return $user->branches()->pluck('branches.id')
-            ->push($user->branch_id)
-            ->filter()
-            ->map(fn ($id) => (int) $id)
-            ->unique()
-            ->values()
-            ->all();
+        return $user->branchIds();
     }
 
     /**

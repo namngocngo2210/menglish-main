@@ -5,48 +5,32 @@ namespace App\Http\Controllers;
 use App\Models\StaffReport;
 use App\Models\StaffReportFollowup;
 use App\Models\User;
+use App\Support\StaffType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * Báo cáo & Nhật ký theo vai trò:
- *  - Học vụ (academic_staff): Nhật ký sự vụ + Báo cáo NGÀY
- *  - Học thuật (academic_lead): Báo cáo TUẦN
- *  - Giáo viên (teacher*): Báo cáo THÁNG (tổng kết)
- *  - Admin / Manager: xem tổng tất cả nhật ký & báo cáo của mọi người
+ * Báo cáo & Nhật ký (quyền staff_report.*):
+ *  - staff_report.submit: ghi nhật ký sự vụ, nộp báo cáo định kỳ của mình. Kỳ báo cáo theo chức danh (StaffType):
+ *    Học vụ NGÀY, Học thuật TUẦN, giáo viên / trợ giảng THÁNG.
+ *  - staff_report.view_all: xem tổng tất cả nhật ký & báo cáo của mọi người (mặc định Admin / Quản lý cơ sở).
  */
 class StaffReportController extends Controller
 {
-    private const REPORT_ROLES = [
-        'academic_staff', 'academic_lead', 'teacher', 'teacher_fulltime',
-        'teacher_parttime', 'assistant', 'manager', 'admin',
-    ];
-
     private function guard(): void
     {
-        $u = Auth::user();
-        abort_unless($u && $u->hasAnyRole(self::REPORT_ROLES), 403);
+        abort_unless(Auth::user()?->can('staff_report.submit'), 403);
     }
 
     private function isPrivileged(): bool
     {
-        $u = Auth::user();
-        return $u && ($u->hasRole('admin') || $u->hasRole('manager'));
+        return (bool) Auth::user()?->can('staff_report.view_all');
     }
 
-    /** Loại báo cáo định kỳ chính theo vai trò. */
+    /** Loại báo cáo định kỳ chính theo chức danh. */
     private function primaryType(User $u): string
     {
-        if ($u->hasRole('academic_staff')) {
-            return 'daily';
-        }
-        if ($u->hasRole('academic_lead')) {
-            return 'weekly';
-        }
-        if ($u->hasAnyRole(['teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant'])) {
-            return 'monthly';
-        }
-        return 'daily';
+        return StaffType::reportCadence($u);
     }
 
     // ───────────────────────── NHẬT KÝ ─────────────────────────

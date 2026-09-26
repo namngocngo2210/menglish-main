@@ -1,73 +1,54 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center gap-3">
-            <a href="{{ route('roles.index') }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
-                <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-            </a>
+{{-- Màn Vai trò (RBAC linh hoạt — docs/rbac.md): tên / mã / mô tả + ma trận quyền theo module
+     (Xem / Thêm / Sửa / Xóa / Duyệt + thao tác khác + phạm vi dữ liệu). --}}
+@php
+    $roleName = $role->exists ? \App\Helpers\AclHelper::shortRoleLabel($role->name) : null;
+    $readonly = $isSuperAdmin || ! $canAssignPermissions;
+    $selectedNames = old('permissions', $selected);
+@endphp
+<x-app-layout :title="$role->exists ? 'Cấu hình vai trò' : 'Tạo vai trò'">
+    <x-ui.page-header :title="$role->exists ? 'Cấu hình vai trò — '.$roleName : 'Tạo vai trò mới'"
+                      description="Bật / tắt từng quyền theo module và chọn phạm vi dữ liệu. Thay đổi có hiệu lực ngay, được ghi vào Nhật ký vận hành.">
+        <x-slot:breadcrumbs>
+            <a href="{{ route('roles.index') }}" class="inline-flex items-center gap-xs hover:text-primary"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">admin_panel_settings</span>Vai trò</a>
+            <span class="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
+            <span>{{ $role->exists ? $roleName : 'Tạo mới' }}</span>
+        </x-slot:breadcrumbs>
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="arrow_back" :href="route('roles.index')">Quay lại</x-ui.button>
+            <x-ui.button type="submit" form="roleForm" icon="save">Lưu vai trò</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    @if ($errors->any())
+        <x-ui.alert type="error" class="mb-md">{{ $errors->first() }}</x-ui.alert>
+    @endif
+    @if ($isSuperAdmin)
+        <x-ui.alert type="info" title="Vai trò Super Admin bất biến" class="mb-md" data-testid="super-admin-immutable">
+            Super Admin luôn có toàn quyền thao tác và phạm vi "Toàn hệ thống" (không thu hồi được quyền, không xóa được vai trò).
+            Chỉ đổi được tên hiển thị và mô tả. Quyền "đối tượng" (cổng học viên / giáo viên…) không áp dụng cho Super Admin.
+        </x-ui.alert>
+    @elseif (! $canAssignPermissions)
+        <x-ui.alert type="warning" class="mb-md">Bạn chỉ xem được ma trận quyền (cần quyền "Phân quyền cho vai trò" để thay đổi).</x-ui.alert>
+    @endif
+
+    <form id="roleForm" method="POST" action="{{ $role->exists ? route('roles.update', $role) : route('roles.store') }}" class="space-y-md">
+        @csrf
+        @if ($role->exists) @method('PUT') @endif
+
+        <div class="grid grid-cols-1 gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md md:grid-cols-3">
+            <x-ui.input name="label" label="Tên hiển thị" :value="$role->label ?? ($role->exists ? \App\Helpers\AclHelper::shortRoleLabel($role->name) : '')" placeholder="Ví dụ: Thu ngân chi nhánh" />
             <div>
-                <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">admin_panel_settings</span>
-                    {{ $role->exists ? 'Chỉnh Sửa Vai Trò & Phân Quyền' : 'Tạo Vai Trò & Thiết Lập Quyền Hạn' }}
-                </h1>
-                <p class="text-xs text-gray-500">Cấu hình danh sách quyền hạn chi tiết cho vai trò</p>
+                <x-ui.input name="name" label="Mã vai trò" :value="$role->name" required placeholder="vd. cashier_branch" hint="Chữ thường, số, gạch dưới. Vai trò hệ thống không đổi mã."
+                            :readonly="$isSystemRole" />
             </div>
+            <x-ui.input name="description" label="Mô tả" :value="$role->description" placeholder="Vai trò này dùng cho ai, làm gì" />
         </div>
-    </x-slot>
 
-    <div class="max-w-5xl mx-auto space-y-6">
-        <form method="POST" action="{{ $role->exists ? route('roles.update', $role) : route('roles.store') }}" class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6">
-            @csrf
-            @if ($role->exists) @method('PUT') @endif
+        @include('roles.partials.matrix', ['groups' => $groups, 'selected' => $selectedNames, 'readonly' => $readonly, 'superAdmin' => $isSuperAdmin])
 
-            <div class="max-w-md">
-                <label for="name" class="block text-xs font-bold text-gray-700 mb-1">Tên định danh vai trò (Role Name) <span class="text-rose-500">*</span></label>
-                <input id="name" name="name" type="text" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold text-primary" value="{{ old('name', $role->name) }}" required placeholder="Ví dụ: manager, sales_lead, academic_officer" />
-                @if ($role->exists)
-                    <div class="text-[11px] text-gray-400 mt-1">Tên Tiếng Việt: <strong>{{ \App\Helpers\AclHelper::roleLabel($role->name) }}</strong></div>
-                @endif
-                <x-input-error :messages="$errors->get('name')" class="mt-1" />
-            </div>
-
-            <div>
-                <div class="flex items-center justify-between mb-4 pb-2 border-b border-gray-100">
-                    <label class="font-bold text-sm text-gray-900">Danh mục quyền hạn hệ thống</label>
-                    <span class="text-xs text-gray-400">Chọn các quyền cho phép vai trò này thao tác</span>
-                </div>
-
-                @foreach (\App\Helpers\AclHelper::groupModules($permissionsByModule) as $groupLabel => $groupModules)
-                <div class="font-bold text-xs uppercase text-gray-500 mb-2 mt-4" data-permission-group="{{ $groupLabel }}">{{ $groupLabel }}</div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    @foreach ($groupModules as $module => $permissions)
-                        <div class="border border-gray-200 rounded-2xl p-4 bg-gray-50/50 hover:bg-white hover:border-primary-container transition space-y-3">
-                            <div class="font-bold text-xs text-gray-900 border-b border-gray-100 pb-2 flex items-center justify-between">
-                                <span>{{ \App\Helpers\AclHelper::moduleLabel($module) }}</span>
-                                <span class="font-mono text-[10px] text-gray-400 font-normal">({{ $module }})</span>
-                            </div>
-                            <div class="space-y-2">
-                                @foreach ($permissions as $permission)
-                                    <label class="flex items-start gap-2.5 text-xs text-gray-700 hover:text-gray-900 cursor-pointer p-1 rounded-lg hover:bg-gray-100 transition">
-                                        <input type="checkbox" name="permissions[]" value="{{ $permission->name }}"
-                                            @checked(in_array($permission->name, old('permissions', $selected)))
-                                            class="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary-container">
-                                        <div>
-                                            <div class="font-semibold text-gray-900">{{ \App\Helpers\AclHelper::actionLabel($permission->name) }}</div>
-                                            <div class="font-mono text-[10px] text-gray-400">{{ $permission->name }}</div>
-                                        </div>
-                                    </label>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-                @endforeach
-            </div>
-
-            <div class="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
-                <a href="{{ route('roles.index') }}" class="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-50 transition">Hủy</a>
-                <button type="submit" class="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition">
-                    Lưu cấu hình Vai trò
-                </button>
-            </div>
-        </form>
-    </div>
+        <div class="flex items-center justify-end gap-sm">
+            <x-ui.button variant="secondary" :href="route('roles.index')">Hủy</x-ui.button>
+            <x-ui.button type="submit" icon="save">Lưu vai trò</x-ui.button>
+        </div>
+    </form>
 </x-app-layout>

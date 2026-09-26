@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\DataScope;
 use App\Models\AcademicRecord;
 use App\Models\BigTestResult;
 use App\Models\ClassModel;
@@ -27,8 +28,6 @@ class StudentPortalController extends Controller
         ...SafeUploadService::IMAGES, ...SafeUploadService::DOCUMENTS, ...SafeUploadService::VIDEO, ...SafeUploadService::AUDIO,
     ];
 
-    private const TEACHER_ROLES = ['teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant'];
-
     /** Số hạng mục bài tập cố định trên màn "Học tập của tôi" (video, từ vựng, workbook...). */
     private const HOMEWORK_CATEGORY_COUNT = 6;
 
@@ -39,7 +38,7 @@ class StudentPortalController extends Controller
     {
         $user = Auth::user();
 
-        return (bool) ($user && ! $user->hasRole('student') && $user->can('student.view'));
+        return (bool) ($user && $user->can('student.view'));
     }
 
     protected function authorizeStudent(Student $student): void
@@ -64,10 +63,12 @@ class StudentPortalController extends Controller
     protected function teacherClassesQuery()
     {
         $user = Auth::user();
-        abort_unless($user && ($user->hasRole('admin') || $user->hasAnyRole(self::TEACHER_ROLES)), 403);
+        // Chấm bài nộp: quyền homework.grade (mặc định giáo viên, trợ giảng; Admin). Lớp: lớp mình dạy / trợ giảng / GVNN;
+        // phạm vi Lớp học "Toàn hệ thống" (Admin) → mọi lớp.
+        abort_unless($user && $user->can('homework.grade'), 403);
 
         return ClassModel::query()
-            ->when(! $user->hasRole('admin'), function ($query) use ($user) {
+            ->when(! DataScope::isAll($user, 'class'), function ($query) use ($user) {
                 $query->where(function ($classes) use ($user) {
                     $classes->where('teacher_id', $user->id)
                         ->orWhere('assistant_id', $user->id)

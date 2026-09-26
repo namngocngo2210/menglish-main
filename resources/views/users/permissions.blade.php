@@ -1,12 +1,10 @@
-{{-- Phân quyền cá nhân (mockup epic-5/phan-quyen-chi-tiet-ca-nhan): ma trận Xem / Thêm / Sửa / Xóa (checkbox) + phạm vi áp dụng. --}}
+{{-- Phân quyền cá nhân (mockup epic-5/phan-quyen-chi-tiet-ca-nhan; RBAC — docs/rbac.md): cùng ma trận với màn Vai trò.
+     Mỗi quyền: theo vai trò / cấp thêm / thu hồi (checkbox); mỗi module: phạm vi dữ liệu theo vai trò hoặc riêng người này;
+     Lớp học còn "Phạm vi áp dụng" theo chi nhánh / lớp cụ thể. --}}
 @php
-    $moduleIcons = [
-        'lead' => 'leaderboard', 'entrance_test' => 'quiz', 'placement_test' => 'quiz', 'tuition' => 'payments', 'invoice' => 'receipt_long',
-        'refund_transfer' => 'currency_exchange', 'finance' => 'account_balance', 'syllabus' => 'menu_book', 'big_test' => 'fact_check',
-        'class' => 'groups', 'student' => 'school', 'attendance_student' => 'how_to_reg', 'attendance_staff' => 'badge', 'user' => 'badge',
-        'role' => 'admin_panel_settings', 'permission' => 'security', 'system_category' => 'settings', 'activity_log' => 'history',
-        'payroll' => 'request_quote', 'work_task' => 'task', 'support_ticket' => 'support_agent', 'report' => 'bar_chart',
-    ];
+    use App\Support\PermissionCatalog;
+    $columns = PermissionCatalog::matrixColumns();
+    $levelLabels = PermissionCatalog::scopeLevelLabels();
 @endphp
 <x-app-layout title="Phân quyền cá nhân">
     <x-ui.page-header :title="'Cấu hình quyền chi tiết — '.$user->name">
@@ -24,8 +22,11 @@
     </x-ui.page-header>
 
     <x-ui.alert type="info" title="Ghi chú bảo mật quan trọng" class="mb-md">
-        Mọi thay đổi về phân quyền sẽ được hệ thống tự động ghi lại vào Nhật ký vận hành bao gồm: Người thực hiện, Thời gian, và Nội dung thay đổi chi tiết. Vui lòng kiểm tra kỹ trước khi lưu.
+        Mọi thay đổi về phân quyền sẽ được hệ thống tự động ghi lại vào Nhật ký vận hành bao gồm: Người thực hiện, Thời gian, và Nội dung thay đổi chi tiết (trước / sau). Phân quyền cá nhân thắng quyền theo vai trò: "Thu hồi" chặn quyền vai trò đang cấp, "Cấp thêm" mở quyền vai trò không có.
     </x-ui.alert>
+    @if ($user->isSuperAdmin())
+        <x-ui.alert type="warning" class="mb-md">Tài khoản Super Admin luôn có toàn quyền thao tác (phân quyền cá nhân không thu hẹp được) — chỉ các quyền "đối tượng" có tác dụng.</x-ui.alert>
+    @endif
     @if ($errors->any())
         <x-ui.alert type="error" class="mb-md">{{ $errors->first() }}</x-ui.alert>
     @endif
@@ -49,7 +50,7 @@
     <form id="permissionOverrideForm" method="POST" action="{{ route('users.permissions.update', $user) }}">
         @csrf
         @method('PUT')
-        <x-ui.data-table min-width="860px">
+        <x-ui.data-table min-width="1100px">
             <x-slot:header>
                 <div class="flex w-full flex-wrap items-center justify-between gap-sm">
                     <h2 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
@@ -66,40 +67,43 @@
                 <thead>
                     <tr>
                         <th>Danh mục Module</th>
-                        @foreach (\App\Models\UserPermissionOverride::MATRIX_ACTIONS as $actionKey => $actionLabel)
+                        @foreach ($columns as $actionKey => $actionLabel)
                             <th class="cursor-pointer select-none text-center" title="Nhấn đúp để áp dụng nhanh cho toàn bộ cột"
                                 x-data="{ v: true }" x-on:dblclick="$dispatch('perm-col', { action: @js($actionKey), value: v }); v = !v">{{ $actionLabel }}</th>
                         @endforeach
+                        <th class="min-w-[180px]">Phạm vi dữ liệu</th>
                         <th>Phạm vi áp dụng</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (\App\Helpers\AclHelper::groupModules($permissionsByModule) as $groupLabel => $groupModules)
+                    @foreach ($groups as $groupLabel => $modules)
                     <tr class="bg-surface-container-low" data-permission-group="{{ $groupLabel }}">
-                        <td colspan="{{ 2 + count(\App\Models\UserPermissionOverride::MATRIX_ACTIONS) }}" class="font-label text-label uppercase text-on-surface-variant">{{ $groupLabel }}</td>
+                        <td colspan="{{ 3 + count($columns) }}" class="font-label text-label uppercase text-on-surface-variant">{{ $groupLabel }}</td>
                     </tr>
-                    @foreach ($groupModules as $module => $permissions)
+                    @foreach ($modules as $module => $buckets)
                         @php
-                            $moduleActions = $permissions->map(fn ($p) => explode('.', $p->name, 2)[1] ?? $p->name);
-                            $extraActions = $moduleActions->reject(fn ($a) => array_key_exists($a, \App\Models\UserPermissionOverride::MATRIX_ACTIONS))->values();
+                            $byKey = collect($buckets['actions'])->keyBy(fn ($p) => PermissionCatalog::keyOf($p));
+                            $extra = collect($buckets['actions'])->reject(fn ($p) => array_key_exists(PermissionCatalog::keyOf($p), $columns))
+                                ->merge($buckets['dynamic'])->merge($buckets['audience'])->values();
                             $scope = $scopes->get($module, ['type' => 'all', 'ids' => []]);
                             $scopeType = old("scope.{$module}.type", $scope['type']);
                             $scopeIds = collect(old("scope.{$module}.ids", $scope['ids']))->map(fn ($id) => (int) $id)->all();
                             $supportsScope = \App\Models\UserPermissionOverride::supportsScope($module);
                             $hasAccess = in_array($module, $modulesWithAccess, true);
+                            $dataScope = $dataScopes->get($module);
                         @endphp
-                        <tr class="align-top" x-data="{ scopeType: @js($scopeType) }">
+                        <tr class="align-top" x-data="{ scopeType: @js($scopeType) }" data-module="{{ $module }}">
                             <td>
                                 <div class="flex items-start gap-sm">
-                                    <span class="material-symbols-outlined text-[20px] text-primary-container" aria-hidden="true">{{ $moduleIcons[$module] ?? 'apps' }}</span>
+                                    <span class="material-symbols-outlined text-[20px] text-primary-container" aria-hidden="true">{{ config("permission_catalog.modules.{$module}.icon", 'apps') }}</span>
                                     <div>
-                                        <div class="font-semibold text-on-surface">{{ \App\Helpers\AclHelper::moduleLabel($module) }}</div>
-                                        @if ($extraActions->isNotEmpty())
+                                        <div class="font-semibold text-on-surface">{{ PermissionCatalog::moduleLabel($module) }}</div>
+                                        @if ($extra->isNotEmpty())
                                             <details class="mt-xs" @if ($groupLabel === 'Kế toán / Học phí') open @endif>
-                                                <summary class="cursor-pointer font-caption text-caption font-semibold text-secondary">Quyền khác ({{ $extraActions->count() }})</summary>
+                                                <summary class="cursor-pointer font-caption text-caption font-semibold text-secondary">Thao tác khác ({{ $extra->count() }})</summary>
                                                 <div class="mt-xs space-y-xs">
-                                                    @foreach ($extraActions as $action)
-                                                        @include('users.partials.permission-cell', ['module' => $module, 'action' => $action, 'label' => \App\Helpers\AclHelper::actionLabel("{$module}.{$action}"), 'inline' => true])
+                                                    @foreach ($extra as $permission)
+                                                        @include('users.partials.permission-cell', ['module' => $module, 'action' => PermissionCatalog::keyOf($permission), 'label' => PermissionCatalog::label($permission), 'inline' => true])
                                                     @endforeach
                                                 </div>
                                             </details>
@@ -107,15 +111,30 @@
                                     </div>
                                 </div>
                             </td>
-                            @foreach (array_keys(\App\Models\UserPermissionOverride::MATRIX_ACTIONS) as $action)
+                            @foreach (array_keys($columns) as $action)
                                 <td class="text-center">
-                                    @if ($moduleActions->contains($action))
+                                    @if ($byKey->has($action))
                                         @include('users.partials.permission-cell', ['module' => $module, 'action' => $action, 'label' => null, 'inline' => false])
                                     @else
                                         <span class="text-outline" title="Module không có quyền này">—</span>
                                     @endif
                                 </td>
                             @endforeach
+                            <td>
+                                @if ($dataScope)
+                                    @php $chosen = old("data_scope.{$module}", $dataScope['personal']); @endphp
+                                    <select name="data_scope[{{ $module }}]" aria-label="Phạm vi dữ liệu {{ PermissionCatalog::moduleLabel($module) }}"
+                                            class="w-full rounded-lg border border-outline-variant py-xs pl-sm pr-lg font-body-small text-body-small">
+                                        <option value="inherit" @selected($chosen === 'inherit')>Theo vai trò ({{ $levelLabels[$dataScope['role']] ?? $dataScope['role'] }})</option>
+                                        @foreach ($dataScope['levels'] as $level)
+                                            <option value="{{ $level }}" @selected($chosen === $level) title="{{ PermissionCatalog::scopeLevelDescription($module, $level) }}">{{ $levelLabels[$level] ?? $level }}</option>
+                                        @endforeach
+                                    </select>
+                                    <p class="mt-xs font-caption text-caption text-on-surface-variant">Hiệu lực: {{ $levelLabels[$dataScope['effective']] ?? $dataScope['effective'] }} — {{ PermissionCatalog::scopeLevelDescription($module, $dataScope['effective']) }}</p>
+                                @else
+                                    <span class="font-body-small text-body-small text-on-surface-variant">—</span>
+                                @endif
+                            </td>
                             <td class="min-w-[230px]">
                                 @if ($supportsScope)
                                     <select name="scope[{{ $module }}][type]" x-model="scopeType" aria-label="Phạm vi áp dụng"
@@ -143,9 +162,9 @@
                                             @endforeach
                                         </div>
                                     @endif
-                                    <p class="mt-xs font-caption text-caption text-on-surface-variant">Giữ Ctrl/⌘ để chọn nhiều.</p>
+                                    <p class="mt-xs font-caption text-caption text-on-surface-variant">Cấp riêng Xem / Sửa / Xóa cho chi nhánh / lớp cụ thể. Giữ Ctrl/⌘ để chọn nhiều.</p>
                                 @elseif ($hasAccess)
-                                    <span class="inline-flex items-center gap-xs font-body-small text-body-small text-on-surface-variant" title="Phân hệ này chưa hỗ trợ giới hạn theo chi nhánh/lớp">
+                                    <span class="inline-flex items-center gap-xs font-body-small text-body-small text-on-surface-variant" title="Phân hệ này không cấp riêng theo chi nhánh/lớp cụ thể — dùng Phạm vi dữ liệu">
                                         <span class="material-symbols-outlined text-[16px]" aria-hidden="true">language</span>Toàn hệ thống (Mặc định)
                                     </span>
                                 @else
@@ -161,7 +180,7 @@
                 <div class="flex flex-col gap-sm px-md py-md md:flex-row md:items-center md:justify-between">
                     <p class="flex items-center gap-xs font-body-small text-body-small text-on-surface-variant">
                         <span class="material-symbols-outlined text-[16px]" aria-hidden="true">info</span>
-                        Nhấn đúp vào tiêu đề cột để áp dụng nhanh cho toàn bộ cột. Phạm vi chi nhánh/lớp hiện áp dụng cho phân hệ Lớp học (Xem / Sửa / Xóa).
+                        Nhấn đúp vào tiêu đề cột để áp dụng nhanh cho toàn bộ cột. "Phạm vi dữ liệu" (Của tôi / Chi nhánh / Toàn hệ thống) thay mức của vai trò cho riêng người này.
                     </p>
                     <div class="flex gap-sm">
                         <x-ui.button variant="secondary" x-data x-on:click="$dispatch('perm-reset')">Đặt lại mặc định</x-ui.button>
@@ -173,7 +192,7 @@
     </form>
 
     <div class="mt-md grid grid-cols-1 gap-md sm:grid-cols-3">
-        <x-ui.stat-card label="Tổng số Module" :value="str_pad((string) count($permissionsByModule), 2, '0', STR_PAD_LEFT).' danh mục'" icon="apps" />
+        <x-ui.stat-card label="Tổng số Module" :value="str_pad((string) $moduleCount, 2, '0', STR_PAD_LEFT).' danh mục'" icon="apps" />
         <x-ui.stat-card label="Quyền truy cập" :value="$effectiveCount.' thao tác cho phép'" icon="verified_user" tone="primary" />
         <x-ui.stat-card label="Phạm vi dữ liệu" :value="str_pad((string) $scopeUnitCount, 2, '0', STR_PAD_LEFT).' đơn vị quản lý'" icon="domain" tone="secondary"
                         :hint="$scopeUnitCount === 0 ? 'Toàn hệ thống theo vai trò' : null" />

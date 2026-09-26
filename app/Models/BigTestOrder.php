@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\DataScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -76,19 +77,19 @@ class BigTestOrder extends Model
         return $this->belongsTo(BigTest::class, 'big_test_id');
     }
 
-    /** Học thuật xem mọi order; giáo viên chỉ xem order của lớp mình phụ trách hoặc do mình gửi. */
+    /**
+     * Order đề user được xem theo phạm vi "big_test.scope_*": Toàn hệ thống → mọi order; Chi nhánh → thêm order của
+     * lớp thuộc chi nhánh mình; Của tôi → order của lớp mình phụ trách hoặc do mình gửi.
+     */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
-        if ($user->hasAnyRole(BigTest::ACADEMIC_ROLES)) {
-            return $query;
-        }
-
-        return $query->where(fn (Builder $q) => $q->where('teacher_id', $user->id)
-            ->orWhereHas('classModel', fn (Builder $class) => $class->where(
-                fn (Builder $c) => $c->where('teacher_id', $user->id)
-                    ->orWhere('foreign_teacher_id', $user->id)
-                    ->orWhere('assistant_id', $user->id)
-            )));
+        return DataScope::apply(
+            $query, $user, 'big_test',
+            fn (Builder $q) => $q->where('teacher_id', $user->id)
+                ->orWhereHas('classModel', fn (Builder $class) => BigTest::assignedTo($class, $user)),
+            fn (Builder $q, array $branchIds) => $q->whereHas('classModel', fn (Builder $class) => $class->whereIn('branch_id', $branchIds)),
+            branchIncludesOwn: true,
+        );
     }
 
     public function isOverdue(): bool

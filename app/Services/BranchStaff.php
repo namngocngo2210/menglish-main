@@ -37,11 +37,11 @@ class BranchStaff
     /** Admin đang hoạt động (không phụ thuộc chi nhánh). */
     public static function admins(): Collection
     {
-        if (! Role::where('name', 'admin')->exists()) {
+        if (! Role::where('name', \App\Support\Rbac::SUPER_ADMIN)->exists()) {
             return collect();
         }
 
-        return User::role('admin')->where('is_active', true)->whereNull('locked_at')->orderBy('id')->get();
+        return User::role(\App\Support\Rbac::SUPER_ADMIN)->where('is_active', true)->whereNull('locked_at')->orderBy('id')->get();
     }
 
     /** Học vụ (academic_staff) của chi nhánh. */

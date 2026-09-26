@@ -10,46 +10,40 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Phạm vi chi nhánh cho các màn Học phí / Báo cáo thu chi (A6 Q7: Quản lý cơ sở chỉ thấy chi nhánh mình).
- *
- * BA 26/09/2026 "Phần kế toán cho Admin phân quyền linh hoạt": phạm vi KHÔNG còn suy ra từ vai trò hay từ việc
- * "kế toán không gán chi nhánh = kế toán tổng". Quy tắc duy nhất:
- * - Có quyền `tuition.all_branches` (màn Học phí) / `finance.all_branches` (báo cáo thu chi): toàn hệ thống.
- *   Admin luôn có (Gate::before). Kế toán tổng được Admin cấp qua màn Vai trò hoặc Phân quyền cá nhân
- *   (migration 2026_10_06_100000 cấp sẵn cho kế toán đang không gán chi nhánh để giữ hành vi cũ).
- * - Không có: chỉ các chi nhánh của mình (users.branch_id + user_branches); chưa gán chi nhánh thì không thấy khoản nào.
+ * Phạm vi chi nhánh cho các màn Học phí / Báo cáo thu chi — theo phạm vi dữ liệu (DataScope) của module
+ * `tuition` / `finance` (docs/rbac.md):
+ * - "tuition.scope_all" / "finance.scope_all" (Toàn hệ thống): mọi chi nhánh. Admin luôn có (Gate::before); kế toán
+ *   tổng được Admin cấp theo vai trò hoặc theo người (thay cho `*.all_branches` cũ — migration 2026_10_07_100100).
+ * - Mức "Chi nhánh" (mặc định): chỉ các chi nhánh của mình (users.branch_id + user_branches); chưa gán chi nhánh thì
+ *   không thấy khoản nào.
  *
  * Chi nhánh của khoản học phí = student_tuitions.branch_id, thiếu thì theo học viên; của học viên =
  * students.branch_id, thiếu thì theo lớp đang học (như Student::scopeVisibleTo).
  */
 class TuitionBranchScope
 {
-    /** Quyền xem & xử lý học phí mọi chi nhánh. */
-    public const ALL_BRANCHES = 'tuition.all_branches';
+    /** Module phạm vi dữ liệu màn Học phí. */
+    public const TUITION = 'tuition';
 
-    /** Quyền xem báo cáo thu chi / sổ khoản chi mọi chi nhánh. */
-    public const FINANCE_ALL_BRANCHES = 'finance.all_branches';
+    /** Module phạm vi dữ liệu báo cáo thu chi / sổ khoản chi. */
+    public const FINANCE = 'finance';
 
     /**
      * @return array<int>|null null = không giới hạn
      */
-    public static function branchIds(?User $user, string $allBranchesAbility = self::ALL_BRANCHES): ?array
+    public static function branchIds(?User $user, string $module = self::TUITION): ?array
     {
         if (! $user) {
             return null;
         }
 
-        if ($user->can($allBranchesAbility)) {
-            return null;
-        }
-
-        return Student::branchIdsFor($user);
+        return DataScope::branchIds($user, $module);
     }
 
     /** Người dùng có thấy dữ liệu học phí của chi nhánh này không (null = khoản chưa gắn chi nhánh). */
-    public static function coversBranch(?User $user, ?int $branchId, string $allBranchesAbility = self::ALL_BRANCHES): bool
+    public static function coversBranch(?User $user, ?int $branchId, string $module = self::TUITION): bool
     {
-        $ids = self::branchIds($user, $allBranchesAbility);
+        $ids = self::branchIds($user, $module);
 
         return $ids === null || ($branchId !== null && in_array($branchId, $ids, true));
     }

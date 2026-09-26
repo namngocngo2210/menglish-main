@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\DataScope;
 use App\Models\User;
 use App\Support\Audit;
 use Illuminate\Database\Eloquent\Builder;
@@ -63,11 +64,12 @@ class ActivityLogController extends Controller
         $users = User::select('id', 'name', 'email')->orderBy('name')->get();
 
         // Quick Stats
-        $totalLogsToday = Activity::whereDate('created_at', today())->count();
-        $totalLogsCount = Activity::count();
-        $activeUsersToday = Activity::whereDate('created_at', today())->distinct('causer_id')->count('causer_id');
+        $scoped = fn () => self::scoped(Activity::query(), $request->user());
+        $totalLogsToday = $scoped()->whereDate('created_at', today())->count();
+        $totalLogsCount = $scoped()->count();
+        $activeUsersToday = $scoped()->whereDate('created_at', today())->distinct('causer_id')->count('causer_id');
 
-        $canUndo = (bool) $request->user()?->hasRole('admin');
+        $canUndo = (bool) $request->user()?->can('activity_log.undo');
 
         return view('activity-logs.index', compact(
             'logs',
@@ -155,9 +157,9 @@ class ActivityLogController extends Controller
      */
     public function undo(Request $request, int $id): RedirectResponse
     {
-        abort_unless($request->user()?->hasRole('admin'), 403, 'Chỉ Admin được hoàn tác thao tác.');
+        abort_unless($request->user()?->can('activity_log.undo'), 403, 'Bạn không có quyền hoàn tác thao tác.');
 
-        $log = Activity::query()->findOrFail($id);
+        $log = self::scoped(Activity::query(), $request->user())->findOrFail($id);
         [$model, $fields, $error] = self::undoPlan($log);
 
         if ($error) {
@@ -256,9 +258,28 @@ class ActivityLogController extends Controller
         };
     }
 
+    /**
+     * Phạm vi "activity_log.scope_*": Của tôi → thao tác do mình thực hiện; Chi nhánh → thao tác của nhân sự thuộc
+     * chi nhánh mình; Toàn hệ thống → mọi thao tác.
+     */
+    public static function scoped(Builder $query, ?User $user): Builder
+    {
+        $userType = (new User)->getMorphClass();
+
+        return DataScope::apply(
+            $query, $user, 'activity_log',
+            fn (Builder $q) => $q->where('causer_type', $userType)->where('causer_id', $user->id),
+            fn (Builder $q, array $branchIds) => $q->where('causer_type', $userType)->whereIn('causer_id', User::withTrashed()
+                ->where(fn ($u) => $u->whereIn('branch_id', $branchIds)
+                    ->orWhereHas('branches', fn ($b) => $b->whereIn('branches.id', $branchIds)))
+                ->select('id')),
+            branchIncludesOwn: true,
+        );
+    }
+
     private function filteredQuery(Request $request): Builder
     {
-        $query = Activity::query()->latest()->orderByDesc('id');
+        $query = self::scoped(Activity::query(), $request->user())->latest()->orderByDesc('id');
 
         if ($request->filled('log_name')) {
             $query->where('log_name', $request->input('log_name'));

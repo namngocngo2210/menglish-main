@@ -20,7 +20,8 @@ class PenaltyController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        abort_if($user->hasRole('student'), 403);
+        // Tài khoản cổng học viên không có hồ sơ kỷ luật nhân sự.
+        abort_if($user->can('portal.student') && ! $user->can('violation.view'), 403);
         $canViewAll = $user->can('violation.view');
 
         $validated = $request->validate([
@@ -58,7 +59,7 @@ class PenaltyController extends Controller
             ->withQueryString();
 
         $users = $canViewAll
-            ? User::where('is_active', true)->whereDoesntHave('roles', fn ($q) => $q->where('name', 'student'))->orderBy('name')->get()
+            ? User::where('is_active', true)->whereNotIn('id', \App\Support\Rbac::scopeUsersWithPermission(User::query(), 'portal.student')->select('id'))->orderBy('name')->get()
             : collect();
         $classes = $canViewAll ? ClassModel::orderBy('name')->get() : collect();
 

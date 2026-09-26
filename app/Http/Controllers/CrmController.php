@@ -28,6 +28,8 @@ use App\Services\CrmStageService;
 use App\Services\NotificationService;
 use App\Services\PlacementPortalLinkService;
 use App\Services\PlacementRubricService;
+use App\Support\DataScope;
+use App\Support\Rbac;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -220,10 +222,10 @@ class CrmController extends Controller
                         ->orWhere('parent_phone', 'like', "%{$search}%"));
             });
         }
-        // Admin lọc mọi chi nhánh; Quản lý / Học vụ nhiều chi nhánh chỉ lọc trong chi nhánh của mình (ngoài phạm vi → bỏ qua).
-        if ($request->filled('branch_id') && ($request->user()->hasRole('admin')
-            || in_array($request->integer('branch_id'), CrmCustomer::branchIdsOf($request->user()), true)
-                && $request->user()->hasAnyRole(['manager', 'academic_staff', 'academic_lead']))) {
+        // Phạm vi "Toàn hệ thống" lọc mọi chi nhánh; phạm vi "Chi nhánh" chỉ lọc trong chi nhánh của mình (ngoài phạm vi → bỏ qua).
+        $leadScope = DataScope::level($request->user(), 'lead');
+        if ($request->filled('branch_id') && ($leadScope === DataScope::ALL
+            || $leadScope === DataScope::BRANCH && in_array($request->integer('branch_id'), $request->user()->branchIds(), true))) {
             $query->where('branch_id', $request->integer('branch_id'));
         }
         if ($request->filled('assigned_user_id')) {
@@ -248,13 +250,15 @@ class CrmController extends Controller
         $user = Auth::user();
         $scopedIds = $this->scopeCustomerQuery()->select('id');
 
+        $leadScope = $user ? DataScope::level($user, 'lead') : null;
+
         return [
             'filterBranches' => match (true) {
                 ! $user => collect(),
-                $user->hasRole('admin') => Branch::orderBy('name')->get(['id', 'name']),
-                // Quản lý / Học vụ phụ trách nhiều chi nhánh: chỉ lọc trong các chi nhánh của mình.
-                $user->hasAnyRole(['manager', 'academic_staff', 'academic_lead']) && count(CrmCustomer::branchIdsOf($user)) > 1
-                    => Branch::whereIn('id', CrmCustomer::branchIdsOf($user))->orderBy('name')->get(['id', 'name']),
+                $leadScope === DataScope::ALL => Branch::orderBy('name')->get(['id', 'name']),
+                // Phạm vi chi nhánh, phụ trách nhiều chi nhánh: chỉ lọc trong các chi nhánh của mình.
+                $leadScope === DataScope::BRANCH && count($user->branchIds()) > 1
+                    => Branch::whereIn('id', $user->branchIds())->orderBy('name')->get(['id', 'name']),
                 default => collect(),
             },
             'filterSales' => User::query()
@@ -323,7 +327,7 @@ class CrmController extends Controller
         if ($branches->isEmpty()) {
             $branches = Branch::all();
         }
-        $salesUsers = User::role('sales_consultant')->get();
+        $salesUsers = Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), 'lead.be_assigned')->orderBy('name')->get();
         if ($salesUsers->isEmpty()) {
             $salesUsers = User::where('is_active', true)->get();
         }
@@ -363,7 +367,7 @@ class CrmController extends Controller
         $canAssign = $request->user()->can('lead.assign');
         if ($canAssign && ! empty($validated['assigned_user_id'])) {
             $assignee = User::find($validated['assigned_user_id']);
-            if (! $assignee?->is_active || ! $assignee->hasAnyRole(['admin', 'sales_consultant', 'manager'])) {
+            if (! $assignee?->is_active || ! $assignee->can('lead.be_assigned')) {
                 throw ValidationException::withMessages(['assigned_user_id' => 'Người phụ trách phải là Sales hoặc quản lý đang hoạt động.']);
             }
         }
@@ -421,9 +425,7 @@ class CrmController extends Controller
         $latestSubmission = $customer->latestSubmission ?? $customer->submissions->first();
 
         $placementTests = PlacementTest::where('is_active', true)->get();
-        $examiners = User::where('is_active', true)
-            ->role(['admin', 'manager', 'academic_staff', 'academic_lead', 'teacher', 'teacher_fulltime', 'teacher_parttime'])
-            ->get();
+        $examiners = Rbac::scopeUsersWithPermission(User::where('is_active', true), 'entrance_test.examine')->get();
         $courses = Course::where('is_active', true)->orderBy('name')->get();
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
 
@@ -531,13 +533,14 @@ class CrmController extends Controller
         return $diff->invert ? 'Quá hạn '.$text : 'Còn '.$text;
     }
 
-    /** Sale / quản lý đang hoạt động có thể nhận phụ trách khách (ưu tiên cùng chi nhánh). */
+    /**
+     * Người đang hoạt động có quyền "Được nhận phụ trách khách" (lead.be_assigned — mặc định Sale, Quản lý cơ sở, Admin);
+     * người phân công không ở phạm vi CRM toàn hệ thống thì chỉ thấy người cùng chi nhánh của khách.
+     */
     protected function assignableUsers(?int $branchId = null): Collection
     {
-        return User::query()
-            ->where('is_active', true)
-            ->role(['sales_consultant', 'manager', 'admin'])
-            ->when($branchId && ! Auth::user()?->hasRole('admin'), fn (Builder $query) => $query->where(fn (Builder $q) => $q
+        return Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), 'lead.be_assigned')
+            ->when($branchId && ! DataScope::isAll(Auth::user(), 'lead'), fn (Builder $query) => $query->where(fn (Builder $q) => $q
                 ->where('branch_id', $branchId)
                 ->orWhereHas('branches', fn (Builder $b) => $b->where('branches.id', $branchId))))
             ->orderBy('name')
@@ -702,7 +705,7 @@ class CrmController extends Controller
 
         if (! empty($validated['examiner_id'])) {
             $examiner = User::find($validated['examiner_id']);
-            if (! $examiner?->is_active || ! $examiner->hasAnyRole(['admin', 'manager', 'academic_staff', 'academic_lead', 'teacher', 'teacher_fulltime', 'teacher_parttime'])) {
+            if (! $examiner?->is_active || ! $examiner->can('entrance_test.examine')) {
                 throw ValidationException::withMessages(['examiner_id' => 'Người chấm phải thuộc bộ phận học vụ hoặc giáo viên đang hoạt động.']);
             }
         }
@@ -851,7 +854,7 @@ class CrmController extends Controller
     {
         $customer = $this->findScopedCustomer($id);
         $branches = Branch::all();
-        $salesUsers = User::role('sales_consultant')->where('is_active', true)->get();
+        $salesUsers = Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), 'lead.be_assigned')->orderBy('name')->get();
         $leadSources = SystemCategory::where('type', 'lead_source')->orderBy('sort_order')->pluck('name');
         if ($leadSources->isEmpty()) {
             $leadSources = collect(CrmCustomer::DEFAULT_SOURCES);
@@ -927,7 +930,7 @@ class CrmController extends Controller
         $this->assertValidParentPhone($validated['parent_phone'] ?? null);
         if ($request->user()->can('lead.assign') && ! empty($validated['assigned_user_id'])) {
             $assignee = User::find($validated['assigned_user_id']);
-            if (! $assignee?->is_active || ! $assignee->hasAnyRole(['admin', 'sales_consultant', 'manager'])) {
+            if (! $assignee?->is_active || ! $assignee->can('lead.be_assigned')) {
                 throw ValidationException::withMessages(['assigned_user_id' => 'Người phụ trách phải là Sales hoặc quản lý đang hoạt động.']);
             }
         }
@@ -1157,7 +1160,7 @@ class CrmController extends Controller
         ], ['reason.required' => 'Vui lòng nhập lý do phân công lại.']);
 
         $assignee = User::findOrFail($validated['assigned_user_id']);
-        if (! $assignee->is_active || ! $assignee->hasAnyRole(['admin', 'sales_consultant', 'manager'])) {
+        if (! $assignee->is_active || ! $assignee->can('lead.be_assigned')) {
             throw ValidationException::withMessages(['assigned_user_id' => 'Người phụ trách phải là Sales hoặc quản lý đang hoạt động.']);
         }
         if ($assignee->id === $customer->assigned_user_id) {
@@ -1664,7 +1667,8 @@ class CrmController extends Controller
 
             if ($studentUser) {
                 $alreadyLinked = Student::where('user_id', $studentUser->id)->exists();
-                if ($alreadyLinked || ! $studentUser->hasRole('student')) {
+                // Chỉ tái sử dụng tài khoản học viên (cổng học viên) chưa liên kết hồ sơ; tài khoản nhân sự → báo trùng email.
+                if ($alreadyLinked || ! $studentUser->can('portal.student')) {
                     throw ValidationException::withMessages(['customer_id' => 'Email của Lead đã thuộc một tài khoản khác. Vui lòng cập nhật email riêng cho học viên.']);
                 }
                 if ($studentUser->trashed()) {
@@ -2177,10 +2181,10 @@ class CrmController extends Controller
                 break;
         }
 
-        // Admin chọn mọi chi nhánh; vai trò khác chỉ chi nhánh của mình (dữ liệu vẫn giới hạn bởi scopeVisibleTo).
+        // Phạm vi CRM toàn hệ thống chọn mọi chi nhánh; còn lại chỉ chi nhánh của mình (dữ liệu vẫn giới hạn bởi scopeVisibleTo).
         $reportUser = $request->user();
         $branches = Branch::where('is_active', true)
-            ->when(! $reportUser->hasRole('admin'), fn (Builder $q) => $q->whereIn('id', CrmCustomer::branchIdsOf($reportUser)))
+            ->when(! DataScope::isAll($reportUser, 'lead'), fn (Builder $q) => $q->whereIn('id', $reportUser->branchIds()))
             ->orderBy('name')->get();
 
         // Query Base CRM Customers (scoped by user role)
@@ -2382,16 +2386,17 @@ class CrmController extends Controller
     }
 
     /**
-     * Bảng hiệu suất theo người phụ trách: Sales chỉ thấy dòng của mình; Quản lý cơ sở / Học vụ
-     * chỉ thấy nhân sự thuộc chi nhánh mình; Admin thấy tất cả.
+     * Bảng hiệu suất theo người phụ trách, theo phạm vi CRM: Của tôi → dòng của mình; Chi nhánh → nhân sự thuộc
+     * chi nhánh mình; Toàn hệ thống → tất cả.
      */
     protected function scopeReportReps(Collection $users, User $viewer): Collection
     {
-        if ($viewer->hasRole('admin')) {
+        $level = DataScope::level($viewer, 'lead');
+        if ($level === DataScope::ALL) {
             return $users;
         }
-        if ($viewer->hasAnyRole(['manager', 'academic_staff', 'academic_lead'])) {
-            $branchIds = CrmCustomer::branchIdsOf($viewer);
+        if ($level === DataScope::BRANCH) {
+            $branchIds = $viewer->branchIds();
 
             return $users->filter(fn (User $user) => in_array((int) $user->branch_id, $branchIds, true)
                 || $user->branches()->whereIn('branches.id', $branchIds)->exists())->values();

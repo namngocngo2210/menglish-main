@@ -476,7 +476,7 @@ class Phase4FinanceParityTest extends TestCase
         // Phiếu đã duyệt 3tr ở CG (setUp); thêm 5tr ở ĐĐ.
         $other = $this->makeStudent('HV-PAR-DD', 'Học Viên ĐĐ', $this->branch2);
         $this->makeTuition($other, 5000000, paid: 5000000);
-        // Kế toán tổng = được Admin cấp finance.all_branches (BA 26/09/2026), không còn suy ra từ "không gán chi nhánh".
+        // Kế toán tổng = được Admin cấp phạm vi finance.scope_all (BA 26/09/2026), không còn suy ra từ "không gán chi nhánh".
         $unscopedAccountant = $this->makeUser('accountant', withBranch: false);
         $this->actingAs($unscopedAccountant)->get(route('finance.reports.revenue'))->assertForbidden();
         $headAccountant = $this->grantHeadOffice($this->makeUser('accountant', withBranch: false));

@@ -402,7 +402,7 @@ class Round2LeftoversTest extends TestCase
         $this->actingAs($manager)->post(route('tuition.receipts.approve.action', $ownReceipt->id))->assertSessionHasNoErrors();
         $this->assertSame('approved', $ownReceipt->fresh()->status);
 
-        // Kế toán tổng (Admin cấp tuition.all_branches — BA 26/09/2026) thấy tất cả; kế toán chi nhánh chỉ chi nhánh mình;
+        // Kế toán tổng (Admin cấp phạm vi tuition.scope_all — BA 26/09/2026) thấy tất cả; kế toán chi nhánh chỉ chi nhánh mình;
         // kế toán không gán chi nhánh mà chưa được cấp quyền không thấy khoản nào.
         $headAccountant = $this->grantHeadOffice($this->makeUser('accountant', null, false));
         $this->actingAs($this->makeUser('accountant', null, false))->get(route('tuition.students'))->assertOk()

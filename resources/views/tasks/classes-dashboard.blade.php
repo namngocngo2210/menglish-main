@@ -9,7 +9,7 @@
         </x-slot:actions>
     </x-ui.page-header>
 
-    @if (! auth()->user()->branch_id && ! auth()->user()->hasRole('admin'))
+    @if (! auth()->user()->branch_id && \App\Support\DataScope::dependsOnBranch(auth()->user()))
         <x-ui.alert type="warning" class="mb-lg" data-testid="no-branch-alert">Tài khoản chưa gán chi nhánh, liên hệ Quản trị viên.</x-ui.alert>
     @endif
 
