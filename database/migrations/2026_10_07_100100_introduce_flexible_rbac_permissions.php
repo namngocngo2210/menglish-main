@@ -148,11 +148,15 @@ return new class extends Migration
 
             if ($installed) {
                 $newPermission = Permission::findOrCreate($new, 'web');
+                // Trước đây tuition.all_branches (theo vai trò hay trực tiếp) cũng quyết định lớp được chấm công tay.
+                $grants = $old === 'tuition.all_branches'
+                    ? [$newPermission, Permission::findOrCreate('attendance_staff.scope_all', 'web')]
+                    : [$newPermission];
                 foreach ($oldPermission->roles()->get() as $role) {
-                    $role->givePermissionTo($newPermission);
+                    $role->givePermissionTo($grants);
                 }
                 foreach ($oldPermission->users()->get() as $user) {
-                    $user->givePermissionTo($newPermission);
+                    $user->givePermissionTo($grants);
                 }
             }
 

@@ -400,6 +400,39 @@ class RbacFlexibleTest extends TestCase
             ->reject(fn ($p) => PermissionCatalog::isAudience($p))->values()->all());
     }
 
+    public function test_upgrade_migration_moves_all_branches_grants_from_roles_direct_and_overrides(): void
+    {
+        // Dữ liệu trước RBAC: quyền cũ *.all_branches gán theo vai trò tự tạo, trực tiếp và phân quyền cá nhân.
+        Permission::findOrCreate('tuition.all_branches', 'web');
+        Permission::findOrCreate('finance.all_branches', 'web');
+        $headOffice = Role::create(['name' => 'head_office', 'guard_name' => 'web']);
+        $headOffice->givePermissionTo('tuition.all_branches');
+        $byRole = $this->makeUser('head_office');
+        $direct = $this->makeUser('accountant');
+        $direct->givePermissionTo('finance.all_branches');
+        $personal = $this->makeUser('accountant');
+        \App\Models\UserPermissionOverride::create(['user_id' => $personal->id, 'module' => 'tuition', 'action' => 'all_branches',
+            'allow' => true, 'scope_type' => \App\Models\UserPermissionOverride::SCOPE_ALL, 'scope_id' => null]);
+        $branchAccountant = $this->makeUser('accountant');
+        Rbac::flushCache();
+
+        $migration = require database_path('migrations/2026_10_07_100100_introduce_flexible_rbac_permissions.php');
+        $migration->up();
+        $migration->up(); // chạy lại an toàn
+
+        $this->assertFalse(Permission::whereIn('name', ['tuition.all_branches', 'finance.all_branches'])->exists());
+        $this->assertTrue($headOffice->fresh()->hasPermissionTo('tuition.scope_all'));
+        $this->assertSame('all', DataScope::level($byRole->fresh(), 'tuition'));
+        $this->assertSame('all', DataScope::level($byRole->fresh(), 'attendance_staff'), 'tuition.all_branches từng mở chấm công tay mọi lớp.');
+        $this->assertSame('all', DataScope::level($direct->fresh(), 'finance'));
+        $this->assertSame('branch', DataScope::level($direct->fresh(), 'tuition'));
+        $this->assertSame('all', DataScope::level($personal->fresh(), 'tuition'));
+        $this->assertSame('all', DataScope::level($personal->fresh(), 'attendance_staff'));
+        foreach (['tuition', 'finance', 'attendance_staff'] as $module) {
+            $this->assertSame('branch', DataScope::level($branchAccountant->fresh(), $module), $module);
+        }
+    }
+
     public function test_every_catalog_permission_has_vietnamese_label_and_description(): void
     {
         foreach (PermissionCatalog::staticPermissions() as $permission) {
