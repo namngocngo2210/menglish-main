@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Carbon\CarbonInterface;
 
 class TuitionRefundRequest extends Model
 {
@@ -41,6 +42,9 @@ class TuitionRefundRequest extends Model
         'defer_to',
         'target_student_id',
         'reason',
+        'no_transfer_reason',
+        'proof_path',
+        'rejection_reason',
         'requester_id',
         'approver_id',
         'status',
@@ -63,9 +67,74 @@ class TuitionRefundRequest extends Model
         'defer_to' => 'date',
     ];
 
+    /** Ổ lưu ảnh bằng chứng hoàn tiền (riêng tư, xem qua route kiểm tra quyền). */
+    public const PROOF_DISK = 'local';
+
+    /** Số ngày xử lý tối đa (A6 "Hoàn phí": trong 1 tuần và trong cùng tháng phát sinh). */
+    public const PROCESSING_DAYS = 7;
+
     public function getTypeLabelAttribute(): string
     {
         return self::TYPES[$this->type] ?? (string) $this->type;
+    }
+
+    /** Hồ sơ nghỉ giữa khóa (hoàn tiền / chuyển nhượng buổi dư) chịu hạn xử lý của A6; khất nợ / bảo lưu thì không. */
+    public function hasProcessingDeadline(): bool
+    {
+        return in_array($this->type, [self::TYPE_REFUND, self::TYPE_TRANSFER], true);
+    }
+
+    /**
+     * Hạn xử lý = min(ngày lập + 7 ngày, ngày cuối tháng lập) — để khớp sổ sách trong tháng.
+     * Trả về cuối ngày hạn; null nếu loại hồ sơ không có hạn.
+     */
+    public static function deadlineFor(CarbonInterface $createdAt): CarbonInterface
+    {
+        $week = $createdAt->copy()->addDays(self::PROCESSING_DAYS)->endOfDay();
+        $monthEnd = $createdAt->copy()->endOfMonth();
+
+        return $week->lt($monthEnd) ? $week : $monthEnd;
+    }
+
+    public function getProcessingDeadlineAttribute(): ?CarbonInterface
+    {
+        if (! $this->hasProcessingDeadline() || ! $this->created_at) {
+            return null;
+        }
+
+        return self::deadlineFor($this->created_at);
+    }
+
+    /**
+     * Cờ "Quá hạn xử lý": còn chờ duyệt mà đã qua hạn, hoặc đã xử lý (duyệt / từ chối) sau hạn.
+     * Chỉ là cờ cảnh báo — không chặn nút duyệt.
+     */
+    public function isProcessingOverdue(?CarbonInterface $now = null): bool
+    {
+        $deadline = $this->processing_deadline;
+        if (! $deadline) {
+            return false;
+        }
+
+        if ($this->status === 'pending') {
+            return ($now ?? now())->gt($deadline);
+        }
+
+        $processedAt = $this->approved_at ?? $this->updated_at;
+
+        return $processedAt !== null && $processedAt->gt($deadline);
+    }
+
+    /** Số ngày đã quá hạn xử lý (hồ sơ còn chờ), 0 nếu chưa quá hạn. */
+    public function processingOverdueDays(?CarbonInterface $now = null): int
+    {
+        $deadline = $this->processing_deadline;
+        if (! $deadline || $this->status !== 'pending') {
+            return 0;
+        }
+        $now ??= now();
+
+        return $now->gt($deadline) ? max(1, (int) $deadline->copy()->startOfDay()->diffInDays($now->copy()->startOfDay())) : 0;
     }
 
     public function student(): BelongsTo

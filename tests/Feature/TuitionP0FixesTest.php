@@ -15,6 +15,8 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class TuitionP0FixesTest extends TestCase
@@ -411,8 +413,10 @@ class TuitionP0FixesTest extends TestCase
             'reason' => 'Du học', 'requester_id' => $this->accountant->id, 'status' => 'pending',
         ]);
 
-        $this->actingAs($this->accountant2)
-            ->post(route('tuition.refunds.approve', $refund->id))
+        // Phase 4 (A6 "Hoàn phí"): chỉ Admin duyệt hoàn tiền, bắt buộc ảnh bằng chứng.
+        Storage::fake('local');
+        $this->actingAs($this->admin)
+            ->post(route('tuition.refunds.approve', $refund->id), ['proof_image' => UploadedFile::fake()->image('unc.jpg')])
             ->assertSessionHasNoErrors();
 
         $tuition->refresh();
@@ -433,9 +437,11 @@ class TuitionP0FixesTest extends TestCase
             'reason' => 'x', 'requester_id' => $this->accountant->id, 'status' => 'pending',
         ]);
 
-        $this->actingAs($this->accountant2)
-            ->post(route('tuition.refunds.approve', $refund->id))
+        Storage::fake('local');
+        $this->actingAs($this->admin)
+            ->post(route('tuition.refunds.approve', $refund->id), ['proof_image' => UploadedFile::fake()->image('unc.jpg')])
             ->assertSessionHasErrors('refund');
+        Storage::disk('local')->assertDirectoryEmpty('tuition/refund-proofs');
 
         $this->assertSame('pending', $refund->fresh()->status);
         $this->assertEquals(3000000, (float) $this->tuition->fresh()->debt_amount);

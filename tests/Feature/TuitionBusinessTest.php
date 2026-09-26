@@ -18,6 +18,8 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class TuitionBusinessTest extends TestCase
@@ -349,6 +351,8 @@ class TuitionBusinessTest extends TestCase
                 'type' => 'refund',
                 'refund_amount' => 4500000,
                 'reason' => 'Học viên đi du học sớm, xin hoàn 50% học phí',
+                // Phase 4 (A6 "Hoàn phí"): hoàn tiền là phương án cuối → bắt buộc lý do không chuyển nhượng.
+                'no_transfer_reason' => 'Không có học viên nhận chuyển nhượng',
             ]);
 
         $responseStore->assertRedirect();
@@ -364,14 +368,20 @@ class TuitionBusinessTest extends TestCase
         $refund = TuitionRefundRequest::where('student_id', $this->student->id)->first();
         $this->assertNotNull($refund);
 
-        // 2. Approve refund request
-        $responseApprove = $this->actingAs($this->accountantUser)
-            ->post(route('tuition.refunds.approve', $refund->id));
+        // 2. Approve refund request — Phase 4 (A6 "Hoàn phí"): kế toán không duyệt hoàn tiền; Admin duyệt kèm ảnh bằng chứng.
+        Storage::fake('local');
+        $this->actingAs($this->accountantUser)
+            ->post(route('tuition.refunds.approve', $refund->id), ['proof_image' => UploadedFile::fake()->image('unc.jpg')])
+            ->assertForbidden();
+        $admin = User::factory()->create(['is_active' => true]);
+        $admin->assignRole('admin');
+        $responseApprove = $this->actingAs($admin)
+            ->post(route('tuition.refunds.approve', $refund->id), ['proof_image' => UploadedFile::fake()->image('unc.jpg')]);
         $responseApprove->assertRedirect();
 
         $refund->refresh();
         $this->assertEquals('approved', $refund->status);
-        $this->assertEquals($this->accountantUser->id, $refund->approver_id);
+        $this->assertEquals($admin->id, $refund->approver_id);
 
         // 3. Reject an extension request
         $extension = TuitionRefundRequest::create([

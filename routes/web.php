@@ -183,6 +183,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/refunds', [TuitionController::class, 'storeRefundRequest'])->middleware('can:refund_transfer.request')->name('refunds.store');
         Route::post('/refunds/{id}/approve', [TuitionController::class, 'approveRefundRequest'])->middleware('can:refund_transfer.approve')->name('refunds.approve');
         Route::post('/refunds/{id}/reject', [TuitionController::class, 'rejectRefundRequest'])->middleware('can:refund_transfer.approve')->name('refunds.reject');
+        Route::get('/refunds/{id}/proof', [TuitionController::class, 'refundProof'])->whereNumber('id')->name('refunds.proof');
         Route::get('/overdue', [TuitionController::class, 'overdue'])->name('overdue');
         Route::post('/overdue/{id}/remind', [TuitionController::class, 'sendOverdueReminder'])->middleware('can:tuition.mark_contacted')->name('overdue.remind');
         Route::post('/overdue/{id}/upcoming-remind', [TuitionController::class, 'sendUpcomingReminder'])->middleware('can:tuition.mark_contacted')->name('overdue.upcoming-remind');

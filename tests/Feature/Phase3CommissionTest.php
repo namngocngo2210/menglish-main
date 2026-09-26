@@ -20,6 +20,8 @@ use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -314,8 +316,9 @@ class Phase3CommissionTest extends TestCase
             ->assertSee('value="200000"', false)
             ->assertViewHas('clawbackHints', fn ($hints) => $hints[$refund->id]['suggest'] === true);
 
-        // Không gửi lựa chọn → áp dụng gợi ý
-        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id))->assertSessionHasNoErrors();
+        // Không gửi lựa chọn → áp dụng gợi ý (Phase 4: hoàn tiền bắt buộc ảnh bằng chứng)
+        Storage::fake('local');
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id), ['proof_image' => UploadedFile::fake()->image('unc.jpg')])->assertSessionHasNoErrors();
 
         $refund->refresh();
         $this->assertTrue($refund->clawback_commission);
@@ -354,7 +357,8 @@ class Phase3CommissionTest extends TestCase
         $this->actingAs($this->admin)->get(route('tuition.refunds'))
             ->assertViewHas('clawbackHints', fn ($hints) => $hints[$refund->id]['suggest'] === false);
 
-        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id), ['clawback_commission' => '0'])
+        Storage::fake('local');
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id), ['clawback_commission' => '0', 'proof_image' => UploadedFile::fake()->image('unc.jpg')])
             ->assertSessionHasNoErrors();
 
         $this->assertFalse($refund->fresh()->clawback_commission);
@@ -365,7 +369,7 @@ class Phase3CommissionTest extends TestCase
         $this->approvedReceipt($tuition2, 6000000, '2026-05-05 09:00:00');
         $this->travelTo(Carbon::parse('2026-09-06 10:00:00'));
         $refund2 = $this->refundRequest($student2, 1000000);
-        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund2->id), ['clawback_commission' => '1', 'clawback_amount' => 30000])
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund2->id), ['clawback_commission' => '1', 'clawback_amount' => 30000, 'proof_image' => UploadedFile::fake()->image('unc.jpg')])
             ->assertSessionHasNoErrors();
         $this->assertEquals(-30000, CommissionAdjustment::firstOrFail()->amount);
     }

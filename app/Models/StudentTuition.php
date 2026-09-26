@@ -220,6 +220,27 @@ class StudentTuition extends Model
         ];
     }
 
+    /** Tên khoản thu hiển thị (mockup "Khoản thu"): học phí theo khóa / lớp, kèm số khoản giáo trình – đồ dùng. */
+    public function getFeeLabelAttribute(): string
+    {
+        $class = $this->classModel;
+        $label = 'Học phí '.($class?->course?->name ?? $class?->name ?? 'khóa học');
+        $items = is_array($this->fee_items) ? count($this->fee_items) : 0;
+
+        return $items > 0 ? $label." + {$items} khoản phụ" : $label;
+    }
+
+    /** Màu <x-ui.badge> theo trạng thái công nợ. */
+    public function getStatusColorAttribute(): string
+    {
+        return match ($this->status) {
+            'paid' => 'success',
+            'partial' => 'warning',
+            'overdue' => 'error',
+            default => 'neutral',
+        };
+    }
+
     public function getStatusBadgeAttribute(): string
     {
         return match ($this->status) {
