@@ -146,11 +146,11 @@ class PayrollPeriod extends Model
     public function getStatusBadgeAttribute(): string
     {
         return match ($this->status) {
-            'draft' => 'bg-amber-50 text-amber-700 border-amber-200',
-            'reviewing' => 'bg-blue-50 text-blue-700 border-blue-200',
-            'approved' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
+            'draft' => 'bg-warning/10 text-warning border-warning/30',
+            'reviewing' => 'bg-secondary/10 text-secondary border-secondary/30',
+            'approved' => 'bg-tertiary/10 text-tertiary border-tertiary/30',
             'paid' => 'bg-purple-50 text-purple-700 border-purple-200',
-            default => 'bg-gray-50 text-gray-700 border-gray-200',
+            default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
     }
 

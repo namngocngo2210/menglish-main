@@ -172,7 +172,7 @@ class StudentBusinessTest extends TestCase
         ]);
         $this->assertEquals('100%', $newStudent->attendance_rate);
         $this->assertEquals('Đang học', $newStudent->status_label);
-        $this->assertStringContainsString('bg-emerald-50', $newStudent->status_badge);
+        $this->assertStringContainsString('bg-tertiary/10', $newStudent->status_badge);
 
         // 2. Student with 18/20 lessons
         $activeStudent = new Student([
@@ -183,14 +183,14 @@ class StudentBusinessTest extends TestCase
         ]);
         $this->assertEquals('18/20 (90%)', $activeStudent->attendance_rate);
         $this->assertEquals('Bảo lưu', $activeStudent->status_label);
-        $this->assertStringContainsString('bg-amber-50', $activeStudent->status_badge);
+        $this->assertStringContainsString('bg-warning/10', $activeStudent->status_badge);
 
         // 3. Dropped status
         $droppedStudent = new Student([
             'status' => 'dropped',
         ]);
         $this->assertEquals('Thôi học', $droppedStudent->status_label);
-        $this->assertStringContainsString('bg-rose-50', $droppedStudent->status_badge);
+        $this->assertStringContainsString('bg-error/10', $droppedStudent->status_badge);
     }
 
     // =========================================================================

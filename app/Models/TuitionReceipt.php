@@ -142,11 +142,11 @@ class TuitionReceipt extends Model
     public function getStatusBadgeAttribute(): string
     {
         return match ($this->status) {
-            self::STATUS_DRAFT => 'bg-slate-100 text-slate-700 border-slate-200',
-            self::STATUS_APPROVED => 'bg-emerald-50 text-emerald-700 border-emerald-200',
-            self::STATUS_REJECTED => 'bg-rose-50 text-rose-700 border-rose-200',
-            self::STATUS_CANCELLED => 'bg-gray-100 text-gray-500 border-gray-300 line-through',
-            default => 'bg-amber-50 text-amber-700 border-amber-200',
+            self::STATUS_DRAFT => 'bg-surface-container text-on-surface-variant border-surface-container-highest',
+            self::STATUS_APPROVED => 'bg-tertiary/10 text-tertiary border-tertiary/30',
+            self::STATUS_REJECTED => 'bg-error/10 text-error border-error/30',
+            self::STATUS_CANCELLED => 'bg-surface-container text-on-surface-variant border-outline-variant line-through',
+            default => 'bg-warning/10 text-warning border-warning/30',
         };
     }
 

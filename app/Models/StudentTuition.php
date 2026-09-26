@@ -244,10 +244,10 @@ class StudentTuition extends Model
     public function getStatusBadgeAttribute(): string
     {
         return match ($this->status) {
-            'paid' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
-            'partial' => 'bg-amber-50 text-amber-700 border-amber-200',
-            'overdue' => 'bg-rose-50 text-rose-700 border-rose-200',
-            default => 'bg-gray-50 text-gray-700 border-gray-200',
+            'paid' => 'bg-tertiary/10 text-tertiary border-tertiary/30',
+            'partial' => 'bg-warning/10 text-warning border-warning/30',
+            'overdue' => 'bg-error/10 text-error border-error/30',
+            default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
     }
 

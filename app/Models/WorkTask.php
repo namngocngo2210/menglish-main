@@ -189,14 +189,14 @@ class WorkTask extends Model
     public function getStatusBadgeClassAttribute(): string
     {
         return match ($this->status) {
-            'new' => 'bg-gray-100 text-gray-700 border-gray-200',
-            'in_progress' => 'bg-amber-50 text-amber-700 border-amber-200',
-            'pending_confirmation' => 'bg-orange-50 text-orange-700 border-orange-200',
-            'blocked' => 'bg-red-50 text-red-700 border-red-200',
-            'completed' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
-            'overdue' => 'bg-rose-50 text-rose-700 border-rose-200',
-            'canceled' => 'bg-slate-100 text-slate-500 border-slate-200',
-            default => 'bg-gray-100 text-gray-700 border-gray-200',
+            'new' => 'bg-surface-container text-on-surface-variant border-surface-container-highest',
+            'in_progress' => 'bg-warning/10 text-warning border-warning/30',
+            'pending_confirmation' => 'bg-primary-container/10 text-primary border-primary-container/30',
+            'blocked' => 'bg-error/10 text-error border-error/30',
+            'completed' => 'bg-tertiary/10 text-tertiary border-tertiary/30',
+            'overdue' => 'bg-error/10 text-error border-error/30',
+            'canceled' => 'bg-surface-container text-on-surface-variant border-surface-container-highest',
+            default => 'bg-surface-container text-on-surface-variant border-surface-container-highest',
         };
     }
 

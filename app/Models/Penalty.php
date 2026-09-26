@@ -196,19 +196,19 @@ class Penalty extends Model
     public function getStatusBadgeAttribute(): string
     {
         if ($this->isOverdue()) {
-            return 'bg-red-50 text-red-700 border-red-300';
+            return 'bg-error/10 text-error border-error/30';
         }
 
         return match ($this->status) {
-            'pending' => 'bg-amber-50 text-amber-700 border-amber-200',
-            'explained' => 'bg-blue-50 text-blue-700 border-blue-200',
-            'confirmed' => 'bg-rose-50 text-rose-700 border-rose-200',
-            'fined' => 'bg-orange-50 text-orange-700 border-orange-200',
+            'pending' => 'bg-warning/10 text-warning border-warning/30',
+            'explained' => 'bg-secondary/10 text-secondary border-secondary/30',
+            'confirmed' => 'bg-error/10 text-error border-error/30',
+            'fined' => 'bg-primary-container/10 text-primary border-primary-container/30',
             'deducted' => 'bg-purple-50 text-purple-700 border-purple-200',
-            'paid' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
-            'resolved' => 'bg-sky-50 text-sky-700 border-sky-200',
-            'cancelled' => 'bg-gray-50 text-gray-700 border-gray-200',
-            default => 'bg-gray-50 text-gray-700 border-gray-200',
+            'paid' => 'bg-tertiary/10 text-tertiary border-tertiary/30',
+            'resolved' => 'bg-info/10 text-info border-info/30',
+            'cancelled' => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
+            default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
     }
 
