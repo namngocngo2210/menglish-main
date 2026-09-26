@@ -14,10 +14,23 @@ use Illuminate\Support\Facades\Mail;
 
 class SystemConfigController extends Controller
 {
-    public function bankAccounts()
+    public function bankAccounts(Request $request)
     {
-        $accounts = BankAccount::with('branch')->get();
-        $branches = Branch::all();
+        // Mockup cau-hinh-tai-khoan-ngan-hang: bảng tài khoản có tìm kiếm (ngân hàng / số TK / chủ TK / chi nhánh).
+        $search = trim((string) $request->input('q', ''));
+        $accounts = BankAccount::with('branch')
+            ->when($search !== '', fn ($q) => $q->where(fn ($q) => $q->where('bank_name', 'like', "%{$search}%")
+                ->orWhere('bank_code', 'like', "%{$search}%")
+                ->orWhere('account_number', 'like', "%{$search}%")
+                ->orWhere('account_holder', 'like', "%{$search}%")
+                ->orWhereHas('branch', fn ($b) => $b->where('name', 'like', "%{$search}%"))))
+            ->orderByDesc('is_default_vietqr')
+            ->orderByDesc('is_active')
+            ->orderBy('bank_name')
+            ->get();
+        $totalAccounts = BankAccount::count();
+        $defaultAccount = BankAccount::defaultAccount();
+        $branches = Branch::orderBy('name')->get();
         // Không dùng getActiveConfig() trực tiếp: hàm đó tự tạo row khi bảng trống và từng gây 500
         // khi thiếu SEPAY_WEBHOOK_SECRET. Tab SePay chỉ hiện khi webhook được bật qua env.
         $sepayEnabled = (bool) config('services.sepay.webhook_enabled', false);
@@ -26,12 +39,13 @@ class SystemConfigController extends Controller
             : null;
         $recentTransactions = $sepayEnabled ? SepayTransaction::latest()->take(15)->get() : collect();
 
-        return view('system-config.bank-accounts', compact('accounts', 'branches', 'sepayConfig', 'recentTransactions', 'sepayEnabled'));
+        return view('system-config.bank-accounts', compact('accounts', 'totalAccounts', 'defaultAccount', 'search', 'branches', 'sepayConfig', 'recentTransactions', 'sepayEnabled'));
     }
 
     public function storeBankAccount(Request $request)
     {
         $validated = $request->validate([
+            'account_type' => 'nullable|in:company,other',
             'bank_code' => 'required|string|max:20',
             'bank_name' => 'required|string|max:255',
             'account_number' => 'required|string|max:50',
@@ -47,6 +61,7 @@ class SystemConfigController extends Controller
         }
 
         $acc = BankAccount::create([
+            'account_type' => $validated['account_type'] ?? 'company',
             'bank_code' => strtoupper($validated['bank_code']),
             'bank_name' => $validated['bank_name'],
             'account_number' => $validated['account_number'],
@@ -66,6 +81,7 @@ class SystemConfigController extends Controller
         $acc = BankAccount::findOrFail($id);
 
         $validated = $request->validate([
+            'account_type' => 'nullable|in:company,other',
             'bank_code' => 'required|string|max:20',
             'bank_name' => 'required|string|max:255',
             'account_number' => 'required|string|max:50',
@@ -76,12 +92,19 @@ class SystemConfigController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
 
+        // Form sửa luôn gửi cờ is_active (ô "Đang sử dụng"); tài khoản mặc định không được ngừng dùng.
+        if ($request->has('is_active') && ! $request->boolean('is_active') && ($acc->is_default_vietqr || $request->boolean('is_default_vietqr'))) {
+            return redirect()->route('system-config.bank-accounts')
+                ->withErrors(['is_active' => 'Không thể ngừng dùng tài khoản mặc định. Hãy đặt tài khoản khác làm mặc định trước.']);
+        }
+
         $isDefault = $request->boolean('is_default_vietqr');
         if ($isDefault) {
             BankAccount::where('id', '!=', $id)->update(['is_default_vietqr' => false]);
         }
 
         $acc->update([
+            'account_type' => $validated['account_type'] ?? $acc->account_type ?? 'company',
             'bank_code' => strtoupper($validated['bank_code']),
             'bank_name' => $validated['bank_name'],
             'account_number' => $validated['account_number'],

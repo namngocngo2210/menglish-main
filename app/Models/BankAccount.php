@@ -12,7 +12,14 @@ class BankAccount extends Model
 
     protected $table = 'bank_accounts';
 
+    /** Loại tài khoản (mockup): Công ty — chủ sở hữu chính; Khác — cá nhân / đại diện. */
+    public const TYPES = [
+        'company' => 'Công ty',
+        'other' => 'Khác',
+    ];
+
     protected $fillable = [
+        'account_type',
         'bank_code',
         'bank_name',
         'account_number',
@@ -27,6 +34,22 @@ class BankAccount extends Model
         'is_default_vietqr' => 'boolean',
         'is_active' => 'boolean',
     ];
+
+    public function getTypeLabelAttribute(): string
+    {
+        return self::TYPES[$this->account_type] ?? self::TYPES['company'];
+    }
+
+    /** Ảnh VietQR xem trước (không kèm số tiền) cho màn cấu hình tài khoản. */
+    public function getVietqrPreviewUrlAttribute(): ?string
+    {
+        if (! $this->bank_code || ! $this->account_number) {
+            return null;
+        }
+
+        return 'https://img.vietqr.io/image/'.rawurlencode($this->bank_code).'-'.rawurlencode($this->account_number)
+            .'-compact2.png?accountName='.rawurlencode((string) $this->account_holder);
+    }
 
     public function branch(): BelongsTo
     {

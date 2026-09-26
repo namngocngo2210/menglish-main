@@ -400,4 +400,39 @@ class Phase4FinanceParityTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('tuition.config'))->assertOk()->assertSee('C26DD')->assertSee('C26CG');
     }
+
+    public function test_tai_khoan_ngan_hang_has_type_search_and_active_flag(): void
+    {
+        $this->actingAs($this->accountant)->post(route('system-config.bank-accounts.store'), [
+            'account_type' => 'company', 'bank_code' => 'vcb', 'bank_name' => 'Vietcombank', 'account_number' => '0071001234567',
+            'account_holder' => 'Cong ty CP Giao duc Menglish', 'is_default_vietqr' => 1,
+        ])->assertSessionHasNoErrors();
+        $this->actingAs($this->accountant)->post(route('system-config.bank-accounts.store'), [
+            'account_type' => 'other', 'bank_code' => 'TCB', 'bank_name' => 'Techcombank', 'account_number' => '190345678910',
+            'account_holder' => 'Nguyen Van Dai Dien', 'branch_id' => $this->branch->id,
+        ])->assertSessionHasNoErrors();
+
+        $default = \App\Models\BankAccount::where('account_number', '0071001234567')->firstOrFail();
+        $other = \App\Models\BankAccount::where('account_number', '190345678910')->firstOrFail();
+        $this->assertSame('company', $default->account_type);
+        $this->assertSame('other', $other->account_type);
+
+        $this->actingAs($this->accountant)->get(route('system-config.bank-accounts'))
+            ->assertOk()
+            ->assertSee('Cấu hình Tài khoản ngân hàng thu tiền')
+            ->assertSee('Danh sách tài khoản')
+            ->assertSee('CÔNG TY')->assertSee('KHÁC')
+            ->assertSee('Tích hợp VietQR')
+            ->assertSee('Hiển thị 2 trên 2 tài khoản');
+        $this->actingAs($this->accountant)->get(route('system-config.bank-accounts', ['q' => 'Techcom']))
+            ->assertOk()->assertSee('190345678910')->assertSee('Hiển thị 1 trên 2 tài khoản')
+            ->assertViewHas('accounts', fn ($accounts) => $accounts->pluck('account_number')->all() === ['190345678910']);
+
+        // Ngừng dùng tài khoản thường được; tài khoản mặc định thì không.
+        $payload = fn ($acc) => ['account_type' => $acc->account_type, 'bank_code' => $acc->bank_code, 'bank_name' => $acc->bank_name, 'account_number' => $acc->account_number, 'account_holder' => $acc->account_holder, 'is_active' => 0];
+        $this->actingAs($this->accountant)->put(route('system-config.bank-accounts.update', $other->id), $payload($other))->assertSessionHasNoErrors();
+        $this->assertFalse($other->fresh()->is_active);
+        $this->actingAs($this->accountant)->put(route('system-config.bank-accounts.update', $default->id), $payload($default))->assertSessionHasErrors('is_active');
+        $this->assertTrue($default->fresh()->is_active);
+    }
 }
