@@ -387,7 +387,10 @@ class PlacementTestController extends Controller
         // Viết / Nói do Học vụ chấm (BA) nên để trống, bài ở trạng thái chờ chấm.
         // Điểm quy về thang của khối lớp (theo mã đề): Nghe trên thang Nghe, phần Đọc trắc nghiệm trên thang Đọc & Viết.
         $gradeGroup = PlacementRubricService::detectGradeGroup($test->code);
-        $maxScores = PlacementRubricService::maxScores($gradeGroup);
+        // Khối không có thang (lớp 5–9…): tự chấm online quy về thang 10 mỗi kỹ năng để Học vụ tham khảo, không xếp lớp tự động.
+        $maxScores = PlacementRubricService::hasRubric($gradeGroup)
+            ? PlacementRubricService::maxScores($gradeGroup)
+            : PlacementRubricService::ONLINE_MANUAL_SCALE;
         $listeningScore = $this->autoGradeSkill($questions, $submittedAnswers, ['listening'], $maxScores['listening']);
         $readingScore = $this->autoGradeSkill($questions, $submittedAnswers, ['reading', 'grammar'], $maxScores['reading_writing']);
 

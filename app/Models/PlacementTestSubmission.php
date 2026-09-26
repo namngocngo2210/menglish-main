@@ -97,7 +97,9 @@ class PlacementTestSubmission extends Model
         $group = $data['grade_group'];
         $listening = (float) $data['listening_score'];
         $readingWriting = (float) $data['reading_writing_score'];
-        $speaking = (float) $data['speaking_score'];
+        // Khối không có thang điểm (lớp 8–9 không test Nói) được để trống Nói — lưu null, không coi là 0 điểm.
+        $speakingBlank = ! isset($data['speaking_score']) || $data['speaking_score'] === '' || $data['speaking_score'] === null;
+        $speaking = $speakingBlank ? 0.0 : (float) $data['speaking_score'];
         $evaluation = PlacementRubricService::evaluate($group, $listening, $readingWriting, $speaking);
 
         $comments = [];
@@ -112,7 +114,7 @@ class PlacementTestSubmission extends Model
             'grade_group' => $group,
             'listening_score' => $listening,
             'reading_writing_score' => $readingWriting,
-            'speaking_score' => $speaking,
+            'speaking_score' => $speakingBlank ? null : $speaking,
             'total_score' => $evaluation['total'],
             // overall_score giữ để các màn cũ nhận biết "đã có điểm": nay bằng tổng điểm theo thang khối.
             'overall_score' => $evaluation['total'],
@@ -147,9 +149,12 @@ class PlacementTestSubmission extends Model
     {
         if ($this->hasRubricGrade()) {
             $total = rtrim(rtrim(number_format((float) $this->total_score, 1, '.', ''), '0'), '.');
-            $max = PlacementRubricService::maxTotal($this->grade_group);
+            // Khối không có thang điểm (lớp 5–9…): điểm thô, không có điểm tối đa cố định.
+            $score = PlacementRubricService::hasRubric($this->grade_group)
+                ? $total.'/'.PlacementRubricService::maxTotal($this->grade_group)
+                : $total.' điểm';
 
-            return "{$total}/{$max}".($this->finalClass() ? ' · '.$this->finalClass() : '');
+            return $score.($this->finalClass() ? ' · '.$this->finalClass() : '');
         }
         if ($this->overall_score === null) {
             return null;

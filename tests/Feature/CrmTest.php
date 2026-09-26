@@ -256,13 +256,13 @@ class CrmTest extends TestCase
         ]);
 
         $customer->refresh();
-        $this->assertEquals('19.5/30 · IELTS 6.5 Intensive', $customer->test_score);
+        $this->assertEquals('19.5 điểm · IELTS 6.5 Intensive', $customer->test_score);
         $this->assertEquals('tested', $customer->stage);
 
         // 2. View customer page
         $viewResponse = $this->actingAs($user)->get(route('crm.customers.show', $customer->id));
         $viewResponse->assertOk();
-        $viewResponse->assertSee('Đã làm bài test (19.5/30 · IELTS 6.5 Intensive)');
+        $viewResponse->assertSee('Đã làm bài test (19.5 điểm · IELTS 6.5 Intensive)');
         $viewResponse->assertSee('Scorecard');
     }
 }
