@@ -41,7 +41,7 @@ class NotifyExpiringContractsCommand extends Command
             return self::SUCCESS;
         }
 
-        $admins = User::role('admin')->where('is_active', true)->whereNull('locked_at')->get();
+        $admins = User::role(\App\Support\Rbac::SUPER_ADMIN)->where('is_active', true)->whereNull('locked_at')->get();
         $managers = User::role('manager')->with('branches:id')->where('is_active', true)->whereNull('locked_at')->get();
 
         $created = 0;

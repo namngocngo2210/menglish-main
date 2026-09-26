@@ -268,7 +268,7 @@ class SepayWebhookController extends Controller
                 $appliedAmount = round(min($transferAmount, (float) $tuition->debt_amount), 2);
                 $invoiceNumber = InvoiceConfiguration::consumeNextInvoiceNumber($tuition->branch_id ?? $tuition->student?->branch_id);
                 // whereHas thay vì role(): webhook public không được 500 khi vai trò admin chưa được seed
-                $adminUser = User::query()->whereHas('roles', fn ($q) => $q->where('name', 'admin'))->first()
+                $adminUser = User::query()->whereHas('roles', fn ($q) => $q->where('name', \App\Support\Rbac::SUPER_ADMIN))->first()
                     ?: User::first();
 
                 $receipt = TuitionReceipt::create([
@@ -393,7 +393,7 @@ class SepayWebhookController extends Controller
 
                 // 2. Dispatch verification email to both Academic Staff (branch) and Super Admin to immediately issue electronic invoice
                 $recipients = collect();
-                $adminEmails = User::query()->whereHas('roles', fn ($q) => $q->where('name', 'admin'))->pluck('email')->filter();
+                $adminEmails = User::query()->whereHas('roles', fn ($q) => $q->where('name', \App\Support\Rbac::SUPER_ADMIN))->pluck('email')->filter();
                 $recipients = $recipients->merge($adminEmails);
 
                 if ($matchedTuition->branch_id) {

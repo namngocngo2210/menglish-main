@@ -2049,7 +2049,7 @@ class TuitionController extends Controller
 
         $admins = User::query()
             ->where('is_active', true)
-            ->whereHas('roles', fn ($q) => $q->where('name', 'admin'))
+            ->whereHas('roles', fn ($q) => $q->where('name', \App\Support\Rbac::SUPER_ADMIN))
             ->pluck('id');
 
         $message = "{$reporter->name} báo cáo học viên {$tuition->student?->name} ({$tuition->student?->code}) lớp "

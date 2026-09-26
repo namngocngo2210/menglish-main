@@ -454,7 +454,7 @@ class WorkTaskController extends Controller
             || ($assignDate === today()->toDateString() && now()->format('H:i') > self::TA_ASSIGN_CUTOFF);
         if ($late) {
             $assistant = User::find($validated['assistant_id']);
-            User::role('admin')->where('is_active', true)->whereNull('locked_at')->pluck('id')
+            User::role(\App\Support\Rbac::SUPER_ADMIN)->where('is_active', true)->whereNull('locked_at')->pluck('id')
                 ->reject(fn ($id) => (int) $id === (int) Auth::id())
                 ->each(fn ($adminId) => $this->notifyUser($adminId, 'task_assigned', 'Giao việc trợ giảng sau '.self::TA_ASSIGN_CUTOFF,
                     Auth::user()->name." giao {$created->count()} nhiệm vụ ngày ".Carbon::parse($assignDate)->format('d/m/Y')." cho {$assistant?->name} lúc ".now()->format('H:i').'.',

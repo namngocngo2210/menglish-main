@@ -39,7 +39,7 @@ class RbacNoHardcodedRolesTest extends TestCase
         'app/Models/User.php' => 1,                        // hasModuleAction (Super Admin toàn quyền cả theo phạm vi)
         'app/Support/Rbac.php' => 2,                       // gán vai trò Super Admin, chống tự khóa
         'app/Http/Controllers/UserController.php' => 2,    // quản lý tài khoản Super Admin
-        'app/Http/Controllers/UserPermissionOverrideController.php' => 4, // chỉ Super Admin chỉnh quyền Super Admin
+        'app/Http/Controllers/UserPermissionOverrideController.php' => 5, // hiển thị quyền / phạm vi Super Admin; chỉ Super Admin chỉnh quyền Super Admin; chống tự phân quyền
         'app/Http/Controllers/TuitionController.php' => 3, // người lập phiếu sửa / không tự duyệt phiếu (Super Admin miễn)
         'app/Models/Penalty.php' => 1,                     // người vi phạm không tự chốt biên bản (Super Admin miễn)
         'app/Http/Controllers/WorkTaskController.php' => 1, // tab mặc định "Tất cả" (giao diện)
