@@ -1,253 +1,201 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">Xác nhận hoàn thành thủ công</h1>
-                <p class="text-sm text-gray-500 mt-0.5">Danh sách các đầu việc và báo cáo chờ xác nhận hoàn thành từ Trợ giảng / Giảng viên</p>
-            </div>
-        </div>
-    </x-slot>
+{{-- Xác nhận hoàn thành thủ công (mockup phan-cong-cong-viec/x_c_nh_n_ho_n_th_nh_th_c_ng).
+     Gồm việc "Chờ xác nhận" không ảnh minh chứng (người giao việc xác nhận) và báo cáo trực lớp
+     không ảnh (A6 Q8: GV chính của lớp; lớp chưa có GV chính → người giao việc). --}}
+@php
+    $items = collect($pendingReports)->map(fn ($r) => ['kind' => 'report', 'model' => $r, 'sort' => $r->created_at])
+        ->merge(collect($pendingTasks)->map(fn ($t) => ['kind' => 'task', 'model' => $t, 'sort' => $t->updated_at]))
+        ->sortByDesc('sort')->values();
+    $filterQuery = array_filter(['kind' => $kind, 'q' => $search ?: null, 'assignee_id' => $assigneeFilter]);
+    $isFiltered = ! empty($filterQuery);
+@endphp
+<x-app-layout title="Xác nhận hoàn thành thủ công">
+    <x-ui.page-header title="Xác nhận hoàn thành thủ công" description="Danh sách các đầu việc chờ xác nhận từ Trợ giảng: báo cáo không đính kèm ảnh minh chứng cần người giao việc (báo cáo trực lớp: GV chính của lớp) xác nhận.">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="filter_list" x-data x-on:click="document.getElementById('approval-filters').classList.toggle('hidden')">Bộ lọc</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="space-y-6">
+    @if (session('info'))
+        <x-ui.alert type="warning" class="mb-md" dismissible>{{ session('info') }}</x-ui.alert>
+    @endif
 
-        
-
-        @if(session('info'))
-            <div class="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-center gap-3">
-                <span class="material-symbols-outlined text-amber-600">info</span>
-                <span class="font-medium text-sm">{{ session('info') }}</span>
-            </div>
+    <form id="approval-filters" method="GET" action="{{ route('tasks.manual-approvals') }}"
+          class="{{ $isFiltered ? '' : 'hidden' }} mb-md flex flex-wrap items-end gap-sm rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
+        <x-ui.input name="q" inline-label="Tìm:" :value="$search" placeholder="Đầu việc, lớp, trợ giảng..." />
+        <x-ui.select name="kind" inline-label="Loại:" :options="['task' => 'Đầu việc', 'report' => 'Báo cáo trực lớp']" :value="$kind" placeholder="Tất cả" />
+        <x-ui.select name="assignee_id" inline-label="Người thực hiện:" :options="$assigneeOptions" :value="$assigneeFilter" placeholder="Tất cả" />
+        <x-ui.button type="submit" size="sm" icon="search">Lọc</x-ui.button>
+        @if ($isFiltered)
+            <x-ui.button size="sm" variant="ghost" icon="close" :href="route('tasks.manual-approvals')">Xóa lọc</x-ui.button>
         @endif
+    </form>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            <!-- Left List Panel (2 cols) -->
-            <section class="lg:col-span-2 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-                <!-- List Header -->
-                <div class="hidden md:grid grid-cols-12 gap-4 p-4 bg-gray-50 border-b border-gray-200 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                    <div class="col-span-5">Đầu việc</div>
-                    <div class="col-span-3">Trợ giảng</div>
-                    <div class="col-span-2">Hạn / Ngày</div>
-                    <div class="col-span-2 text-right">Thao tác</div>
-                </div>
-
-                <!-- List Items -->
-                <div class="divide-y divide-gray-100">
-                    @forelse($pendingTasks as $task)
+    <div class="grid grid-cols-1 items-start gap-lg lg:grid-cols-3">
+        {{-- Danh sách chờ xác nhận --}}
+        <x-ui.data-table class="lg:col-span-2">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Đầu việc</th>
+                        <th>Trợ giảng</th>
+                        <th>Ngày giao</th>
+                        <th class="text-right">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($items as $item)
                         @php
-                            $isSelected = $selectedTask && $selectedTask->id === $task->id;
+                            $m = $item['model'];
+                            $isReport = $item['kind'] === 'report';
+                            $selected = $isReport ? ($selectedReport && $selectedReport->id === $m->id) : ($selectedTask && $selectedTask->id === $m->id);
+                            $url = route('tasks.manual-approvals', $filterQuery + ($isReport ? ['report' => $m->id] : ['selected_id' => $m->id]));
+                            $person = $isReport ? $m->reporter : $m->assignee;
                         @endphp
-                        <div onclick="window.location.href='{{ route('tasks.manual-approvals', ['selected_id' => $task->id]) }}'"
-                             class="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 items-center cursor-pointer transition relative {{ $isSelected ? 'bg-orange-50/50 border-l-4 border-primary-container' : 'hover:bg-gray-50/80' }}">
-                            <div class="col-span-1 md:col-span-5 space-y-1">
-                                <div class="flex items-center gap-2">
-                                    <span class="bg-orange-100 text-orange-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-orange-200">
-                                        Chờ xác nhận
+                        <tr class="cursor-pointer {{ $selected ? 'bg-primary-fixed/40' : '' }}" onclick="window.location.href='{{ $url }}'" data-item="{{ $item['kind'] }}-{{ $m->id }}">
+                            <td>
+                                <div class="flex flex-col gap-xs">
+                                    <span class="flex flex-wrap items-center gap-xs">
+                                        <x-ui.badge color="status-pending">Chờ xác nhận</x-ui.badge>
+                                        @if ($isReport)
+                                            <x-ui.badge color="info" :dot="false">Báo cáo trực lớp</x-ui.badge>
+                                        @endif
                                     </span>
-                                    <h3 class="font-semibold text-gray-900 text-xs line-clamp-1 hover:text-primary transition">
-                                        {{ $task->title }}
-                                    </h3>
+                                    <a href="{{ $url }}" class="font-semibold text-on-surface hover:text-primary">{{ $isReport ? $m->session_name : $m->title }}</a>
+                                    <span class="flex items-center gap-xs font-caption text-caption text-on-surface-variant">
+                                        <span class="material-symbols-outlined text-[14px]" aria-hidden="true">{{ ($isReport || $m->classModel) ? 'class' : 'work' }}</span>
+                                        {{ $isReport ? ($m->classModel?->name ?? 'Lớp đã xóa') : ($m->classModel?->name ?? 'Công việc chung') }}
+                                    </span>
                                 </div>
-                                @if($task->classModel)
-                                    <div class="text-gray-500 text-xs flex items-center gap-1">
-                                        <span class="material-symbols-outlined text-[13px]">school</span>
-                                        {{ $task->classModel->name }}
-                                    </div>
-                                @endif
-                            </div>
-
-                            <div class="col-span-1 md:col-span-3 flex items-center gap-2">
-                                <div class="w-7 h-7 rounded-full bg-primary-container/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
-                                    {{ Str::substr($task->assignee?->name ?? 'TA', 0, 2) }}
+                            </td>
+                            <td>
+                                <div class="flex items-center gap-sm">
+                                    <x-ui.avatar :name="$person?->name ?? '—'" size="sm" />
+                                    <span class="font-body-small text-body-small">{{ $person?->name ?? 'Chưa phân công' }}</span>
                                 </div>
-                                <span class="text-gray-900 text-xs font-medium truncate">{{ $task->assignee?->name ?? 'Chưa phân công' }}</span>
-                            </div>
-
-                            <div class="col-span-1 md:col-span-2 text-gray-500 text-xs font-mono">
-                                {{ $task->due_date ? $task->due_date->format('d/m/Y') : now()->format('d/m/Y') }}
-                            </div>
-
-                            <div class="col-span-1 md:col-span-2 flex justify-end" onclick="event.stopPropagation()">
-                                <form action="{{ route('tasks.approve', $task->id) }}" method="POST">
+                            </td>
+                            <td class="whitespace-nowrap font-code text-body-small">
+                                <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">calendar_today</span>{{ ($isReport ? $m->session_date : ($m->created_at ?? $m->due_date))?->format('d/m/Y') }}</span>
+                            </td>
+                            <td class="text-right" onclick="event.stopPropagation()">
+                                <form method="POST" action="{{ $isReport ? route('tasks.class-reports.approve', $m->id) : route('tasks.approve', $m->id) }}">
                                     @csrf
-                                    <button type="submit" class="bg-primary-container text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-primary transition shadow-xs">
-                                        Xác nhận
-                                    </button>
+                                    <x-ui.button type="submit" size="sm">Xác nhận</x-ui.button>
                                 </form>
-                            </div>
-                        </div>
+                            </td>
+                        </tr>
                     @empty
-                        <div class="p-12 text-center text-gray-400">
-                            <span class="material-symbols-outlined text-4xl mb-2 text-gray-300">task_alt</span>
-                            <p class="font-medium text-sm text-gray-600">Không có đầu việc nào cần xác nhận thủ công.</p>
-                            <p class="text-xs text-gray-400 mt-1">Tất cả các báo cáo đã được xử lý hoặc hoàn thành tự động.</p>
-                        </div>
+                        <tr>
+                            <td colspan="4">
+                                <x-ui.empty-state icon="task_alt" title="Không có đầu việc nào cần xác nhận thủ công"
+                                    description="Các báo cáo đã được xử lý hoặc đã hoàn thành tự động (có ảnh minh chứng)." />
+                            </td>
+                        </tr>
                     @endforelse
-                </div>
-            </section>
+                </tbody>
+            </table>
+        </x-ui.data-table>
 
-            <!-- Right Detail Panel (1 col) -->
-            <section class="lg:col-span-1 sticky top-6">
-                @if($selectedTask)
-                    <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-                        <!-- Detail Header -->
-                        <div class="p-5 border-b border-gray-100 bg-gray-50/70">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="bg-orange-100 text-orange-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-orange-200">
-                                    Chờ xác nhận
-                                </span>
-                                <span class="text-xs text-gray-400 font-mono">ID #{{ $selectedTask->id }}</span>
-                            </div>
-                            <h2 class="text-base font-bold text-gray-900">{{ $selectedTask->title }}</h2>
-                            @if($selectedTask->classModel)
-                                <div class="text-xs text-blue-700 font-medium flex items-center gap-1 mt-1">
-                                    <span class="material-symbols-outlined text-[14px]">school</span>
-                                    {{ $selectedTask->classModel->name }} {{ $selectedTask->lesson_session ? '· ' . $selectedTask->lesson_session : '' }}
-                                </div>
+        {{-- Chi tiết + xác nhận --}}
+        <section class="lg:sticky lg:top-md">
+            @if ($selectedReport || $selectedTask)
+                @php
+                    $isReport = (bool) $selectedReport;
+                    $m = $selectedReport ?? $selectedTask;
+                    $taskOfItem = $isReport ? $m->task : $m;
+                    $person = $isReport ? $m->reporter : $m->assignee;
+                    $note = $isReport ? null : $m->completion_note;
+                    preg_match_all('~https?://[^\s<>"\']+~u', (string) ($isReport ? $m->topics_learned.' '.$m->teaching_log : $note), $noteLinks);
+                    $approveAction = $isReport ? route('tasks.class-reports.approve', $m->id) : route('tasks.approve', $m->id);
+                    $rejectAction = $isReport ? route('tasks.class-reports.reject', $m->id) : route('tasks.reject', $m->id);
+                    $rejectField = $isReport ? 'reason' : 'admin_note';
+                @endphp
+                <div class="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest" data-detail="{{ $isReport ? 'report' : 'task' }}-{{ $m->id }}">
+                    <div class="space-y-xs border-b border-surface-container bg-surface-container-low p-md">
+                        <div class="flex items-center justify-between gap-sm">
+                            <x-ui.badge color="status-pending">Chờ xác nhận</x-ui.badge>
+                            <span class="font-caption text-caption text-on-surface-variant">Cập nhật: {{ $m->updated_at?->diffForHumans() }}</span>
+                        </div>
+                        <h2 class="font-h3 text-h3 text-on-surface">{{ $isReport ? $m->session_name : $m->title }}</h2>
+                        <p class="flex items-center gap-xs font-body-small text-body-small text-secondary">
+                            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">class</span>
+                            {{ $m->classModel?->name ?? 'Công việc chung' }}{{ ! $isReport && $m->lesson_session ? ' · '.$m->lesson_session : '' }}
+                        </p>
+                    </div>
+
+                    <div class="space-y-md p-md font-body-small text-body-small">
+                        <div class="space-y-xs rounded-lg border border-outline-variant bg-surface-container-low p-sm">
+                            <p class="font-label text-label uppercase text-on-surface-variant">Thông tin giao việc</p>
+                            <p class="flex justify-between gap-sm"><span class="text-on-surface-variant">Người thực hiện:</span><span class="font-semibold">{{ $person?->name ?? '—' }}</span></p>
+                            <p class="flex justify-between gap-sm"><span class="text-on-surface-variant">Người giao việc:</span><span>{{ $taskOfItem?->creator?->name ?? '—' }}</span></p>
+                            <p class="flex justify-between gap-sm"><span class="text-on-surface-variant">Ngày giao:</span><span class="font-code">{{ ($taskOfItem?->created_at ?? $m->created_at)?->format('d/m/Y') }}</span></p>
+                            <p class="flex justify-between gap-sm"><span class="text-on-surface-variant">Hạn chót:</span>
+                                <span class="font-code font-semibold text-error">{{ $taskOfItem?->due_date ? $taskOfItem->due_date->format('d/m/Y').' '.substr((string) ($taskOfItem->due_time ?: '23:59'), 0, 5) : '—' }}</span></p>
+                            @if ($isReport)
+                                <p class="flex justify-between gap-sm"><span class="text-on-surface-variant">Người xác nhận:</span><span class="font-semibold">{{ $m->confirmerRoleLabel() }}</span></p>
                             @endif
                         </div>
 
-                        <!-- Detail Body -->
-                        <div class="p-5 space-y-4 text-xs">
-                            <!-- Info Block -->
-                            <div class="bg-gray-50 rounded-xl p-3 border border-gray-200 space-y-2">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-gray-500">Người thực hiện:</span>
-                                    <span class="font-bold text-gray-900">{{ $selectedTask->assignee?->name ?? '—' }}</span>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <span class="text-gray-500">Người giao việc:</span>
-                                    <span class="font-medium text-gray-800">{{ $selectedTask->creator?->name ?? 'Admin' }}</span>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <span class="text-gray-500">Hạn chót:</span>
-                                    <span class="font-mono font-bold text-rose-600">
-                                        {{ $selectedTask->due_date ? $selectedTask->due_date->format('d/m/Y') : '' }} {{ $selectedTask->due_time ?? '23:59' }}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <!-- Report Block -->
-                            <div>
-                                <h4 class="font-bold text-gray-700 uppercase text-[11px] mb-1.5 flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-[14px] text-amber-500">report</span>
-                                    Báo cáo từ Trợ giảng
-                                </h4>
-                                <div class="bg-orange-50/50 rounded-xl p-3.5 border border-orange-200 text-gray-800 space-y-2">
-                                    <p class="leading-relaxed whitespace-pre-line text-xs">
-                                        {{ $selectedTask->completion_note ?: 'Trợ giảng không ghi chú khi báo hoàn thành.' }}
-                                    </p>
-
-                                    @php
-                                        preg_match_all('~https?://[^\s<>"\']+~u', (string) $selectedTask->completion_note, $noteLinks);
-                                    @endphp
-                                    @foreach (array_unique($noteLinks[0] ?? []) as $noteLink)
-                                        <div class="p-2 bg-white rounded-lg border border-orange-200 flex items-center gap-2">
-                                            <span class="material-symbols-outlined text-primary text-[16px]">link</span>
-                                            <a href="{{ $noteLink }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline truncate text-xs font-medium">{{ $noteLink }}</a>
-                                        </div>
-                                    @endforeach
-
-                                    @if(!$selectedTask->completion_proof_image)
-                                        <div class="text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2 flex items-start gap-1.5">
-                                            <span class="material-symbols-outlined text-[14px] text-rose-600 shrink-0 mt-0.5">info</span>
-                                            <span><strong>Ghi chú hệ thống:</strong> TA báo cáo hoàn thành nhưng không đính kèm hình ảnh minh chứng trực tiếp lên hệ thống.</span>
+                        <div class="space-y-sm">
+                            <p class="flex items-center gap-xs font-label text-label uppercase text-on-surface-variant">
+                                <span class="material-symbols-outlined text-[16px] text-amber-600" aria-hidden="true">warning</span>
+                                {{ $isReport ? 'Báo cáo trực lớp' : 'Báo cáo từ Trợ giảng' }}
+                            </p>
+                            <div class="space-y-sm rounded-lg border border-primary-fixed bg-primary-light p-sm text-on-surface">
+                                @if ($isReport)
+                                    <p><span class="font-semibold">Hôm nay học gì:</span> {{ $m->topics_learned }}</p>
+                                    @if ($m->teaching_log)
+                                        <p><span class="font-semibold">Nhật ký dạy:</span> {{ $m->teaching_log }}</p>
+                                    @endif
+                                    @if ($m->studentSupports->isNotEmpty())
+                                        <div>
+                                            <p class="font-semibold">Học sinh cần bổ trợ ({{ $m->studentSupports->count() }}):</p>
+                                            <ul class="ml-md list-disc">
+                                                @foreach ($m->studentSupports as $support)
+                                                    <li>{{ $support->student?->name ?? 'Học sinh' }} — {{ $support->reason }}</li>
+                                                @endforeach
+                                            </ul>
                                         </div>
                                     @endif
-                                </div>
-                            </div>
-
-                            <!-- Admin Note Form -->
-                            <form id="approvalForm" action="{{ route('tasks.approve', $selectedTask->id) }}" method="POST" class="space-y-3">
-                                @csrf
-                                <div>
-                                    <label class="block font-bold text-gray-700 uppercase text-[11px] mb-1" for="admin_note">Ghi chú xác nhận (Tùy chọn)</label>
-                                    <textarea name="admin_note" id="admin_note" rows="2" placeholder="Nhập ghi chú hoặc phản hồi cho TA..."
-                                              class="w-full rounded-xl border-gray-200 text-xs focus:ring-primary-container focus:border-primary-container"></textarea>
-                                </div>
-                            </form>
-                        </div>
-
-                        <!-- Detail Actions -->
-                        <div class="p-5 border-t border-gray-100 bg-gray-50 flex flex-col gap-3">
-                            <button type="submit" form="approvalForm" class="w-full bg-primary-container text-white hover:bg-primary font-bold text-xs py-3 rounded-xl transition shadow-sm flex items-center justify-center gap-2">
-                                <span class="material-symbols-outlined text-[16px]">check_circle</span>
-                                Xác nhận hoàn thành
-                            </button>
-
-                            <div x-data="{ openReject: false }" class="w-full">
-                                <button type="button" @click="openReject = !openReject" class="w-full bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 font-semibold text-xs py-2.5 rounded-xl transition flex items-center justify-center gap-1.5">
-                                    <span class="material-symbols-outlined text-[16px] text-rose-500">cancel</span>
-                                    <span>Từ chối / Yêu cầu bổ sung</span>
-                                </button>
-
-                                <div x-show="openReject" x-cloak class="mt-2 p-3 bg-rose-50/70 border border-rose-200 rounded-xl space-y-2">
-                                    <form action="{{ route('tasks.reject', $selectedTask->id) }}" method="POST" class="space-y-2">
-                                        @csrf
-                                        <label for="reject_reason_{{ $selectedTask->id }}" class="block text-[11px] font-bold text-rose-800 uppercase">
-                                            Lý do từ chối / Yêu cầu hoàn thiện lại <span class="text-rose-600">*</span>
-                                        </label>
-                                        <textarea id="reject_reason_{{ $selectedTask->id }}" name="admin_note" rows="2" required placeholder="Nhập chi tiết lý do từ chối (ví dụ: thiếu ảnh lớp, thông tin chưa chính xác...) để nhân sự làm lại..." class="w-full text-xs rounded-xl border-rose-300 focus:border-rose-500 focus:ring-rose-500 bg-white p-2"></textarea>
-                                        <div class="flex items-center justify-end gap-2">
-                                            <button type="button" @click="openReject = false" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-600 text-xs rounded-lg hover:bg-gray-50">Hủy</button>
-                                            <button type="submit" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg flex items-center gap-1 shadow-xs">
-                                                <span class="material-symbols-outlined text-[14px]">send</span>
-                                                Gửi yêu cầu làm lại
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
+                                @else
+                                    <p class="whitespace-pre-line">{{ $note ?: 'Trợ giảng không ghi chú khi báo hoàn thành.' }}</p>
+                                @endif
+                                @foreach (array_unique($noteLinks[0] ?? []) as $noteLink)
+                                    <a href="{{ $noteLink }}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-xs truncate rounded border border-primary-fixed bg-surface-container-lowest p-xs text-secondary hover:underline">
+                                        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">link</span>{{ $noteLink }}
+                                    </a>
+                                @endforeach
+                                <p class="flex items-start gap-xs rounded border border-error/20 bg-error-container/40 p-xs font-caption text-caption text-error">
+                                    <span class="material-symbols-outlined text-[14px]" aria-hidden="true">info</span>
+                                    <span><strong>Ghi chú:</strong> TA báo cáo hoàn thành nhưng không đính kèm ảnh chụp minh chứng lên hệ thống.</span>
+                                </p>
                             </div>
                         </div>
-                    </div>
-                @else
-                    <div class="bg-white border border-gray-200 rounded-2xl p-8 text-center text-gray-400 shadow-sm">
-                        <span class="material-symbols-outlined text-4xl mb-2 text-gray-300">touch_app</span>
-                        <p class="font-medium text-xs text-gray-600">Chọn một công việc bên trái để xem chi tiết và xác nhận.</p>
-                    </div>
-                @endif
-            </section>
-        </div>
 
-        <!-- Báo cáo trực lớp chờ duyệt (không có ảnh bảng): GV chính của lớp / Học vụ duyệt -->
-        <section class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-            <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-                <h2 class="text-sm font-bold text-gray-900 flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary text-[18px]">fact_check</span>
-                    Báo cáo trực lớp chờ duyệt
-                </h2>
-                <span class="text-xs text-gray-500">{{ $pendingReports->count() }} báo cáo</span>
-            </div>
-            <div class="divide-y divide-gray-100">
-                @forelse ($pendingReports as $report)
-                    <div class="p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
-                        <div class="md:col-span-7 space-y-1 text-xs">
-                            <div class="font-semibold text-gray-900">{{ $report->session_name }} — {{ $report->classModel?->name ?? 'Lớp đã xóa' }}</div>
-                            <div class="text-gray-500">Người nộp: {{ $report->reporter?->name ?? '—' }} · {{ $report->session_date?->format('d/m/Y') }}</div>
-                            <div class="text-gray-700"><span class="font-semibold">Hôm nay học gì:</span> {{ $report->topics_learned }}</div>
-                            @if ($report->teaching_log)
-                                <div class="text-gray-600"><span class="font-semibold">Nhật ký dạy:</span> {{ $report->teaching_log }}</div>
-                            @endif
-                            <div class="text-amber-700 text-[11px]">Không có ảnh bảng — cần GV chính / Học vụ xác nhận.</div>
-                        </div>
-                        <div class="md:col-span-5 space-y-2">
-                            <form method="POST" action="{{ route('tasks.class-reports.approve', $report->id) }}">
-                                @csrf
-                                <button type="submit" class="w-full bg-primary-container text-white hover:bg-primary font-bold text-xs py-2 rounded-xl transition flex items-center justify-center gap-1.5">
-                                    <span class="material-symbols-outlined text-[16px]">check_circle</span> Duyệt báo cáo
-                                </button>
-                            </form>
-                            <form method="POST" action="{{ route('tasks.class-reports.reject', $report->id) }}" class="flex gap-2">
-                                @csrf
-                                <input type="text" name="reason" required maxlength="1000" placeholder="Lý do trả về..." class="flex-1 rounded-xl border-gray-200 text-xs">
-                                <button type="submit" class="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-bold hover:bg-rose-100">Trả về</button>
-                            </form>
-                        </div>
+                        <form id="approvalForm" method="POST" action="{{ $approveAction }}" class="space-y-xs">
+                            @csrf
+                            <x-ui.textarea name="admin_note" label="Ghi chú xác nhận (Tùy chọn)" rows="2" placeholder="Nhập ghi chú hoặc phản hồi cho TA..." />
+                        </form>
                     </div>
-                @empty
-                    <x-ui.empty-state icon="task_alt" title="Không có báo cáo trực lớp chờ duyệt" />
-                @endforelse
-            </div>
+
+                    <div class="flex flex-col gap-sm border-t border-surface-container bg-surface-container-low p-md" x-data="{ openReject: {{ $errors->has($rejectField) ? 'true' : 'false' }} }">
+                        <x-ui.button type="submit" form="approvalForm" icon="check_circle" class="w-full">Xác nhận hoàn thành</x-ui.button>
+                        <x-ui.button variant="secondary" class="w-full" x-on:click="openReject = !openReject">Từ chối / Yêu cầu bổ sung</x-ui.button>
+                        <form x-show="openReject" x-cloak method="POST" action="{{ $rejectAction }}" class="space-y-xs rounded-lg border border-error/30 bg-error-container/30 p-sm">
+                            @csrf
+                            <x-ui.textarea :name="$rejectField" label="Lý do từ chối / yêu cầu làm lại" rows="2" required placeholder="Ví dụ: thiếu ảnh lớp, thông tin chưa chính xác..." />
+                            <div class="flex justify-end gap-xs">
+                                <x-ui.button size="sm" variant="ghost" x-on:click="openReject = false">Hủy</x-ui.button>
+                                <x-ui.button type="submit" size="sm" variant="danger" icon="send">Gửi yêu cầu làm lại</x-ui.button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            @else
+                <div class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg text-center">
+                    <span class="material-symbols-outlined text-[40px] text-outline" aria-hidden="true">touch_app</span>
+                    <p class="font-body-small text-body-small text-on-surface-variant">Chọn một đầu việc bên trái để xem chi tiết và xác nhận.</p>
+                </div>
+            @endif
         </section>
-
     </div>
 </x-app-layout>
