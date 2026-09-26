@@ -16,6 +16,19 @@ class UserRequest extends FormRequest
     }
 
     /**
+     * Ô lương để trống trên form → 0 (cột NOT NULL DEFAULT 0); ConvertEmptyStringsToNull đã đổi "" thành null.
+     * Chỉ áp dụng khi form có gửi trường, để không ghi đè lương khi request không chứa trường đó.
+     */
+    protected function prepareForValidation(): void
+    {
+        foreach (['base_salary', 'hourly_rate'] as $field) {
+            if ($this->exists($field) && $this->input($field) === null) {
+                $this->merge([$field => 0]);
+            }
+        }
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function rules(): array

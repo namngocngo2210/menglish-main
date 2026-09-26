@@ -65,6 +65,23 @@ class UserCreationHierarchyTest extends TestCase
         $this->assertDatabaseHas('users', ['email' => 'manager_test@menglish.edu.vn']);
     }
 
+    public function test_blank_salary_fields_are_saved_as_zero(): void
+    {
+        // Form gửi ô lương trống ("" → null); cột NOT NULL trên MySQL từng gây lỗi 500 khi tạo tài khoản.
+        $res = $this->actingAs($this->admin)->post(route('users.store'), [
+            'name' => 'Blank Salary',
+            'email' => 'blank_salary@menglish.edu.vn',
+            'branch_id' => $this->branch->id,
+            'role' => 'teacher',
+            'password' => 'Password123!',
+            'base_salary' => '',
+            'hourly_rate' => '',
+        ]);
+
+        $res->assertRedirect(route('users.index'));
+        $this->assertDatabaseHas('users', ['email' => 'blank_salary@menglish.edu.vn', 'base_salary' => 0, 'hourly_rate' => 0]);
+    }
+
     public function test_academic_lead_can_only_create_teachers(): void
     {
         // Allowed: teacher, teacher_fulltime, teacher_parttime
