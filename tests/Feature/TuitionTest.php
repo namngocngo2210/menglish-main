@@ -51,7 +51,8 @@ class TuitionTest extends TestCase
         $response = $this->actingAs($user)->get('/tuition/students');
         $response->assertStatus(200);
         $response->assertSee('Nguyễn Thuỳ Trang');
-        $response->assertSee('7,500,000');
+        // Phase 4 (mockup): số tiền định dạng Việt Nam (dấu chấm).
+        $response->assertSee('7.500.000đ');
     }
 
     public function test_can_create_receipt_and_recalculate_debt(): void
