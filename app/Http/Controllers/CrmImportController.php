@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\ArrayExport;
+use App\Http\Concerns\RendersModals;
 use App\Imports\RawRowsImport;
 use App\Models\Branch;
 use App\Models\CrmCustomer;
@@ -23,9 +24,13 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
  * "Nhập khách hàng loạt từ Excel" (mockup CRM): tải file .xlsx / .csv → xem trước + lỗi từng dòng
  * (thiếu tên, SĐT sai định dạng, trùng trong file / trùng CRM, email sai) → nhập các dòng hợp lệ
  * vào chi nhánh + Sales phụ trách đã chọn. Không liên quan màn nhập học phí.
+ * Mở từ nút "Nhập Excel" → modal (htmx): redirect sau mỗi bước về crm.import được trình duyệt đi theo (giữ HX-Request)
+ * nên bước kế tiếp hiện ngay trong modal; nhập xong → HX-Redirect sang danh sách khách kèm kết quả như cũ.
  */
 class CrmImportController extends Controller
 {
+    use RendersModals;
+
     private const SESSION_KEY = 'crm_customer_import';
 
     private const MAX_ROWS = 1000;
@@ -51,7 +56,7 @@ class CrmImportController extends Controller
     {
         $preview = $request->session()->get(self::SESSION_KEY);
 
-        return view('crm.import', $this->formOptions($request->user()) + ['preview' => $preview]);
+        return $this->modalView('crm.import', $this->formOptions($request->user()) + ['preview' => $preview]);
     }
 
     public function template()
@@ -196,9 +201,9 @@ class CrmImportController extends Controller
 
         $request->session()->forget(self::SESSION_KEY);
 
-        return redirect()->route('crm.customers.index')
+        return $this->modalRedirect(redirect()->route('crm.customers.index')
             ->with('status', "Đã nhập {$created} khách hàng mới vào {$preview['branch_name']}.".($skipped ? ' Bỏ qua '.count($skipped).' dòng lỗi.' : ''))
-            ->with('import_skipped', $skipped);
+            ->with('import_skipped', $skipped));
     }
 
     /**

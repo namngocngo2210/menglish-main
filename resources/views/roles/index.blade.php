@@ -1,4 +1,6 @@
-{{-- Danh sách vai trò (RBAC linh hoạt — docs/rbac.md): tạo, nhân bản, cấu hình quyền, xóa (chỉ khi chưa gán cho ai). --}}
+{{-- Danh sách vai trò (RBAC linh hoạt — docs/rbac.md): tạo, nhân bản, cấu hình quyền, xóa (chỉ khi chưa gán cho ai).
+     Thêm / Đổi tên mở modal (htmx), Xóa qua modal xác nhận; "Cấu hình quyền" (ma trận) vẫn là trang riêng.
+     Lưu/xóa xong server phát "roles-changed" → #role-list tự tải lại. --}}
 <x-app-layout title="Vai trò">
     <x-ui.page-header title="Vai trò & phân quyền"
                       description="Mỗi vai trò là một tập quyền theo module + phạm vi dữ liệu. Nhân sự kiêm nhiệm nhiều vai trò được cộng dồn quyền; Phân quyền cá nhân cho phép / chặn riêng từng người.">
@@ -7,7 +9,7 @@
                 <x-ui.button variant="secondary" icon="security" :href="route('permissions.index')">Danh mục quyền</x-ui.button>
             @endcan
             @can('role.create')
-                <x-ui.button icon="add_circle" :href="route('roles.create')">Thêm vai trò mới</x-ui.button>
+                <x-ui.button icon="add_circle" :href="route('roles.create')" modal="md">Thêm vai trò mới</x-ui.button>
             @endcan
         </x-slot:actions>
     </x-ui.page-header>
@@ -16,6 +18,8 @@
         <x-ui.alert type="error" class="mb-md">{{ $errors->first() }}</x-ui.alert>
     @endif
 
+    <div x-data="{ del: { url: '', name: '' } }">
+    <div id="role-list" hx-get="{{ route('roles.index', request()->query()) }}" hx-trigger="roles-changed from:body" hx-select="#role-list" hx-swap="outerHTML">
     <x-ui.data-table min-width="860px">
         <table>
             <thead>
@@ -48,6 +52,7 @@
                         <td class="text-right">
                             <div class="flex items-center justify-end gap-xs whitespace-nowrap">
                                 @can('role.update')
+                                    <x-ui.button size="sm" variant="ghost" icon="edit" :href="route('roles.edit', $role)" modal="md" title="Đổi tên vai trò" aria-label="Đổi tên {{ $role->name }}" />
                                     <x-ui.button size="sm" variant="secondary" icon="tune" :href="route('roles.edit', $role)">{{ $isSuperAdmin ? 'Xem quyền' : 'Cấu hình quyền' }}</x-ui.button>
                                 @endcan
                                 @can('role.create')
@@ -58,10 +63,9 @@
                                 @endcan
                                 @can('role.delete')
                                     @if (! $isSuperAdmin && $role->users_count === 0)
-                                        <form action="{{ route('roles.destroy', $role) }}" method="POST" class="inline" onsubmit="return confirm('Xóa vai trò này?');">
-                                            @csrf @method('DELETE')
-                                            <x-ui.button size="sm" variant="ghost" icon="delete" type="submit" title="Xóa vai trò">Xóa</x-ui.button>
-                                        </form>
+                                        <x-ui.button size="sm" variant="danger-text" icon="delete" title="Xóa vai trò"
+                                                     data-url="{{ route('roles.destroy', $role) }}" data-name="{{ \App\Helpers\AclHelper::roleLabel($role->name) }}"
+                                                     @click="del = { url: $el.dataset.url, name: $el.dataset.name }; $dispatch('open-modal', 'delete-role')">Xóa</x-ui.button>
                                     @endif
                                 @endcan
                             </div>
@@ -72,4 +76,20 @@
         </table>
         <x-slot:footer><x-ui.pagination :paginator="$roles" /></x-slot:footer>
     </x-ui.data-table>
+    </div>
+
+    @can('role.delete')
+        <x-ui.modal name="delete-role" title="Xóa vai trò?" max-width="md">
+            <p>Xóa vai trò <strong class="font-semibold" x-text="del.name"></strong>?</p>
+            <p class="mt-xs font-body-small text-body-small text-on-surface-variant">Chỉ xóa được vai trò chưa gán cho nhân sự nào. Thao tác được ghi vào Nhật ký vận hành.</p>
+            <form id="delete-role-form" method="POST" :action="del.url" hx-boost="true" hx-swap="none" hx-push-url="false">
+                @csrf @method('DELETE')
+            </form>
+            <x-slot:footer>
+                <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'delete-role')">Hủy</x-ui.button>
+                <x-ui.button variant="danger" type="submit" form="delete-role-form" icon="delete">Xóa</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
+    @endcan
+    </div>
 </x-app-layout>

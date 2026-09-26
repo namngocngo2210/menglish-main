@@ -6,6 +6,7 @@
       title:       tiêu đề modal
       description: dòng mô tả dưới tiêu đề (tuỳ chọn)
       cancel:      nhãn nút huỷ ở footer (mặc định "Hủy bỏ"; false => ẩn)
+      size:        đổi cỡ modal khi fragment cần rộng hơn nút mở (vd. bước "Xem trước" của nhập Excel → 4xl); bỏ trống = giữ cỡ
     Slots: nội dung (slot), footer (nút hành động — nút submit dùng form="<id form>" vì form nằm trong thân)
     Ví dụ (holidays/form.blade.php):
       <x-ui.modal-frame :title="$holiday->exists ? 'Sửa ngày nghỉ' : 'Thêm ngày nghỉ'">
@@ -13,10 +14,11 @@
           <x-slot:footer><x-ui.button type="submit" form="modal-holiday-form">Lưu thông tin</x-ui.button></x-slot:footer>
       </x-ui.modal-frame>
 --}}
-@props(['title', 'description' => null, 'cancel' => 'Hủy bỏ'])
+@props(['title', 'description' => null, 'cancel' => 'Hủy bỏ', 'size' => null])
 
 <div {{ $attributes->merge(['class' => 'flex min-h-0 flex-1 flex-col']) }}
-     hx-boost="true" hx-target="#remote-modal-body" hx-swap="innerHTML" hx-push-url="false">
+     hx-boost="true" hx-target="#remote-modal-body" hx-swap="innerHTML" hx-push-url="false"
+     @if ($size) x-init="widths[@js($size)] && (size = @js($size))" @endif>
     <div class="flex shrink-0 items-start justify-between gap-md border-b border-surface-container px-lg py-md">
         <div class="min-w-0">
             <h2 id="modal-remote-title" class="font-h3 text-h3 text-on-surface">{{ $title }}</h2>

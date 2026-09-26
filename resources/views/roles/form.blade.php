@@ -1,5 +1,25 @@
 {{-- Màn Vai trò (RBAC linh hoạt — docs/rbac.md): tên / mã / mô tả + ma trận quyền theo module
-     (Xem / Thêm / Sửa / Xóa / Duyệt + thao tác khác + phạm vi dữ liệu). --}}
+     (Xem / Thêm / Sửa / Xóa / Duyệt + thao tác khác + phạm vi dữ liệu).
+     Mở từ danh sách → modal (htmx) chỉ gồm tên / mã / mô tả; mở thẳng URL → trang đầy đủ kèm ma trận quyền. --}}
+@if ($asModal)
+    <x-ui.modal-frame :title="$role->exists ? 'Đổi tên vai trò' : 'Thêm vai trò mới'"
+                      description="Tên hiển thị, mã và mô tả. Quyền của vai trò cấu hình ở màn “Cấu hình quyền”.">
+        @if ($isSuperAdmin)
+            <x-ui.alert type="info" class="mb-md">Vai trò Super Admin bất biến: chỉ đổi được tên hiển thị và mô tả.</x-ui.alert>
+        @endif
+        <form id="modal-role-form" method="POST" action="{{ $role->exists ? route('roles.update', $role) : route('roles.store') }}" class="space-y-md">
+            @csrf
+            @if ($role->exists) @method('PUT') @endif
+            @include('roles._fields')
+        </form>
+        @unless ($role->exists)
+            <p class="mt-md font-body-small text-body-small text-on-surface-variant">Vai trò mới chưa có quyền nào — bấm “Cấu hình quyền” ở danh sách sau khi tạo.</p>
+        @endunless
+        <x-slot:footer>
+            <x-ui.button type="submit" form="modal-role-form" icon="save">Lưu vai trò</x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal-frame>
+@else
 @php
     $roleName = $role->exists ? \App\Helpers\AclHelper::shortRoleLabel($role->name) : null;
     $readonly = $isSuperAdmin || ! $canAssignPermissions;
@@ -36,12 +56,7 @@
         @if ($role->exists) @method('PUT') @endif
 
         <div class="grid grid-cols-1 gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md md:grid-cols-3">
-            <x-ui.input name="label" label="Tên hiển thị" :value="$role->label ?? ($role->exists ? \App\Helpers\AclHelper::shortRoleLabel($role->name) : '')" placeholder="Ví dụ: Thu ngân chi nhánh" />
-            <div>
-                <x-ui.input name="name" label="Mã vai trò" :value="$role->name" required placeholder="vd. cashier_branch" hint="Chữ thường, số, gạch dưới. Vai trò hệ thống không đổi mã."
-                            :readonly="$isSystemRole" />
-            </div>
-            <x-ui.input name="description" label="Mô tả" :value="$role->description" placeholder="Vai trò này dùng cho ai, làm gì" />
+            @include('roles._fields', ['asModal' => false])
         </div>
 
         @include('roles.partials.matrix', ['groups' => $groups, 'selected' => $selectedNames, 'readonly' => $readonly, 'superAdmin' => $isSuperAdmin])
@@ -52,3 +67,4 @@
         </div>
     </form>
 </x-app-layout>
+@endif

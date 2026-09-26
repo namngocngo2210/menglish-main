@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\AclHelper;
+use App\Http\Concerns\RendersModals;
 use App\Http\Requests\AssignRoleRequest;
 use App\Http\Requests\UserRequest;
 use App\Models\Branch;
@@ -13,6 +14,7 @@ use App\Support\DataScope;
 use App\Support\Rbac;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -22,6 +24,8 @@ use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
+    use RendersModals;
+
     public function index(Request $request): View
     {
         $currentUser = auth()->user();
@@ -276,17 +280,19 @@ class UserController extends Controller
         return back()->with('status', "Đã đặt lại mật khẩu. Mật khẩu tạm thời: {$temporaryPassword}");
     }
 
-    public function editRoles(User $user): View
+    /** Gán vai trò: mở từ danh sách nhân sự → modal (htmx); mở thẳng URL → trang đầy đủ. */
+    public function editRoles(User $user): Response
     {
         $this->ensureCanManageTarget($user);
-        return view('users.roles', [
-            'user' => $user,
-            'roles' => Role::query()->orderBy('name')->get(),
+
+        return $this->modalView('users.roles', [
+            'user' => $user->loadMissing('roles'),
+            'roles' => Role::query()->withCount('permissions')->orderBy('name')->get(),
             'assignable' => Rbac::assignableRoles(auth()->user()),
         ]);
     }
 
-    public function updateRoles(AssignRoleRequest $request, User $user): RedirectResponse
+    public function updateRoles(AssignRoleRequest $request, User $user): Response|RedirectResponse
     {
         $this->ensureCanManageTarget($user);
         $before = $user->getRoleNames()->all();
@@ -308,7 +314,7 @@ class UserController extends Controller
             ->withProperties(['old' => ['roles' => $before], 'attributes' => ['roles' => $after], 'roles' => $after])
             ->log('Cập nhật vai trò nhân viên');
 
-        return redirect()->route('users.index')->with('status', 'Đã cập nhật vai trò.');
+        return $this->modalSaved('Đã cập nhật vai trò.', 'users-changed', route('users.index'));
     }
 
     /**

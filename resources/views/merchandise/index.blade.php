@@ -1,3 +1,5 @@
+{{-- Danh mục Hàng hóa & Vật phẩm. Thêm/Sửa mở modal (htmx), Xóa qua modal xác nhận;
+     lưu/xóa xong server phát "merchandise-changed" → #merchandise-list tự tải lại (giữ bộ lọc, trang hiện tại). --}}
 <x-app-layout>
     <x-slot name="header">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -11,15 +13,12 @@
             </div>
 
             <div class="flex items-center gap-2">
-                <a href="{{ route('merchandise.create') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-container text-white text-xs font-bold hover:bg-primary-hover shadow-sm shadow-primary-container/30 transition">
-                    <span class="material-symbols-outlined text-base">add_circle</span>
-                    <span>Thêm Hàng hóa mới</span>
-                </a>
+                <x-ui.button icon="add_circle" :href="route('merchandise.create')" modal="xl">Thêm Hàng hóa mới</x-ui.button>
             </div>
         </div>
     </x-slot>
 
-    <div class="max-w-7xl mx-auto space-y-6">
+    <div class="max-w-7xl mx-auto space-y-6" x-data="{ del: { url: '', name: '' } }">
 
         {{-- Metrics Overview Cards --}}
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -148,7 +147,8 @@
         </div>
 
         {{-- Merchandise Table --}}
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
+        <div id="merchandise-list" hx-get="{{ route('merchandise.index', request()->query()) }}" hx-trigger="merchandise-changed from:body" hx-select="#merchandise-list" hx-swap="outerHTML"
+             class="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs border-collapse">
                     <thead>
@@ -227,25 +227,10 @@
                                 {{-- Thao tác --}}
                                 <td class="py-3 px-4 text-right">
                                     <div class="flex items-center justify-end gap-1">
-                                        <a 
-                                            href="{{ route('merchandise.edit', $item) }}" 
-                                            class="p-1 text-gray-400 hover:text-primary hover:bg-primary-container/10 rounded-lg transition"
-                                            title="Sửa mặt hàng"
-                                        >
-                                            <span class="material-symbols-outlined text-[17px]">edit</span>
-                                        </a>
-
-                                        <form action="{{ route('merchandise.destroy', $item) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa mặt hàng {{ $item->name }}?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button 
-                                                type="submit" 
-                                                class="p-1 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                                                title="Xóa mặt hàng"
-                                            >
-                                                <span class="material-symbols-outlined text-[17px]">delete</span>
-                                            </button>
-                                        </form>
+                                        <x-ui.button size="sm" variant="ghost" icon="edit" :href="route('merchandise.edit', $item)" modal="xl" title="Sửa mặt hàng" aria-label="Sửa {{ $item->name }}" />
+                                        <x-ui.button size="sm" variant="danger-text" icon="delete" title="Xóa mặt hàng" aria-label="Xóa {{ $item->name }}"
+                                                     data-url="{{ route('merchandise.destroy', $item) }}" data-name="{{ $item->name }}"
+                                                     @click="del = { url: $el.dataset.url, name: $el.dataset.name }; $dispatch('open-modal', 'delete-merchandise')" />
                                     </div>
                                 </td>
                             </tr>
@@ -255,7 +240,8 @@
                                     <div class="flex flex-col items-center gap-2">
                                         <span class="material-symbols-outlined text-4xl text-gray-300">inventory_2</span>
                                         <p class="text-xs">Không tìm thấy hàng hóa / vật phẩm nào phù hợp điều kiện lọc.</p>
-                                        <a href="{{ route('merchandise.create') }}" class="mt-1 text-xs font-bold text-primary hover:underline">
+                                        <a href="{{ route('merchandise.create') }}" hx-get="{{ route('merchandise.create') }}" hx-target="#remote-modal-body" hx-swap="innerHTML" data-modal-size="xl"
+                                           class="mt-1 text-xs font-bold text-primary hover:underline">
                                             + Thêm hàng hóa mới ngay
                                         </a>
                                     </div>
@@ -272,5 +258,18 @@
                 </div>
             @endif
         </div>
+
+        {{-- Xác nhận xóa (dùng chung cho mọi dòng; url/tên lấy từ nút Xóa) --}}
+        <x-ui.modal name="delete-merchandise" title="Xóa mặt hàng?" max-width="md">
+            <p>Xóa mặt hàng <strong class="font-semibold" x-text="del.name"></strong>?</p>
+            <p class="mt-xs font-body-small text-body-small text-on-surface-variant">Mặt hàng được chuyển vào thùng rác, không còn chọn được khi lập hóa đơn.</p>
+            <form id="delete-merchandise-form" method="POST" :action="del.url" hx-boost="true" hx-swap="none" hx-push-url="false">
+                @csrf @method('DELETE')
+            </form>
+            <x-slot:footer>
+                <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'delete-merchandise')">Hủy</x-ui.button>
+                <x-ui.button variant="danger" type="submit" form="delete-merchandise-form" icon="delete">Xóa</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
     </div>
 </x-app-layout>

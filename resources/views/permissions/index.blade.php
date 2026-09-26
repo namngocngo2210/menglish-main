@@ -1,78 +1,70 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-indigo-600">key</span>
-                    Danh mục quyền hạn hệ thống
-                </h1>
-            </div>
-        </div>
-    </x-slot>
+{{--
+    Danh mục quyền hạn: Sửa mở modal (htmx), Xóa qua modal xác nhận.
+    Lưu/xóa xong server phát "permissions-changed" → #permission-list tự tải lại (giữ trang hiện tại).
+--}}
+<x-app-layout title="Danh mục quyền">
+    <x-ui.page-header title="Danh mục quyền hạn hệ thống" description="Mỗi quyền có dạng module.action, được gán cho vai trò ở màn Vai trò & phân quyền.">
+        <x-slot:actions>
+            @can('role.view')
+                <x-ui.button variant="secondary" icon="admin_panel_settings" :href="route('roles.index')">Vai trò</x-ui.button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="max-w-5xl mx-auto space-y-4">
-        @if ($errors->any())
-            <div class="p-4 rounded-2xl bg-rose-50 text-rose-800 border border-rose-200 text-xs font-semibold flex items-center gap-2">
-                <span class="material-symbols-outlined text-rose-600 text-base">error</span>
-                <span>{{ $errors->first() }}</span>
-            </div>
-        @endif
+    @if ($errors->any())
+        <x-ui.alert type="error" class="mb-md">{{ $errors->first() }}</x-ui.alert>
+    @endif
 
-        <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs">
+    <div x-data="{ del: { url: '', name: '' } }">
+        <div id="permission-list" hx-get="{{ route('permissions.index', request()->query()) }}" hx-trigger="permissions-changed from:body" hx-select="#permission-list" hx-swap="outerHTML">
+            <x-ui.data-table min-width="760px">
+                <table>
                     <thead>
-                        <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[11px]">
-                            <th class="py-3 px-4">Tên Quyền Hạn (Tiếng Việt)</th>
-                            <th class="py-3 px-4">Mã phân quyền (Slug)</th>
-                            <th class="py-3 px-4">Phân hệ chức năng</th>
-                            <th class="py-3 px-4 text-center">Số vai trò áp dụng</th>
-                            <th class="py-3 px-4 text-right">Thao tác</th>
+                        <tr>
+                            <th>Tên quyền hạn</th>
+                            <th>Mã phân quyền</th>
+                            <th>Phân hệ chức năng</th>
+                            <th class="text-center">Số vai trò áp dụng</th>
+                            <th class="text-right">Thao tác</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
+                    <tbody>
                         @foreach ($permissions as $permission)
-                            @php
-                                $module = explode('.', $permission->name)[0];
-                            @endphp
-                            <tr class="hover:bg-purple-50/10 transition">
-                                <td class="py-3.5 px-4 font-bold text-gray-900 text-sm">
-                                    {{ \App\Helpers\AclHelper::actionLabel($permission->name) }}
-                                </td>
-                                <td class="py-3.5 px-4 font-mono text-primary font-bold">
-                                    {{ $permission->name }}
-                                </td>
-                                <td class="py-3.5 px-4 font-semibold text-gray-800">
-                                    {{ \App\Helpers\AclHelper::moduleLabel($module) }}
-                                </td>
-                                <td class="py-3.5 px-4 text-center">
-                                    <span class="px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-700 font-mono font-bold text-xs">
-                                        {{ $permission->roles_count }} vai trò
-                                    </span>
-                                </td>
-                                <td class="py-3.5 px-4 text-right whitespace-nowrap">
-                                    <div class="flex items-center justify-end gap-1">
-                                        @can('permission.update')
-                                            <a href="{{ route('permissions.edit', $permission) }}" class="p-1 rounded-lg text-gray-500 hover:text-primary transition" title="Sửa">
-                                                <span class="material-symbols-outlined text-[16px]">edit</span>
-                                            </a>
-                                        @endcan
-                                        @can('permission.delete')
-                                            <form action="{{ route('permissions.destroy', $permission) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc muốn xóa quyền này?');">
-                                                @csrf @method('DELETE')
-                                                <button type="submit" class="p-1 rounded-lg text-gray-400 hover:text-rose-600 transition" title="Xóa">
-                                                    <span class="material-symbols-outlined text-[16px]">delete</span>
-                                                </button>
-                                            </form>
-                                        @endcan
-                                    </div>
+                            <tr>
+                                <td class="font-semibold text-on-surface">{{ \App\Helpers\AclHelper::actionLabel($permission->name) }}</td>
+                                <td class="font-code text-primary">{{ $permission->name }}</td>
+                                <td>{{ \App\Helpers\AclHelper::moduleLabel(explode('.', $permission->name)[0]) }}</td>
+                                <td class="text-center"><x-ui.badge color="neutral" :dot="false">{{ $permission->roles_count }} vai trò</x-ui.badge></td>
+                                <td class="whitespace-nowrap text-right">
+                                    @can('permission.update')
+                                        <x-ui.button size="sm" variant="ghost" icon="edit" :href="route('permissions.edit', $permission)" modal="sm" title="Sửa" aria-label="Sửa {{ $permission->name }}" />
+                                    @endcan
+                                    @can('permission.delete')
+                                        <x-ui.button size="sm" variant="danger-text" icon="delete" title="Xóa" aria-label="Xóa {{ $permission->name }}"
+                                                     data-url="{{ route('permissions.destroy', $permission) }}" data-name="{{ $permission->name }}"
+                                                     @click="del = { url: $el.dataset.url, name: $el.dataset.name }; $dispatch('open-modal', 'delete-permission')" />
+                                    @endcan
                                 </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
-            </div>
-            <x-pagination :paginator="$permissions" />
+                <x-slot:footer><x-ui.pagination :paginator="$permissions" unit="quyền" /></x-slot:footer>
+            </x-ui.data-table>
         </div>
+
+        @can('permission.delete')
+            <x-ui.modal name="delete-permission" title="Xóa quyền?" max-width="md">
+                <p>Xóa quyền <strong class="font-code font-semibold" x-text="del.name"></strong>?</p>
+                <p class="mt-xs font-body-small text-body-small text-on-surface-variant">Chỉ xóa được quyền chưa gán cho vai trò nào.</p>
+                <form id="delete-permission-form" method="POST" :action="del.url" hx-boost="true" hx-swap="none" hx-push-url="false">
+                    @csrf @method('DELETE')
+                </form>
+                <x-slot:footer>
+                    <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'delete-permission')">Hủy</x-ui.button>
+                    <x-ui.button variant="danger" type="submit" form="delete-permission-form" icon="delete">Xóa</x-ui.button>
+                </x-slot:footer>
+            </x-ui.modal>
+        @endcan
     </div>
 </x-app-layout>

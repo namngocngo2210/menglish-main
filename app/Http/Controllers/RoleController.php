@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\AclHelper;
+use App\Http\Concerns\RendersModals;
 use App\Http\Requests\RoleRequest;
 use App\Support\PermissionCatalog;
 use App\Support\Rbac;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -23,9 +25,13 @@ use Spatie\Permission\Models\Role;
  *  - Super Admin (vai trò `admin`) bất biến: không sửa quyền, không đổi mã, không xóa (luôn toàn quyền qua Gate::before).
  *  - Không tự làm mất quyền quản trị phân quyền của chính mình khi sửa vai trò mình đang giữ.
  *  - Mọi thay đổi ghi nhật ký trước / sau (log "Người dùng & Phân quyền") và xóa cache quyền.
+ *
+ * Tạo / đổi tên từ danh sách mở modal (htmx) chỉ gồm tên, mã, mô tả; ma trận quyền vẫn ở trang đầy đủ roles.create/edit.
  */
 class RoleController extends Controller
 {
+    use RendersModals;
+
     public const LOG = 'Người dùng & Phân quyền';
 
     public function index(Request $request): View
@@ -40,12 +46,12 @@ class RoleController extends Controller
         return view('roles.index', compact('roles'));
     }
 
-    public function create(Request $request): View
+    public function create(Request $request): Response
     {
-        return view('roles.form', $this->formData(new Role, $request->user()));
+        return $this->formView($request, new Role);
     }
 
-    public function store(RoleRequest $request): RedirectResponse
+    public function store(RoleRequest $request): Response|RedirectResponse
     {
         $permissions = $this->requestedPermissions($request, null);
         $this->authorizeAssigningPermissions($request, $permissions !== []);
@@ -65,15 +71,15 @@ class RoleController extends Controller
 
         $this->log($role, 'created', 'Tạo vai trò mới', [], $this->snapshot($role->fresh()));
 
-        return redirect()->route('roles.index')->with('status', 'Đã tạo vai trò thành công.');
+        return $this->modalSaved('Đã tạo vai trò thành công.', 'roles-changed', route('roles.index'));
     }
 
-    public function edit(Request $request, Role $role): View
+    public function edit(Request $request, Role $role): Response
     {
-        return view('roles.form', $this->formData($role, $request->user()));
+        return $this->formView($request, $role);
     }
 
-    public function update(RoleRequest $request, Role $role): RedirectResponse
+    public function update(RoleRequest $request, Role $role): Response|RedirectResponse
     {
         $before = $this->snapshot($role);
         $isSuperAdmin = $role->name === Rbac::SUPER_ADMIN;
@@ -122,7 +128,7 @@ class RoleController extends Controller
 
         $this->log($role, 'updated', 'Cập nhật vai trò', $before, $this->snapshot($role->fresh()));
 
-        return redirect()->route('roles.index')->with('status', 'Đã cập nhật vai trò.');
+        return $this->modalSaved('Đã cập nhật vai trò.', 'roles-changed', route('roles.index'));
     }
 
     /** Nhân bản vai trò: bản sao có cùng quyền + phạm vi dữ liệu, chưa gán cho ai. */
@@ -156,13 +162,13 @@ class RoleController extends Controller
         return redirect()->route('roles.edit', $copy)->with('status', 'Đã nhân bản vai trò — đặt tên và chỉnh quyền cho vai trò mới.');
     }
 
-    public function destroy(Role $role): RedirectResponse
+    public function destroy(Role $role): Response|RedirectResponse
     {
         if ($role->name === Rbac::SUPER_ADMIN) {
-            return back()->withErrors(['role' => 'Không thể xóa vai trò Super Admin.']);
+            return $this->modalFailed('Không thể xóa vai trò Super Admin.', 'role');
         }
         if ($role->users()->exists()) {
-            return back()->withErrors(['role' => 'Không thể xóa vai trò đang được gán cho nhân viên.']);
+            return $this->modalFailed('Không thể xóa vai trò đang được gán cho nhân viên.', 'role');
         }
 
         $before = $this->snapshot($role);
@@ -176,7 +182,7 @@ class RoleController extends Controller
             ->withProperties(['old' => $before, 'name' => $name])
             ->log('Xóa vai trò "'.$name.'"');
 
-        return redirect()->route('roles.index')->with('status', 'Đã xóa vai trò.');
+        return $this->modalSaved('Đã xóa vai trò.', 'roles-changed', route('roles.index'));
     }
 
     /**
@@ -266,6 +272,18 @@ class RoleController extends Controller
                 'permissions' => $after['permissions'] ?? [],
             ])
             ->log($description.' "'.$role->name.'"'.($added || $removed ? ' (+'.count($added).' / −'.count($removed).' quyền)' : ''));
+    }
+
+    /** Modal: chỉ tên / mã / mô tả (không dựng ma trận quyền); trang đầy đủ: kèm ma trận. */
+    private function formView(Request $request, Role $role): Response
+    {
+        return $this->modalView('roles.form', $this->isModalRequest()
+            ? [
+                'role' => $role,
+                'isSuperAdmin' => $role->exists && $role->name === Rbac::SUPER_ADMIN,
+                'isSystemRole' => $role->exists && AclHelper::isSystemRole($role->name),
+            ]
+            : $this->formData($role, $request->user()));
     }
 
     /** @return array<string, mixed> */

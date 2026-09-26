@@ -2,13 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Concerns\RendersModals;
 use App\Models\MerchandiseItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
+/**
+ * Danh mục Hàng hóa & Vật phẩm. Thêm/Sửa từ danh sách mở modal (htmx), Xóa qua modal xác nhận;
+ * mở thẳng URL create/edit → trang form đầy đủ như cũ.
+ */
 class MerchandiseItemController extends Controller
 {
+    use RendersModals;
+
     public function index(Request $request): View
     {
         $search = $request->query('q');
@@ -45,9 +53,9 @@ class MerchandiseItemController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(): Response
     {
-        return view('merchandise.form', [
+        return $this->modalView('merchandise.form', [
             'item' => new MerchandiseItem([
                 'category' => MerchandiseItem::CATEGORY_BOOK,
                 'unit' => 'Bộ',
@@ -60,7 +68,7 @@ class MerchandiseItemController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): Response|RedirectResponse
     {
         $validated = $request->validate([
             'code' => 'required|string|max:50|unique:merchandise_items,code',
@@ -88,20 +96,19 @@ class MerchandiseItemController extends Controller
             activity('merchandise_item')->causedBy(auth()->user())->performedOn($item)->log('Tạo mới hàng hóa: ' . $item->name);
         }
 
-        return redirect()->route('merchandise.index')
-            ->with('status', "Đã thêm thành công mặt hàng [{$item->code}] {$item->name}!");
+        return $this->modalSaved("Đã thêm thành công mặt hàng [{$item->code}] {$item->name}!", 'merchandise-changed', route('merchandise.index'));
     }
 
-    public function edit(MerchandiseItem $merchandise): View
+    public function edit(MerchandiseItem $merchandise): Response
     {
-        return view('merchandise.form', [
+        return $this->modalView('merchandise.form', [
             'item' => $merchandise,
             'categories' => MerchandiseItem::CATEGORIES,
             'isEdit' => true,
         ]);
     }
 
-    public function update(Request $request, MerchandiseItem $merchandise): RedirectResponse
+    public function update(Request $request, MerchandiseItem $merchandise): Response|RedirectResponse
     {
         $validated = $request->validate([
             'code' => 'required|string|max:50|unique:merchandise_items,code,' . $merchandise->id,
@@ -128,8 +135,7 @@ class MerchandiseItemController extends Controller
             activity('merchandise_item')->causedBy(auth()->user())->performedOn($merchandise)->log('Cập nhật hàng hóa: ' . $merchandise->name);
         }
 
-        return redirect()->route('merchandise.index')
-            ->with('status', "Đã cập nhật thông tin mặt hàng [{$merchandise->code}] {$merchandise->name}!");
+        return $this->modalSaved("Đã cập nhật thông tin mặt hàng [{$merchandise->code}] {$merchandise->name}!", 'merchandise-changed', route('merchandise.index'));
     }
 
     public function toggleStatus(MerchandiseItem $merchandise): RedirectResponse
@@ -142,13 +148,12 @@ class MerchandiseItemController extends Controller
         return back()->with('status', "Đã {$statusText} mặt hàng {$merchandise->name}!");
     }
 
-    public function destroy(MerchandiseItem $merchandise): RedirectResponse
+    public function destroy(MerchandiseItem $merchandise): Response|RedirectResponse
     {
         $name = $merchandise->name;
         $merchandise->delete();
 
-        return redirect()->route('merchandise.index')
-            ->with('status', "Đã xóa mặt hàng {$name} vào thùng rác.");
+        return $this->modalSaved("Đã xóa mặt hàng {$name} vào thùng rác.", 'merchandise-changed', route('merchandise.index'));
     }
 
     public function apiList()

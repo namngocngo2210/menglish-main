@@ -1,23 +1,24 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-bold text-xl text-gray-900">{{ $permission->exists ? 'Sửa permission' : 'Thêm permission' }}</h2>
-    </x-slot>
+{{-- Sửa permission: mở từ danh sách → modal (htmx); mở thẳng URL → trang form đầy đủ. --}}
+@php $title = $permission->exists ? 'Sửa permission' : 'Thêm permission'; @endphp
+@if ($asModal)
+    <x-ui.modal-frame :title="$title" description="Đổi mã permission ảnh hưởng mọi vai trò đang dùng quyền này.">
+        @include('permissions._form')
+        <x-slot:footer>
+            <x-ui.button type="submit" form="modal-permission-form" icon="save">Lưu permission</x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal-frame>
+@else
+    <x-app-layout :title="$title">
+        <x-ui.page-header :title="$title">
+            <x-slot:breadcrumbs>
+                <a href="{{ route('permissions.index') }}" class="hover:text-primary">Danh mục quyền</a>
+                <span class="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
+                <span>{{ $title }}</span>
+            </x-slot:breadcrumbs>
+        </x-ui.page-header>
 
-    <div class="max-w-md mx-auto bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-        <form method="POST" action="{{ $permission->exists ? route('permissions.update', $permission) : route('permissions.store') }}" class="space-y-4">
-            @csrf
-            @if ($permission->exists) @method('PUT') @endif
-
-            <div>
-                <x-input-label for="name" value="Tên permission (module.action) *" />
-                <x-text-input id="name" name="name" class="block mt-1 w-full font-mono" placeholder="vd: report.export" :value="old('name', $permission->name)" required />
-                <x-input-error :messages="$errors->get('name')" class="mt-1" />
-            </div>
-
-            <div class="pt-4 flex justify-end gap-3">
-                <a href="{{ route('permissions.index') }}" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm">Hủy</a>
-                <button type="submit" class="px-4 py-2 rounded-lg bg-primary-container hover:bg-primary-hover text-white text-sm font-medium">Lưu permission</button>
-            </div>
-        </form>
-    </div>
-</x-app-layout>
+        <div class="mx-auto max-w-md rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
+            @include('permissions._form')
+        </div>
+    </x-app-layout>
+@endif

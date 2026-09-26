@@ -497,7 +497,9 @@
                                     </div>
                                 @endif
                                 @if ($rq->proof_path)
-                                    <a href="{{ route('tuition.refunds.proof', $rq->id) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-xs font-caption text-caption text-primary hover:underline">
+                                    <a href="{{ route('tuition.refunds.proof', $rq->id) }}" target="_blank" rel="noopener"
+                                       hx-get="{{ route('tuition.refunds.proof', $rq->id) }}" hx-target="#remote-modal-body" hx-swap="innerHTML" data-modal-size="xl"
+                                       class="inline-flex items-center gap-xs font-caption text-caption text-primary hover:underline">
                                         <span class="material-symbols-outlined text-[14px]" aria-hidden="true">image</span> Ảnh bằng chứng
                                     </a>
                                 @endif

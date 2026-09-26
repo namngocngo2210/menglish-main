@@ -1,10 +1,11 @@
-{{-- Quản lý Tài khoản & Vai trò (mockup epic-5/quan-ly-tai-khoan-vai-tro). --}}
+{{-- Quản lý Tài khoản & Vai trò (mockup epic-5/quan-ly-tai-khoan-vai-tro).
+     "Vai trò & kiêm nhiệm" mở modal (htmx); lưu xong server phát "users-changed" → #user-list tự tải lại. Xóa tài khoản qua modal xác nhận. --}}
 @php
     $viewer = auth()->user();
     $filtered = request()->hasAny(['search', 'branch_id', 'role', 'status']);
 @endphp
 <x-app-layout title="Quản lý Tài khoản & Vai trò">
-    <div x-data="{ drawerOpen: false, activeUser: null, openProfile(u) { this.activeUser = u; this.drawerOpen = true; } }">
+    <div x-data="{ drawerOpen: false, activeUser: null, del: { url: '', name: '' }, openProfile(u) { this.activeUser = u; this.drawerOpen = true; } }">
         <x-ui.page-header title="Quản lý Tài khoản & Vai trò" description="Danh sách nhân sự, vai trò chính và kiêm nhiệm, hợp đồng lao động.">
             <x-slot:actions>
                 @can('user.create')
@@ -31,6 +32,7 @@
             </x-ui.alert>
         @endif
 
+        <div id="user-list" hx-get="{{ route('users.index', request()->query()) }}" hx-trigger="users-changed from:body" hx-select="#user-list" hx-swap="outerHTML">
         <x-ui.data-table min-width="860px">
             <x-slot:header>
                 <form method="GET" action="{{ route('users.index') }}" class="flex w-full flex-col gap-sm md:flex-row md:items-center">
@@ -113,7 +115,8 @@
                                                 <a href="{{ route('users.edit', $user) }}" class="flex items-center gap-sm px-md py-xs font-body-small text-body-small hover:bg-surface-container-low"><span class="material-symbols-outlined text-[16px]">edit</span>Sửa thông tin</a>
                                             @endcan
                                             @can('user.assign_role')
-                                                <a href="{{ route('users.roles.edit', $user) }}" class="flex items-center gap-sm px-md py-xs font-body-small text-body-small hover:bg-surface-container-low"><span class="material-symbols-outlined text-[16px]">badge</span>Vai trò & kiêm nhiệm</a>
+                                                <a href="{{ route('users.roles.edit', $user) }}" hx-get="{{ route('users.roles.edit', $user) }}" hx-target="#remote-modal-body" hx-swap="innerHTML" data-modal-size="md" x-on:click="more = false"
+                                                   class="flex items-center gap-sm px-md py-xs font-body-small text-body-small hover:bg-surface-container-low"><span class="material-symbols-outlined text-[16px]">badge</span>Vai trò & kiêm nhiệm</a>
                                             @endcan
                                             @can('user.reset_password')
                                                 <form action="{{ route('users.reset-password', $user) }}" method="POST" onsubmit="return confirm('Đặt lại mật khẩu cho nhân viên này?');">
@@ -122,10 +125,9 @@
                                                 </form>
                                             @endcan
                                             @can('user.delete')
-                                                <form action="{{ route('users.destroy', $user) }}" method="POST" onsubmit="return confirm('Bạn có chắc muốn xóa tài khoản nhân viên này?');">
-                                                    @csrf @method('DELETE')
-                                                    <button type="submit" class="flex w-full items-center gap-sm px-md py-xs font-body-small text-body-small text-error hover:bg-error-container/40"><span class="material-symbols-outlined text-[16px]">delete</span>Xóa tài khoản</button>
-                                                </form>
+                                                <button type="button" class="flex w-full items-center gap-sm px-md py-xs font-body-small text-body-small text-error hover:bg-error-container/40"
+                                                        data-url="{{ route('users.destroy', $user) }}" data-name="{{ $user->name }}"
+                                                        x-on:click="more = false; del = { url: $el.dataset.url, name: $el.dataset.name }; $dispatch('open-modal', 'delete-user')"><span class="material-symbols-outlined text-[16px]">delete</span>Xóa tài khoản</button>
                                             @endcan
                                         </div>
                                     </div>
@@ -141,6 +143,21 @@
                 <x-ui.pagination :paginator="$users" unit="nhân viên" />
             </x-slot:footer>
         </x-ui.data-table>
+        </div>
+
+        {{-- Xác nhận xóa tài khoản (form thường: controller giữ redirect + flash như cũ) --}}
+        @can('user.delete')
+            <x-ui.modal name="delete-user" title="Xóa tài khoản nhân viên?" max-width="md">
+                <p>Xóa tài khoản <strong class="font-semibold" x-text="del.name"></strong>?</p>
+                <form id="delete-user-form" method="POST" :action="del.url">
+                    @csrf @method('DELETE')
+                </form>
+                <x-slot:footer>
+                    <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'delete-user')">Hủy</x-ui.button>
+                    <x-ui.button variant="danger" type="submit" form="delete-user-form" icon="delete">Xóa tài khoản</x-ui.button>
+                </x-slot:footer>
+            </x-ui.modal>
+        @endcan
 
         {{-- Hồ sơ nhanh (drawer) --}}
         <div x-show="drawerOpen" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Hồ sơ nhân sự">

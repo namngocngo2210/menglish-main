@@ -3,7 +3,7 @@
     <x-ui.page-header title="Danh sách học viên đến hạn thu phí" description="Theo dõi và quản lý công nợ học phí của học viên.">
         <x-slot:actions>
             @can('tuition.create')
-                <x-ui.button variant="secondary" icon="upload_file" :href="route('tuition.import')">Nhập Excel</x-ui.button>
+                <x-ui.button variant="secondary" icon="upload_file" :href="route('tuition.import')" modal="lg">Nhập Excel</x-ui.button>
                 <x-ui.button icon="add_card" :href="route('tuition.receipts.create')">Lập phiếu thu mới</x-ui.button>
             @endcan
         </x-slot:actions>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\InvoiceRangeExhaustedException;
 use App\Exports\TuitionImportTemplateExport;
+use App\Http\Concerns\RendersModals;
 use App\Models\AcademicRecord;
 use App\Models\AdminNotification;
 use App\Models\BankAccount;
@@ -37,6 +38,8 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class TuitionController extends Controller
 {
+    use RendersModals;
+
     /** Minh chứng phiếu thu / hủy hóa đơn: ảnh hoặc PDF (theo nội dung file). */
     private const PROOF_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
 
@@ -106,6 +109,8 @@ class TuitionController extends Controller
 
     /**
      * Nhập học phí từ Excel — 3 bước: Tải file → Xem trước (lỗi từng dòng) → Kết quả.
+     * Mở từ "Nhập Excel" → modal (htmx): redirect sau mỗi bước về đây được trình duyệt đi theo (giữ HX-Request),
+     * nên bước kế tiếp hiện ngay trong modal; mở thẳng URL → trang đầy đủ.
      */
     public function import(Request $request)
     {
@@ -121,7 +126,7 @@ class TuitionController extends Controller
         }
         $result = $request->session()->get('tuition_import_result');
 
-        return view('tuition.import', compact('branches', 'preview', 'result'));
+        return $this->modalView('tuition.import', compact('branches', 'preview', 'result'));
     }
 
     public function importTuition(Request $request, TuitionImportService $importer)
@@ -1789,14 +1794,21 @@ class TuitionController extends Controller
         return redirect()->back()->with('status', $result['status'].$late);
     }
 
-    /** Xem ảnh bằng chứng hoàn tiền (lưu riêng tư) — chỉ người xem được màn hoàn phí trong phạm vi chi nhánh. */
+    /**
+     * Xem ảnh bằng chứng hoàn tiền (lưu riêng tư) — chỉ người xem được màn hoàn phí trong phạm vi chi nhánh.
+     * htmx (bấm từ bảng hoàn phí) → lightbox trong modal (ảnh tải lại chính URL này, không kèm HX-Request); thường → file ảnh.
+     */
     public function refundProof($id)
     {
         $refund = TuitionRefundRequest::with('student.currentClass')->findOrFail($id);
         abort_unless(TuitionBranchScope::allowsStudent($refund->student, $this->branchScope()), 403, self::OUT_OF_SCOPE);
         abort_unless($refund->proof_path && Storage::disk(TuitionRefundRequest::PROOF_DISK)->exists($refund->proof_path), 404);
 
-        return Storage::disk(TuitionRefundRequest::PROOF_DISK)->response($refund->proof_path);
+        if ($this->isModalRequest()) {
+            return $this->modalView('tuition.refund-proof', ['refund' => $refund]);
+        }
+
+        return Storage::disk(TuitionRefundRequest::PROOF_DISK)->response($refund->proof_path)->setVary('HX-Request');
     }
 
     /**

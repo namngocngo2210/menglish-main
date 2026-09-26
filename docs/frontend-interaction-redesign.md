@@ -248,7 +248,8 @@ class HolidayController extends Controller
 ```
 Form trong `x-ui.modal-frame` tự gửi bằng htmx (`hx-boost`), không cần thêm thuộc tính nào. Id trong form modal nên có tiền tố `modal-` để không trùng form ở trang.
 
-**4. Validate lỗi** — không cần code: route `x.store` / `x.update` lỗi validate khi gọi từ modal → server chạy lại action `x.create` / `x.edit` (cùng controller, cùng tham số) với lỗi + old input → **422**, htmx thay lại nội dung modal. Route không theo quy ước resource → giữ hành vi cũ (redirect back).
+**4. Validate lỗi** — không cần code: route `x.store` / `x.update` lỗi validate khi gọi từ modal → server chạy lại action `x.create` / `x.edit` (cùng controller, cùng tham số) với lỗi + old input → **422**, htmx thay lại nội dung modal.
+Không có `x.create`/`x.edit` thì dùng **màn cha** `x` (luồng nhiều bước trên 1 màn, vd. `crm.import.preview` → `crm.import`, `tuition.import.store` → `tuition.import`). Điều kiện: route form là GET, cùng controller, và middleware của route form ⊆ middleware route submit (không vượt quyền vì middleware route form không chạy lại). Không tìm được route form hoặc route form trả redirect → giữ hành vi cũ (redirect back). File upload bị bỏ khỏi old input.
 
 **5. Làm mới danh sách** — bọc vùng bảng, nghe sự kiện `<refreshEvent>` truyền cho `modalSaved`:
 ```blade
@@ -259,7 +260,14 @@ Dùng route danh sách + query hiện tại (không dùng `url()->full()` nếu 
 
 **6. Xác nhận xóa** — `x-ui.modal` thường + form `hx-boost="true" hx-swap="none"` với `:action` Alpine (JS đọc action lúc gửi); controller `destroy` trả `modalSaved(...)`. Xem `holidays/index.blade.php`.
 
-**7. Test mẫu** — `tests/Feature/HolidayModalTest.php` (GET thường có `data-sidebar`; GET `HX-Request` không có; POST lỗi → 422; POST đúng → 204 + `HX-Trigger`; request thường vẫn redirect).
+**6b. Lỗi nghiệp vụ / chuyển trang** (IX-2):
+- `modalFailed($message, $errorKey)` — thao tác bị từ chối không phải do validate (vd. xóa vai trò đang gán): htmx → 204 + `close-modal` + toast lỗi; thường → `back()->withErrors([...])` như cũ.
+- `modalRedirect(redirect()->route(...)->with(...))` — luồng kết thúc ở trang khác (vd. nhập Excel xong → danh sách kèm kết quả): htmx → 204 + `HX-Redirect` (flash vẫn còn cho trang đích); thường → trả nguyên redirect.
+- Luồng nhiều bước (nhập Excel): controller giữ nguyên `redirect()->route('x', ...)` sau mỗi bước — trình duyệt đi theo redirect **vẫn gửi `HX-Request`** nên bước kế tiếp hiện ngay trong modal. `<x-ui.modal-frame size="4xl">` nới rộng modal khi bước sau cần bảng rộng.
+- Link trong modal dẫn ra ngoài (tải file mẫu, sang trang khác) phải có `hx-boost="false"`, nếu không htmx sẽ tải nội dung đó vào modal.
+- Xem file (ảnh minh chứng): cùng URL, htmx → fragment `<img src="cùng URL">`, thường → file; thêm `Vary: HX-Request` cho cả 2.
+
+**7. Test mẫu** — `tests/Feature/HolidayModalTest.php`, `tests/Feature/ModalFlowsTest.php` (data provider cho nhiều module) (GET thường có `data-sidebar`; GET `HX-Request` không có; POST lỗi → 422; POST đúng → 204 + `HX-Trigger`; request thường vẫn redirect).
 
 ---
 
@@ -273,11 +281,11 @@ Dùng route danh sách + query hiện tại (không dùng `url()->full()` nếu 
 - [x] Trait `RendersModals`, xử lý lỗi validate htmx (422) ở `bootstrap/app.php`, `x-ui.modal-frame`
 - [x] Làm mẫu trọn vẹn với **Ngày nghỉ** (create/edit/delete), kèm feature test mẫu (`HolidayModalTest`, 9 test)
 
-### Sprint IX-2 — Chuyển 15 luồng sang Modal
-- [ ] Danh mục, quyền, vai trò, gán vai trò user, vật phẩm, ngày nghỉ (xong ở IX-1)
-- [ ] Nhập Excel CRM / học phí: modal 2 bước (tải file → xem trước → xác nhận)
-- [ ] Ảnh minh chứng hoàn tiền: lightbox
-- [ ] Thay các form "từ chối kèm lý do" tự viết bằng modal chuẩn
+### Sprint IX-2 — Chuyển 14 luồng sang Modal nhỏ
+- [x] Danh mục, quyền, vai trò, gán vai trò user, vật phẩm, ngày nghỉ (xong ở IX-1)
+- [x] Nhập Excel CRM / học phí: modal 2 bước (tải file → xem trước → xác nhận)
+- [x] Ảnh minh chứng hoàn tiền: lightbox
+- [x] Thay các form "từ chối kèm lý do" tự viết bằng modal chuẩn
 
 ### Sprint IX-3 — Chuyển 11 luồng sang Modal lớn (+ 3 modal xem nhanh)
 - [ ] Lead: tạo/sửa + **xem nhanh** từ Kanban và danh sách (push URL)
@@ -326,7 +334,7 @@ Dùng route danh sách + query hiện tại (không dùng `url()->full()` nếu 
 | Sprint | Trạng thái | Đã làm | Chưa làm / chuyển sprint |
 |---|---|---|---|
 | IX-1 | Xong (26/09/2026) | htmx 2 + `@alpinejs/focus` (`resources/js/components/remote-modal.js`: CSRF, 422 swap, bridge `toast`/`close-modal`, skeleton, trang đầy đủ lọt vào modal → chuyển trang, toast khi lỗi 403/404/419/5xx). `x-ui.modal` tương thích ngược + cỡ `3xl`/`4xl`/`full`, toàn màn < `sm` cho cỡ ≥ `2xl`, header/footer cố định, `x-trap` + trả focus, `aria-labelledby`, hỏi "Bỏ các thay đổi chưa lưu?". `x-ui.remote-modal` (layout), `x-ui.modal-frame`, `x-ui.button modal=`. Trait `RendersModals` + `App\Support\Htmx::renderValidationForm`. Ngày nghỉ: `_form` dùng chung, Thêm/Sửa bằng modal, Xóa bằng modal xác nhận, danh sách tự làm mới giữ bộ lọc. Test: `HolidayModalTest` (9), sửa `Phase2MockupClassesTest` (form Thêm chuyển sang modal / trang create) | Chưa có test trình duyệt (Esc, Back, 375px) — làm cùng IX-2. Hỏi "Bỏ thay đổi?" dùng `confirm()` gốc, chờ `x-ui.confirm` (FE-1). Nút Back chưa đóng modal (chỉ cần khi có modal xem chi tiết push URL — IX-3). Chưa có phím tắt `N` |
-| IX-2 | Chưa bắt đầu | | |
+| IX-2 | Xong (26/09/2026) | **Modal:** `system-categories.create/edit` (md; mở thẳng `edit` vẫn về panel `?edit=`), `permissions.edit` (sm), `roles.create/edit` (md, chỉ tên/mã/mô tả — ma trận quyền vẫn ở trang đầy đủ, nút "Cấu hình quyền" giữ link trang; thêm nút "Đổi tên" mở modal), `users.roles.edit` (md, từ menu dòng ở danh sách nhân sự), `merchandise.create/edit` (xl), `crm.import` (lg → bước 2 xem trước nới 4xl; nhập xong `HX-Redirect` sang danh sách khách kèm kết quả như cũ), `tuition.import` (lg → 4xl, đủ 3 bước Tải file / Xem trước / Kết quả trong modal), `tuition.refunds.proof` (lightbox xl). Mỗi luồng: `_form` dùng chung trang ↔ modal, `modalView`/`modalSaved`, vùng danh sách tự làm mới (`system-categories-changed`, `permissions-changed`, `roles-changed`, `users-changed`, `merchandise-changed`). **Xác nhận xóa bằng `x-ui.modal`** thay `confirm()`: ngừng dùng danh mục, xóa quyền, xóa vai trò, xóa vật phẩm (htmx, 204 + làm mới), xóa tài khoản nhân sự (form thường). **Hạ tầng:** `Htmx::renderValidationForm` thêm quy tắc màn cha (`x.<action>` → `x`) + điều kiện middleware ⊆, bỏ file khỏi old input, bỏ qua khi route form redirect; trait thêm `modalFailed`, `modalRedirect`; `x-ui.modal-frame` thêm prop `size`. Sửa kèm: trang nhập học phí trước đây không hiện lỗi `excel_file` → nay hiện ngay dưới ô file. Trang `permissions`, `users/roles`, form `merchandise` chuyển sang component `x-ui.*` (token màu). Test: `ModalFlowsTest` (24 test, 308 assert); full suite 892 test, chỉ 3 lỗi có sẵn (DeployHook, TicketEmailConfig, WorkTaskModule) | Form "từ chối kèm lý do" hoàn tiền đã là `x-ui.modal` từ trước (không đổi); các form từ chối ở màn khác (phiếu thu, hủy HĐ…) để IX-5 (Việc cần duyệt). `permissions.create` vẫn redirect "Chỉ DEV" (giữ nghiệp vụ). Link gán vai trò ở `users.show` / `users.permissions` vẫn mở trang (chưa có vùng làm mới ở 2 trang này). Sau khi lưu vật phẩm, thẻ số liệu đầu trang chưa tự làm mới (chỉ bảng). Nhập học phí xong danh sách thu phí phía sau chưa tự làm mới (bước Kết quả có nút sang danh sách). Xác nhận "Đặt lại mật khẩu" vẫn `confirm()` (không phải xóa/từ chối). Chưa có test trình duyệt (Esc, Back, 375px) — chuyển IX-3 |
 | IX-3 | Chưa bắt đầu | | |
 | IX-4 | Chưa bắt đầu | | |
 | IX-5 | Chưa bắt đầu | | |

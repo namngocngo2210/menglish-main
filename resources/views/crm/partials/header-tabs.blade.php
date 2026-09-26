@@ -28,7 +28,7 @@
             </form>
 
             @can('lead.create')
-                <x-ui.button variant="secondary" icon="upload_file" :href="route('crm.import')">Nhập Excel</x-ui.button>
+                <x-ui.button variant="secondary" icon="upload_file" :href="route('crm.import')" modal="lg">Nhập Excel</x-ui.button>
                 <x-ui.button icon="add" :href="route('crm.customers.create')">Thêm khách mới</x-ui.button>
             @endcan
         </div>

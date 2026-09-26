@@ -14,6 +14,7 @@ use Illuminate\Http\Response;
  *
  * View nhận biến `$asModal` (bool): true → chỉ render `<x-ui.modal-frame>` bọc form partial; false → trang `<x-app-layout>`.
  * Validate lỗi khi gọi từ modal: xử lý chung ở bootstrap/app.php (App\Support\Htmx::renderValidationForm) → 422 + form kèm lỗi.
+ * Lỗi nghiệp vụ (không phải validate, vd. không xoá được vì đang dùng): modalFailed(). Kết thúc bằng chuyển trang: modalRedirect().
  */
 trait RendersModals
 {
@@ -44,5 +45,31 @@ trait RendersModals
             'toast' => ['message' => $message, 'type' => 'success'],
             $refreshEvent => true,
         ]));
+    }
+
+    /**
+     * Thao tác từ modal bị từ chối vì lý do nghiệp vụ. htmx: 204 + đóng modal + toast lỗi; thường: back()->withErrors như cũ.
+     */
+    protected function modalFailed(string $message, string $errorKey): Response|RedirectResponse
+    {
+        if (! $this->isModalRequest()) {
+            return back()->withErrors([$errorKey => $message]);
+        }
+
+        return response()->noContent()->header('HX-Trigger', json_encode([
+            'close-modal' => true,
+            'toast' => ['message' => $message, 'type' => 'error'],
+        ]));
+    }
+
+    /**
+     * Kết thúc luồng bằng chuyển sang trang khác (vd. nhập Excel xong → danh sách kèm kết quả).
+     * htmx: 204 + HX-Redirect (tải trang đầy đủ, flash đã gắn vào $redirect vẫn còn); thường: trả nguyên $redirect.
+     */
+    protected function modalRedirect(RedirectResponse $redirect): Response|RedirectResponse
+    {
+        return $this->isModalRequest()
+            ? response()->noContent()->header('HX-Redirect', $redirect->getTargetUrl())
+            : $redirect;
     }
 }
