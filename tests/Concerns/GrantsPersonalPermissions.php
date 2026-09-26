@@ -25,9 +25,12 @@ trait GrantsPersonalPermissions
         return $user;
     }
 
-    /** Kế toán tổng: thấy & xử lý học phí, báo cáo thu chi mọi chi nhánh, cấu hình dải số mặc định. */
+    /**
+     * Kế toán tổng: phạm vi dữ liệu "Toàn hệ thống" cho học phí, báo cáo thu chi, chấm công (RBAC — thay cho
+     * tuition.all_branches / finance.all_branches cũ) + cấu hình dải số mặc định.
+     */
     protected function grantHeadOffice(User $user): User
     {
-        return $this->grantPersonal($user, 'tuition.all_branches', 'finance.all_branches', 'invoice_range.manage_default');
+        return $this->grantPersonal($user, 'tuition.scope_all', 'finance.scope_all', 'attendance_staff.scope_all', 'invoice_range.manage_default');
     }
 }
