@@ -49,6 +49,13 @@ class TuitionController extends Controller
         return TuitionBranchScope::branchIds(Auth::user());
     }
 
+    private function branchAllowed(int $branchId): bool
+    {
+        $scope = $this->branchScope();
+
+        return $scope === null || in_array($branchId, $scope, true);
+    }
+
     private const OUT_OF_SCOPE = 'Khoản học phí này thuộc chi nhánh ngoài phạm vi bạn được quản lý.';
 
     public function students(Request $request)
@@ -102,7 +109,8 @@ class TuitionController extends Controller
      */
     public function import(Request $request)
     {
-        $branches = Branch::where('is_active', true)->orderBy('name')->get();
+        // Phạm vi chi nhánh như các màn Học phí (TuitionBranchScope): chỉ nhập vào chi nhánh mình quản lý.
+        $branches = TuitionBranchScope::branches($this->branchScope())->where('is_active', true)->orderBy('name')->get();
         $preview = null;
         if ($request->filled('token')) {
             $preview = $request->session()->get('tuition_import.'.$request->input('token'));
@@ -127,6 +135,7 @@ class TuitionController extends Controller
             'excel_file.mimes' => 'Chỉ hỗ trợ file .xlsx, .xls hoặc .csv.',
             'excel_file.max' => 'File tối đa 10MB.',
         ]);
+        abort_unless($this->branchAllowed((int) $validated['branch_id']), 403, 'Bạn chỉ được nhập học phí cho chi nhánh mình quản lý.');
 
         try {
             $parsed = $importer->parse($request->file('excel_file'), (int) $validated['branch_id']);
@@ -163,6 +172,8 @@ class TuitionController extends Controller
         if (! $preview) {
             return redirect()->route('tuition.import')->withErrors(['excel_file' => 'Phiên xem trước đã hết hạn, vui lòng tải file lên lại.']);
         }
+
+        abort_unless($this->branchAllowed((int) $preview['branch_id']), 403, 'Bạn chỉ được nhập học phí cho chi nhánh mình quản lý.');
 
         $valid = array_values(array_filter($preview['rows'], fn ($row) => empty($row['errors'])));
         if ($valid === []) {
