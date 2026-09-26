@@ -1,4 +1,5 @@
-<x-app-layout>
+{{-- Mockup: ui-full-tinh-nang-menglish/epic-13-bao-cao-thu-chi/b_o_c_o_doanh_thu_t_m_t_nh_menglish_admin --}}
+<x-app-layout title="Báo cáo doanh thu tạm tính">
     <x-slot name="header">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div class="flex items-center gap-3">
@@ -48,7 +49,7 @@
                 </button>
 
                 <!-- Nút Xuất báo cáo -->
-                <a href="{{ route('finance.reports.revenue.export', ['month' => $month]) }}" class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-all shadow-xs">
+                <a href="{{ route('finance.reports.revenue.export', ['month' => $month, 'branch_id' => $branchId]) }}" class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-all shadow-xs">
                     <span class="material-symbols-outlined text-lg">download</span>
                     <span>Xuất báo cáo</span>
                 </a>
@@ -191,7 +192,7 @@
                             <div class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
                             <div>
                                 <p class="text-sm font-semibold text-slate-800">Học phí các khóa học</p>
-                                <p class="text-xs text-slate-500">Gồm khóa IELTS Foundation, Speaking Master, v.v.</p>
+                                <p class="text-xs text-slate-500">Phần học phí của các phiếu thu đã duyệt trong tháng</p>
                             </div>
                         </div>
                         <div class="text-right">
@@ -232,7 +233,7 @@
                     <span class="material-symbols-outlined text-base text-emerald-600 shrink-0 mt-0.5">verified</span>
                     <div>
                         <p class="font-semibold">Nguyên tắc ghi nhận doanh thu:</p>
-                        <p class="text-emerald-700/90 mt-0.5">Mọi phiếu ở trạng thái "Chờ duyệt", "Đã duyệt" hoặc "Tạm thu" đều được cộng dồn. Phiếu bị <strong class="underline">Hủy hóa đơn</strong> tự động bị loại trừ ngay lập tức.</p>
+                        <p class="text-emerald-700/90 mt-0.5">Chỉ cộng phiếu thu <strong>đã duyệt</strong> theo ngày thu (phiếu nháp / chờ duyệt / bị từ chối chưa là doanh thu). Phiếu bị <strong class="underline">Hủy hóa đơn</strong> tự động bị loại trừ; phiếu hoàn phí / chuyển nhượng (số âm) được trừ vào tổng thu.</p>
                     </div>
                 </div>
             </div>
@@ -246,14 +247,14 @@
                         </div>
                         <div>
                             <h3 class="font-bold text-slate-800 text-base">Cơ cấu Chi Vận Hành</h3>
-                            <p class="text-xs text-slate-500">Khoản chi tự nhập thực tế + Chi lương tự động từ Epic 7</p>
+                            <p class="text-xs text-slate-500">Khoản chi tự nhập thực tế + Chi lương tự động từ bảng lương đã chốt</p>
                         </div>
                     </div>
                     <span class="text-sm font-bold text-rose-600">{{ number_format($totalExpense, 0, ',', '.') }} đ</span>
                 </div>
 
                 <div class="space-y-3 pt-1">
-                    <!-- Chi Lương (Tự động từ Epic 7) -->
+                    <!-- Chi Lương (tự động từ bảng lương đã chốt) -->
                     <div class="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200/70 flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
@@ -294,12 +295,27 @@
                             <div class="w-2.5 h-2.5 rounded-full bg-amber-400"></div>
                             <div>
                                 <p class="text-sm font-semibold text-slate-800">In ấn giáo trình &amp; Vận hành lớp</p>
-                                <p class="text-xs text-slate-500">Sách bổ trợ IELTS, nước uống, bảo dưỡng điều hòa</p>
+                                <p class="text-xs text-slate-500">Sách bổ trợ, văn phòng phẩm, nước uống, bảo dưỡng thiết bị</p>
                             </div>
                         </div>
                         <div class="text-right">
                             <p class="text-sm font-bold text-slate-800">{{ number_format($curriculumOperationsExpense, 0, ',', '.') }} đ</p>
                             <p class="text-xs text-slate-400 font-medium">{{ $curriculumPercentOfExpense }}%</p>
+                        </div>
+                    </div>
+
+                    <!-- Chi khác -->
+                    <div class="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-2.5 h-2.5 rounded-full bg-slate-400"></div>
+                            <div>
+                                <p class="text-sm font-semibold text-slate-800">Chi khác</p>
+                                <p class="text-xs text-slate-500">Các khoản chi không thuộc 2 nhóm trên</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm font-bold text-slate-800">{{ number_format($otherExpense, 0, ',', '.') }} đ</p>
+                            <p class="text-xs text-slate-400 font-medium">{{ $totalExpense > 0 ? round($otherExpense / $totalExpense * 100, 1) : 0 }}%</p>
                         </div>
                     </div>
                 </div>
@@ -374,19 +390,19 @@
                     </tbody>
                     <tfoot>
                         <tr class="bg-slate-50 font-bold border-t-2 border-slate-200 text-slate-900">
-                            <td class="py-4 px-6 uppercase text-xs tracking-wider">Tổng cộng toàn hệ thống</td>
+                            <td class="py-4 px-6 uppercase text-xs tracking-wider">{{ ($branchScoped ?? false) ? 'Tổng cộng' : 'Tổng cộng toàn hệ thống' }}</td>
                             <td class="py-4 px-6 text-right text-emerald-600 text-base font-extrabold">{{ number_format($totalMatrixRevenue, 0, ',', '.') }} đ</td>
                             <td class="py-4 px-6 text-right text-rose-600 text-base font-extrabold">{{ number_format($totalMatrixExpense, 0, ',', '.') }} đ</td>
                             <td class="py-4 px-6 text-right text-primary-container text-base font-black">{{ $totalMatrixProfit >= 0 ? '+' : '' }}{{ number_format($totalMatrixProfit, 0, ',', '.') }} đ</td>
                             <td class="py-4 px-6 text-center text-xs font-black">{{ $totalMatrixMargin }}%</td>
-                            <td class="py-4 px-6 text-center text-xs font-semibold text-emerald-700">Tăng trưởng</td>
+                            <td class="py-4 px-6 text-center text-xs font-semibold {{ $totalMatrixStatus['class'] }}">{{ $totalMatrixStatus['label'] }}</td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
         </div>
 
-        <!-- 5. Ghi chú quy tắc nghiệp vụ cho Quản trị viên (Chị Liên) -->
+        <!-- 5. Ghi chú quy tắc nghiệp vụ -->
         <div class="bg-amber-50/70 rounded-2xl p-4 md:p-5 border border-amber-200/80 text-xs text-amber-900 space-y-2">
             <div class="flex items-center gap-2 text-amber-800 font-bold text-sm">
                 <span class="material-symbols-outlined text-lg">lightbulb</span>

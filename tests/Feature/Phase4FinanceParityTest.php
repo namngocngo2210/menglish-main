@@ -468,4 +468,86 @@ class Phase4FinanceParityTest extends TestCase
         $this->assertSame(-2, \App\Models\DebtReminderRule::where('milestone_key', 'NHAC-LAI')->firstOrFail()->offset_days);
         $this->assertSame(-10, $first->fresh()->offset_days);
     }
+
+    public function test_bao_cao_doanh_thu_scopes_branch_accountant_and_exports_filter(): void
+    {
+        // Phiếu đã duyệt 3tr ở CG (setUp); thêm 5tr ở ĐĐ.
+        $other = $this->makeStudent('HV-PAR-DD', 'Học Viên ĐĐ', $this->branch2);
+        $this->makeTuition($other, 5000000, paid: 5000000);
+        $headAccountant = $this->makeUser('accountant', withBranch: false);
+
+        // Kế toán chi nhánh CG: chỉ thấy CG (trước đây thấy toàn hệ thống).
+        $this->actingAs($this->accountant)->get(route('finance.reports.revenue'))
+            ->assertOk()
+            ->assertViewHas('totalRevenue', 3000000.0)
+            ->assertViewHas('branchMatrix', fn ($m) => count($m) === 1 && $m[0]['branch']->id === $this->branch->id)
+            ->assertDontSee('Gồm khóa IELTS Foundation')
+            ->assertDontSee('"Chờ duyệt", "Đã duyệt" hoặc "Tạm thu"', false);
+        $this->actingAs($this->accountant)->get(route('finance.reports.revenue', ['branch_id' => $this->branch2->id]))
+            ->assertOk()->assertViewHas('branchId', $this->branch->id);
+
+        // Kế toán tổng + Admin: toàn hệ thống.
+        $this->actingAs($headAccountant)->get(route('finance.reports.revenue'))->assertOk()->assertViewHas('totalRevenue', 8000000.0);
+        $this->actingAs($this->admin)->get(route('finance.reports.revenue'))->assertOk()->assertViewHas('totalRevenue', 8000000.0)->assertSee('Chi khác');
+
+        // Học vụ (không có finance.view) không vào được.
+        $this->actingAs($this->makeUser('academic_staff'))->get(route('finance.reports.revenue'))->assertForbidden();
+
+        // Xuất báo cáo theo bộ lọc chi nhánh.
+        $csv = $this->actingAs($this->admin)->get(route('finance.reports.revenue.export', ['branch_id' => $this->branch2->id]))->assertOk()->streamedContent();
+        $this->assertStringContainsString('CN Đống Đa', $csv);
+        $this->assertStringNotContainsString('CN Cầu Giấy', $csv);
+        $csv = $this->actingAs($this->accountant)->get(route('finance.reports.revenue.export'))->assertOk()->streamedContent();
+        $this->assertStringNotContainsString('CN Đống Đa', $csv);
+    }
+
+    public function test_khoan_chi_scoped_for_branch_accountant_and_export_uses_search(): void
+    {
+        \App\Models\OperatingExpense::create(['expense_date' => now()->toDateString(), 'title' => 'Tiền điện CG', 'amount' => 1500000, 'payment_method' => 'chuyen_khoan', 'branch_id' => $this->branch->id, 'category' => 'mat_bang_tien_ich', 'creator_id' => $this->admin->id]);
+        \App\Models\OperatingExpense::create(['expense_date' => now()->toDateString(), 'title' => 'Văn phòng phẩm CG', 'amount' => 200000, 'payment_method' => 'tien_mat', 'branch_id' => $this->branch->id, 'category' => 'khac', 'creator_id' => $this->admin->id]);
+        $dd = \App\Models\OperatingExpense::create(['expense_date' => now()->toDateString(), 'title' => 'Tiền nhà ĐĐ', 'amount' => 9000000, 'payment_method' => 'chuyen_khoan', 'branch_id' => $this->branch2->id, 'category' => 'mat_bang_tien_ich', 'creator_id' => $this->admin->id]);
+
+        $this->actingAs($this->accountant)->get(route('finance.expenses.index'))
+            ->assertOk()->assertSee('Sổ khoản chi vận hành')->assertSee('Tiền điện CG')->assertDontSee('Tiền nhà ĐĐ')->assertDontSee('Epic 7');
+        $this->actingAs($this->accountant)->delete(route('finance.expenses.destroy', $dd->id))->assertForbidden();
+        $this->actingAs($this->accountant)->post(route('finance.expenses.store'), [
+            'expense_date' => now()->toDateString(), 'title' => 'Chi hộ ĐĐ', 'amount' => 100000, 'payment_method' => 'tien_mat', 'branch_id' => $this->branch2->id,
+        ])->assertForbidden();
+
+        $csv = $this->actingAs($this->admin)->get(route('finance.expenses.export', ['search' => 'điện']))->assertOk()->streamedContent();
+        $this->assertStringContainsString('Tiền điện CG', $csv);
+        $this->assertStringNotContainsString('Văn phòng phẩm CG', $csv);
+    }
+
+    public function test_tuition_import_is_limited_to_own_branch(): void
+    {
+        $this->actingAs($this->accountant)->get(route('tuition.import'))
+            ->assertOk()->assertViewHas('branches', fn ($b) => $b->pluck('id')->all() === [$this->branch->id]);
+
+        $file = UploadedFile::fake()->createWithContent('hoc-phi.csv', "Mã học viên,Mã lớp,Học phí niêm yết\nHV-PAR-001,,1000000");
+        $this->actingAs($this->accountant)->post(route('tuition.import.store'), ['branch_id' => $this->branch2->id, 'excel_file' => $file])
+            ->assertForbidden();
+    }
+
+    public function test_lap_and_duyet_phieu_thu_show_real_data(): void
+    {
+        $this->actingAs($this->accountant)->get(route('tuition.receipts.create', ['tuition_id' => $this->tuition->id]))
+            ->assertOk()
+            ->assertSee('Lập phiếu thu học phí')->assertSee('Mã phiếu:')->assertSee('Bản nháp')
+            ->assertDontSee('Phụ huynh nộp thanh toán học phí & phụ thu qua cổng MEnglish.')
+            ->assertDontSee('Phụ thu giáo trình & học liệu bổ sung');
+
+        $pending = TuitionReceipt::create([
+            'receipt_number' => 'PT-PAR-PENDING', 'student_tuition_id' => $this->tuition->id, 'student_id' => $this->student->id,
+            'amount' => 1000000, 'tuition_amount' => 1000000, 'payment_method' => 'transfer', 'transaction_code' => 'FTPAR999',
+            'payment_date' => now(), 'creator_id' => $this->manager->id, 'status' => 'pending',
+        ]);
+        $this->actingAs($this->accountant)->get(route('tuition.receipts.approve', ['selected_id' => $pending->id]))
+            ->assertOk()->assertSee('Cần đối chiếu thủ công')->assertSee('Không có ghi chú.')->assertSee('Tự động làm mới')
+            ->assertDontSee('Phụ huynh nộp thanh toán đúng số tiền');
+
+        \App\Models\SepayTransaction::create(['sepay_id' => 'FTPAR999', 'gateway' => 'VCB', 'transaction_date' => now(), 'account_number' => '0071001234567', 'transfer_type' => 'in', 'transfer_amount' => 1000000, 'content' => 'HV-PAR-001', 'status' => 'unmatched']);
+        $this->actingAs($this->accountant)->get(route('tuition.receipts.approve', ['selected_id' => $pending->id]))
+            ->assertOk()->assertSee('Khớp số tiền &amp; mã giao dịch', false);
+    }
 }

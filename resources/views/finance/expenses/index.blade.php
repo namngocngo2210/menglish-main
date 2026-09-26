@@ -1,4 +1,5 @@
-<x-app-layout>
+{{-- Mockup: ui-full-tinh-nang-menglish/epic-13-bao-cao-thu-chi/kho_n_chi_v_n_h_nh_menglish_admin --}}
+<x-app-layout title="Sổ khoản chi vận hành">
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -53,10 +54,10 @@
                 </div>
             </div>
 
-            <!-- Thẻ 2: Chi lương tự động (Epic 7) -->
+            <!-- Thẻ 2: Chi lương tự động (bảng lương) -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Chi lương tự động (Epic 7)</span>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Chi lương tự động (bảng lương)</span>
                     <span class="p-2 rounded-lg bg-blue-50 text-blue-600 material-symbols-outlined text-[20px]">badge</span>
                 </div>
                 <div class="mt-3">
@@ -157,7 +158,7 @@
                         <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
                     </div>
                     <button type="submit" class="hidden"></button>
-                    <a href="{{ route('finance.expenses.export', ['month' => $month, 'branch_id' => $branchId]) }}" title="Xuất dữ liệu Excel (CSV)" class="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl transition-all inline-flex items-center justify-center">
+                    <a href="{{ route('finance.expenses.export', ['month' => $month, 'branch_id' => $branchId, 'search' => $search]) }}" title="Xuất dữ liệu Excel (CSV)" class="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl transition-all inline-flex items-center justify-center">
                         <span class="material-symbols-outlined text-[20px]">download</span>
                     </a>
                 </div>
@@ -236,7 +237,7 @@
                                 </td>
                                 <!-- Thao tác: KHÔNG CÓ NÚT SỬA/XÓA - THAY BẰNG BADGE KHÓA CỐ ĐỊNH -->
                                 <td class="py-4 px-4 text-center">
-                                    <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 text-xs font-medium cursor-help" title="Số liệu tự động từ màn Lương, Epic 7 — không sửa được tại đây">
+                                    <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 text-xs font-medium cursor-help" title="Số liệu tự động từ bảng lương đã chốt — không sửa được tại đây">
                                         <span class="material-symbols-outlined text-[16px] text-slate-400">lock</span>
                                         <span>Cố định</span>
                                     </div>
@@ -253,7 +254,7 @@
                                 <td class="py-3.5 px-4">
                                     <div class="font-semibold text-slate-900">{{ $exp->title }}</div>
                                     <div class="text-xs text-slate-400">
-                                        Người lập: {{ $exp->creator?->name ?? 'Admin' }} • {{ $exp->created_at ? $exp->created_at->format('d/m H:i') : '' }}
+                                        Người lập: {{ $exp->creator?->name ?? '—' }} • {{ $exp->created_at ? $exp->created_at->format('d/m H:i') : '' }}
                                     </div>
                                 </td>
                                 <td class="py-3.5 px-4 text-right font-bold text-slate-800 whitespace-nowrap">
@@ -326,7 +327,7 @@
             <span class="material-symbols-outlined text-amber-600 text-[20px] shrink-0 mt-0.5">help</span>
             <div class="space-y-1">
                 <div class="font-bold text-amber-950">Quy tắc nghiệp vụ đối soát &amp; Tổng hợp chi vận hành:</div>
-                <p>• <strong>Dòng "Chi lương":</strong> Tự động hạch toán bằng tổng <code class="bg-amber-100 px-1 rounded">SUM(thuc_nhan)</code> của các bảng lương tháng tương ứng ở trạng thái <em>Đã chốt</em> hoặc <em>Đã trả</em> (thuộc Epic 7). Khoản này không sửa/xóa trực tiếp tại sổ chi để bảo toàn tính toàn vẹn dữ liệu kế toán.</p>
+                <p>• <strong>Dòng "Chi lương":</strong> Tự động hạch toán bằng tổng <code class="bg-amber-100 px-1 rounded">SUM(thuc_nhan)</code> của các bảng lương tháng tương ứng ở trạng thái <em>Đã chốt</em> hoặc <em>Đã trả</em> (màn Lương). Khoản này không sửa/xóa trực tiếp tại sổ chi để bảo toàn tính toàn vẹn dữ liệu kế toán.</p>
                 <p>• <strong>Điều kiện ẩn dòng lương:</strong> Khi tháng hoặc chi nhánh lọc không có bất kỳ bảng lương nào thỏa mãn điều kiện, hệ thống sẽ ẩn hoàn toàn dòng này, không hiển thị dòng 0 VNĐ.</p>
                 <p>• <strong>Khoản chi tự nhập:</strong> Cho phép thêm, sửa, xóa tự do tức thì bởi Quản trị viên mà không cần trải qua quy trình phê duyệt.</p>
             </div>

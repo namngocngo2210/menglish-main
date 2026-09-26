@@ -8,6 +8,7 @@ use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Support\TuitionBranchScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -103,7 +104,7 @@ class FinanceController extends Controller
                     'expense_date' => $period->end_date ? Carbon::parse($period->end_date)->format('d/m/Y') : $parsedDate->copy()->endOfMonth()->format('d/m/Y'),
                     'date_sub' => 'Cuối kỳ lương',
                     'title' => "Chi lương tháng {$parsedDate->format('m/Y')}",
-                    'description' => 'Tổng hợp từ Epic 7 (trạng thái: Đã chốt, Đã trả) cho toàn bộ GV, TA và Nhân viên',
+                    'description' => 'Tổng hợp từ bảng lương (trạng thái: Đã chốt, Đã trả) cho toàn bộ GV, TA và Nhân viên',
                     'amount' => $autoSalaryAmount,
                     'staff_count' => $autoSalaryStaffCount,
                     'payment_method' => 'chuyen_khoan',
@@ -297,7 +298,12 @@ class FinanceController extends Controller
         $month = $request->input('month', Carbon::now()->format('Y-m'));
         $branchId = $this->resolveBranchFilter($request, $request->input('branch_id', 'all'));
 
-        $parsedDate = Carbon::createFromFormat('Y-m', $month);
+        try {
+            $parsedDate = Carbon::createFromFormat('Y-m', $month);
+        } catch (\Throwable $e) {
+            $month = Carbon::now()->format('Y-m');
+            $parsedDate = Carbon::createFromFormat('Y-m', $month);
+        }
         $startDate = $parsedDate->copy()->startOfMonth()->toDateString();
         $endDate = $parsedDate->copy()->endOfMonth()->toDateString();
 
@@ -306,6 +312,13 @@ class FinanceController extends Controller
 
         if ($branchId !== 'all' && is_numeric($branchId)) {
             $query->where('branch_id', $branchId);
+        }
+
+        $search = trim((string) $request->input('search', ''));
+        if ($search !== '') {
+            $query->where(fn ($q) => $q->where('title', 'like', "%{$search}%")
+                ->orWhere('notes', 'like', "%{$search}%")
+                ->orWhereHas('creator', fn ($u) => $u->where('name', 'like', "%{$search}%")));
         }
 
         $expenses = $query->orderBy('expense_date', 'asc')->get();
@@ -488,6 +501,7 @@ class FinanceController extends Controller
 
         $totalMatrixProfit = $totalMatrixRevenue - $totalMatrixExpense;
         $totalMatrixMargin = $totalMatrixRevenue > 0 ? round(($totalMatrixProfit / $totalMatrixRevenue) * 100, 1) : 0;
+        $totalMatrixStatus = $this->branchMarginStatus($totalMatrixMargin);
 
         // Month selector options
         $monthOptions = [];
@@ -536,6 +550,7 @@ class FinanceController extends Controller
             'totalMatrixExpense',
             'totalMatrixProfit',
             'totalMatrixMargin',
+            'totalMatrixStatus',
             'monthOptions'
         ));
     }
@@ -546,11 +561,20 @@ class FinanceController extends Controller
     public function exportRevenueReport(Request $request)
     {
         $month = $request->input('month', Carbon::now()->format('Y-m'));
-        $parsedDate = Carbon::createFromFormat('Y-m', $month);
+        try {
+            $parsedDate = Carbon::createFromFormat('Y-m', $month);
+        } catch (\Throwable $e) {
+            $month = Carbon::now()->format('Y-m');
+            $parsedDate = Carbon::createFromFormat('Y-m', $month);
+        }
         $startDate = $parsedDate->copy()->startOfMonth()->toDateString();
         $endDate = $parsedDate->copy()->endOfMonth()->toDateString();
 
-        $branches = $this->visibleBranches($request);
+        // Xuất theo đúng bộ lọc chi nhánh đang xem (trong phạm vi được phép).
+        $branchId = $this->resolveBranchFilter($request, $request->input('branch_id', 'all'));
+        $branches = $this->visibleBranches($request)
+            ->when($branchId !== 'all' && is_numeric($branchId), fn ($c) => $c->where('id', (int) $branchId)->values());
+        $scoped = $this->scopedBranchIds($request->user()) !== null || ($branchId !== 'all' && is_numeric($branchId));
         $period = PayrollPeriod::where('month', (int)$parsedDate->format('m'))
             ->where('year', (int)$parsedDate->format('Y'))
             ->whereIn('status', ['approved', 'paid'])
@@ -558,7 +582,7 @@ class FinanceController extends Controller
 
         $filename = "Bao_Cao_Doanh_Thu_Tam_Tinh_{$month}.csv";
 
-        return new StreamedResponse(function () use ($branches, $startDate, $endDate, $parsedDate, $period) {
+        return new StreamedResponse(function () use ($branches, $startDate, $endDate, $parsedDate, $period, $scoped) {
             $handle = fopen('php://output', 'w');
             fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
@@ -603,12 +627,12 @@ class FinanceController extends Controller
             $sumMargin = $sumRev > 0 ? round(($sumProfit / $sumRev) * 100, 1) : 0;
 
             fputcsv($handle, [
-                'TỔNG CỘNG TOÀN HỆ THỐNG',
+                $scoped ? 'TỔNG CỘNG' : 'TỔNG CỘNG TOÀN HỆ THỐNG',
                 number_format($sumRev, 0, ',', '.'),
                 number_format($sumExp, 0, ',', '.'),
                 number_format($sumProfit, 0, ',', '.'),
                 $sumMargin . '%',
-                'Tăng trưởng',
+                $this->branchMarginStatus($sumMargin)['label'],
             ]);
 
             fclose($handle);
@@ -630,39 +654,30 @@ class FinanceController extends Controller
             ->where('status', TuitionReceipt::STATUS_APPROVED);
 
         if ($branchId !== null && $branchId !== 'all' && is_numeric($branchId)) {
-            $query->where(function (Builder $q) use ($branchId) {
-                $q->whereHas('tuition', fn (Builder $t) => $t->where('branch_id', $branchId))
-                    ->orWhere(fn (Builder $noTuition) => $noTuition
-                        ->whereNull('student_tuition_id')
-                        ->whereHas('student', fn (Builder $s) => $s->where('branch_id', $branchId)));
-            });
+            // Chi nhánh của phiếu = chi nhánh hợp đồng; hợp đồng chưa gán chi nhánh thì theo học viên (như màn Học phí).
+            TuitionBranchScope::receipts($query, [(int) $branchId]);
         }
 
         return $query;
     }
 
     /**
-     * Chi nhánh người dùng được xem trong báo cáo thu chi. null = không giới hạn (Admin, Kế toán).
-     * Quản lý cơ sở chỉ thấy chi nhánh của mình (branch_id + user_branches).
+     * Chi nhánh người dùng được xem trong báo cáo thu chi — cùng quy tắc với các màn Học phí (TuitionBranchScope,
+     * Phần D "Vòng 2"): Admin toàn hệ thống; Quản lý cơ sở / Học vụ / Học thuật chỉ chi nhánh mình; Kế toán không gán
+     * chi nhánh = kế toán tổng (toàn hệ thống), kế toán có gán chi nhánh chỉ các chi nhánh đó. null = không giới hạn.
      *
      * @return \Illuminate\Support\Collection<int, int>|null
      */
     private function scopedBranchIds(?User $user): ?\Illuminate\Support\Collection
     {
-        if (! $user || $user->hasAnyRole(['admin', 'accountant']) || ! $user->hasRole('manager')) {
+        $ids = TuitionBranchScope::branchIds($user);
+        if ($ids === null) {
             return null;
         }
 
-        $ids = $user->branches()->pluck('branches.id')
-            ->push($user->branch_id)
-            ->filter()
-            ->map(fn ($id) => (int) $id)
-            ->unique()
-            ->values();
+        abort_if($ids === [], 403, 'Tài khoản chưa được gán chi nhánh nên không xem được báo cáo thu chi.');
 
-        abort_if($ids->isEmpty(), 403, 'Tài khoản Quản lý cơ sở chưa được gán chi nhánh nên không xem được báo cáo thu chi.');
-
-        return $ids;
+        return collect($ids)->map(fn ($id) => (int) $id)->unique()->values();
     }
 
     /**
