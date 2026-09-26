@@ -74,7 +74,14 @@
                         </label>
                     @endforeach
                 </div>
-                <x-input-error :messages="array_merge($errors->get('concurrent_roles'), collect($errors->get('concurrent_roles.*'))->flatten()->all())" class="mt-1 text-xs" />
+                @php($concurrentErrors = array_merge($errors->get('concurrent_roles'), collect($errors->get('concurrent_roles.*'))->flatten()->all()))
+                @if ($concurrentErrors)
+                    <ul class="mt-1 space-y-1 font-caption text-caption text-error" role="alert">
+                        @foreach ($concurrentErrors as $message)
+                            <li>{{ $message }}</li>
+                        @endforeach
+                    </ul>
+                @endif
             </fieldset>
         @endcan
 

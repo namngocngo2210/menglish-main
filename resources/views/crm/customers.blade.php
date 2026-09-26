@@ -38,10 +38,7 @@
                     </x-ui.field>
                 @endif
                 <div class="flex gap-sm">
-                    <button type="submit" class="flex flex-1 items-center justify-center gap-xs rounded-lg bg-secondary px-md py-2 font-body-medium text-body-medium text-white transition-all hover:opacity-90">
-                        <span class="material-symbols-outlined text-[18px]">filter_list</span>
-                        Lọc dữ liệu
-                    </button>
+                    <x-ui.button type="submit" variant="info" icon="filter_list" class="flex-1">Lọc dữ liệu</x-ui.button>
                     @if (request()->hasAny(['search', 'branch_id', 'stage', 'source', 'assigned_user_id', 'sla']))
                         <x-ui.button variant="ghost" icon="filter_alt_off" :href="route('crm.customers.index')" aria-label="Xóa bộ lọc" title="Xóa bộ lọc" />
                     @endif

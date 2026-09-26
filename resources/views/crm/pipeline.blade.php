@@ -5,7 +5,7 @@
          bg-secondary text-secondary border-secondary/20 bg-tertiary text-tertiary border-tertiary/20 bg-primary text-primary border-primary/20
          bg-blue-600 text-blue-600 border-blue-600/20 bg-purple-600 text-purple-600 border-purple-600/20 bg-orange-500 text-orange-500 border-orange-500/20
          bg-indigo-600 text-indigo-600 border-indigo-600/20 bg-emerald-600 text-emerald-600 border-emerald-600/20
-         border-l-error border-l-amber-500 border-l-tertiary border-l-emerald-600 border-l-outline-variant --}}
+         border-l-error border-l-warning border-l-tertiary border-l-outline-variant --}}
     <div class="space-y-md" x-data="crmKanban(@js($stagePermissions))">
         {{-- Toast Notification --}}
         <div
@@ -62,9 +62,9 @@
                                     $draggable = ($stagePermissions['canForward'] && $stage['next'] && ! in_array($stage['next'], $stagePermissions['closed'], true))
                                         || ($stagePermissions['canBackward'] && $index > 0 && ! in_array($stage['id'], $stagePermissions['closed'], true));
                                     $accent = match (true) {
-                                        $stage['id'] === 'won' => 'border-l-emerald-600',
+                                        $stage['id'] === 'won' => 'border-l-tertiary',
                                         $lead['follow_up_state'] === 'overdue' => 'border-l-error',
-                                        $lead['follow_up_state'] === 'due_soon' => 'border-l-amber-500',
+                                        $lead['follow_up_state'] === 'due_soon' => 'border-l-warning',
                                         $lead['follow_up_state'] === 'on_time' => 'border-l-tertiary',
                                         default => 'border-l-outline-variant',
                                     };
@@ -122,7 +122,7 @@
 
                                     <div class="space-y-md border-t border-surface-container-highest pt-sm">
                                         @if ($stage['id'] === 'won')
-                                            <div class="flex items-center gap-xs font-body-small text-body-small font-medium text-emerald-600">
+                                            <div class="flex items-center gap-xs font-body-small text-body-small font-medium text-tertiary">
                                                 <span class="material-symbols-outlined text-[18px]">verified</span>
                                                 {{ $lead['confirmed'] ? 'Đã hoàn tất hồ sơ' : 'Đã chốt — chờ xác nhận chính thức' }}
                                             </div>
@@ -130,17 +130,17 @@
                                             @if ($lead['follow_up_state'])
                                                 <div class="flex items-center justify-between gap-sm">
                                                     @if ($lead['follow_up_state'] === 'overdue')
-                                                        <span class="flex shrink-0 items-center gap-xs rounded-full bg-error-container px-sm py-xs font-caption text-[10px] font-bold text-error">
+                                                        <x-ui.badge color="error" :pill="true" :dot="false" class="font-bold">
                                                             <span class="material-symbols-outlined text-[14px]">alarm_on</span>Quá hạn
-                                                        </span>
+                                                        </x-ui.badge>
                                                     @elseif ($lead['follow_up_state'] === 'due_soon')
-                                                        <span class="flex shrink-0 items-center gap-xs rounded-full bg-orange-100 px-sm py-xs font-caption text-[10px] font-bold text-orange-600">
+                                                        <x-ui.badge color="warning" :pill="true" :dot="false" class="font-bold">
                                                             <span class="material-symbols-outlined text-[14px]">priority_high</span>Sắp hết hạn
-                                                        </span>
+                                                        </x-ui.badge>
                                                     @else
-                                                        <span class="flex shrink-0 items-center gap-xs rounded-full bg-green-100 px-sm py-xs font-caption text-[10px] font-bold text-green-600">
+                                                        <x-ui.badge color="success" :pill="true" :dot="false" class="font-bold">
                                                             <span class="material-symbols-outlined text-[14px]">check_circle</span>Còn hạn
-                                                        </span>
+                                                        </x-ui.badge>
                                                     @endif
                                                     <div class="text-right font-caption text-caption font-medium text-on-surface-variant" title="{{ $lead['follow_up_at'] }}">
                                                         {{ $stage['id'] === 'new' ? 'Hạn liên hệ' : 'Hạn chăm sóc tiếp theo' }}: {{ $lead['follow_up_label'] }}
@@ -150,9 +150,7 @@
 
                                             @if ($stage['id'] === 'waiting_class')
                                                 @can('student.assign_class')
-                                                    <a href="{{ route('crm.waiting-list') }}" @click.stop class="flex w-full items-center justify-center gap-xs rounded-lg bg-primary-container py-2 font-body-medium text-body-medium text-white shadow-sm transition-all hover:brightness-110">
-                                                        <span class="material-symbols-outlined text-[18px]">assignment_turned_in</span>Gán lớp
-                                                    </a>
+                                                    <x-ui.button :href="route('crm.waiting-list')" x-on:click.stop="" icon="assignment_turned_in" class="w-full">Gán lớp</x-ui.button>
                                                 @endcan
                                             @elseif ($stagePermissions['canForward'] && $stage['next'] && ! in_array($stage['next'], $stagePermissions['closed'], true))
                                                 <button
@@ -164,10 +162,7 @@
                                             @endif
 
                                             @if (in_array($stage['id'], \App\Models\CrmCustomer::CLOSABLE_STAGES, true) && $stagePermissions['canConvert'])
-                                                <a href="{{ route('crm.closing-wizard', ['customer_id' => $lead['id']]) }}" @click.stop
-                                                   class="flex w-full items-center justify-center gap-xs rounded-lg border border-primary-container/40 py-1.5 font-body-medium text-body-small text-primary transition-colors hover:bg-primary-container/10">
-                                                    <span class="material-symbols-outlined text-[16px]">how_to_reg</span>Chốt &amp; Xếp lớp
-                                                </a>
+                                                <x-ui.button variant="secondary" size="sm" :href="route('crm.closing-wizard', ['customer_id' => $lead['id']])" x-on:click.stop="" icon="how_to_reg" class="w-full !border-primary-container/40 !text-primary hover:!bg-primary-container/10">Chốt &amp; Xếp lớp</x-ui.button>
                                             @endif
                                         @endif
                                     </div>
@@ -193,25 +188,24 @@
 
         @if ($stagePermissions['canForward'] || $stagePermissions['canBackward'])
             {{-- Sửa giai đoạn (A6): CM tiến 1 bước; chỉ Admin lùi bước (bắt buộc lý do); Thất bại bắt buộc lý do --}}
-            <div x-show="stageEdit.open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-md" role="dialog" aria-modal="true">
-                <div class="w-full max-w-md space-y-sm rounded-xl bg-surface-container-lowest p-lg font-body-small text-body-small shadow-level-3" @click.outside="stageEdit.open = false">
-                    <h3 class="font-h3 text-h3 text-on-surface">Sửa giai đoạn: <span x-text="stageEdit.name"></span></h3>
+            <x-ui.modal name="crm-stage-edit" :title="new \Illuminate\Support\HtmlString('Sửa giai đoạn: <span x-text=\'stageEdit.name\'></span>')" max-width="md">
+                <div class="space-y-sm font-body-small text-body-small">
                     <p class="text-on-surface-variant">Hiện tại: <strong x-text="permissions.labels[stageEdit.from]"></strong>. Học vụ / Quản lý cơ sở chỉ chuyển tiến 1 bước; chỉ Admin được lùi bước. Mọi thay đổi được lưu vào lịch sử khách.</p>
                     @if ($stagePermissions['canBackward'])
                         <p class="font-semibold text-error">Lùi giai đoạn: bắt buộc nhập lý do (không áp dụng cho khách đã chốt).</p>
                     @endif
-                    <select x-model="stageEdit.target" class="w-full rounded-lg border-outline-variant font-body-base text-body-base" aria-label="Giai đoạn mới">
+                    <x-ui.select x-model="stageEdit.target" aria-label="Giai đoạn mới">
                         <template x-for="option in stageEditOptions()" :key="option.value">
                             <option :value="option.value" x-text="option.label"></option>
                         </template>
-                    </select>
-                    <textarea x-show="stageEditNeedsReason()" x-model="stageEdit.reason" rows="3" :placeholder="stageEdit.target === 'lost' ? 'Lý do thất bại (bắt buộc)' : 'Lý do lùi giai đoạn (bắt buộc)'" class="w-full rounded-lg border-outline-variant font-body-base text-body-base"></textarea>
-                    <div class="flex justify-end gap-sm">
-                        <button type="button" @click="stageEdit.open = false" class="rounded-lg border border-outline-variant px-md py-sm font-body-medium text-body-medium">Hủy</button>
-                        <button type="button" @click="submitStageEdit()" :disabled="!stageEdit.target || (stageEditNeedsReason() && !stageEdit.reason.trim())" class="rounded-lg bg-primary-container px-md py-sm font-body-medium text-body-medium text-white disabled:opacity-50">Lưu giai đoạn</button>
-                    </div>
+                    </x-ui.select>
+                    <x-ui.textarea x-show="stageEditNeedsReason()" x-model="stageEdit.reason" rows="3" x-bind:placeholder="stageEdit.target === 'lost' ? 'Lý do thất bại (bắt buộc)' : 'Lý do lùi giai đoạn (bắt buộc)'" />
                 </div>
-            </div>
+                <x-slot:footer>
+                    <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'crm-stage-edit')">Hủy</x-ui.button>
+                    <x-ui.button x-on:click="submitStageEdit()" x-bind:disabled="!stageEdit.target || (stageEditNeedsReason() && !stageEdit.reason.trim())">Lưu giai đoạn</x-ui.button>
+                </x-slot:footer>
+            </x-ui.modal>
         @endif
     </div>
 
@@ -278,6 +272,7 @@
                     this.stageEdit = { open: true, customerId, name, from: fromStage, target: '', reason: '' };
                     const options = this.stageEditOptions();
                     this.stageEdit.target = target || (options[0] ? options[0].value : '');
+                    window.dispatchEvent(new CustomEvent('open-modal', { detail: 'crm-stage-edit' }));
                 },
 
                 async submitStageEdit() {
@@ -285,7 +280,10 @@
                     if (!target || (this.stageEditNeedsReason() && !reason.trim())) return;
                     const payload = target === 'lost' ? { stage: 'lost', lost_reason: reason } : { stage: target, reason: reason };
                     const ok = await this.postStage(customerId, payload);
-                    if (ok) this.stageEdit.open = false;
+                    if (ok) {
+                        this.stageEdit.open = false;
+                        window.dispatchEvent(new CustomEvent('close-modal', { detail: 'crm-stage-edit' }));
+                    }
                 },
 
                 onDragStart(event, customerId, stageId, name) {
@@ -300,7 +298,7 @@
                         this.draggedCard.element.classList.remove('opacity-40', 'scale-95');
                     }
                     document.querySelectorAll('.kanban-column').forEach(col => {
-                        col.classList.remove('ring-2', 'ring-primary-container', 'bg-orange-50/40');
+                        col.classList.remove('ring-2', 'ring-primary-container', 'bg-primary-container/10');
                     });
                 },
 
@@ -311,16 +309,16 @@
                         return;
                     }
                     event.dataTransfer.dropEffect = 'move';
-                    event.currentTarget.classList.add('ring-2', 'ring-primary-container', 'bg-orange-50/40');
+                    event.currentTarget.classList.add('ring-2', 'ring-primary-container', 'bg-primary-container/10');
                 },
 
                 onDragLeave(event) {
-                    event.currentTarget.classList.remove('ring-2', 'ring-primary-container', 'bg-orange-50/40');
+                    event.currentTarget.classList.remove('ring-2', 'ring-primary-container', 'bg-primary-container/10');
                 },
 
                 async onDrop(event, targetStageId) {
                     event.preventDefault();
-                    event.currentTarget.classList.remove('ring-2', 'ring-primary-container', 'bg-orange-50/40');
+                    event.currentTarget.classList.remove('ring-2', 'ring-primary-container', 'bg-primary-container/10');
                     if (!this.draggedCard) return;
 
                     const { customerId, stageId: sourceStageId, name } = this.draggedCard;

@@ -83,13 +83,12 @@
                         <td>
                             @if ($dataScope)
                                 @php $chosen = old("data_scope.{$module}", $dataScope['personal']); @endphp
-                                <select name="data_scope[{{ $module }}]" aria-label="Phạm vi dữ liệu {{ PermissionCatalog::moduleLabel($module) }}"
-                                        class="w-full rounded-lg border border-outline-variant py-xs pl-sm pr-lg font-body-small text-body-small">
+                                <x-ui.select name="data_scope[{{ $module }}]" :value="$chosen" aria-label="Phạm vi dữ liệu {{ PermissionCatalog::moduleLabel($module) }}">
                                     <option value="inherit" @selected($chosen === 'inherit')>Theo vai trò ({{ $levelLabels[$dataScope['role']] ?? $dataScope['role'] }})</option>
                                     @foreach ($dataScope['levels'] as $level)
                                         <option value="{{ $level }}" @selected($chosen === $level) title="{{ PermissionCatalog::scopeLevelDescription($module, $level) }}">{{ $levelLabels[$level] ?? $level }}</option>
                                     @endforeach
-                                </select>
+                                </x-ui.select>
                                 <p class="mt-xs font-caption text-caption text-on-surface-variant">Hiệu lực: {{ $levelLabels[$dataScope['effective']] ?? $dataScope['effective'] }} — {{ PermissionCatalog::scopeLevelDescription($module, $dataScope['effective']) }}</p>
                             @else
                                 <span class="font-body-small text-body-small text-on-surface-variant">—</span>
@@ -97,24 +96,23 @@
                         </td>
                         <td class="min-w-[230px]">
                             @if ($supportsScope)
-                                <select name="scope[{{ $module }}][type]" x-model="scopeType" aria-label="Phạm vi áp dụng"
-                                        class="w-full rounded-lg border border-outline-variant py-xs pl-sm pr-lg font-body-small text-body-small">
+                                <x-ui.select name="scope[{{ $module }}][type]" x-model="scopeType" aria-label="Phạm vi áp dụng">
                                     <option value="all">Toàn hệ thống (Mặc định)</option>
                                     <option value="branch">Theo chi nhánh</option>
                                     <option value="class">Theo lớp</option>
-                                </select>
-                                <select name="scope[{{ $module }}][ids][]" multiple x-show="scopeType === 'branch'" :disabled="scopeType !== 'branch'" aria-label="Chi nhánh"
-                                        class="mt-xs h-20 w-full rounded-lg border border-outline-variant font-body-small text-body-small">
+                                </x-ui.select>
+                                <x-ui.select name="scope[{{ $module }}][ids][]" id="scope-{{ $module }}-branch-ids" multiple x-show="scopeType === 'branch'" x-bind:disabled="scopeType !== 'branch'" aria-label="Chi nhánh"
+                                             class="mt-xs h-20">
                                     @foreach ($branches as $branch)
                                         <option value="{{ $branch->id }}" @selected($scopeType === 'branch' && in_array($branch->id, $scopeIds, true))>{{ $branch->name }}</option>
                                     @endforeach
-                                </select>
-                                <select name="scope[{{ $module }}][ids][]" multiple x-show="scopeType === 'class'" :disabled="scopeType !== 'class'" aria-label="Lớp"
-                                        class="mt-xs h-20 w-full rounded-lg border border-outline-variant font-body-small text-body-small">
+                                </x-ui.select>
+                                <x-ui.select name="scope[{{ $module }}][ids][]" id="scope-{{ $module }}-class-ids" multiple x-show="scopeType === 'class'" x-bind:disabled="scopeType !== 'class'" aria-label="Lớp"
+                                             class="mt-xs h-20">
                                     @foreach ($classes as $class)
                                         <option value="{{ $class->id }}" @selected($scopeType === 'class' && in_array($class->id, $scopeIds, true))>{{ $class->name }}{{ $class->code ? " ({$class->code})" : '' }}</option>
                                     @endforeach
-                                </select>
+                                </x-ui.select>
                                 @if ($scopeType !== 'all' && ! empty($scopeIds))
                                     <div class="mt-xs flex flex-wrap gap-xs">
                                         @foreach (($scopeType === 'branch' ? $branches : $classes)->whereIn('id', $scopeIds) as $unit)

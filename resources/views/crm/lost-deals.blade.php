@@ -4,15 +4,7 @@
     {{-- Mockup crm-ui-mockup/khach-khong-chot-lost-deals. A6: khách Thất bại không mở lại, chỉ xem để đối soát. --}}
     <div class="flex flex-col gap-lg">
         <div class="flex flex-col gap-md lg:flex-row lg:items-center">
-            <div class="flex items-center gap-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm lg:min-w-[280px]">
-                <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-error-container text-error">
-                    <span class="material-symbols-outlined">person_off</span>
-                </div>
-                <div>
-                    <p class="font-body-small text-body-small text-on-surface-variant">Tổng số khách không chốt</p>
-                    <h2 class="font-h2 text-h2 text-on-surface">{{ number_format($lostTotal, 0, ',', '.') }}</h2>
-                </div>
-            </div>
+            <x-ui.stat-card label="Tổng số khách không chốt" :value="number_format($lostTotal, 0, ',', '.')" icon="person_off" tone="error" class="shadow-sm lg:min-w-[280px]" />
             <div class="flex-1 [&>form]:mb-0">
                 @include('crm.partials.list-filters', ['dateLabel' => 'Thời điểm dừng', 'exportable' => true, 'searchPlaceholder' => 'Tìm theo lý do không chốt, tên, SĐT...', 'exportLabel' => 'Xuất báo cáo'])
             </div>

@@ -40,15 +40,15 @@
                                 @if ($matches->isNotEmpty())
                                     <form action="{{ route('crm.customers.assign-class', $lead->id) }}" method="POST" class="mt-auto flex flex-col gap-sm">
                                         @csrf
-                                        <select name="class_id" required aria-label="Lớp gán cho {{ $lead->name }}" class="rounded-lg border-outline-variant font-body-small text-body-small">
+                                        <x-ui.select name="class_id" value="" required aria-label="Lớp gán cho {{ $lead->name }}" class="font-body-small text-body-small">
                                             @foreach ($matches as $class)
                                                 <option value="{{ $class->id }}">{{ $class->name }} · còn {{ $class->max_capacity > 0 ? max(0, $class->max_capacity - $class->active_enrollments_count) : '∞' }} chỗ</option>
                                             @endforeach
-                                        </select>
+                                        </x-ui.select>
                                         <x-ui.button type="submit" size="sm" icon="group_add" class="w-full">Gán lớp</x-ui.button>
                                     </form>
                                 @else
-                                    <p class="mt-auto font-body-small text-body-small font-semibold text-amber-700">Chưa có lớp phù hợp</p>
+                                    <p class="mt-auto font-body-small text-body-small font-semibold text-warning">Chưa có lớp phù hợp</p>
                                 @endif
                             @endcan
                         </div>
@@ -162,11 +162,8 @@
                 <p class="font-body-base text-body-base text-on-surface-variant">Xác nhận học viên <strong class="text-on-surface" x-text="confirmName"></strong> đã chính thức bắt đầu học? Cần tick đủ hồ sơ nhập học (tài khoản, nhóm Zalo, giáo trình).</p>
             </div>
             <x-slot:footer>
-                <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'confirm-official')">Hủy</x-ui.button>
-                <button type="submit" name="action" value="confirm" :form="confirmForm"
-                        class="inline-flex items-center gap-xs rounded-lg bg-primary-container px-md py-sm font-body-medium text-body-medium text-white shadow-sm hover:bg-primary">
-                    <span class="material-symbols-outlined text-[18px]">verified_user</span>Xác nhận chính thức
-                </button>
+                <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'confirm-official')">Hủy</x-ui.button>
+                <x-ui.button type="submit" name="action" value="confirm" x-bind:form="confirmForm" icon="verified_user">Xác nhận chính thức</x-ui.button>
             </x-slot:footer>
         </x-ui.modal>
     </div>
