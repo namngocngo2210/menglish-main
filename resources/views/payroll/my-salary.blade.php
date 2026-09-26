@@ -30,12 +30,11 @@
         <x-slot:actions>
             @if ($records->isNotEmpty())
                 <form method="GET" action="{{ route('portal.my-salary') }}">
-                    <select name="period_id" onchange="this.form.submit()" aria-label="Chọn kỳ lương"
-                            class="rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-medium text-body-medium focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
+                    <x-ui.select name="period_id" onchange="this.form.submit()" aria-label="Chọn kỳ lương">
                         @foreach ($records as $option)
                             <option value="{{ $option->payroll_period_id }}" @selected($record && $option->payroll_period_id === $record->payroll_period_id)>Tháng {{ str_pad($option->period->month, 2, '0', STR_PAD_LEFT) }}/{{ $option->period->year }}</option>
                         @endforeach
-                    </select>
+                    </x-ui.select>
                 </form>
             @endif
             @if ($record)
@@ -125,10 +124,9 @@
                 @if ($classes->count() > 1)
                     <label class="flex items-center gap-xs font-body-small text-body-small text-on-surface-variant">
                         <span class="material-symbols-outlined text-[18px]" aria-hidden="true">filter_list</span>Lọc
-                        <select x-model="cls" class="rounded-lg border border-outline-variant bg-surface-container-lowest py-xs pl-sm pr-lg font-body-small text-body-small">
-                            <option value="">Tất cả lớp</option>
+                        <x-ui.select x-model="cls" placeholder="Tất cả lớp">
                             @foreach ($classes as $c)<option value="{{ $c }}">{{ $c }}</option>@endforeach
-                        </select>
+                        </x-ui.select>
                     </label>
                 @endif
             </x-slot:header>
@@ -157,7 +155,7 @@
             </table>
             @if ($timesheets->count() > 10)
                 <x-slot:footer>
-                    <div class="p-sm text-center"><x-ui.button variant="ghost" size="sm" @click="all = ! all"><span x-text="all ? 'Thu gọn' : 'Xem thêm các buổi khác'">Xem thêm các buổi khác</span></x-ui.button></div>
+                    <div class="p-sm text-center"><x-ui.button variant="ghost" size="sm" x-on:click="all = ! all"><span x-text="all ? 'Thu gọn' : 'Xem thêm các buổi khác'">Xem thêm các buổi khác</span></x-ui.button></div>
                 </x-slot:footer>
             @endif
         </x-ui.data-table>

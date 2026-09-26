@@ -46,11 +46,7 @@
         </div>
 
         <x-ui.filter-bar placeholder="Tìm giáo viên..." :search="$canViewAll ? 'search' : null">
-            <label class="flex items-center gap-sm">
-                <span class="font-body-small text-body-small font-medium text-on-surface-variant">Kỳ lương:</span>
-                <input type="month" name="month" value="{{ $month }}"
-                       class="rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
-            </label>
+            <x-ui.input type="month" name="month" :value="$month" inline-label="Kỳ lương:" />
             @if ($canViewAll)
                 <x-ui.select name="branch_id" :options="$filterBranches->pluck('name', 'id')" placeholder="Tất cả chi nhánh" aria-label="Chi nhánh" />
                 <x-ui.select name="class_id" :options="$filterClasses->mapWithKeys(fn ($c) => [$c->id => $c->name.' ('.$c->code.')'])" placeholder="Tất cả lớp học" aria-label="Lớp học" />
@@ -242,11 +238,11 @@
                                                 <x-ui.button type="submit" name="decision" value="valid" variant="ghost" size="sm" icon="check">Duyệt</x-ui.button>
                                             </form>
                                             <x-ui.button variant="danger-text" size="sm" icon="close"
-                                                         @click="reject = { action: '{{ route('payroll.timesheets.review', $ts->id) }}', label: @js(($ts->teacher?->name ?? '').' — '.$ts->teaching_date->format('d/m/Y')) }; $dispatch('open-modal', 'ts-reject')">Từ chối</x-ui.button>
+                                                         x-on:click="reject = { action: '{{ route('payroll.timesheets.review', $ts->id) }}', label: @js(($ts->teacher?->name ?? '').' — '.$ts->teaching_date->format('d/m/Y')) }; $dispatch('open-modal', 'ts-reject')">Từ chối</x-ui.button>
                                         @endif
                                         @if ($canAdjust)
                                             <x-ui.button variant="ghost" size="sm" icon="edit" aria-label="Chỉnh tay bổ sung"
-                                                         @click="edit = { action: '{{ route('payroll.timesheets.adjust', $ts->id) }}', timeIn: @js($ts->checkin_time ?? ''), timeOut: @js($ts->display_checkout ?? ''), label: @js(($ts->teacher?->name ?? '').' — '.($ts->classModel?->code ?? '').' — '.$ts->teaching_date->format('d/m/Y')) }; $dispatch('open-modal', 'ts-adjust')" />
+                                                         x-on:click="edit = { action: '{{ route('payroll.timesheets.adjust', $ts->id) }}', timeIn: @js($ts->checkin_time ?? ''), timeOut: @js($ts->display_checkout ?? ''), label: @js(($ts->teacher?->name ?? '').' — '.($ts->classModel?->code ?? '').' — '.$ts->teaching_date->format('d/m/Y')) }; $dispatch('open-modal', 'ts-adjust')" />
                                         @endif
                                     @endif
                                 </div>
@@ -305,7 +301,7 @@
                     <x-ui.textarea name="adjustment_reason" label="Lý do điều chỉnh" required rows="3" placeholder="Nhập lý do..." />
                 </form>
                 <x-slot:footer>
-                    <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'ts-adjust')">Hủy</x-ui.button>
+                    <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'ts-adjust')">Hủy</x-ui.button>
                     <x-ui.button type="submit" form="ts-adjust-form">Lưu thay đổi</x-ui.button>
                 </x-slot:footer>
             </x-ui.modal>
@@ -320,7 +316,7 @@
                     <x-ui.textarea name="rejection_reason" label="Lý do từ chối" required rows="3" placeholder="VD: Không có buổi học trên lịch, trùng ca đã chấm..." />
                 </form>
                 <x-slot:footer>
-                    <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'ts-reject')">Hủy</x-ui.button>
+                    <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'ts-reject')">Hủy</x-ui.button>
                     <x-ui.button type="submit" variant="danger" form="ts-reject-form">Từ chối ca dạy</x-ui.button>
                 </x-slot:footer>
             </x-ui.modal>

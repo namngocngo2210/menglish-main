@@ -53,41 +53,33 @@
 
                 <div class="grid grid-cols-1 gap-md md:grid-cols-2">
                     <x-ui.field label="Nhân viên" name="user_id" for="f_user_id" required class="md:col-span-2">
-                        <div class="relative mb-xs">
-                            <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
-                            <input type="search" x-model="q" placeholder="Nhập tên hoặc mã nhân viên" aria-label="Tìm nhân viên"
-                                   class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-10 pr-md font-body-base text-body-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
+                        <div class="mb-xs">
+                            <x-ui.input type="search" icon="search" x-model="q" placeholder="Nhập tên hoặc mã nhân viên" aria-label="Tìm nhân viên" />
                         </div>
-                        <select name="user_id" id="f_user_id" required x-model="userId"
-                                class="w-full rounded-lg border {{ $errors->has('user_id') ? 'border-error' : 'border-outline-variant' }} bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
-                            <option value="">Chọn nhân viên...</option>
+                        <x-ui.select name="user_id" id="f_user_id" required x-model="userId" placeholder="Chọn nhân viên...">
                             @foreach ($teacherOptions as $tc)
                                 <option value="{{ $tc['id'] }}" @selected((string) old('user_id', request('user_id')) === (string) $tc['id'])
                                         x-show="filteredTeachers.some(t => t.id === {{ $tc['id'] }})">{{ $tc['label'] }}</option>
                             @endforeach
-                        </select>
+                        </x-ui.select>
                         <p class="font-body-small text-body-small text-on-surface-variant" x-show="q && filteredTeachers.length === 0" x-cloak>Không tìm thấy nhân viên phù hợp.</p>
                     </x-ui.field>
 
                     <x-ui.field label="Chi nhánh" name="branch_id" for="f_branch_id" required>
-                        <select name="branch_id" id="f_branch_id" x-model="branchId" @change="if (classId && ! filteredClasses.some(c => String(c.id) === classId)) classId = ''"
-                                class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
-                            <option value="">Chọn chi nhánh...</option>
+                        <x-ui.select name="branch_id" id="f_branch_id" x-model="branchId" x-on:change="if (classId && ! filteredClasses.some(c => String(c.id) === classId)) classId = ''" placeholder="Chọn chi nhánh...">
                             @foreach ($branches as $branch)
                                 <option value="{{ $branch->id }}" @selected((string) $defaultBranch === (string) $branch->id)>{{ $branch->name }}</option>
                             @endforeach
-                        </select>
+                        </x-ui.select>
                     </x-ui.field>
 
                     <x-ui.field label="Lớp học" name="class_id" for="f_class_id" required>
-                        <select name="class_id" id="f_class_id" required x-model="classId"
-                                class="w-full rounded-lg border {{ $errors->has('class_id') ? 'border-error' : 'border-outline-variant' }} bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
-                            <option value="">Chọn lớp học...</option>
+                        <x-ui.select name="class_id" id="f_class_id" required x-model="classId" placeholder="Chọn lớp học...">
                             @foreach ($classOptions as $cl)
                                 <option value="{{ $cl['id'] }}" @selected((string) old('class_id', request('class_id')) === (string) $cl['id'])
                                         x-show="! branchId || branchId === '{{ $cl['branch'] }}'">{{ $cl['label'] }}</option>
                             @endforeach
-                        </select>
+                        </x-ui.select>
                     </x-ui.field>
 
                     <div class="md:col-span-2">

@@ -23,36 +23,29 @@
             <form method="POST" action="{{ route('teacher.scores.store', $class->id) }}" class="space-y-lg rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm md:p-lg">
                 @csrf
                 @if ($errors->any())
-                    <div class="flex items-center gap-sm rounded-lg bg-error-container p-md text-on-error-container" role="alert">
-                        <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;" aria-hidden="true">error</span>
-                        <p class="font-body-medium text-body-medium">{{ $errors->first() }}</p>
-                    </div>
+                    <x-ui.alert type="error">{{ $errors->first() }}</x-ui.alert>
                 @endif
 
                 <section class="grid grid-cols-1 gap-md md:grid-cols-2">
                     @if ($units->isNotEmpty())
-                        <x-ui.field label="Chọn Unit" name="unit_id" for="unitSelect" required>
-                            <select id="unitSelect" name="unit_id" required class="{{ $input }}"
-                                    onchange="window.location = @js(route('teacher.scores', $class->id)) + '?unit_id=' + this.value">
+                        <x-ui.select label="Chọn Unit" id="unitSelect" name="unit_id" required
+                                     onchange="window.location = {{ Js::from(route('teacher.scores', $class->id)) }} + '?unit_id=' + this.value">
                                 <option value="" disabled @selected(! $unit)>Chọn Unit bài học</option>
                                 @foreach ($units as $u)
                                     <option value="{{ $u->id }}" @selected($unit && $unit->id === $u->id)>Unit {{ $u->unit_number }}: {{ $u->title }}</option>
                                 @endforeach
-                            </select>
-                        </x-ui.field>
+                        </x-ui.select>
                     @else
                         <x-ui.field label="Tên bài kiểm tra" name="unit_id" for="testName" required hint="Lớp chưa gắn giáo trình có Unit — nhập tên bài.">
                             <input id="testName" name="name" required value="{{ old('name', $testName) }}" class="{{ $input }}">
                         </x-ui.field>
                     @endif
-                    <x-ui.field label="Chọn học sinh" name="student_id" for="studentSelect" required>
-                        <select id="studentSelect" name="student_id" required class="{{ $input }}">
+                    <x-ui.select label="Chọn học sinh" id="studentSelect" name="student_id" required>
                             <option value="" disabled @selected(! $selected)>Chọn học sinh từ danh sách</option>
                             @foreach ($class->students as $student)
                                 <option value="{{ $student->id }}" @selected((string) $selected === (string) $student->id)>{{ $student->name }}{{ $existing->has($student->id) ? ' ✓' : '' }}</option>
                             @endforeach
-                        </select>
-                    </x-ui.field>
+                    </x-ui.select>
                 </section>
 
                 <hr class="border-surface-container">

@@ -4,27 +4,23 @@
     <div class="space-y-6">
         
         @if ($errors->any())
-            <div class="rounded-xl bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 text-sm font-medium">{{ $errors->first() }}</div>
+            <x-ui.alert type="error">{{ $errors->first() }}</x-ui.alert>
         @endif
 
         {{-- Form ghi sự vụ mới --}}
-        <form method="POST" action="{{ route('reports.journal.store') }}" class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm space-y-3">
+        <form method="POST" action="{{ route('reports.journal.store') }}" class="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-highest shadow-sm space-y-3">
             @csrf
-            <h2 class="text-sm font-bold text-gray-900">Ghi nhận sự vụ mới</h2>
+            <h2 class="text-sm font-bold text-on-surface">Ghi nhận sự vụ mới</h2>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <input type="text" name="title" required placeholder="Tiêu đề sự vụ *" class="sm:col-span-2 text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container" value="{{ old('title') }}">
-                <select name="severity" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
-                    <option value="normal">Bình thường</option>
-                    <option value="important">Quan trọng</option>
-                    <option value="urgent">Khẩn cấp</option>
-                </select>
+                <div class="sm:col-span-2">
+                    <x-ui.input name="title" required placeholder="Tiêu đề sự vụ *" aria-label="Tiêu đề sự vụ" />
+                </div>
+                <x-ui.select name="severity" :options="['normal' => 'Bình thường', 'important' => 'Quan trọng', 'urgent' => 'Khẩn cấp']" aria-label="Mức độ" />
             </div>
-            <textarea name="content" rows="2" placeholder="Mô tả chi tiết..." class="w-full text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">{{ old('content') }}</textarea>
+            <x-ui.textarea name="content" rows="2" placeholder="Mô tả chi tiết..." aria-label="Mô tả chi tiết" />
             <div class="flex items-center justify-between">
-                <input type="date" name="report_date" value="{{ now()->toDateString() }}" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
-                <button type="submit" class="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-lg transition flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[18px]">add</span> Ghi sự vụ
-                </button>
+                <x-ui.date name="report_date" :value="now()->toDateString()" aria-label="Ngày sự vụ" />
+                <x-ui.button type="submit" icon="add">Ghi sự vụ</x-ui.button>
             </div>
         </form>
 
@@ -32,53 +28,53 @@
         <div class="space-y-3">
             @forelse ($journals as $j)
                 @php
-                    $sevClass = match($j->severity) {
-                        'urgent' => 'bg-rose-100 text-rose-700',
-                        'important' => 'bg-amber-100 text-amber-700',
-                        default => 'bg-gray-100 text-gray-600',
+                    $sevColor = match($j->severity) {
+                        'urgent' => 'error',
+                        'important' => 'warning',
+                        default => 'neutral',
                     };
-                    $statusClass = match($j->status) {
-                        'resolved' => 'bg-emerald-100 text-emerald-700',
-                        'following' => 'bg-blue-100 text-blue-700',
-                        default => 'bg-orange-100 text-orange-700',
+                    $statusColor = match($j->status) {
+                        'resolved' => 'success',
+                        'following' => 'secondary',
+                        default => 'primary',
                     };
                     $statusLabel = match($j->status) {
                         'resolved' => 'Đã xử lý', 'following' => 'Đang theo dõi', default => 'Mới',
                     };
                 @endphp
-                <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm space-y-3">
+                <div class="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-highest shadow-sm space-y-3">
                     <div class="flex items-start justify-between gap-3">
                         <div>
                             <div class="flex items-center gap-2 flex-wrap">
-                                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full {{ $sevClass }}">{{ $j->severity_label }}</span>
-                                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full {{ $statusClass }}">{{ $statusLabel }}</span>
-                                <span class="font-bold text-sm text-gray-900">{{ $j->title }}</span>
+                                <x-ui.badge :color="$sevColor" :pill="true" :dot="false">{{ $j->severity_label }}</x-ui.badge>
+                                <x-ui.badge :color="$statusColor" :pill="true" :dot="false">{{ $statusLabel }}</x-ui.badge>
+                                <span class="font-bold text-sm text-on-surface">{{ $j->title }}</span>
                             </div>
-                            <div class="text-[11px] text-gray-400 mt-1">
+                            <div class="text-[11px] text-on-surface-variant/70 mt-1">
                                 {{ $j->report_date->format('d/m/Y') }}
-                                @if ($isPriv) · <span class="font-semibold text-gray-600">{{ $j->user?->name }}</span> @endif
+                                @if ($isPriv) · <span class="font-semibold text-on-surface-variant">{{ $j->user?->name }}</span> @endif
                             </div>
                             @if ($j->content)
-                                <p class="text-sm text-gray-600 mt-2">{{ $j->content }}</p>
+                                <p class="text-sm text-on-surface-variant mt-2">{{ $j->content }}</p>
                             @endif
                         </div>
                         <form method="POST" action="{{ route('reports.journal.status', $j->id) }}" class="shrink-0">
                             @csrf
-                            <select name="status" onchange="this.form.submit()" class="text-[11px] rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container py-1">
+                            <x-ui.select name="status" id="journal-status-{{ $j->id }}" onchange="this.form.submit()" aria-label="Trạng thái sự vụ" class="text-[11px]">
                                 <option value="open" @selected($j->status==='open')>Mới</option>
                                 <option value="following" @selected($j->status==='following')>Đang theo dõi</option>
                                 <option value="resolved" @selected($j->status==='resolved')>Đã xử lý</option>
-                            </select>
+                            </x-ui.select>
                         </form>
                     </div>
 
                     {{-- Follow-ups --}}
                     @if ($j->followups->isNotEmpty())
-                        <div class="pl-3 border-l-2 border-gray-100 space-y-1.5">
+                        <div class="pl-3 border-l-2 border-surface-container-highest space-y-1.5">
                             @foreach ($j->followups as $f)
-                                <div class="text-xs text-gray-600">
-                                    <span class="font-semibold text-gray-800">{{ $f->user?->name ?? 'N/A' }}:</span> {{ $f->content }}
-                                    <span class="text-gray-400">· {{ $f->created_at->format('d/m H:i') }}</span>
+                                <div class="text-xs text-on-surface-variant">
+                                    <span class="font-semibold text-on-surface">{{ $f->user?->name ?? 'N/A' }}:</span> {{ $f->content }}
+                                    <span class="text-on-surface-variant/70">· {{ $f->created_at->format('d/m H:i') }}</span>
                                 </div>
                             @endforeach
                         </div>
@@ -87,20 +83,17 @@
                     {{-- Thêm follow-up (tạo tác vụ) --}}
                     <form method="POST" action="{{ route('reports.journal.followup', $j->id) }}" class="flex items-center gap-2">
                         @csrf
-                        <input type="text" name="content" required placeholder="Nhập nội dung tác vụ / follow-up..." class="flex-1 text-xs rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
-                        <button type="submit" class="px-3 py-2 rounded-lg bg-orange-50 text-primary hover:bg-orange-100 text-xs font-bold transition flex items-center gap-1">
-                            <span class="material-symbols-outlined text-[16px]">add_task</span> Tạo tác vụ
-                        </button>
+                        <input type="text" name="content" required placeholder="Nhập nội dung tác vụ / follow-up..." aria-label="Nội dung tác vụ" class="flex-1 text-xs rounded-lg border-outline-variant bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary-container focus:ring-primary-container/20">
+                        <x-ui.button type="submit" variant="secondary" size="sm" icon="add_task">Tạo tác vụ</x-ui.button>
                     </form>
                 </div>
             @empty
-                <div class="bg-white rounded-2xl p-10 border border-gray-200 shadow-sm text-center text-gray-500">
-                    <span class="material-symbols-outlined text-4xl text-gray-300">event_note</span>
-                    <p class="mt-2 text-sm">Chưa có sự vụ nào được ghi nhận.</p>
+                <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm">
+                    <x-ui.empty-state icon="event_note" title="Chưa có sự vụ nào được ghi nhận." />
                 </div>
             @endforelse
 
-            {{ $journals->links() }}
+            <x-ui.pagination :paginator="$journals" :options="[]" />
         </div>
     </div>
 </x-app-layout>

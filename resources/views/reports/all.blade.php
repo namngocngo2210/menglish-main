@@ -4,69 +4,46 @@
     <div class="space-y-6">
         {{-- Stats --}}
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
-            <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-                <div class="text-[11px] font-semibold text-gray-500 uppercase">Nhật ký</div>
-                <div class="mt-1 text-xl font-black text-gray-900">{{ $stats['journal'] }}</div>
-            </div>
-            <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-                <div class="text-[11px] font-semibold text-gray-500 uppercase">BC Ngày</div>
-                <div class="mt-1 text-xl font-black text-gray-900">{{ $stats['daily'] }}</div>
-            </div>
-            <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-                <div class="text-[11px] font-semibold text-gray-500 uppercase">BC Tuần</div>
-                <div class="mt-1 text-xl font-black text-gray-900">{{ $stats['weekly'] }}</div>
-            </div>
-            <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-                <div class="text-[11px] font-semibold text-gray-500 uppercase">BC Tháng</div>
-                <div class="mt-1 text-xl font-black text-gray-900">{{ $stats['monthly'] }}</div>
-            </div>
-            <div class="bg-white rounded-2xl p-4 border border-rose-200 shadow-sm">
-                <div class="text-[11px] font-semibold text-rose-500 uppercase">Sự vụ khẩn chưa xử lý</div>
-                <div class="mt-1 text-xl font-black text-rose-600">{{ $stats['urgent_open'] }}</div>
-            </div>
+            <x-ui.stat-card label="Nhật ký" :value="$stats['journal']" />
+            <x-ui.stat-card label="BC Ngày" :value="$stats['daily']" />
+            <x-ui.stat-card label="BC Tuần" :value="$stats['weekly']" />
+            <x-ui.stat-card label="BC Tháng" :value="$stats['monthly']" />
+            <x-ui.stat-card label="Sự vụ khẩn chưa xử lý" :value="$stats['urgent_open']" tone="error" class="border-error/30" />
         </div>
 
         {{-- Filter --}}
-        <form method="GET" class="flex flex-wrap items-center gap-3 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-            <select name="type" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
-                <option value="">Tất cả loại</option>
-                @foreach (\App\Models\StaffReport::TYPE_LABELS as $val => $lbl)
-                    <option value="{{ $val }}" @selected(request('type')===$val)>{{ $lbl }}</option>
-                @endforeach
-            </select>
-            <input type="date" name="date" value="{{ request('date') }}" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
-            <button type="submit" class="px-4 py-2 rounded-lg bg-primary-container text-white text-xs font-bold">Lọc</button>
-            <a href="{{ route('reports.all') }}" class="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold">Xóa lọc</a>
+        <form method="GET" class="flex flex-wrap items-center gap-3 bg-surface-container-lowest rounded-2xl p-4 border border-surface-container-highest shadow-sm">
+            <x-ui.select name="type" :options="\App\Models\StaffReport::TYPE_LABELS" placeholder="Tất cả loại" aria-label="Loại báo cáo" />
+            <x-ui.date name="date" :value="request('date')" aria-label="Ngày báo cáo" />
+            <x-ui.button type="submit">Lọc</x-ui.button>
+            <x-ui.button variant="secondary" :href="route('reports.all')">Xóa lọc</x-ui.button>
         </form>
 
         {{-- List --}}
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm divide-y divide-gray-100">
+        <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm divide-y divide-surface-container-highest">
             @forelse ($reports as $r)
                 <div class="p-4 flex items-start justify-between gap-3">
                     <div class="min-w-0">
                         <div class="flex items-center gap-2 flex-wrap">
-                            <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">{{ $r->type_label }}</span>
+                            <x-ui.badge color="primary" :pill="true" :dot="false">{{ $r->type_label }}</x-ui.badge>
                             @if ($r->type === 'journal')
-                                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{{ $r->severity_label }}</span>
+                                <x-ui.badge color="neutral" :pill="true" :dot="false">{{ $r->severity_label }}</x-ui.badge>
                             @endif
-                            <span class="font-bold text-sm text-gray-900">{{ $r->title }}</span>
+                            <span class="font-bold text-sm text-on-surface">{{ $r->title }}</span>
                         </div>
-                        <div class="text-[11px] text-gray-400 mt-1">
-                            {{ $r->report_date->format('d/m/Y') }} · <span class="font-semibold text-gray-600">{{ $r->user?->name }}</span>
+                        <div class="text-[11px] text-on-surface-variant/70 mt-1">
+                            {{ $r->report_date->format('d/m/Y') }} · <span class="font-semibold text-on-surface-variant">{{ $r->user?->name }}</span>
                             @if ($r->followups->isNotEmpty()) · {{ $r->followups->count() }} follow-up @endif
                         </div>
                         @if ($r->content)
-                            <p class="text-sm text-gray-600 mt-1.5 line-clamp-2">{{ $r->content }}</p>
+                            <p class="text-sm text-on-surface-variant mt-1.5 line-clamp-2">{{ $r->content }}</p>
                         @endif
                     </div>
                 </div>
             @empty
-                <div class="p-10 text-center text-gray-500">
-                    <span class="material-symbols-outlined text-4xl text-gray-300">inbox</span>
-                    <p class="mt-2 text-sm">Không có báo cáo nào khớp bộ lọc.</p>
-                </div>
+                <x-ui.empty-state icon="inbox" title="Không có báo cáo nào khớp bộ lọc." />
             @endforelse
         </div>
-        {{ $reports->links() }}
+        <x-ui.pagination :paginator="$reports" :options="[]" />
     </div>
 </x-app-layout>

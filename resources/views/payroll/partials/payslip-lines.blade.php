@@ -23,24 +23,20 @@
                                class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-xs pl-sm pr-lg text-right font-mono text-body-medium">
                         <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-on-surface-variant">đ</span>
                     </span>
-                    <x-ui.button variant="danger-text" size="sm" icon="delete" aria-label="Xoá khoản" @click="lines.splice(i, 1)" />
+                    <x-ui.button variant="danger-text" size="sm" icon="delete" aria-label="Xoá khoản" x-on:click="lines.splice(i, 1)" />
                 </div>
             </template>
         </template>
         <div class="flex flex-wrap items-end gap-sm rounded-lg border border-dashed border-outline-variant p-sm"
              x-data="{ draft: { label: '', amount: '' } }">
-            <label class="flex min-w-[180px] flex-1 flex-col gap-xs">
-                <span class="font-body-small text-body-small text-on-surface-variant">{{ $kind === 'earning' ? 'Tên khoản' : 'Lý do / Hạng mục' }}</span>
-                <input type="text" x-model="draft.label" placeholder="{{ $placeholder }}" list="payslip-suggest-{{ $kind }}"
-                       class="rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-xs font-body-medium text-body-medium">
-            </label>
-            <label class="flex w-40 flex-col gap-xs">
-                <span class="font-body-small text-body-small text-on-surface-variant">Số tiền (VNĐ)</span>
-                <input type="number" min="0" step="1000" x-model="draft.amount" placeholder="0"
-                       class="rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-xs text-right font-mono text-body-medium">
-            </label>
+            <div class="min-w-[180px] flex-1">
+                <x-ui.input :label="$kind === 'earning' ? 'Tên khoản' : 'Lý do / Hạng mục'" id="payslip-draft-label-{{ $kind }}" x-model="draft.label" :placeholder="$placeholder" list="payslip-suggest-{{ $kind }}" />
+            </div>
+            <div class="w-40">
+                <x-ui.input type="number" label="Số tiền (VNĐ)" id="payslip-draft-amount-{{ $kind }}" min="0" step="1000" x-model="draft.amount" placeholder="0" class="text-right font-mono" />
+            </div>
             <x-ui.button variant="secondary" size="sm" icon="add"
-                         @click="if (draft.label.trim() !== '') { lines.push({ kind: @js($kind), label: draft.label.trim(), amount: draft.amount }); draft = { label: '', amount: '' } }">{{ $addLabel }}</x-ui.button>
+                         x-on:click="if (draft.label.trim() !== '') { lines.push({ kind: @js($kind), label: draft.label.trim(), amount: draft.amount }); draft = { label: '', amount: '' } }">{{ $addLabel }}</x-ui.button>
         </div>
     </div>
 @else

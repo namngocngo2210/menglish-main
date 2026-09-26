@@ -89,21 +89,14 @@
 
         <form method="GET" action="{{ route('payroll.periods.show', $period->id) }}" role="search"
               class="flex flex-wrap items-end gap-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
-            <label class="flex flex-col gap-xs">
-                <span class="font-label text-label uppercase tracking-wide text-on-surface-variant">Kỳ lương</span>
-                <select onchange="window.location.href = this.value" aria-label="Chọn kỳ lương"
-                        class="rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
-                    @foreach ($allPeriods as $p)
-                        <option value="{{ route('payroll.periods.show', $p->id) }}" @selected($p->id === $period->id)>Tháng {{ str_pad($p->month, 2, '0', STR_PAD_LEFT) }}/{{ $p->year }} ({{ $p->code }})</option>
-                    @endforeach
-                </select>
-            </label>
-            <label class="relative min-w-[220px] flex-1">
-                <span class="sr-only">Tìm nhân sự</span>
-                <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
-                <input type="search" name="search" value="{{ $search }}" placeholder="Tìm giáo viên / nhân sự..."
-                       class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-10 pr-md font-body-base text-body-base placeholder:text-on-surface-variant/60 focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
-            </label>
+            <x-ui.select label="Kỳ lương" onchange="window.location.href = this.value" aria-label="Chọn kỳ lương">
+                @foreach ($allPeriods as $p)
+                    <option value="{{ route('payroll.periods.show', $p->id) }}" @selected($p->id === $period->id)>Tháng {{ str_pad($p->month, 2, '0', STR_PAD_LEFT) }}/{{ $p->year }} ({{ $p->code }})</option>
+                @endforeach
+            </x-ui.select>
+            <div class="min-w-[220px] flex-1">
+                <x-ui.input type="search" name="search" :value="$search" icon="search" placeholder="Tìm giáo viên / nhân sự..." aria-label="Tìm nhân sự" />
+            </div>
             <x-ui.select name="type" :options="\App\Models\PayrollRecord::SALARY_ROLE_LABELS" placeholder="Mọi loại nhân sự" aria-label="Loại nhân sự" />
             <x-ui.select name="kpi" :options="['pending' => 'Chưa chốt KPI', 'done' => 'Đã chốt KPI']" placeholder="Mọi trạng thái KPI" aria-label="Trạng thái KPI" />
             <x-ui.button type="submit" variant="secondary" icon="filter_list">Lọc</x-ui.button>
@@ -136,7 +129,7 @@
                 <tbody>
                     @forelse ($records as $r)
                         @php [$kpiKey, $kpiLabel] = $r->kpi_state; @endphp
-                        <tr x-data="{ openForeignModal: false }">
+                        <tr>
                             <td>
                                 <div class="flex items-center gap-sm">
                                     <x-ui.avatar :name="$r->user?->name ?? 'U'" size="sm" />
@@ -183,7 +176,7 @@
                             <td class="text-right font-mono text-tertiary">
                                 {{ number_format($r->commission_bonus) }}đ
                                 @if ((float) $r->commission_deferred > 0)
-                                    <p class="font-caption text-caption font-semibold text-amber-700">Hoãn {{ number_format($r->commission_deferred) }}đ</p>
+                                    <p class="font-caption text-caption font-semibold text-warning">Hoãn {{ number_format($r->commission_deferred) }}đ</p>
                                 @endif
                             </td>
                             <td class="text-right font-mono">{{ number_format($r->renew_bonus) }}đ</td>
@@ -196,28 +189,20 @@
                                 <div class="flex items-center justify-end gap-xs">
                                     @if (! $period->isLocked() && $r->isPartTime())
                                         @can('payroll.edit')
-                                            <x-ui.button variant="secondary" size="sm" @click="openForeignModal = true">Buổi GVNN</x-ui.button>
-                                            <div x-show="openForeignModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 text-left">
-                                                <div class="w-full max-w-md space-y-md rounded-xl bg-surface-container-lowest p-lg shadow-xl" @click.away="openForeignModal = false">
-                                                    <div class="flex items-center justify-between border-b border-surface-container pb-sm">
-                                                        <div>
-                                                            <h3 class="font-h3 text-h3 text-on-surface">Lương buổi có GVNN</h3>
-                                                            <p class="font-body-small text-body-small text-on-surface-variant">{{ $r->user?->name }}</p>
-                                                        </div>
-                                                        <x-ui.button variant="ghost" size="sm" icon="close" aria-label="Đóng" @click="openForeignModal = false" />
-                                                    </div>
-                                                    <form action="{{ route('payroll.records.update', $r->id) }}" method="POST" class="space-y-md">
-                                                        @csrf
-                                                        <x-ui.alert type="warning"><strong>Chờ BA chốt:</strong> cách tính lương buổi có GVNN chưa được xác nhận. Kế toán nhập tổng tiền cộng cho GV. Kỳ này có {{ (int) $r->foreign_teacher_sessions_count }} buổi GVNN cùng lớp.</x-ui.alert>
-                                                        <x-ui.input type="number" name="foreign_session_pay" label="Số tiền (VNĐ)" :value="(int) $r->foreign_session_pay" min="0" step="1000" required />
-                                                        <x-ui.textarea name="notes" label="Ghi chú" rows="2" :value="$r->adjustment_notes" placeholder="Ghi chú thêm..." />
-                                                        <div class="flex justify-end gap-sm border-t border-surface-container pt-sm">
-                                                            <x-ui.button variant="secondary" @click="openForeignModal = false">Hủy</x-ui.button>
-                                                            <x-ui.button type="submit">Lưu</x-ui.button>
-                                                        </div>
-                                                    </form>
-                                                </div>
-                                            </div>
+                                            <x-ui.button variant="secondary" size="sm" x-on:click="$dispatch('open-modal', 'foreign-{{ $r->id }}')">Buổi GVNN</x-ui.button>
+                                            <x-ui.modal :name="'foreign-'.$r->id" title="Lương buổi có GVNN" max-width="md" class="text-left">
+                                                <form id="foreign-form-{{ $r->id }}" action="{{ route('payroll.records.update', $r->id) }}" method="POST" class="space-y-md text-left">
+                                                    @csrf
+                                                    <p class="font-body-small text-body-small text-on-surface-variant">{{ $r->user?->name }}</p>
+                                                    <x-ui.alert type="warning"><strong>Chờ BA chốt:</strong> cách tính lương buổi có GVNN chưa được xác nhận. Kế toán nhập tổng tiền cộng cho GV. Kỳ này có {{ (int) $r->foreign_teacher_sessions_count }} buổi GVNN cùng lớp.</x-ui.alert>
+                                                    <x-ui.input type="number" name="foreign_session_pay" label="Số tiền (VNĐ)" :value="(int) $r->foreign_session_pay" min="0" step="1000" required />
+                                                    <x-ui.textarea name="notes" label="Ghi chú" rows="2" :value="$r->adjustment_notes" placeholder="Ghi chú thêm..." />
+                                                </form>
+                                                <x-slot:footer>
+                                                    <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'foreign-{{ $r->id }}')">Hủy</x-ui.button>
+                                                    <x-ui.button type="submit" form="foreign-form-{{ $r->id }}">Lưu</x-ui.button>
+                                                </x-slot:footer>
+                                            </x-ui.modal>
                                         @endcan
                                     @endif
                                     <x-ui.button variant="ghost" size="sm" icon="visibility" :href="route('payroll.records.show', $r->id)">Chi tiết</x-ui.button>

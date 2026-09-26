@@ -3,9 +3,9 @@
 @php
     $options = [
         'present' => ['label' => 'Đúng giờ', 'tone' => 'border-outline-variant'],
-        'late' => ['label' => 'Muộn', 'tone' => 'border-amber-300 bg-amber-50'],
-        'excused' => ['label' => 'Nghỉ có phép', 'tone' => 'border-blue-300 bg-blue-50'],
-        'absent' => ['label' => 'Nghỉ không phép', 'tone' => 'border-rose-300 bg-rose-50'],
+        'late' => ['label' => 'Muộn', 'tone' => 'border-warning/30 bg-warning-container'],
+        'excused' => ['label' => 'Nghỉ có phép', 'tone' => 'border-secondary/30 bg-secondary/10'],
+        'absent' => ['label' => 'Nghỉ không phép', 'tone' => 'border-error/30 bg-error/10'],
     ];
     $initialStatuses = $students->mapWithKeys(fn ($st) => [$st->id => old('status.'.$st->id, $existing->get($st->id)?->status ?? 'present')]);
     $roomLabel = $session?->room ? (str_starts_with(mb_strtolower($session->room), 'phòng') ? $session->room : 'Phòng '.$session->room) : 'Chưa có phòng';
@@ -32,10 +32,10 @@
             @endif
             @if ($session && ! $blockReason)
                 <x-slot:actions>
-                    <div class="flex items-center gap-sm rounded-lg border px-md py-sm {{ $window === 'closed' ? 'border-amber-300 bg-amber-50' : 'border-tertiary/30 bg-tertiary-fixed/20' }}" data-testid="attendance-window">
+                    <div class="flex items-center gap-sm rounded-lg border px-md py-sm {{ $window === 'closed' ? 'border-warning/30 bg-warning-container' : 'border-tertiary/30 bg-tertiary-fixed/20' }}" data-testid="attendance-window">
                         <span class="relative flex h-3 w-3">
                             @if ($window !== 'closed')<span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-tertiary-container opacity-60"></span>@endif
-                            <span class="relative inline-flex h-3 w-3 rounded-full {{ $window === 'closed' ? 'bg-amber-500' : 'bg-tertiary-container' }}"></span>
+                            <span class="relative inline-flex h-3 w-3 rounded-full {{ $window === 'closed' ? 'bg-warning' : 'bg-tertiary-container' }}"></span>
                         </span>
                         <div>
                             <div class="font-body-medium text-body-medium text-on-surface">{{ $window === 'closed' ? 'Ngoài cửa sổ 24h — điểm danh bù' : 'Đang trong cửa sổ điểm danh' }}</div>
@@ -50,9 +50,9 @@
             <section class="rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm md:p-lg">
                 <div class="grid grid-cols-2 gap-sm sm:grid-cols-4">
                     <div class="rounded-lg bg-tertiary-fixed/20 p-sm"><div class="font-caption text-caption text-on-surface-variant">Đúng giờ</div><div class="font-h3 text-h3 text-tertiary" x-text="count('present')">{{ $initialStatuses->filter(fn ($s) => $s === 'present')->count() }}</div></div>
-                    <div class="rounded-lg bg-amber-50 p-sm"><div class="font-caption text-caption text-on-surface-variant">Đi muộn</div><div class="font-h3 text-h3 text-amber-600" x-text="count('late')">{{ $initialStatuses->filter(fn ($s) => $s === 'late')->count() }}</div></div>
-                    <div class="rounded-lg bg-blue-50 p-sm"><div class="font-caption text-caption text-on-surface-variant">Nghỉ có phép</div><div class="font-h3 text-h3 text-blue-700" x-text="count('excused')">{{ $initialStatuses->filter(fn ($s) => $s === 'excused')->count() }}</div></div>
-                    <div class="rounded-lg bg-rose-50 p-sm"><div class="font-caption text-caption text-on-surface-variant">Nghỉ không phép</div><div class="font-h3 text-h3 text-error" x-text="count('absent')">{{ $initialStatuses->filter(fn ($s) => $s === 'absent')->count() }}</div></div>
+                    <div class="rounded-lg bg-warning-container p-sm"><div class="font-caption text-caption text-on-surface-variant">Đi muộn</div><div class="font-h3 text-h3 text-warning" x-text="count('late')">{{ $initialStatuses->filter(fn ($s) => $s === 'late')->count() }}</div></div>
+                    <div class="rounded-lg bg-secondary/10 p-sm"><div class="font-caption text-caption text-on-surface-variant">Nghỉ có phép</div><div class="font-h3 text-h3 text-secondary" x-text="count('excused')">{{ $initialStatuses->filter(fn ($s) => $s === 'excused')->count() }}</div></div>
+                    <div class="rounded-lg bg-error/10 p-sm"><div class="font-caption text-caption text-on-surface-variant">Nghỉ không phép</div><div class="font-h3 text-h3 text-error" x-text="count('absent')">{{ $initialStatuses->filter(fn ($s) => $s === 'absent')->count() }}</div></div>
                 </div>
             </section>
         @endif
@@ -65,7 +65,7 @@
         @if ($recentSessions->isNotEmpty())
             <form method="GET" action="{{ route('teacher.attendance', $class->id) }}" class="flex flex-col gap-sm rounded-xl border border-outline-variant bg-surface-container-lowest p-md sm:flex-row sm:items-center">
                 <label for="session-picker" class="shrink-0 font-label-caps text-label-caps uppercase text-on-surface-variant">Buổi điểm danh</label>
-                <select id="session-picker" name="session" onchange="this.form.submit()" class="flex-1 rounded-lg border border-outline-variant py-sm pl-md pr-xl font-body-small text-body-small focus:border-primary-container focus:ring-primary-container/20">
+                <x-ui.select id="session-picker" name="session" onchange="this.form.submit()" class="flex-1">
                     @foreach ($recentSessions as $s)
                         <option value="{{ $s->id }}" @selected($session && $session->id === $s->id) @disabled($s->status === 'cancelled')>
                             {{ $s->date->format('d/m/Y') }} · {{ $s->start_time?->format('H:i') }}-{{ $s->end_time?->format('H:i') }}
@@ -73,7 +73,7 @@
                             @if ($s->status === 'cancelled') · Đã hủy @elseif ($s->attendances_count > 0) · Đã điểm danh ({{ $s->attendances_count }}) @else · Chưa điểm danh @endif
                         </option>
                     @endforeach
-                </select>
+                </x-ui.select>
                 <noscript><x-ui.button type="submit" size="sm" variant="secondary">Chọn</x-ui.button></noscript>
             </form>
         @endif
@@ -127,7 +127,7 @@
                     @foreach ($students as $student)
                         @php $record = $existing->get($student->id); $noteError = $errors->first('note.'.$student->id); @endphp
                         <div class="grid grid-cols-1 gap-sm px-md py-sm md:grid-cols-[48px_1.2fr_1fr_1.4fr] md:items-start md:gap-md"
-                             :class="{ 'bg-amber-50/30': statuses[{{ $student->id }}] === 'late', 'bg-blue-50/30': statuses[{{ $student->id }}] === 'excused', 'bg-rose-50/30': statuses[{{ $student->id }}] === 'absent' }">
+                             :class="{ 'bg-warning-container/30': statuses[{{ $student->id }}] === 'late', 'bg-secondary/5': statuses[{{ $student->id }}] === 'excused', 'bg-error/5': statuses[{{ $student->id }}] === 'absent' }">
                             <span class="hidden font-code text-code text-on-surface-variant md:block">{{ str_pad((string) $loop->iteration, 2, '0', STR_PAD_LEFT) }}</span>
                             <div class="min-w-0">
                                 <div class="font-body-medium text-body-medium font-semibold text-on-surface">{{ $student->name }}</div>

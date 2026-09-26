@@ -62,7 +62,7 @@
                     </div>
                 </div>
                 <div>
-                    <x-ui.input type="date" name="exam_date" label="Ngày thi dự kiến" :value="old('exam_date', $openAssignment?->expected_big_test_date?->toDateString())" min="{{ now()->toDateString() }}"
+                    <x-ui.date name="exam_date" label="Ngày thi dự kiến" :value="old('exam_date', $openAssignment?->expected_big_test_date?->toDateString())" min="{{ now()->toDateString() }}"
                                 hint="Hạn xử lý của Học thuật = ngày thi − {{ \App\Models\BigTestOrder::LEAD_DAYS }} ngày (để trống: trong {{ \App\Models\BigTestOrder::LEAD_DAYS }} ngày)." />
                 </div>
                 <x-ui.textarea name="note" label="Ghi chú cho Học thuật" rows="3" placeholder="VD: đề trọng tâm Listening Part 1-2, độ khó vừa phải..." />
