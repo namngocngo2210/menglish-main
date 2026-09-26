@@ -497,7 +497,7 @@
                     this.maxTotal = r.max.listening + r.max.reading_writing + r.max.speaking;
                     const t = this.totalScore;
                     const hit = (r.placements || []).find((p) => (p.lt !== null ? t < p.lt : (p.lte !== null ? t <= p.lte : true)));
-                    this.placementCourse = hit ? hit.class : 'Chưa có lớp tương ứng — Học thuật chọn thủ công';
+                    this.placementCourse = hit ? hit.class : 'Chưa có lớp tương ứng — Học vụ chọn lớp thủ công';
 
                     this.generatedComment =
                         `【Kỹ năng Nghe】: ${this.band(r, 'listening', l)}\n` +

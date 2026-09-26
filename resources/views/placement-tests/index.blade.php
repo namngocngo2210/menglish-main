@@ -185,7 +185,7 @@
                                 @if ($sub->isPending())
                                     <x-ui.badge color="warning" pill>Chờ chấm</x-ui.badge>
                                 @else
-                                    <span class="font-code text-code font-bold text-primary">{{ $sub->total_score !== null ? $fmt($sub->total_score).' / '.\App\Services\PlacementRubricService::maxTotal($sub->grade_group) : ($sub->scoreSummary() ?? '—') }}</span>
+                                    <span class="font-code text-code font-bold text-primary">{{ $sub->total_score !== null ? $fmt($sub->total_score).(\App\Services\PlacementRubricService::hasRubric($sub->grade_group) ? ' / '.\App\Services\PlacementRubricService::maxTotal($sub->grade_group) : ' điểm') : ($sub->scoreSummary() ?? '—') }}</span>
                                 @endif
                             </td>
                             <td class="whitespace-nowrap font-body-medium text-body-medium text-primary">{{ $sub->finalClass() ?? $sub->recommended_course ?? '—' }}</td>

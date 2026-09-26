@@ -28,10 +28,17 @@ class PlacementRubricService
         'speaking' => 'Nói (Speaking)',
     ];
 
-    /** Thang tạm cho khối chưa có rubric: mỗi kỹ năng 0–10, không quy đổi ra lớp. */
-    public const MANUAL_MAX = ['listening' => 10, 'reading_writing' => 10, 'speaking' => 10];
+    /**
+     * Khối chưa có rubric (lớp 5–9, IELTS, người đi làm, mầm non) — BA chốt 26/09/2026: không xếp lớp tự động,
+     * chỉ ghi điểm thô của bài test; Học vụ chủ động chọn lớp thủ công. Không giới hạn chặt thang điểm từng kỹ năng
+     * (đề lớp 5–9 có thang khác nhau), chỉ chặn số vô lý. Lớp 8–9 chỉ test 3 kỹ năng, không test Nói → Nói được bỏ trống.
+     */
+    public const MANUAL_MAX = ['listening' => 100, 'reading_writing' => 100, 'speaking' => 100];
 
-    private const NO_RUBRIC_NOTICE = 'Chưa có thang điểm — Học thuật chọn lớp thủ công';
+    /** Thang quy đổi khi tự chấm bài test online cho khối không có rubric (tham khảo, không xếp lớp). */
+    public const ONLINE_MANUAL_SCALE = ['listening' => 10, 'reading_writing' => 10, 'speaking' => 10];
+
+    private const NO_RUBRIC_NOTICE = 'Không xếp lớp tự động cho khối này — Học vụ xem điểm và chọn lớp thủ công';
 
     /**
      * bands: băng điểm kỹ năng tăng dần theo cận dưới 'min'. placements: băng tổng điểm → lớp đề xuất ('lt' / 'lte' / không cận).
@@ -284,7 +291,7 @@ class PlacementRubricService
             'grade_group' => 'required|string|in:'.implode(',', array_keys(self::gradeGroups())),
             'listening_score' => 'required|numeric|min:0|max:'.$max['listening'],
             'reading_writing_score' => 'required|numeric|min:0|max:'.$max['reading_writing'],
-            'speaking_score' => 'required|numeric|min:0|max:'.$max['speaking'],
+            'speaking_score' => (self::hasRubric($group) ? 'required' : 'nullable').'|numeric|min:0|max:'.$max['speaking'],
             'chosen_class' => (self::hasRubric($group) ? 'nullable' : 'required').'|string|max:255',
             'listening_comment' => 'nullable|string|max:3000',
             'reading_writing_comment' => 'nullable|string|max:3000',

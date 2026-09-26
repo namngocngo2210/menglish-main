@@ -27,6 +27,7 @@ use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\FinalizesPayrollKpi;
 use Tests\TestCase;
 
 /**
@@ -36,6 +37,7 @@ use Tests\TestCase;
  */
 class Phase3FormulaTest extends TestCase
 {
+    use FinalizesPayrollKpi;
     use RefreshDatabase;
 
     private Branch $branch;
@@ -632,18 +634,4 @@ class Phase3FormulaTest extends TestCase
             ->assertOk()->assertSee('đ/buổi')->assertSee('320.000');
     }
 
-    /** BA chốt: phải chốt KPI mọi nhân sự trước khi chốt bảng lương — đánh dấu KPI đã chốt (không đổi số tiền đã tính). */
-    private function finalizeKpi(\App\Models\PayrollPeriod $period): void
-    {
-        foreach ($period->records()->get() as $record) {
-            if ($record->kpi_state[0] !== 'pending') {
-                continue;
-            }
-            match ($record->kpi_source) {
-                \App\Models\PayrollRecord::KPI_RETENTION => $record->forceFill(['retention_tier' => 0])->saveQuietly(),
-                \App\Models\PayrollRecord::KPI_ACADEMIC => $record->forceFill(['kpi_score' => 0])->saveQuietly(),
-                default => $record->forceFill(['kpi_manual_amount' => 0])->saveQuietly(),
-            };
-        }
-    }
 }
