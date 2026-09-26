@@ -10,7 +10,7 @@
 #   FTP_PUBLIC_DIR  vd. domains/dungthu.menglish.vn/public_html/
 #   APP_URL         vd. https://dungthu.menglish.vn
 #   DEPLOY_HOOK_TOKEN  trùng với DEPLOY_HOOK_TOKEN trong .env trên hosting (≥ 32 ký tự)
-# Variables (tùy chọn): APP_DIR_NAME (mặc định "menglish"), PHP_VERSION (mặc định 8.3, khớp PHP của hosting)
+# Variables (tùy chọn): APP_DIR_NAME (mặc định "menglish"), PHP_VERSION (mặc định 8.4, khớp PHP của hosting)
 name: Deploy hosting (DirectAdmin)
 
 on:
@@ -43,7 +43,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ vars.PHP_VERSION || '8.3' }}
+          php-version: ${{ vars.PHP_VERSION || '8.4' }}
           extensions: mbstring, pdo_sqlite, intl, gd, zip, bcmath
       - run: composer install --no-interaction --no-progress --prefer-dist
       - run: cp .env.example .env && php artisan key:generate
@@ -61,7 +61,7 @@ jobs:
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ vars.PHP_VERSION || '8.3' }}
+          php-version: ${{ vars.PHP_VERSION || '8.4' }}
           extensions: mbstring, intl, gd, zip, bcmath
 
       - name: Composer (production)

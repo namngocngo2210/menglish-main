@@ -14,7 +14,7 @@ Mỗi môi trường (staging `dungthu…`, production `portal…`) là một do
 
 ## Cài đặt lần đầu (làm 1 lần cho mỗi domain)
 
-1. **PHP**: DirectAdmin → *Select PHP version* (hoặc *PHP Version Selector*) → chọn **PHP 8.2 trở lên** (khuyến nghị 8.3). Bật extension: `pdo_mysql`, `mbstring`, `intl`, `gd`, `zip`, `bcmath`, `fileinfo`, `openssl`, `curl`.
+1. **PHP**: DirectAdmin → *Select PHP version* (hoặc *PHP Version Selector*) → chọn **PHP 8.4** (composer.lock cần PHP ≥ 8.4.1). Bật extension: `pdo_mysql`, `mbstring`, `intl`, `gd`, `zip`, `bcmath`, `fileinfo`, `openssl`, `curl`.
 2. **Database**: DirectAdmin → *MySQL Management* → tạo database + user (ghi lại tên DB, user, mật khẩu).
 3. **Tài khoản FTP**: DirectAdmin → *FTP Management* → tạo tài khoản FTP có quyền vào `domains/<domain>/` (hoặc dùng tài khoản chính). Ghi lại host FTP, user, mật khẩu.
 4. **File `.env`**: tạo trên máy từ `.env.example`, điền:
@@ -36,7 +36,7 @@ Mỗi môi trường (staging `dungthu…`, production `portal…`) là một do
    | `APP_URL` | `https://<domain>` |
    | `DEPLOY_HOOK_TOKEN` | giống giá trị trong `.env` |
 
-   *Variables* (tùy chọn): `PHP_VERSION` (khớp PHP hosting, mặc định `8.3`), `APP_DIR_NAME` (mặc định `menglish`).
+   *Variables* (tùy chọn): `PHP_VERSION` (khớp PHP hosting, mặc định `8.4`), `APP_DIR_NAME` (mặc định `menglish`).
    Nên bật *Required reviewers* cho môi trường `production`.
 6. **Cron**: DirectAdmin → *Cron Jobs* → thêm lệnh chạy **mỗi phút** (`* * * * *`):
    ```
