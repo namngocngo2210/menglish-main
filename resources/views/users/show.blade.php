@@ -2,40 +2,24 @@
     $canViewSensitive = \App\Http\Controllers\UserController::canViewSensitive(auth()->user());
 @endphp
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('users.index') }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span>{{ $user->name }}</span>
-                        @if ($user->isLocked())
-                            <span class="text-xs px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-semibold">Vô hiệu hóa</span>
-                        @else
-                            <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">Đang hoạt động</span>
-                        @endif
-                    </h1>
-                    <p class="text-xs text-gray-500 font-mono">{{ $user->employee_code ?? ('NV-' . str_pad($user->id, 4, '0', STR_PAD_LEFT)) }} · {{ $user->email }} · {{ $user->branch?->name ?? 'Chưa gán chi nhánh' }}</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                @can('user.update')
-                    <a href="{{ route('users.edit', $user) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition">
-                        <span class="material-symbols-outlined text-[16px]">edit</span>
-                        <span>Sửa thông tin</span>
-                    </a>
-                @endcan
-                @can('permission.override')
-                    <a href="{{ route('users.permissions.edit', $user) }}" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary-container hover:bg-primary text-white text-xs font-semibold shadow-sm transition">
-                        <span class="material-symbols-outlined text-[16px]">admin_panel_settings</span>
-                        <span>Phân quyền chi tiết</span>
-                    </a>
-                @endcan
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header :title="$user->name" :back="route('users.index')">
+        <x-slot:badges>
+            @if ($user->isLocked())
+                <x-ui.badge color="error">Vô hiệu hóa</x-ui.badge>
+            @else
+                <x-ui.badge color="success">Đang hoạt động</x-ui.badge>
+            @endif
+        </x-slot:badges>
+        <x-slot:meta><span class="font-mono">{{ $user->employee_code ?? ('NV-' . str_pad($user->id, 4, '0', STR_PAD_LEFT)) }} · {{ $user->email }} · {{ $user->branch?->name ?? 'Chưa gán chi nhánh' }}</span></x-slot:meta>
+        <x-slot:actions>
+            @can('user.update')
+                <x-ui.button variant="secondary" icon="edit" :href="route('users.edit', $user)">Sửa thông tin</x-ui.button>
+            @endcan
+            @can('permission.override')
+                <x-ui.button icon="admin_panel_settings" :href="route('users.permissions.edit', $user)">Phân quyền chi tiết</x-ui.button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="max-w-5xl mx-auto space-y-6">
         {{-- Top Profile Card --}}

@@ -1,16 +1,10 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="font-h1 text-h1 text-on-surface">Quản lý tài liệu giáo trình</h1>
-                <p class="font-body-base text-on-surface-variant">Quản lý và cập nhật tài liệu cho các khóa học.</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <x-ui.button variant="secondary" icon="edit_document" :href="route('syllabus.builder')">Soạn syllabus</x-ui.button>
-                <x-ui.button icon="menu_book" :href="route('syllabus.teacher-view')">Xem như giáo viên</x-ui.button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Quản lý tài liệu giáo trình" description="Quản lý và cập nhật tài liệu cho các khóa học.">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="edit_document" :href="route('syllabus.builder')">Soạn syllabus</x-ui.button>
+            <x-ui.button icon="menu_book" :href="route('syllabus.teacher-view')">Xem như giáo viên</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
 
     @php($canUpload = auth()->user()->can('syllabus.upload'))

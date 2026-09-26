@@ -3,15 +3,9 @@
         $typeLabels = \App\Models\StaffReport::TYPE_LABELS;
         $label = $typeLabels[$type] ?? 'Báo cáo';
     @endphp
-    <x-slot name="header">
-        <div>
-            <h1 class="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-                <span class="material-symbols-outlined text-primary text-2xl">assignment</span>
-                {{ $label }} của tôi
-            </h1>
-            <p class="text-xs text-gray-500 mt-0.5">Nộp và theo dõi {{ mb_strtolower($label) }} theo vai trò của bạn</p>
-        </div>
-    </x-slot>
+    <x-ui.page-header :title="$label . ' của tôi'" icon="assignment">
+        <x-slot:meta>Nộp và theo dõi {{ mb_strtolower($label) }} theo vai trò của bạn</x-slot:meta>
+    </x-ui.page-header>
 
     <div class="space-y-6">
         

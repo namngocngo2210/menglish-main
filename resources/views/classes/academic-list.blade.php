@@ -1,25 +1,9 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('classes.academic-overview') }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">table_view</span>
-                        Danh sách lớp chi tiết Học thuật
-                    </h1>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('classes.academic-detail') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-dark transition">
-                    <span class="material-symbols-outlined text-[18px]">class</span>
-                    <span>Chi tiết lớp học</span>
-                </a>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Danh sách lớp chi tiết Học thuật" icon="table_view" :back="route('classes.academic-overview')">
+        <x-slot:actions>
+            <x-ui.button icon="class" :href="route('classes.academic-detail')">Chi tiết lớp học</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
 
     <div class="space-y-6">

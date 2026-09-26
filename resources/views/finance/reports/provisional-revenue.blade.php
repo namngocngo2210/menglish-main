@@ -1,61 +1,51 @@
 {{-- Mockup: ui-full-tinh-nang-menglish/epic-13-bao-cao-thu-chi/b_o_c_o_doanh_thu_t_m_t_nh_menglish_admin --}}
 <x-app-layout title="Báo cáo doanh thu tạm tính">
-    <x-slot name="header">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <div class="w-11 h-11 rounded-xl bg-orange-100 flex items-center justify-center text-primary-container">
-                    <span class="material-symbols-outlined text-2xl font-semibold">query_stats</span>
-                </div>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <h1 class="text-xl lg:text-2xl font-bold text-slate-800 tracking-tight">Báo cáo Doanh thu tạm tính</h1>
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                            Tính toán thời gian thực
-                        </span>
-                    </div>
-                    <p class="text-xs text-slate-500 mt-0.5">Tổng hợp đối soát Thu (học phí &amp; phụ thu hợp lệ) trừ Chi vận hành (chi thường xuyên &amp; chi lương)</p>
-                </div>
+    <x-ui.page-header title="Báo cáo Doanh thu tạm tính" icon="query_stats" description="Tổng hợp đối soát Thu (học phí & phụ thu hợp lệ) trừ Chi vận hành (chi thường xuyên & chi lương)">
+        <x-slot:badges>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Tính toán thời gian thực
+            </span>
+        </x-slot:badges>
+        <x-slot:actions>
+        {{-- Filters & Actions --}}
+        <form id="revenueFilterForm" method="GET" action="{{ route('finance.reports.revenue') }}" class="flex flex-wrap items-center gap-3">
+            {{-- Filter Kỳ tháng --}}
+            <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-primary-container/20 focus-within:border-primary-container transition-all">
+                <span class="material-symbols-outlined text-slate-400 text-lg mr-2">calendar_month</span>
+                <label for="filter-month" class="text-xs font-semibold text-slate-500 mr-2 uppercase">KỲ THÁNG:</label>
+                <select id="filter-month" name="month" onchange="this.form.submit()" class="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer text-sm">
+                    @foreach ($monthOptions as $val => $lbl)
+                        <option value="{{ $val }}" {{ $month === $val ? 'selected' : '' }}>{{ $lbl }}</option>
+                    @endforeach
+                </select>
             </div>
 
-            {{-- Filters & Actions --}}
-            <form id="revenueFilterForm" method="GET" action="{{ route('finance.reports.revenue') }}" class="flex flex-wrap items-center gap-3">
-                {{-- Filter Kỳ tháng --}}
-                <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-primary-container/20 focus-within:border-primary-container transition-all">
-                    <span class="material-symbols-outlined text-slate-400 text-lg mr-2">calendar_month</span>
-                    <label for="filter-month" class="text-xs font-semibold text-slate-500 mr-2 uppercase">KỲ THÁNG:</label>
-                    <select id="filter-month" name="month" onchange="this.form.submit()" class="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer text-sm">
-                        @foreach ($monthOptions as $val => $lbl)
-                            <option value="{{ $val }}" {{ $month === $val ? 'selected' : '' }}>{{ $lbl }}</option>
-                        @endforeach
-                    </select>
-                </div>
+            {{-- Filter Chi nhánh --}}
+            <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-primary-container/20 focus-within:border-primary-container transition-all">
+                <span class="material-symbols-outlined text-slate-400 text-lg mr-2">storefront</span>
+                <label for="filter-branch" class="text-xs font-semibold text-slate-500 mr-2 uppercase">CƠ SỞ:</label>
+                <select id="filter-branch" name="branch_id" onchange="this.form.submit()" class="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer text-sm">
+                    @unless ($branchScoped ?? false)<option value="all" {{ $branchId === 'all' ? 'selected' : '' }}>Tất cả chi nhánh</option>@endunless
+                    @foreach ($branches as $b)
+                        <option value="{{ $b->id }}" {{ (string)$branchId === (string)$b->id ? 'selected' : '' }}>{{ $b->name }}</option>
+                    @endforeach
+                </select>
+            </div>
 
-                {{-- Filter Chi nhánh --}}
-                <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-primary-container/20 focus-within:border-primary-container transition-all">
-                    <span class="material-symbols-outlined text-slate-400 text-lg mr-2">storefront</span>
-                    <label for="filter-branch" class="text-xs font-semibold text-slate-500 mr-2 uppercase">CƠ SỞ:</label>
-                    <select id="filter-branch" name="branch_id" onchange="this.form.submit()" class="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer text-sm">
-                        @unless ($branchScoped ?? false)<option value="all" {{ $branchId === 'all' ? 'selected' : '' }}>Tất cả chi nhánh</option>@endunless
-                        @foreach ($branches as $b)
-                            <option value="{{ $b->id }}" {{ (string)$branchId === (string)$b->id ? 'selected' : '' }}>{{ $b->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
+            {{-- Nút Làm mới --}}
+            <button type="button" onclick="window.location.reload()" class="inline-flex items-center justify-center p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors shadow-xs" title="Làm mới số liệu thời gian thực">
+                <span class="material-symbols-outlined text-xl">sync</span>
+            </button>
 
-                {{-- Nút Làm mới --}}
-                <button type="button" onclick="window.location.reload()" class="inline-flex items-center justify-center p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors shadow-xs" title="Làm mới số liệu thời gian thực">
-                    <span class="material-symbols-outlined text-xl">sync</span>
-                </button>
-
-                {{-- Nút Xuất báo cáo --}}
-                <a href="{{ route('finance.reports.revenue.export', ['month' => $month, 'branch_id' => $branchId]) }}" class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-all shadow-xs">
-                    <span class="material-symbols-outlined text-lg">download</span>
-                    <span>Xuất báo cáo</span>
-                </a>
-            </form>
-        </div>
-    </x-slot>
+            {{-- Nút Xuất báo cáo --}}
+            <a href="{{ route('finance.reports.revenue.export', ['month' => $month, 'branch_id' => $branchId]) }}" class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-all shadow-xs">
+                <span class="material-symbols-outlined text-lg">download</span>
+                <span>Xuất báo cáo</span>
+            </a>
+        </form>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="space-y-6">
 

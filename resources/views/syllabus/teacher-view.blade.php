@@ -1,32 +1,22 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('syllabus.documents') }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <nav class="flex flex-wrap items-center gap-xs font-body-small text-body-small text-on-surface-variant" aria-label="Breadcrumb">
-                        <span class="material-symbols-outlined text-[16px]">menu_book</span>
-                        <span>Giáo trình &amp; Tài liệu</span>
-                        @if ($overviewCurriculum)
-                            <span class="material-symbols-outlined text-[16px]">chevron_right</span>
-                            <span class="font-semibold text-on-surface">{{ $overviewCurriculum->title }}</span>
-                        @endif
-                    </nav>
-                    <h1 class="font-h1 text-h1 text-on-surface">Xem tài liệu giáo trình</h1>
-                </div>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-                <form method="GET" action="{{ route('syllabus.teacher-view') }}" class="flex items-center gap-2">
-                    @if ($class)<input type="hidden" name="class" value="{{ $class->id }}">@endif
-                    <x-ui.input name="q" icon="search" :value="$search" placeholder="Tìm kiếm tài liệu..." />
-                    <x-ui.button type="submit" variant="secondary" icon="filter_list">Lọc</x-ui.button>
-                </form>
-                <x-ui.button variant="secondary" icon="edit_attributes" :href="route('syllabus.teacher-propose')">Đề xuất sửa</x-ui.button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Xem tài liệu giáo trình" :back="route('syllabus.documents')">
+        <x-slot:breadcrumbs>
+            <span class="material-symbols-outlined text-[16px]">menu_book</span>
+            <span>Giáo trình &amp; Tài liệu</span>
+            @if ($overviewCurriculum)
+                <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+                <span class="font-semibold text-on-surface">{{ $overviewCurriculum->title }}</span>
+            @endif
+        </x-slot:breadcrumbs>
+        <x-slot:actions>
+            <form method="GET" action="{{ route('syllabus.teacher-view') }}" class="flex items-center gap-2">
+                @if ($class)<input type="hidden" name="class" value="{{ $class->id }}">@endif
+                <x-ui.input name="q" icon="search" :value="$search" placeholder="Tìm kiếm tài liệu..." />
+                <x-ui.button type="submit" variant="secondary" icon="filter_list">Lọc</x-ui.button>
+            </form>
+            <x-ui.button variant="secondary" icon="edit_attributes" :href="route('syllabus.teacher-propose')">Đề xuất sửa</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
 
     @php($user = auth()->user())

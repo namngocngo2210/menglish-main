@@ -1,12 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div>
-            <h1 class="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-                <span class="material-symbols-outlined text-primary text-2xl">monitoring</span>
-                Tổng hợp Báo cáo & Nhật ký toàn trung tâm
-            </h1>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Tổng hợp Báo cáo & Nhật ký toàn trung tâm" icon="monitoring" />
 
     <div class="space-y-6">
         {{-- Stats --}}

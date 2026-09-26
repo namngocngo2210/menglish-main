@@ -1,14 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-                <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">ballot</span>
-                    Quản lý Đợt Khảo sát Chất lượng
-                </h1>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Quản lý Đợt Khảo sát Chất lượng" icon="ballot" />
 
     <div class="space-y-4">
 

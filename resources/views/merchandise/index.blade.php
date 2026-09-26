@@ -1,22 +1,11 @@
 {{-- Danh mục Hàng hóa & Vật phẩm. Thêm/Sửa mở modal (htmx), Xóa qua modal xác nhận;
      lưu/xóa xong server phát "merchandise-changed" → #merchandise-list tự tải lại (giữ bộ lọc, trang hiện tại). --}}
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-primary-container/10 border border-primary-container/20 flex items-center justify-center text-primary shrink-0">
-                    <span class="material-symbols-outlined text-2xl">inventory_2</span>
-                </div>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight">Danh mục Hàng hóa &amp; Vật phẩm</h1>
-                </div>
-            </div>
-
-            <div class="flex items-center gap-2">
-                <x-ui.button icon="add_circle" :href="route('merchandise.create')" modal="xl">Thêm Hàng hóa mới</x-ui.button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Danh mục Hàng hóa & Vật phẩm" icon="inventory_2">
+        <x-slot:actions>
+            <x-ui.button icon="add_circle" :href="route('merchandise.create')" modal="xl">Thêm Hàng hóa mới</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="max-w-7xl mx-auto space-y-6" x-data="{ del: { url: '', name: '' } }">
 

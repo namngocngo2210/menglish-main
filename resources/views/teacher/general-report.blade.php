@@ -1,24 +1,13 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('teacher.home') }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">monitoring</span>
-                        Báo cáo giảng dạy của tôi — T{{ $month }}/{{ $year }}
-                    </h1>
-                </div>
-            </div>
+    <x-ui.page-header :title="'Báo cáo giảng dạy của tôi — T' . $month . '/' . $year" icon="monitoring" :back="route('teacher.home')">
+        <x-slot:actions>
             <form method="GET" class="flex items-center gap-2">
                 <input type="month" name="period" value="{{ sprintf('%04d-%02d', $year, $month) }}"
                        onchange="this.form.submit()"
                        class="text-xs rounded-xl border border-gray-200 px-3 py-1.5 font-semibold" />
             </form>
-        </div>
-    </x-slot>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="space-y-4">
         {{-- Thẻ tổng quan --}}

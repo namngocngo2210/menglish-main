@@ -1,24 +1,13 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('syllabus.documents') }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="font-h1 text-h1 text-on-surface">Duyệt yêu cầu xin điều chỉnh tiến độ</h1>
-                    <p class="font-body-base text-on-surface-variant">Quản lý các yêu cầu giãn tiến độ từ giáo viên. Duyệt sẽ thêm buổi vào cuối lịch của lớp; từ chối bắt buộc nhập lý do.</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <form method="GET" class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[18px] text-on-surface-variant">filter_list</span>
-                    <x-ui.select name="status" :value="$status" :options="['all' => 'Tất cả'] + \App\Models\SyllabusAdjustmentRequest::STATUS_LABELS" onchange="this.form.submit()" aria-label="Lọc" />
-                </form>
-                <x-ui.button variant="secondary" icon="speed" :href="route('syllabus.teacher-adjust')">Gửi yêu cầu mới</x-ui.button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Duyệt yêu cầu xin điều chỉnh tiến độ" description="Quản lý các yêu cầu giãn tiến độ từ giáo viên. Duyệt sẽ thêm buổi vào cuối lịch của lớp; từ chối bắt buộc nhập lý do." :back="route('syllabus.documents')">
+        <x-slot:actions>
+            <form method="GET" class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px] text-on-surface-variant">filter_list</span>
+                <x-ui.select name="status" :value="$status" :options="['all' => 'Tất cả'] + \App\Models\SyllabusAdjustmentRequest::STATUS_LABELS" onchange="this.form.submit()" aria-label="Lọc" />
+            </form>
+            <x-ui.button variant="secondary" icon="speed" :href="route('syllabus.teacher-adjust')">Gửi yêu cầu mới</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
 
     @php($canReview = auth()->user()->can('syllabus.approve_adjustment'))

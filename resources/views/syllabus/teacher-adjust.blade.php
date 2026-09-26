@@ -1,20 +1,11 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('syllabus.versions') }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="font-h1 text-h1 text-on-surface">Xin điều chỉnh tiến độ</h1>
-                    <p class="font-body-base text-on-surface-variant">Gửi yêu cầu điều chỉnh thời gian cho các lớp hoặc chặng học hiện tại.</p>
-                </div>
-            </div>
+    <x-ui.page-header title="Xin điều chỉnh tiến độ" description="Gửi yêu cầu điều chỉnh thời gian cho các lớp hoặc chặng học hiện tại." :back="route('syllabus.versions')">
+        <x-slot:actions>
             @can('syllabus.approve_adjustment')
                 <x-ui.button icon="rule" :href="route('syllabus.adjustment-requests')">Duyệt yêu cầu tiến độ</x-ui.button>
             @endcan
-        </div>
-    </x-slot>
+        </x-slot:actions>
+    </x-ui.page-header>
 
 
     {{-- Mockup 03_Cong_Giao_Vien/14: form Gửi yêu cầu (lớp/chặng đang mở, lý do, số buổi 1/2) + Danh sách yêu cầu đã gửi. --}}

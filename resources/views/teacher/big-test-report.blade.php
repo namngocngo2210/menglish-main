@@ -1,17 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center gap-3">
-            <a href="{{ route('teacher.home') }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
-                <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-            </a>
-            <div>
-                <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">military_tech</span>
-                    Bảng điểm Big Test các lớp tôi phụ trách
-                </h1>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Bảng điểm Big Test các lớp tôi phụ trách" icon="military_tech" :back="route('teacher.home')" />
 
     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <table class="w-full text-left border-collapse text-xs">

@@ -11,15 +11,13 @@
 @endphp
 <x-app-layout title="Giao bài tập về nhà — {{ $class->name }}">
     <div class="mx-auto max-w-4xl space-y-lg pb-24 md:pb-0">
-        <header>
-            <a href="{{ route('teacher.home') }}" class="mb-xs inline-flex items-center gap-xs font-body-small text-body-small text-on-surface-variant hover:text-primary">
-                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span> Về lịch dạy
-            </a>
-            <h1 class="font-h2 text-h2 text-on-surface">{{ $editing ? 'Sửa bài tập về nhà' : 'Giao bài tập về nhà' }}</h1>
-            <p class="mt-xs inline-flex items-center gap-xs rounded-full bg-secondary-fixed/50 px-md py-[2px] font-body-small text-body-small text-on-secondary-fixed">
-                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">info</span> Lớp {{ $class->name }} <span class="font-code">({{ $class->code }})</span>
-            </p>
-        </header>
+        <x-ui.page-header :title="$editing ? 'Sửa bài tập về nhà' : 'Giao bài tập về nhà'" :back="route('teacher.home')" back-label="Về lịch dạy">
+            <x-slot:meta>
+                <span class="inline-flex items-center gap-xs rounded-full bg-secondary-fixed/50 px-md py-[2px] font-body-small text-body-small text-on-secondary-fixed">
+                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">info</span> Lớp {{ $class->name }} <span class="font-code">({{ $class->code }})</span>
+                </span>
+            </x-slot:meta>
+        </x-ui.page-header>
 
         @if ($errors->any())
             <x-ui.alert type="error">{{ $errors->first() }}</x-ui.alert>

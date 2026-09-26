@@ -1,17 +1,9 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Quản lý Tuyển dụng & Hồ sơ Ứng viên</h1>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('portal.recruitment') }}" target="_blank" class="px-3.5 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold rounded-xl shadow-xs transition flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[18px] text-blue-600">open_in_new</span>
-                    <span>Cổng nộp CV Online</span>
-                </a>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Quản lý Tuyển dụng & Hồ sơ Ứng viên">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="open_in_new" :href="route('portal.recruitment')" target="_blank">Cổng nộp CV Online</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="space-y-6" x-data="{ showNewJobModal: false }">
         

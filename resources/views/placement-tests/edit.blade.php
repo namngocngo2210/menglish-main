@@ -1,18 +1,7 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center gap-3">
-            <a href="{{ route('placement-tests.index') }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
-                <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-            </a>
-            <div>
-                <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-teal-600">edit_document</span>
-                    Chỉnh Sửa Bộ Đề &amp; Quản Lý Câu Hỏi: {{ $test->title }}
-                </h1>
-                <p class="text-xs text-gray-500">Mã đề: <strong class="font-mono text-gray-800">{{ $test->code }}</strong> · Cập nhật cấu hình, audio, bài đọc, câu hỏi và đáp án chấm</p>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header :title="'Chỉnh Sửa Bộ Đề & Quản Lý Câu Hỏi: ' . $test->title" icon="edit_document" :back="route('placement-tests.index')">
+        <x-slot:meta>Mã đề: <strong class="font-mono text-on-surface">{{ $test->code }}</strong> · Cập nhật cấu hình, audio, bài đọc, câu hỏi và đáp án chấm</x-slot:meta>
+    </x-ui.page-header>
 
     @php
         // Đề chưa có câu hỏi: bắt đầu với 1 câu trống (không soạn sẵn nội dung mẫu / file nghe giả).

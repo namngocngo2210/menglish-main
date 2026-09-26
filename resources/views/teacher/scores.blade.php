@@ -9,13 +9,11 @@
 @endphp
 <x-app-layout title="Nhập điểm mini test — {{ $class->name }}">
     <div class="mx-auto max-w-3xl space-y-lg pb-24 md:pb-0">
-        <header>
-            <a href="{{ route('teacher.home') }}" class="mb-xs inline-flex items-center gap-xs font-body-small text-body-small text-on-surface-variant hover:text-primary">
-                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span> Về lịch dạy
-            </a>
-            <h1 class="font-h2 text-h2 text-on-surface">Nhập điểm mini test</h1>
-            <p class="font-body-base text-body-base text-on-surface-variant">Vui lòng chọn thông tin và nhập điểm cho học sinh · Lớp {{ $class->name }} <span class="font-code">({{ $class->code }})</span></p>
-        </header>
+        <x-ui.page-header title="Nhập điểm mini test" :back="route('teacher.home')" back-label="Về lịch dạy">
+            <x-slot:meta>
+                Vui lòng chọn thông tin và nhập điểm cho học sinh · Lớp {{ $class->name }} <span class="font-code">({{ $class->code }})</span>
+            </x-slot:meta>
+        </x-ui.page-header>
 
         @if ($class->students->isEmpty())
             <div class="rounded-xl border border-outline-variant bg-surface-container-lowest">

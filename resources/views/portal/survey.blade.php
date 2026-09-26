@@ -1,25 +1,9 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('portal.student.home', ['studentId' => $student?->id]) }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-emerald-600">contact_support</span>
-                        Khảo sát chất lượng
-                    </h1>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('portal.student.feedback', ['studentId' => $student?->id]) }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 transition shadow-sm">
-                    <span class="material-symbols-outlined text-[18px]">rate_review</span>
-                    <span>Đánh giá chặng học</span>
-                </a>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Khảo sát chất lượng" icon="contact_support" :back="route('portal.student.home', ['studentId' => $student?->id])">
+        <x-slot:actions>
+            <x-ui.button icon="rate_review" :href="route('portal.student.feedback', ['studentId' => $student?->id])">Đánh giá chặng học</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     
 

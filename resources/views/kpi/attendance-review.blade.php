@@ -1,12 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div>
-            <h1 class="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-                <span class="material-symbols-outlined text-primary text-2xl">rule</span>
-                Rà soát điểm danh (Học vụ)
-            </h1>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Rà soát điểm danh (Học vụ)" icon="rule" />
 
     <div class="space-y-6">
         <form method="GET" class="flex flex-wrap items-center gap-3 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">

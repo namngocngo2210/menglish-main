@@ -1,21 +1,10 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('syllabus.documents') }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="font-h1 text-h1 text-on-surface">Nhắc lịch Big Test</h1>
-                    <p class="font-body-base text-on-surface-variant">Danh sách các chặng học sắp đến hạn thi Big Test (trong vòng 7 ngày) chưa được duyệt đề thi.</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <x-ui.button variant="secondary" icon="event_note" :href="route('syllabus.teaching-stages')">Lịch dự kiến theo lớp</x-ui.button>
-                <x-ui.button icon="add_circle" :href="route('syllabus.big-tests.distribution')">Tạo đợt Big Test</x-ui.button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Nhắc lịch Big Test" description="Danh sách các chặng học sắp đến hạn thi Big Test (trong vòng 7 ngày) chưa được duyệt đề thi." :back="route('syllabus.documents')">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="event_note" :href="route('syllabus.teaching-stages')">Lịch dự kiến theo lớp</x-ui.button>
+            <x-ui.button icon="add_circle" :href="route('syllabus.big-tests.distribution')">Tạo đợt Big Test</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     @php($urgent = $upcoming->filter(fn ($row) => $row['days_left'] <= 2)->count())
 

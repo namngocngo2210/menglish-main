@@ -1,15 +1,11 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="font-h1 text-h1 text-on-surface">Chặng đang dạy &amp; Order Test</h1>
-                <p class="font-body-base text-on-surface-variant">Quản lý các chặng học, lịch dự kiến Big Test và yêu cầu đề thi cho học viên.</p>
-            </div>
+    <x-ui.page-header title="Chặng đang dạy & Order Test" description="Quản lý các chặng học, lịch dự kiến Big Test và yêu cầu đề thi cho học viên.">
+        <x-slot:actions>
             <span class="inline-flex items-center gap-xs rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-medium text-body-small text-on-surface">
                 <span class="material-symbols-outlined text-[18px] text-primary">calendar_today</span>Tháng {{ now()->month }}, {{ now()->year }}
             </span>
-        </div>
-    </x-slot>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     @php
         $user = auth()->user();

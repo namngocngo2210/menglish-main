@@ -1,20 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('payroll.periods.index') }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">tune</span>
-                        Cấu hình Tham số Lương
-                    </h1>
-                    <p class="text-xs text-gray-500 mt-0.5">BHXH / Công đoàn Full-time, quỹ KPI Học vụ, bảng % thưởng tái tục.</p>
-                </div>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Cấu hình Tham số Lương" icon="tune" :back="route('payroll.periods.index')" description="BHXH / Công đoàn Full-time, quỹ KPI Học vụ, bảng % thưởng tái tục." />
 
     @php
         $renewalRows = old('renewal', collect($settings['renewal_table'])->map(fn ($row, $quits) => ['quits' => $quits, 'percent' => $row['percent'], 'pending' => $row['pending']])->values()->all());

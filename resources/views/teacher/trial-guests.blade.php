@@ -1,18 +1,9 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-                <h1 class="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary text-2xl">school</span>
-                    Nhận xét học thử
-                </h1>
-                <p class="text-xs text-gray-500 mt-0.5">Khách học thử (chưa chốt) trên buổi dạy của bạn. Nhận xét như học sinh chính thức — lưu vào hồ sơ khách tuyển sinh để Học vụ / tư vấn viên theo dõi.</p>
-            </div>
-            <a href="{{ route('teacher.home') }}" class="text-xs font-semibold text-gray-500 hover:text-primary flex items-center gap-1">
-                <span class="material-symbols-outlined text-[18px]">arrow_back</span> Về trang chủ
-            </a>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Nhận xét học thử" icon="school" description="Khách học thử (chưa chốt) trên buổi dạy của bạn. Nhận xét như học sinh chính thức — lưu vào hồ sơ khách tuyển sinh để Học vụ / tư vấn viên theo dõi.">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="arrow_back" :href="route('teacher.home')">Về trang chủ</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="space-y-4">
         @if ($errors->any())

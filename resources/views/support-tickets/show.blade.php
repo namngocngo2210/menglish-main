@@ -19,27 +19,16 @@
     </x-ui.modal-frame>
 @else
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('tickets.index') }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-xl bg-orange-100 text-primary border border-orange-300 font-mono font-bold text-xs shadow-2xs">#{{ $ticket->code }}</span>
-                        <h1 class="text-xl font-bold text-gray-900 tracking-tight">{{ $ticket->title }}</h1>
-                    </div>
-                    <p class="text-xs text-gray-500">Tạo bởi {{ $ticket->creator?->name }} vào lúc {{ $ticket->created_at->format('d/m/Y H:i') }} · {{ $ticket->category_label }}</p>
-                </div>
-            </div>
-
-            {{-- Status & Assignee Quick Actions --}}
-            <div class="flex items-center gap-2">
-                @include('support-tickets.partials.status-form')
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header :title="$ticket->title" :back="route('tickets.index')">
+        <x-slot:badges>
+            <span class="inline-flex items-center px-2.5 py-1 rounded-xl bg-orange-100 text-primary border border-orange-300 font-mono font-bold text-xs shadow-2xs">#{{ $ticket->code }}</span>
+        </x-slot:badges>
+        <x-slot:meta>Tạo bởi {{ $ticket->creator?->name }} vào lúc {{ $ticket->created_at->format('d/m/Y H:i') }} · {{ $ticket->category_label }}</x-slot:meta>
+        {{-- Status & Assignee Quick Actions --}}
+        <x-slot:actions>
+            @include('support-tickets.partials.status-form')
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6" x-data="{ lightboxOpen: false, lightboxImg: '' }">
         {{-- Main Conversation Stream --}}

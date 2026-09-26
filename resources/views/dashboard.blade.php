@@ -1,14 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary text-2xl">dashboard</span>
-                    Bảng Điều Khiển Trung Tâm — MEnglish Admin
-                </h1>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Bảng Điều Khiển Trung Tâm — MEnglish Admin" icon="dashboard" />
 
     @php
         $user = Auth::user();

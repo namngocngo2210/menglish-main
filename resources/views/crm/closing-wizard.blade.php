@@ -1,24 +1,9 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('crm.pipeline') }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="font-h1 text-h1 text-on-surface">Quy trình Chốt &amp; Xếp lớp</h1>
-                    <p class="font-body-small text-body-small text-on-surface-variant">Chốt khách → tạo học viên, tài khoản, học phí → xếp lớp (hoặc Chờ xếp lớp) → thu phí đăng ký</p>
-                </div>
-            </div>
-
-            <div class="flex items-center gap-2">
-                <a href="{{ route('system-config.bank-accounts') }}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold shadow-xs transition" title="Cài đặt tài khoản ngân hàng thụ hưởng & SePay">
-                    <span class="material-symbols-outlined text-sm text-primary-container">account_balance</span>
-                    <span>Cài đặt STK &amp; SePay</span>
-                </a>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Quy trình Chốt & Xếp lớp" description="Chốt khách → tạo học viên, tài khoản, học phí → xếp lớp (hoặc Chờ xếp lớp) → thu phí đăng ký" :back="route('crm.pipeline')">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="account_balance" :href="route('system-config.bank-accounts')" target="_blank" title="Cài đặt tài khoản ngân hàng thụ hưởng & SePay">Cài đặt STK &amp; SePay</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="max-w-4xl mx-auto space-y-6" x-data="closingWizard()">
         @if ($errors->any())
@@ -135,7 +120,7 @@
                         </select>
                     </div>
 
-                    {{-- Thẻ khách theo mockup: tên, "Đã đóng học phí đăng ký", SĐT, giai đoạn, trình độ --}}
+                    {{-- Thẻ khách theo mockup: tên, trạng thái học phí, SĐT, giai đoạn, trình độ --}}
                     <div class="rounded-xl border border-surface-container-highest bg-surface-container-low p-md" x-show="customerId" data-customer-summary>
                         <div class="flex items-start gap-md">
                             <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary-fixed text-primary">
@@ -144,8 +129,9 @@
                             <div class="min-w-0 flex-1 space-y-xs">
                                 <div class="flex flex-wrap items-center justify-between gap-sm">
                                     <h2 class="font-h2 text-h2 text-on-surface" x-text="customerName"></h2>
-                                    <span class="inline-flex items-center gap-xs font-body-small text-body-small" :class="feePaid ? 'text-tertiary' : 'text-on-surface-variant'">
-                                        <span class="material-symbols-outlined text-[18px]" x-text="feePaid ? 'check_box' : 'check_box_outline_blank'"></span>Đã đóng học phí đăng ký
+                                    {{-- Trạng thái thật ở bước này: khách chưa đóng học phí (thu / hẹn thu được chọn ở Bước 4). --}}
+                                    <span class="inline-flex items-center gap-xs rounded-full border border-outline-variant bg-surface-container-lowest px-sm py-0.5 font-body-small text-body-small text-on-surface-variant" data-fee-status>
+                                        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">schedule</span>Chưa đóng học phí đăng ký
                                     </span>
                                 </div>
                                 <p class="flex flex-wrap items-center gap-sm font-body-small text-body-small text-on-surface-variant">
@@ -157,6 +143,7 @@
                                 </p>
                             </div>
                         </div>
+                        {{-- Chỉ hiện khi đã bỏ chọn "Đã đóng học phí" ở Bước 4 rồi quay lại --}}
                         <div x-show="!feePaid" x-cloak class="mt-md flex items-start gap-sm rounded-lg border-l-4 border-amber-500 bg-amber-50 p-sm font-body-small text-body-small text-amber-900">
                             <span class="material-symbols-outlined text-amber-600">info</span>
                             <div><p class="font-semibold">Chưa hoàn thành phí đăng ký</p><p>Hệ thống sẽ tự động tạo nhắc việc thu phí sau khi Chốt.</p></div>

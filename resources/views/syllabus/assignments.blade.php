@@ -1,23 +1,12 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <div class="p-2.5 bg-primary-fixed rounded-xl flex items-center justify-center text-primary">
-                    <span class="material-symbols-outlined text-[24px]">assignment_ind</span>
-                </div>
-                <div>
-                    <h1 class="font-h1 text-h1 text-on-surface">Giao chặng học cho giáo viên</h1>
-                    <p class="font-body-base text-on-surface-variant">Thiết lập quyền truy cập giáo trình theo từng chặng học cho giáo viên của từng lớp.</p>
-                </div>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-                @can('activity_log.view')
-                    <x-ui.button variant="secondary" icon="history" :href="route('activity-logs.index', ['log_name' => 'Giáo trình & Syllabus'])">Xem log hệ thống</x-ui.button>
-                @endcan
-                <x-ui.button icon="menu_book" :href="route('syllabus.teacher-view')">Màn GV xem giáo trình</x-ui.button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Giao chặng học cho giáo viên" icon="assignment_ind" description="Thiết lập quyền truy cập giáo trình theo từng chặng học cho giáo viên của từng lớp.">
+        <x-slot:actions>
+            @can('activity_log.view')
+                <x-ui.button variant="secondary" icon="history" :href="route('activity-logs.index', ['log_name' => 'Giáo trình & Syllabus'])">Xem log hệ thống</x-ui.button>
+            @endcan
+            <x-ui.button icon="menu_book" :href="route('syllabus.teacher-view')">Màn GV xem giáo trình</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
 
     @php

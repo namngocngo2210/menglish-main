@@ -1,20 +1,9 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-                <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-indigo-600">dns</span>
-                    Thông Số Hosting &amp; Máy Chủ (Server Diagnostics)
-                </h1>
-            </div>
-            <div class="flex items-center gap-2">
-                <button type="button" onclick="window.location.reload();" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold shadow-2xs transition">
-                    <span class="material-symbols-outlined text-[16px] text-gray-500">refresh</span>
-                    <span>Làm mới thông số</span>
-                </button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Thông Số Hosting & Máy Chủ (Server Diagnostics)" icon="dns">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="refresh" onclick="window.location.reload();">Làm mới thông số</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="space-y-6">
         {{-- Top Nav Tabs matching System Config --}}

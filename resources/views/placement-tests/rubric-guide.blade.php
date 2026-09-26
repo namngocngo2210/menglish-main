@@ -1,15 +1,6 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('placement-tests.index') }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="font-h1 text-h1 text-on-surface">Thang Điểm &amp; Hướng Dẫn Nhận Xét Tự Động</h1>
-                    <p class="text-xs text-gray-500">Hệ thống quy chuẩn điểm số, nhận xét theo từng kỹ năng và gợi ý xếp lớp chuẩn Cambridge YLE (Starters - Movers)</p>
-                </div>
-            </div>
+    <x-ui.page-header title="Thang Điểm & Hướng Dẫn Nhận Xét Tự Động" :back="route('placement-tests.index')" description="Hệ thống quy chuẩn điểm số, nhận xét theo từng kỹ năng và gợi ý xếp lớp chuẩn Cambridge YLE (Starters - Movers)">
+        <x-slot:actions>
             <div class="hidden sm:flex items-center gap-2 bg-slate-900 text-white px-3.5 py-1.5 rounded-xl border border-slate-700 shadow-xs">
                 <span class="material-symbols-outlined text-amber-400 text-[18px]">verified</span>
                 <div>
@@ -17,8 +8,8 @@
                     <p class="text-[11px] font-bold text-white">Cambridge YLE Starter - Movers</p>
                 </div>
             </div>
-        </div>
-    </x-slot>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="max-w-6xl mx-auto space-y-6" x-data="rubricApp({{ Js::from(\App\Services\PlacementRubricService::clientConfig()) }})">
         

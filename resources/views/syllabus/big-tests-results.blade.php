@@ -1,36 +1,24 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('syllabus.big-tests.distribution') }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <nav class="flex flex-wrap items-center gap-xs font-body-small text-body-small text-on-surface-variant" aria-label="Breadcrumb">
-                        <span>Học thuật</span>
-                        <span class="material-symbols-outlined text-[16px]">chevron_right</span>
-                        <span class="font-semibold text-on-surface">Quản lý Big Test</span>
-                    </nav>
-                    <h1 class="font-h1 text-h1 text-on-surface">Duyệt kết quả Big Test &amp; gửi phụ huynh</h1>
-                    <p class="font-body-small text-body-small text-on-surface-variant">Bảng điểm 4 kỹ năng, nhận xét, link video; Học thuật duyệt và gửi kết quả cho phụ huynh qua Zalo.</p>
-                </div>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-2">
-                @if($test)
-                    @can('big_test.approve')
-                        <form method="POST" action="{{ route('syllabus.big-tests.results.approve', $test->id) }}">@csrf
-                            <x-ui.button type="submit" variant="secondary" icon="task_alt">Duyệt kết quả</x-ui.button>
-                        </form>
-                        <form method="POST" action="{{ route('syllabus.big-tests.send-zalo', $test->id) }}">@csrf
-                            <x-ui.button type="submit" icon="send">Gửi kết quả đã duyệt</x-ui.button>
-                        </form>
-                    @endcan
-                @endif
-                <x-ui.button variant="secondary" icon="print" onclick="window.print();">In bảng điểm</x-ui.button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Duyệt kết quả Big Test & gửi phụ huynh" description="Bảng điểm 4 kỹ năng, nhận xét, link video; Học thuật duyệt và gửi kết quả cho phụ huynh qua Zalo." :back="route('syllabus.big-tests.distribution')">
+        <x-slot:breadcrumbs>
+            <span>Học thuật</span>
+            <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+            <span class="font-semibold text-on-surface">Quản lý Big Test</span>
+        </x-slot:breadcrumbs>
+        <x-slot:actions>
+            @if($test)
+                @can('big_test.approve')
+                    <form method="POST" action="{{ route('syllabus.big-tests.results.approve', $test->id) }}">@csrf
+                        <x-ui.button type="submit" variant="secondary" icon="task_alt">Duyệt kết quả</x-ui.button>
+                    </form>
+                    <form method="POST" action="{{ route('syllabus.big-tests.send-zalo', $test->id) }}">@csrf
+                        <x-ui.button type="submit" icon="send">Gửi kết quả đã duyệt</x-ui.button>
+                    </form>
+                @endcan
+            @endif
+            <x-ui.button variant="secondary" icon="print" onclick="window.print();">In bảng điểm</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="space-y-5">
         {{-- Mockup 01_Web_Admin/07: khung xét duyệt kết quả từng học viên (thông tin, điểm chi tiết, video, nhận xét, tổng điểm, hạn trả KQ, người gửi / người duyệt). --}}

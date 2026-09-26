@@ -1,24 +1,10 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between flex-wrap gap-3">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('placement-tests.index') }}" class="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="font-h1 text-h1 text-on-surface">Tạo đề thi mới</h1>
-                    <p class="font-body-small text-body-small text-on-surface-variant">Soạn đề test đầu vào theo khối lớp — chấm theo "Thang điểm + hướng dẫn nhận xét"</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2 flex-wrap">
-                <a href="{{ route('placement-tests.index') }}" class="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 text-xs font-semibold shadow-2xs transition">Hủy</a>
-                <button type="submit" form="createPlacementTestForm" class="px-5 py-2 rounded-xl bg-primary-container hover:bg-primary text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer">
-                    <span class="material-symbols-outlined text-[18px]">save</span>
-                    <span>Lưu đề thi</span>
-                </button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Tạo đề thi mới" :back="route('placement-tests.index')" description='Soạn đề test đầu vào theo khối lớp — chấm theo "Thang điểm + hướng dẫn nhận xét"'>
+        <x-slot:actions>
+            <x-ui.button variant="secondary" :href="route('placement-tests.index')">Hủy</x-ui.button>
+            <x-ui.button type="submit" icon="save" form="createPlacementTestForm">Lưu đề thi</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     @if ($errors->any())
         <div class="max-w-7xl mx-auto mb-4 p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 space-y-1">

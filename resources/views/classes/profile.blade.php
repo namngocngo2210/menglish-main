@@ -1,43 +1,21 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('classes.create') }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">school</span>
-                        Hồ sơ lớp học
-                    </h1>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                @if($class)
-                    @can('class.update')
-                    <a href="{{ route('classes.edit', $class->id) }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-secondary/10 hover:bg-secondary/20 text-secondary text-xs font-semibold transition">
-                        <span class="material-symbols-outlined text-[18px]">edit</span>
-                        <span>Chỉnh sửa</span>
-                    </a>
-                    @endcan
-                    @can('class.delete')
-                    <form method="POST" action="{{ route('classes.destroy', $class->id) }}" onsubmit="return confirm('Xóa lớp {{ $class->name }}?')" class="inline">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold transition">
-                            <span class="material-symbols-outlined text-[18px]">delete</span>
-                            <span>Xóa lớp</span>
-                        </button>
-                    </form>
-                    @endcan
-                @endif
-                <a href="{{ route('classes.academic-overview') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-dark transition">
-                    <span class="material-symbols-outlined text-[18px]">dashboard</span>
-                    <span>Sơ đồ khối lớp</span>
-                </a>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Hồ sơ lớp học" icon="school" :back="route('classes.create')">
+        <x-slot:actions>
+            @if($class)
+                @can('class.update')
+                    <x-ui.button variant="secondary" icon="edit" :href="route('classes.edit', $class->id)">Chỉnh sửa</x-ui.button>
+                @endcan
+                @can('class.delete')
+                <form method="POST" action="{{ route('classes.destroy', $class->id) }}" onsubmit="return confirm('Xóa lớp {{ $class->name }}?')" class="inline">
+                    @csrf
+                    @method('DELETE')
+                    <x-ui.button type="submit" variant="danger-text" icon="delete">Xóa lớp</x-ui.button>
+                </form>
+                @endcan
+            @endif
+            <x-ui.button icon="dashboard" :href="route('classes.academic-overview')">Sơ đồ khối lớp</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
 
     

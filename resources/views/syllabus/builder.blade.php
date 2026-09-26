@@ -1,24 +1,13 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('syllabus.documents') }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="font-h1 text-h1 text-on-surface">Soạn syllabus theo chặng</h1>
-                    <p class="font-body-base text-on-surface-variant">Thiết lập cấu trúc chương trình học và nội dung chi tiết từng buổi.</p>
-                    <p class="font-caption text-caption text-on-surface-variant">Giáo trình → Chặng (Big Test cuối chặng) → Unit → Buổi. Số buổi đánh liên tục trong cả giáo trình.</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <x-ui.button variant="secondary" icon="assignment_ind" :href="route('syllabus.assignments')">Giao chặng</x-ui.button>
-                @can('syllabus.manage')
-                    <x-ui.button icon="library_add" x-data @click="$dispatch('open-modal', 'new-curriculum')">Tạo giáo trình mới</x-ui.button>
-                @endcan
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Soạn syllabus theo chặng" description="Thiết lập cấu trúc chương trình học và nội dung chi tiết từng buổi." :back="route('syllabus.documents')">
+        <x-slot:meta>Giáo trình → Chặng (Big Test cuối chặng) → Unit → Buổi. Số buổi đánh liên tục trong cả giáo trình.</x-slot:meta>
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="assignment_ind" :href="route('syllabus.assignments')">Giao chặng</x-ui.button>
+            @can('syllabus.manage')
+                <x-ui.button icon="library_add" x-data @click="$dispatch('open-modal', 'new-curriculum')">Tạo giáo trình mới</x-ui.button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
 
     @php($canManage = auth()->user()->can('syllabus.manage'))

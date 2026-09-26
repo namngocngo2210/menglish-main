@@ -1,28 +1,12 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">school</span>
-                        Quản lý Lớp học
-                    </h1>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('classes.trial-booking') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition">
-                    <span class="material-symbols-outlined text-[16px]">event_available</span>
-                    <span>Đặt lịch học thử</span>
-                </a>
-                @can('class.create')
-                <a href="{{ route('classes.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold shadow-sm hover:bg-primary-dark transition">
-                    <span class="material-symbols-outlined text-[18px]">add</span>
-                    <span>Tạo lớp mới</span>
-                </a>
-                @endcan
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Quản lý Lớp học" icon="school">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="event_available" :href="route('classes.trial-booking')">Đặt lịch học thử</x-ui.button>
+            @can('class.create')
+                <x-ui.button icon="add" :href="route('classes.create')">Tạo lớp mới</x-ui.button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
     
 

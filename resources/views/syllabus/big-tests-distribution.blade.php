@@ -1,15 +1,11 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="font-h1 text-h1 text-on-surface">Duyệt &amp; Phân phối đề Big Test</h1>
-                <p class="font-body-base text-on-surface-variant">Quản lý yêu cầu ra đề từ giáo viên và phân phối tài liệu kiểm tra.</p>
-            </div>
+    <x-ui.page-header title="Duyệt & Phân phối đề Big Test" description="Quản lý yêu cầu ra đề từ giáo viên và phân phối tài liệu kiểm tra.">
+        <x-slot:actions>
             @can('syllabus.manage')
                 <x-ui.button icon="add_circle" x-data @click="$dispatch('open-modal', 'new-big-test')">Tạo đợt Big Test mới</x-ui.button>
             @endcan
-        </div>
-    </x-slot>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     @php($canReview = auth()->user()->can('big_test.approve'))
 

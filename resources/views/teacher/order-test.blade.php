@@ -1,15 +1,7 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center gap-3">
-            <a href="{{ route('syllabus.teaching-stages') }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
-                <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-            </a>
-            <div>
-                <h1 class="font-h1 text-h1 text-on-surface">Order đề test — {{ $class->name }}</h1>
-                <p class="font-body-base text-on-surface-variant">{{ $class->course?->name ?? $class->program }} · Gửi yêu cầu cấp đề Mini/Big Test cho chặng đang dạy tới Ban Học thuật</p>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header :title="'Order đề test — ' . $class->name" :back="route('syllabus.teaching-stages')">
+        <x-slot:meta>{{ $class->course?->name ?? $class->program }} · Gửi yêu cầu cấp đề Mini/Big Test cho chặng đang dạy tới Ban Học thuật</x-slot:meta>
+    </x-ui.page-header>
 
     {{-- Mockup 03_Cong_Giao_Vien/07: order đề gắn chặng đang mở của lớp (A6 Q4), không nhập tên chặng tự do. --}}
     <div class="space-y-4">

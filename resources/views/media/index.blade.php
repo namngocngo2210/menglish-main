@@ -1,46 +1,27 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2.5">
-                    <span class="material-symbols-outlined text-primary text-2xl">folder_managed</span>
-                    <span>Quản lý Media &amp; Tệp tin lưu trữ</span>
-                </h1>
-                <p class="text-xs text-gray-500 mt-0.5">
-                    Gom nhóm, tạo thư mục và kéo thả tệp tin như Google Drive trên đĩa cứng hệ thống
-                </p>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-2.5">
+    <div class="space-y-5" x-data="mediaManager()">
+        <x-ui.page-header title="Quản lý Media & Tệp tin lưu trữ" icon="folder_managed" description="Gom nhóm, tạo thư mục và kéo thả tệp tin như Google Drive trên đĩa cứng hệ thống">
+            <x-slot:actions>
                 <span class="text-xs text-gray-500 bg-gray-100 px-3 py-1.5 rounded-xl font-medium hidden md:flex items-center gap-1.5">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span>Đĩa cứng: <strong>{{ $stats['total_size_human'] }}</strong> / {{ $stats['total_files'] }} tệp</span>
                 </span>
 
                 {{-- Button Tạo Thư Mục Mới --}}
-                <button 
-                    type="button" 
-                    @click="folderModal.open = true" 
-                    class="px-3.5 py-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-xs font-bold rounded-xl shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
-                >
-                    <span class="material-symbols-outlined text-base text-primary-container">create_new_folder</span>
-                    <span>Tạo thư mục mới</span>
-                </button>
+                <x-ui.button variant="secondary" icon="create_new_folder" x-on:click="folderModal.open = true">Tạo thư mục mới</x-ui.button>
 
                 {{-- Button Kéo Thả / Tải Lên --}}
                 <button 
                     type="button" 
                     @click="uploadCardOpen = !uploadCardOpen" 
-                    class="px-3.5 py-1.5 bg-primary-container hover:bg-primary text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                    class="inline-flex shrink-0 items-center justify-center gap-xs whitespace-nowrap rounded-lg px-md py-sm font-body-medium text-body-medium bg-primary-container text-white shadow-sm hover:bg-primary transition-colors"
                 >
-                    <span class="material-symbols-outlined text-base" x-text="uploadCardOpen ? 'expand_less' : 'cloud_upload'"></span>
+                    <span class="material-symbols-outlined text-[18px]" x-text="uploadCardOpen ? 'expand_less' : 'cloud_upload'"></span>
                     <span x-text="uploadCardOpen ? 'Đóng tải lên' : 'Kéo thả tải tệp'"></span>
                 </button>
-            </div>
-        </div>
-    </x-slot>
+            </x-slot:actions>
+        </x-ui.page-header>
 
-    <div class="space-y-5" x-data="mediaManager()">
         {{-- 0. Drag & Drop File Upload Zone Card --}}
         <div 
             x-show="uploadCardOpen" 

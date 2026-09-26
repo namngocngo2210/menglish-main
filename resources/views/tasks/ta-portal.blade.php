@@ -17,21 +17,20 @@
          }">
 
         {{-- Tiêu đề + người được xem --}}
-        <header class="mb-md flex items-center justify-between gap-sm">
-            <div class="min-w-0">
-                <h1 class="font-h2 text-h2 text-primary">{{ $isToday ? 'Nhiệm vụ hằng ngày' : 'Nhiệm vụ ngày '.$date->format('d/m/Y') }}</h1>
-                <p class="truncate font-body-small text-body-small text-on-surface-variant">
-                    @if ($taUser)
-                        Trợ giảng: <span class="font-semibold text-on-surface">{{ $taUser->name }}</span> · {{ $date->format('d/m/Y') }}
-                    @else
-                        Chưa có trợ giảng nào trong hệ thống.
-                    @endif
-                </p>
-            </div>
+        <x-ui.page-header :title="$isToday ? 'Nhiệm vụ hằng ngày' : 'Nhiệm vụ ngày '.$date->format('d/m/Y')">
+            <x-slot:meta>
+                @if ($taUser)
+                    Trợ giảng: <span class="font-semibold text-on-surface">{{ $taUser->name }}</span> · {{ $date->format('d/m/Y') }}
+                @else
+                    Chưa có trợ giảng nào trong hệ thống.
+                @endif
+            </x-slot:meta>
             @if ($taUser)
-                <x-ui.avatar :name="$taUser->name" />
+                <x-slot:actions>
+                    <x-ui.avatar :name="$taUser->name" />
+                </x-slot:actions>
             @endif
-        </header>
+        </x-ui.page-header>
 
         @if (session('success'))
             <x-ui.alert type="success" class="mb-md" dismissible>{{ session('success') }}</x-ui.alert>

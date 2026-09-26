@@ -1,25 +1,9 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('portal.student.survey', ['studentId' => $student?->id]) }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-purple-600">rate_review</span>
-                        Góp ý chặng học
-                    </h1>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('portal.student.survey', ['studentId' => $student?->id]) }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition">
-                    <span class="material-symbols-outlined text-[18px]">assignment</span>
-                    <span>Khảo sát định kỳ</span>
-                </a>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Góp ý chặng học" icon="rate_review" :back="route('portal.student.survey', ['studentId' => $student?->id])">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="assignment" :href="route('portal.student.survey', ['studentId' => $student?->id])">Khảo sát định kỳ</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     @php
         $existingData = $lastFeedback?->data ?? [];

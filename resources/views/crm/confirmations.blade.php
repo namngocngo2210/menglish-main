@@ -6,10 +6,10 @@
          A6 Q5: không có trạng thái "Học thử" trên hồ sơ học viên. Checklist hồ sơ nhập học giữ theo Phase 1 (tài khoản, Zalo, giáo trình). --}}
     <div class="flex flex-col gap-lg" x-data="{ confirmForm: null, confirmName: '' }">
         <header>
-            <h1 class="flex flex-wrap items-center gap-sm font-h2 text-h2 text-on-surface">
+            <h2 class="flex flex-wrap items-center gap-sm font-h2 text-h2 text-on-surface">
                 Khách hàng đã chốt thành công
                 <span class="rounded-full bg-primary-container/10 px-md py-xs font-body-small text-body-small font-bold text-primary">{{ number_format($totalCount, 0, ',', '.') }} học viên</span>
-            </h1>
+            </h2>
             <p class="mt-xs font-body-medium text-body-medium text-on-surface-variant">Quản lý danh sách học viên sau khi hoàn tất thủ tục đăng ký và phân bổ lớp học. Học vụ / Quản lý cơ sở kiểm tra hồ sơ nhập học rồi xác nhận học viên chính thức.</p>
         </header>
 

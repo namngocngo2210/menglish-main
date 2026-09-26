@@ -1,29 +1,17 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <nav class="flex items-center gap-1.5 text-gray-400 text-xs mb-1">
-                    <a href="{{ route('dashboard') }}" class="hover:text-gray-900 transition flex items-center gap-1">
-                        <span class="material-symbols-outlined text-[16px]">home</span>
-                        <span>Trang chủ</span>
-                    </a>
-                    <span class="material-symbols-outlined text-[14px]">chevron_right</span>
-                    <span class="text-primary-container font-semibold">Cơ sở &amp; Chi nhánh</span>
-                </nav>
-                <h1 class="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-indigo-600">apartment</span>
-                    <span>Quản Lý Cơ Sở &amp; Chi Nhánh Trung Tâm</span>
-                </h1>
-            </div>
-
-            <div class="flex items-center gap-2 flex-wrap">
-                <button type="button" onclick="document.getElementById('createBranchModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary-container hover:bg-primary text-white text-xs font-bold shadow-sm transition cursor-pointer">
-                    <span class="material-symbols-outlined text-[18px]">add_business</span>
-                    <span>Thêm Chi Nhánh Mới</span>
-                </button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Quản Lý Cơ Sở & Chi Nhánh Trung Tâm" icon="apartment">
+        <x-slot:breadcrumbs>
+            <a href="{{ route('dashboard') }}" class="hover:text-on-surface transition flex items-center gap-1">
+                <span class="material-symbols-outlined text-[16px]">home</span>
+                <span>Trang chủ</span>
+            </a>
+            <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+            <span class="text-primary-container font-semibold">Cơ sở &amp; Chi nhánh</span>
+        </x-slot:breadcrumbs>
+        <x-slot:actions>
+            <x-ui.button icon="add_business" onclick="document.getElementById('createBranchModal').classList.remove('hidden')">Thêm Chi Nhánh Mới</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="space-y-6" x-data="{
         editModal: false,

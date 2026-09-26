@@ -1,30 +1,15 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('payroll.periods.show', $period->id) }}" class="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-orange-600">badge</span>
-                        <span>Chi Tiết Bảng Lương Giáo Viên Full-Time</span>
-                        <span class="text-xs px-2.5 py-0.5 rounded-full border font-bold {{ $period->status_badge }}">
-                            {{ $period->status_label }}
-                        </span>
-                    </h1>
-                    <p class="text-xs text-gray-500">Kỳ tính lương: {{ $period->title }} ({{ $period->code }})</p>
-                </div>
-            </div>
-
-            <div class="flex items-center gap-2">
-                <a href="{{ route('payroll.periods.export', [$period->id, 'department' => 'fulltime']) }}" class="px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold shadow-2xs transition flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[16px]">download</span>
-                    <span>Xuất Excel</span>
-                </a>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Chi Tiết Bảng Lương Giáo Viên Full-Time" icon="badge" :back="route('payroll.periods.show', $period->id)">
+        <x-slot:badges>
+            <span class="text-xs px-2.5 py-0.5 rounded-full border font-bold {{ $period->status_badge }}">
+                {{ $period->status_label }}
+            </span>
+        </x-slot:badges>
+        <x-slot:meta>Kỳ tính lương: {{ $period->title }} ({{ $period->code }})</x-slot:meta>
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="download" :href="route('payroll.periods.export', [$period->id, 'department' => 'fulltime'])">Xuất Excel</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="space-y-6">
 

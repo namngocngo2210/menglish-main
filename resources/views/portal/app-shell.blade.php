@@ -1,27 +1,9 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                @can('system_category.manage')
-                <a href="{{ route('academic-system.index', ['cat' => '04_Cong_Phu_Huynh_Hoc_Sinh']) }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                @endcan
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">smartphone</span>
-                        Cổng Phụ huynh / Học sinh
-                    </h1>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('portal.student.home', ['studentId' => $student?->id]) }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-white text-xs font-semibold hover:bg-primary-dark transition shadow-sm">
-                    <span class="material-symbols-outlined text-[18px]">cottage</span>
-                    <span>Vào Trang chủ</span>
-                </a>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Cổng Phụ huynh / Học sinh" icon="smartphone" :back="auth()->user()?->can('system_category.manage') ? route('academic-system.index', ['cat' => '04_Cong_Phu_Huynh_Hoc_Sinh']) : null">
+        <x-slot:actions>
+            <x-ui.button icon="cottage" :href="route('portal.student.home', ['studentId' => $student?->id])">Vào Trang chủ</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     {{-- Outer Mobile Shell Container --}}
     <div class="max-w-[430px] mx-auto bg-white min-h-[844px] shadow-2xl rounded-3xl border border-gray-200 overflow-hidden flex flex-col relative pb-20 my-4">

@@ -1,21 +1,10 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('syllabus.teacher-view') }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="font-h1 text-h1 text-on-surface">Đề xuất sửa giáo trình</h1>
-                    <p class="font-body-base text-on-surface-variant">Gửi đề xuất sửa lỗi hoặc nội dung giáo trình lên Ban Học thuật.</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <x-ui.button variant="secondary" icon="checklist_rtl" :href="route('syllabus.versions')">Xem trạng thái đề xuất</x-ui.button>
-                <x-ui.button icon="speed" :href="route('syllabus.teacher-adjust')">Xin điều chỉnh tiến độ</x-ui.button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Đề xuất sửa giáo trình" description="Gửi đề xuất sửa lỗi hoặc nội dung giáo trình lên Ban Học thuật." :back="route('syllabus.teacher-view')">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="checklist_rtl" :href="route('syllabus.versions')">Xem trạng thái đề xuất</x-ui.button>
+            <x-ui.button icon="speed" :href="route('syllabus.teacher-adjust')">Xin điều chỉnh tiến độ</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
 
     {{-- Mockup 03_Cong_Giao_Vien/09: form (giáo trình, buổi học tùy chọn, mô tả thay đổi) + Lịch sử đề xuất có lọc. --}}

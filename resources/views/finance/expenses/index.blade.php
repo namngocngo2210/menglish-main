@@ -1,29 +1,14 @@
 {{-- Mockup: ui-full-tinh-nang-menglish/epic-13-bao-cao-thu-chi/kho_n_chi_v_n_h_nh_menglish_admin --}}
 <x-app-layout title="Sổ khoản chi vận hành">
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-primary-container">
-                    <span class="material-symbols-outlined text-[24px]">payments</span>
-                </div>
-                <div>
-                    <h1 class="text-xl font-bold text-slate-900 tracking-tight">Sổ khoản chi vận hành</h1>
-                    <p class="text-xs text-slate-500 mt-0.5">Quản lý và ghi nhận các khoản chi phí hành chính, cơ sở vật chất và chi lương tự động</p>
-                </div>
+    <x-ui.page-header title="Sổ khoản chi vận hành" icon="payments" description="Quản lý và ghi nhận các khoản chi phí hành chính, cơ sở vật chất và chi lương tự động">
+        <x-slot:actions>
+            <div class="hidden sm:flex items-center gap-2 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-600">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Quyền thao tác: <span class="font-semibold text-slate-800">Quản trị nhân sự &amp; Tài chính</span>
             </div>
-
-            <div class="flex items-center gap-3">
-                <div class="hidden sm:flex items-center gap-2 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-600">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Quyền thao tác: <span class="font-semibold text-slate-800">Quản trị nhân sự &amp; Tài chính</span>
-                </div>
-                <button type="button" onclick="openCreateModal()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-container hover:bg-primary-dark text-white font-semibold rounded-xl text-sm transition-all shadow-sm shadow-orange-500/20 active:scale-[0.98]">
-                    <span class="material-symbols-outlined text-[20px]">add_circle</span>
-                    Thêm khoản chi mới
-                </button>
-            </div>
-        </div>
-    </x-slot>
+            <x-ui.button icon="add_circle" onclick="openCreateModal()">Thêm khoản chi mới</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="space-y-6">
 

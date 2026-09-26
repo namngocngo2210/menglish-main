@@ -1,25 +1,15 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('syllabus.documents') }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <nav class="flex flex-wrap items-center gap-xs font-body-small text-body-small text-on-surface-variant" aria-label="Breadcrumb">
-                        <span>Quản lý giáo trình</span>
-                        <span class="material-symbols-outlined text-[16px]">chevron_right</span>
-                        <span class="font-semibold text-on-surface">Chi tiết đề xuất</span>
-                    </nav>
-                    <h1 class="font-h1 text-h1 text-on-surface">Đề xuất sửa giáo trình</h1>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <x-ui.button variant="secondary" icon="edit_attributes" :href="route('syllabus.teacher-propose')">Gửi đề xuất</x-ui.button>
-                <x-ui.button icon="rule" :href="route('syllabus.adjustment-requests')">Duyệt tiến độ</x-ui.button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Đề xuất sửa giáo trình" :back="route('syllabus.documents')">
+        <x-slot:breadcrumbs>
+            <span>Quản lý giáo trình</span>
+            <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+            <span class="font-semibold text-on-surface">Chi tiết đề xuất</span>
+        </x-slot:breadcrumbs>
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="edit_attributes" :href="route('syllabus.teacher-propose')">Gửi đề xuất</x-ui.button>
+            <x-ui.button icon="rule" :href="route('syllabus.adjustment-requests')">Duyệt tiến độ</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
 
     @php($canReview = auth()->user()->can('syllabus.approve_adjustment'))

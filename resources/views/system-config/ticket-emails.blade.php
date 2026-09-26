@@ -1,20 +1,9 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">forward_to_inbox</span>
-                    <span>Cấu hình Email nhận &amp; Hòm thư gửi</span>
-                </h1>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('tickets.index') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold shadow-xs transition">
-                    <span class="material-symbols-outlined text-[18px] text-gray-500">confirmation_number</span>
-                    <span>Xem danh sách Ticket</span>
-                </a>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Cấu hình Email nhận & Hòm thư gửi" icon="forward_to_inbox">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="confirmation_number" :href="route('tickets.index')">Xem danh sách Ticket</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <!-- Global Component Function (Safe in <script> tag without breaking HTML attributes) -->
     <script>

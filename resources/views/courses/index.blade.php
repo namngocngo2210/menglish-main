@@ -1,28 +1,9 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2.5">
-                    <span class="material-symbols-outlined text-primary text-2xl">price_change</span>
-                    <span>Quản lý Khóa học &amp; Bảng giá học phí</span>
-                </h1>
-                <p class="text-xs text-gray-500 mt-0.5">
-                    Cấu hình giá niêm yết, số buổi học và liên kết khung trình độ chuẩn CEFR/IELTS
-                </p>
-            </div>
-
-            <div class="flex items-center gap-2">
-                <button 
-                    type="button" 
-                    onclick="openCreateModal()" 
-                    class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-bold shadow-sm transition"
-                >
-                    <span class="material-symbols-outlined text-[18px]">add_circle</span>
-                    <span>Thêm khóa học &amp; Giá mới</span>
-                </button>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Quản lý Khóa học & Bảng giá học phí" icon="price_change" description="Cấu hình giá niêm yết, số buổi học và liên kết khung trình độ chuẩn CEFR/IELTS">
+        <x-slot:actions>
+            <x-ui.button icon="add_circle" onclick="openCreateModal()">Thêm khóa học &amp; Giá mới</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="space-y-5" x-data="courseManager()">
         {{-- 1. KPI Cards --}}

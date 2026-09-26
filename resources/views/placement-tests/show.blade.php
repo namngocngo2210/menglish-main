@@ -1,52 +1,40 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('placement-tests.index') }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
-                    <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+    <x-ui.page-header :title="$test->title" :back="route('placement-tests.index')">
+        <x-slot:badges>
+            <span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-mono font-bold text-[11px]">{{ $test->code }}</span>
+            @if ($test->is_preset)
+                <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-bold flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[12px]">lock</span>
+                    <span>Đề mẫu hệ thống (Khóa sửa)</span>
+                </span>
+            @else
+                <span class="px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200 text-[10px] font-bold flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[12px]">edit</span>
+                    <span>Đề tạo tay (Tùy biến)</span>
+                </span>
+            @endif
+        </x-slot:badges>
+        <x-slot:actions>
+            {{-- Copy Portal Link --}}
+            <button type="button" onclick="navigator.clipboard.writeText({{ \Illuminate\Support\Js::from(route('portal.test.take', $test->code)) }}); window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Đã sao chép link làm bài thi.', type: 'success' } }));" class="px-2.5 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold transition flex items-center gap-1 shadow-2xs">
+                <span class="material-symbols-outlined text-[15px] text-gray-500">content_copy</span>
+                <span>Sao chép Link</span>
+            </button>
+
+            {{-- Open Portal --}}
+            <a href="{{ route('portal.test.take', $test->code) }}" target="_blank" class="px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold shadow-2xs transition flex items-center gap-1">
+                <span class="material-symbols-outlined text-[15px]">open_in_new</span>
+                <span>Cổng làm bài</span>
+            </a>
+
+            @if (!$test->is_preset)
+                <a href="{{ route('placement-tests.edit', $test->id) }}" class="px-2.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-2xs transition flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[15px]">edit</span>
+                    <span>Sửa đề</span>
                 </a>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-mono font-bold text-[11px]">{{ $test->code }}</span>
-                        @if ($test->is_preset)
-                            <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-bold flex items-center gap-1">
-                                <span class="material-symbols-outlined text-[12px]">lock</span>
-                                <span>Đề mẫu hệ thống (Khóa sửa)</span>
-                            </span>
-                        @else
-                            <span class="px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200 text-[10px] font-bold flex items-center gap-1">
-                                <span class="material-symbols-outlined text-[12px]">edit</span>
-                                <span>Đề tạo tay (Tùy biến)</span>
-                            </span>
-                        @endif
-                    </div>
-                    <h1 class="text-lg font-bold text-gray-900 tracking-tight mt-0.5">{{ $test->title }}</h1>
-                </div>
-            </div>
-
-            {{-- Compact Sleek Actions Menu --}}
-            <div class="flex items-center gap-1.5 flex-wrap">
-                {{-- Copy Portal Link --}}
-                <button type="button" onclick="navigator.clipboard.writeText({{ \Illuminate\Support\Js::from(route('portal.test.take', $test->code)) }}); window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Đã sao chép link làm bài thi.', type: 'success' } }));" class="px-2.5 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold transition flex items-center gap-1 shadow-2xs">
-                    <span class="material-symbols-outlined text-[15px] text-gray-500">content_copy</span>
-                    <span>Sao chép Link</span>
-                </button>
-
-                {{-- Open Portal --}}
-                <a href="{{ route('portal.test.take', $test->code) }}" target="_blank" class="px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold shadow-2xs transition flex items-center gap-1">
-                    <span class="material-symbols-outlined text-[15px]">open_in_new</span>
-                    <span>Cổng làm bài</span>
-                </a>
-
-                @if (!$test->is_preset)
-                    <a href="{{ route('placement-tests.edit', $test->id) }}" class="px-2.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-2xs transition flex items-center gap-1">
-                        <span class="material-symbols-outlined text-[15px]">edit</span>
-                        <span>Sửa đề</span>
-                    </a>
-                @endif
-            </div>
-        </div>
-    </x-slot>
+            @endif
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="space-y-6">
         {{-- Overview Stats Card --}}

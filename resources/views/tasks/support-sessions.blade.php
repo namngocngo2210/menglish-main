@@ -1,10 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div>
-            <h1 class="text-xl font-bold">Danh sách bổ trợ & xếp lịch phụ đạo</h1>
-            <p class="text-xs text-gray-500">Học viên vắng học, điểm mini test / Big Test dưới 7 được tự đưa vào danh sách; Học vụ xếp buổi bổ trợ, buổi hoàn thành chuyển bảng công chờ duyệt.</p>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Danh sách bổ trợ & xếp lịch phụ đạo" description="Học viên vắng học, điểm mini test / Big Test dưới 7 được tự đưa vào danh sách; Học vụ xếp buổi bổ trợ, buổi hoàn thành chuyển bảng công chờ duyệt." />
 
     @php
         $sourceColors = ['attendance' => 'warning', 'mini_test' => 'info', 'big_test' => 'error', 'class_report' => 'neutral'];

@@ -1,25 +1,15 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary text-2xl">auto_stories</span>
-                    MEnglish UI Mockup Navigator &amp; Design Hub
-                </h1>
-                <p class="text-xs text-gray-500 mt-0.5">Tổng hợp toàn bộ 65 màn hình mockup giao diện và tính năng Laravel tương ứng</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('academic-system.index') }}" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold shadow-sm transition">
-                    <span class="material-symbols-outlined text-[16px]">dashboard_customize</span>
-                    <span>Gallery 58 Màn Mới</span>
-                </a>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold border border-emerald-200">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    100% Laravel Integrated
-                </span>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="MEnglish UI Mockup Navigator & Design Hub" icon="auto_stories" description="Tổng hợp toàn bộ 65 màn hình mockup giao diện và tính năng Laravel tương ứng">
+        <x-slot:badges>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold border border-emerald-200">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                100% Laravel Integrated
+            </span>
+        </x-slot:badges>
+        <x-slot:actions>
+            <x-ui.button icon="dashboard_customize" :href="route('academic-system.index')">Gallery 58 Màn Mới</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="space-y-6" x-data="{
         search: '',

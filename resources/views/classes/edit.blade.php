@@ -1,28 +1,12 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('classes.profile', $class->id) }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                            <span class="material-symbols-outlined text-secondary">edit</span>
-                            Chỉnh sửa lớp học
-                        </h1>
-                        <span class="font-mono text-xs font-bold text-primary bg-orange-50 px-2 py-0.5 rounded border border-orange-200">{{ $class->code }}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('classes.index') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition">
-                    <span class="material-symbols-outlined text-[16px]">list</span>
-                    <span>Danh sách lớp</span>
-                </a>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Chỉnh sửa lớp học" icon="edit" :back="route('classes.profile', $class->id)">
+        <x-slot:badges>
+            <span class="font-mono text-xs font-bold text-primary bg-orange-50 px-2 py-0.5 rounded border border-orange-200">{{ $class->code }}</span>
+        </x-slot:badges>
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="list" :href="route('classes.index')">Danh sách lớp</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     @if($errors->any())
         <div class="max-w-4xl mx-auto mb-4 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs">

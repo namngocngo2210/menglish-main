@@ -15,27 +15,23 @@
          x-data="{ statuses: @js($initialStatuses), count(v) { return Object.values(this.statuses).filter(s => s === v).length; } }">
 
         {{-- Tiêu đề buổi học --}}
-        <section class="rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm md:p-lg">
-            <div class="flex flex-col justify-between gap-md lg:flex-row lg:items-center">
-                <div class="min-w-0">
-                    <a href="{{ route('teacher.home') }}" class="mb-xs inline-flex items-center gap-xs font-body-small text-body-small text-on-surface-variant hover:text-primary">
-                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span> Về lịch dạy
-                    </a>
-                    <h1 class="font-h2 text-h2 text-on-surface">Điểm danh — {{ $class->name }}{{ $session ? ', '.$session->date->format('d/m/Y') : '' }}</h1>
-                    @if ($session)
-                        <div class="mt-sm flex flex-wrap items-center gap-x-md gap-y-xs font-body-small text-body-small text-on-surface-variant">
-                            <span class="inline-flex items-center gap-xs rounded-md bg-surface-container-high px-sm py-[2px] font-medium text-on-surface">
-                                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">schedule</span>
-                                Khung giờ: {{ $session->start_time?->format('H:i') }} – {{ $session->end_time?->format('H:i') }}
-                            </span>
-                            <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">meeting_room</span>{{ $roomLabel }} · {{ $class->branch?->name ?? 'Chưa gán chi nhánh' }}</span>
-                            <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">groups</span>Sĩ số lớp: <strong class="text-on-surface">{{ $rosterSize }} học sinh</strong></span>
-                            @if ($session->type === \App\Models\ClassSession::TYPE_MAKEUP)<x-ui.badge color="warning">Buổi học bù</x-ui.badge>@endif
-                            @if ($session->type === \App\Models\ClassSession::TYPE_SUPPORT)<x-ui.badge color="secondary">Buổi phụ đạo</x-ui.badge>@endif
-                        </div>
-                    @endif
-                </div>
-                @if ($session && ! $blockReason)
+        <x-ui.page-header :title="'Điểm danh — '.$class->name.($session ? ', '.$session->date->format('d/m/Y') : '')" :back="route('teacher.home')" back-label="Về lịch dạy">
+            @if ($session)
+                <x-slot:meta>
+                    <div class="flex flex-wrap items-center gap-x-md gap-y-xs">
+                        <span class="inline-flex items-center gap-xs rounded-md bg-surface-container-high px-sm py-[2px] font-medium text-on-surface">
+                            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">schedule</span>
+                            Khung giờ: {{ $session->start_time?->format('H:i') }} – {{ $session->end_time?->format('H:i') }}
+                        </span>
+                        <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">meeting_room</span>{{ $roomLabel }} · {{ $class->branch?->name ?? 'Chưa gán chi nhánh' }}</span>
+                        <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">groups</span>Sĩ số lớp: <strong class="text-on-surface">{{ $rosterSize }} học sinh</strong></span>
+                        @if ($session->type === \App\Models\ClassSession::TYPE_MAKEUP)<x-ui.badge color="warning">Buổi học bù</x-ui.badge>@endif
+                        @if ($session->type === \App\Models\ClassSession::TYPE_SUPPORT)<x-ui.badge color="secondary">Buổi phụ đạo</x-ui.badge>@endif
+                    </div>
+                </x-slot:meta>
+            @endif
+            @if ($session && ! $blockReason)
+                <x-slot:actions>
                     <div class="flex items-center gap-sm rounded-lg border px-md py-sm {{ $window === 'closed' ? 'border-amber-300 bg-amber-50' : 'border-tertiary/30 bg-tertiary-fixed/20' }}" data-testid="attendance-window">
                         <span class="relative flex h-3 w-3">
                             @if ($window !== 'closed')<span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-tertiary-container opacity-60"></span>@endif
@@ -46,18 +42,20 @@
                             <div class="font-caption text-caption text-on-surface-variant">Quy định: Buổi học ±24 giờ{{ $window === 'closed' ? ' · Học vụ sẽ rà soát' : '' }}</div>
                         </div>
                     </div>
-                @endif
-            </div>
+                </x-slot:actions>
+            @endif
+        </x-ui.page-header>
 
-            @if ($session && ! $blockReason && $students->isNotEmpty())
-                <div class="mt-md grid grid-cols-2 gap-sm border-t border-surface-container pt-md sm:grid-cols-4">
+        @if ($session && ! $blockReason && $students->isNotEmpty())
+            <section class="rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm md:p-lg">
+                <div class="grid grid-cols-2 gap-sm sm:grid-cols-4">
                     <div class="rounded-lg bg-tertiary-fixed/20 p-sm"><div class="font-caption text-caption text-on-surface-variant">Đúng giờ</div><div class="font-h3 text-h3 text-tertiary" x-text="count('present')">{{ $initialStatuses->filter(fn ($s) => $s === 'present')->count() }}</div></div>
                     <div class="rounded-lg bg-amber-50 p-sm"><div class="font-caption text-caption text-on-surface-variant">Đi muộn</div><div class="font-h3 text-h3 text-amber-600" x-text="count('late')">{{ $initialStatuses->filter(fn ($s) => $s === 'late')->count() }}</div></div>
                     <div class="rounded-lg bg-blue-50 p-sm"><div class="font-caption text-caption text-on-surface-variant">Nghỉ có phép</div><div class="font-h3 text-h3 text-blue-700" x-text="count('excused')">{{ $initialStatuses->filter(fn ($s) => $s === 'excused')->count() }}</div></div>
                     <div class="rounded-lg bg-rose-50 p-sm"><div class="font-caption text-caption text-on-surface-variant">Nghỉ không phép</div><div class="font-h3 text-h3 text-error" x-text="count('absent')">{{ $initialStatuses->filter(fn ($s) => $s === 'absent')->count() }}</div></div>
                 </div>
-            @endif
-        </section>
+            </section>
+        @endif
 
         @if ($errors->any())
             <x-ui.alert type="error">{{ $errors->first('note') ?: $errors->first() }}</x-ui.alert>

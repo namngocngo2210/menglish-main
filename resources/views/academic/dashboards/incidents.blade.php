@@ -1,18 +1,9 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Dashboard Nhật ký Sự vụ Cơ sở</h1>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('academic.dashboards.reports') }}" class="px-3.5 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold rounded-xl shadow-xs transition flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[18px]">assessment</span>
-                    <span>Dashboard Báo cáo</span>
-                </a>
-
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Dashboard Nhật ký Sự vụ Cơ sở">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="assessment" :href="route('academic.dashboards.reports')">Dashboard Báo cáo</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="space-y-6">
         {{-- 4 Metric Cards --}}

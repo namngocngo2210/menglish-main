@@ -1,14 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">how_to_reg</span>
-                    Tiếp nhận Học viên &amp; Bàn giao Lớp học
-                </h1>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Tiếp nhận Học viên & Bàn giao Lớp học" icon="how_to_reg" />
 
     <div class="space-y-6">
         {{-- Quick Enrollment Form --}}

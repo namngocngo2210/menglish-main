@@ -1,44 +1,27 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between flex-wrap gap-3">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('placement-tests.index') }}" class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition shadow-2xs">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <h1 class="font-h1 text-h1 text-on-surface">Chi tiết bài làm &amp; chấm điểm</h1>
-                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-primary-container border border-orange-200">
-                            {{ $submission->scoreSummary() ?? 'Chưa có điểm' }}
-                        </span>
-                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase border {{ $submission->isPending() ? 'bg-sky-50 text-sky-700 border-sky-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200' }}">
-                            {{ $submission->isPending() ? 'Chờ chấm' : 'Đã chấm điểm' }}
-                        </span>
-                    </div>
-                    <p class="text-xs text-gray-500 font-mono mt-0.5">
-                        {{ $submission->test?->title ?? 'Đề Test Đầu Vào MEnglish' }} · Thí sinh: <strong class="text-gray-800">{{ $submission->candidate_name }}</strong> · SĐT: {{ $submission->candidate_phone }}
-                    </p>
-                </div>
-            </div>
-
-            <div class="flex items-center gap-2 flex-wrap shrink-0">
-                @if ($submission->customer_id)
-                    <a href="{{ route('crm.customers.show', $submission->customer_id) }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold transition shadow-2xs">
-                        <span class="material-symbols-outlined text-[16px] text-indigo-600">person</span>
-                        <span>Hồ sơ khách</span>
-                    </a>
-                @endif
-                <a href="{{ \Illuminate\Support\Facades\URL::signedRoute('portal.test.scorecard', ['id' => $submission->id]) }}" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs">
-                    <span class="material-symbols-outlined text-[16px] text-amber-400">military_tech</span>
-                    <span>Bảng điểm (Scorecard)</span>
-                </a>
-                <a href="{{ route('placement-tests.rubric-guide') }}" class="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 hover:bg-orange-100 text-primary-container text-xs font-bold transition">
-                    <span class="material-symbols-outlined text-[16px]">menu_book</span>
-                    <span>Thang điểm &amp; hướng dẫn nhận xét</span>
-                </a>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Chi tiết bài làm & chấm điểm" :back="route('placement-tests.index')">
+        <x-slot:badges>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-primary-container border border-orange-200">
+                {{ $submission->scoreSummary() ?? 'Chưa có điểm' }}
+            </span>
+            <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase border {{ $submission->isPending() ? 'bg-sky-50 text-sky-700 border-sky-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200' }}">
+                {{ $submission->isPending() ? 'Chờ chấm' : 'Đã chấm điểm' }}
+            </span>
+        </x-slot:badges>
+        <x-slot:meta>
+            <span class="font-mono">{{ $submission->test?->title ?? 'Đề Test Đầu Vào MEnglish' }} · Thí sinh: <strong class="text-on-surface">{{ $submission->candidate_name }}</strong> · SĐT: {{ $submission->candidate_phone }}</span>
+        </x-slot:meta>
+        <x-slot:actions>
+            @if ($submission->customer_id)
+                <x-ui.button variant="secondary" icon="person" :href="route('crm.customers.show', $submission->customer_id)">Hồ sơ khách</x-ui.button>
+            @endif
+            <a href="{{ \Illuminate\Support\Facades\URL::signedRoute('portal.test.scorecard', ['id' => $submission->id]) }}" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs">
+                <span class="material-symbols-outlined text-[16px] text-amber-400">military_tech</span>
+                <span>Bảng điểm (Scorecard)</span>
+            </a>
+            <x-ui.button variant="secondary" icon="menu_book" :href="route('placement-tests.rubric-guide')">Thang điểm &amp; hướng dẫn nhận xét</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
 
     <div class="max-w-6xl mx-auto space-y-6" x-data="placementResultEngine({

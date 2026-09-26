@@ -1,27 +1,12 @@
 {{-- Danh sách ticket: Tạo mở modal 2xl, "Trao đổi" mở modal 3xl (hội thoại + trả lời, đẩy URL /tickets/{id});
      thao tác xong server phát "tickets-changed" → #ticket-list tự tải lại (giữ bộ lọc, trang hiện tại). --}}
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">confirmation_number</span>
-                    Trung Tâm Hỗ Trợ &amp; Xử Lý Yêu Cầu (Tickets)
-                </h1>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('system-config.ticket-emails') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold shadow-xs transition">
-                    <span class="material-symbols-outlined text-[18px] text-gray-500">settings</span>
-                    <span>Cấu hình Email nhận</span>
-                </a>
-                <a href="{{ route('tickets.create') }}" hx-get="{{ route('tickets.create') }}" hx-target="#remote-modal-body" hx-swap="innerHTML" data-modal-size="2xl"
-                   class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
-                    <span class="material-symbols-outlined text-[18px]">add_circle</span>
-                    <span>Tạo Ticket Mới</span>
-                </a>
-            </div>
-        </div>
-    </x-slot>
+    <x-ui.page-header title="Trung Tâm Hỗ Trợ & Xử Lý Yêu Cầu (Tickets)" icon="confirmation_number">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="settings" :href="route('system-config.ticket-emails')">Cấu hình Email nhận</x-ui.button>
+            <x-ui.button icon="add_circle" :href="route('tickets.create')" modal="2xl">Tạo Ticket Mới</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div id="ticket-list" class="space-y-6"
          hx-get="{{ route('tickets.index', request()->query()) }}" hx-trigger="tickets-changed from:body" hx-select="#ticket-list" hx-swap="outerHTML" hx-disinherit="*">
