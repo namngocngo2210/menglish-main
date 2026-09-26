@@ -63,7 +63,7 @@
                                         @if ($category->is_active)
                                             <x-ui.button size="sm" variant="danger-text" icon="block" title="Ngừng sử dụng" aria-label="Ngừng sử dụng {{ $category->name }}"
                                                          data-url="{{ route('system-categories.destroy', $category) }}" data-name="{{ $category->name }}"
-                                                         @click="del = { url: $el.dataset.url, name: $el.dataset.name }; $dispatch('open-modal', 'deactivate-category')" />
+                                                         x-on:click="del = { url: $el.dataset.url, name: $el.dataset.name }; $dispatch('open-modal', 'deactivate-category')" />
                                         @else
                                             <form action="{{ route('system-categories.reactivate', $category) }}" method="POST">
                                                 @csrf
@@ -111,7 +111,7 @@
                 @csrf @method('DELETE')
             </form>
             <x-slot:footer>
-                <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'deactivate-category')">Hủy</x-ui.button>
+                <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'deactivate-category')">Hủy</x-ui.button>
                 <x-ui.button variant="danger" type="submit" form="deactivate-category-form" icon="block">Ngừng sử dụng</x-ui.button>
             </x-slot:footer>
         </x-ui.modal>

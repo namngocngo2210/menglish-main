@@ -15,7 +15,7 @@
                       description="Quản lý và theo dõi các bước xử lý vi phạm nhân sự tại MEnglish: ghi nhận → nhân sự giải trình → HT/CM chốt lỗi, chốt mức phạt → nộp trong 2 ngày (quá hạn trừ lương) → khắc phục.">
         <x-slot:actions>
             @can('violation.create')
-                <x-ui.button icon="add_circle" @click="$dispatch('open-modal', 'new-penalty')">Ghi nhận vi phạm mới</x-ui.button>
+                <x-ui.button icon="add_circle" x-on:click="$dispatch('open-modal', 'new-penalty')">Ghi nhận vi phạm mới</x-ui.button>
             @endcan
         </x-slot:actions>
     </x-ui.page-header>
@@ -39,14 +39,9 @@
           class="mb-lg space-y-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
         @if ($currentStep)<input type="hidden" name="step" value="{{ $currentStep }}">@endif
         <div class="flex flex-col gap-md lg:flex-row lg:items-end">
-            <label class="flex min-w-[260px] flex-1 flex-col gap-xs">
-                <span class="font-label text-label uppercase tracking-wide text-on-surface-variant">Tìm kiếm nhân viên</span>
-                <span class="relative">
-                    <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
-                    <input type="search" name="search" value="{{ request('search') }}" placeholder="Nhập tên hoặc mã nhân viên..."
-                           class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-10 pr-md font-body-base text-body-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
-                </span>
-            </label>
+            <div class="min-w-[260px] flex-1">
+                <x-ui.input type="search" name="search" label="Tìm kiếm nhân viên" icon="search" :value="request('search')" placeholder="Nhập tên hoặc mã nhân viên..." />
+            </div>
             <div class="flex flex-col gap-xs">
                 <span class="font-label text-label uppercase tracking-wide text-on-surface-variant">Lọc theo bước</span>
                 <div class="flex flex-wrap gap-xs">
@@ -57,7 +52,7 @@
                     @endforeach
                 </div>
             </div>
-            <x-ui.button variant="secondary" icon="filter_list" @click="advanced = ! advanced">Bộ lọc nâng cao</x-ui.button>
+            <x-ui.button variant="secondary" icon="filter_list" x-on:click="advanced = ! advanced">Bộ lọc nâng cao</x-ui.button>
         </div>
         <div x-show="advanced" x-cloak class="flex flex-wrap items-end gap-md border-t border-surface-container pt-md">
             <x-ui.select name="category" placeholder="Tất cả loại lỗi" inline-label="Loại lỗi:"
@@ -140,16 +135,16 @@
                         <td class="text-right">
                             <div class="flex flex-wrap justify-end gap-xs">
                                 @if ($canExplain)
-                                    <x-ui.button size="sm" icon="edit_note" @click="$dispatch('open-modal', 'explain-{{ $pen->id }}')">Giải trình</x-ui.button>
+                                    <x-ui.button size="sm" icon="edit_note" x-on:click="$dispatch('open-modal', 'explain-{{ $pen->id }}')">Giải trình</x-ui.button>
                                 @endif
                                 @if ($canDecide && $pen->step === 'recorded')
-                                    <x-ui.button size="sm" icon="gavel" @click="$dispatch('open-modal', 'decide-{{ $pen->id }}')">Chốt lỗi</x-ui.button>
+                                    <x-ui.button size="sm" icon="gavel" x-on:click="$dispatch('open-modal', 'decide-{{ $pen->id }}')">Chốt lỗi</x-ui.button>
                                 @endif
                                 @if ($canDecide && $pen->status === 'confirmed')
                                     @if ($locked)
                                         <x-ui.button size="sm" icon="lock" disabled title="Kỳ lương của nhân viên đã khóa — không thể chốt mức phạt">Chốt mức phạt</x-ui.button>
                                     @else
-                                        <x-ui.button size="sm" icon="payments" @click="$dispatch('open-modal', 'decide-{{ $pen->id }}')">Chốt mức phạt</x-ui.button>
+                                        <x-ui.button size="sm" icon="payments" x-on:click="$dispatch('open-modal', 'decide-{{ $pen->id }}')">Chốt mức phạt</x-ui.button>
                                     @endif
                                 @endif
                                 @can('violation.mark_resolved')
@@ -178,7 +173,7 @@
                                 @endcan
                                 @can('violation.mark_resolved')
                                     @if ($pen->step === 'paid')
-                                        <x-ui.button size="sm" variant="secondary" icon="build" @click="$dispatch('open-modal', 'remedy-{{ $pen->id }}')">Ghi nhận khắc phục</x-ui.button>
+                                        <x-ui.button size="sm" variant="secondary" icon="build" x-on:click="$dispatch('open-modal', 'remedy-{{ $pen->id }}')">Ghi nhận khắc phục</x-ui.button>
                                     @endif
                                 @endcan
                                 <x-ui.button size="sm" variant="ghost" icon="visibility" aria-label="Xem chi tiết {{ $pen->code }}" @click="$dispatch('open-modal', 'view-{{ $pen->id }}')" />
@@ -208,7 +203,7 @@
                                         <x-ui.textarea name="explanation" label="Nội dung giải trình" required rows="4" placeholder="Trình bày lý do, hoàn cảnh..." />
                                     </form>
                                     <x-slot:footer>
-                                        <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'explain-{{ $pen->id }}')">Hủy</x-ui.button>
+                                        <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'explain-{{ $pen->id }}')">Hủy</x-ui.button>
                                         <x-ui.button type="submit" form="explain-form-{{ $pen->id }}" icon="send">Gửi giải trình</x-ui.button>
                                     </x-slot:footer>
                                 </x-ui.modal>
@@ -232,7 +227,7 @@
                                         <x-ui.textarea name="decision_note" label="Ghi chú kết luận" rows="2" />
                                     </form>
                                     <x-slot:footer>
-                                        <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'decide-{{ $pen->id }}')">Hủy</x-ui.button>
+                                        <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'decide-{{ $pen->id }}')">Hủy</x-ui.button>
                                         <x-ui.button type="submit" form="decide-form-{{ $pen->id }}" icon="gavel">Chốt</x-ui.button>
                                     </x-slot:footer>
                                 </x-ui.modal>
@@ -247,7 +242,7 @@
                                             <x-ui.textarea name="remedy_note" label="Nội dung khắc phục" rows="3" placeholder="VD: Đã bổ sung nhận xét, cam kết không tái phạm..." />
                                         </form>
                                         <x-slot:footer>
-                                            <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'remedy-{{ $pen->id }}')">Hủy</x-ui.button>
+                                            <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'remedy-{{ $pen->id }}')">Hủy</x-ui.button>
                                             <x-ui.button type="submit" form="remedy-form-{{ $pen->id }}" icon="check">Ghi nhận khắc phục</x-ui.button>
                                         </x-slot:footer>
                                     </x-ui.modal>
@@ -301,7 +296,7 @@
                 </p>
             </form>
             <x-slot:footer>
-                <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'new-penalty')">Hủy</x-ui.button>
+                <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'new-penalty')">Hủy</x-ui.button>
                 <x-ui.button type="submit" form="new-penalty-form" icon="save">Ghi nhận</x-ui.button>
             </x-slot:footer>
         </x-ui.modal>
