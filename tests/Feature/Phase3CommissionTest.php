@@ -22,6 +22,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\FinalizesPayrollKpi;
 use Tests\TestCase;
 
 /**
@@ -35,6 +36,7 @@ use Tests\TestCase;
  */
 class Phase3CommissionTest extends TestCase
 {
+    use FinalizesPayrollKpi;
     use RefreshDatabase;
 
     private Branch $branch;
@@ -304,6 +306,7 @@ class Phase3CommissionTest extends TestCase
         $august = $this->period(8);
         $august->calculatePayrollForPeriod();
         $this->assertEquals(300000, $this->salesRecord($august)->commission_bonus);
+        $this->finalizeKpi($august);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $august->id))->assertSessionHasNoErrors();
 
         $this->travelTo(Carbon::parse('2026-09-05 10:00:00'));
@@ -336,6 +339,7 @@ class Phase3CommissionTest extends TestCase
         // 5M − 525k BHXH − 25k Công đoàn − 200k thu hồi (Q3: bỏ phụ cấp cố định 500k)
         $this->assertEquals(4250000, $record->net_salary);
 
+        $this->finalizeKpi($september);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $september->id))->assertSessionHasNoErrors();
         $this->assertNotNull(CommissionAdjustment::firstOrFail()->settled_at);
 

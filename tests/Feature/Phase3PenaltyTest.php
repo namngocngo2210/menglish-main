@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\FinalizesPayrollKpi;
 use Tests\TestCase;
 
 /**
@@ -19,6 +20,7 @@ use Tests\TestCase;
  */
 class Phase3PenaltyTest extends TestCase
 {
+    use FinalizesPayrollKpi;
     use RefreshDatabase;
 
     private Branch $branch;
@@ -207,6 +209,7 @@ class Phase3PenaltyTest extends TestCase
         $period->calculatePayrollForPeriod();
         $this->assertEquals(170000, $record->fresh()->penalty_deduction);
 
+        $this->finalizeKpi($period);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))->assertSessionHasNoErrors();
         $this->assertSame('deducted', $overdue->fresh()->status);
         $this->assertSame('deducted', $notDueYet->fresh()->status);

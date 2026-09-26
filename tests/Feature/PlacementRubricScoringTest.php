@@ -174,7 +174,24 @@ class PlacementRubricScoringTest extends TestCase
         $this->assertNull($submission->listening_comment);
 
         $this->actingAs($this->academic)->get(route('crm.customers.show', $lead))->assertOk()
-            ->assertSee('Chưa có thang điểm — Học thuật chọn lớp thủ công');
+            ->assertSee('Không xếp lớp tự động cho khối này — Học vụ xem điểm và chọn lớp thủ công');
+    }
+
+    /** BA 26/09/2026: lớp 5–9 không xếp theo thang điểm tự động; lớp 8–9 không test Nói; điểm thô không bị giới hạn 0–10. */
+    public function test_older_students_keep_raw_scores_without_speaking_and_no_auto_class(): void
+    {
+        [$lead, $test] = $this->leadWithTest();
+        $this->actingAs($this->academic)->post(route('crm.customers.save-test-score', $lead), [
+            'placement_test_id' => $test->id, 'grade_group' => PlacementRubricService::MANUAL_GROUP,
+            'listening_score' => 32, 'reading_writing_score' => 41, 'speaking_score' => '',
+            'chosen_class' => 'THCS 8 - Nâng cao',
+        ])->assertSessionHasNoErrors();
+
+        $submission = PlacementTestSubmission::where('customer_id', $lead->id)->firstOrFail();
+        $this->assertNull($submission->speaking_score);
+        $this->assertNull($submission->suggested_class);
+        $this->assertEquals(73, (float) $submission->total_score);
+        $this->assertSame('THCS 8 - Nâng cao', $submission->chosen_class);
     }
 
     public function test_results_screen_grades_online_submission_on_the_rubric_scale(): void
