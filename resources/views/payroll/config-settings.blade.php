@@ -22,30 +22,12 @@
 
             <div class="p-6 space-y-5">
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                    <x-ui.field label="BHXH (% lương cơ bản)" name="insurance_rate_percent" for="insurance_rate_percent">
-                        <div class="relative">
-                            <input type="number" id="insurance_rate_percent" name="insurance_rate_percent" min="0" max="100" step="0.1"
-                                   value="{{ old('insurance_rate_percent', $fmt($settings['insurance_rate_percent'])) }}"
-                                   class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm pr-8 font-mono text-body-base text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
-                            <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-bold text-on-surface-variant/70 pointer-events-none">%</div>
-                        </div>
-                    </x-ui.field>
-                    <x-ui.field label="Công đoàn (% lương cơ bản)" name="union_rate_percent" for="union_rate_percent">
-                        <div class="relative">
-                            <input type="number" id="union_rate_percent" name="union_rate_percent" min="0" max="100" step="0.1"
-                                   value="{{ old('union_rate_percent', $fmt($settings['union_rate_percent'])) }}"
-                                   class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm pr-8 font-mono text-body-base text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
-                            <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-bold text-on-surface-variant/70 pointer-events-none">%</div>
-                        </div>
-                    </x-ui.field>
-                    <x-ui.field label="Quỹ KPI Học vụ / tháng" name="academic_kpi_fund" for="academic_kpi_fund">
-                        <div class="relative">
-                            <input type="number" id="academic_kpi_fund" name="academic_kpi_fund" min="0" step="1000"
-                                   value="{{ old('academic_kpi_fund', (int) $settings['academic_kpi_fund']) }}"
-                                   class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm pr-8 font-mono text-body-base text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
-                            <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-bold text-on-surface-variant/70 pointer-events-none">đ</div>
-                        </div>
-                    </x-ui.field>
+                    <x-ui.input type="number" id="insurance_rate_percent" name="insurance_rate_percent" label="BHXH (% lương cơ bản)" suffix="%" min="0" max="100" step="0.1"
+                                :value="$fmt($settings['insurance_rate_percent'])" class="font-mono" />
+                    <x-ui.input type="number" id="union_rate_percent" name="union_rate_percent" label="Công đoàn (% lương cơ bản)" suffix="%" min="0" max="100" step="0.1"
+                                :value="$fmt($settings['union_rate_percent'])" class="font-mono" />
+                    <x-ui.input type="number" id="academic_kpi_fund" name="academic_kpi_fund" label="Quỹ KPI Học vụ / tháng" suffix="đ" min="0" step="1000"
+                                :value="(int) $settings['academic_kpi_fund']" class="font-mono" />
                 </div>
 
                 <div class="space-y-2">

@@ -76,30 +76,15 @@
 
                     {{-- Sĩ số tối đa --}}
                     <div class="md:col-span-4">
-                        <x-ui.field label="Sĩ số tối đa" name="si_so_toi_da" for="si_so_toi_da" required>
-                            <div class="relative">
-                                <input type="number" id="si_so_toi_da" name="si_so_toi_da"
-                                       min="1" max="100"
-                                       value="{{ old('si_so_toi_da', $class->max_capacity) }}"
-                                       required
-                                       class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm pr-16 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
-                                <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[11px] text-on-surface-variant/70 font-medium">học viên</div>
-                            </div>
-                        </x-ui.field>
+                        <x-ui.input type="number" id="si_so_toi_da" name="si_so_toi_da" label="Sĩ số tối đa" required suffix="học viên"
+                                    :value="$class->max_capacity" min="1" max="100" class="text-xs" />
                     </div>
 
                     {{-- Ngưỡng khai giảng --}}
                     <div class="md:col-span-4">
-                        <x-ui.field label="Ngưỡng khai giảng" name="min_students" for="min_students">
-                            <div class="relative">
-                                <input type="number" id="min_students" name="min_students"
-                                       min="1" max="100"
-                                       value="{{ old('min_students', $class->min_students ?? 6) }}"
-                                       class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm pr-16 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
-                                <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[11px] text-on-surface-variant/70 font-medium">học viên</div>
-                            </div>
-                            <p class="text-[11px] text-on-surface-variant/70">Số học viên tối thiểu để mở lớp; không vượt sĩ số tối đa.</p>
-                        </x-ui.field>
+                        <x-ui.input type="number" id="min_students" name="min_students" label="Ngưỡng khai giảng" suffix="học viên"
+                                    :value="$class->min_students ?? 6" min="1" max="100" class="text-xs"
+                                    hint="Số học viên tối thiểu để mở lớp; không vượt sĩ số tối đa." />
                     </div>
 
                     {{-- Trạng thái --}}
@@ -166,15 +151,8 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
                     <div class="md:col-span-6">
-                        <x-ui.field label="Mức học phí niêm yết" name="hoc_phi" for="hoc_phi">
-                            <div class="relative">
-                                <input type="number" id="hoc_phi" name="hoc_phi"
-                                       value="{{ old('hoc_phi', $class->tuition_fee) }}"
-                                       min="0" step="50000"
-                                       class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest pl-md pr-14 py-sm text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition font-mono font-bold">
-                                <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-xs font-bold text-on-surface-variant/70">VNĐ</div>
-                            </div>
-                        </x-ui.field>
+                        <x-ui.input type="number" id="hoc_phi" name="hoc_phi" label="Mức học phí niêm yết" suffix="VNĐ"
+                                    :value="$class->tuition_fee" min="0" step="50000" class="text-xs font-mono font-bold" />
                     </div>
 
                     <div class="md:col-span-12">

@@ -147,13 +147,8 @@
                             <x-ui.input type="number" name="min_students" label="Từ (số học viên)" required min="0" step="1" placeholder="VD: 11" />
                             <x-ui.input type="number" name="max_students" label="Đến (số học viên)" min="0" step="1" placeholder="Để trống = Max" />
                         </div>
-                        <x-ui.field label="Tỷ lệ (%)" name="new_sale_percent" for="f_new_sale_percent" required>
-                            <div class="relative">
-                                <input type="number" id="f_new_sale_percent" name="new_sale_percent" required min="0" max="100" step="0.1" placeholder="0.0" value="{{ old('new_sale_percent') }}"
-                                       class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm pr-xl text-right font-mono text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
-                                <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-body-medium text-on-surface-variant">%</span>
-                            </div>
-                        </x-ui.field>
+                        <x-ui.input type="number" id="f_new_sale_percent" name="new_sale_percent" label="Tỷ lệ (%)" required suffix="%"
+                                    min="0" max="100" step="0.1" placeholder="0.0" class="text-right font-mono" />
                         <x-ui.date name="effective_from" label="Hiệu lực từ ngày" required :value="old('effective_from', now()->toDateString())" />
                         <x-ui.input name="tier_name" label="Tên bậc (tuỳ chọn)" placeholder="Bỏ trống = tự đặt theo ngưỡng" />
                         <x-ui.button type="submit" icon="save" class="w-full">Lưu cấu hình</x-ui.button>

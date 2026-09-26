@@ -182,12 +182,10 @@
 
                 {{-- Giảm trừ & Tổng học phí --}}
                 <div class="mt-4 pt-4 border-t border-surface-container-highest flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <x-ui.field label="Số tiền giảm trừ (VNĐ)" name="discount_amount" :for="$px.'discount_amount'" hint="Không vượt tổng trước giảm." class="w-full md:w-80">
-                        <div class="relative">
-                            <x-ui.input type="number" name="discount_amount" :id="$px.'discount_amount'" x-model.number="discountAmount" x-on:input="recalc()" min="0" x-bind:max="tuitionSubtotal" class="pr-12 font-code font-bold" placeholder="0" />
-                            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-code text-on-surface-variant/70">VNĐ</span>
-                        </div>
-                    </x-ui.field>
+                    <div class="w-full md:w-80">
+                        <x-ui.input type="number" name="discount_amount" :id="$px.'discount_amount'" label="Số tiền giảm trừ (VNĐ)" hint="Không vượt tổng trước giảm." suffix="VNĐ"
+                                    x-model.number="discountAmount" x-on:input="recalc()" min="0" x-bind:max="tuitionSubtotal" class="font-code font-bold" placeholder="0" />
+                    </div>
 
                     <div class="flex flex-col items-end gap-1 w-full md:w-auto text-xs">
                         <div class="flex items-baseline gap-4">
@@ -224,10 +222,7 @@
         <div class="p-5 space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <x-ui.field label="Số tiền phụ thu (VNĐ)" name="surcharge_amount" :for="$px.'surcharge_amount'">
-                    <div class="relative">
-                        <x-ui.input type="number" name="surcharge_amount" :id="$px.'surcharge_amount'" x-model.number="surchargeAmount" x-on:input="recalc()" min="0" step="10000" class="pr-12 font-code font-bold" placeholder="Nhập số tiền > 0..." />
-                        <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-code text-on-surface-variant/70">VNĐ</span>
-                    </div>
+                    <x-ui.input type="number" name="surcharge_amount" :id="$px.'surcharge_amount'" suffix="VNĐ" x-model.number="surchargeAmount" x-on:input="recalc()" min="0" step="10000" class="font-code font-bold" placeholder="Nhập số tiền > 0..." />
 
                     {{-- Gợi ý số tiền nhanh --}}
                     <div class="flex flex-wrap items-center gap-1.5 mt-2">

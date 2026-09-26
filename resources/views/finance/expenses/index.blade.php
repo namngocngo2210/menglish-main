@@ -183,7 +183,7 @@
                                     </p>
                                 </td>
                                 <td class="text-right whitespace-nowrap">
-                                    <div class="text-base font-extrabold text-secondary">{{ number_format($autoSalaryRow->amount, 0, ',', '.') }}</div>
+                                    <x-ui.money :value="$autoSalaryRow->amount" suffix="" tone="secondary" class="font-extrabold" />
                                     <div class="text-[11px] text-on-surface-variant">{{ $autoSalaryRow->staff_count }} nhân sự đủ điều kiện</div>
                                 </td>
                                 <td class="text-center">
@@ -301,13 +301,8 @@
 
             {{-- Grid 2 cột: Số tiền & Hình thức --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {{-- Ô 3: Số tiền (number > 0, bắt buộc) — giữ input thô để có hậu tố "đ" --}}
-                <x-ui.field label="Số tiền (VNĐ)" name="amount" for="formAmount" required>
-                    <div class="relative">
-                        <input type="number" id="formAmount" name="amount" min="1000" step="1000" placeholder="0" required class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest pl-md pr-10 py-sm font-body-base text-body-base font-semibold text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
-                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant/70">đ</span>
-                    </div>
-                </x-ui.field>
+                {{-- Ô 3: Số tiền (number > 0, bắt buộc) --}}
+                <x-ui.input type="number" id="formAmount" name="amount" label="Số tiền (VNĐ)" required suffix="đ" min="1000" step="1000" placeholder="0" class="font-semibold" />
 
                 {{-- Ô 4: Hình thức chi (dropdown Tiền mặt/Chuyển khoản) --}}
                 <x-ui.select id="formPaymentMethod" name="payment_method" label="Hình thức chi" required :value="''"

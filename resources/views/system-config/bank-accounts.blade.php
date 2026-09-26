@@ -402,7 +402,7 @@
                                     <div class="text-[10px] text-on-surface-variant/70">{{ $tx->gateway }}</div>
                                 </td>
                                 <td class="text-right">
-                                    <x-ui.money :value="(float) $tx->transfer_amount" :sign="true" class="font-bold !text-tertiary" />
+                                    <x-ui.money :value="(float) $tx->transfer_amount" :sign="true" tone="success" class="font-bold" />
                                 </td>
                                 <td class="max-w-xs truncate" title="{{ $tx->content }}">
                                     <span class="font-mono font-semibold text-on-surface">{{ $tx->content }}</span>

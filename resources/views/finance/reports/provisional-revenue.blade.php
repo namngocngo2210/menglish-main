@@ -152,7 +152,7 @@
                             <p class="text-xs text-on-surface-variant">Tất cả phiếu thu còn hiệu lực (đã loại bỏ phiếu bị hủy hóa đơn)</p>
                         </div>
                     </div>
-                    <span class="text-sm font-bold text-tertiary">{{ number_format($totalRevenue, 0, ',', '.') }} đ</span>
+                    <x-ui.money :value="$totalRevenue" tone="success" class="font-bold" />
                 </div>
 
                 <div class="space-y-3 pt-1">
@@ -216,7 +216,7 @@
                             <p class="text-xs text-on-surface-variant">Khoản chi tự nhập thực tế + Chi lương tự động từ bảng lương đã chốt</p>
                         </div>
                     </div>
-                    <span class="text-sm font-bold text-error">{{ number_format($totalExpense, 0, ',', '.') }} đ</span>
+                    <x-ui.money :value="$totalExpense" tone="error" class="font-bold" />
                 </div>
 
                 <div class="space-y-3 pt-1">
@@ -326,11 +326,11 @@
                                         <span>{{ $row['branch']->name }}</span>
                                     </div>
                                 </td>
-                                <td class="text-right font-bold text-tertiary">
-                                    {{ number_format($row['revenue'], 0, ',', '.') }} đ
+                                <td class="text-right font-bold">
+                                    <x-ui.money :value="$row['revenue']" tone="success" />
                                 </td>
-                                <td class="text-right font-semibold text-error">
-                                    {{ number_format($row['expense'], 0, ',', '.') }} đ
+                                <td class="text-right font-semibold">
+                                    <x-ui.money :value="$row['expense']" tone="error" />
                                 </td>
                                 <td class="text-right font-extrabold">
                                     <x-ui.money :value="$row['profit']" :sign="true" />
@@ -352,9 +352,9 @@
                     <tfoot>
                         <tr class="bg-surface-container-low font-bold border-t-2 border-surface-container-highest text-on-surface">
                             <td class="uppercase text-xs tracking-wider">{{ ($branchScoped ?? false) ? 'Tổng cộng' : 'Tổng cộng toàn hệ thống' }}</td>
-                            <td class="text-right text-tertiary text-base font-extrabold">{{ number_format($totalMatrixRevenue, 0, ',', '.') }} đ</td>
-                            <td class="text-right text-error text-base font-extrabold">{{ number_format($totalMatrixExpense, 0, ',', '.') }} đ</td>
-                            <td class="text-right text-primary-container text-base font-black">{{ $totalMatrixProfit >= 0 ? '+' : '' }}{{ number_format($totalMatrixProfit, 0, ',', '.') }} đ</td>
+                            <td class="text-right font-extrabold"><x-ui.money :value="$totalMatrixRevenue" tone="success" /></td>
+                            <td class="text-right font-extrabold"><x-ui.money :value="$totalMatrixExpense" tone="error" /></td>
+                            <td class="text-right font-black"><x-ui.money :value="$totalMatrixProfit" :sign="true" tone="primary" /></td>
                             <td class="text-center text-xs font-black">{{ $totalMatrixMargin }}%</td>
                             <td class="text-center text-xs font-semibold {{ $totalMatrixStatus['class'] }}">{{ $totalMatrixStatus['label'] }}</td>
                         </tr>

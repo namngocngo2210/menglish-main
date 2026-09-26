@@ -20,9 +20,8 @@
                 <div class="space-y-xs">
                     <label for="first_days" class="block font-body-medium text-body-medium text-on-surface">Mốc nhắc nợ trước hạn</label>
                     <p class="font-caption text-caption text-on-surface-variant">Số ngày trước ngày đáo hạn để hệ thống gửi thông báo nhắc nhở đầu tiên.</p>
-                    <div class="flex items-center gap-sm">
-                        <input id="first_days" type="number" name="first_days" min="1" max="60" value="{{ old('first_days', $firstDays) }}" required class="w-24 rounded-lg border-outline-variant font-code text-code" />
-                        <span class="font-body-small text-body-small text-on-surface-variant">Ngày</span>
+                    <div class="w-36">
+                        <x-ui.input id="first_days" type="number" name="first_days" min="1" max="60" :value="$firstDays" required suffix="Ngày" class="font-code text-code" />
                     </div>
                     @error('first_days')<p class="font-caption text-caption text-error">{{ $message }}</p>@enderror
                 </div>
@@ -41,9 +40,8 @@
                 <div class="space-y-xs">
                     <label for="must_contact_days" class="block font-body-medium text-body-medium text-on-surface">Mốc quá hạn bắt buộc liên hệ</label>
                     <p class="font-caption text-caption text-on-surface-variant">Tạo yêu cầu liên hệ trực tiếp (gọi điện) nếu quá hạn thanh toán.</p>
-                    <div class="flex items-center gap-sm">
-                        <input id="must_contact_days" type="number" name="must_contact_days" min="1" max="60" value="{{ old('must_contact_days', $mustContactDays) }}" required class="w-24 rounded-lg border-outline-variant font-code text-code" />
-                        <span class="font-body-small text-body-small text-on-surface-variant">Ngày</span>
+                    <div class="w-36">
+                        <x-ui.input id="must_contact_days" type="number" name="must_contact_days" min="1" max="60" :value="$mustContactDays" required suffix="Ngày" class="font-code text-code" />
                     </div>
                     @error('must_contact_days')<p class="font-caption text-caption text-error">{{ $message }}</p>@enderror
                 </div>

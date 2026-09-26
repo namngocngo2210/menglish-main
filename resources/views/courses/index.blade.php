@@ -178,19 +178,8 @@
                             <span>Giá học phí niêm yết (VNĐ) <span class="text-error">*</span></span>
                             <span class="text-[10px] text-primary font-normal">Học phí trọn gói</span>
                         </label>
-                        <div class="relative">
-                            <input 
-                                type="number" 
-                                name="tuition_fee" 
-                                id="create_tuition_fee" 
-                                placeholder="12500000" 
-                                min="0" 
-                                step="10000" 
-                                required 
-                                class="w-full text-sm font-mono font-black text-primary rounded-xl border border-primary-container/30 bg-surface-container-lowest p-2.5 pr-10 focus:ring-2 focus:ring-primary-container focus:border-primary-container" 
-                            />
-                            <span class="absolute right-3 top-2.5 text-xs font-bold text-primary">VNĐ</span>
-                        </div>
+                        <x-ui.input type="number" name="tuition_fee" id="create_tuition_fee" placeholder="12500000" min="0" step="10000" required suffix="VNĐ"
+                                    class="text-sm font-mono font-black text-primary" />
                     </div>
 
                     <x-ui.select name="course_level_id" id="create_course_level_id" label="Khung trình độ trực thuộc" class="text-xs" placeholder="-- Chọn khung trình độ (CEFR/IELTS) --"
@@ -228,18 +217,8 @@
                             <span>Giá học phí niêm yết (VNĐ) <span class="text-error">*</span></span>
                             <span class="text-[10px] text-primary font-normal">Chỉnh sửa giá mới</span>
                         </label>
-                        <div class="relative">
-                            <input 
-                                type="number" 
-                                name="tuition_fee" 
-                                id="edit_tuition_fee" 
-                                min="0" 
-                                step="10000" 
-                                required 
-                                class="w-full text-base font-mono font-black text-primary rounded-xl border border-primary-container/30 bg-surface-container-lowest p-2.5 pr-10 focus:ring-2 focus:ring-primary-container focus:border-primary-container" 
-                            />
-                            <span class="absolute right-3 top-3 text-xs font-bold text-primary">VNĐ</span>
-                        </div>
+                        <x-ui.input type="number" name="tuition_fee" id="edit_tuition_fee" min="0" step="10000" required suffix="VNĐ"
+                                    class="text-base font-mono font-black text-primary" />
                     </div>
 
                     <x-ui.select name="course_level_id" id="edit_course_level_id" label="Khung trình độ trực thuộc" class="text-xs" placeholder="-- Chưa gắn khung trình độ --"

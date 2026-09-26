@@ -76,40 +76,16 @@
 
                     {{-- Sĩ số tối đa (Bắt buộc) --}}
                     <div class="md:col-span-4">
-                        <x-ui.field label="Sĩ số tối đa" name="si_so_toi_da" for="si_so_toi_da" required hint="Giới hạn số học viên xếp lớp tối đa.">
-                            <div class="relative">
-                                <input type="number"
-                                       id="si_so_toi_da"
-                                       name="si_so_toi_da"
-                                       min="1"
-                                       max="100"
-                                       value="{{ old('si_so_toi_da') }}"
-                                       placeholder="VD: 16"
-                                       required
-                                       class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm pr-16 text-xs text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
-                                <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[11px] text-on-surface-variant/70 font-medium">
-                                    học viên
-                                </div>
-                            </div>
-                        </x-ui.field>
+                        <x-ui.input type="number" id="si_so_toi_da" name="si_so_toi_da" label="Sĩ số tối đa" required
+                                    hint="Giới hạn số học viên xếp lớp tối đa." suffix="học viên"
+                                    min="1" max="100" placeholder="VD: 16" class="text-xs" />
                     </div>
 
                     {{-- Ngưỡng khai giảng (số học viên tối thiểu để mở lớp) --}}
                     <div class="md:col-span-4">
-                        <x-ui.field label="Ngưỡng khai giảng" name="min_students" for="min_students" hint="Số học viên tối thiểu để mở lớp; không vượt sĩ số tối đa.">
-                            <div class="relative">
-                                <input type="number"
-                                       id="min_students"
-                                       name="min_students"
-                                       min="1"
-                                       max="100"
-                                       value="{{ old('min_students', 6) }}"
-                                       class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm pr-16 text-xs text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
-                                <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[11px] text-on-surface-variant/70 font-medium">
-                                    học viên
-                                </div>
-                            </div>
-                        </x-ui.field>
+                        <x-ui.input type="number" id="min_students" name="min_students" label="Ngưỡng khai giảng" :value="6"
+                                    hint="Số học viên tối thiểu để mở lớp; không vượt sĩ số tối đa." suffix="học viên"
+                                    min="1" max="100" class="text-xs" />
                     </div>
 
                     {{-- Trạng thái khởi tạo (Readonly indicator) --}}
@@ -271,21 +247,9 @@
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
                     {{-- Học phí (Tùy chọn) --}}
                     <div class="md:col-span-6">
-                        <x-ui.field label="Mức học phí niêm yết" name="hoc_phi" for="hoc_phi" hint="Đơn giá trọn khóa trước khi áp dụng ưu đãi/học bổng.">
-                            <div class="relative">
-                                <input type="number"
-                                       id="hoc_phi"
-                                       name="hoc_phi"
-                                       value="{{ old('hoc_phi') }}"
-                                       placeholder="VD: 8500000"
-                                       min="0"
-                                       step="50000"
-                                       class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest pl-md pr-14 py-sm text-xs placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition font-mono font-bold text-on-surface">
-                                <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-xs font-bold text-on-surface-variant/70">
-                                    VNĐ
-                                </div>
-                            </div>
-                        </x-ui.field>
+                        <x-ui.input type="number" id="hoc_phi" name="hoc_phi" label="Mức học phí niêm yết" suffix="VNĐ"
+                                    hint="Đơn giá trọn khóa trước khi áp dụng ưu đãi/học bổng."
+                                    placeholder="VD: 8500000" min="0" step="50000" class="text-xs font-mono font-bold" />
                     </div>
 
                     {{-- Ghi chú (Tùy chọn) --}}
