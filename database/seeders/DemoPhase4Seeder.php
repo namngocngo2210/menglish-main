@@ -13,6 +13,7 @@ use App\Http\Controllers\UserPermissionOverrideController;
 use App\Http\Controllers\WorkTaskController;
 use App\Models\BankAccount;
 use App\Models\ClassModel;
+use App\Models\ClassSession;
 use App\Models\ClassReport;
 use App\Models\CrmCustomer;
 use App\Models\DebtReminderRule;
@@ -242,7 +243,9 @@ class DemoPhase4Seeder extends Seeder
         $this->event($this->at(20, 9), fn () => $this->refundRequest('E', 'accountant_cg', ['type' => 'transfer', 'refund_amount' => 3000000,
             'target_student_id' => $this->customers['F']->converted_student_id, 'reason' => 'Chuyển số buổi dư của chị sang em (cùng phụ huynh).'], approveBy: 'admin'));
         $this->event($this->at(10, 9), fn () => $this->refundRequest('E', 'accountant_cg', ['type' => 'refund', 'refund_amount' => 2000000,
-            'reason' => 'Gia đình chuyển công tác, xin hoàn phần học phí còn lại.', 'proof_image_preview' => self::PROOF], approveBy: null));
+            'reason' => 'Gia đình chuyển công tác, xin hoàn phần học phí còn lại.',
+            // A6 "Hoàn phí": ưu tiên chuyển nhượng — hoàn tiền phải ghi lý do không chuyển nhượng; Admin duyệt kèm ảnh bằng chứng.
+            'no_transfer_reason' => 'Gia đình chuyển vào TP.HCM, không có người thân học tại trung tâm để nhận chuyển nhượng.'], approveBy: null));
 
         // G: đóng 1 phần → bảo lưu 30 ngày (học viên sang "Bảo lưu", đóng băng công nợ).
         $this->event($this->at(28, 10), fn () => $this->receipt('G', 'academic_bd', 4750000, 'cash', null, note: 'Đóng 50% học phí.'));
@@ -255,10 +258,10 @@ class DemoPhase4Seeder extends Seeder
         $this->event($this->at(1, 11), fn () => $this->receipt('H', 'academic_cg', 3000000, 'transfer', 'FT26DEMO0004', note: 'PH chuyển khoản đặt chỗ.'));
         $this->event($this->at(1, 15), fn () => $this->rejectLast('H', 'accountant_cg', 'Ảnh minh chứng mờ, không đọc được số tiền.'));
 
-        // J: đóng đủ → hủy hóa đơn (Kế toán yêu cầu, Quản lý duyệt) → công nợ khôi phục.
+        // J: đóng đủ → hủy hóa đơn (Kế toán yêu cầu, Admin duyệt — mặc định chỉ Admin có invoice.approve_cancel) → công nợ khôi phục.
         $this->event($this->at(13, 10), fn () => $this->receipt('J', 'academic_bd', 9500000, 'cash', null, note: 'Đóng đủ khóa.'));
         $this->event($this->at(13, 15), fn () => $this->approveLast('J', 'accountant_bd'));
-        $this->event($this->at(9, 10), fn () => $this->invoiceCancellation('J', 'accountant_bd', 'Phụ huynh đổi ý chưa đóng, tiền mặt trả lại tại quầy — hủy hóa đơn.', approveBy: 'manager_bd'));
+        $this->event($this->at(9, 10), fn () => $this->invoiceCancellation('J', 'accountant_bd', 'Phụ huynh đổi ý chưa đóng, tiền mặt trả lại tại quầy — hủy hóa đơn.', approveBy: 'admin'));
 
         // SePay: tiền vào tài khoản lạ (không gạch nợ) + giao dịch không nhận ra học viên (chờ đối soát tay).
         $this->event($this->at(1, 21), fn () => $this->sepay('SEPAY-DEMO-P4-0009', null, 1500000, 'HV CK HOC PHI', expectStatus: 'rejected_account'));
@@ -280,12 +283,14 @@ class DemoPhase4Seeder extends Seeder
     {
         $accountant = $this->staff['accountant_cg'];
         foreach (self::BANKS as $code => [$bankCode, $bankName, $number, $location]) {
-            $this->asUser($accountant, SystemConfigController::class, 'storeBankAccount', [
+            // Kế toán chi nhánh chỉ cấp dải số / TK cho chi nhánh mình (phạm vi chi nhánh của màn Dải số hóa đơn).
+            $branchAccountant = $this->staff[$code === 'CG' ? 'accountant_cg' : 'accountant_bd'];
+            $this->asUser($branchAccountant, SystemConfigController::class, 'storeBankAccount', [
                 'bank_code' => $bankCode, 'bank_name' => $bankName, 'account_number' => $number,
                 'account_holder' => 'CONG TY CO PHAN GIAO DUC MENGLISH', 'branch_location' => $location.' '.self::MARKER,
                 'branch_id' => $this->branches[$code],
             ]);
-            $this->asUser($accountant, TuitionController::class, 'storeInvoiceRange', [
+            $this->asUser($branchAccountant, TuitionController::class, 'storeInvoiceRange', [
                 'branch_id' => $this->branches[$code], 'template_code' => '1/001', 'series_code' => 'C26M'.$code,
                 'start_number' => 1, 'end_number' => 500, 'provider' => 'vnpt',
             ]);
@@ -520,12 +525,15 @@ class DemoPhase4Seeder extends Seeder
     {
         $today = $this->realNow->toDateString();
         $class = $this->classes['BD-FAM1'];
+        // "Gắn lớp" bắt buộc chọn buổi học: buổi thật của lớp trong ngày giao (hạn ca theo giờ học), không có thì nhập tên buổi.
+        $session = ClassSession::where('class_id', $class->id)->whereDate('date', $today)->orderBy('start_time')->first();
+        $sessionInput = $session ? ['class_session_id' => $session->id] : ['session' => 'Buổi tối '.$this->realNow->format('d/m')];
         $this->asUser($this->staff['academic_bd'], WorkTaskController::class, 'taAssignStore', [
             'assistant_id' => $this->staff['assistant_bd']->id, 'assign_date' => $today, 'branch_id' => $this->branches['BD'],
             'tasks' => [
-                ['category' => 'before', 'content' => 'Mở phòng, bật máy chiếu, chuẩn bị bảng tên '.self::MARKER, 'attach_class' => '1', 'class_id' => $class->id],
-                ['category' => 'during', 'content' => 'Hỗ trợ điểm danh + kèm nhóm học viên yếu '.self::MARKER, 'attach_class' => '1', 'class_id' => $class->id],
-                ['category' => 'after', 'content' => 'Nộp báo cáo trực lớp + dọn phòng '.self::MARKER, 'attach_class' => '1', 'class_id' => $class->id],
+                ['category' => 'before', 'content' => 'Mở phòng, bật máy chiếu, chuẩn bị bảng tên '.self::MARKER, 'attach_class' => '1', 'class_id' => $class->id] + $sessionInput,
+                ['category' => 'during', 'content' => 'Hỗ trợ điểm danh + kèm nhóm học viên yếu '.self::MARKER, 'attach_class' => '1', 'class_id' => $class->id] + $sessionInput,
+                ['category' => 'after', 'content' => 'Nộp báo cáo trực lớp + dọn phòng '.self::MARKER, 'attach_class' => '1', 'class_id' => $class->id] + $sessionInput,
             ],
         ]);
         $shifts = WorkTask::where('assignee_id', $this->staff['assistant_bd']->id)->whereDate('due_date', $today)

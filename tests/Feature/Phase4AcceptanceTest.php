@@ -25,6 +25,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
@@ -35,8 +36,9 @@ use Tests\TestCase;
  * hủy hóa đơn hoàn công nợ; chuyển nhượng / hoàn phí / khất nợ; danh sách quá hạn + nhắc nợ; phạm vi chi nhánh; nhật ký
  * trước / sau; ticket ghi chú nội bộ; bắt đổi mật khẩu lần đầu; báo cáo trực lớp.
  *
- * Luật hoàn phí mới (1 tuần / cùng tháng, chỉ Admin duyệt, bắt buộc ảnh bằng chứng, cờ "Quá hạn xử lý") và luật xác nhận
- * báo cáo trực lớp của người giao việc khi lớp chưa có GV chính đang được làm ở nhánh khác — chưa kiểm ở đây.
+ * Kèm luật hoàn phí A6 (ưu tiên chuyển nhượng + lý do không chuyển nhượng, chỉ Admin duyệt hoàn tiền kèm ảnh bằng chứng,
+ * hạn 1 tuần / cùng tháng → cờ "Quá hạn xử lý" không chặn duyệt), hủy hóa đơn chỉ Admin duyệt, và luật Q8 báo cáo trực lớp
+ * (có ảnh → hoàn thành; không ảnh → GV chính xác nhận; lớp chưa có GV chính → người giao việc xác nhận).
  */
 class Phase4AcceptanceTest extends TestCase
 {
@@ -112,11 +114,13 @@ class Phase4AcceptanceTest extends TestCase
         // ── 0. Cấu hình (Kế toán / Admin): TK ngân hàng + dải số HĐ theo chi nhánh, SePay HMAC ──────────────
         $this->at('2026-09-01 08:00');
         $this->actingAs($this->sale)->post(route('tuition.config.ranges.store'), $this->range($this->branchA, 'N4A'))->assertForbidden();
-        foreach ([[$this->branchA, 'N4A', '0901 000 111'], [$this->branchB, 'N4B', '1903 000 222']] as [$branch, $series, $number]) {
-            $this->actingAs($this->accountant)->post(route('tuition.config.ranges.store'), $this->range($branch, $series))->assertSessionHasNoErrors();
-            $this->actingAs($this->accountant)->post(route('system-config.bank-accounts.store'), [
+        // Kế toán chi nhánh chỉ cấp dải số cho chi nhánh mình.
+        $this->actingAs($this->accountant)->post(route('tuition.config.ranges.store'), $this->range($this->branchB, 'N4X'))->assertForbidden();
+        foreach ([[$this->branchA, 'N4A', '0901 000 111', $this->accountant], [$this->branchB, 'N4B', '1903 000 222', $this->accountantB]] as [$branch, $series, $number, $branchAccountant]) {
+            $this->actingAs($branchAccountant)->post(route('tuition.config.ranges.store'), $this->range($branch, $series))->assertRedirect()->assertSessionHasNoErrors();
+            $this->actingAs($branchAccountant)->post(route('system-config.bank-accounts.store'), [
                 'bank_code' => 'MB', 'bank_name' => 'MB Bank', 'account_number' => $number, 'account_holder' => 'Menglish', 'branch_id' => $branch->id,
-            ])->assertSessionHasNoErrors();
+            ])->assertRedirect()->assertSessionHasNoErrors();
         }
         $this->actingAs($this->sale)->post(route('system-config.sepay.update'), $this->sepayConfig())->assertForbidden();
         $this->actingAs($this->admin)->post(route('system-config.sepay.update'), $this->sepayConfig())->assertSessionHasNoErrors();
@@ -189,8 +193,11 @@ class Phase4AcceptanceTest extends TestCase
             'invoice_number' => 'N4A-0000002', 'amount' => 5000000, 'reason' => 'PH đổi hình thức thanh toán sang chuyển khoản.',
         ])->assertSessionHasNoErrors();
         $cancellation = InvoiceCancellation::sole();
+        // Duyệt hủy hóa đơn: mặc định chỉ Admin (Quản lý / Kế toán không có invoice.approve_cancel).
         $this->actingAs($this->managerB)->post(route('tuition.invoices.cancellations.approve', $cancellation->id))->assertForbidden();
-        $this->actingAs($this->managerA)->post(route('tuition.invoices.cancellations.approve', $cancellation->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->managerA)->post(route('tuition.invoices.cancellations.approve', $cancellation->id))->assertForbidden();
+        $this->actingAs($this->accountant)->post(route('tuition.invoices.cancellations.approve', $cancellation->id))->assertForbidden();
+        $this->actingAs($this->admin)->post(route('tuition.invoices.cancellations.approve', $cancellation->id))->assertSessionHasNoErrors();
         $this->assertSame([TuitionReceipt::STATUS_CANCELLED, 'N4A-0000002'], [$r2->fresh()->status, $r2->fresh()->invoice_number]);
         $this->assertEquals(5000000, (float) $t1->fresh()->debt_amount);
 
@@ -239,6 +246,9 @@ class Phase4AcceptanceTest extends TestCase
         $this->assertEquals(0, (float) $t3->fresh()->debt_amount);
 
         // ── 7. Chuyển nhượng (S1 → S2) và hoàn phí (S1): phiếu âm / dương có số HĐ theo dải chi nhánh ──────────────
+        // Luật A6 "Hoàn phí": ưu tiên chuyển nhượng; hoàn tiền là phương án cuối (bắt buộc lý do không chuyển nhượng),
+        // chỉ Admin duyệt hoàn tiền và phải kèm ảnh bằng chứng; chuyển nhượng do Quản lý / Kế toán duyệt.
+        Storage::fake(TuitionRefundRequest::PROOF_DISK);
         $this->at('2026-09-08 09:00');
         $this->actingAs($this->sale)->post(route('tuition.refunds.store'), ['student_id' => $s1->id, 'type' => 'refund', 'refund_amount' => 1, 'reason' => 'x'])->assertForbidden();
         $this->actingAs($this->accountant)->post(route('tuition.refunds.store'), [
@@ -246,10 +256,35 @@ class Phase4AcceptanceTest extends TestCase
         ])->assertSessionHasNoErrors();
         $this->actingAs($this->accountant)->post(route('tuition.refunds.store'), [
             'student_id' => $s1->id, 'type' => 'refund', 'refund_amount' => 1000000, 'reason' => 'Chuyển nơi ở, hoàn phần chưa học.',
+        ])->assertSessionHasErrors('no_transfer_reason');
+        $this->actingAs($this->accountant)->post(route('tuition.refunds.store'), [
+            'student_id' => $s1->id, 'type' => 'refund', 'refund_amount' => 1000000, 'reason' => 'Chuyển nơi ở, hoàn phần chưa học.',
+            'no_transfer_reason' => 'Gia đình chuyển vào TP.HCM, không có người nhận chuyển nhượng.',
         ])->assertSessionHasNoErrors();
-        foreach (TuitionRefundRequest::where('student_id', $s1->id)->orderBy('id')->get() as $request) {
-            $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $request->id), ['clawback_commission' => 0])->assertSessionHasNoErrors();
+        $transfer = TuitionRefundRequest::where('student_id', $s1->id)->where('type', 'transfer')->sole();
+        $refund = TuitionRefundRequest::where('student_id', $s1->id)->where('type', 'refund')->sole();
+        $this->assertTrue($refund->processing_deadline->isSameDay('2026-09-15'), 'Hạn xử lý = ngày lập + 7 ngày (trong tháng).');
+
+        $this->actingAs($this->managerA)->post(route('tuition.refunds.approve', $transfer->id))->assertSessionHasNoErrors();
+        $this->assertSame('approved', $transfer->fresh()->status);
+        foreach ([$this->managerA, $this->accountant] as $notAdmin) {
+            $this->actingAs($notAdmin)->post(route('tuition.refunds.approve', $refund->id), ['clawback_commission' => 0])->assertForbidden();
         }
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id), ['clawback_commission' => 0])->assertSessionHasErrors('proof_image');
+        $this->assertSame('pending', $refund->fresh()->status);
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id), [
+            'clawback_commission' => 0, 'proof_image' => UploadedFile::fake()->image('uy-nhiem-chi-hoan.png', 40, 40),
+        ])->assertSessionHasNoErrors();
+        $refund->refresh();
+        $this->assertSame(['approved', $this->admin->id], [$refund->status, $refund->approver_id]);
+        Storage::disk(TuitionRefundRequest::PROOF_DISK)->assertExists($refund->proof_path);
+
+        // Hồ sơ hoàn phí để quá hạn xử lý (lập 08/09, hạn 15/09): gắn cờ, không chặn nút duyệt.
+        $this->actingAs($this->accountant)->post(route('tuition.refunds.store'), [
+            'student_id' => $s1->id, 'type' => 'refund', 'refund_amount' => 100000, 'reason' => 'Hoàn phí giáo trình chưa nhận.',
+            'no_transfer_reason' => 'Giáo trình không chuyển nhượng được cho học viên khác.',
+        ])->assertSessionHasNoErrors();
+        $lateRefund = TuitionRefundRequest::where('student_id', $s1->id)->where('status', 'pending')->sole();
         $t1->refresh();
         $this->assertSame([6000000.0, 6000000.0, 0.0], [(float) $t1->final_amount, (float) $t1->paid_amount, (float) $t1->debt_amount]);
         $this->assertEquals(4000000, (float) $t2->fresh()->debt_amount);
@@ -279,6 +314,14 @@ class Phase4AcceptanceTest extends TestCase
         $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->admin->id, 'type' => 'overdue_report']);
         $this->assertTrue(AcademicRecord::where('record_code', 'like', 'DEBTREMIND-%-'.$t2->id.'-2026-09-20')->exists());
         $this->actingAs($this->managerB)->post(route('tuition.overdue.contacted', $t2->id))->assertForbidden();
+
+        $this->assertTrue($lateRefund->fresh()->isProcessingOverdue());
+        $this->actingAs($this->admin)->get(route('tuition.refunds'))->assertOk()->assertSee('Quá hạn xử lý');
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $lateRefund->id), [
+            'clawback_commission' => 0, 'proof_image' => UploadedFile::fake()->image('unc-tre-han.png', 40, 40),
+        ])->assertSessionHasNoErrors()->assertSessionHas('status', fn ($status) => str_contains($status, 'Quá hạn xử lý'));
+        $this->assertSame('approved', $lateRefund->fresh()->status);
+        $this->assertTrue($lateRefund->fresh()->isProcessingOverdue(), 'Xử lý sau hạn vẫn giữ cờ.');
 
         $this->actingAs($this->accountant)->post(route('tuition.refunds.store'), [
             'student_id' => $s4->id, 'type' => 'extension', 'extended_due_date' => '2026-10-05', 'reason' => 'Khất đến kỳ lương.',
@@ -343,12 +386,17 @@ class Phase4AcceptanceTest extends TestCase
 
     public function test_class_duty_report_photo_completes_task_otherwise_main_teacher_confirms(): void
     {
+        // "Gắn lớp" bắt buộc chọn buổi học (buổi thật trong ngày hoặc nhập tên buổi).
+        $this->actingAs($this->academic)->post(route('tasks.ta-assign.store'), [
+            'assistant_id' => $this->assistant->id, 'assign_date' => now()->toDateString(), 'branch_id' => $this->branchA->id,
+            'tasks' => [['category' => 'before', 'content' => 'Mở phòng', 'attach_class' => '1', 'class_id' => $this->class->id]],
+        ])->assertSessionHasErrors('tasks.0.class_session_id');
         $this->actingAs($this->academic)->post(route('tasks.ta-assign.store'), [
             'assistant_id' => $this->assistant->id, 'assign_date' => now()->toDateString(), 'branch_id' => $this->branchA->id,
             'tasks' => [
-                ['category' => 'before', 'content' => 'Mở phòng', 'attach_class' => '1', 'class_id' => $this->class->id],
-                ['category' => 'during', 'content' => 'Hỗ trợ điểm danh', 'attach_class' => '1', 'class_id' => $this->class->id],
-                ['category' => 'after', 'content' => 'Báo cáo trực lớp', 'attach_class' => '1', 'class_id' => $this->class->id],
+                ['category' => 'before', 'content' => 'Mở phòng', 'attach_class' => '1', 'class_id' => $this->class->id, 'session' => 'Buổi 6'],
+                ['category' => 'during', 'content' => 'Hỗ trợ điểm danh', 'attach_class' => '1', 'class_id' => $this->class->id, 'session' => 'Buổi 6'],
+                ['category' => 'after', 'content' => 'Báo cáo trực lớp', 'attach_class' => '1', 'class_id' => $this->class->id, 'session' => 'Buổi 6'],
             ],
         ])->assertSessionHasNoErrors();
         $shifts = WorkTask::where('assignee_id', $this->assistant->id)->get()->keyBy('time_slot_category');
@@ -376,6 +424,30 @@ class Phase4AcceptanceTest extends TestCase
         $this->actingAs($this->teacher)->post(route('tasks.class-reports.approve', $noPhoto->id))->assertSessionHasNoErrors();
         $this->assertSame(['approved', $this->teacher->id], [$noPhoto->fresh()->status, $noPhoto->fresh()->approved_by]);
         $this->assertSame('completed', $shifts['during']->fresh()->status);
+
+        // Q8: lớp chưa có GV chính → người giao việc "Trực lớp" xác nhận; không ảnh + không ai xác nhận → không cho nộp.
+        $noTeacherClass = ClassModel::create([
+            'code' => 'N4A-FAM2', 'name' => 'Lớp N4A FAM 2', 'course_id' => $this->class->course_id, 'branch_id' => $this->branchA->id,
+            'assistant_id' => $this->assistant->id, 'max_capacity' => 12, 'tuition_fee' => 9000000,
+            'status' => 'active', 'start_date' => '2026-08-15', 'end_date' => '2026-12-31',
+        ]);
+        $this->actingAs($this->assistant)->post(route('tasks.class-reports.store'), [
+            'class_id' => $noTeacherClass->id, 'session_name' => 'Buổi 2', 'hom_nay_hoc_gi' => 'Unit 1',
+        ])->assertSessionHasErrors('board_images');
+        $this->actingAs($this->academic)->post(route('tasks.ta-assign.store'), [
+            'assistant_id' => $this->assistant->id, 'assign_date' => now()->toDateString(), 'branch_id' => $this->branchA->id,
+            'tasks' => [['category' => 'after', 'content' => 'Báo cáo trực lớp FAM 2', 'attach_class' => '1', 'class_id' => $noTeacherClass->id, 'session' => 'Buổi 2']],
+        ])->assertSessionHasNoErrors();
+        $duty = WorkTask::where('assignee_id', $this->assistant->id)->where('class_id', $noTeacherClass->id)->sole();
+        $this->actingAs($this->assistant)->post(route('tasks.class-reports.store'), [
+            'class_id' => $noTeacherClass->id, 'session_name' => 'Buổi 2', 'hom_nay_hoc_gi' => 'Unit 1', 'task_id' => $duty->id,
+        ])->assertSessionHasNoErrors();
+        $assignerConfirms = ClassReport::where('class_id', $noTeacherClass->id)->sole();
+        $this->assertSame(['pending_approval', $this->academic->id], [$assignerConfirms->status, $assignerConfirms->confirmer_id]);
+        $this->actingAs($this->teacher)->post(route('tasks.class-reports.approve', $assignerConfirms->id))->assertForbidden();
+        $this->actingAs($this->academic)->post(route('tasks.class-reports.approve', $assignerConfirms->id))->assertSessionHasNoErrors();
+        $this->assertSame('approved', $assignerConfirms->fresh()->status);
+        $this->assertSame('completed', $duty->fresh()->status);
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
