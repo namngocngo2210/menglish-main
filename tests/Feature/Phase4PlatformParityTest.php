@@ -367,6 +367,38 @@ class Phase4PlatformParityTest extends TestCase
         $this->assertFalse($staff->fresh()->hasRole('admin'));
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // Phân quyền cá nhân
+    // ─────────────────────────────────────────────────────────────
+
+    public function test_personal_permission_matrix_uses_checkboxes_scope_and_summary(): void
+    {
+        $teacher = $this->makeUser('teacher', $this->branch);
+        $roleCount = $teacher->getAllPermissions()->count();
+
+        $response = $this->actingAs($this->admin)->get(route('users.permissions.edit', $teacher))->assertOk()
+            ->assertSee('Cấu hình quyền chi tiết')
+            ->assertSee('Ghi chú bảo mật quan trọng')
+            ->assertSeeInOrder(['Xem', 'Thêm', 'Sửa', 'Xóa', 'Phạm vi áp dụng'])
+            ->assertSee('type="checkbox"', false)
+            ->assertSee('Chọn tất cả')->assertSee('Bỏ chọn')->assertSee('Đặt lại mặc định')
+            ->assertSee('Không có quyền truy cập')
+            ->assertSee($roleCount.' thao tác cho phép')
+            ->assertSee('scope[class][type]', false);
+        $this->assertSame($roleCount, $response->viewData('effectiveCount'));
+
+        // Bỏ tích 1 quyền vai trò có (thu hồi) + tích 1 quyền vai trò không có (cấp thêm) theo chi nhánh.
+        $this->actingAs($this->admin)->put(route('users.permissions.update', $teacher), [
+            'overrides' => ['class' => ['view' => 'inherit', 'delete' => 'allow'], 'work_task' => ['view' => 'deny']],
+            'scope' => ['class' => ['type' => 'branch', 'ids' => [$this->branch->id]]],
+        ])->assertSessionHasNoErrors();
+
+        $this->actingAs($this->admin)->get(route('users.permissions.edit', $teacher))->assertOk()
+            ->assertSee('Cấp thêm')->assertSee('Thu hồi')
+            ->assertSee('01 đơn vị quản lý')
+            ->assertSee('Chi nhánh Một');
+    }
+
     public function test_q8_report_form_lists_only_own_classes_and_roster(): void
     {
         $teacher = $this->makeUser('teacher', $this->branch);
