@@ -722,8 +722,10 @@ class NotificationService
     }
 
     /**
-     * Xác định mốc nhắc nợ hiện tại của một hợp đồng học phí theo ngày đến hạn:
-     * chưa tới hạn -> T-3, đúng ngày -> T0, quá hạn -> T+3.
+     * Xác định mốc nhắc nợ hiện tại của một hợp đồng học phí theo ngày đến hạn (dùng khi bấm "Gửi nhắc" tay):
+     * - Đã cấu hình mốc (DebtReminderRule): mốc đang bật gần nhất đã chạm tới (số ngày so với hạn ≤ hiện tại, vd. quá hạn
+     *   12 ngày với mốc T-3/T0/T+3/T+7 → T+7); chưa chạm mốc nào → mốc sớm nhất.
+     * - Chưa cấu hình: chưa tới hạn -> T-3, đúng ngày -> T0, quá hạn -> T+3.
      */
     public static function debtMilestoneFor(StudentTuition $tuition): ?string
     {
@@ -733,6 +735,16 @@ class NotificationService
 
         // Carbon 3 trả về float -> ép int, nếu không `$diff === 0` không bao giờ đúng và mốc T0 bị bỏ qua.
         $diff = (int) round(Carbon::parse($tuition->due_date)->startOfDay()->diffInDays(now()->startOfDay(), false));
+
+        $configured = DebtReminderRule::query()->where('is_enabled', true)->get()
+            ->mapWithKeys(fn (DebtReminderRule $rule) => [$rule->milestone_key => $rule->effectiveOffset()])
+            ->filter(fn ($offset) => $offset !== null)
+            ->sort();
+        if ($configured->isNotEmpty()) {
+            $reached = $configured->filter(fn (int $offset) => $offset <= $diff);
+
+            return $reached->isNotEmpty() ? $reached->keys()->last() : $configured->keys()->first();
+        }
 
         return match (true) {
             $diff < 0 => 'T-3',
