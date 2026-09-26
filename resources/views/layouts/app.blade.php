@@ -30,6 +30,9 @@
         <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
         <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
 
+        {{-- Trạng thái thu gọn sidebar (≥1200px): áp trước khi vẽ để không nháy layout --}}
+        <script>try { if (localStorage.getItem('sidebar_collapsed') === '1') document.documentElement.classList.add('sidebar-collapsed'); } catch (e) {}</script>
+
         {{-- Font & icon được tự host qua Vite (resources/css/app.css) --}}
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
@@ -38,7 +41,7 @@
         <div class="flex min-h-screen flex-col" x-data="{ sidebarOpen: false }" @keydown.escape.window="sidebarOpen = false">
             @include('layouts.navigation')
 
-            <div class="flex min-w-0 flex-1 flex-col md:pl-sidebar-collapsed desktop:pl-sidebar-width">
+            <div class="flex min-w-0 flex-1 flex-col transition-[padding] duration-200 md:pl-sidebar-collapsed desktop:pl-sidebar-width" data-sidebar-shell>
                 {{-- Topbar --}}
                 <header class="sticky top-0 z-30 flex h-header-height shrink-0 items-center justify-between gap-md border-b border-surface-container-highest bg-surface px-md lg:px-lg">
                     <div class="flex min-w-0 flex-1 items-center gap-md lg:gap-lg">
