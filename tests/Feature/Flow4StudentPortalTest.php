@@ -251,9 +251,6 @@ class Flow4StudentPortalTest extends TestCase
         $response->assertSee('2. Lĩnh vực cần góp ý');
         $response->assertSee('3. Nội dung feedback chi tiết');
         $response->assertSee('Gửi feedback');
-        $response->assertSee('Lần đầu');
-        $response->assertSee('Đợt đóng');
-        $response->assertSee('Chưa mở');
     }
 
     /**

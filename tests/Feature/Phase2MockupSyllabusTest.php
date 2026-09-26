@@ -271,7 +271,6 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Chọn giáo viên')
             ->assertSee('Chọn chặng học')
             ->assertSee('Ngày bắt đầu')
-            ->assertSee('Lưu ý nghiệp vụ (R19):')
             ->assertSee('Xác nhận giao chặng')
             ->assertSee('Lịch sử phân quyền chặng học')
             ->assertSee('Cần hỗ trợ?');
@@ -403,7 +402,6 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Nhờ chuẩn bị đề tập trung Speaking')
             ->assertSee('Link đề Big Test (Folder lớp)')
             ->assertSee('Xem trước tệp')
-            ->assertSee('GV chỉ được quyền xem phần Speaking của đề sau khi phân phối.')
             ->assertSee('Từ chối yêu cầu')
             ->assertSee('Phê duyệt &amp; Phân phối', false);
         $this->actingAs($this->academic)->get(route('syllabus.big-tests.distribution', ['order_search' => 'Không có lớp này']))->assertOk()

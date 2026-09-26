@@ -5,7 +5,6 @@
                 <span class="material-symbols-outlined text-primary text-2xl">rule</span>
                 Rà soát điểm danh (Học vụ)
             </h1>
-            <p class="text-xs text-gray-500 mt-0.5">Rà soát dữ liệu điểm danh giáo viên nhập, xử lý các trường hợp vắng học</p>
         </div>
     </x-slot>
 

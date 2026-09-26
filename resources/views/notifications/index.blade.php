@@ -6,7 +6,6 @@
                     <span class="material-symbols-outlined text-rose-600">notifications_active</span>
                     Trung Tâm Cảnh Báo &amp; Thông Báo Quản Trị
                 </h1>
-                <p class="text-xs text-gray-500">Giám sát tự động các Lead bị sót quá 24h chưa chuyển trạng thái, phiếu thu chờ duyệt và sự cố</p>
             </div>
             <div class="flex items-center gap-2">
                 <form action="{{ route('notifications.scan') }}" method="POST" class="inline">
@@ -28,7 +27,7 @@
     </x-slot>
 
     <div class="space-y-6">
-        <!-- Stats Widgets -->
+        {{-- Stats Widgets --}}
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
                 <div>
@@ -61,7 +60,7 @@
             </div>
         </div>
 
-        <!-- Filter Bar -->
+        {{-- Filter Bar --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('notifications.index') }}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition {{ !request('type') && !request('unread') ? 'bg-primary-container text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
@@ -76,7 +75,7 @@
             </div>
         </div>
 
-        <!-- Notifications Stream -->
+        {{-- Notifications Stream --}}
         <div class="space-y-3">
             @forelse ($notifications as $notif)
                 <div class="bg-white rounded-2xl border {{ !$notif->is_read ? 'border-rose-200 bg-rose-50/10 shadow-sm' : 'border-gray-200 opacity-80' }} p-5 transition hover:shadow-md">
@@ -113,7 +112,7 @@
                             </div>
                         </div>
 
-                        <!-- Actions -->
+                        {{-- Actions --}}
                         <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
                             @if ($notif->data && isset($notif->data['customer_id']))
                                 <a href="{{ route('crm.customers.show', $notif->data['customer_id']) }}" class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition inline-flex items-center gap-1">

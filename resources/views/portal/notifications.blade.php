@@ -8,9 +8,8 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-amber-500">notifications</span>
-                        Flow 4 — Bước 5: Danh sách thông báo
+                        Thông báo
                     </h1>
-                    <p class="text-xs text-gray-500">Hộp thư thông báo cập nhật học phí, sinh nhật, khảo sát chất lượng và lịch nghỉ của trung tâm.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -24,11 +23,11 @@
 
     
 
-    <!-- Mobile Frame for Notifications (Matches 04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao) -->
+    {{-- Mobile Frame for Notifications --}}
     <div class="max-w-[430px] mx-auto bg-white min-h-[844px] shadow-2xl rounded-3xl border border-gray-200 overflow-hidden flex flex-col relative pb-24 my-4"
          x-data="{ unreadOnly: false }">
 
-        <!-- Header Partial -->
+        {{-- Header Partial --}}
         @include('portal.partials.top-header', [
             'student' => $student,
             'students' => $students,
@@ -37,7 +36,7 @@
             'backUrl' => route('portal.student.home', ['studentId' => $student?->id])
         ])
 
-        <!-- Contextual Subheader -->
+        {{-- Contextual Subheader --}}
         <div class="px-4 py-3 bg-gray-50/80 border-b border-gray-200 flex items-center justify-between">
             <span class="text-xs font-bold text-gray-800">Tất cả thông báo</span>
             <form action="{{ route('portal.student.notifications.read') }}" method="POST">
@@ -48,7 +47,7 @@
             </form>
         </div>
 
-        <!-- Main Notification List -->
+        {{-- Main Notification List --}}
         <main class="flex-1 overflow-y-auto">
             <div class="divide-y divide-gray-100">
                 @forelse($notifications as $notif)
@@ -66,7 +65,7 @@
                     @endphp
                     <div class="flex items-start px-4 py-3.5 hover:bg-gray-50 transition-colors relative group {{ !$isUnread ? 'opacity-80' : 'bg-orange-50/20' }}">
                         @if($isUnread)
-                            <!-- Unread Indicator Dot -->
+                            {{-- Unread Indicator Dot --}}
                             <div class="absolute left-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-primary-container rounded-full shadow-xs"></div>
                         @endif
 
@@ -87,7 +86,7 @@
                                 {{ $content }}
                             </p>
 
-                            <!-- CRUD Actions for single notification -->
+                            {{-- CRUD Actions for single notification --}}
                             <div class="flex items-center gap-3 mt-2 text-[11px]">
                                 @if($isUnread && $notifId)
                                     <form action="{{ route('portal.student.notifications.read-single', $notifId) }}" method="POST" class="inline">
@@ -125,7 +124,7 @@
             </div>
         </main>
 
-        <!-- Bottom Navigation Bar Component -->
+        {{-- Bottom Navigation Bar Component --}}
         @include('portal.partials.bottom-nav', ['activeTab' => 'notifications', 'student' => $student])
     </div>
 </x-app-layout>

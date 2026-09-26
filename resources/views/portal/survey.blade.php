@@ -8,15 +8,14 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-emerald-600">contact_support</span>
-                        Flow 4 — Bước 6: Khảo sát & Đánh giá chất lượng đào tạo
+                        Khảo sát chất lượng
                     </h1>
-                    <p class="text-xs text-gray-500">Khảo sát mức độ hài lòng của học viên / phụ huynh về cơ sở vật chất, giáo trình và dịch vụ.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
                 <a href="{{ route('portal.student.feedback', ['studentId' => $student?->id]) }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 transition shadow-sm">
                     <span class="material-symbols-outlined text-[18px]">rate_review</span>
-                    <span>Đánh giá chặng học (MH6)</span>
+                    <span>Đánh giá chặng học</span>
                 </a>
             </div>
         </div>
@@ -24,7 +23,7 @@
 
     
 
-    <!-- Mobile Frame for Survey (Matches 04_Cong_Phu_Huynh_Hoc_Sinh/06_khao_sat) -->
+    {{-- Mobile Frame for Survey --}}
     <div class="max-w-[430px] mx-auto bg-white min-h-[844px] shadow-2xl rounded-3xl border border-gray-200 overflow-hidden flex flex-col relative pb-24 my-4"
          x-data="{
             selectedSurvey: 'Đánh giá chất lượng cơ sở vật chất tháng 10',
@@ -38,7 +37,7 @@
             }
          }">
 
-        <!-- Header Partial -->
+        {{-- Header Partial --}}
         @include('portal.partials.top-header', [
             'student' => $student,
             'students' => $students,
@@ -47,7 +46,7 @@
             'backUrl' => route('portal.student.home', ['studentId' => $student?->id])
         ])
 
-        <!-- Subtab Switcher: Khảo sát chung vs Feedback chặng -->
+        {{-- Subtab Switcher: Khảo sát chung vs Feedback chặng --}}
         <div class="flex items-center border-b border-gray-200 bg-gray-50 px-3 pt-2">
             <a href="{{ route('portal.student.survey', ['studentId' => $student?->id]) }}"
                class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-primary-container text-primary font-bold text-xs">
@@ -57,19 +56,19 @@
             <a href="{{ route('portal.student.feedback', ['studentId' => $student?->id]) }}"
                class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-transparent text-gray-500 hover:text-gray-900 font-semibold text-xs transition">
                 <span class="material-symbols-outlined text-[16px]">rate_review</span>
-                <span>Feedback chặng học (MH6)</span>
+                <span>Feedback chặng học</span>
             </a>
         </div>
 
-        <!-- Main Content -->
+        {{-- Main Content --}}
         <main class="w-full p-4 space-y-4 flex-1 overflow-y-auto">
-            <!-- Header Context -->
+            {{-- Header Context --}}
             <div class="pt-1">
                 <h2 class="text-xl font-bold text-gray-900">Khảo sát &amp; Đánh giá</h2>
                 <p class="text-xs text-gray-500 mt-0.5">Hãy chia sẻ ý kiến của bạn để chúng tôi nâng cao chất lượng dịch vụ đào tạo.</p>
             </div>
 
-            <!-- Section 1: Khảo sát đang mở -->
+            {{-- Section 1: Khảo sát đang mở --}}
             <section class="space-y-2">
                 <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Khảo sát đang mở</h3>
 
@@ -96,7 +95,7 @@
                 @endforeach
             </section>
 
-            <!-- Section 2: Form Phản Hồi -->
+            {{-- Section 2: Form Phản Hồi --}}
             <section class="bg-gray-50/80 border border-gray-200 rounded-2xl p-4 shadow-2xs space-y-3">
                 <div class="border-b border-gray-200 pb-2.5">
                     <h3 class="text-xs font-bold text-gray-900">Nội dung phản hồi</h3>
@@ -144,7 +143,7 @@
                 </form>
             </section>
 
-            <!-- History of Submissions with Delete CRUD -->
+            {{-- History of Submissions with Delete CRUD --}}
             @if(isset($pastSurveys) && $pastSurveys->isNotEmpty())
                 <section class="space-y-2 pt-2">
                     <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Khảo sát đã gửi</h3>
@@ -173,7 +172,7 @@
             @endif
         </main>
 
-        <!-- Bottom Navigation Bar Component -->
+        {{-- Bottom Navigation Bar Component --}}
         @include('portal.partials.bottom-nav', ['activeTab' => 'survey', 'student' => $student])
     </div>
 </x-app-layout>

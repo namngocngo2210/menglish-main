@@ -35,11 +35,11 @@
             @csrf
             @method('PUT')
 
-            <!-- Hidden synchronized questions payload -->
+            {{-- Hidden synchronized questions payload --}}
             <input type="hidden" name="questions" x-ref="questionsInput" :value="JSON.stringify(questions)" />
             <input type="hidden" name="questions_count" x-ref="questionsCountInput" :value="questions.length" />
 
-            <!-- 1. General Test Info -->
+            {{-- 1. General Test Info --}}
             <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
                 <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider pb-2 border-b border-gray-100 flex items-center justify-between">
                     <span class="flex items-center gap-2">
@@ -83,7 +83,7 @@
                 </div>
             </div>
 
-            <!-- 2. Question Builder (Trình soạn thảo câu hỏi đa định dạng) -->
+            {{-- 2. Question Builder (Trình soạn thảo câu hỏi đa định dạng) --}}
             <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
                     <div>
@@ -105,7 +105,7 @@
                     </button>
                 </div>
 
-                <!-- Skill Filter Tabs -->
+                {{-- Skill Filter Tabs --}}
                 <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
                     <button 
                         type="button" 
@@ -162,7 +162,7 @@
                     </button>
                 </div>
 
-                <!-- Questions List Container -->
+                {{-- Questions List Container --}}
                 <div class="space-y-3.5">
                     <template x-for="(q, idx) in filteredQuestions" :key="q.id || idx">
                         <div class="bg-gray-50/90 rounded-2xl p-4 border border-gray-200/90 hover:border-teal-500/50 hover:bg-white transition shadow-xs group">
@@ -170,7 +170,7 @@
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <span class="w-6 h-6 rounded-lg bg-gray-900 text-white flex items-center justify-center font-mono font-bold text-xs" x-text="'#' + (idx + 1)"></span>
                                     
-                                    <!-- Skill Badge -->
+                                    {{-- Skill Badge --}}
                                     <span 
                                         class="px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider"
                                         :class="{
@@ -183,13 +183,13 @@
                                         x-text="getSkillLabel(q.skill)"
                                     ></span>
 
-                                    <!-- Type Badge -->
+                                    {{-- Type Badge --}}
                                     <span class="px-2 py-0.5 rounded-md bg-gray-200/70 text-gray-700 text-[10px] font-semibold" x-text="getTypeLabel(q.type)"></span>
 
                                     <span class="text-[11px] text-gray-400 font-medium" x-text="'(' + (q.points || 1) + ' điểm)'"></span>
                                 </div>
 
-                                <!-- Action Buttons -->
+                                {{-- Action Buttons --}}
                                 <div class="flex items-center gap-1 shrink-0">
                                     <button 
                                         type="button" 
@@ -236,10 +236,10 @@
                                 </div>
                             </div>
 
-                            <!-- Question Title -->
+                            {{-- Question Title --}}
                             <div class="text-xs font-bold text-gray-900 mb-2 leading-relaxed" x-text="q.title"></div>
 
-                            <!-- Audio attachment preview if any -->
+                            {{-- Audio attachment preview if any --}}
                             <template x-if="q.audio_url">
                                 <div class="mb-2.5 p-2 rounded-xl bg-indigo-50/70 border border-indigo-100 flex items-center gap-2 text-xs">
                                     <span class="material-symbols-outlined text-indigo-600 text-base">volume_up</span>
@@ -247,12 +247,12 @@
                                 </div>
                             </template>
 
-                            <!-- Reading Passage preview if any -->
+                            {{-- Reading Passage preview if any --}}
                             <template x-if="q.passage">
                                 <div class="mb-2.5 p-2.5 rounded-xl bg-blue-50/50 border border-blue-100 text-[11px] text-gray-700 italic line-clamp-2" x-text="'Đoạn văn: ' + q.passage"></div>
                             </template>
 
-                            <!-- Multiple Choice Options preview -->
+                            {{-- Multiple Choice Options preview --}}
                             <template x-if="q.type === 'multiple_choice' && q.options">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                                     <template x-for="opt in q.options" :key="opt.key">
@@ -274,7 +274,7 @@
                                 </div>
                             </template>
 
-                            <!-- Fill in the blank preview -->
+                            {{-- Fill in the blank preview --}}
                             <template x-if="q.type === 'fill_blank'">
                                 <div class="p-2 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center gap-2">
                                     <span class="material-symbols-outlined text-amber-600 text-sm">spellcheck</span>
@@ -282,7 +282,7 @@
                                 </div>
                             </template>
 
-                            <!-- Essay preview -->
+                            {{-- Essay preview --}}
                             <template x-if="q.type === 'essay'">
                                 <div class="p-2.5 rounded-xl bg-purple-50 border border-purple-200 text-[11px] text-purple-900 space-y-1">
                                     <div><strong>Yêu cầu số từ:</strong> <span x-text="q.min_words || 100"></span> từ trở lên</div>
@@ -292,14 +292,14 @@
                                 </div>
                             </template>
 
-                            <!-- Speaking Cue Points preview -->
+                            {{-- Speaking Cue Points preview --}}
                             <template x-if="q.type === 'speaking_prompt'">
                                 <div class="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-[11px] text-rose-900 whitespace-pre-line" x-text="q.cue_points || 'Gợi ý trả lời vấn đáp...'"></div>
                             </template>
                         </div>
                     </template>
 
-                    <!-- Empty state -->
+                    {{-- Empty state --}}
                     <template x-if="filteredQuestions.length === 0">
                         <div class="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-300">
                             <span class="material-symbols-outlined text-4xl text-gray-300 mb-2">quiz</span>
@@ -310,7 +310,7 @@
                 </div>
             </div>
 
-            <!-- Form Actions -->
+            {{-- Form Actions --}}
             <div class="flex items-center justify-between pt-4 border-t border-gray-100 bg-white rounded-2xl p-4 border shadow-xs">
                 <a href="{{ route('placement-tests.index') }}" class="px-4 py-2 border border-gray-200 text-xs font-semibold text-gray-700 rounded-xl hover:bg-gray-50 transition">
                     Hủy bỏ
@@ -322,7 +322,7 @@
             </div>
         </form>
 
-        <!-- 3. Modal Soạn Thảo / Chỉnh Sửa Câu Hỏi (Question Modal) -->
+        {{-- 3. Modal Soạn Thảo / Chỉnh Sửa Câu Hỏi (Question Modal) --}}
         <div 
             x-show="showModal" 
             x-cloak 
@@ -352,7 +352,7 @@
                 </div>
 
                 <div class="p-6 space-y-4 max-h-[calc(85vh-130px)] overflow-y-auto text-xs">
-                    <!-- Skill & Type row -->
+                    {{-- Skill & Type row --}}
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block font-semibold text-gray-700 mb-1">Kỹ năng (Skill) <span class="text-rose-500">*</span></label>
@@ -375,7 +375,7 @@
                         </div>
                     </div>
 
-                    <!-- Audio URL (If listening) -->
+                    {{-- Audio URL (If listening) --}}
                     <template x-if="modalForm.skill === 'listening'">
                         <div class="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 space-y-1.5">
                             <label class="block font-semibold text-indigo-950">Đường dẫn file Audio MP3 (Audio URL)</label>
@@ -384,7 +384,7 @@
                         </div>
                     </template>
 
-                    <!-- Reading Passage (If reading) -->
+                    {{-- Reading Passage (If reading) --}}
                     <template x-if="modalForm.skill === 'reading'">
                         <div class="p-3 bg-blue-50/60 rounded-xl border border-blue-100 space-y-1.5">
                             <label class="block font-semibold text-blue-950">Đoạn văn bài đọc (Reading Passage - tùy chọn)</label>
@@ -392,13 +392,13 @@
                         </div>
                     </template>
 
-                    <!-- Question Title / Prompt -->
+                    {{-- Question Title / Prompt --}}
                     <div>
                         <label class="block font-semibold text-gray-700 mb-1">Nội dung câu hỏi / Đề bài <span class="text-rose-500">*</span></label>
                         <textarea x-model="modalForm.title" rows="2" placeholder="Ví dụ: What is the main idea of the passage?" required class="w-full text-xs rounded-xl border border-gray-200 p-2.5 font-bold focus:border-teal-500 focus:ring-teal-500"></textarea>
                     </div>
 
-                    <!-- Multiple Choice Options Form -->
+                    {{-- Multiple Choice Options Form --}}
                     <template x-if="modalForm.type === 'multiple_choice'">
                         <div class="space-y-3 pt-2 border-t border-gray-100">
                             <label class="block font-semibold text-gray-700">4 Lựa chọn trả lời &amp; Tích chọn đáp án đúng:</label>
@@ -425,7 +425,7 @@
                         </div>
                     </template>
 
-                    <!-- Fill in blank Form -->
+                    {{-- Fill in blank Form --}}
                     <template x-if="modalForm.type === 'fill_blank'">
                         <div class="space-y-2 pt-2 border-t border-gray-100">
                             <label class="block font-semibold text-gray-700">Từ / Cụm từ đáp án chính xác:</label>
@@ -433,7 +433,7 @@
                         </div>
                     </template>
 
-                    <!-- Essay Form -->
+                    {{-- Essay Form --}}
                     <template x-if="modalForm.type === 'essay'">
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-100">
                             <div>
@@ -447,7 +447,7 @@
                         </div>
                     </template>
 
-                    <!-- Speaking Prompt Form -->
+                    {{-- Speaking Prompt Form --}}
                     <template x-if="modalForm.type === 'speaking_prompt'">
                         <div class="space-y-2 pt-2 border-t border-gray-100">
                             <label class="block font-semibold text-gray-700">Gợi ý trả lời / Cue card points:</label>
@@ -455,7 +455,7 @@
                         </div>
                     </template>
 
-                    <!-- Explanation & Points -->
+                    {{-- Explanation & Points --}}
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-100">
                         <div class="sm:col-span-2">
                             <label class="block font-semibold text-gray-700 mb-1">Giải thích đáp án / Hướng dẫn (Tùy chọn):</label>

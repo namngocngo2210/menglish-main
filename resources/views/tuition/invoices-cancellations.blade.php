@@ -35,14 +35,14 @@
             </div>
         @endif
 
-        <!-- Header Panel: Thống kê & Báo cáo nhanh -->
+        {{-- Header Panel: Thống kê & Báo cáo nhanh --}}
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
             <div>
                 <h2 class="text-base font-bold text-slate-900">Báo cáo kiểm toán dải số hóa đơn &amp; yêu cầu hủy</h2>
                 <p class="text-xs text-slate-500">Mọi thao tác duyệt hủy đều kích hoạt cơ chế trừ lùi doanh thu và hoàn trả công nợ học viên tự động</p>
             </div>
 
-            <!-- Thẻ tóm tắt chỉ số -->
+            {{-- Thẻ tóm tắt chỉ số --}}
             <div class="flex items-center gap-3 text-xs">
                 <div class="bg-amber-50/80 border border-amber-200/80 px-4 py-2.5 rounded-xl text-right">
                     <div class="text-[10px] font-bold text-amber-700 uppercase">Chờ duyệt hủy</div>
@@ -59,7 +59,7 @@
             </div>
         </div>
 
-        <!-- Banner cảnh báo nghiệp vụ quan trọng -->
+        {{-- Banner cảnh báo nghiệp vụ quan trọng --}}
         <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
             <span class="material-symbols-outlined text-blue-600 mt-0.5 text-xl">info</span>
             <div class="text-xs text-blue-900 space-y-1">
@@ -71,7 +71,7 @@
             </div>
         </div>
 
-        <!-- Thanh lọc & tìm kiếm -->
+        {{-- Thanh lọc & tìm kiếm --}}
         <form method="GET" action="{{ route('tuition.invoices.cancellations') }}" class="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 text-xs">
             <div class="flex flex-wrap items-center gap-3">
                 <div class="relative w-72">
@@ -109,9 +109,9 @@
             </div>
         </form>
 
-        <!-- Bố cục Master - Detail: Danh sách chờ duyệt (5 cột) & Chi tiết đối soát (7 cột) -->
+        {{-- Bố cục Master - Detail: Danh sách chờ duyệt (5 cột) & Chi tiết đối soát (7 cột) --}}
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-            <!-- CỘT TRÁI (5 Cột): Danh sách yêu cầu chờ duyệt -->
+            {{-- CỘT TRÁI (5 Cột): Danh sách yêu cầu chờ duyệt --}}
             <div class="lg:col-span-5 space-y-4 min-w-0">
                 <div class="flex items-center justify-between">
                     <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
@@ -207,7 +207,7 @@
                 </div>
             </div>
 
-            <!-- CỘT PHẢI (7 Cột): Chi tiết phiếu thu & Thao tác phê duyệt của Admin -->
+            {{-- CỘT PHẢI (7 Cột): Chi tiết phiếu thu & Thao tác phê duyệt của Admin --}}
             <div class="lg:col-span-7 space-y-5 min-w-0">
                 @if ($selectedCancellation)
                     @php
@@ -218,7 +218,7 @@
                     @endphp
 
                     <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 md:p-6 space-y-5">
-                        <!-- Tiêu đề chi tiết & Trạng thái kép -->
+                        {{-- Tiêu đề chi tiết & Trạng thái kép --}}
                         <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-200">
                             <div>
                                 <div class="flex items-center gap-2.5">
@@ -242,7 +242,7 @@
                                 </p>
                             </div>
 
-                            <!-- Trạng thái kép rõ ràng -->
+                            {{-- Trạng thái kép rõ ràng --}}
                             <div class="flex flex-col items-end gap-1 text-xs">
                                 <div class="flex items-center gap-2">
                                     <span class="text-slate-500">Trạng thái phiếu thu:</span>
@@ -259,7 +259,7 @@
                             </div>
                         </div>
 
-                        <!-- Khối 1: Lý do yêu cầu hủy (Nổi bật nhất) -->
+                        {{-- Khối 1: Lý do yêu cầu hủy (Nổi bật nhất) --}}
                         <div class="p-4 bg-rose-50 border border-rose-200 rounded-xl space-y-2">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-2 text-rose-900 font-bold text-xs uppercase">
@@ -288,7 +288,7 @@
                             </div>
                         </div>
 
-                        <!-- Khối 2: Tác động tài chính & Hoàn tác công nợ tự động (R-11) -->
+                        {{-- Khối 2: Tác động tài chính & Hoàn tác công nợ tự động (R-11) --}}
                         <div class="p-4 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2 text-xs">
                             <div class="flex items-center gap-2 text-amber-950 font-bold text-xs uppercase">
                                 <span class="material-symbols-outlined text-amber-600 text-base">sync_alt</span>
@@ -307,7 +307,7 @@
                             </ul>
                         </div>
 
-                        <!-- Khối 3: Thông tin chi tiết phiếu thu gốc bị hủy -->
+                        {{-- Khối 3: Thông tin chi tiết phiếu thu gốc bị hủy --}}
                         <div class="space-y-3">
                             <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Thông tin phiếu thu gốc</h4>
 
@@ -344,7 +344,7 @@
                                 </div>
                             </div>
 
-                            <!-- Bảng kê các khoản tiền trên hóa đơn -->
+                            {{-- Bảng kê các khoản tiền trên hóa đơn --}}
                             <div class="border border-slate-200 rounded-xl overflow-hidden text-xs">
                                 <table class="w-full text-left">
                                     <thead class="bg-slate-100/80 text-slate-700 border-b border-slate-200 font-semibold text-[11px]">
@@ -379,7 +379,7 @@
                                 </table>
                             </div>
 
-                            <!-- Xem trước ảnh hóa đơn bị hỏng/viết sai -->
+                            {{-- Xem trước ảnh hóa đơn bị hỏng/viết sai --}}
                             <div class="border border-slate-200 rounded-xl p-4 space-y-2">
                                 <div class="flex items-center justify-between text-xs">
                                     <span class="font-bold text-slate-800 flex items-center gap-1.5">
@@ -404,7 +404,7 @@
                             </div>
                         </div>
 
-                        <!-- Khu vực hành động của Admin (Có xác nhận lần 2) -->
+                        {{-- Khu vực hành động của Admin (Có xác nhận lần 2) --}}
                         <div class="pt-4 border-t border-slate-200 space-y-3">
                             <div class="text-[11px] text-slate-500 flex items-center justify-between">
                                 <span>Quyền thực hiện: <strong class="text-slate-700">Duyệt hủy hóa đơn</strong> (mặc định Admin)@if ($canApproveCancel) — {{ Auth::user()->name }}@endif</span>
@@ -460,7 +460,7 @@
                         </div>
                     </div>
 
-                    <!-- MODAL XÁC NHẬN LẦN 2 KHI DUYỆT HỦY -->
+                    {{-- MODAL XÁC NHẬN LẦN 2 KHI DUYỆT HỦY --}}
                     <div x-show="showConfirmModal" x-cloak x-transition class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
                         <div class="bg-white max-w-md w-full rounded-2xl shadow-2xl border border-slate-200 overflow-hidden" @click.away="showConfirmModal = false">
                             <div class="p-6 space-y-4">
@@ -507,7 +507,7 @@
                         </div>
                     </div>
 
-                    <!-- MODAL TỪ CHỐI DUYỆT HỦY -->
+                    {{-- MODAL TỪ CHỐI DUYỆT HỦY --}}
                     <div x-show="showRejectModal" x-cloak x-transition class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
                         <div class="bg-white max-w-md w-full rounded-2xl shadow-2xl border border-slate-200 overflow-hidden" @click.away="showRejectModal = false">
                             <div class="p-6 space-y-4">
@@ -547,7 +547,7 @@
         </div>
     </div>
 
-    <!-- MODAL TẠO YÊU CẦU HỦY MỚI (Từ Header) -->
+    {{-- MODAL TẠO YÊU CẦU HỦY MỚI (Từ Header) --}}
     <div id="newCancelModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
             <div class="flex justify-between items-center pb-2 border-b border-slate-100">

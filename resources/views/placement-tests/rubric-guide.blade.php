@@ -22,7 +22,7 @@
 
     <div class="max-w-6xl mx-auto space-y-6" x-data="rubricApp({{ Js::from(\App\Services\PlacementRubricService::clientConfig()) }})">
         
-        <!-- Header Banner -->
+        {{-- Header Banner --}}
         <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 text-white rounded-2xl p-6 shadow-md border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div class="space-y-1">
                 <div class="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-wider">
@@ -43,7 +43,7 @@
             </div>
         </div>
 
-        <!-- Interactive Score Simulator Card -->
+        {{-- Interactive Score Simulator Card --}}
         <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div class="flex items-center gap-2 text-slate-900 font-bold text-sm">
@@ -88,7 +88,7 @@
             </div>
         </div>
 
-        <!-- Rubric Navigation Tabs -->
+        {{-- Rubric Navigation Tabs --}}
         <div class="space-y-4">
             <div class="flex flex-wrap gap-2 border-b border-slate-200 pb-2">
                 <button type="button" @click="activeTab = 'tab1'" :class="activeTab === 'tab1' ? 'bg-orange-600 text-white font-bold border-orange-600 shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'" class="px-4 py-2 text-xs font-semibold rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer">
@@ -105,7 +105,7 @@
                 </button>
             </div>
 
-            <!-- TAB 1: KHỐI 1 - 2 -->
+            {{-- TAB 1: KHỐI 1 - 2 --}}
             <div x-show="activeTab === 'tab1'" class="space-y-4">
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="bg-slate-900 text-white px-5 py-3 flex justify-between items-center">
@@ -193,7 +193,7 @@
                 </div>
             </div>
 
-            <!-- TAB 2: KHỐI 2 LÊN 3 -->
+            {{-- TAB 2: KHỐI 2 LÊN 3 --}}
             <div x-show="activeTab === 'tab2'" class="space-y-4">
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="bg-slate-900 text-white px-5 py-3 flex justify-between items-center">
@@ -281,7 +281,7 @@
                 </div>
             </div>
 
-            <!-- TAB 3: KHỐI 3 LÊN 4 -->
+            {{-- TAB 3: KHỐI 3 LÊN 4 --}}
             <div x-show="activeTab === 'tab3'" class="space-y-4">
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="bg-slate-900 text-white px-5 py-3 flex justify-between items-center">
@@ -369,7 +369,7 @@
                 </div>
             </div>
 
-            <!-- TAB 4: KHỐI 4 LÊN 5 -->
+            {{-- TAB 4: KHỐI 4 LÊN 5 --}}
             <div x-show="activeTab === 'tab4'" class="space-y-4">
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="bg-slate-900 text-white px-5 py-3 flex justify-between items-center">

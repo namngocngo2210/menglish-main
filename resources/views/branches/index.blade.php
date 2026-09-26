@@ -14,7 +14,6 @@
                     <span class="material-symbols-outlined text-indigo-600">apartment</span>
                     <span>Quản Lý Cơ Sở &amp; Chi Nhánh Trung Tâm</span>
                 </h1>
-                <p class="text-xs text-gray-500">Cấu hình danh sách các chi nhánh cơ sở hoạt động trên toàn hệ thống MEnglish</p>
             </div>
 
             <div class="flex items-center gap-2 flex-wrap">
@@ -35,7 +34,7 @@
         }
     }">
 
-        <!-- Flash messages -->
+        {{-- Flash messages --}}
 
         @if (session('error') || $errors->any())
             <div class="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-semibold text-rose-800 flex items-center gap-2 shadow-2xs">
@@ -44,7 +43,7 @@
             </div>
         @endif
 
-        <!-- Quick Stats Overview -->
+        {{-- Quick Stats Overview --}}
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
@@ -87,7 +86,7 @@
             </div>
         </div>
 
-        <!-- Filter & Search Bar -->
+        {{-- Filter & Search Bar --}}
         <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
             <form action="{{ route('branches.index') }}" method="GET" class="flex items-center gap-2 w-full sm:w-auto flex-1">
                 <div class="relative flex-1 sm:max-w-xs">
@@ -110,7 +109,7 @@
             </div>
         </div>
 
-        <!-- Branches Table List -->
+        {{-- Branches Table List --}}
         <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse text-xs">
@@ -205,9 +204,9 @@
             </div>
         </div>
 
-        <!-- ────────────────────────────────────────────── -->
-        <!-- MODAL: THÊM CHI NHÁNH MỚI -->
-        <!-- ────────────────────────────────────────────── -->
+        {{-- ────────────────────────────────────────────── --}}
+        {{-- MODAL: THÊM CHI NHÁNH MỚI --}}
+        {{-- ────────────────────────────────────────────── --}}
         <div id="createBranchModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
                 <div class="flex justify-between items-center pb-2 border-b border-gray-100">
@@ -256,9 +255,9 @@
             </div>
         </div>
 
-        <!-- ────────────────────────────────────────────── -->
-        <!-- MODAL: SỬA CHI NHÁNH -->
-        <!-- ────────────────────────────────────────────── -->
+        {{-- ────────────────────────────────────────────── --}}
+        {{-- MODAL: SỬA CHI NHÁNH --}}
+        {{-- ────────────────────────────────────────────── --}}
         <div x-show="editModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" style="display: none;">
             <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl" @click.outside="editModal = false">
                 <div class="flex justify-between items-center pb-2 border-b border-gray-100">

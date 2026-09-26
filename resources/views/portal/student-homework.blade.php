@@ -8,9 +8,8 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">upload_file</span>
-                        Học tập của tôi — Nộp bài tập (Cổng Học sinh / Phụ huynh)
+                        Học tập & Nộp bài tập
                     </h1>
-                    <p class="text-xs text-gray-500">Màn hình học sinh / phụ huynh theo dõi nhận xét buổi học, bảng điểm Mini/Big Test và thực hiện nộp bài tập về nhà.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -43,7 +42,7 @@
             this.editModal = true;
         }
     }">
-        <!-- Student Switcher Bar (For Testing / Admin Viewing) -->
+        {{-- Student Switcher Bar (For Testing / Admin Viewing) --}}
         <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-full bg-primary-container/10 text-primary flex items-center justify-center font-bold">
@@ -69,9 +68,9 @@
             </div>
         </div>
 
-        <!-- Student Mobile Frame: Exact Match to 04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap -->
+        {{-- Student Mobile Frame --}}
         <div class="max-w-[420px] mx-auto bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden pb-8">
-            <!-- Decorative Header Area -->
+            {{-- Decorative Header Area --}}
             <div class="w-full h-[140px] bg-gradient-to-br from-primary-container to-orange-400 p-6 flex flex-col justify-end text-white relative">
                 <div class="absolute top-3 right-3 bg-white/20 backdrop-blur-xs px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase">
                     MENGLISH LMS
@@ -80,7 +79,7 @@
                 <p class="text-xs text-white/80 mt-0.5">Lớp: {{ $student?->currentClass?->name ?? 'Chưa xếp lớp' }}</p>
             </div>
 
-            <!-- Subtab Switcher: Nộp bài tập / Luyện phát âm -->
+            {{-- Subtab Switcher: Nộp bài tập / Luyện phát âm --}}
             <div class="flex items-center border-b border-gray-200 bg-gray-50 px-3 pt-2">
                 <a href="{{ route('portal.student.homework', ['studentId' => $student?->id]) }}"
                    class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-primary-container text-primary font-bold text-xs">
@@ -95,7 +94,7 @@
             </div>
 
             <div class="px-4 flex flex-col gap-6 mt-4 pb-20">
-                <!-- 1. BÁO CÁO BUỔI HỌC -->
+                {{-- 1. BÁO CÁO BUỔI HỌC --}}
                 <section class="flex flex-col gap-2.5">
                     <div class="flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-primary text-xl">insights</span>
@@ -137,7 +136,7 @@
                     @endforelse
                 </section>
 
-                <!-- 2. BẢNG ĐIỂM -->
+                {{-- 2. BẢNG ĐIỂM --}}
                 <section class="flex flex-col gap-2.5">
                     <div class="flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-primary text-xl">school</span>
@@ -173,14 +172,14 @@
                     </div>
                 </section>
 
-                <!-- 3. BÀI TẬP VỀ NHÀ (INTERACTIVE SUBMISSION) -->
+                {{-- 3. BÀI TẬP VỀ NHÀ (INTERACTIVE SUBMISSION) --}}
                 <section class="flex flex-col gap-2.5">
                     <div class="flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-primary text-xl">assignment</span>
                         <h2 class="text-base font-bold text-gray-900">Bài tập về nhà</h2>
                     </div>
 
-                    <!-- Bài tập giáo viên giao gần nhất -->
+                    {{-- Bài tập giáo viên giao gần nhất --}}
                     @if($latestHomework)
                         <div class="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 flex gap-2.5">
                             <span class="material-symbols-outlined text-rose-500 text-[20px] shrink-0">campaign</span>
@@ -241,7 +240,7 @@
                         ];
                     @endphp
 
-                    <!-- Progress Bar -->
+                    {{-- Progress Bar --}}
                     <div class="flex items-center justify-between mt-1">
                         <p class="text-xs font-bold text-gray-800">Đã hoàn thành: {{ $completedCount }}/6 hạng mục</p>
                         <div class="w-1/3 bg-gray-100 rounded-full h-2 overflow-hidden">
@@ -249,7 +248,7 @@
                         </div>
                     </div>
 
-                    <!-- Homework Cards List (Real DB Integration) -->
+                    {{-- Homework Cards List (Real DB Integration) --}}
                     <div class="flex flex-col gap-2.5">
                         @foreach($homeworkCategories as $key => $cat)
                             @php
@@ -303,7 +302,7 @@
                                         @endif
                                     </div>
 
-                                    <!-- CRUD Actions: Sửa ghi chú / Nộp lại & Hủy nộp -->
+                                    {{-- CRUD Actions: Sửa ghi chú / Nộp lại & Hủy nộp --}}
                                     <div class="flex items-center gap-2 pt-1">
                                         <button type="button"
                                                 @click="openEdit({{ $sub->id }}, '{{ addslashes($sub->data['notes'] ?? '') }}')"
@@ -340,7 +339,7 @@
                     </div>
                 </section>
 
-                <!-- 4. LỘ TRÌNH HỌC TẬP -->
+                {{-- 4. LỘ TRÌNH HỌC TẬP --}}
                 <section class="flex flex-col gap-2.5">
                     <div class="flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-primary text-xl">map</span>
@@ -361,11 +360,11 @@
                 </section>
             </div>
 
-            <!-- Bottom Navigation Bar Component -->
+            {{-- Bottom Navigation Bar Component --}}
             @include('portal.partials.bottom-nav', ['activeTab' => 'learning', 'student' => $student])
         </div>
 
-        <!-- Upload Modal (Submits real homework record) -->
+        {{-- Upload Modal (Submits real homework record) --}}
         <div x-show="uploadModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
             <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4" @click.away="uploadModal = false">
                 <div class="flex justify-between items-center border-b pb-3">
@@ -410,7 +409,7 @@
                 </form>
             </div>
         </div>
-        <!-- Edit Modal (Updates existing homework submission) -->
+        {{-- Edit Modal (Updates existing homework submission) --}}
         <div x-show="editModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
             <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4" @click.away="editModal = false">
                 <div class="flex justify-between items-center border-b pb-3">

@@ -17,7 +17,7 @@
 </head>
 <body class="font-sans antialiased text-slate-900 bg-slate-100 min-h-screen py-6 px-3 sm:px-6">
 
-    <!-- Top Action Floating Bar -->
+    {{-- Top Action Floating Bar --}}
     <div class="max-w-4xl mx-auto mb-4 flex items-center justify-between no-print">
         <div class="flex items-center gap-2">
             @auth
@@ -36,13 +36,13 @@
         </div>
     </div>
 
-    <!-- Official MEnglish Scorecard Template Sheet -->
+    {{-- Official MEnglish Scorecard Template Sheet --}}
     <main class="scorecard-sheet max-w-4xl mx-auto bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-10 space-y-6">
         
-        <!-- 1. Header (Logo, Center Title, Hotline & Campuses) -->
+        {{-- 1. Header (Logo, Center Title, Hotline & Campuses) --}}
         <div class="border-b-2 border-orange-500 pb-5">
             <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <!-- Logo & Brand Slogan -->
+                {{-- Logo & Brand Slogan --}}
                 <div class="flex items-center gap-3">
                     <img src="/images/menglish-logo.png" alt="ME Education Logo" class="h-16 w-auto object-contain">
                     <div>
@@ -52,7 +52,7 @@
                     </div>
                 </div>
 
-                <!-- Main Assessment Title -->
+                {{-- Main Assessment Title --}}
                 <div class="text-center sm:text-right space-y-1">
                     <h1 class="text-xl sm:text-2xl font-black text-orange-600 uppercase tracking-tight">
                         BẢN ĐÁNH GIÁ NĂNG LỰC TIẾNG ANH
@@ -65,7 +65,7 @@
                 </div>
             </div>
 
-            <!-- Campus Locations Footer Line -->
+            {{-- Campus Locations Footer Line --}}
             <div class="mt-3 pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between text-[11px] text-slate-600 gap-2">
                 @foreach (\App\Support\CenterInfo::branches() as $centerBranch)
                     <span><strong>{{ $centerBranch->name }}:</strong> {{ $centerBranch->address }}</span>
@@ -73,7 +73,7 @@
             </div>
         </div>
 
-        <!-- 2. Thông tin thí sinh: chỉ hiển thị đúng những gì thí sinh đã nhập khi làm bài -->
+        {{-- 2. Thông tin thí sinh: chỉ hiển thị đúng những gì thí sinh đã nhập khi làm bài --}}
         <div class="p-4 rounded-2xl bg-orange-50/50 border border-orange-200/80 space-y-2.5">
             <div class="flex items-center gap-1.5 text-xs font-black text-orange-800 uppercase tracking-wider pb-1.5 border-b border-orange-200">
                 <span class="material-symbols-outlined text-base text-orange-600">person</span>
@@ -102,7 +102,7 @@
             </div>
         @endif
 
-        <!-- 3. MỤC TIÊU HỌC TIẾNG ANH (Goals Checklist) -->
+        {{-- 3. MỤC TIÊU HỌC TIẾNG ANH (Goals Checklist) --}}
         <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2.5">
             <div class="flex items-center gap-1.5 text-xs font-black text-slate-900 uppercase tracking-wider">
                 <span class="material-symbols-outlined text-base text-orange-600">flag</span>
@@ -136,7 +136,7 @@
             </div>
         </div>
 
-        <!-- 4. KẾT QUẢ ĐÁNH GIÁ NĂNG LỰC (Band Track & 4 Skills Score Table - Light Theme) -->
+        {{-- 4. KẾT QUẢ ĐÁNH GIÁ NĂNG LỰC (Band Track & 4 Skills Score Table - Light Theme) --}}
         <div class="p-5 rounded-2xl bg-white border-2 border-slate-200/90 shadow-xs space-y-4">
             <div class="flex items-center justify-between pb-2 border-b border-slate-100">
                 <div class="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-900">
@@ -148,7 +148,7 @@
                 </div>
             </div>
 
-            <!-- Cambridge / CEFR Level Progression Track -->
+            {{-- Cambridge / CEFR Level Progression Track --}}
             @php
                 $levels = [
                     'PRE STARTERS',
@@ -192,7 +192,7 @@
                 @endforeach
             </div>
 
-            <!-- 4 Skills Scores Table (Light Theme) -->
+            {{-- 4 Skills Scores Table (Light Theme) --}}
             <div class="bg-slate-50/80 rounded-2xl p-2 border border-slate-200 overflow-hidden">
                 <table class="w-full text-center border-collapse">
                     @if ($rubricGraded)
@@ -236,9 +236,9 @@
             </div>
         </div>
 
-        <!-- 5. NHẬN XÉT CỦA GIÁO VIÊN & KẾT QUẢ XẾP LỚP -->
+        {{-- 5. NHẬN XÉT CỦA GIÁO VIÊN & KẾT QUẢ XẾP LỚP --}}
         <div class="space-y-4">
-            <!-- Level & Recommendations -->
+            {{-- Level & Recommendations --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="p-4 rounded-2xl bg-indigo-50/80 border border-indigo-200 space-y-1">
                     <div class="text-[11px] font-bold text-indigo-700 uppercase tracking-wider flex items-center gap-1">
@@ -257,7 +257,7 @@
                 </div>
             </div>
 
-            <!-- Nhận xét chi tiết của GV theo từng đầu mục kỹ năng -->
+            {{-- Nhận xét chi tiết của GV theo từng đầu mục kỹ năng --}}
             @php
                 $rawComments = $rubricGraded
                     ? \App\Services\PlacementRubricService::composeComments([
@@ -334,7 +334,7 @@
             </div>
         </div>
 
-        <!-- 6. Signatures & Footer Commitments -->
+        {{-- 6. Signatures & Footer Commitments --}}
         <div class="pt-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
             <div class="space-y-0.5">
                 <div class="font-bold text-slate-900">MEnglish Education Vietnam</div>

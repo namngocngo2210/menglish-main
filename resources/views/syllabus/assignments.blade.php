@@ -19,7 +19,6 @@
         </div>
     </x-slot>
 
-    @include('syllabus.partials.flow-header', ['activeStep' => 3])
 
     @php
         $canManage = auth()->user()->can('syllabus.manage');
@@ -105,7 +104,7 @@
 
                     <div class="flex items-start gap-sm rounded-lg border border-secondary/20 bg-secondary/5 p-md">
                         <span class="material-symbols-outlined text-[20px] text-secondary">info</span>
-                        <div class="font-body-small text-body-small text-on-surface"><span class="font-semibold">Lưu ý nghiệp vụ (R19):</span> Mỗi LỚP HỌC chỉ được giao duy nhất 1 chặng học có hiệu lực tại một thời điểm. Hệ thống sẽ tự động đóng chặng hiện tại của lớp và mở chặng kế tiếp khi kết quả Big Test được duyệt gửi.</div>
+                        <div class="font-body-small text-body-small text-on-surface">Mỗi LỚP HỌC chỉ được giao duy nhất 1 chặng học có hiệu lực tại một thời điểm. Hệ thống sẽ tự động đóng chặng hiện tại của lớp và mở chặng kế tiếp khi kết quả Big Test được duyệt gửi.</div>
                     </div>
 
                     <x-ui.button type="submit" icon="send" class="w-full justify-center">Xác nhận giao chặng</x-ui.button>

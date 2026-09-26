@@ -9,7 +9,6 @@
                     <span class="material-symbols-outlined text-primary">military_tech</span>
                     Bảng điểm Big Test các lớp tôi phụ trách
                 </h1>
-                <p class="text-xs text-gray-500">Kết quả các kỳ Big Test của lớp dạy chính và lớp đồng giảng (GVNN)</p>
             </div>
         </div>
     </x-slot>

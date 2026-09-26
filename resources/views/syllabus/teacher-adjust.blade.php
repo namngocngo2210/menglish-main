@@ -16,7 +16,6 @@
         </div>
     </x-slot>
 
-    @include('syllabus.partials.flow-header', ['activeStep' => 7])
 
     {{-- Mockup 03_Cong_Giao_Vien/14: form Gửi yêu cầu (lớp/chặng đang mở, lý do, số buổi 1/2) + Danh sách yêu cầu đã gửi. --}}
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">

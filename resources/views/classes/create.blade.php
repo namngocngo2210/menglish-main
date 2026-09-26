@@ -15,7 +15,6 @@
                             Học vụ / Quản trị
                         </span>
                     </div>
-                    <p class="text-xs text-gray-500 mt-0.5">Khởi tạo hồ sơ lớp học với thông tin giảng dạy cốt lõi. Lịch học và thời khóa biểu chi tiết sẽ được cấu hình sau ở bước Thời khóa biểu.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -27,24 +26,14 @@
         </div>
     </x-slot>
 
-    @include('classes.partials.flow-header', ['activeStep' => 2])
 
     <div class="max-w-4xl mx-auto space-y-6">
-        <!-- Thông báo hướng dẫn nghiệp vụ (Exact Match BA) -->
-        <div class="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-4 flex items-start gap-3 shadow-2xs">
-            <div class="text-secondary shrink-0 mt-0.5">
-                <span class="material-symbols-outlined text-[20px]">info</span>
-            </div>
-            <div class="text-xs text-gray-700 leading-relaxed">
-                <strong class="text-gray-900 font-semibold">Lưu ý nghiệp vụ:</strong> Chỉ cần nhập đủ <strong>5 trường thông tin bắt buộc</strong> để tạo lớp. Các mục như Giáo viên, Phòng học, Học phí có thể để trống và bổ sung sau tại màn <a href="{{ route('classes.profile') }}" class="font-bold text-primary hover:underline">Hồ sơ lớp học</a>. Lớp vừa tạo sẽ ở trạng thái <span class="inline-block px-1.5 py-0.5 rounded text-[11px] font-mono bg-amber-50 text-amber-800 border border-amber-200 font-semibold">Chưa cấu hình lịch (Khởi tạo)</span>.
-            </div>
-        </div>
 
-        <!-- Main Form Card (1 cột theo chiến lược UI chuẩn BA) -->
+        {{-- Main Form Card --}}
         <form action="{{ route('classes.store') }}" method="POST" class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden divide-y divide-gray-100">
             @csrf
 
-            <!-- Khối 1: Thông tin cơ bản & Phân loại lớp (Bắt buộc) -->
+            {{-- Khối 1: Thông tin cơ bản & Phân loại lớp (Bắt buộc) --}}
             <div class="p-6 md:p-8 space-y-6">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
@@ -59,7 +48,7 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
-                    <!-- Tên lớp (Bắt buộc) -->
+                    {{-- Tên lớp (Bắt buộc) --}}
                     <div class="md:col-span-8">
                         <label for="ten_lop" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Tên lớp học <span class="text-rose-500 font-bold">*</span>
@@ -75,7 +64,7 @@
                         @error('ten_lop') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
                     </div>
 
-                    <!-- Mã lớp (Tùy chọn) -->
+                    {{-- Mã lớp (Tùy chọn) --}}
                     <div class="md:col-span-4">
                         <label for="ma_lop" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Mã lớp <span class="text-[11px] font-normal text-gray-400">(Tùy chọn)</span>
@@ -90,7 +79,7 @@
                         @error('ma_lop') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
                     </div>
 
-                    <!-- Chi nhánh (Bắt buộc) -->
+                    {{-- Chi nhánh (Bắt buộc) --}}
                     <div class="md:col-span-4">
                         <label for="chi_nhanh" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Chi nhánh đào tạo <span class="text-rose-500 font-bold">*</span>
@@ -109,7 +98,7 @@
                         @error('chi_nhanh') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
                     </div>
 
-                    <!-- Chương trình (Bắt buộc) -->
+                    {{-- Chương trình (Bắt buộc) --}}
                     <div class="md:col-span-4">
                         <label for="chuong_trinh" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Chương trình học <span class="text-rose-500 font-bold">*</span>
@@ -127,7 +116,7 @@
                         @error('chuong_trinh') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
                     </div>
 
-                    <!-- Cấp độ (Bắt buộc) -->
+                    {{-- Cấp độ (Bắt buộc) --}}
                     <div class="md:col-span-4">
                         <label for="cap_do" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Cấp độ <span class="text-rose-500 font-bold">*</span>
@@ -145,7 +134,7 @@
                         @error('cap_do') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
                     </div>
 
-                    <!-- Sĩ số tối đa (Bắt buộc) -->
+                    {{-- Sĩ số tối đa (Bắt buộc) --}}
                     <div class="md:col-span-4">
                         <label for="si_so_toi_da" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Sĩ số tối đa <span class="text-rose-500 font-bold">*</span>
@@ -168,7 +157,7 @@
                         @error('si_so_toi_da') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
                     </div>
 
-                    <!-- Ngưỡng khai giảng (số học viên tối thiểu để mở lớp) -->
+                    {{-- Ngưỡng khai giảng (số học viên tối thiểu để mở lớp) --}}
                     <div class="md:col-span-4">
                         <label for="min_students" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Ngưỡng khai giảng
@@ -189,7 +178,7 @@
                         @error('min_students') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
                     </div>
 
-                    <!-- Trạng thái khởi tạo (Readonly indicator) -->
+                    {{-- Trạng thái khởi tạo (Readonly indicator) --}}
                     <div class="md:col-span-12 flex items-center">
                         <div class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 flex items-center justify-between">
                             <div class="flex items-center gap-2">
@@ -204,7 +193,7 @@
                 </div>
             </div>
 
-            <!-- Khối 2: Phòng học & Nhân sự giảng dạy (Tùy chọn - có thể để trống gán sau) -->
+            {{-- Khối 2: Phòng học & Nhân sự giảng dạy (Tùy chọn - có thể để trống gán sau) --}}
             <div class="p-6 md:p-8 space-y-6 bg-gray-50/40">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
@@ -219,7 +208,7 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
-                    <!-- Phòng học (Tùy chọn) -->
+                    {{-- Phòng học (Tùy chọn) --}}
                     <div class="md:col-span-6">
                         <label for="phong_hoc" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Phòng học dự kiến
@@ -237,7 +226,7 @@
                         <p class="text-[11px] text-gray-400 mt-1">Danh sách phòng hiện có của trung tâm (dùng chung các chi nhánh).</p>
                     </div>
 
-                    <!-- Giáo viên chính (Tùy chọn) -->
+                    {{-- Giáo viên chính (Tùy chọn) --}}
                     <div class="md:col-span-6">
                         <label for="giao_vien_chinh" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Giáo viên chính
@@ -254,7 +243,7 @@
                         </select>
                     </div>
 
-                    <!-- Trợ giảng (Tùy chọn) -->
+                    {{-- Trợ giảng (Tùy chọn) --}}
                     <div class="md:col-span-6">
                         <label for="tro_giang" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Trợ giảng
@@ -271,7 +260,7 @@
                         </select>
                     </div>
 
-                    <!-- Giáo viên nước ngoài (GVNN) (Tùy chọn) -->
+                    {{-- Giáo viên nước ngoài (GVNN) (Tùy chọn) --}}
                     <div class="md:col-span-6">
                         <label for="giao_vien_nn" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Giáo viên nước ngoài (GVNN)
@@ -290,7 +279,7 @@
                 </div>
             </div>
 
-            <!-- Khối 3: Lên lịch học tự động (Render TKB ngay khi tạo lớp) -->
+            {{-- Khối 3: Lên lịch học tự động (Render TKB ngay khi tạo lớp) --}}
             <div class="p-6 md:p-8 space-y-6 bg-gray-50/40" x-data="scheduleGenerator()" x-cloak>
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
@@ -305,17 +294,17 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
-                    <!-- Start Date -->
+                    {{-- Start Date --}}
                     <div class="md:col-span-3">
                         <label class="block text-xs font-bold text-gray-700 mb-1.5">Ngày bắt đầu</label>
                         <input type="date" x-model="startDate" class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:ring-primary-container focus:border-primary-container">
                     </div>
-                    <!-- End Date -->
+                    {{-- End Date --}}
                     <div class="md:col-span-3">
                         <label class="block text-xs font-bold text-gray-700 mb-1.5">Ngày kết thúc</label>
                         <input type="date" x-model="endDate" class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:ring-primary-container focus:border-primary-container">
                     </div>
-                    <!-- Days of Week -->
+                    {{-- Days of Week --}}
                     <div class="md:col-span-6">
                         <label class="block text-xs font-bold text-gray-700 mb-1.5">Ngày học trong tuần</label>
                         <div class="flex flex-wrap gap-2">
@@ -328,7 +317,7 @@
                         </div>
                     </div>
 
-                    <!-- Shift config -->
+                    {{-- Shift config --}}
                     <div class="md:col-span-12">
                         <label class="block text-xs font-bold text-gray-700 mb-1.5">Cấu hình ca học</label>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -351,7 +340,7 @@
                     </div>
                 </div>
 
-                <!-- Generated Schedule Table -->
+                {{-- Generated Schedule Table --}}
                 <div x-show="generatedSessions.length > 0" class="mt-6 border border-gray-200 rounded-xl overflow-hidden bg-white">
                     <table class="w-full text-left border-collapse">
                         <thead class="bg-gray-50 border-b border-gray-200">
@@ -387,7 +376,7 @@
                 </div>
             </div>
 
-            <!-- Khối 3: Học phí & Ghi chú quản lý (Tùy chọn) -->
+            {{-- Khối 3: Học phí & Ghi chú quản lý (Tùy chọn) --}}
             <div class="p-6 md:p-8 space-y-6">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
@@ -402,7 +391,7 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
-                    <!-- Học phí (Tùy chọn) -->
+                    {{-- Học phí (Tùy chọn) --}}
                     <div class="md:col-span-6">
                         <label for="hoc_phi" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Mức học phí niêm yết
@@ -424,7 +413,7 @@
                         @error('hoc_phi') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
                     </div>
 
-                    <!-- Ghi chú (Tùy chọn) -->
+                    {{-- Ghi chú (Tùy chọn) --}}
                     <div class="md:col-span-12">
                         <label for="ghi_chu" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Ghi chú vận hành <span class="text-[11px] font-normal text-gray-400">(Tùy chọn)</span>
@@ -438,7 +427,7 @@
                 </div>
             </div>
 
-            <!-- Action Footer (Buttons) -->
+            {{-- Action Footer (Buttons) --}}
             <div class="p-6 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div class="text-xs text-gray-500 text-center sm:text-left">
                     Sau khi bấm <strong class="text-gray-800">"Lưu lớp học"</strong>, hệ thống sẽ tạo bản ghi lớp và tự động chuyển hướng đến <strong class="text-gray-800">Hồ sơ lớp học</strong>.

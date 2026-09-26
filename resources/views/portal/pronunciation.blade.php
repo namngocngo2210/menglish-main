@@ -8,9 +8,8 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-rose-600">mic</span>
-                        Flow 4 — Bước 4: Luyện phát âm & Thu âm giọng nói
+                        Luyện phát âm
                     </h1>
-                    <p class="text-xs text-gray-500">Học sinh nghe file audio mẫu từ giáo trình và thu âm giọng nói trực tiếp để nộp bài. Giáo viên nghe và chấm điểm.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -24,7 +23,7 @@
 
     
 
-    <!-- Mobile Frame for Pronunciation (Matches 04_Cong_Phu_Huynh_Hoc_Sinh/04_luyen_phat_am) -->
+    {{-- Mobile Frame for Pronunciation --}}
     <div class="max-w-[430px] mx-auto bg-gray-50 min-h-[844px] shadow-2xl rounded-3xl border border-gray-200 overflow-hidden flex flex-col relative pb-24 my-4"
          x-data="{
             selectedUnit: 'Unit 1: Greetings - Bài 2',
@@ -63,7 +62,7 @@
             }, 1000);
          ">
 
-        <!-- Top Header Partial -->
+        {{-- Top Header Partial --}}
         @include('portal.partials.top-header', [
             'student' => $student,
             'students' => $students,
@@ -72,7 +71,7 @@
             'backUrl' => route('portal.student.homework', ['studentId' => $student?->id])
         ])
 
-        <!-- Subtab Switcher -->
+        {{-- Subtab Switcher --}}
         <div class="flex items-center border-b border-gray-200 bg-white px-3 pt-2">
             <a href="{{ route('portal.student.homework', ['studentId' => $student?->id]) }}"
                class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-transparent text-gray-500 hover:text-gray-900 font-semibold text-xs transition">
@@ -86,10 +85,10 @@
             </a>
         </div>
 
-        <!-- Main Content -->
+        {{-- Main Content --}}
         <main class="w-full p-4 space-y-4 flex-1 overflow-y-auto">
 
-            <!-- Section 1: Audio Mẫu từ Giáo trình -->
+            {{-- Section 1: Audio Mẫu từ Giáo trình --}}
             <section class="bg-white rounded-2xl border border-gray-200 p-4 space-y-3 shadow-2xs">
                 <div>
                     <h2 class="text-sm font-bold text-gray-900">Audio Mẫu từ Giáo trình</h2>
@@ -97,7 +96,7 @@
                 </div>
 
                 <div class="space-y-2">
-                    <!-- Audio Item 1 -->
+                    {{-- Audio Item 1 --}}
                     <div class="flex items-center justify-between p-2.5 rounded-xl hover:bg-gray-50 transition border border-transparent hover:border-gray-200 cursor-pointer"
                          @click="selectedUnit = 'Unit 1: Greetings - Bài 1'; isRecording = false; timerSeconds = 0; timerText = '00:00'">
                         <div class="flex items-center gap-3">
@@ -114,7 +113,7 @@
                         </button>
                     </div>
 
-                    <!-- Audio Item 2 (Active state simulation) -->
+                    {{-- Audio Item 2 (Active state simulation) --}}
                     <div class="flex items-center justify-between p-2.5 rounded-xl bg-orange-50/80 border border-primary-container/40 shadow-2xs"
                          :class="{ 'bg-orange-50/80 border-primary-container/40': selectedUnit === 'Unit 1: Greetings - Bài 2' }">
                         <div class="flex items-center gap-3">
@@ -127,7 +126,7 @@
                             </div>
                         </div>
 
-                        <!-- Waveform inside active audio item -->
+                        {{-- Waveform inside active audio item --}}
                         <div class="flex items-center gap-0.5 h-4 mr-1">
                             <div class="w-0.5 bg-primary-container rounded-full animate-pulse h-2"></div>
                             <div class="w-0.5 bg-primary-container rounded-full animate-pulse h-4" style="animation-delay: 0.2s"></div>
@@ -136,7 +135,7 @@
                         </div>
                     </div>
 
-                    <!-- Audio Item 3 -->
+                    {{-- Audio Item 3 --}}
                     <div class="flex items-center justify-between p-2.5 rounded-xl hover:bg-gray-50 transition border border-transparent hover:border-gray-200 cursor-pointer"
                          @click="selectedUnit = 'Unit 2: Family - Bài 1'; isRecording = false; timerSeconds = 0; timerText = '00:00'">
                         <div class="flex items-center gap-3">
@@ -155,7 +154,7 @@
                 </div>
             </section>
 
-            <!-- Section 2: Khối Ghi Âm (Active Recording State) -->
+            {{-- Section 2: Khối Ghi Âm (Active Recording State) --}}
             <section class="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col items-center justify-center text-center space-y-4 relative overflow-hidden shadow-2xs">
                 <div class="absolute inset-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-container via-transparent to-transparent"></div>
 
@@ -164,10 +163,10 @@
                         Đang luyện tập: <span class="font-bold text-primary" x-text="selectedUnit"></span>
                     </p>
 
-                    <!-- Timer Display -->
+                    {{-- Timer Display --}}
                     <div class="font-mono text-3xl font-bold text-gray-900 tracking-wider" x-text="timerText">00:14</div>
 
-                    <!-- Animated Waveform Display (visible when recording) -->
+                    {{-- Animated Waveform Display (visible when recording) --}}
                     <div class="flex items-center justify-center gap-1.5 h-12 w-full max-w-[200px] mx-auto py-1" x-show="isRecording">
                         <div class="w-1 bg-primary-container rounded-full animate-pulse h-4" style="animation-delay: 0.1s"></div>
                         <div class="w-1 bg-primary-container rounded-full animate-pulse h-8" style="animation-delay: 0.3s"></div>
@@ -181,19 +180,19 @@
                         <div class="w-1 bg-primary-container rounded-full animate-pulse h-6" style="animation-delay: 0.4s"></div>
                     </div>
 
-                    <!-- Record Button -->
+                    {{-- Record Button --}}
                     <div class="flex justify-center py-2">
                         <button type="button"
                                 @click="toggleRecording()"
                                 class="relative w-20 h-20 bg-primary-container hover:bg-primary rounded-full flex items-center justify-center text-white shadow-xl transition-all transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-orange-200">
-                            <!-- Pulsing ring effect when recording -->
+                            {{-- Pulsing ring effect when recording --}}
                             <div x-show="isRecording" class="absolute inset-0 rounded-full border-2 border-primary-container animate-ping opacity-75"></div>
                             <span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;" x-text="isRecording ? 'stop' : 'mic'"></span>
                         </button>
                     </div>
                     <p class="text-[11px] text-gray-500" x-text="isRecording ? 'Chạm để dừng ghi âm' : 'Chạm micro để tiếp tục ghi âm'"></p>
 
-                    <!-- Real Form Submission Action -->
+                    {{-- Real Form Submission Action --}}
                     <form action="{{ route('portal.student.pronunciation.store') }}" method="POST" class="pt-2 w-full flex justify-center">
                         @csrf
                         <input type="hidden" name="student_id" value="{{ $student?->id ?? 1 }}">
@@ -209,7 +208,7 @@
                 </div>
             </section>
 
-            <!-- Section 3: Lịch sử luyện tập -->
+            {{-- Section 3: Lịch sử luyện tập --}}
             <section class="bg-white rounded-2xl border border-gray-200 p-4 space-y-3 shadow-2xs">
                 <div class="flex items-center justify-between">
                     <h2 class="text-sm font-bold text-gray-900">Lịch sử của bạn</h2>
@@ -265,7 +264,7 @@
             </section>
         </main>
 
-        <!-- Bottom Navigation Bar Component -->
+        {{-- Bottom Navigation Bar Component --}}
         @include('portal.partials.bottom-nav', ['activeTab' => 'learning', 'student' => $student])
     </div>
 </x-app-layout>

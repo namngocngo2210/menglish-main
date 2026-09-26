@@ -8,9 +8,8 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">cottage</span>
-                        Flow 4 — Bước 2: Trang chủ Phụ huynh / Học sinh
+                        Trang chủ
                     </h1>
-                    <p class="text-xs text-gray-500">Màn hình trang chủ hiển thị thông tin học viên, tiến độ học, học phí và lịch sử đóng tiền.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -22,22 +21,22 @@
         </div>
     </x-slot>
 
-    <!-- Outer Mobile Mockup Frame (Matches 04_Cong_Phu_Huynh_Hoc_Sinh/02_trang_chu_phu_huynh_hoc_sinh) -->
+    {{-- Outer Mobile Mockup Frame --}}
     <div class="max-w-[430px] mx-auto bg-background min-h-[844px] shadow-2xl rounded-3xl border border-gray-200 overflow-hidden flex flex-col relative pb-20 my-4"
          x-data="{ historyOpen: false, editProfileOpen: false, tuitionReqOpen: false }">
 
-        <!-- Portal Header -->
+        {{-- Portal Header --}}
         @include('portal.partials.top-header', ['student' => $student, 'students' => $students, 'title' => 'MENGLISH'])
 
-        <!-- Main Content Area -->
+        {{-- Main Content Area --}}
         <main class="flex-1 w-full p-4 flex flex-col gap-5 overflow-y-auto">
-            <!-- Header Welcome -->
+            {{-- Header Welcome --}}
             <div class="flex flex-col gap-1 pt-1">
                 <span class="text-sm font-normal text-gray-600">Xin chào,</span>
                 <h1 class="text-2xl font-bold text-primary">{{ $student?->name ?? 'Học viên' }}</h1>
             </div>
 
-            <!-- Student Info Card (Bento style) -->
+            {{-- Student Info Card (Bento style) --}}
             <div class="bg-white rounded-2xl border border-gray-200/80 p-4 flex flex-col gap-4 shadow-sm relative overflow-hidden">
                 <div class="absolute top-0 right-0 w-24 h-24 bg-primary-container/5 rounded-bl-full pointer-events-none"></div>
 
@@ -97,7 +96,7 @@
                 </div>
             </div>
 
-            <!-- Lịch học sắp tới (buổi học thật của các lớp + buổi phụ đạo) -->
+            {{-- Lịch học sắp tới (buổi học thật của các lớp + buổi phụ đạo) --}}
             <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm" data-section="upcoming-schedule">
                 <h2 class="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-primary text-[18px]">calendar_month</span>
@@ -121,7 +120,7 @@
                 </div>
             </div>
 
-            <!-- Điểm danh gần đây -->
+            {{-- Điểm danh gần đây --}}
             <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm" data-section="attendance-history">
                 <h2 class="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-primary text-[18px]">fact_check</span>
@@ -142,7 +141,7 @@
                 </div>
             </div>
 
-            <!-- Kết quả Big Test (đã duyệt / đã gửi phụ huynh) -->
+            {{-- Kết quả Big Test (đã duyệt / đã gửi phụ huynh) --}}
             <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm" data-section="big-test-results">
                 <h2 class="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-primary text-[18px]">workspace_premium</span>
@@ -170,9 +169,9 @@
                 </div>
             </div>
 
-            <!-- Tuition Info Card (Glassmorphism inspired) -->
+            {{-- Tuition Info Card (Glassmorphism inspired) --}}
             <div class="bg-gradient-to-br from-primary-container to-primary text-white rounded-2xl p-4 flex flex-col gap-4 shadow-lg relative overflow-hidden">
-                <!-- Decorative background elements -->
+                {{-- Decorative background elements --}}
                 <div class="absolute top-[-20%] right-[-10%] w-32 h-32 bg-white/15 rounded-full blur-2xl pointer-events-none"></div>
                 <div class="absolute bottom-[-20%] left-[-10%] w-24 h-24 bg-black/10 rounded-full blur-xl pointer-events-none"></div>
 
@@ -212,7 +211,7 @@
                 </div>
             </div>
 
-            <!-- Quick Action Cards to Other Steps -->
+            {{-- Quick Action Cards to Other Steps --}}
             <div class="grid grid-cols-2 gap-3">
                 <a href="{{ route('portal.student.homework', ['studentId' => $student?->id]) }}" class="bg-white p-3 rounded-xl border border-gray-200 hover:border-primary-container transition shadow-2xs flex items-center gap-2.5">
                     <div class="w-8 h-8 rounded-lg bg-orange-50 text-primary flex items-center justify-center shrink-0">
@@ -236,14 +235,14 @@
             </div>
         </main>
 
-        <!-- Bottom Sheet: Lịch sử thu học phí (Exact Match Prototype) -->
+        {{-- Bottom Sheet: Lịch sử thu học phí --}}
         <div x-show="historyOpen"
              x-cloak
              class="fixed inset-0 bg-black/40 z-[100] backdrop-blur-xs flex items-end justify-center transition-opacity"
              @click="historyOpen = false">
             <div class="w-full max-w-[430px] bg-white rounded-t-[28px] shadow-2xl flex flex-col max-h-[750px] overflow-hidden"
                  @click.stop>
-                <!-- Drag Handle & Header -->
+                {{-- Drag Handle & Header --}}
                 <div class="flex flex-col items-center pt-2.5 pb-3 border-b border-gray-100 px-4 sticky top-0 bg-white rounded-t-[28px] z-10">
                     <div class="w-12 h-1 bg-gray-300 rounded-full mb-2"></div>
                     <div class="w-full flex justify-between items-center">
@@ -256,7 +255,7 @@
                     </div>
                 </div>
 
-                <!-- List Content -->
+                {{-- List Content --}}
                 <div class="overflow-y-auto p-4 flex flex-col gap-3 pb-24">
                     <div class="text-[11px] font-semibold text-gray-500 mb-1 flex items-center gap-1">
                         <span class="material-symbols-outlined text-[14px]">filter_list</span> Chỉ hiển thị phiếu "Đã duyệt"
@@ -290,7 +289,7 @@
             </div>
         </div>
 
-        <!-- Modal Cập nhật thông tin học sinh (CRUD UPDATE) -->
+        {{-- Modal Cập nhật thông tin học sinh (CRUD UPDATE) --}}
         <div x-show="editProfileOpen"
              x-cloak
              class="fixed inset-0 bg-black/40 z-[110] backdrop-blur-xs flex items-center justify-center p-4"
@@ -334,7 +333,7 @@
             </div>
         </div>
 
-        <!-- Modal Báo đã nộp học phí / Yêu cầu hỗ trợ (CRUD CREATE) -->
+        {{-- Modal Báo đã nộp học phí / Yêu cầu hỗ trợ (CRUD CREATE) --}}
         <div x-show="tuitionReqOpen"
              x-cloak
              class="fixed inset-0 bg-black/40 z-[110] backdrop-blur-xs flex items-center justify-center p-4"
@@ -374,7 +373,7 @@
             </div>
         </div>
 
-        <!-- Bottom Navigation Bar Component -->
+        {{-- Bottom Navigation Bar Component --}}
         @include('portal.partials.bottom-nav', ['activeTab' => 'home', 'student' => $student])
     </div>
 </x-app-layout>

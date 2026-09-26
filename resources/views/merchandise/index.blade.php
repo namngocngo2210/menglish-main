@@ -7,7 +7,6 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight">Danh mục Hàng hóa &amp; Vật phẩm</h1>
-                    <p class="text-xs text-gray-500">Quản lý sách giáo trình, workbook, đồng phục, balo và học phẩm phục vụ tính phụ phí trên hoá đơn</p>
                 </div>
             </div>
 
@@ -22,7 +21,7 @@
 
     <div class="max-w-7xl mx-auto space-y-6">
 
-        <!-- Metrics Overview Cards -->
+        {{-- Metrics Overview Cards --}}
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
                 <div class="flex items-center justify-between text-gray-500 text-xs font-medium">
@@ -70,11 +69,11 @@
             </div>
         </div>
 
-        <!-- Filter & Search Bar -->
+        {{-- Filter & Search Bar --}}
         <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs space-y-3">
             <form action="{{ route('merchandise.index') }}" method="GET" class="flex flex-col md:flex-row gap-3 items-center justify-between">
                 <div class="flex-1 w-full flex flex-col sm:flex-row gap-2">
-                    <!-- Search Input -->
+                    {{-- Search Input --}}
                     <div class="relative flex-1">
                         <span class="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-lg">search</span>
                         <input 
@@ -86,7 +85,7 @@
                         />
                     </div>
 
-                    <!-- Category Filter Dropdown -->
+                    {{-- Category Filter Dropdown --}}
                     <div class="w-full sm:w-52 shrink-0">
                         <select 
                             name="category" 
@@ -102,7 +101,7 @@
                         </select>
                     </div>
 
-                    <!-- Status Filter Dropdown -->
+                    {{-- Status Filter Dropdown --}}
                     <div class="w-full sm:w-40 shrink-0">
                         <select 
                             name="status" 
@@ -128,7 +127,7 @@
                 </div>
             </form>
 
-            <!-- Quick Category Pills -->
+            {{-- Quick Category Pills --}}
             <div class="flex flex-wrap gap-1.5 pt-2 border-t border-gray-100 text-xs">
                 <a 
                     href="{{ route('merchandise.index', array_filter(['q' => $search, 'status' => $selectedStatus])) }}" 
@@ -148,7 +147,7 @@
             </div>
         </div>
 
-        <!-- Merchandise Table -->
+        {{-- Merchandise Table --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs border-collapse">
@@ -170,14 +169,14 @@
                                 $meta = $item->category_meta;
                             @endphp
                             <tr class="hover:bg-slate-50/70 transition">
-                                <!-- Mã hàng -->
+                                {{-- Mã hàng --}}
                                 <td class="py-3 px-4 font-mono font-bold text-gray-800">
                                     <span class="bg-gray-100 px-2 py-0.5 rounded border border-gray-200/80">
                                         {{ $item->code }}
                                     </span>
                                 </td>
 
-                                <!-- Tên & mô tả -->
+                                {{-- Tên & mô tả --}}
                                 <td class="py-3 px-4">
                                     <div class="font-bold text-gray-900">{{ $item->name }}</div>
                                     @if ($item->description)
@@ -185,7 +184,7 @@
                                     @endif
                                 </td>
 
-                                <!-- Nhóm hàng -->
+                                {{-- Nhóm hàng --}}
                                 <td class="py-3 px-4">
                                     <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-700 border border-gray-200">
                                         <span class="material-symbols-outlined text-[13px]">{{ $meta['icon'] }}</span>
@@ -193,24 +192,24 @@
                                     </span>
                                 </td>
 
-                                <!-- Đơn vị tính -->
+                                {{-- Đơn vị tính --}}
                                 <td class="py-3 px-3 text-center text-gray-600 font-medium">
                                     {{ $item->unit }}
                                 </td>
 
-                                <!-- Đơn giá niêm yết -->
+                                {{-- Đơn giá niêm yết --}}
                                 <td class="py-3 px-4 text-right font-mono font-black text-primary-container text-sm">
                                     {{ $item->formatted_price }}
                                 </td>
 
-                                <!-- Tồn kho -->
+                                {{-- Tồn kho --}}
                                 <td class="py-3 px-3 text-center">
                                     <span class="font-mono font-bold {{ $item->stock_quantity <= 10 ? 'text-rose-600 bg-rose-50 px-2 py-0.5 rounded' : 'text-gray-700' }}">
                                         {{ number_format($item->stock_quantity) }}
                                     </span>
                                 </td>
 
-                                <!-- Trạng thái -->
+                                {{-- Trạng thái --}}
                                 <td class="py-3 px-4 text-center">
                                     <form action="{{ route('merchandise.toggle', $item) }}" method="POST" class="inline">
                                         @csrf
@@ -225,7 +224,7 @@
                                     </form>
                                 </td>
 
-                                <!-- Thao tác -->
+                                {{-- Thao tác --}}
                                 <td class="py-3 px-4 text-right">
                                     <div class="flex items-center justify-end gap-1">
                                         <a 

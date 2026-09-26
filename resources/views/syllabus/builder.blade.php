@@ -20,7 +20,6 @@
         </div>
     </x-slot>
 
-    @include('syllabus.partials.flow-header', ['activeStep' => 2])
 
     @php($canManage = auth()->user()->can('syllabus.manage'))
 
@@ -133,7 +132,7 @@
                             @if ($model) @method('PUT') @else <input type="hidden" name="curriculum_id" value="{{ $curriculum->id }}"> @endif
                             <x-ui.input name="name" label="Tên chặng học" required :value="$model?->name" placeholder="Ví dụ: Chặng 1: Xây dựng nền tảng" />
                             {{-- A6 Q4: chặng chỉ tự mở khi Big Test chặng trước được duyệt & gửi PH — không cho chọn "mở theo tuần / thủ công". --}}
-                            <x-ui.field label="Chính sách mở khóa" hint="Theo quy định đã chốt (Q4): mỗi lớp 1 chặng mở; Học thuật chỉ đóng/chuyển chặng tay khi có ngoại lệ.">
+                            <x-ui.field label="Chính sách mở khóa" hint="Mỗi lớp 1 chặng mở; Học thuật chỉ đóng/chuyển chặng tay khi có ngoại lệ.">
                                 <select disabled class="w-full rounded-lg border border-outline-variant bg-surface-container-low py-sm pl-md pr-xl font-body-base text-body-base text-on-surface">
                                     <option selected>Hoàn thành Big Test chặng trước (duyệt &amp; gửi PH) mới được mở</option>
                                 </select>

@@ -7,7 +7,6 @@
                         <span class="material-symbols-outlined text-primary">school</span>
                         Quản lý Lớp học
                     </h1>
-                    <p class="text-xs text-gray-500 mt-0.5">Danh sách tất cả lớp học. Tạo mới, chỉnh sửa và xóa lớp học tại đây.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -28,7 +27,7 @@
     
 
     <div class="max-w-6xl mx-auto space-y-5">
-        <!-- Stat Cards -->
+        {{-- Stat Cards --}}
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-2xs flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-primary-container/10 text-primary flex items-center justify-center">
@@ -68,7 +67,7 @@
             </div>
         </div>
 
-        <!-- Search & Filter Bar -->
+        {{-- Search & Filter Bar --}}
         <form method="GET" action="{{ route('classes.index') }}" class="bg-white rounded-2xl border border-gray-200 p-4 shadow-2xs flex flex-col sm:flex-row gap-3">
             <div class="flex-1 relative">
                 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
@@ -100,7 +99,7 @@
             @endif
         </form>
 
-        <!-- Classes Table -->
+        {{-- Classes Table --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">

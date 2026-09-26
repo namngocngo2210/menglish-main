@@ -28,7 +28,7 @@
 
     <div class="space-y-6">
 
-        <!-- Navigation Sub-tabs -->
+        {{-- Navigation Sub-tabs --}}
         <div class="flex flex-wrap gap-2 border-b border-gray-200 pb-2 text-xs">
             <a href="{{ route('payroll.periods.show', $period->id) }}" class="px-4 py-2 font-semibold rounded-xl bg-white text-gray-700 border border-gray-200 hover:bg-slate-50 transition flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-base">groups</span>
@@ -50,7 +50,7 @@
 
         <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
             
-            <!-- Left Column: Operations Salary Records (Col 8) -->
+            {{-- Left Column: Operations Salary Records (Col 8) --}}
             <div class="xl:col-span-8 space-y-6">
                 <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                     <div class="p-4 border-b border-gray-100 bg-slate-50/70 flex justify-between items-center">
@@ -64,7 +64,7 @@
                     @include('payroll.partials.fulltime-table', ['records' => $records, 'emptyText' => 'Chưa có bản ghi lương nhân sự học vụ trong kỳ này.', 'avatarClass' => 'bg-blue-100 text-blue-700', 'showCommission' => true, 'showRenewal' => false])
                 </div>
 
-                <!-- Operations Commission Guidelines -->
+                {{-- Operations Commission Guidelines --}}
                 <div class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-3 text-xs">
                     <h4 class="font-bold text-xs uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-orange-600 text-base">receipt_long</span>
@@ -90,7 +90,7 @@
                 </div>
             </div>
 
-            <!-- Right Column: Summary Card (Col 4) -->
+            {{-- Right Column: Summary Card (Col 4) --}}
             <div class="xl:col-span-4 space-y-4">
                 <div class="bg-gradient-to-br from-blue-900 to-slate-900 text-white rounded-2xl p-6 shadow-md space-y-4">
                     <div class="flex items-center justify-between">

@@ -5,12 +5,11 @@
                 <span class="material-symbols-outlined text-primary text-2xl">monitoring</span>
                 Tổng hợp Báo cáo & Nhật ký toàn trung tâm
             </h1>
-            <p class="text-xs text-gray-500 mt-0.5">Admin xem nhật ký sự vụ & báo cáo ngày/tuần/tháng của tất cả nhân sự</p>
         </div>
     </x-slot>
 
     <div class="space-y-6">
-        <!-- Stats -->
+        {{-- Stats --}}
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
             <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
                 <div class="text-[11px] font-semibold text-gray-500 uppercase">Nhật ký</div>
@@ -34,7 +33,7 @@
             </div>
         </div>
 
-        <!-- Filter -->
+        {{-- Filter --}}
         <form method="GET" class="flex flex-wrap items-center gap-3 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
             <select name="type" class="text-sm rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">
                 <option value="">Tất cả loại</option>
@@ -47,7 +46,7 @@
             <a href="{{ route('reports.all') }}" class="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold">Xóa lọc</a>
         </form>
 
-        <!-- List -->
+        {{-- List --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm divide-y divide-gray-100">
             @forelse ($reports as $r)
                 <div class="p-4 flex items-start justify-between gap-3">

@@ -8,7 +8,7 @@
     </x-ui.page-header>
 
     <div class="space-y-6" x-data="systemBankSepayManager()">
-        <!-- Top Nav Tabs matching System Config -->
+        {{-- Top Nav Tabs matching System Config --}}
         <div class="flex items-center gap-2 border-b border-gray-200 pb-2 overflow-x-auto">
             <a 
                 href="{{ route('system-config.bank-accounts') }}"
@@ -43,7 +43,7 @@
             </a>
         </div>
 
-        <!-- Sub Nav Tabs (Banks, SePay, Logs) -->
+        {{-- Sub Nav Tabs (Banks, SePay, Logs) --}}
         <div class="flex items-center gap-2 pb-1 overflow-x-auto">
             <button 
                 type="button" 
@@ -86,7 +86,7 @@
             @endif
         </div>
 
-        <!-- TAB 1: TÀI KHOẢN NGÂN HÀNG (mockup: bảng + form Thêm / Sửa bên phải) -->
+        {{-- TAB 1: TÀI KHOẢN NGÂN HÀNG --}}
         <div x-show="activeTab === 'banks'" class="space-y-4">
             <x-ui.alert type="info">
                 <strong>Lưu ý:</strong> Mọi tài khoản ngân hàng được cấu hình tại đây đều tự động tích hợp mã QR gắn mã học sinh.
@@ -250,9 +250,9 @@
             </div>
         </div>
 
-        <!-- ═════════════════════════════════════════════════════════════════
+        {{-- ═════════════════════════════════════════════════════════════════
              TAB 2: CẤU HÌNH WEBHOOK SEPAY GATEWAY
-             ═════════════════════════════════════════════════════════════════ -->
+             ═════════════════════════════════════════════════════════════════ --}}
         @if ($sepayEnabled)
         <div x-show="activeTab === 'sepay'" class="space-y-6">
             <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-xs space-y-6 max-w-4xl">
@@ -272,7 +272,7 @@
                 <form action="{{ route('system-config.sepay.update') }}" method="POST" class="space-y-5">
                     @csrf
 
-                    <!-- 1. Thông tin cơ bản -->
+                    {{-- 1. Thông tin cơ bản --}}
                     <div class="space-y-4">
                         <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wider text-primary flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-sm">tune</span>
@@ -393,7 +393,7 @@
                         </div>
                     </div>
 
-                    <!-- 2. Bảo mật & Xác thực HMAC-SHA256 -->
+                    {{-- 2. Bảo mật & Xác thực HMAC-SHA256 --}}
                     <div class="space-y-4 pt-4 border-t border-gray-100">
                         <div class="flex items-center justify-between">
                             <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wider text-primary flex items-center gap-1.5">
@@ -464,9 +464,9 @@
             </div>
         </div>
 
-        <!-- ═════════════════════════════════════════════════════════════════
+        {{-- ═════════════════════════════════════════════════════════════════
              TAB 3: NHẬT KÝ GIAO DỊCH SEPAY
-             ═════════════════════════════════════════════════════════════════ -->
+             ═════════════════════════════════════════════════════════════════ --}}
         <div x-show="activeTab === 'logs'" class="space-y-4">
             <div class="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
                 <div class="p-4 border-b border-gray-100 flex items-center justify-between">

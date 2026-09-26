@@ -32,7 +32,7 @@
             </div>
         @endif
 
-        <!-- BEGIN: HeaderPanel (Thống kê & Bộ lọc) -->
+        {{-- BEGIN: HeaderPanel (Thống kê & Bộ lọc) --}}
         <header class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 space-y-4">
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
@@ -48,9 +48,9 @@
                     </p>
                 </div>
 
-                <!-- 3 Thẻ chỉ số Counter -->
+                {{-- 3 Thẻ chỉ số Counter --}}
                 <div class="flex flex-wrap items-center gap-3 text-xs">
-                    <!-- Chờ duyệt -->
+                    {{-- Chờ duyệt --}}
                     <div class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-amber-50/70 border border-amber-200/70 text-amber-900 shadow-sm">
                         <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 font-bold shrink-0">
                             <span class="material-symbols-outlined text-lg">schedule</span>
@@ -61,7 +61,7 @@
                         </div>
                     </div>
 
-                    <!-- Đã duyệt hôm nay -->
+                    {{-- Đã duyệt hôm nay --}}
                     <div class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/70 text-emerald-900 shadow-sm">
                         <div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold shrink-0">
                             <span class="material-symbols-outlined text-lg">check_circle</span>
@@ -72,7 +72,7 @@
                         </div>
                     </div>
 
-                    <!-- Đã từ chối hôm nay -->
+                    {{-- Đã từ chối hôm nay --}}
                     <div class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-rose-50/70 border border-rose-200/70 text-rose-900 shadow-sm">
                         <div class="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center text-rose-700 font-bold shrink-0">
                             <span class="material-symbols-outlined text-lg">cancel</span>
@@ -85,10 +85,10 @@
                 </div>
             </div>
 
-            <!-- Form Lọc & Tìm kiếm -->
+            {{-- Form Lọc & Tìm kiếm --}}
             <form method="GET" action="{{ route('tuition.receipts.approve') }}" class="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
                 <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto text-xs">
-                    <!-- Branch Selector -->
+                    {{-- Branch Selector --}}
                     <div class="min-w-[160px]">
                         <select name="branch_id" onchange="this.form.submit()" class="w-full text-xs font-semibold text-slate-700 bg-slate-50 border-slate-200 rounded-lg py-2 pl-3 pr-8 focus:ring-primary-container focus:border-primary-container cursor-pointer">
                             <option value="all">Tất cả Cơ sở</option>
@@ -98,7 +98,7 @@
                         </select>
                     </div>
 
-                    <!-- Payment Method Selector -->
+                    {{-- Payment Method Selector --}}
                     <div class="min-w-[150px]">
                         <select name="payment_method" onchange="this.form.submit()" class="w-full text-xs font-semibold text-slate-700 bg-slate-50 border-slate-200 rounded-lg py-2 pl-3 pr-8 focus:ring-primary-container focus:border-primary-container cursor-pointer">
                             <option value="all">Hình thức: Tất cả</option>
@@ -107,7 +107,7 @@
                         </select>
                     </div>
 
-                    <!-- Status Pills -->
+                    {{-- Status Pills --}}
                     <div class="inline-flex rounded-lg p-0.5 bg-slate-100 border border-slate-200 text-xs font-medium">
                         <a href="{{ route('tuition.receipts.approve', array_merge(request()->except('status'), ['status' => 'pending'])) }}" class="px-3 py-1.5 rounded-md transition {{ request('status', $pendingCount > 0 ? 'pending' : 'all') === 'pending' ? 'bg-white text-slate-900 font-bold shadow-sm' : 'text-slate-600 hover:text-slate-900' }}">
                             Chờ duyệt ({{ $pendingCount }})
@@ -124,7 +124,7 @@
                     </div>
                 </div>
 
-                <!-- Search Input -->
+                {{-- Search Input --}}
                 <div class="relative w-full lg:w-80">
                     <span class="material-symbols-outlined absolute left-3 top-2 text-slate-400 text-lg pointer-events-none">search</span>
                     <input type="text" name="q" value="{{ request('q') }}" placeholder="Tìm theo tên học viên, mã phiếu..." class="w-full text-xs font-medium bg-slate-50 border-slate-200 rounded-lg pl-9 pr-8 py-2 focus:bg-white focus:ring-primary-container focus:border-primary-container transition" />
@@ -137,9 +137,9 @@
             </form>
         </header>
 
-        <!-- BEGIN: MasterDetailGrid (5 Cột danh sách hàng đợi + 7 Cột chi tiết kiểm tra) -->
+        {{-- BEGIN: MasterDetailGrid (5 Cột danh sách hàng đợi + 7 Cột chi tiết kiểm tra) --}}
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-            <!-- CỘT TRÁI (5 Cột): Danh sách hàng đợi -->
+            {{-- CỘT TRÁI (5 Cột): Danh sách hàng đợi --}}
             <section class="lg:col-span-5 bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col min-w-0">
                 <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
                     <div class="flex items-center gap-2">
@@ -230,7 +230,7 @@
                 </div>
             </section>
 
-            <!-- CỘT PHẢI (7 Cột): Chi tiết phiếu thu & Thao tác duyệt -->
+            {{-- CỘT PHẢI (7 Cột): Chi tiết phiếu thu & Thao tác duyệt --}}
             <section class="lg:col-span-7 flex flex-col gap-5 min-w-0">
                 @if ($selectedReceipt)
                     @php
@@ -255,7 +255,7 @@
                     @endif
 
                     <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col">
-                        <!-- Detail Header -->
+                        {{-- Detail Header --}}
                         <div class="p-5 lg:p-6 bg-slate-50/70 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
                             <div>
                                 <div class="flex items-center gap-2.5">
@@ -292,7 +292,7 @@
                         </div>
 
                         <div class="p-5 lg:p-6 flex flex-col gap-6">
-                            <!-- KHỐI 1: Thông tin học viên & Lớp học -->
+                            {{-- KHỐI 1: Thông tin học viên & Lớp học --}}
                             <div class="rounded-xl border border-slate-200/90 bg-slate-50/40 p-4 lg:p-5">
                                 <div class="flex items-center gap-2 mb-3.5">
                                     <div class="w-7 h-7 rounded-lg bg-orange-100 text-primary flex items-center justify-center font-bold text-xs">
@@ -320,7 +320,7 @@
                                 </div>
                             </div>
 
-                            <!-- KHỐI 2: Chi tiết nguồn tiền & Bảng kê tài chính -->
+                            {{-- KHỐI 2: Chi tiết nguồn tiền & Bảng kê tài chính --}}
                             <div class="rounded-xl border border-slate-200/90 p-4 lg:p-5">
                                 <div class="flex items-center justify-between mb-3.5">
                                     <div class="flex items-center gap-2">
@@ -388,7 +388,7 @@
                                     </table>
                                 </div>
 
-                                <!-- Metadata & Notes -->
+                                {{-- Metadata & Notes --}}
                                 <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                                     <div class="p-3.5 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
                                         <span class="text-[10px] font-bold text-slate-500 uppercase block">Trạng thái đối soát &amp; Hóa đơn VAT</span>
@@ -415,7 +415,7 @@
                                 </div>
                             </div>
 
-                            <!-- KHỐI 3: Minh chứng chuyển khoản (UNC) & Đối chiếu -->
+                            {{-- KHỐI 3: Minh chứng chuyển khoản (UNC) & Đối chiếu --}}
                             <div class="rounded-xl border border-slate-200/90 p-4 lg:p-5">
                                 <div class="flex items-center justify-between mb-3.5">
                                     <div class="flex items-center gap-2">
@@ -441,7 +441,7 @@
                                 </div>
 
                                 <div class="bg-slate-900 rounded-xl p-5 flex flex-col md:flex-row items-center gap-5 border border-slate-800">
-                                    <!-- Proof Image Frame -->
+                                    {{-- Proof Image Frame --}}
                                     <div class="relative w-full md:w-64 h-52 bg-slate-800 rounded-lg overflow-hidden border border-slate-700 flex items-center justify-center shrink-0 cursor-pointer group/img" @click="zoomImage = true">
                                         @if ($selectedReceipt->proof_image)
                                             <img src="{{ $selectedReceipt->proof_image }}" alt="Minh chứng" class="w-full h-full object-contain" />
@@ -457,7 +457,7 @@
                                         </div>
                                     </div>
 
-                                    <!-- Proof Match Details -->
+                                    {{-- Proof Match Details --}}
                                     <div class="flex-1 w-full space-y-2.5 text-xs">
                                         <div class="bg-slate-800/80 p-3.5 rounded-lg border border-slate-700 space-y-2">
                                             <div class="flex items-center justify-between">
@@ -497,7 +497,7 @@
                             </div>
                         </div>
 
-                        <!-- KHỐI 4: Thanh tác vụ phê duyệt -->
+                        {{-- KHỐI 4: Thanh tác vụ phê duyệt --}}
                         <footer class="p-4 lg:p-5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
                             <div class="text-xs text-slate-500 flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-base text-slate-400">info</span>
@@ -549,7 +549,7 @@
                         </footer>
                     </div>
 
-                    <!-- MODAL 1: Xác nhận Duyệt phiếu thu -->
+                    {{-- MODAL 1: Xác nhận Duyệt phiếu thu --}}
                     <div x-show="showApproveModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
                         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4" @click.away="showApproveModal = false">
                             <div class="flex items-center gap-3">
@@ -566,15 +566,6 @@
                                 <p>
                                     Bạn có chắc chắn muốn duyệt phiếu thu <strong class="text-slate-900 font-mono">{{ $selectedReceipt->receipt_number }}</strong> với tổng số tiền <strong class="text-primary font-bold text-sm font-mono">{{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} VNĐ</strong> cho học viên <strong class="text-slate-900">{{ $st?->name }}</strong>?
                                 </p>
-                                <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-[11px] space-y-1">
-                                    <div class="font-bold flex items-center gap-1 text-amber-800">
-                                        <span class="material-symbols-outlined text-sm">info</span>
-                                        Lưu ý nghiệp vụ kế toán:
-                                    </div>
-                                    <p class="text-amber-800">
-                                        Sau khi duyệt, số tiền sẽ được tự động ghi nhận vào sổ quỹ, trừ công nợ học phí của học viên và tự động cấp mã hóa đơn trong dải số kiểm toán.
-                                    </p>
-                                </div>
                             </div>
 
                             <form action="{{ route('tuition.receipts.approve.action', $selectedReceipt->id) }}" method="POST" class="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-end gap-2.5">
@@ -596,7 +587,7 @@
                         </div>
                     </div>
 
-                    <!-- MODAL 2: Từ chối phiếu thu (Nhập lý do) -->
+                    {{-- MODAL 2: Từ chối phiếu thu (Nhập lý do) --}}
                     <div x-show="showRejectModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
                         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4" @click.away="showRejectModal = false">
                             <div class="flex items-center gap-3">
@@ -635,7 +626,7 @@
                         </div>
                     </div>
 
-                    <!-- MODAL 3: Phóng to minh chứng -->
+                    {{-- MODAL 3: Phóng to minh chứng --}}
                     <div x-show="zoomImage" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md" @click="zoomImage = false">
                         <div class="relative max-w-3xl w-full bg-slate-900 rounded-2xl p-4 overflow-hidden border border-slate-700" @click.stop>
                             <div class="flex justify-between items-center pb-3 border-b border-slate-800 text-xs text-white">

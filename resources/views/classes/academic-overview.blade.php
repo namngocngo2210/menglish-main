@@ -10,7 +10,6 @@
                         <span class="material-symbols-outlined text-primary">dashboard</span>
                         Tổng quan Danh sách lớp Học thuật
                     </h1>
-                    <p class="text-xs text-gray-500">Sơ đồ tổng quan toàn bộ số lượng lớp học phân bổ theo chương trình, trình độ và khối đào tạo.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -22,10 +21,9 @@
         </div>
     </x-slot>
 
-    @include('classes.partials.flow-header', ['activeStep' => 4])
 
     <div class="max-w-7xl mx-auto space-y-8">
-        <!-- Sub-Header & Branch Select (Exact Match BA) -->
+        {{-- Sub-Header & Branch Select --}}
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
             <div>
                 <h2 class="text-lg font-bold text-gray-900">Tổng quan Danh sách lớp</h2>
@@ -48,7 +46,7 @@
             </div>
         </div>
 
-        <!-- Tổng số lớp đang hoạt động -->
+        {{-- Tổng số lớp đang hoạt động --}}
         <section>
             <a href="{{ route('classes.academic-list') }}"
                class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex items-center gap-6 group block">
@@ -68,7 +66,7 @@
             </a>
         </section>
 
-        <!-- Số lớp theo chương trình (dữ liệu thật) -->
+        {{-- Số lớp theo chương trình (dữ liệu thật) --}}
         <section class="space-y-4">
             <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">
                 <span class="material-symbols-outlined text-primary text-[20px]">category</span>
@@ -94,7 +92,7 @@
             @endif
         </section>
 
-        <!-- Số lớp theo trình độ / khối (dữ liệu thật) -->
+        {{-- Số lớp theo trình độ / khối (dữ liệu thật) --}}
         <section class="space-y-4">
             <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">
                 <span class="material-symbols-outlined text-primary text-[20px]">layers</span>

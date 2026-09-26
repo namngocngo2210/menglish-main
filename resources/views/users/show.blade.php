@@ -38,7 +38,7 @@
     </x-slot>
 
     <div class="max-w-5xl mx-auto space-y-6">
-        <!-- Top Profile Card -->
+        {{-- Top Profile Card --}}
         <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
             <div class="flex items-center gap-4">
                 <div class="w-16 h-16 rounded-full bg-orange-100 text-primary-container font-bold text-2xl flex items-center justify-center shadow-xs">
@@ -70,9 +70,9 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Left 2 Cols: Detailed Staff Profile & Contract -->
+            {{-- Left 2 Cols: Detailed Staff Profile & Contract --}}
             <div class="lg:col-span-2 space-y-6">
-                <!-- Section 1: Hồ sơ nhân sự -->
+                {{-- Section 1: Hồ sơ nhân sự --}}
                 <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-5">
                     <h3 class="text-base font-bold text-gray-900 flex items-center gap-2 border-b border-gray-100 pb-3">
                         <span class="material-symbols-outlined text-primary-container">badge</span>
@@ -118,7 +118,7 @@
                     </div>
                 </div>
 
-                <!-- Section 2: Quản lý hợp đồng -->
+                {{-- Section 2: Quản lý hợp đồng --}}
                 <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-5">
                     <div class="flex items-center justify-between border-b border-gray-100 pb-3">
                         <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">
@@ -199,9 +199,9 @@
                 </div>
             </div>
 
-            <!-- Right 1 Col: Kiêm nhiệm giảng dạy & Phân quyền -->
+            {{-- Right 1 Col: Kiêm nhiệm giảng dạy & Phân quyền --}}
             <div class="space-y-6">
-                <!-- Kiêm nhiệm giảng dạy -->
+                {{-- Kiêm nhiệm giảng dạy --}}
                 <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
                     <div class="flex items-center justify-between border-b border-gray-100 pb-3">
                         <h3 class="text-sm font-bold text-gray-900 flex items-center gap-1.5">
@@ -246,7 +246,7 @@
                     </div>
                 </div>
 
-                <!-- Thao tác nhanh -->
+                {{-- Thao tác nhanh --}}
                 <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-3">
                     <h3 class="text-sm font-bold text-gray-900 border-b border-gray-100 pb-2">Thao tác tài khoản</h3>
                     @can('permission.override')

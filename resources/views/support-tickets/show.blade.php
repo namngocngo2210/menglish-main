@@ -14,7 +14,7 @@
                 </div>
             </div>
 
-            <!-- Status & Assignee Quick Actions -->
+            {{-- Status & Assignee Quick Actions --}}
             <div class="flex items-center gap-2">
                 <form action="{{ route('tickets.status.update', $ticket->id) }}" method="POST" class="flex items-center gap-1.5">
                     @csrf
@@ -30,9 +30,9 @@
     </x-slot>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6" x-data="{ lightboxOpen: false, lightboxImg: '' }">
-        <!-- Main Conversation Stream -->
+        {{-- Main Conversation Stream --}}
         <div class="lg:col-span-2 space-y-6">
-            <!-- Messages Timeline -->
+            {{-- Messages Timeline --}}
             <div class="space-y-4">
                 @foreach ($ticket->messages->reverse() as $msg)
                     <div class="bg-white rounded-2xl border {{ $msg->is_internal_note ? 'border-amber-200 bg-amber-50/20' : 'border-gray-200' }} shadow-sm p-5 space-y-3">
@@ -57,7 +57,7 @@
                             {{ $msg->message }}
                         </div>
 
-                        <!-- Attachments Display -->
+                        {{-- Attachments Display --}}
                         @if (!empty($msg->attachment_list))
                             <div class="pl-10 pt-2">
                                 <div class="text-[11px] font-bold text-gray-600 mb-2 flex items-center gap-1">
@@ -102,7 +102,7 @@
                 @endforeach
             </div>
 
-            <!-- Reply Box with Drag & Drop Uploader -->
+            {{-- Reply Box with Drag & Drop Uploader --}}
             <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5" x-data="replyUploader()">
                 <h3 class="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-primary text-base">reply</span>
@@ -112,7 +112,7 @@
                     @csrf
                     <textarea name="message" rows="3" required placeholder="Nhập câu trả lời hoặc tiến độ giải quyết vấn đề..." class="w-full text-xs rounded-xl border border-gray-200 p-3 focus:border-primary-container focus:ring-primary-container"></textarea>
 
-                    <!-- Compact Drag & Drop Upload Zone for Reply -->
+                    {{-- Compact Drag & Drop Upload Zone for Reply --}}
                     <div class="space-y-2">
                         <div 
                             class="border border-dashed rounded-xl p-3 text-center transition cursor-pointer flex items-center justify-center gap-2 bg-gray-50/50 hover:bg-orange-50/30"
@@ -137,7 +137,7 @@
                             <span class="text-[11px] text-gray-600 font-medium">Kéo thả ảnh hoặc <span class="text-primary underline">chọn ảnh</span> / Dán trực tiếp (Ctrl+V)</span>
                         </div>
 
-                        <!-- Previews -->
+                        {{-- Previews --}}
                         <template x-if="previews.length > 0">
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
                                 <template x-for="(item, index) in previews" :key="index">
@@ -182,7 +182,7 @@
             </div>
         </div>
 
-        <!-- Sidebar Info -->
+        {{-- Sidebar Info --}}
         <div class="space-y-4">
             <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4 text-xs">
                 <h3 class="font-bold text-gray-900 uppercase tracking-wider pb-2 border-b border-gray-100">
@@ -212,7 +212,7 @@
                     </div>
                 </div>
 
-                <!-- Reassign Staff Form -->
+                {{-- Reassign Staff Form --}}
                 <div class="pt-3 border-t border-gray-100 space-y-2">
                     <label class="block font-bold text-gray-800">Người phụ trách xử lý:</label>
                     <form action="{{ route('tickets.assign', $ticket->id) }}" method="POST" class="space-y-2">
@@ -231,7 +231,7 @@
             </div>
         </div>
 
-        <!-- Lightbox Modal for Attachment Zoom -->
+        {{-- Lightbox Modal for Attachment Zoom --}}
         <div x-show="lightboxOpen" 
              x-cloak 
              @click="lightboxOpen = false" 

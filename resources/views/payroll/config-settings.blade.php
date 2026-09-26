@@ -10,7 +10,7 @@
                         <span class="material-symbols-outlined text-primary">tune</span>
                         Cấu hình Tham số Lương
                     </h1>
-                    <p class="text-xs text-gray-500 mt-0.5">Công thức lương theo BA (Q3): BHXH / Công đoàn Full-time, quỹ KPI Học vụ, bảng % thưởng tái tục.</p>
+                    <p class="text-xs text-gray-500 mt-0.5">BHXH / Công đoàn Full-time, quỹ KPI Học vụ, bảng % thưởng tái tục.</p>
                 </div>
             </div>
         </div>

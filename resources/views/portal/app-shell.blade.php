@@ -10,9 +10,8 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">smartphone</span>
-                        Flow 4 — Bước 1: App Shell Phụ huynh / Học sinh (Khung Điều Hướng Mobile)
+                        Cổng Phụ huynh / Học sinh
                     </h1>
-                    <p class="text-xs text-gray-500">Giao diện khung điều hướng toàn diện cho Cổng Phụ huynh / Học sinh trên thiết bị di động.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -24,9 +23,9 @@
         </div>
     </x-slot>
 
-    <!-- Outer Mobile Shell Container -->
+    {{-- Outer Mobile Shell Container --}}
     <div class="max-w-[430px] mx-auto bg-white min-h-[844px] shadow-2xl rounded-3xl border border-gray-200 overflow-hidden flex flex-col relative pb-20 my-4">
-        <!-- Top App Bar (Exact Match Prototype) -->
+        {{-- Top App Bar --}}
         <header class="w-full top-0 sticky bg-background dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 h-16 z-40">
             <h1 class="font-bold text-2xl text-primary tracking-tight">MENGLISH</h1>
             <div class="flex items-center gap-2">
@@ -46,9 +45,9 @@
             </div>
         </header>
 
-        <!-- Main Content Area: Interactive Shell Hub -->
+        {{-- Main Content Area: Interactive Shell Hub --}}
         <main class="flex-1 bg-[#F7F8FA] p-4 flex flex-col gap-4 overflow-y-auto">
-            <!-- Welcome Banner -->
+            {{-- Welcome Banner --}}
             <div class="bg-gradient-to-r from-primary-container to-orange-500 rounded-2xl p-4 text-white shadow-md">
                 <div class="flex items-center justify-between">
                     <div>
@@ -62,11 +61,11 @@
                 </div>
             </div>
 
-            <!-- Features Quick Access Grid -->
+            {{-- Features Quick Access Grid --}}
             <div>
-                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2.5 px-1">Các chức năng chính (Flow 4)</h3>
+                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2.5 px-1">Các chức năng chính</h3>
                 <div class="grid grid-cols-2 gap-3">
-                    <!-- Screen 2: Trang chủ -->
+                    {{-- Trang chủ --}}
                     <a href="{{ route('portal.student.home', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary-container hover:shadow-md transition flex flex-col gap-2 group">
                         <div class="flex items-center justify-between">
                             <div class="w-10 h-10 rounded-xl bg-orange-50 text-primary flex items-center justify-center group-hover:scale-105 transition-transform">
@@ -85,7 +84,7 @@
                         <span class="text-[10px] font-bold text-primary flex items-center gap-0.5 mt-auto">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
                     </a>
 
-                    <!-- Screen 3: Học tập & Nộp bài -->
+                    {{-- Học tập & Nộp bài --}}
                     <a href="{{ route('portal.student.homework', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary-container hover:shadow-md transition flex flex-col gap-2 group">
                         <div class="flex items-center justify-between">
                             <div class="w-10 h-10 rounded-xl bg-blue-50 text-secondary flex items-center justify-center group-hover:scale-105 transition-transform">
@@ -102,7 +101,7 @@
                         <span class="text-[10px] font-bold text-secondary flex items-center gap-0.5 mt-auto">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
                     </a>
 
-                    <!-- Screen 4: Luyện phát âm AI -->
+                    {{-- Luyện phát âm AI --}}
                     <a href="{{ route('portal.student.pronunciation', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary-container hover:shadow-md transition flex flex-col gap-2 group">
                         <div class="flex items-center justify-between">
                             <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center group-hover:scale-105 transition-transform">
@@ -121,7 +120,7 @@
                         <span class="text-[10px] font-bold text-rose-600 flex items-center gap-0.5 mt-auto">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
                     </a>
 
-                    <!-- Screen 5: Danh sách thông báo -->
+                    {{-- Danh sách thông báo --}}
                     <a href="{{ route('portal.student.notifications', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary-container hover:shadow-md transition flex flex-col gap-2 group">
                         <div class="flex items-center justify-between">
                             <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-105 transition-transform relative">
@@ -147,7 +146,7 @@
                         <span class="text-[10px] font-bold text-amber-600 flex items-center gap-0.5 mt-auto">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
                     </a>
 
-                    <!-- Screen 6: Khảo sát chất lượng -->
+                    {{-- Khảo sát chất lượng --}}
                     <a href="{{ route('portal.student.survey', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary-container hover:shadow-md transition flex flex-col gap-2 group">
                         <div class="flex items-center justify-between">
                             <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform">
@@ -166,7 +165,7 @@
                         <span class="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5 mt-auto">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
                     </a>
 
-                    <!-- Screen 7: Phụ huynh gửi feedback chặng học -->
+                    {{-- Phụ huynh gửi feedback chặng học --}}
                     <a href="{{ route('portal.student.feedback', ['studentId' => $student?->id]) }}" class="bg-white p-3.5 rounded-2xl border border-gray-200 hover:border-primary-container hover:shadow-md transition flex flex-col gap-2 group">
                         <div class="flex items-center justify-between">
                             <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-105 transition-transform">
@@ -191,7 +190,7 @@
                 </div>
             </div>
 
-            <!-- Student Profile Summary -->
+            {{-- Student Profile Summary --}}
             <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-2xs space-y-3">
                 <div class="flex items-center justify-between border-b pb-2.5">
                     <h4 class="text-xs font-bold text-gray-800 flex items-center gap-1.5">
@@ -215,7 +214,7 @@
             </div>
         </main>
 
-        <!-- Bottom Navigation Bar Component -->
+        {{-- Bottom Navigation Bar Component --}}
         @include('portal.partials.bottom-nav', ['activeTab' => 'home', 'student' => $student])
     </div>
 </x-app-layout>

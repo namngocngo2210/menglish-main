@@ -5,7 +5,6 @@
                 <span class="material-symbols-outlined text-primary text-2xl">event_note</span>
                 Nhật ký sự vụ Học vụ
             </h1>
-            <p class="text-xs text-gray-500 mt-0.5">Ghi nhận các vấn đề nổi cộm / sự vụ phát sinh — mỗi người tự note & follow-up</p>
         </div>
     </x-slot>
 
@@ -15,7 +14,7 @@
             <div class="rounded-xl bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 text-sm font-medium">{{ $errors->first() }}</div>
         @endif
 
-        <!-- Form ghi sự vụ mới -->
+        {{-- Form ghi sự vụ mới --}}
         <form method="POST" action="{{ route('reports.journal.store') }}" class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm space-y-3">
             @csrf
             <h2 class="text-sm font-bold text-gray-900">Ghi nhận sự vụ mới</h2>
@@ -36,7 +35,7 @@
             </div>
         </form>
 
-        <!-- Danh sách sự vụ -->
+        {{-- Danh sách sự vụ --}}
         <div class="space-y-3">
             @forelse ($journals as $j)
                 @php
@@ -80,7 +79,7 @@
                         </form>
                     </div>
 
-                    <!-- Follow-ups -->
+                    {{-- Follow-ups --}}
                     @if ($j->followups->isNotEmpty())
                         <div class="pl-3 border-l-2 border-gray-100 space-y-1.5">
                             @foreach ($j->followups as $f)
@@ -92,7 +91,7 @@
                         </div>
                     @endif
 
-                    <!-- Thêm follow-up (tạo tác vụ) -->
+                    {{-- Thêm follow-up (tạo tác vụ) --}}
                     <form method="POST" action="{{ route('reports.journal.followup', $j->id) }}" class="flex items-center gap-2">
                         @csrf
                         <input type="text" name="content" required placeholder="Nhập nội dung tác vụ / follow-up..." class="flex-1 text-xs rounded-lg border-gray-200 focus:border-primary-container focus:ring-primary-container">

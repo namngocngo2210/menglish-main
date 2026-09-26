@@ -28,9 +28,9 @@
     <div class="space-y-6">
 
 
-        <!-- 1. Thống kê KPI tóm tắt 4 thẻ -->
+        {{-- 1. Thống kê KPI tóm tắt 4 thẻ --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <!-- Thẻ 1: Tổng chi kỳ này -->
+            {{-- Thẻ 1: Tổng chi kỳ này --}}
             <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs relative overflow-hidden">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Tổng chi kỳ này</span>
@@ -54,7 +54,7 @@
                 </div>
             </div>
 
-            <!-- Thẻ 2: Chi lương tự động (bảng lương) -->
+            {{-- Thẻ 2: Chi lương tự động (bảng lương) --}}
             <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Chi lương tự động (bảng lương)</span>
@@ -76,7 +76,7 @@
                 </div>
             </div>
 
-            <!-- Thẻ 3: Chi phí vận hành tự nhập -->
+            {{-- Thẻ 3: Chi phí vận hành tự nhập --}}
             <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Chi phí vận hành tự nhập</span>
@@ -92,7 +92,7 @@
                 </div>
             </div>
 
-            <!-- Thẻ 4: Cơ cấu hình thức -->
+            {{-- Thẻ 4: Cơ cấu hình thức --}}
             <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Cơ cấu hình thức</span>
@@ -114,11 +114,11 @@
             </div>
         </div>
 
-        <!-- 2. Thanh bộ lọc & Tìm kiếm -->
+        {{-- 2. Thanh bộ lọc & Tìm kiếm --}}
         <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
             <form id="filterForm" method="GET" action="{{ route('finance.expenses.index') }}" class="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                    <!-- Bộ lọc Kỳ tháng -->
+                    {{-- Bộ lọc Kỳ tháng --}}
                     <div class="flex items-center gap-2">
                         <label for="monthSelect" class="text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">Kỳ tháng:</label>
                         <div class="relative">
@@ -131,7 +131,7 @@
                         </div>
                     </div>
 
-                    <!-- Bộ lọc Chi nhánh -->
+                    {{-- Bộ lọc Chi nhánh --}}
                     <div class="flex items-center gap-2">
                         <label for="branchSelect" class="text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">Chi nhánh:</label>
                         <div class="relative">
@@ -151,7 +151,7 @@
                     </div>
                 </div>
 
-                <!-- Tìm kiếm & Xuất Excel -->
+                {{-- Tìm kiếm & Xuất Excel --}}
                 <div class="flex items-center gap-2 w-full md:w-auto justify-end">
                     <div class="relative w-full sm:w-64">
                         <input type="text" name="search" value="{{ $search }}" placeholder="Tìm theo nội dung, người lập..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition-all">
@@ -165,7 +165,7 @@
             </form>
         </div>
 
-        <!-- 3. Bảng dữ liệu các khoản chi -->
+        {{-- 3. Bảng dữ liệu các khoản chi --}}
         <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div class="p-5 border-b border-slate-100 flex items-center justify-between">
                 <div class="flex items-center gap-2">
@@ -192,7 +192,7 @@
                     </thead>
                     <tbody class="divide-y divide-slate-100">
 
-                        <!-- DÒNG CHI LƯƠNG TỰ ĐỘNG (BẮT BUỘC KHÁC BIỆT VISUAL, KHÔNG CÓ SỬA/XÓA, ICON KHÓA + TOOLTIP) -->
+                        {{-- DÒNG CHI LƯƠNG TỰ ĐỘNG (BẮT BUỘC KHÁC BIỆT VISUAL, KHÔNG CÓ SỬA/XÓA, ICON KHÓA + TOOLTIP) --}}
                         @if ($autoSalaryRow)
                             <tr class="bg-blue-50/60 hover:bg-blue-50/90 transition-colors border-l-4 border-l-blue-600">
                                 <td class="py-4 px-4 font-semibold text-blue-900 whitespace-nowrap">
@@ -235,7 +235,7 @@
                                         {{ $autoSalaryRow->notes }}
                                     </div>
                                 </td>
-                                <!-- Thao tác: KHÔNG CÓ NÚT SỬA/XÓA - THAY BẰNG BADGE KHÓA CỐ ĐỊNH -->
+                                {{-- Thao tác: KHÔNG CÓ NÚT SỬA/XÓA - THAY BẰNG BADGE KHÓA CỐ ĐỊNH --}}
                                 <td class="py-4 px-4 text-center">
                                     <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 text-xs font-medium cursor-help" title="Số liệu tự động từ bảng lương đã chốt — không sửa được tại đây">
                                         <span class="material-symbols-outlined text-[16px] text-slate-400">lock</span>
@@ -245,7 +245,7 @@
                             </tr>
                         @endif
 
-                        <!-- CÁC DÒNG CHI TỰ NHẬP (CÓ ĐỦ NÚT SỬA / XÓA) -->
+                        {{-- CÁC DÒNG CHI TỰ NHẬP (CÓ ĐỦ NÚT SỬA / XÓA) --}}
                         @forelse ($manualExpenses as $exp)
                             <tr class="hover:bg-slate-50 transition-colors">
                                 <td class="py-3.5 px-4 text-slate-700 whitespace-nowrap font-medium">
@@ -312,7 +312,7 @@
                 </table>
             </div>
 
-            <!-- Footer: Tổng kết -->
+            {{-- Footer: Tổng kết --}}
             <div class="p-4 bg-slate-50/70 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
                 <div class="flex items-center gap-2">
                     <span>Hiển thị toàn bộ <strong>{{ $totalItemsCount }}</strong> bản ghi của tháng</span>
@@ -322,24 +322,13 @@
             </div>
         </div>
 
-        <!-- 4. Box Quy tắc nghiệp vụ đối soát & Tổng hợp chi vận hành -->
-        <div class="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 text-xs text-amber-900">
-            <span class="material-symbols-outlined text-amber-600 text-[20px] shrink-0 mt-0.5">help</span>
-            <div class="space-y-1">
-                <div class="font-bold text-amber-950">Quy tắc nghiệp vụ đối soát &amp; Tổng hợp chi vận hành:</div>
-                <p>• <strong>Dòng "Chi lương":</strong> Tự động hạch toán bằng tổng <code class="bg-amber-100 px-1 rounded">SUM(thuc_nhan)</code> của các bảng lương tháng tương ứng ở trạng thái <em>Đã chốt</em> hoặc <em>Đã trả</em> (màn Lương). Khoản này không sửa/xóa trực tiếp tại sổ chi để bảo toàn tính toàn vẹn dữ liệu kế toán.</p>
-                <p>• <strong>Điều kiện ẩn dòng lương:</strong> Khi tháng hoặc chi nhánh lọc không có bất kỳ bảng lương nào thỏa mãn điều kiện, hệ thống sẽ ẩn hoàn toàn dòng này, không hiển thị dòng 0 VNĐ.</p>
-                <p>• <strong>Khoản chi tự nhập:</strong> Cho phép thêm, sửa, xóa tự do tức thì bởi Quản trị viên mà không cần trải qua quy trình phê duyệt.</p>
-            </div>
-        </div>
-
     </div>
 
-    <!-- MODAL THÊM / SỬA KHOẢN CHI (FORM ĐẦY ĐỦ 6 Ô THEO SPEC) -->
+    {{-- MODAL THÊM / SỬA KHOẢN CHI (FORM ĐẦY ĐỦ 6 Ô THEO SPEC) --}}
     <div id="expenseModal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             
-            <!-- Modal Header -->
+            {{-- Modal Header --}}
             <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div class="flex items-center gap-2.5">
                     <div class="w-8 h-8 rounded-lg bg-orange-100 text-primary-container flex items-center justify-center">
@@ -355,12 +344,12 @@
                 </button>
             </div>
 
-            <!-- Modal Form Body -->
+            {{-- Modal Form Body --}}
             <form id="expenseForm" method="POST" action="{{ route('finance.expenses.store') }}" class="p-6 space-y-4">
                 @csrf
                 <input type="hidden" id="formMethod" name="_method" value="POST">
 
-                <!-- Ô 1: Ngày chi (date, bắt buộc) -->
+                {{-- Ô 1: Ngày chi (date, bắt buộc) --}}
                 <div>
                     <label for="formExpenseDate" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                         Ngày chi <span class="text-red-500">*</span>
@@ -368,7 +357,7 @@
                     <input type="date" id="formExpenseDate" name="expense_date" value="{{ date('Y-m-d') }}" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container focus:outline-none transition-all">
                 </div>
 
-                <!-- Ô 2: Nội dung (text tự do, bắt buộc) -->
+                {{-- Ô 2: Nội dung (text tự do, bắt buộc) --}}
                 <div>
                     <label for="formTitle" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                         Nội dung khoản chi <span class="text-red-500">*</span>
@@ -376,9 +365,9 @@
                     <input type="text" id="formTitle" name="title" placeholder="Ví dụ: Mua rèm cửa phòng học, Nạp mực máy in..." required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container focus:outline-none transition-all">
                 </div>
 
-                <!-- Grid 2 cột: Số tiền & Hình thức -->
+                {{-- Grid 2 cột: Số tiền & Hình thức --}}
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <!-- Ô 3: Số tiền (number > 0, bắt buộc) -->
+                    {{-- Ô 3: Số tiền (number > 0, bắt buộc) --}}
                     <div>
                         <label for="formAmount" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                             Số tiền (VNĐ) <span class="text-red-500">*</span>
@@ -389,7 +378,7 @@
                         </div>
                     </div>
 
-                    <!-- Ô 4: Hình thức chi (dropdown Tiền mặt/Chuyển khoản) -->
+                    {{-- Ô 4: Hình thức chi (dropdown Tiền mặt/Chuyển khoản) --}}
                     <div>
                         <label for="formPaymentMethod" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                             Hình thức chi <span class="text-red-500">*</span>
@@ -404,7 +393,7 @@
                     </div>
                 </div>
 
-                <!-- Ô 5: Chi nhánh (dropdown, bắt buộc) -->
+                {{-- Ô 5: Chi nhánh (dropdown, bắt buộc) --}}
                 <div>
                     <label for="formBranchId" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                         Chi nhánh áp dụng <span class="text-red-500">*</span>
@@ -420,7 +409,7 @@
                     </div>
                 </div>
 
-                <!-- Phân loại danh mục (Tùy chọn) -->
+                {{-- Phân loại danh mục (Tùy chọn) --}}
                 <div>
                     <label for="formCategory" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                         Phân loại chi phí <span class="text-slate-400 font-normal text-[11px]">(Tự động nhận diện nếu để trống)</span>
@@ -436,7 +425,7 @@
                     </div>
                 </div>
 
-                <!-- Ô 6: Ghi chú (textarea, optional) -->
+                {{-- Ô 6: Ghi chú (textarea, optional) --}}
                 <div>
                     <label for="formNotes" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                         Ghi chú &amp; Thông tin chứng từ <span class="text-slate-400 font-normal text-[11px]">(Tùy chọn)</span>
@@ -444,13 +433,13 @@
                     <textarea id="formNotes" name="notes" rows="3" placeholder="Nhập mã hóa đơn, thông tin nhà cung cấp hoặc lưu ý nội bộ..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container focus:outline-none transition-all resize-none"></textarea>
                 </div>
 
-                <!-- Thông tin tự động -->
+                {{-- Thông tin tự động --}}
                 <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/60 text-xs text-slate-500 flex items-center justify-between">
                     <span>Người lập: <strong class="text-slate-700">{{ Auth::user()->name ?? 'Admin' }}</strong></span>
                     <span>Thời điểm: <strong class="text-slate-700">Tự động khi lưu</strong></span>
                 </div>
 
-                <!-- Action Buttons -->
+                {{-- Action Buttons --}}
                 <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
                     <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-semibold text-sm transition-colors">
                         Hủy bỏ

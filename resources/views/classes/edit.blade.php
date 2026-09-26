@@ -13,7 +13,6 @@
                         </h1>
                         <span class="font-mono text-xs font-bold text-primary bg-orange-50 px-2 py-0.5 rounded border border-orange-200">{{ $class->code }}</span>
                     </div>
-                    <p class="text-xs text-gray-500 mt-0.5">Cập nhật thông tin lớp học: tên, giáo viên, sĩ số, học phí, lịch học và ghi chú.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -40,7 +39,7 @@
             @csrf
             @method('PUT')
 
-            <!-- Khối 1: Thông tin cơ bản & Phân loại lớp -->
+            {{-- Khối 1: Thông tin cơ bản & Phân loại lớp --}}
             <div class="p-6 md:p-8 space-y-6">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
@@ -51,7 +50,7 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
-                    <!-- Tên lớp -->
+                    {{-- Tên lớp --}}
                     <div class="md:col-span-8">
                         <label for="ten_lop" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Tên lớp học <span class="text-rose-500">*</span>
@@ -63,7 +62,7 @@
                         @error('ten_lop') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
                     </div>
 
-                    <!-- Mã lớp -->
+                    {{-- Mã lớp --}}
                     <div class="md:col-span-4">
                         <label for="ma_lop" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Mã lớp <span class="text-[11px] font-normal text-gray-400">(Tùy chọn)</span>
@@ -73,7 +72,7 @@
                                class="w-full px-3.5 py-2.5 text-xs font-mono uppercase bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
                     </div>
 
-                    <!-- Chi nhánh -->
+                    {{-- Chi nhánh --}}
                     <div class="md:col-span-4">
                         <label for="chi_nhanh" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Chi nhánh đào tạo <span class="text-rose-500">*</span>
@@ -88,7 +87,7 @@
                         </select>
                     </div>
 
-                    <!-- Chương trình -->
+                    {{-- Chương trình --}}
                     <div class="md:col-span-4">
                         <label for="chuong_trinh" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Chương trình học <span class="text-rose-500">*</span>
@@ -104,7 +103,7 @@
                         </select>
                     </div>
 
-                    <!-- Cấp độ -->
+                    {{-- Cấp độ --}}
                     <div class="md:col-span-4">
                         <label for="cap_do" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Cấp độ <span class="text-rose-500">*</span>
@@ -120,7 +119,7 @@
                         </select>
                     </div>
 
-                    <!-- Sĩ số tối đa -->
+                    {{-- Sĩ số tối đa --}}
                     <div class="md:col-span-4">
                         <label for="si_so_toi_da" class="block text-xs font-bold text-gray-700 mb-1.5">
                             Sĩ số tối đa <span class="text-rose-500">*</span>
@@ -136,7 +135,7 @@
                         @error('si_so_toi_da') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
                     </div>
 
-                    <!-- Ngưỡng khai giảng -->
+                    {{-- Ngưỡng khai giảng --}}
                     <div class="md:col-span-4">
                         <label for="min_students" class="block text-xs font-bold text-gray-700 mb-1.5">Ngưỡng khai giảng</label>
                         <div class="relative">
@@ -150,7 +149,7 @@
                         @error('min_students') <p class="text-[11px] text-rose-500 mt-1">{{ $message }}</p> @enderror
                     </div>
 
-                    <!-- Trạng thái -->
+                    {{-- Trạng thái --}}
                     <div class="md:col-span-4">
                         <label for="status" class="block text-xs font-bold text-gray-700 mb-1.5">Trạng thái lớp</label>
                         <select id="status" name="status"
@@ -162,7 +161,7 @@
                         </select>
                     </div>
 
-                    <!-- Ngày khai giảng & kết thúc -->
+                    {{-- Ngày khai giảng & kết thúc --}}
                     <div class="md:col-span-4">
                         <label for="start_date" class="block text-xs font-bold text-gray-700 mb-1.5">Ngày khai giảng</label>
                         <input type="date" id="start_date" name="start_date"
@@ -176,7 +175,7 @@
                                class="w-full px-3.5 py-2.5 text-xs bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container transition">
                     </div>
 
-                    <!-- Lịch học text -->
+                    {{-- Lịch học text --}}
                     <div class="md:col-span-12">
                         <label for="schedule_text" class="block text-xs font-bold text-gray-700 mb-1.5">Lịch học (mô tả ngắn)</label>
                         <input type="text" id="schedule_text" name="schedule_text"
@@ -188,7 +187,7 @@
                 </div>
             </div>
 
-            <!-- Khối 2: Phòng học & Đội ngũ -->
+            {{-- Khối 2: Phòng học & Đội ngũ --}}
             <div class="p-6 md:p-8 space-y-6 bg-gray-50/40">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
@@ -245,7 +244,7 @@
                 </div>
             </div>
 
-            <!-- Khối 3: Học phí & Ghi chú -->
+            {{-- Khối 3: Học phí & Ghi chú --}}
             <div class="p-6 md:p-8 space-y-6">
                 <div class="flex items-center gap-2">
                     <div class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
@@ -272,7 +271,7 @@
                 </div>
             </div>
 
-            <!-- Action Footer -->
+            {{-- Action Footer --}}
             <div class="p-6 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div class="text-xs text-gray-500">
                     Cập nhật lần cuối: <strong class="text-gray-800">{{ $class->updated_at->format('d/m/Y H:i') }}</strong>

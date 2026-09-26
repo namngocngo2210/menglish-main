@@ -10,7 +10,6 @@
                         <span class="material-symbols-outlined text-primary">monitoring</span>
                         Báo cáo giảng dạy của tôi — T{{ $month }}/{{ $year }}
                     </h1>
-                    <p class="text-xs text-gray-500">Giờ dạy &amp; trạng thái duyệt, điểm danh đã chấm, điểm đã nhập trong tháng</p>
                 </div>
             </div>
             <form method="GET" class="flex items-center gap-2">
@@ -22,7 +21,7 @@
     </x-slot>
 
     <div class="space-y-4">
-        <!-- Thẻ tổng quan -->
+        {{-- Thẻ tổng quan --}}
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
                 <span class="text-xs text-gray-500">Tổng giờ dạy tháng</span>
@@ -46,7 +45,7 @@
             </div>
         </div>
 
-        <!-- Lớp đang phụ trách -->
+        {{-- Lớp đang phụ trách --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div class="p-4 border-b border-gray-100">
                 <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
@@ -85,7 +84,7 @@
             </table>
         </div>
 
-        <!-- Chi tiết chấm công theo trạng thái -->
+        {{-- Chi tiết chấm công theo trạng thái --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div class="p-4 border-b border-gray-100">
                 <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">

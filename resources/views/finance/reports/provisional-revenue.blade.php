@@ -18,9 +18,9 @@
                 </div>
             </div>
 
-            <!-- Filters & Actions -->
+            {{-- Filters & Actions --}}
             <form id="revenueFilterForm" method="GET" action="{{ route('finance.reports.revenue') }}" class="flex flex-wrap items-center gap-3">
-                <!-- Filter Kỳ tháng -->
+                {{-- Filter Kỳ tháng --}}
                 <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-primary-container/20 focus-within:border-primary-container transition-all">
                     <span class="material-symbols-outlined text-slate-400 text-lg mr-2">calendar_month</span>
                     <label for="filter-month" class="text-xs font-semibold text-slate-500 mr-2 uppercase">KỲ THÁNG:</label>
@@ -31,7 +31,7 @@
                     </select>
                 </div>
 
-                <!-- Filter Chi nhánh -->
+                {{-- Filter Chi nhánh --}}
                 <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-primary-container/20 focus-within:border-primary-container transition-all">
                     <span class="material-symbols-outlined text-slate-400 text-lg mr-2">storefront</span>
                     <label for="filter-branch" class="text-xs font-semibold text-slate-500 mr-2 uppercase">CƠ SỞ:</label>
@@ -43,12 +43,12 @@
                     </select>
                 </div>
 
-                <!-- Nút Làm mới -->
+                {{-- Nút Làm mới --}}
                 <button type="button" onclick="window.location.reload()" class="inline-flex items-center justify-center p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors shadow-xs" title="Làm mới số liệu thời gian thực">
                     <span class="material-symbols-outlined text-xl">sync</span>
                 </button>
 
-                <!-- Nút Xuất báo cáo -->
+                {{-- Nút Xuất báo cáo --}}
                 <a href="{{ route('finance.reports.revenue.export', ['month' => $month, 'branch_id' => $branchId]) }}" class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-all shadow-xs">
                     <span class="material-symbols-outlined text-lg">download</span>
                     <span>Xuất báo cáo</span>
@@ -59,10 +59,10 @@
 
     <div class="space-y-6">
 
-        <!-- 2. Thẻ 3 Số Liệu Cốt Lõi: THU - CHI - DOANH THU TẠM TÍNH -->
+        {{-- 2. Thẻ 3 Số Liệu Cốt Lõi: THU - CHI - DOANH THU TẠM TÍNH --}}
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-            <!-- THẺ 1: TỔNG THU THỰC TẾ -->
+            {{-- THẺ 1: TỔNG THU THỰC TẾ --}}
             <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs relative overflow-hidden flex flex-col justify-between group hover:border-emerald-300 transition-all">
                 <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
 
@@ -97,7 +97,7 @@
                 </div>
             </div>
 
-            <!-- THẺ 2: CHI PHÍ VẬN HÀNH -->
+            {{-- THẺ 2: CHI PHÍ VẬN HÀNH --}}
             <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs relative overflow-hidden flex flex-col justify-between group hover:border-rose-300 transition-all">
                 <div class="absolute top-0 right-0 w-32 h-32 bg-rose-50 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
 
@@ -129,9 +129,9 @@
                 </div>
             </div>
 
-            <!-- THẺ 3: DOANH THU TẠM TÍNH (NỔI BẬT NHẤT = THU - CHI) -->
+            {{-- THẺ 3: DOANH THU TẠM TÍNH (NỔI BẬT NHẤT = THU - CHI) --}}
             <div class="bg-gradient-to-br from-primary-container via-primary-container to-sidebar rounded-2xl p-6 text-white shadow-lg shadow-orange-500/15 relative overflow-hidden flex flex-col justify-between border border-orange-400/30">
-                <!-- Glow accents -->
+                {{-- Glow accents --}}
                 <div class="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
                 <div class="absolute -left-6 -top-6 w-32 h-32 bg-orange-300/20 rounded-full blur-xl pointer-events-none"></div>
 
@@ -167,10 +167,10 @@
 
         </div>
 
-        <!-- 3. Chi tiết Bóc tách Nguồn thu & Khoản chi (Breakdown Panel) -->
+        {{-- 3. Chi tiết Bóc tách Nguồn thu & Khoản chi (Breakdown Panel) --}}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-            <!-- Cột Trái: Bóc tách Nguồn Thu -->
+            {{-- Cột Trái: Bóc tách Nguồn Thu --}}
             <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-4">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                     <div class="flex items-center gap-2.5">
@@ -186,7 +186,7 @@
                 </div>
 
                 <div class="space-y-3 pt-1">
-                    <!-- Item 1: Học phí chính thức -->
+                    {{-- Item 1: Học phí chính thức --}}
                     <div class="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
@@ -201,7 +201,7 @@
                         </div>
                     </div>
 
-                    <!-- Item 2: Phụ thu phát sinh ngoài học phí -->
+                    {{-- Item 2: Phụ thu phát sinh ngoài học phí --}}
                     <div class="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-2.5 h-2.5 rounded-full bg-teal-500"></div>
@@ -216,7 +216,7 @@
                         </div>
                     </div>
 
-                    <!-- Phân theo hình thức thanh toán -->
+                    {{-- Phân theo hình thức thanh toán --}}
                     <div class="pt-2">
                         <div class="flex justify-between text-xs font-semibold text-slate-600 mb-1.5">
                             <span>Hình thức: Chuyển khoản ({{ $revenueTransferPercent }}%)</span>
@@ -238,7 +238,7 @@
                 </div>
             </div>
 
-            <!-- Cột Phải: Bóc tách Chi Vận Hành -->
+            {{-- Cột Phải: Bóc tách Chi Vận Hành --}}
             <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-4">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                     <div class="flex items-center gap-2.5">
@@ -254,7 +254,7 @@
                 </div>
 
                 <div class="space-y-3 pt-1">
-                    <!-- Chi Lương (tự động từ bảng lương đã chốt) -->
+                    {{-- Chi Lương (tự động từ bảng lương đã chốt) --}}
                     <div class="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200/70 flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
@@ -274,7 +274,7 @@
                         </div>
                     </div>
 
-                    <!-- Chi Mặt bằng & Tiện ích -->
+                    {{-- Chi Mặt bằng & Tiện ích --}}
                     <div class="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-2.5 h-2.5 rounded-full bg-rose-400"></div>
@@ -289,7 +289,7 @@
                         </div>
                     </div>
 
-                    <!-- Chi Giáo trình & Vận hành lớp -->
+                    {{-- Chi Giáo trình & Vận hành lớp --}}
                     <div class="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-2.5 h-2.5 rounded-full bg-amber-400"></div>
@@ -304,7 +304,7 @@
                         </div>
                     </div>
 
-                    <!-- Chi khác -->
+                    {{-- Chi khác --}}
                     <div class="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-2.5 h-2.5 rounded-full bg-slate-400"></div>
@@ -331,7 +331,7 @@
 
         </div>
 
-        <!-- 4. Thống kê theo Chi nhánh (Branch Matrix) -->
+        {{-- 4. Thống kê theo Chi nhánh (Branch Matrix) --}}
         <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -400,19 +400,6 @@
                     </tfoot>
                 </table>
             </div>
-        </div>
-
-        <!-- 5. Ghi chú quy tắc nghiệp vụ -->
-        <div class="bg-amber-50/70 rounded-2xl p-4 md:p-5 border border-amber-200/80 text-xs text-amber-900 space-y-2">
-            <div class="flex items-center gap-2 text-amber-800 font-bold text-sm">
-                <span class="material-symbols-outlined text-lg">lightbulb</span>
-                <span>Quy tắc vận hành &amp; Tính toán số liệu Doanh thu tạm tính (Real-time):</span>
-            </div>
-            <ul class="list-disc list-inside space-y-1 text-amber-900/90 pl-1">
-                <li><strong>Nguồn Thu:</strong> Tổng hợp toàn bộ phiếu thu còn hiệu lực (bao gồm cả học phí khóa học và phụ thu) phát sinh trong tháng đang lọc. Phiếu bị Admin duyệt <em>"Đã hủy"</em> hóa đơn sẽ tự động bị loại bỏ ngay lập tức khỏi tổng thu.</li>
-                <li><strong>Nguồn Chi vận hành:</strong> Tổng hợp từ 2 nguồn: các khoản chi quản lý tự nhập trực tiếp tại Sổ khoản chi + Khoản chi lương tự động <code>SUM(thuc_nhan)</code> lấy từ các bảng lương có <code>ky_luong</code> khớp với tháng đã chọn (không phụ thuộc vào ngày chuyển tiền thực tế).</li>
-                <li><strong>Cập nhật tức thì (Không cache):</strong> Khi Quản trị viên thay đổi bộ lọc kỳ tháng hoặc chuyển đổi giữa các chi nhánh, 3 chỉ số chính sẽ được hệ thống tính toán lại tức thì để đảm bảo tính minh bạch và chuẩn xác tuyệt đối.</li>
-            </ul>
         </div>
 
     </div>

@@ -135,7 +135,7 @@
             </x-ui.data-table>
         </section>
 
-        <!-- Sales Performance Table by Rep (Bảng hiệu suất & Tỷ lệ chốt theo người phụ trách) -->
+        {{-- Sales Performance Table by Rep (Bảng hiệu suất & Tỷ lệ chốt theo người phụ trách) --}}
         <div class="space-y-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-lg shadow-sm">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-gray-100 gap-2">
                 <div>
@@ -175,7 +175,7 @@
                     <tbody class="divide-y divide-gray-100 font-normal text-gray-700">
                         @foreach ($repsData as $rep)
                             <tr class="hover:bg-orange-50/20 transition">
-                                <!-- Người phụ trách -->
+                                {{-- Người phụ trách --}}
                                 <td class="py-3.5 px-4 font-bold text-gray-900">
                                     <div class="flex items-center gap-2.5">
                                         <span class="w-7 h-7 rounded-full bg-primary-container text-white flex items-center justify-center font-bold text-xs shrink-0">
@@ -188,27 +188,27 @@
                                     </div>
                                 </td>
 
-                                <!-- Số lượng Lead -->
+                                {{-- Số lượng Lead --}}
                                 <td class="py-3.5 px-3 text-center font-mono font-bold text-gray-800">
                                     {{ $rep['leads'] }}
                                 </td>
 
-                                <!-- SL chốt thành công -->
+                                {{-- SL chốt thành công --}}
                                 <td class="py-3.5 px-3 text-center font-mono font-bold text-emerald-600">
                                     {{ $rep['won'] }}
                                 </td>
 
-                                <!-- % Chốt thành công -->
+                                {{-- % Chốt thành công --}}
                                 <td class="py-3.5 px-3 text-center font-mono font-bold text-gray-900">
                                     {{ $rep['rate'] }}%
                                 </td>
 
-                                <!-- Doanh thu -->
+                                {{-- Doanh thu --}}
                                 <td class="py-3.5 px-4 text-right font-mono font-bold text-gray-900">
                                     {{ number_format($rep['revenue']) }} đ
                                 </td>
 
-                                <!-- Hoa hồng -->
+                                {{-- Hoa hồng --}}
                                 <td class="py-3.5 px-4 text-right bg-brand-surface">
                                     <div class="font-mono font-bold text-primary-container">
                                         {{ number_format($rep['commission_amount']) }} đ
@@ -218,12 +218,12 @@
                                     </div>
                                 </td>
 
-                                <!-- Biến động % vs kỳ trước -->
+                                {{-- Biến động % vs kỳ trước --}}
                                 <td class="py-3.5 px-3 text-center font-mono font-bold {{ str_starts_with($rep['delta'], '+') ? 'text-emerald-600' : 'text-rose-600' }}">
                                     {{ $rep['delta'] }}
                                 </td>
 
-                                <!-- Đánh giá -->
+                                {{-- Đánh giá --}}
                                 <td class="py-3.5 px-3 text-center">
                                     <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border {{ $rep['rating_badge'] }}">
                                         {{ $rep['rating'] }}

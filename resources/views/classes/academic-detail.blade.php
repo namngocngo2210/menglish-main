@@ -10,7 +10,6 @@
                         <span class="material-symbols-outlined text-primary">class</span>
                         Chi tiết lớp học Học thuật
                     </h1>
-                    <p class="text-xs text-gray-500">Tiến độ chi tiết từng chặng học, unit bài giảng và timeline các bài kiểm tra định kỳ Big Test.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -26,10 +25,9 @@
         </div>
     </x-slot>
 
-    @include('classes.partials.flow-header', ['activeStep' => 6])
 
     <div class="max-w-[1200px] mx-auto space-y-6">
-        <!-- Class Header & Switcher (Exact Match BA) -->
+        {{-- Class Header & Switcher --}}
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
             <div>
                 <div class="flex items-center gap-3">
@@ -42,7 +40,6 @@
                         </span>
                     @endif
                 </div>
-                <p class="text-xs text-gray-500 mt-0.5">Quản lý và theo dõi thông tin học thuật chi tiết của lớp học.</p>
             </div>
 
             <div class="flex items-center gap-2">
@@ -58,9 +55,9 @@
             </div>
         </div>
 
-        <!-- Grid Layout for Top Cards (Exact Match BA 2 Columns) -->
+        {{-- Grid Layout for Top Cards --}}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- 1. Thông tin chung -->
+            {{-- 1. Thông tin chung --}}
             <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                 <div class="flex items-center gap-2 mb-5 border-b border-gray-100 pb-3">
                     <span class="material-symbols-outlined text-primary text-[22px]">info</span>
@@ -94,7 +91,7 @@
                 </div>
             </div>
 
-            <!-- 2. Chương trình & Tiến độ -->
+            {{-- 2. Chương trình & Tiến độ --}}
             <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                 <div class="flex items-center gap-2 mb-5 border-b border-gray-100 pb-3">
                     <span class="material-symbols-outlined text-primary text-[22px]">school</span>
@@ -129,7 +126,7 @@
             </div>
         </div>
 
-        <!-- 3. Lịch Big Test -->
+        {{-- 3. Lịch Big Test --}}
         <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
             <div class="flex items-center gap-2 mb-6 border-b border-gray-100 pb-3">
                 <span class="material-symbols-outlined text-primary text-[22px]">event_available</span>

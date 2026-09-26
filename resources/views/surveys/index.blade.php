@@ -6,14 +6,13 @@
                     <span class="material-symbols-outlined text-primary">ballot</span>
                     Quản lý Đợt Khảo sát Chất lượng
                 </h1>
-                <p class="text-xs text-gray-500">Tạo khảo sát + hạn hoàn thành; học viên/phụ huynh nộp tại Cổng PH/HS (màn Khảo sát 5 sao)</p>
             </div>
         </div>
     </x-slot>
 
     <div class="space-y-4">
 
-        <!-- Tạo khảo sát mới -->
+        {{-- Tạo khảo sát mới --}}
         <form action="{{ route('surveys.store') }}" method="POST" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
             @csrf
             <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
@@ -46,7 +45,7 @@
             </div>
         </form>
 
-        <!-- Danh sách -->
+        {{-- Danh sách --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <table class="w-full text-left border-collapse text-xs">
                 <thead>

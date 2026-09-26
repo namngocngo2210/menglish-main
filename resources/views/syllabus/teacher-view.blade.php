@@ -28,7 +28,6 @@
         </div>
     </x-slot>
 
-    @include('syllabus.partials.flow-header', ['activeStep' => 4])
 
     @php($user = auth()->user())
     {{-- Mockup 03_Cong_Giao_Vien/08: 3 tab Tài liệu / Tổng quan syllabus / Nội dung buổi học. --}}

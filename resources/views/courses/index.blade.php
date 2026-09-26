@@ -24,7 +24,7 @@
         </div>
     </x-slot>
 
-    <!-- Navigation Sub-Tabs -->
+    {{-- Navigation Sub-Tabs --}}
     <div class="border-b border-gray-200 bg-white -mt-md -mx-md lg:-mt-lg lg:-mx-lg px-6 pt-3 mb-5">
         <div class="flex items-center gap-6 overflow-x-auto text-xs font-semibold scrollbar-none">
             <a href="{{ route('courses.index') }}" class="pb-3 border-b-2 border-primary-container text-primary font-bold transition whitespace-nowrap flex items-center gap-1.5">
@@ -43,7 +43,7 @@
     </div>
 
     <div class="space-y-5" x-data="courseManager()">
-        <!-- 1. KPI Cards -->
+        {{-- 1. KPI Cards --}}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5">
             <div class="bg-white rounded-2xl p-4 border border-gray-200/90 shadow-sm flex items-center justify-between">
                 <div>
@@ -86,10 +86,10 @@
             </div>
         </div>
 
-        <!-- 2. Filter Bar -->
+        {{-- 2. Filter Bar --}}
         <div class="bg-white rounded-2xl border border-gray-200/90 shadow-sm p-4">
             <form method="GET" action="{{ route('courses.index') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                <!-- Search -->
+                {{-- Search --}}
                 <div class="lg:col-span-2">
                     <label class="block text-[11px] font-bold text-gray-600 mb-1">Tìm kiếm khóa học</label>
                     <div class="relative">
@@ -104,7 +104,7 @@
                     </div>
                 </div>
 
-                <!-- Level -->
+                {{-- Level --}}
                 <div>
                     <label class="block text-[11px] font-bold text-gray-600 mb-1">Khung trình độ</label>
                     <select name="course_level_id" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
@@ -117,7 +117,7 @@
                     </select>
                 </div>
 
-                <!-- Status -->
+                {{-- Status --}}
                 <div>
                     <label class="block text-[11px] font-bold text-gray-600 mb-1">Trạng thái mở bán</label>
                     <select name="status" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
@@ -127,7 +127,7 @@
                     </select>
                 </div>
 
-                <!-- Actions -->
+                {{-- Actions --}}
                 <div class="flex items-end gap-2">
                     <a href="{{ route('courses.index') }}" class="px-3 py-2 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-xl transition">
                         Đặt lại
@@ -140,7 +140,7 @@
             </form>
         </div>
 
-        <!-- 3. Courses Table / Price List -->
+        {{-- 3. Courses Table / Price List --}}
         <div class="bg-white rounded-2xl border border-gray-200/90 shadow-sm overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse text-xs min-w-[1040px]">
@@ -159,14 +159,14 @@
                     <tbody class="divide-y divide-gray-100 text-gray-700">
                         @forelse ($courses as $c)
                             <tr class="hover:bg-orange-50/20 transition group">
-                                <!-- Code -->
+                                {{-- Code --}}
                                 <td class="py-3.5 px-4 font-mono font-bold text-gray-900 whitespace-nowrap">
                                     <span class="px-2 py-1 bg-gray-100 rounded-lg text-gray-800 border border-gray-200/70 inline-block">
                                         {{ $c->code }}
                                     </span>
                                 </td>
 
-                                <!-- Name & Description -->
+                                {{-- Name & Description --}}
                                 <td class="py-3.5 px-4">
                                     <div class="font-bold text-gray-900 text-xs">{{ $c->name }}</div>
                                     @if ($c->description)
@@ -174,7 +174,7 @@
                                     @endif
                                 </td>
 
-                                <!-- Level -->
+                                {{-- Level --}}
                                 <td class="py-3.5 px-4 whitespace-nowrap">
                                     @if ($c->level)
                                         <div class="whitespace-nowrap">
@@ -198,7 +198,7 @@
                                     @endif
                                 </td>
 
-                                <!-- Tuition Fee (Giá khóa học) -->
+                                {{-- Tuition Fee (Giá khóa học) --}}
                                 <td class="py-3.5 px-4 text-right whitespace-nowrap">
                                     <div class="font-mono font-extrabold text-sm text-primary">
                                         {{ number_format($c->tuition_fee) }} đ
@@ -206,18 +206,18 @@
                                     <span class="text-[10px] text-gray-400 block">Giá trọn gói</span>
                                 </td>
 
-                                <!-- Lessons -->
+                                {{-- Lessons --}}
                                 <td class="py-3.5 px-4 text-center whitespace-nowrap">
                                     <span class="font-mono font-bold text-gray-800">{{ $c->total_lessons }}</span>
                                     <span class="text-[10px] text-gray-400 block">buổi học</span>
                                 </td>
 
-                                <!-- Classes Count -->
+                                {{-- Classes Count --}}
                                 <td class="py-3.5 px-4 text-center font-mono font-semibold text-gray-600 whitespace-nowrap">
                                     <span class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs font-bold">{{ $c->classes_count }} lớp</span>
                                 </td>
 
-                                <!-- Active Status -->
+                                {{-- Active Status --}}
                                 <td class="py-3.5 px-4 text-center whitespace-nowrap">
                                     <form action="{{ route('courses.toggle', $c->id) }}" method="POST" class="inline-block">
                                         @csrf
@@ -232,10 +232,10 @@
                                     </form>
                                 </td>
 
-                                <!-- Actions -->
+                                {{-- Actions --}}
                                 <td class="py-3.5 px-4 text-right whitespace-nowrap">
                                     <div class="flex items-center justify-end gap-1.5 whitespace-nowrap">
-                                        <!-- Edit Price / Course Button -->
+                                        {{-- Edit Price / Course Button --}}
                                         <button 
                                             type="button" 
                                             onclick='openEditModal(@json($c))' 
@@ -246,7 +246,7 @@
                                             <span>Sửa giá</span>
                                         </button>
 
-                                        <!-- Delete Button -->
+                                        {{-- Delete Button --}}
                                         @if ($c->classes_count === 0)
                                             <form action="{{ route('courses.destroy', $c->id) }}" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn xóa khóa học {{ $c->name }} không?');">
                                                 @csrf
@@ -271,13 +271,13 @@
                 </table>
             </div>
 
-            <!-- Pagination (10, 20, 50, 100, All) -->
+            {{-- Pagination (10, 20, 50, 100, All) --}}
             <div class="border-t border-gray-100">
                 <x-pagination :paginator="$courses" />
             </div>
         </div>
 
-        <!-- 4. Create Course Modal -->
+        {{-- 4. Create Course Modal --}}
         <div id="createCourseModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
             <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl overflow-hidden">
                 <div class="flex justify-between items-center pb-3 border-b border-gray-100">
@@ -309,7 +309,7 @@
                         <input type="text" name="name" placeholder="Ví dụ: IELTS 6.5 Intensive, Giao tiếp Pro B1" required class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container" />
                     </div>
 
-                    <!-- TUITION FEE (Giá học phí) -->
+                    {{-- TUITION FEE (Giá học phí) --}}
                     <div class="bg-orange-50/70 p-3.5 rounded-2xl border border-orange-200/80">
                         <label class="block font-bold text-orange-950 mb-1 flex items-center justify-between">
                             <span>Giá học phí niêm yết (VNĐ) <span class="text-rose-500">*</span></span>
@@ -357,7 +357,7 @@
             </div>
         </div>
 
-        <!-- 5. Edit Course & Price Modal -->
+        {{-- 5. Edit Course & Price Modal --}}
         <div id="editCourseModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
             <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl overflow-hidden">
                 <div class="flex justify-between items-center pb-3 border-b border-gray-100">
@@ -390,7 +390,7 @@
                         <input type="text" name="name" id="edit_name" required class="w-full text-xs font-bold rounded-xl border border-gray-200 p-2.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container" />
                     </div>
 
-                    <!-- EDIT TUITION FEE (Chỉnh sửa giá học phí) -->
+                    {{-- EDIT TUITION FEE (Chỉnh sửa giá học phí) --}}
                     <div class="bg-orange-50/80 p-3.5 rounded-2xl border border-orange-200">
                         <label class="block font-bold text-orange-950 mb-1 flex items-center justify-between">
                             <span>Giá học phí niêm yết (VNĐ) <span class="text-rose-500">*</span></span>

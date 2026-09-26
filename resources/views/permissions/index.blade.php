@@ -6,7 +6,6 @@
                     <span class="material-symbols-outlined text-indigo-600">key</span>
                     Danh mục quyền hạn hệ thống
                 </h1>
-                <p class="text-xs text-gray-500">Toàn bộ các quyền hạn chi tiết được kiểm soát bảo mật trong hệ thống MEnglish</p>
             </div>
         </div>
     </x-slot>

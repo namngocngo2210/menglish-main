@@ -9,7 +9,6 @@
                     <span class="material-symbols-outlined text-primary">add_task</span>
                     Tạo Yêu Cầu Hỗ Trợ (Ticket)
                 </h1>
-                <p class="text-xs text-gray-500">Mô tả sự cố cần hỗ trợ hoặc gửi yêu cầu liên phòng ban</p>
             </div>
         </div>
     </x-slot>
@@ -67,7 +66,7 @@
                     <x-input-error :messages="$errors->get('description')" class="mt-1" />
                 </div>
 
-                <!-- Drag and Drop Image Upload Zone -->
+                {{-- Drag and Drop Image Upload Zone --}}
                 <div class="space-y-2 pt-2">
                     <label class="block font-semibold text-gray-700">
                         Hình ảnh đính kèm minh chứng / Ảnh chụp màn hình lỗi
@@ -109,7 +108,7 @@
                         </div>
                     </div>
 
-                    <!-- Previews of selected / pasted files -->
+                    {{-- Previews of selected / pasted files --}}
                     <template x-if="previews.length > 0">
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3">
                             <template x-for="(item, index) in previews" :key="index">

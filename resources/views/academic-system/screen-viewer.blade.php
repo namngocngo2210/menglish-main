@@ -31,7 +31,7 @@
         </div>
     </x-slot>
 
-    <!-- Embedded Screen within Admin Layout (Keeps Sidebar Menu Permanent) -->
+    {{-- Embedded Screen within Admin Layout (Keeps Sidebar Menu Permanent) --}}
     <div class="w-full h-[calc(100vh-140px)] min-h-[700px] bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
         <iframe 
             src="{{ $rawUrl }}" 

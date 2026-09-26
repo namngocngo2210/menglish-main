@@ -89,9 +89,9 @@
     @if ($record->usesQ3Formula())
         <x-ui.alert type="info" class="mb-md">
             @if ($isPT)
-                Công thức Part-time (BA chốt Q3): <strong>số buổi × đơn giá buổi riêng + KPI giữ HS + buổi có GVNN + phụ cấp tự do − khoản trừ</strong>. Không trừ BHXH / Công đoàn / TNCN.
+                Công thức Part-time: <strong>số buổi × đơn giá buổi riêng + KPI giữ HS + buổi có GVNN + phụ cấp tự do − khoản trừ</strong>. Không trừ BHXH / Công đoàn / TNCN.
             @else
-                Công thức Full-time (BA chốt Q3): <strong>lương cơ bản + các khoản cộng − BHXH {{ $pct($settings['insurance_rate_percent']) }}% − Công đoàn {{ $pct($settings['union_rate_percent']) }}% (trên lương cơ bản) − thuế TNCN (nhập tay) − trừ vi phạm</strong>.
+                Công thức Full-time: <strong>lương cơ bản + các khoản cộng − BHXH {{ $pct($settings['insurance_rate_percent']) }}% − Công đoàn {{ $pct($settings['union_rate_percent']) }}% (trên lương cơ bản) − thuế TNCN (nhập tay) − trừ vi phạm</strong>.
             @endif
         </x-ui.alert>
     @endif

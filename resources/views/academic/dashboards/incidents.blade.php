@@ -3,7 +3,6 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Dashboard Nhật ký Sự vụ Cơ sở</h1>
-                <p class="text-xs text-gray-500 mt-1">Kiểm soát và xử lý các sự vụ nổi cộm phát sinh từ các cơ sở và chi nhánh</p>
             </div>
             <div class="flex items-center gap-2">
                 <a href="{{ route('academic.dashboards.reports') }}" class="px-3.5 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold rounded-xl shadow-xs transition flex items-center gap-1.5">
@@ -16,7 +15,7 @@
     </x-slot>
 
     <div class="space-y-6">
-        <!-- 4 Metric Cards -->
+        {{-- 4 Metric Cards --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl bg-gray-100 text-gray-700 flex items-center justify-center font-bold">
@@ -59,7 +58,7 @@
             </div>
         </div>
 
-        <!-- Filter & Bảng Sự vụ -->
+        {{-- Filter & Bảng Sự vụ --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
             <div class="p-5 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>

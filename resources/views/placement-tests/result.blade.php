@@ -47,9 +47,9 @@
         writingContent: {{ Js::from($submission->writing_content ?? '') }}
     })">
 
-        <!-- ────────────────────────────────────────────── -->
-        <!-- 1. BẢNG TỔNG HỢP ĐIỂM & FORM CHẤM NHANH -->
-        <!-- ────────────────────────────────────────────── -->
+        {{-- ────────────────────────────────────────────── --}}
+        {{-- 1. BẢNG TỔNG HỢP ĐIỂM & FORM CHẤM NHANH --}}
+        {{-- ────────────────────────────────────────────── --}}
         <form action="{{ route('placement-tests.results.update', $submission->id) }}" method="POST" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
             @csrf
 
@@ -94,12 +94,12 @@
             </div>
         </form>
 
-        <!-- ────────────────────────────────────────────── -->
-        <!-- 2. BẢNG ĐỐI CHIẾU CÂU HỎI, ĐÁP ÁN CHỌN & ĐÁP ÁN ĐÚNG -->
-        <!-- ────────────────────────────────────────────── -->
+        {{-- ────────────────────────────────────────────── --}}
+        {{-- 2. BẢNG ĐỐI CHIẾU CÂU HỎI, ĐÁP ÁN CHỌN & ĐÁP ÁN ĐÚNG --}}
+        {{-- ────────────────────────────────────────────── --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden space-y-4 p-6">
             
-            <!-- Section Header & Filter Toolbar -->
+            {{-- Section Header & Filter Toolbar --}}
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
                 <div>
                     <h2 class="text-base font-black text-gray-900 flex items-center gap-2">
@@ -111,7 +111,7 @@
                     </p>
                 </div>
 
-                <!-- Stats Quick Badges -->
+                {{-- Stats Quick Badges --}}
                 <div class="flex items-center gap-2 shrink-0 flex-wrap">
                     <span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200 font-mono">
                         Tổng: <span x-text="questions.length"></span> câu
@@ -127,7 +127,7 @@
                 </div>
             </div>
 
-            <!-- Filter Buttons -->
+            {{-- Filter Buttons --}}
             <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
                 <button type="button" @click="currentFilter = 'all'" :class="currentFilter === 'all' ? 'bg-slate-900 text-white font-bold' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold'" class="px-3 py-1.5 rounded-lg transition shrink-0 cursor-pointer">
                     Tất Cả (<span x-text="questions.length"></span>)
@@ -152,7 +152,7 @@
                 </button>
             </div>
 
-            <!-- Questions List -->
+            {{-- Questions List --}}
             <div class="space-y-5 pt-2">
                 @foreach ($questions as $idx => $q)
                     @php
@@ -177,14 +177,14 @@
                     <div class="p-5 rounded-2xl border transition-all duration-200 {{ $isCorrect ? 'bg-emerald-50/20 border-emerald-200' : ($isIncorrect ? 'bg-rose-50/20 border-rose-200' : 'bg-slate-50/40 border-gray-200') }}"
                          x-show="shouldShowQuestion('{{ $qSkill }}', {{ $isCorrect ? 'true' : 'false' }}, {{ $isIncorrect ? 'true' : 'false' }})">
 
-                        <!-- Question Header -->
+                        {{-- Question Header --}}
                         <div class="flex items-center justify-between pb-3 border-b border-gray-100 flex-wrap gap-2">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <span class="w-7 h-7 rounded-lg bg-slate-900 text-white font-black text-xs flex items-center justify-center font-mono">
                                     #{{ $idx + 1 }}
                                 </span>
 
-                                <!-- Skill Badge -->
+                                {{-- Skill Badge --}}
                                 @if ($qSkill === 'listening')
                                     <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 uppercase">
                                         🎧 Listening
@@ -207,13 +207,13 @@
                                     </span>
                                 @endif
 
-                                <!-- Type Badge -->
+                                {{-- Type Badge --}}
                                 <span class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
                                     {{ $qType === 'multiple_choice' ? 'Trắc nghiệm 4 lựa chọn' : ($qType === 'fill_blank' ? 'Điền từ vào chỗ trống' : ($qType === 'essay' ? 'Tự luận Writing' : 'Phỏng vấn Speaking')) }}
                                 </span>
                             </div>
 
-                            <!-- Accuracy / Points Badge -->
+                            {{-- Accuracy / Points Badge --}}
                             <div class="flex items-center gap-2">
                                 @if ($isCorrect)
                                     <span class="px-3 py-1 rounded-xl text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 shadow-2xs">
@@ -234,7 +234,7 @@
                             </div>
                         </div>
 
-                        <!-- Audio Player if present -->
+                        {{-- Audio Player if present --}}
                         @if (!empty($q['audio_url']))
                             <div class="mt-3 p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl flex items-center gap-3">
                                 <span class="material-symbols-outlined text-indigo-700 text-xl">headphones</span>
@@ -248,7 +248,7 @@
                             </div>
                         @endif
 
-                        <!-- Passage / Context if present -->
+                        {{-- Passage / Context if present --}}
                         @if (!empty($q['passage']))
                             <div class="mt-3 p-3.5 bg-slate-100/80 border border-slate-200 rounded-xl space-y-1">
                                 <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Đoạn văn đọc hiểu / Bối cảnh:</span>
@@ -256,14 +256,14 @@
                             </div>
                         @endif
 
-                        <!-- Question Title -->
+                        {{-- Question Title --}}
                         <div class="mt-3">
                             <h3 class="text-sm font-bold text-gray-900 leading-snug">
                                 {{ $q['title'] ?? 'Câu hỏi trắc nghiệm' }}
                             </h3>
                         </div>
 
-                        <!-- MULTIPLE CHOICE OPTIONS -->
+                        {{-- MULTIPLE CHOICE OPTIONS --}}
                         @if ($qType === 'multiple_choice' && !empty($q['options']))
                             <div class="mt-3.5 space-y-2">
                                 <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-1">Các lựa chọn &amp; Đối chiếu câu trả lời:</span>
@@ -302,7 +302,7 @@
                                                 <span class="mt-0.5 leading-relaxed">{{ $opt['text'] ?? '' }}</span>
                                             </div>
 
-                                            <!-- Badges on the right of each option -->
+                                            {{-- Badges on the right of each option --}}
                                             <div class="shrink-0 flex flex-col items-end gap-1">
                                                 @if ($isThisCandidateChoice && $isThisCorrectAnswer)
                                                     <span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-600 text-white flex items-center gap-1 shadow-2xs">
@@ -327,7 +327,7 @@
                             </div>
                         @endif
 
-                        <!-- FILL BLANK QUESTION -->
+                        {{-- FILL BLANK QUESTION --}}
                         @if ($qType === 'fill_blank')
                             <div class="mt-3.5 p-3.5 bg-white border border-gray-200 rounded-xl space-y-2 text-xs">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -350,7 +350,7 @@
                             </div>
                         @endif
 
-                        <!-- ESSAY WRITING TASK -->
+                        {{-- ESSAY WRITING TASK --}}
                         @if ($qSkill === 'writing' || $qType === 'essay')
                             <div class="mt-3.5 space-y-3">
                                 <div class="p-4 bg-white border border-amber-200 rounded-xl space-y-2 shadow-2xs">
@@ -379,7 +379,7 @@
                             </div>
                         @endif
 
-                        <!-- SPEAKING PROMPT TASK -->
+                        {{-- SPEAKING PROMPT TASK --}}
                         @if ($qSkill === 'speaking' || $qType === 'speaking_prompt')
                             <div class="mt-3.5 space-y-3">
                                 @if (!empty($q['cue_points']))
@@ -405,7 +405,7 @@
                             </div>
                         @endif
 
-                        <!-- EXPLANATION & TRANSCRIPT EVIDENCE -->
+                        {{-- EXPLANATION & TRANSCRIPT EVIDENCE --}}
                         @if (!empty($q['explanation']))
                             <div class="mt-3 p-3 bg-amber-50/60 border border-amber-200/80 rounded-xl flex items-start gap-2 text-xs">
                                 <span class="material-symbols-outlined text-primary-container text-base shrink-0 mt-0.5">lightbulb</span>

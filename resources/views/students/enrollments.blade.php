@@ -6,13 +6,12 @@
                     <span class="material-symbols-outlined text-primary">how_to_reg</span>
                     Tiếp nhận Học viên &amp; Bàn giao Lớp học
                 </h1>
-                <p class="text-xs text-gray-500">Quy trình bàn giao học viên từ CRM sang Lớp học, phát giáo trình và add nhóm Zalo lớp</p>
             </div>
         </div>
     </x-slot>
 
     <div class="space-y-6">
-        <!-- Quick Enrollment Form -->
+        {{-- Quick Enrollment Form --}}
         <form action="{{ route('students.enrollments.store') }}" method="POST" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
             @csrf
             <h2 class="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5 pb-2 border-b border-gray-100">
@@ -44,7 +43,7 @@
             </div>
         </form>
 
-        <!-- Enrollment History Table -->
+        {{-- Enrollment History Table --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div class="p-4 border-b border-gray-100 font-bold text-xs text-gray-900 uppercase tracking-wider">
                 Danh sách bàn giao học viên gần đây

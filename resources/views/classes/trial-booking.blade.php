@@ -10,7 +10,6 @@
                         <span class="material-symbols-outlined text-primary">event_available</span>
                         Đặt lịch khách học thử vào buổi
                     </h1>
-                    <p class="text-xs text-gray-500">Khách hàng được tiếp nhận từ CRM hoặc Test đầu vào để xếp vào buổi học thử trải nghiệm tại cơ sở.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -22,13 +21,12 @@
         </div>
     </x-slot>
 
-    @include('classes.partials.flow-header', ['activeStep' => 1])
 
     
 
-    <!-- Main Container Matching Prototype 01_Web_Admin/12_dat_lich_hoc_thu_popup -->
+    {{-- Main Container Matching Prototype 01_Web_Admin/12_dat_lich_hoc_thu_popup --}}
     <div class="max-w-4xl mx-auto space-y-6">
-        <!-- Interactive Card Modal Container -->
+        {{-- Interactive Card Modal Container --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-md overflow-hidden" x-data="{
             step: 1,
             selectedClass: '{{ $classes->first()?->code ?? '' }}',
@@ -53,7 +51,7 @@
                 this.selectedSession = sessionText;
             }
         }">
-            <!-- Header (Exact Match BA) -->
+            {{-- Header --}}
             <div class="flex justify-between items-center p-6 border-b border-gray-100 bg-white">
                 <div>
                     <h2 class="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Đặt lịch khách học thử vào buổi</h2>
@@ -64,7 +62,7 @@
                 </div>
             </div>
 
-            <!-- Steps Indicator (Exact Match BA) -->
+            {{-- Steps Indicator --}}
             <div class="bg-gray-50 px-6 py-3 border-b border-gray-100 flex items-center gap-4">
                 <div class="flex items-center gap-2">
                     <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors"
@@ -84,7 +82,7 @@
                 </div>
             </div>
 
-            <!-- Form Wrapper -->
+            {{-- Form Wrapper --}}
             <form action="{{ route('classes.trial-booking.store') }}" method="POST">
                 @csrf
                 <input type="hidden" name="branch_name" value="{{ $customerBranch }}">
@@ -106,11 +104,11 @@
                 <input type="hidden" name="class_name" :value="selectedClassName">
                 <input type="hidden" name="session_time" :value="selectedSession">
 
-                <!-- Content Area -->
+                {{-- Content Area --}}
                 <div class="p-6 bg-white min-h-[380px]">
-                    <!-- STEP 1: Chọn Lớp -->
+                    {{-- STEP 1: Chọn Lớp --}}
                     <div x-show="step === 1" x-transition.opacity>
-                        <!-- Filters & Search -->
+                        {{-- Filters & Search --}}
                         <div class="flex flex-col sm:flex-row gap-4 mb-4">
                             <div class="flex-1">
                                 <label class="block text-xs font-semibold text-gray-700 mb-1">Tìm kiếm lớp</label>
@@ -132,7 +130,7 @@
                             </div>
                         </div>
 
-                        <!-- Class List Table -->
+                        {{-- Class List Table --}}
                         <div class="border border-gray-200 rounded-xl overflow-hidden shadow-2xs">
                             <table class="w-full text-left border-collapse">
                                 <thead>
@@ -185,7 +183,7 @@
                         </div>
                     </div>
 
-                    <!-- STEP 2: Chọn Buổi Học -->
+                    {{-- STEP 2: Chọn Buổi Học --}}
                     <div x-show="step === 2" x-transition.opacity>
                         <div class="mb-4">
                             <h3 class="text-base font-bold text-gray-900">Chọn buổi học thử</h3>
@@ -197,7 +195,7 @@
                             </p>
                         </div>
 
-                        <!-- Sessions Grid: buổi học thật từ ClassSession (sắp diễn ra, theo chi nhánh) -->
+                        {{-- Sessions Grid: buổi học thật từ ClassSession (sắp diễn ra, theo chi nhánh) --}}
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                             @forelse($upcomingSessions as $upcoming)
                                 @php
@@ -235,7 +233,7 @@
                             @endforelse
                         </div>
 
-                        <!-- Confirmation Summary Box -->
+                        {{-- Confirmation Summary Box --}}
                         <div x-show="selectedSession" class="mt-6 p-4 bg-orange-50/60 rounded-xl border border-orange-200/80">
                             <h4 class="text-xs font-bold text-gray-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-primary text-[18px]">verified</span>
@@ -251,9 +249,9 @@
                     </div>
                 </div>
 
-                <!-- Footer Actions (Exact Match BA) -->
+                {{-- Footer Actions --}}
                 <div class="p-4 md:p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-                    <!-- Step 1 Buttons -->
+                    {{-- Step 1 Buttons --}}
                     <template x-if="step === 1">
                         <div class="flex gap-2">
                             <a href="{{ route('classes.create') }}" class="px-4 py-2 rounded-xl bg-white border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition">
@@ -267,7 +265,7 @@
                         </div>
                     </template>
 
-                    <!-- Step 2 Buttons -->
+                    {{-- Step 2 Buttons --}}
                     <template x-if="step === 2">
                         <div class="flex gap-2">
                             <button type="button" @click="step = 1" class="px-4 py-2 rounded-xl bg-white border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition">
@@ -284,7 +282,7 @@
             </form>
         </div>
 
-        <!-- Recent Trial Bookings (Database Backed) -->
+        {{-- Recent Trial Bookings (Database Backed) --}}
         @if($bookings->isNotEmpty())
             <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
                 <div class="flex items-center justify-between mb-4">

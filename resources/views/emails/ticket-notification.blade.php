@@ -29,26 +29,26 @@
     <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 580px; margin: 0 auto;">
         <tr>
             <td>
-                <!-- Main Clean Card -->
+                {{-- Main Clean Card --}}
                 <div style="background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05); padding: 26px 24px;">
                     
-                    <!-- 1. Tiêu đề là tiêu đề mail -->
+                    {{-- 1. Tiêu đề là tiêu đề mail --}}
                     <h1 style="margin: 0 0 16px 0; font-size: 19px; font-weight: 800; color: #0f172a; line-height: 1.4; letter-spacing: -0.3px;">
                         {{ $renderedTitle }}
                     </h1>
 
-                    <!-- 2. Nội dung trực tiếp (không rườm rà) -->
+                    {{-- 2. Nội dung trực tiếp (không rườm rà) --}}
                     <div style="font-size: 15px; color: #334155; line-height: 1.65; white-space: pre-wrap; margin-bottom: 22px;">@if(($type ?? '') === 'reply' && !empty($senderName))<strong style="color: #0f172a;">{{ $senderName }}:</strong> {{ $renderedContent }}@else{{ $renderedContent }}@endif</div>
 
-                    <!-- Phân cách -->
+                    {{-- Phân cách --}}
                     <div style="border-top: 1px solid #e2e8f0; margin: 22px 0 18px 0;"></div>
 
-                    <!-- 3. Trạng thái, thông tin & hành động nằm ở DƯỚI -->
+                    {{-- 3. Trạng thái, thông tin & hành động nằm ở DƯỚI --}}
                     <div style="background-color: #f8fafc; border-radius: 12px; padding: 16px; border: 1px solid #f1f5f9;">
                         
-                        <!-- Badges trạng thái, mức độ ưu tiên, danh mục -->
+                        {{-- Badges trạng thái, mức độ ưu tiên, danh mục --}}
                         <div style="margin-bottom: 12px;">
-                            <!-- Trạng thái -->
+                            {{-- Trạng thái --}}
                             <span style="display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; margin-right: 6px;
                                 @if(in_array($statusKey, ['resolved', 'approved', 'completed', 'success']))
                                     background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;
@@ -65,7 +65,7 @@
                                 ● {{ $statusLabel }}
                             </span>
 
-                            <!-- Mức độ ưu tiên -->
+                            {{-- Mức độ ưu tiên --}}
                             @if(!empty($priorityLabel))
                                 <span style="display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; margin-right: 6px; text-transform: uppercase;
                                     @if(str_contains(strtolower($priorityKey), 'urgent') || str_contains(strtolower($priorityKey), 'overdue'))
@@ -82,7 +82,7 @@
                                 </span>
                             @endif
 
-                            <!-- Danh mục -->
+                            {{-- Danh mục --}}
                             @if(!empty($categoryLabel))
                                 <span style="display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 6px; background-color: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff;">
                                     📁 {{ $categoryLabel }}
@@ -90,12 +90,12 @@
                             @endif
                         </div>
 
-                        <!-- Người gửi & Thời gian -->
+                        {{-- Người gửi & Thời gian --}}
                         <div style="font-size: 12px; color: #64748b; margin-bottom: 14px; line-height: 1.5;">
                             👤 <strong>Người gửi:</strong> {{ $senderName ?? 'Hệ thống' }} &bull; 🕒 {{ now()->format('H:i d/m/Y') }}
                         </div>
 
-                        <!-- Nút xem & xử lý -->
+                        {{-- Nút xem & xử lý --}}
                         <div>
                             <a href="{{ $actionUrl ?? url('/') }}" style="display: inline-block; background-color: #ea580c; color: #ffffff; text-decoration: none; padding: 9px 20px; border-radius: 8px; font-weight: 700; font-size: 13px;">
                                 👉 {{ $actionText ?? ($ticketCode ? "Xem Ticket #{$ticketCode}" : "Xem chi tiết") }}

@@ -8,9 +8,8 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">video_library</span>
-                        Bài nộp của lớp (Cổng Giáo viên — Chấm bài tập)
+                        Bài nộp của lớp
                     </h1>
-                    <p class="text-xs text-gray-500">Giáo viên theo dõi danh sách học viên nộp bài tập, xem video bài làm, chấm điểm và gửi phản hồi cho học sinh.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -25,7 +24,7 @@
     
 
     <div class="max-w-5xl mx-auto space-y-6">
-        <!-- Class Selector & Subheader (Exact Match BA) -->
+        {{-- Class Selector & Subheader --}}
         <div class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
                 <h2 class="text-xl font-bold text-gray-900">Bài nộp của lớp</h2>
@@ -45,7 +44,7 @@
             </div>
         </div>
 
-        <!-- Filter Chips (Exact Match BA) -->
+        {{-- Filter Chips --}}
         <div class="flex flex-wrap gap-2">
             @php
                 $types = [
@@ -68,7 +67,7 @@
             @endforeach
         </div>
 
-        <!-- Submitted Section (Exact Match BA) -->
+        {{-- Submitted Section --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
                 <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">
@@ -78,7 +77,7 @@
             </div>
 
             <div class="divide-y divide-gray-100">
-                <!-- If real database submissions exist -->
+                {{-- If real database submissions exist --}}
                 @foreach($submissions as $sub)
                     <div class="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-orange-50/20 transition">
                         <div class="flex items-center gap-3 flex-1">
@@ -97,7 +96,7 @@
                             </div>
                         </div>
 
-                        <!-- Media Preview Box -->
+                        {{-- Media Preview Box --}}
                         <div class="flex-1 flex items-center gap-3">
                             <div class="w-16 h-12 bg-gray-900 rounded-lg flex items-center justify-center shrink-0 text-white relative shadow-2xs overflow-hidden">
                                 <span class="material-symbols-outlined text-[20px]">play_arrow</span>
@@ -110,7 +109,7 @@
                             </div>
                         </div>
 
-                        <!-- Status & Action Buttons -->
+                        {{-- Status & Action Buttons --}}
                         <div class="flex items-center gap-3">
                             @if($sub->status === 'reviewed')
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">

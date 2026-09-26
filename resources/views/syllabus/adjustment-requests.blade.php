@@ -20,7 +20,6 @@
         </div>
     </x-slot>
 
-    @include('syllabus.partials.flow-header', ['activeStep' => 8])
 
     @php($canReview = auth()->user()->can('syllabus.approve_adjustment'))
     @php($listTitle = ['pending' => 'Danh sách chờ duyệt', 'approved' => 'Đã duyệt', 'rejected' => 'Đã từ chối'][$status] ?? 'Tất cả yêu cầu')

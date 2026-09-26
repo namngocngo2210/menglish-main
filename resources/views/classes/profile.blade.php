@@ -10,7 +10,6 @@
                         <span class="material-symbols-outlined text-primary">school</span>
                         Hồ sơ lớp học
                     </h1>
-                    <p class="text-xs text-gray-500">Tra cứu thông tin toàn diện về lớp học, phòng ốc, giáo viên phụ trách và danh sách học viên theo từng lớp.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -40,7 +39,6 @@
         </div>
     </x-slot>
 
-    @include('classes.partials.flow-header', ['activeStep' => 3])
 
     
 
@@ -49,9 +47,9 @@
         $canManageClass = $class && auth()->user()->can('class.update');
     @endphp
     <div class="max-w-6xl mx-auto space-y-6">
-        <!-- Chọn lớp -->
+        {{-- Chọn lớp --}}
         <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <!-- Class Switcher -->
+            {{-- Class Switcher --}}
             <div class="flex items-center gap-2.5">
                 <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Đang xem lớp:</span>
                 <select class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-container/20 focus:border-primary-container cursor-pointer"
@@ -66,7 +64,7 @@
 
         </div>
 
-        <!-- Page Header (Exact Match BA) -->
+        {{-- Page Header --}}
         <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-gray-200 gap-4">
             <div>
                 <div class="flex items-center gap-3">
@@ -87,7 +85,6 @@
                     {{ $statusLabel }}
                 </span>
                 </div>
-                <p class="text-xs text-gray-500 mt-1">Thông tin chi tiết về lớp học, giáo viên và danh sách học viên</p>
             </div>
 
             <div class="flex items-center gap-2">
@@ -100,7 +97,7 @@
             </div>
         </div>
 
-        <!-- General Information Card (Exact Match BA 8 fields) -->
+        {{-- General Information Card --}}
         <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <div class="flex justify-between items-center pb-4 mb-6 border-b border-gray-100">
                 <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
@@ -116,37 +113,37 @@
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <!-- 1. Chi nhánh -->
+                {{-- 1. Chi nhánh --}}
                 <div>
                     <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Chi nhánh</span>
                     <span class="text-xs font-bold text-gray-900">{{ $class?->branch?->name ?? 'Chưa cập nhật' }}</span>
                 </div>
 
-                <!-- 2. CM quản lý -->
+                {{-- 2. CM quản lý --}}
                 <div>
                     <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">CM quản lý</span>
                     <span class="text-xs font-bold text-gray-900">{{ $class?->assistant?->name ?? 'Chưa phân công' }}</span>
                 </div>
 
-                <!-- 3. Chương trình -->
+                {{-- 3. Chương trình --}}
                 <div>
                     <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Chương trình</span>
                     <span class="text-xs font-bold text-gray-900">{{ $class?->program ?? $class?->course?->name ?? 'Chưa cập nhật' }}</span>
                 </div>
 
-                <!-- 4. Cấp độ -->
+                {{-- 4. Cấp độ --}}
                 <div>
                     <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Cấp độ</span>
                     <span class="text-xs font-bold text-gray-900">{{ $class?->level ?? 'Chưa cập nhật' }}</span>
                 </div>
 
-                <!-- 5. Phòng học -->
+                {{-- 5. Phòng học --}}
                 <div>
                     <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Phòng học</span>
                     <span class="text-xs font-bold text-gray-900">{{ $class?->room ?? 'Chưa cập nhật' }}</span>
                 </div>
 
-                <!-- 6. Sĩ số -->
+                {{-- 6. Sĩ số --}}
                 <div>
                     <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Sĩ số</span>
                     @if ($class)
@@ -164,13 +161,13 @@
                     @endif
                 </div>
 
-                <!-- 7. Giáo viên chính -->
+                {{-- 7. Giáo viên chính --}}
                 <div>
                     <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Giáo viên chính</span>
                     <span class="text-xs font-bold text-gray-900">{{ $class?->teacher?->name ?? 'Chưa phân công' }}</span>
                 </div>
 
-                <!-- 8. Lịch học -->
+                {{-- 8. Lịch học --}}
                 <div>
                     <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Lịch học</span>
                     <span class="text-xs font-bold text-gray-900">{{ $class?->schedule_text ?? 'Chưa cập nhật' }}</span>
@@ -178,7 +175,7 @@
             </div>
         </div>
 
-        <!-- Students List Table (Exact Match BA) -->
+        {{-- Students List Table --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                 <div>

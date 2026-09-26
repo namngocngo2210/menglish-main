@@ -121,7 +121,7 @@
     @endif
 
     @if ($canBookTrial)
-    <!-- Học thử: hoạt động trong giai đoạn tư vấn (không đổi stage) -->
+    {{-- Học thử: hoạt động trong giai đoạn tư vấn (không đổi stage) --}}
     <div id="scheduleTrialModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div class="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 shadow-2xl">
             <h3 class="font-h3 text-h3 mb-xs">Đặt lịch học thử</h3>
@@ -154,7 +154,7 @@
     </div>
     @endif
 
-    <!-- Schedule Test Modal -->
+    {{-- Schedule Test Modal --}}
     <div id="scheduleTestModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div class="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
             <div class="flex justify-between items-center pb-2 border-b border-gray-100">
@@ -219,7 +219,7 @@
         </div>
     </div>
 
-    <!-- Enter / Edit Test Score Modal -->
+    {{-- Enter / Edit Test Score Modal --}}
     <div id="editTestScoreModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div class="bg-surface-container-lowest rounded-xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border border-gray-200 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center pb-2 border-b border-gray-100">

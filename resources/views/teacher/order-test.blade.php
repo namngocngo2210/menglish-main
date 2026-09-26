@@ -14,7 +14,7 @@
     {{-- Mockup 03_Cong_Giao_Vien/07: order đề gắn chặng đang mở của lớp (A6 Q4), không nhập tên chặng tự do. --}}
     <div class="space-y-4">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <!-- Chặng đang dạy -->
+            {{-- Chặng đang dạy --}}
             <section class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm p-lg space-y-md">
                 <h2 class="font-h3 text-h3 text-on-surface flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary text-[20px]">flag</span>
@@ -46,7 +46,7 @@
                 @endif
             </section>
 
-            <!-- Form yêu cầu đề -->
+            {{-- Form yêu cầu đề --}}
             <form action="{{ route('teacher.order-test.submit', $class->id) }}" method="POST" class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm p-lg space-y-md">
                 @csrf
                 <h2 class="font-h3 text-h3 text-on-surface flex items-center gap-2">
@@ -78,7 +78,7 @@
             </form>
         </div>
 
-        <!-- Lịch sử yêu cầu -->
+        {{-- Lịch sử yêu cầu --}}
         <x-ui.data-table min-width="760px">
             <x-slot:header>
                 <h2 class="font-h3 text-h3 text-on-surface flex items-center gap-2">

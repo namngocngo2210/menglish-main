@@ -159,7 +159,6 @@ class Flow1AndHomeworkScreensTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Danh sách lớp chi tiết Học thuật');
         $response->assertSee('Big Test');
-        $response->assertSee('Dự giờ');
     }
 
     /**
@@ -171,7 +170,7 @@ class Flow1AndHomeworkScreensTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('classes.academic-detail', ['id' => $class?->id]));
         $response->assertStatus(200);
         $response->assertSee('Chi tiết lớp');
-        $response->assertSee('Chương trình & Tiến độ', false);
+        $response->assertSee('Chương trình &amp; Tiến độ', false);
         $response->assertSee('Lịch Big Test');
     }
 

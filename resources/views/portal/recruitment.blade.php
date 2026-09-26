@@ -12,7 +12,7 @@
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col justify-between">
-    <!-- Header -->
+    {{-- Header --}}
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -30,7 +30,7 @@
         </div>
     </header>
 
-    <!-- Hero Section -->
+    {{-- Hero Section --}}
     <section class="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white py-16 px-4 sm:px-6 relative overflow-hidden">
         <div class="max-w-4xl mx-auto text-center space-y-4 relative z-10">
             <span class="px-3 py-1 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30 text-xs font-bold uppercase tracking-wider inline-block">
@@ -45,12 +45,12 @@
         </div>
     </section>
 
-    <!-- Main Content -->
+    {{-- Main Content --}}
     <main class="max-w-6xl mx-auto px-4 sm:px-6 py-12 flex-1 w-full space-y-12">
         
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            <!-- Left: Danh sách vị trí tuyển dụng (7 cols) -->
+            {{-- Left: Danh sách vị trí tuyển dụng (7 cols) --}}
             <div class="lg:col-span-7 space-y-6">
                 <div class="flex items-center justify-between border-b pb-3 border-slate-200">
                     <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
@@ -103,7 +103,7 @@
                 </div>
             </div>
 
-            <!-- Right: Form Nộp Hồ sơ Trực Tuyến (5 cols) -->
+            {{-- Right: Form Nộp Hồ sơ Trực Tuyến (5 cols) --}}
             <div id="apply-form" class="lg:col-span-5 bg-white rounded-2xl p-6 border border-slate-200 shadow-md space-y-5 sticky top-28">
                 <div>
                     <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -172,7 +172,7 @@
         </div>
     </main>
 
-    <!-- Footer -->
+    {{-- Footer --}}
     <footer class="bg-slate-900 text-slate-400 py-8 border-t border-slate-800 text-xs">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 text-center space-y-2">
             <p class="font-bold text-slate-200">HỆ THỐNG ANH NGỮ MENGLISH — PHÒNG NHÂN SỰ & ĐÀO TẠO</p>

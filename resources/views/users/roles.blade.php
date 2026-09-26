@@ -25,7 +25,7 @@
 
     <div class="max-w-5xl mx-auto space-y-6">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <!-- Left Column: Employee Info (Col 4) -->
+            {{-- Left Column: Employee Info (Col 4) --}}
             <div class="lg:col-span-4 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm text-center space-y-4">
                 <div class="flex flex-col items-center">
                     <div class="w-20 h-20 rounded-full bg-orange-100 text-primary-container border-4 border-orange-200/60 flex items-center justify-center font-bold text-3xl mb-3 shadow-xs">
@@ -52,7 +52,7 @@
                 </div>
             </div>
 
-            <!-- Right Column: Roles Checkboxes (Col 8) -->
+            {{-- Right Column: Roles Checkboxes (Col 8) --}}
             <div class="lg:col-span-8 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-5">
                 <div class="flex items-center justify-between pb-3 border-b border-gray-100">
                     <div>

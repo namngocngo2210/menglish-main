@@ -17,7 +17,7 @@
                     <span>Đĩa cứng: <strong>{{ $stats['total_size_human'] }}</strong> / {{ $stats['total_files'] }} tệp</span>
                 </span>
 
-                <!-- Button Tạo Thư Mục Mới -->
+                {{-- Button Tạo Thư Mục Mới --}}
                 <button 
                     type="button" 
                     @click="folderModal.open = true" 
@@ -27,7 +27,7 @@
                     <span>Tạo thư mục mới</span>
                 </button>
 
-                <!-- Button Kéo Thả / Tải Lên -->
+                {{-- Button Kéo Thả / Tải Lên --}}
                 <button 
                     type="button" 
                     @click="uploadCardOpen = !uploadCardOpen" 
@@ -41,7 +41,7 @@
     </x-slot>
 
     <div class="space-y-5" x-data="mediaManager()">
-        <!-- 0. Drag & Drop File Upload Zone Card -->
+        {{-- 0. Drag & Drop File Upload Zone Card --}}
         <div 
             x-show="uploadCardOpen" 
             x-transition:enter="transition ease-out duration-200"
@@ -60,7 +60,7 @@
                     </div>
                 </div>
 
-                <!-- Target Folder Selector -->
+                {{-- Target Folder Selector --}}
                 <div class="flex items-center gap-2 text-xs">
                     <span class="text-gray-500 font-medium">Lưu vào thư mục:</span>
                     <select 
@@ -83,7 +83,7 @@
                 </div>
             </div>
 
-            <!-- Drag and Drop Dropzone -->
+            {{-- Drag and Drop Dropzone --}}
             <input 
                 type="file" 
                 x-ref="fileInput" 
@@ -115,7 +115,7 @@
                     </p>
                 </div>
 
-                <!-- Upload Progress & Status Bar -->
+                {{-- Upload Progress & Status Bar --}}
                 <div x-show="isUploading" x-cloak class="w-full max-w-md space-y-2 pt-2" @click.stop>
                     <div class="flex items-center justify-between text-xs font-bold text-gray-700">
                         <span x-text="uploadStatusText"></span>
@@ -128,9 +128,9 @@
             </div>
         </div>
 
-        <!-- 1. Google Drive Breadcrumbs & Navigation Bar -->
+        {{-- 1. Google Drive Breadcrumbs & Navigation Bar --}}
         <div class="bg-white rounded-2xl border border-gray-200/90 shadow-xs p-4 flex flex-wrap items-center justify-between gap-3">
-            <!-- Breadcrumbs Trail -->
+            {{-- Breadcrumbs Trail --}}
             <div class="flex items-center gap-1.5 text-xs font-bold overflow-x-auto py-1">
                 @foreach ($breadcrumbs as $index => $bc)
                     @if ($index > 0)
@@ -154,7 +154,7 @@
                 @endforeach
             </div>
 
-            <!-- Quick Action: Tạo thư mục con trong thư mục này -->
+            {{-- Quick Action: Tạo thư mục con trong thư mục này --}}
             <button 
                 type="button" 
                 @click="folderModal.open = true" 
@@ -165,7 +165,7 @@
             </button>
         </div>
 
-        <!-- 2. Folder Explorer Grid (Google Drive Folders) -->
+        {{-- 2. Folder Explorer Grid (Google Drive Folders) --}}
         @if ($subFolders->isNotEmpty())
             <div class="space-y-2.5">
                 <div class="text-[11px] font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
@@ -182,7 +182,7 @@
                                         <span class="material-symbols-outlined text-2xl">folder</span>
                                     </div>
 
-                                    <!-- Delete folder button -->
+                                    {{-- Delete folder button --}}
                                     <button 
                                         type="button" 
                                         @click.prevent.stop="confirmDeleteFolder('{{ $sf['path'] }}', '{{ $sf['name'] }}', {{ $sf['files_count'] }})"
@@ -208,9 +208,9 @@
             </div>
         @endif
 
-        <!-- 3. KPI Summary Cards -->
+        {{-- 3. KPI Summary Cards --}}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-            <!-- Total Files -->
+            {{-- Total Files --}}
             <div class="bg-white rounded-2xl p-4 border border-gray-200/90 shadow-sm flex items-center justify-between">
                 <div>
                     <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Tổng số tệp tin</span>
@@ -221,7 +221,7 @@
                 </div>
             </div>
 
-            <!-- Total Size -->
+            {{-- Total Size --}}
             <div class="bg-white rounded-2xl p-4 border border-gray-200/90 shadow-sm flex items-center justify-between">
                 <div>
                     <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Tổng dung lượng</span>
@@ -232,7 +232,7 @@
                 </div>
             </div>
 
-            <!-- Images Size -->
+            {{-- Images Size --}}
             <div class="bg-white rounded-2xl p-4 border border-gray-200/90 shadow-sm flex items-center justify-between">
                 <div>
                     <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Hình ảnh ({{ $stats['images_count'] }})</span>
@@ -243,7 +243,7 @@
                 </div>
             </div>
 
-            <!-- Documents Size -->
+            {{-- Documents Size --}}
             <div class="bg-white rounded-2xl p-4 border border-gray-200/90 shadow-sm flex items-center justify-between">
                 <div>
                     <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Tài liệu &amp; Excel</span>
@@ -255,14 +255,14 @@
             </div>
         </div>
 
-        <!-- 4. Filter & Search Bar -->
+        {{-- 4. Filter & Search Bar --}}
         <div class="bg-white rounded-2xl border border-gray-200/90 shadow-sm p-4">
             <form method="GET" action="{{ route('media.index') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
                 @if ($currentFolder)
                     <input type="hidden" name="folder" value="{{ $currentFolder }}">
                 @endif
 
-                <!-- Search -->
+                {{-- Search --}}
                 <div class="lg:col-span-2">
                     <label class="block text-[11px] font-bold text-gray-600 mb-1">Tìm kiếm tên tệp</label>
                     <div class="relative">
@@ -277,7 +277,7 @@
                     </div>
                 </div>
 
-                <!-- File Type -->
+                {{-- File Type --}}
                 <div>
                     <label class="block text-[11px] font-bold text-gray-600 mb-1">Loại tệp</label>
                     <select name="type" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
@@ -291,7 +291,7 @@
                     </select>
                 </div>
 
-                <!-- Directory / Folder -->
+                {{-- Directory / Folder --}}
                 <div>
                     <label class="block text-[11px] font-bold text-gray-600 mb-1">Thư mục lưu trữ</label>
                     <select name="directory" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
@@ -302,7 +302,7 @@
                     </select>
                 </div>
 
-                <!-- Size Range -->
+                {{-- Size Range --}}
                 <div>
                     <label class="block text-[11px] font-bold text-gray-600 mb-1">Kích thước</label>
                     <select name="size_range" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
@@ -313,7 +313,7 @@
                     </select>
                 </div>
 
-                <!-- Date Range -->
+                {{-- Date Range --}}
                 <div>
                     <label class="block text-[11px] font-bold text-gray-600 mb-1">Thời gian tải lên</label>
                     <select name="date_range" class="w-full text-xs rounded-xl border border-gray-200 py-1.5 focus:ring-1 focus:ring-primary-container focus:border-primary-container">
@@ -325,7 +325,7 @@
                     </select>
                 </div>
 
-                <!-- Submit buttons -->
+                {{-- Submit buttons --}}
                 <div class="lg:col-span-6 flex items-center justify-between pt-2 border-t border-gray-100 mt-1">
                     <div class="text-xs text-gray-500">
                         Kết quả lọc: <strong class="text-gray-900">{{ number_format($totalFilteredCount) }}</strong> tệp 
@@ -345,10 +345,10 @@
             </form>
         </div>
 
-        <!-- 5. Actions Toolbar & Bulk Operations -->
+        {{-- 5. Actions Toolbar & Bulk Operations --}}
         <div class="bg-white rounded-2xl border border-gray-200/90 shadow-sm p-3.5 flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-3">
-                <!-- Select All Checkbox -->
+                {{-- Select All Checkbox --}}
                 <label class="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer select-none">
                     <input 
                         type="checkbox" 
@@ -361,7 +361,7 @@
 
                 <span class="text-gray-300">|</span>
 
-                <!-- Bulk Delete Selected Files -->
+                {{-- Bulk Delete Selected Files --}}
                 <form 
                     action="{{ route('media.bulk-destroy') }}" 
                     method="POST" 
@@ -385,7 +385,7 @@
                     </button>
                 </form>
 
-                <!-- Bulk Move Selected Files -->
+                {{-- Bulk Move Selected Files --}}
                 <button 
                     type="button" 
                     :disabled="selectedFiles.length === 0"
@@ -397,7 +397,7 @@
                     <span>Di chuyển vào thư mục</span>
                 </button>
 
-                <!-- Clean Up by Filter (Xóa toàn bộ theo bộ lọc) -->
+                {{-- Clean Up by Filter (Xóa toàn bộ theo bộ lọc) --}}
                 @if ($totalFilteredCount > 0)
                     <button 
                         type="button" 
@@ -411,7 +411,7 @@
                 @endif
             </div>
 
-            <!-- View Mode Switch (Grid vs Table) -->
+            {{-- View Mode Switch (Grid vs Table) --}}
             <div class="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200">
                 <button 
                     type="button" 
@@ -434,7 +434,7 @@
             </div>
         </div>
 
-        <!-- 6. Files List View -->
+        {{-- 6. Files List View --}}
         @if ($files->isEmpty())
             @if ($subFolders->isNotEmpty())
                 <div class="bg-gray-50/80 rounded-3xl border border-dashed border-gray-200 p-8 text-center">
@@ -456,11 +456,11 @@
                 </div>
             @endif
         @else
-            <!-- 6A. Grid Card View -->
+            {{-- 6A. Grid Card View --}}
             <div x-show="viewMode === 'grid'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5">
                 @foreach ($files as $file)
                     <div class="bg-white rounded-2xl border border-gray-200/90 shadow-sm hover:shadow-md hover:border-primary-container/50 transition flex flex-col justify-between overflow-hidden group relative">
-                        <!-- Top Bar / Checkbox & Actions -->
+                        {{-- Top Bar / Checkbox & Actions --}}
                         <div class="p-2.5 flex items-center justify-between bg-gray-50/70 border-b border-gray-100">
                             <label class="cursor-pointer">
                                 <input 
@@ -476,7 +476,7 @@
                             </span>
                         </div>
 
-                        <!-- Center Thumbnail / Preview -->
+                        {{-- Center Thumbnail / Preview --}}
                         <div class="p-3 flex items-center justify-center bg-gray-100/40 min-h-[110px] relative overflow-hidden">
                             @if ($file['is_image'])
                                 <img 
@@ -515,7 +515,7 @@
                             @endif
                         </div>
 
-                        <!-- Bottom File Info -->
+                        {{-- Bottom File Info --}}
                         <div class="p-2.5 space-y-1 bg-white border-t border-gray-100 text-left">
                             <h4 class="text-xs font-bold text-gray-900 truncate" title="{{ $file['filename'] }}">
                                 {{ $file['filename'] }}
@@ -530,7 +530,7 @@
                                 {{ $file['created_at_human'] }}
                             </div>
 
-                            <!-- Fast Action Toolbar -->
+                            {{-- Fast Action Toolbar --}}
                             <div class="pt-2 border-t border-gray-100 flex items-center justify-between gap-1">
                                 <button 
                                     type="button" 
@@ -563,7 +563,7 @@
                 @endforeach
             </div>
 
-            <!-- 6B. Table View -->
+            {{-- 6B. Table View --}}
             <div x-show="viewMode === 'table'" class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
                 <table class="w-full text-left text-xs">
                     <thead class="bg-gray-50 text-gray-600 font-bold uppercase tracking-wider border-b border-gray-200 text-[11px]">
@@ -641,13 +641,13 @@
                 </table>
             </div>
 
-            <!-- Pagination Links -->
+            {{-- Pagination Links --}}
             <div class="mt-4">
                 {{ $files->links() }}
             </div>
         @endif
 
-        <!-- Forms for Delete & Move -->
+        {{-- Forms for Delete & Move --}}
         <form id="singleDeleteForm" method="POST" action="" class="hidden">
             @csrf
             @method('DELETE')
@@ -664,7 +664,7 @@
             @method('DELETE')
         </form>
 
-        <!-- 7. Modal Tạo Thư Mục Mới (Google Drive Style) -->
+        {{-- 7. Modal Tạo Thư Mục Mới (Google Drive Style) --}}
         <div 
             x-show="folderModal.open" 
             x-cloak
@@ -713,7 +713,7 @@
             </div>
         </div>
 
-        <!-- 8. Modal Di Chuyển Tệp (Move Files Modal) -->
+        {{-- 8. Modal Di Chuyển Tệp (Move Files Modal) --}}
         <div 
             x-show="moveModal.open" 
             x-cloak
@@ -769,7 +769,7 @@
             </div>
         </div>
 
-        <!-- 9. Image / Audio Preview Lightbox Modal -->
+        {{-- 9. Image / Audio Preview Lightbox Modal --}}
         <div 
             x-show="preview.open" 
             x-cloak
@@ -809,7 +809,7 @@
             </div>
         </div>
 
-        <!-- 10. Action Toast -->
+        {{-- 10. Action Toast --}}
         <div 
             x-show="toast.show" 
             x-cloak

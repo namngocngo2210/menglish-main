@@ -10,7 +10,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="font-sans antialiased text-slate-900 bg-slate-50 min-h-screen">
-    <!-- Header -->
+    {{-- Header --}}
     <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
         <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -32,7 +32,7 @@
     </header>
 
     <main class="max-w-4xl mx-auto px-4 py-8 space-y-6">
-        <!-- Test Intro Banner -->
+        {{-- Test Intro Banner --}}
         <div class="bg-gradient-to-r from-orange-600 to-amber-500 rounded-3xl p-6 md:p-8 text-white shadow-xl space-y-3">
             <div class="flex items-center gap-2">
                 <span class="px-3 py-1 bg-white/20 text-white font-bold text-xs rounded-full backdrop-blur-xs uppercase tracking-wider font-mono">{{ $test->code }}</span>
@@ -44,7 +44,7 @@
             </p>
         </div>
 
-        <!-- Form Submission -->
+        {{-- Form Submission --}}
         <form action="{{ route('portal.test.submit', $test->code) }}" method="POST" class="space-y-6">
             @csrf
             @if ($errors->any())
@@ -61,7 +61,7 @@
                 <input type="hidden" name="lead_token" value="{{ $leadToken }}">
             @endif
 
-            <!-- 1. Candidate Info -->
+            {{-- 1. Candidate Info --}}
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
                 <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-slate-100">
                     <span class="material-symbols-outlined text-orange-600">person</span>
@@ -94,7 +94,7 @@
                 $speakingQuestions = array_filter($questions, fn($q) => ($q['skill'] ?? '') === 'speaking');
             @endphp
 
-            <!-- 2. Listening Section -->
+            {{-- 2. Listening Section --}}
             @if (count($listeningQuestions) > 0)
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
                     <div class="flex items-center justify-between pb-2 border-b border-slate-100">
@@ -164,7 +164,7 @@
                 </div>
             @endif
 
-            <!-- 3. Reading & Grammar Section -->
+            {{-- 3. Reading & Grammar Section --}}
             @if (count($readingGrammarQuestions) > 0)
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
                     <div class="flex items-center justify-between pb-2 border-b border-slate-100">
@@ -216,7 +216,7 @@
                 </div>
             @endif
 
-            <!-- 4. Writing Section -->
+            {{-- 4. Writing Section --}}
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
                 <div class="flex items-center justify-between pb-2 border-b border-slate-100">
                     <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
@@ -241,7 +241,7 @@
                 <textarea name="writing_content" rows="5" placeholder="Nhập bài viết của bạn tại đây..." class="w-full text-xs rounded-xl border border-slate-200 p-3 leading-relaxed"></textarea>
             </div>
 
-            <!-- 5. Speaking Section -->
+            {{-- 5. Speaking Section --}}
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
                 <div class="flex items-center justify-between pb-2 border-b border-slate-100">
                     <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
@@ -289,7 +289,7 @@
                 </div>
             </div>
 
-            <!-- Submit Button -->
+            {{-- Submit Button --}}
             <div class="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div class="text-xs text-slate-500">
                     Vui lòng kiểm tra lại câu trả lời trước khi gửi bài thi.

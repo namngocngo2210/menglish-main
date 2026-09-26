@@ -7,7 +7,7 @@
         </div>
     @endif
     <div x-data="{ activeTab: 'operations' }" class="space-y-6">
-        <!-- Top Profile Banner & User Identity -->
+        {{-- Top Profile Banner & User Identity --}}
         <div class="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
             <div class="h-28 sm:h-32 bg-gradient-to-r from-[#0d1527] via-[#1a2c4e] to-blue-600 relative p-6">
                 <div class="absolute inset-0 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px] opacity-10"></div>
@@ -16,7 +16,7 @@
             <div class="px-6 sm:px-8 pb-6 relative">
                 <div class="flex flex-col sm:flex-row sm:items-end justify-between -mt-12 sm:-mt-14 gap-4 pb-6 border-b border-gray-100">
                     <div class="flex items-end gap-4">
-                        <!-- Avatar -->
+                        {{-- Avatar --}}
                         <div class="relative">
                             <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-br from-primary-container via-orange-500 to-amber-400 text-white flex items-center justify-center text-3xl sm:text-4xl font-black border-4 border-white shadow-xl">
                                 {{ Str::substr($user->name ?? 'A', 0, 1) }}
@@ -24,7 +24,7 @@
                             <span class="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full title='Đang hoạt động'"></span>
                         </div>
 
-                        <!-- User Info -->
+                        {{-- User Info --}}
                         <div class="space-y-1">
                             <div class="flex flex-wrap items-center gap-2">
                                 <h1 class="text-xl sm:text-2xl font-black text-gray-900">{{ $user->name }}</h1>
@@ -51,7 +51,7 @@
                         </div>
                     </div>
 
-                    <!-- Fast Actions -->
+                    {{-- Fast Actions --}}
                     <div class="flex items-center gap-2 self-start sm:self-auto">
                         <a href="{{ route('tickets.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-bold text-gray-700 shadow-sm transition">
                             <span class="material-symbols-outlined text-[18px] text-rose-500">bug_report</span>
@@ -64,9 +64,9 @@
                     </div>
                 </div>
 
-                <!-- 4 KPI Highlight Cards for Current User -->
+                {{-- 4 KPI Highlight Cards for Current User --}}
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5 pt-5">
-                    <!-- Stat 1: Lương thực lĩnh -->
+                    {{-- Stat 1: Lương thực lĩnh --}}
                     <div class="bg-gray-50/80 p-3.5 rounded-2xl border border-gray-100 space-y-1">
                         <div class="flex items-center justify-between text-gray-500">
                             <span class="text-[11px] font-bold uppercase tracking-wider">Lương kỳ gần nhất</span>
@@ -84,7 +84,7 @@
                         </div>
                     </div>
 
-                    <!-- Stat 2: Giờ dạy / Chấm công -->
+                    {{-- Stat 2: Giờ dạy / Chấm công --}}
                     <div class="bg-gray-50/80 p-3.5 rounded-2xl border border-gray-100 space-y-1">
                         <div class="flex items-center justify-between text-gray-500">
                             <span class="text-[11px] font-bold uppercase tracking-wider">Giờ dạy tháng này</span>
@@ -98,7 +98,7 @@
                         </div>
                     </div>
 
-                    <!-- Stat 3: Nhiệm vụ đang phụ trách -->
+                    {{-- Stat 3: Nhiệm vụ đang phụ trách --}}
                     <div class="bg-gray-50/80 p-3.5 rounded-2xl border border-gray-100 space-y-1">
                         <div class="flex items-center justify-between text-gray-500">
                             <span class="text-[11px] font-bold uppercase tracking-wider">Việc cần làm</span>
@@ -112,7 +112,7 @@
                         </div>
                     </div>
 
-                    <!-- Stat 4: Tickets hỗ trợ -->
+                    {{-- Stat 4: Tickets hỗ trợ --}}
                     <div class="bg-gray-50/80 p-3.5 rounded-2xl border border-gray-100 space-y-1">
                         <div class="flex items-center justify-between text-gray-500">
                             <span class="text-[11px] font-bold uppercase tracking-wider">Ticket cá nhân</span>
@@ -127,7 +127,7 @@
                     </div>
                 </div>
 
-                <!-- Navigation Tabs -->
+                {{-- Navigation Tabs --}}
                 <div class="flex items-center gap-2 sm:gap-4 overflow-x-auto border-b border-gray-200 mt-6 pt-2 scrollbar-none">
                     <button 
                         @click="activeTab = 'operations'"
@@ -168,10 +168,10 @@
             </div>
         </div>
 
-        <!-- TAB 1: VẬN HÀNH & NHIỆM VỤ CÁ NHÂN -->
+        {{-- TAB 1: VẬN HÀNH & NHIỆM VỤ CÁ NHÂN --}}
         <div x-show="activeTab === 'operations'" class="space-y-6" x-cloak>
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Left 2 Cols: My Assigned Work Tasks -->
+                {{-- Left 2 Cols: My Assigned Work Tasks --}}
                 <div class="lg:col-span-2 space-y-6">
                     <div class="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm space-y-4">
                         <div class="flex items-center justify-between">
@@ -224,7 +224,7 @@
                         </div>
                     </div>
 
-                    <!-- Classes taught or assisted -->
+                    {{-- Classes taught or assisted --}}
                     <div class="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm space-y-4">
                         <div class="flex items-center justify-between">
                             <h2 class="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
@@ -261,9 +261,9 @@
                     </div>
                 </div>
 
-                <!-- Right 1 Col: Recent Activities & Timesheet widget -->
+                {{-- Right 1 Col: Recent Activities & Timesheet widget --}}
                 <div class="space-y-6">
-                    <!-- Quick Timesheet summary -->
+                    {{-- Quick Timesheet summary --}}
                     <div class="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm space-y-4">
                         <h2 class="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
                             <span class="material-symbols-outlined text-emerald-600 text-[20px]">history_toggle_off</span>
@@ -290,7 +290,7 @@
                         </div>
                     </div>
 
-                    <!-- Personal Activity Log -->
+                    {{-- Personal Activity Log --}}
                     <div class="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm space-y-4">
                         <h2 class="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
                             <span class="material-symbols-outlined text-indigo-600 text-[20px]">history</span>
@@ -314,7 +314,7 @@
             </div>
         </div>
 
-        <!-- TAB 2: LƯƠNG & PHIẾU LƯƠNG CÁ NHÂN -->
+        {{-- TAB 2: LƯƠNG & PHIẾU LƯƠNG CÁ NHÂN --}}
         <div x-show="activeTab === 'payroll'" class="space-y-6" x-cloak>
             <div class="bg-white rounded-3xl border border-gray-200 p-6 sm:p-8 shadow-sm space-y-6">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-6 border-b border-gray-100 gap-4">
@@ -323,7 +323,6 @@
                             <span class="material-symbols-outlined text-primary">receipt_long</span>
                             Phiếu Lương Cá Nhân Chi Tiết
                         </h2>
-                        <p class="text-xs text-gray-500">Tra cứu chi tiết thu nhập, giờ dạy, hoa hồng và các khoản giảm trừ</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="px-3 py-1 rounded-xl bg-blue-50 text-blue-700 text-xs font-bold">
@@ -337,7 +336,7 @@
                 </div>
 
                 @if ($latestPayroll)
-                    <!-- Payslip Breakdown Grid -->
+                    {{-- Payslip Breakdown Grid --}}
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
                         <div class="space-y-3 bg-gray-50/70 p-5 rounded-2xl border border-gray-100">
                             <h3 class="font-bold text-gray-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
@@ -386,7 +385,7 @@
                         </div>
                     </div>
 
-                    <!-- Net Salary Banner -->
+                    {{-- Net Salary Banner --}}
                     <div class="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-blue-600 text-white flex flex-col sm:flex-row sm:items-center justify-between shadow-xl gap-4">
                         <div>
                             <span class="text-xs text-white/70 block uppercase tracking-wider font-bold">Tổng thực lĩnh chuyển khoản:</span>
@@ -408,7 +407,7 @@
                     </div>
                 @endif
 
-                <!-- Payroll History Table -->
+                {{-- Payroll History Table --}}
                 <div class="pt-4 space-y-3">
                     <h3 class="font-black text-sm text-gray-900 uppercase tracking-wider">Lịch sử các kỳ lương gần đây</h3>
                     <div class="overflow-x-auto rounded-2xl border border-gray-200">
@@ -449,7 +448,7 @@
             </div>
         </div>
 
-        <!-- TAB 3: BÁO LỖI & TICKET CÁ NHÂN -->
+        {{-- TAB 3: BÁO LỖI & TICKET CÁ NHÂN --}}
         <div x-show="activeTab === 'tickets'" class="space-y-6" x-cloak>
             <div class="bg-white rounded-3xl border border-gray-200 p-6 sm:p-8 shadow-sm space-y-5">
                 <div class="flex items-center justify-between pb-4 border-b border-gray-100">
@@ -458,7 +457,6 @@
                             <span class="material-symbols-outlined text-rose-600">bug_report</span>
                             Yêu cầu hỗ trợ &amp; Ticket báo lỗi của bạn
                         </h2>
-                        <p class="text-xs text-gray-500">Theo dõi tiến trình xử lý các sự cố kỹ thuật, yêu cầu nghiệp vụ</p>
                     </div>
 
                     <a href="{{ route('tickets.create') }}" class="px-4 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-sm transition inline-flex items-center gap-1.5">
@@ -506,15 +504,15 @@
             </div>
         </div>
 
-        <!-- TAB 4: CÀI ĐẶT TÀI KHOẢN & ĐỔI MẬT KHẨU -->
+        {{-- TAB 4: CÀI ĐẶT TÀI KHOẢN & ĐỔI MẬT KHẨU --}}
         <div x-show="activeTab === 'settings'" class="space-y-6" x-cloak>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Info form -->
+                {{-- Info form --}}
                 <div class="p-6 sm:p-8 bg-white border border-gray-200 shadow-sm rounded-3xl">
                     @include('profile.partials.update-profile-information-form')
                 </div>
 
-                <!-- Password form -->
+                {{-- Password form --}}
                 <div class="p-6 sm:p-8 bg-white border border-gray-200 shadow-sm rounded-3xl">
                     @include('profile.partials.update-password-form')
                 </div>

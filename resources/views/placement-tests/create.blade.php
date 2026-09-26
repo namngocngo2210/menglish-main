@@ -79,18 +79,18 @@
     })">
         <form id="createPlacementTestForm" action="{{ route('placement-tests.store') }}" method="POST" @submit="syncBeforeSubmit($event)">
             @csrf
-            <!-- Hidden Synchronized Questions JSON -->
+            {{-- Hidden Synchronized Questions JSON --}}
             <input type="hidden" name="questions" x-ref="questionsInput" :value="JSON.stringify(questions)" />
             <input type="hidden" name="questions_count" x-ref="questionsCountInput" :value="questions.length" />
 
             <div class="flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-180px)]">
                 
-                <!-- ────────────────────────────────────────────── -->
-                <!-- LEFT SIDEBAR: GENERAL INFO & QUESTION LIST -->
-                <!-- ────────────────────────────────────────────── -->
+                {{-- ────────────────────────────────────────────── --}}
+                {{-- LEFT SIDEBAR: GENERAL INFO & QUESTION LIST --}}
+                {{-- ────────────────────────────────────────────── --}}
                 <aside class="w-full lg:w-[360px] xl:w-[400px] shrink-0 space-y-4">
                     
-                    <!-- General Info Card -->
+                    {{-- General Info Card --}}
                     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
                         <div class="flex items-center justify-between pb-2 border-b border-gray-100">
                             <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
@@ -135,7 +135,7 @@
                         </div>
                     </div>
 
-                    <!-- Question List Navigation Card -->
+                    {{-- Question List Navigation Card --}}
                     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
                         <div class="flex items-center justify-between pb-2 border-b border-gray-100">
                             <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
@@ -145,7 +145,7 @@
                             <span class="text-xs font-bold bg-orange-100 text-primary-container px-2.5 py-0.5 rounded-full font-mono" x-text="questions.length + ' Câu'"></span>
                         </div>
 
-                        <!-- Action Toolbar: Quick Add Types -->
+                        {{-- Action Toolbar: Quick Add Types --}}
                         <div class="grid grid-cols-2 gap-1.5 text-xs">
                             <button type="button" @click="addNewQuestion('multiple_choice', 'listening')" class="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-bold transition flex items-center justify-center gap-1 text-[11px] cursor-pointer">
                                 <span class="material-symbols-outlined text-[14px]">headphones</span>
@@ -165,7 +165,7 @@
                             </button>
                         </div>
 
-                        <!-- Question Cards List -->
+                        {{-- Question Cards List --}}
                         <div class="space-y-2 max-h-[460px] overflow-y-auto pr-1">
                             <template x-for="(q, idx) in questions" :key="q.id">
                                 <div 
@@ -199,7 +199,7 @@
                             </template>
                         </div>
 
-                        <!-- Big Add Button -->
+                        {{-- Big Add Button --}}
                         <button 
                             type="button" 
                             @click="addNewQuestion('multiple_choice', 'reading')" 
@@ -212,14 +212,14 @@
 
                 </aside>
 
-                <!-- ────────────────────────────────────────────── -->
-                <!-- RIGHT MAIN PANEL: QUESTION DETAIL EDITOR -->
-                <!-- ────────────────────────────────────────────── -->
+                {{-- ────────────────────────────────────────────── --}}
+                {{-- RIGHT MAIN PANEL: QUESTION DETAIL EDITOR --}}
+                {{-- ────────────────────────────────────────────── --}}
                 <main class="flex-1 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
                     <template x-if="currentQ">
                         <div class="space-y-5">
                             
-                            <!-- Editor Header -->
+                            {{-- Editor Header --}}
                             <div class="flex items-center justify-between pb-3 border-b border-gray-200 flex-wrap gap-2">
                                 <div class="flex items-center gap-2">
                                     <span class="w-8 h-8 rounded-xl bg-primary-container text-white font-black text-sm flex items-center justify-center font-mono shadow-xs">
@@ -253,7 +253,7 @@
                                 </div>
                             </div>
 
-                            <!-- Section & Points & Skill -->
+                            {{-- Section & Points & Skill --}}
                             <div class="grid grid-cols-1 md:grid-cols-12 gap-3 text-xs">
                                 <div class="md:col-span-6">
                                     <label class="block font-bold text-gray-800 mb-1 text-[11px]">Phần thi (Section / Tiêu đề nhóm câu)</label>
@@ -275,7 +275,7 @@
                                 </div>
                             </div>
 
-                            <!-- Question Type Selector Buttons -->
+                            {{-- Question Type Selector Buttons --}}
                             <div class="space-y-2 text-xs">
                                 <label class="block font-bold text-gray-800 uppercase tracking-wider text-[10px]">Định dạng loại câu hỏi</label>
                                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -321,7 +321,7 @@
                                 </div>
                             </div>
 
-                            <!-- Audio Track Upload & Player (for Listening) -->
+                            {{-- Audio Track Upload & Player (for Listening) --}}
                             <div class="p-4 bg-indigo-50/60 border border-indigo-200 rounded-2xl space-y-2 text-xs">
                                 <div class="flex items-center justify-between">
                                     <span class="font-bold text-indigo-950 flex items-center gap-1.5">
@@ -345,19 +345,19 @@
                                 </template>
                             </div>
 
-                            <!-- Reading / Context Passage Content -->
+                            {{-- Reading / Context Passage Content --}}
                             <div class="space-y-1 text-xs">
                                 <label class="block font-bold text-gray-800 text-[11px]">Đoạn văn đọc hiểu / Bối cảnh câu hỏi (Passage / Reading Text)</label>
                                 <textarea x-model="currentQ.passage" rows="3" placeholder="Nhập đoạn văn đọc hiểu hoặc ngữ cảnh của câu hỏi (nếu có)..." class="w-full text-xs rounded-xl border border-gray-300 p-3 focus:ring-primary-container focus:border-primary-container bg-white font-serif shadow-2xs leading-relaxed"></textarea>
                             </div>
 
-                            <!-- Question Text Content -->
+                            {{-- Question Text Content --}}
                             <div class="space-y-1 text-xs">
                                 <label class="block font-bold text-gray-800 text-[11px]">Nội dung câu hỏi / Yêu cầu đề bài <span class="text-rose-500">*</span></label>
                                 <textarea x-model="currentQ.title" rows="2" placeholder="VD: According to the passage, what is the primary benefit of renewable energy?" class="w-full text-xs font-bold rounded-xl border border-gray-300 p-3 focus:ring-primary-container focus:border-primary-container bg-white shadow-2xs"></textarea>
                             </div>
 
-                            <!-- MULTIPLE CHOICE OPTIONS EDITOR -->
+                            {{-- MULTIPLE CHOICE OPTIONS EDITOR --}}
                             <template x-if="currentQ.type === 'multiple_choice'">
                                 <div class="space-y-3 text-xs bg-slate-50/70 p-4 rounded-2xl border border-gray-200">
                                     <div class="flex items-center justify-between pb-2 border-b border-gray-200">
@@ -410,7 +410,7 @@
                                 </div>
                             </template>
 
-                            <!-- FILL BLANK SETUP -->
+                            {{-- FILL BLANK SETUP --}}
                             <template x-if="currentQ.type === 'fill_blank'">
                                 <div class="p-4 bg-slate-50 border border-gray-200 rounded-xl space-y-2 text-xs">
                                     <label class="block font-bold text-gray-900 uppercase text-[11px]">Từ / Cụm từ đáp án chính xác <span class="text-rose-500">*</span></label>
@@ -419,7 +419,7 @@
                                 </div>
                             </template>
 
-                            <!-- ESSAY WRITING SETUP -->
+                            {{-- ESSAY WRITING SETUP --}}
                             <template x-if="currentQ.type === 'essay'">
                                 <div class="p-4 bg-amber-50/60 border border-amber-200 rounded-xl space-y-3 text-xs">
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -436,7 +436,7 @@
                                 </div>
                             </template>
 
-                            <!-- SPEAKING SETUP -->
+                            {{-- SPEAKING SETUP --}}
                             <template x-if="currentQ.type === 'speaking_prompt'">
                                 <div class="p-4 bg-rose-50/60 border border-rose-200 rounded-xl space-y-2 text-xs">
                                     <label class="block font-bold text-rose-950 uppercase text-[11px]">Gợi ý dàn ý / Cue points cho học viên</label>
@@ -444,7 +444,7 @@
                                 </div>
                             </template>
 
-                            <!-- Explanation Box -->
+                            {{-- Explanation Box --}}
                             <div class="p-4 bg-amber-50/50 border border-amber-200 rounded-2xl space-y-1.5 text-xs">
                                 <label class="block font-bold text-amber-950 uppercase text-[11px] flex items-center gap-1.5">
                                     <span class="material-symbols-outlined text-primary-container text-base">lightbulb</span>
@@ -453,7 +453,7 @@
                                 <textarea x-model="currentQ.explanation" rows="2" placeholder="Giải thích vì sao đáp án này đúng, trích dẫn transcript bài nghe hoặc đoạn văn bài đọc..." class="w-full text-xs rounded-xl border border-amber-300 p-2.5 bg-white shadow-2xs leading-relaxed"></textarea>
                             </div>
 
-                            <!-- Teacher Note Box -->
+                            {{-- Teacher Note Box --}}
                             <div class="p-4 bg-slate-50 border border-gray-200 rounded-2xl space-y-1.5 text-xs">
                                 <label class="block font-bold text-gray-800 uppercase text-[11px] flex items-center gap-1.5">
                                     <span class="material-symbols-outlined text-orange-600 text-base">settings_suggest</span>
@@ -462,7 +462,7 @@
                                 <textarea x-model="currentQ.teacher_note" rows="2" placeholder="Ghi chú thêm về tiêu chí, bẫy từ vựng..." class="w-full text-xs rounded-xl border border-gray-300 p-2.5 bg-white shadow-2xs"></textarea>
                             </div>
 
-                            <!-- Form Action Footer (mockup): Lưu nháp = lưu đề ở trạng thái Ẩn; Lưu và Tiếp theo = sang câu kế tiếp -->
+                            {{-- Form Action Footer: Lưu nháp = lưu đề ở trạng thái Ẩn; Lưu và Tiếp theo = sang câu kế tiếp --}}
                             <div class="flex flex-wrap items-center justify-end gap-sm border-t border-surface-container-highest pt-md">
                                 <button type="submit" name="save_mode" value="draft" class="rounded-lg border border-outline-variant px-lg py-sm font-body-medium text-body-medium text-on-surface hover:bg-surface-container-low">Lưu nháp</button>
                                 <button type="button" @click="saveAndNext()" class="inline-flex items-center gap-xs rounded-lg bg-secondary px-lg py-sm font-body-medium text-body-medium text-white hover:opacity-90">

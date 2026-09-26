@@ -105,7 +105,7 @@
                 <input type="hidden" name="remove_proof" :value="proofRemoved ? 1 : 0">
             @endif
 
-            <!-- Banners thông báo -->
+            {{-- Banners thông báo --}}
             @if (isset($errors) && $errors->any())
                 <div class="bg-rose-50 border-l-4 border-rose-500 p-4 rounded-r-xl shadow-xs text-xs text-rose-800 space-y-1">
                     <div class="font-bold flex items-center gap-1.5 text-rose-900 text-sm">
@@ -144,17 +144,9 @@
                 </div>
             </div>
 
-            <div class="bg-blue-50/70 border-l-4 border-blue-500 p-4 rounded-r-xl shadow-xs flex items-start gap-3">
-                <span class="material-symbols-outlined text-blue-600 text-xl shrink-0 mt-0.5">info</span>
-                <div class="text-xs text-blue-900 space-y-0.5">
-                    <h4 class="font-bold">Quy định lập phiếu thu học phí &amp; phụ thu (Chuẩn 11/09/2026)</h4>
-                    <p class="text-blue-800">Khoản phụ thu luôn hoạt động độc lập và không loại trừ lẫn nhau với học phí. Hệ thống cho phép: <strong>Học phí + Phụ thu</strong>, hoặc chỉ thu riêng <strong>Học phí</strong>, hoặc chỉ thu riêng <strong>Phụ thu</strong>.</p>
-                </div>
-            </div>
-
-            <!-- Khối 1: Chọn Học viên & Hồ sơ Học phí -->
+            {{-- Khối 1: Chọn Học viên & Hồ sơ Học phí --}}
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <!-- Chọn học viên & Hồ sơ -->
+                {{-- Chọn học viên & Hồ sơ --}}
                 <div class="p-4 md:p-5 border-b border-slate-100 bg-slate-50/50">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -182,7 +174,7 @@
                     </div>
                 </div>
 
-                <!-- Thẻ tóm tắt thông tin học viên -->
+                {{-- Thẻ tóm tắt thông tin học viên --}}
                 <div class="p-5 border-b border-slate-100 bg-white">
                     <div class="flex items-center gap-4 flex-wrap sm:flex-nowrap">
                         <div class="w-14 h-14 rounded-2xl bg-orange-100 text-primary flex items-center justify-center shrink-0 shadow-xs">
@@ -209,7 +201,7 @@
                     </div>
                 </div>
 
-                <!-- Thanh tùy chọn: Khoản học phí đến hạn -->
+                {{-- Thanh tùy chọn: Khoản học phí đến hạn --}}
                 <div class="p-4 px-5 bg-slate-50/70 border-b border-slate-200/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
                     <div class="flex items-center gap-3 flex-wrap">
                         <div class="flex items-center gap-1.5 text-xs font-bold text-slate-800">
@@ -254,9 +246,9 @@
                     <span>Có thể bỏ qua khoản học phí để lập phiếu chỉ thu riêng phụ thu. Khi bỏ qua, khối thông tin số buổi và bảng kê học phí bên dưới sẽ tự động ẩn.</span>
                 </div>
 
-                <!-- Khối số buổi & Bảng kê học phí (Chỉ hiển thị khi KHÔNG bỏ qua) -->
+                {{-- Khối số buổi & Bảng kê học phí (Chỉ hiển thị khi KHÔNG bỏ qua) --}}
                 <div x-show="!skipTuition && currentTuition" x-transition class="space-y-0">
-                    <!-- Thống kê 4 ô buổi học -->
+                    {{-- Thống kê 4 ô buổi học --}}
                     <div x-show="currentTuition?.total_sessions" class="grid grid-cols-2 md:grid-cols-4 border-b border-slate-200 text-center divide-x divide-slate-100 text-xs">
                         <div class="p-4">
                             <span class="text-slate-400 font-semibold uppercase text-[10px] block mb-1">Tổng số buổi</span>
@@ -276,7 +268,7 @@
                         </div>
                     </div>
 
-                    <!-- Bảng kê chi tiết khoản thu học phí -->
+                    {{-- Bảng kê chi tiết khoản thu học phí --}}
                     <div class="p-5 bg-slate-50/50">
                         <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-primary text-base">receipt_long</span>
@@ -308,7 +300,7 @@
                             </div>
                         </div>
 
-                        <!-- Giảm trừ & Tổng học phí -->
+                        {{-- Giảm trừ & Tổng học phí --}}
                         <div class="mt-4 pt-4 border-t border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                             <div class="w-full md:w-80 space-y-1">
                                 <label class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
@@ -340,7 +332,7 @@
                 </div>
             </div>
 
-            <!-- Khối 2: Phụ thu (Phí phát sinh ngoài học phí) - Tùy chọn độc lập -->
+            {{-- Khối 2: Phụ thu (Phí phát sinh ngoài học phí) - Tùy chọn độc lập --}}
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="p-4 px-5 bg-slate-50/70 border-b border-slate-200/80 flex items-center justify-between">
                     <div class="flex items-center gap-2">
@@ -364,7 +356,7 @@
                                 <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-mono">VNĐ</span>
                             </div>
 
-                            <!-- Gợi ý số tiền nhanh -->
+                            {{-- Gợi ý số tiền nhanh --}}
                             <div class="flex items-center gap-1.5 mt-2">
                                 <span class="text-[11px] text-slate-400">Gợi ý nhanh:</span>
                                 <button type="button" @click="setSurcharge(50000)" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-orange-50 hover:text-primary text-[11px] font-medium text-slate-600 transition">50.000đ</button>
@@ -390,7 +382,7 @@
                 </div>
             </div>
 
-            <!-- Khối 3: TỔNG THỰC THU CỦA PHIẾU NÀY (Học phí + Phụ thu) -->
+            {{-- Khối 3: TỔNG THỰC THU CỦA PHIẾU NÀY (Học phí + Phụ thu) --}}
             <div class="bg-white p-5 rounded-2xl border-2 border-primary-container/50 shadow-sm">
                 <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div class="space-y-1">
@@ -423,13 +415,13 @@
                 </div>
             </div>
 
-            <!-- Hidden input for amount and tuition amount -->
+            {{-- Hidden input for amount and tuition amount --}}
             <input type="hidden" name="amount" :value="totalAmount" />
             <input type="hidden" name="tuition_amount" :value="tuitionAmountAfterDiscount" />
 
-            <!-- Khối 4: 2 Cột: Hình thức thu tiền & Thông tin bổ sung -->
+            {{-- Khối 4: 2 Cột: Hình thức thu tiền & Thông tin bổ sung --}}
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                <!-- Cột trái: Hình thức thu tiền -->
+                {{-- Cột trái: Hình thức thu tiền --}}
                 <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                     <div class="flex items-center justify-between">
                         <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
@@ -465,7 +457,7 @@
                         </label>
                     </div>
 
-                    <!-- Giao diện Chuyển khoản -->
+                    {{-- Giao diện Chuyển khoản --}}
                     <div x-show="paymentMethod === 'transfer'" x-transition class="space-y-3 pt-2">
                         <div class="bg-blue-50 p-3 rounded-xl flex items-start gap-2.5 border border-blue-100 text-xs text-blue-900">
                             <span class="material-symbols-outlined text-blue-600 text-base shrink-0 mt-0.5">sync</span>
@@ -475,7 +467,7 @@
                             </div>
                         </div>
 
-                        <!-- Card tài khoản ngân hàng mặc định -->
+                        {{-- Card tài khoản ngân hàng mặc định --}}
                         <div x-show="bank" class="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50 space-y-3 text-xs">
                             <div class="flex items-center justify-between border-b border-slate-200/80 pb-2">
                                 <h5 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tài khoản ngân hàng nhận học phí</h5>
@@ -503,7 +495,7 @@
                                     <input type="hidden" name="transfer_memo" :value="transferMemo">
                                 </div>
 
-                                <!-- Dynamic VietQR Code -->
+                                {{-- Dynamic VietQR Code --}}
                                 <div class="flex flex-col items-center gap-1 shrink-0">
                                     <div class="w-28 h-28 bg-white border-2 border-primary-container/20 p-1 rounded-xl shadow-xs overflow-hidden flex items-center justify-center">
                                         <img :src="vietQrUrl" alt="VietQR Thanh toán" class="w-full h-full object-contain" />
@@ -530,7 +522,7 @@
                         </div>
                     </div>
 
-                    <!-- Giao diện Tiền mặt -->
+                    {{-- Giao diện Tiền mặt --}}
                     <div x-show="paymentMethod === 'cash'" x-transition class="space-y-3 pt-2">
                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-1 text-xs">
                             <label class="font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
@@ -542,14 +534,14 @@
                     </div>
                 </div>
 
-                <!-- Cột phải: Thông tin bổ sung -->
+                {{-- Cột phải: Thông tin bổ sung --}}
                 <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                     <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-primary text-base">description</span>
                         Thông tin bổ sung
                     </h3>
 
-                    <!-- Toggle Hóa đơn VAT -->
+                    {{-- Toggle Hóa đơn VAT --}}
                     <div class="flex items-center justify-between p-3.5 bg-slate-50/70 rounded-xl border border-slate-200">
                         <div class="flex items-center gap-2.5">
                             <span class="material-symbols-outlined text-slate-500 text-lg">receipt</span>
@@ -564,7 +556,7 @@
                         </label>
                     </div>
 
-                    <!-- Người nộp tiền & SĐT -->
+                    {{-- Người nộp tiền & SĐT --}}
                     <div class="grid grid-cols-2 gap-3 text-xs">
                         <div class="space-y-1">
                             <label class="font-bold text-slate-700 uppercase tracking-wider block">Người nộp tiền</label>
@@ -576,7 +568,7 @@
                         </div>
                     </div>
 
-                    <!-- Ghi chú nội bộ -->
+                    {{-- Ghi chú nội bộ --}}
                     <div class="space-y-1 text-xs">
                         <label class="font-bold text-slate-700 uppercase tracking-wider block">Ghi chú nội bộ</label>
                         <textarea name="notes" rows="3" placeholder="Nhập ghi chú quan trọng cho bộ phận kế toán và quản lý lớp..." class="w-full rounded-xl border border-slate-200 focus:border-primary-container focus:ring-primary-container/20 p-3 text-xs text-slate-800">{{ old('notes', $editingReceipt?->notes) }}</textarea>
@@ -584,7 +576,7 @@
                 </div>
             </div>
 
-            <!-- Khối 5: Minh chứng thanh toán (*) -->
+            {{-- Khối 5: Minh chứng thanh toán (*) --}}
             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                 <div class="flex items-center justify-between">
                     <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
@@ -597,7 +589,7 @@
                     </span>
                 </div>
 
-                <!-- Drag & Drop Zone -->
+                {{-- Drag & Drop Zone --}}
                 <div class="border-2 border-dashed border-slate-300 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-slate-50/50 transition relative" @click="$refs.fileInput.click()">
                     <input type="file" name="proof_image" x-ref="fileInput" @change="handleFileSelected($event)" accept="image/*,.pdf" class="hidden" />
                     
@@ -610,7 +602,7 @@
                     </div>
                 </div>
 
-                <!-- Preview file đã chọn -->
+                {{-- Preview file đã chọn --}}
                 <template x-if="proofPreviewUrl">
                     <div class="space-y-1.5 pt-2">
                         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Minh chứng đã đính kèm</p>
@@ -635,7 +627,7 @@
                 </template>
             </div>
 
-            <!-- Footer cố định dưới đáy màn hình -->
+            {{-- Footer cố định dưới đáy màn hình --}}
             <div class="fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-slate-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] px-4 md:px-8 z-40">
                 <div class="max-w-5xl mx-auto h-full flex items-center justify-between gap-4">
                     <div class="flex items-center gap-3">

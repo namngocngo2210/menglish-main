@@ -3,7 +3,6 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Dashboard Báo cáo Đào tạo & Học vụ</h1>
-                <p class="text-xs text-gray-500 mt-1">Tổng hợp báo cáo ngày của Học vụ, báo cáo tuần Học thuật và báo cáo tháng của Giáo viên</p>
             </div>
             <div class="flex items-center gap-2">
                 <a href="{{ route('academic.dashboards.incidents') }}" class="px-3.5 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold rounded-xl shadow-xs transition flex items-center gap-1.5">
@@ -16,7 +15,7 @@
     </x-slot>
 
     <div class="space-y-6">
-        <!-- 4 Metric Cards -->
+        {{-- 4 Metric Cards --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl bg-orange-50 text-primary flex items-center justify-center font-bold">
@@ -63,10 +62,10 @@
             </div>
         </div>
 
-        <!-- Filter & Tabs -->
+        {{-- Filter & Tabs --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
             <div class="border-b border-gray-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <!-- Tabs -->
+                {{-- Tabs --}}
                 <div class="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
                     <a href="{{ route('academic.dashboards.reports', ['tab' => 'daily']) }}"
                        class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap {{ $tab === 'daily' ? 'bg-primary-container text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
@@ -82,13 +81,13 @@
                     </a>
                 </div>
 
-                <!-- Date & Branch Filter -->
+                {{-- Date & Branch Filter --}}
                 <div class="flex items-center gap-2">
                     <span class="text-xs text-gray-500 font-medium">Hôm nay: {{ now()->format('d/m/Y') }}</span>
                 </div>
             </div>
 
-            <!-- Tab 1 Content: Daily Reports -->
+            {{-- Tab 1 Content: Daily Reports --}}
             @if($tab === 'daily')
                 <div class="p-6 space-y-6">
                     <div class="flex items-center justify-between">
@@ -161,7 +160,7 @@
                 </div>
             @endif
 
-            <!-- Tab 2 Content: Weekly Reports -->
+            {{-- Tab 2 Content: Weekly Reports --}}
             @if($tab === 'weekly')
                 <div class="p-6 space-y-6">
                     <div class="flex items-center justify-between">
@@ -210,7 +209,7 @@
                 </div>
             @endif
 
-            <!-- Tab 3 Content: Monthly Reports -->
+            {{-- Tab 3 Content: Monthly Reports --}}
             @if($tab === 'monthly')
                 <div class="p-6 space-y-6">
                     <div class="flex items-center justify-between">

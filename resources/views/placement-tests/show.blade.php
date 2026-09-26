@@ -24,15 +24,15 @@
                 </div>
             </div>
 
-            <!-- Compact Sleek Actions Menu -->
+            {{-- Compact Sleek Actions Menu --}}
             <div class="flex items-center gap-1.5 flex-wrap">
-                <!-- Copy Portal Link -->
+                {{-- Copy Portal Link --}}
                 <button type="button" onclick="navigator.clipboard.writeText({{ \Illuminate\Support\Js::from(route('portal.test.take', $test->code)) }}); window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Đã sao chép link làm bài thi.', type: 'success' } }));" class="px-2.5 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold transition flex items-center gap-1 shadow-2xs">
                     <span class="material-symbols-outlined text-[15px] text-gray-500">content_copy</span>
                     <span>Sao chép Link</span>
                 </button>
 
-                <!-- Open Portal -->
+                {{-- Open Portal --}}
                 <a href="{{ route('portal.test.take', $test->code) }}" target="_blank" class="px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold shadow-2xs transition flex items-center gap-1">
                     <span class="material-symbols-outlined text-[15px]">open_in_new</span>
                     <span>Cổng làm bài</span>
@@ -49,7 +49,7 @@
     </x-slot>
 
     <div class="space-y-6">
-        <!-- Overview Stats Card -->
+        {{-- Overview Stats Card --}}
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div class="p-3.5 bg-white rounded-xl border border-gray-200 shadow-2xs space-y-0.5">
                 <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cấp độ mục tiêu</div>
@@ -75,7 +75,7 @@
             </a>
         </div>
 
-        <!-- Candidate Submissions & Scores Table for this Test -->
+        {{-- Candidate Submissions & Scores Table for this Test --}}
         <div id="submissions-list" class="bg-white rounded-2xl border border-gray-200 shadow-2xs overflow-hidden scroll-mt-6">
             <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
                 <div class="flex items-center gap-2">
@@ -155,7 +155,7 @@
             </div>
         </div>
 
-        <!-- Question List View -->
+        {{-- Question List View --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-2xs p-5 md:p-6 space-y-5">
             <div class="flex items-center justify-between pb-3 border-b border-gray-100">
                 <div>
@@ -174,7 +174,7 @@
             <div class="space-y-5">
                 @forelse ($questions as $idx => $q)
                     <div class="p-4 rounded-xl border border-gray-200/90 bg-gray-50/40 space-y-3">
-                        <!-- Question Header -->
+                        {{-- Question Header --}}
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <span class="px-2 py-0.5 rounded-md bg-slate-900 text-white font-mono font-bold text-[11px]">Câu {{ $idx + 1 }}</span>
@@ -193,19 +193,19 @@
                             <span class="text-xs font-mono font-semibold text-gray-500">{{ $q['points'] ?? 1 }} điểm</span>
                         </div>
 
-                        <!-- Question Title -->
+                        {{-- Question Title --}}
                         <div class="text-xs md:text-sm font-bold text-gray-900 leading-snug">
                             {{ $q['title'] ?? '' }}
                         </div>
 
-                        <!-- Passage if exists -->
+                        {{-- Passage if exists --}}
                         @if (!empty($q['passage']))
                             <div class="p-3 bg-emerald-50/60 border border-emerald-100 rounded-xl text-xs leading-relaxed text-slate-800 font-medium italic">
                                 <strong>Đoạn văn / Ngữ cảnh:</strong> "{{ $q['passage'] }}"
                             </div>
                         @endif
 
-                        <!-- Audio player if exists -->
+                        {{-- Audio player if exists --}}
                         @if (!empty($q['audio_url']))
                             <div class="p-3 bg-gradient-to-r from-indigo-50/90 to-blue-50/90 border border-indigo-200/80 rounded-xl space-y-2 shadow-2xs">
                                 <div class="flex items-center justify-between text-[11px] font-bold text-indigo-900">
@@ -225,14 +225,14 @@
                             </div>
                         @endif
 
-                        <!-- Illustration Image if exists -->
+                        {{-- Illustration Image if exists --}}
                         @if (!empty($q['image_url']))
                             <div class="my-2 p-2 bg-white rounded-xl border border-gray-200 max-w-md mx-auto">
                                 <img src="{{ $q['image_url'] }}" alt="Question illustration" class="max-h-56 mx-auto object-contain rounded-lg">
                             </div>
                         @endif
 
-                        <!-- Options / Choices -->
+                        {{-- Options / Choices --}}
                         @if (!empty($q['options']))
                             <div class="grid grid-cols-1 {{ count($q['options']) > 2 ? 'sm:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2' }} gap-2 text-xs">
                                 @foreach ($q['options'] as $opt)
@@ -262,7 +262,7 @@
                             </div>
                         @endif
 
-                        <!-- Fill blank answer or Explanation -->
+                        {{-- Fill blank answer or Explanation --}}
                         @if (!empty($q['correct_answer']))
                             <div class="p-2.5 bg-amber-50/70 border border-amber-200 rounded-xl text-xs flex items-center justify-between">
                                 <div>
@@ -275,7 +275,7 @@
                             </div>
                         @endif
 
-                        <!-- Speaking Cue Points -->
+                        {{-- Speaking Cue Points --}}
                         @if (!empty($q['cue_points']))
                             <div class="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-950 whitespace-pre-line font-mono">
                                 <strong>Gợi ý phỏng vấn Speaking:</strong>

@@ -10,7 +10,6 @@
                         <span class="material-symbols-outlined text-primary">table_view</span>
                         Danh sách lớp chi tiết Học thuật
                     </h1>
-                    <p class="text-xs text-gray-500">Bảng theo dõi tình trạng lớp học, tiến độ syllabus, Big Test và lịch dự giờ chuyên môn.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -22,17 +21,15 @@
         </div>
     </x-slot>
 
-    @include('classes.partials.flow-header', ['activeStep' => 5])
 
     <div class="space-y-6">
-        <!-- Header & Toolbar (Exact Match BA) -->
+        {{-- Header & Toolbar --}}
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
             <div>
                 <h2 class="text-base font-bold text-gray-900">Danh sách lớp học</h2>
-                <p class="text-xs text-gray-500">Quản lý và theo dõi trạng thái các lớp học hiện tại.</p>
             </div>
 
-            <!-- Toolbar Filters -->
+            {{-- Toolbar Filters --}}
             <form method="GET" action="{{ route('classes.academic-list') }}" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
                 @if ($levelFilter)
                     <input type="hidden" name="level" value="{{ $levelFilter }}">
@@ -68,7 +65,7 @@
             </form>
         </div>
 
-        <!-- Data Table Card -->
+        {{-- Data Table Card --}}
         <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
             <div class="overflow-x-auto custom-scrollbar">
                 <table class="w-full text-left border-collapse text-xs whitespace-nowrap">

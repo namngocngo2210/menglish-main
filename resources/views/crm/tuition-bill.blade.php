@@ -355,7 +355,7 @@
 
 <body>
 
-    <!-- TOP ACTION BAR -->
+    {{-- TOP ACTION BAR --}}
     <div class="action-bar">
         @can('lead.view')
         <a href="{{ route('crm.pipeline') }}" class="btn btn-secondary">
@@ -380,7 +380,7 @@
 
     <div class="invoice">
 
-        <!-- HEADER -->
+        {{-- HEADER --}}
         <div class="header">
             <div class="logo">
                 <img src="{{ asset('images/menglish-logo.png') }}" alt="MENGLISH Logo" style="width: 75px; height: 75px; object-fit: contain;">
@@ -397,7 +397,7 @@
             </div>
         </div>
 
-        <!-- TITLE -->
+        {{-- TITLE --}}
         <div class="document-title">
             <h1>THÔNG BÁO NỘP HỌC PHÍ</h1>
             <div class="document-date">
@@ -405,7 +405,7 @@
             </div>
         </div>
 
-        <!-- STUDENT INFORMATION -->
+        {{-- STUDENT INFORMATION --}}
         <table class="info-table">
             <tr>
                 <td class="label">Họ tên:</td>
@@ -537,7 +537,7 @@
             </tr>
         </table>
 
-        <!-- INSTALLMENTS & PAYMENT HISTORY (LỊCH SỬ THANH TOÁN CÁC ĐỢT) -->
+        {{-- INSTALLMENTS & PAYMENT HISTORY (LỊCH SỬ THANH TOÁN CÁC ĐỢT) --}}
         <div style="margin-top: 24px;">
             <div style="font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
                 <span>LỊCH SỬ THANH TOÁN CÁC ĐỢT (TIẾN ĐỘ THU TIỀN)</span>
@@ -643,12 +643,12 @@
         </div>
 
         @if($amountToPay > 0 && $bankAccount)
-        <!-- PAYMENT NOTE -->
+        {{-- PAYMENT NOTE --}}
         <div class="payment-note">
             Quý phụ huynh có thể nộp tiền mặt tại Trung tâm hoặc chuyển khoản theo thông tin sau:
         </div>
 
-        <!-- BANK INFORMATION -->
+        {{-- BANK INFORMATION --}}
         <table class="bank-table">
             <tr>
                 <td class="bank-label">Chủ tài khoản</td>
@@ -662,19 +662,19 @@
             </tr>
         </table>
 
-        <!-- TRANSFER CONTENT -->
+        {{-- TRANSFER CONTENT --}}
         <div class="transfer-content">
             <strong>Nội dung chuyển tiền :</strong>
             <span>{{ $transferMemo }}</span>
         </div>
 
-        <!-- COMPANY NOTE -->
+        {{-- COMPANY NOTE --}}
         <div class="company-note">
             <strong>Ghi chú:</strong>
             <div>Tk công ty. Quý phụ huynh vui lòng giữ nguyên nội dung chuyển khoản để hệ thống tự động gạch nợ nhanh nhất.</div>
         </div>
 
-        <!-- QR CODE -->
+        {{-- QR CODE --}}
         <div class="qr-wrapper">
             <img src="{{ $vietQrUrl }}" alt="QR thanh toán VietQR">
             <div class="qr-desc">

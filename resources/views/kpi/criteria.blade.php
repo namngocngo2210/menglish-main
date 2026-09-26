@@ -29,7 +29,7 @@
             @endunless
         </x-ui.alert>
 
-        <!-- Add form -->
+        {{-- Add form --}}
         <form id="kpi-add-form" method="POST" action="{{ route('kpi.criteria.store') }}" class="bg-surface-container-lowest rounded-xl p-lg border border-outline-variant shadow-sm space-y-3">
             @csrf
             <h2 class="font-h3 text-h3 text-on-surface">Thêm mục KPI mới</h2>
@@ -60,7 +60,7 @@
             </div>
         </form>
 
-        <!-- List / edit, theo nhóm -->
+        {{-- List / edit, theo nhóm --}}
         <div class="space-y-4">
             @forelse ($criteria->groupBy(fn ($c) => $c->group_name ?: 'Chưa phân nhóm') as $groupName => $items)
                 <div class="space-y-2">

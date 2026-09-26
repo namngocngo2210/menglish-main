@@ -5,7 +5,6 @@
                 <span class="material-symbols-outlined text-primary text-2xl">schedule</span>
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight">Chấm Công AppSheet</h1>
-                    <p class="text-xs text-gray-500">Cổng điểm danh và chấm công trực tuyến qua ứng dụng AppSheet</p>
                 </div>
             </div>
 
@@ -30,7 +29,7 @@
         </div>
     </x-slot>
 
-    <!-- Appsheet Embedded Container -->
+    {{-- Appsheet Embedded Container --}}
     <div class="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-175px)] min-h-[650px] relative">
         <iframe 
             id="appsheet-frame"

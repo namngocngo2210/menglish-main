@@ -12,7 +12,6 @@
         </div>
     </x-slot>
 
-    @include('syllabus.partials.flow-header', ['activeStep' => 1])
 
     @php($canUpload = auth()->user()->can('syllabus.upload'))
 

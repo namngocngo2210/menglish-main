@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MENGLISH - Hệ Thống 58 Màn Hình Giao Diện UI/UX</title>
-    <!-- Favicon -->
+    {{-- Favicon --}}
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
@@ -20,7 +20,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="min-h-full flex flex-col" x-data="screenGallery()">
-    <!-- Header -->
+    {{-- Header --}}
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -37,7 +37,7 @@
                     </div>
                 </div>
 
-                <!-- Action links & Search -->
+                {{-- Action links & Search --}}
                 <div class="flex items-center gap-3 w-full md:w-auto">
                     <a href="{{ route('dashboard') }}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition shrink-0">
                         <span class="material-symbols-outlined text-sm">arrow_back</span>
@@ -49,7 +49,7 @@
                         <span>Mockup Hub</span>
                     </a>
                     
-                    <!-- Search Box -->
+                    {{-- Search Box --}}
                     <div class="relative flex-1 md:w-72">
                         <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
                         <input type="text" x-model="search" @input="filterScreens()" placeholder="Tìm kiếm màn hình..." 
@@ -58,7 +58,7 @@
                 </div>
             </div>
 
-            <!-- Category Filter Tabs -->
+            {{-- Category Filter Tabs --}}
             <div class="flex items-center gap-2 mt-4 overflow-x-auto pb-1 no-scrollbar border-t border-slate-100 pt-3">
                 <template x-for="cat in categories" :key="cat.id">
                     <button 
@@ -74,9 +74,9 @@
         </div>
     </header>
 
-    <!-- Main Container -->
+    {{-- Main Container --}}
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
-        <!-- Results Counter -->
+        {{-- Results Counter --}}
         <div class="mb-4 flex items-center justify-between text-xs text-slate-500">
             <div>
                 Hiển thị <span class="font-bold text-slate-800" x-text="filteredScreens.length"></span> / 58 màn hình
@@ -93,11 +93,11 @@
             </div>
         </div>
 
-        <!-- Screens Grid -->
+        {{-- Screens Grid --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             <template x-for="(s, idx) in filteredScreens" :key="s.folder_name">
                 <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-orange-300 transition-all flex flex-col overflow-hidden group">
-                    <!-- Thumbnail with overlay -->
+                    {{-- Thumbnail with overlay --}}
                     <div class="h-44 bg-slate-100 relative overflow-hidden border-b border-slate-100 flex items-center justify-center cursor-pointer" @click="openModal(s)">
                         <template x-if="s.has_png">
                             <img :src="'/roundcuoi-kieulien/' + s.category_id + '/' + s.folder_name + '/screen.png'" :alt="s.title_vn" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300">
@@ -118,7 +118,7 @@
                         </div>
                     </div>
 
-                    <!-- Card Body -->
+                    {{-- Card Body --}}
                     <div class="p-4 flex-1 flex flex-col justify-between">
                         <div>
                             <div class="flex items-center justify-between gap-1 mb-1">
@@ -136,7 +136,7 @@
                             <p class="text-xs text-slate-500 line-clamp-2 mb-3" x-text="s.desc"></p>
                         </div>
 
-                        <!-- Card Actions -->
+                        {{-- Card Actions --}}
                         <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
                             <template x-if="nativeMap[s.category_id + '/' + s.folder_name]">
                                 <a :href="nativeMap[s.category_id + '/' + s.folder_name]" target="_blank" class="flex-1 inline-flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 px-3 rounded-lg text-xs font-bold transition-colors shadow-sm">
@@ -157,7 +157,7 @@
             </template>
         </div>
 
-        <!-- Empty State -->
+        {{-- Empty State --}}
         <div x-show="filteredScreens.length === 0" x-cloak class="py-16 text-center text-slate-400">
             <span class="material-symbols-outlined text-5xl mb-2 text-slate-300">search_off</span>
             <p class="text-base font-semibold text-slate-600">Không tìm thấy màn hình phù hợp</p>
@@ -165,10 +165,10 @@
         </div>
     </main>
 
-    <!-- Interactive Fullscreen Modal Preview -->
+    {{-- Interactive Fullscreen Modal Preview --}}
     <div x-show="modalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm" @keydown.escape.window="modalOpen = false">
         <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-6xl h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200" @click.outside="modalOpen = false">
-            <!-- Modal Header -->
+            {{-- Modal Header --}}
             <div class="h-14 px-5 bg-slate-900 text-white flex items-center justify-between shrink-0">
                 <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-lg bg-orange-600 text-white font-bold flex items-center justify-center text-sm">
@@ -194,7 +194,7 @@
                 </div>
             </div>
 
-            <!-- Modal Body (Iframe) -->
+            {{-- Modal Body (Iframe) --}}
             <div class="flex-1 bg-slate-100 p-2 overflow-hidden">
                 <template x-if="modalOpen">
                     <iframe :src="'/academic-system/' + activeScreen?.category_id + '/' + activeScreen?.folder_name" class="w-full h-full rounded-xl border border-slate-300 bg-white shadow-inner" frameborder="0"></iframe>
@@ -203,7 +203,7 @@
         </div>
     </div>
 
-    <!-- Footer -->
+    {{-- Footer --}}
     <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 flex items-center justify-center gap-2 flex-wrap px-4">
         <span>MENGLISH Education System &bull; 2026</span>
         <span class="text-slate-300">&bull;</span>

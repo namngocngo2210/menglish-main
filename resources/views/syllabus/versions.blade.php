@@ -21,7 +21,6 @@
         </div>
     </x-slot>
 
-    @include('syllabus.partials.flow-header', ['activeStep' => 6])
 
     @php($canReview = auth()->user()->can('syllabus.approve_adjustment'))
 

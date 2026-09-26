@@ -6,7 +6,6 @@
                     <span class="material-symbols-outlined text-primary">forward_to_inbox</span>
                     <span>Cấu hình Email nhận &amp; Hòm thư gửi</span>
                 </h1>
-                <p class="text-xs text-gray-500">Quản lý danh sách email nhận thông báo Ticket và cấu hình tài khoản SMTP gửi thư trực tiếp trong hệ thống</p>
             </div>
             <div class="flex items-center gap-2">
                 <a href="{{ route('tickets.index') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold shadow-xs transition">
@@ -116,7 +115,7 @@
         fromAddress: @js($mailConfig['from_address']),
         fromName: @js($mailConfig['from_name'])
     })">
-        <!-- Top Nav Tabs matching System Config -->
+        {{-- Top Nav Tabs matching System Config --}}
         <div class="flex items-center gap-2 border-b border-gray-200 pb-2 overflow-x-auto">
             <a 
                 href="{{ route('system-config.bank-accounts') }}"
@@ -151,17 +150,17 @@
             </a>
         </div>
 
-        <!-- Session Status & Alerts -->
+        {{-- Session Status & Alerts --}}
 
         
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Left Column: Form config -->
+            {{-- Left Column: Form config --}}
             <div class="lg:col-span-2 space-y-6">
                 <form action="{{ route('system-config.ticket-emails.update') }}" method="POST" class="space-y-6">
                     @csrf
 
-                    <!-- Card 1: Multi-email Tag Input (n emails) -->
+                    {{-- Card 1: Multi-email Tag Input (n emails) --}}
                     <div class="bg-white rounded-2xl border border-gray-200 shadow-xs p-6 space-y-5">
                         <div class="flex items-center justify-between border-b border-gray-100 pb-4">
                             <div>
@@ -184,7 +183,7 @@
                             </div>
                         </div>
 
-                        <!-- Email Chips Area -->
+                        {{-- Email Chips Area --}}
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 mb-2">Các email đang nhận thông báo:</label>
                             
@@ -201,7 +200,7 @@
                                         >
                                             <span class="material-symbols-outlined text-[14px]">close</span>
                                         </button>
-                                        <!-- Hidden Input submitted with the form -->
+                                        {{-- Hidden Input submitted with the form --}}
                                         <input type="hidden" name="emails[]" :value="email">
                                     </div>
                                 </template>
@@ -213,7 +212,7 @@
                             </div>
                         </div>
 
-                        <!-- Add Email Input Bar -->
+                        {{-- Add Email Input Bar --}}
                         <div class="space-y-2">
                             <label class="block text-xs font-semibold text-gray-700">Thêm email mới vào danh sách:</label>
                             <div class="flex gap-2">
@@ -237,14 +236,14 @@
                                 </button>
                             </div>
 
-                            <!-- Error feedback for invalid or duplicate email -->
+                            {{-- Error feedback for invalid or duplicate email --}}
                             <div x-show="errorMessage" x-cloak class="text-[11px] text-rose-600 font-semibold flex items-center gap-1">
                                 <span class="material-symbols-outlined text-[14px]">warning</span>
                                 <span x-text="errorMessage"></span>
                             </div>
                         </div>
 
-                        <!-- Quick Suggestions / Presets -->
+                        {{-- Quick Suggestions / Presets --}}
                         <div class="pt-1">
                             <span class="text-[11px] text-gray-500 font-medium mr-1.5">Gợi ý thêm nhanh:</span>
                             <div class="inline-flex flex-wrap gap-1.5 mt-1">
@@ -286,7 +285,7 @@
                         </div>
                     </div>
 
-                    <!-- Card 2: Cấu hình Tài khoản Gửi thư SMTP -->
+                    {{-- Card 2: Cấu hình Tài khoản Gửi thư SMTP --}}
                     <div class="bg-white rounded-2xl border border-gray-200 shadow-xs p-6 space-y-5">
                         <div class="flex items-center justify-between border-b border-gray-100 pb-4">
                             <div>
@@ -299,7 +298,7 @@
                             <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Lưu Database</span>
                         </div>
 
-                        <!-- Quick Presets for SMTP -->
+                        {{-- Quick Presets for SMTP --}}
                         <div class="bg-gray-50 p-3 rounded-xl border border-gray-200 flex flex-wrap items-center justify-between gap-2">
                             <span class="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-primary text-[18px]">bolt</span>
@@ -325,9 +324,9 @@
                             </div>
                         </div>
 
-                        <!-- SMTP Fields Grid -->
+                        {{-- SMTP Fields Grid --}}
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                            <!-- Host -->
+                            {{-- Host --}}
                             <div>
                                 <label class="block font-semibold text-gray-700 mb-1">Máy chủ gửi thư (SMTP Host) <span class="text-rose-500">*</span></label>
                                 <input 
@@ -341,7 +340,7 @@
                                 <span class="text-[10px] text-gray-400 mt-1 block">Gmail: <code>smtp.gmail.com</code> | Mail tên miền: <code>mail.meducation.vn</code></span>
                             </div>
 
-                            <!-- Port & Encryption -->
+                            {{-- Port & Encryption --}}
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <label class="block font-semibold text-gray-700 mb-1">Cổng (Port) <span class="text-rose-500">*</span></label>
@@ -369,7 +368,7 @@
                                 </div>
                             </div>
 
-                            <!-- Username -->
+                            {{-- Username --}}
                             <div>
                                 <label class="block font-semibold text-gray-700 mb-1">Tài khoản / Email đăng nhập SMTP <span class="text-rose-500">*</span></label>
                                 <input 
@@ -383,7 +382,7 @@
                                 <span class="text-[10px] text-gray-400 mt-1 block">Tài khoản email dùng để xác thực với máy chủ SMTP</span>
                             </div>
 
-                            <!-- Password / App Password -->
+                            {{-- Password / App Password --}}
                             <div>
                                 <div class="flex items-center justify-between mb-1">
                                     <label class="block font-semibold text-gray-700">Mật khẩu ứng dụng (App Password) <span class="text-rose-500">*</span></label>
@@ -407,7 +406,7 @@
                                 <span class="text-[10px] text-gray-400 mt-1 block">Đối với @gmail.com: dùng <strong>Mật khẩu ứng dụng 16 ký tự</strong> (không dùng mật khẩu đăng nhập cá nhân)</span>
                             </div>
 
-                            <!-- From Address -->
+                            {{-- From Address --}}
                             <div>
                                 <label class="block font-semibold text-gray-700 mb-1">Email người gửi hiển thị (From Address)</label>
                                 <input 
@@ -420,7 +419,7 @@
                                 <span class="text-[10px] text-gray-400 mt-1 block">Thường để trùng với email đăng nhập ở trên</span>
                             </div>
 
-                            <!-- From Name -->
+                            {{-- From Name --}}
                             <div>
                                 <label class="block font-semibold text-gray-700 mb-1">Tên người gửi hiển thị (From Name)</label>
                                 <input 
@@ -434,7 +433,7 @@
                             </div>
                         </div>
 
-                        <!-- Guide on Gmail App Password -->
+                        {{-- Guide on Gmail App Password --}}
                         <div class="p-4 bg-amber-50/80 border border-amber-200 rounded-2xl text-xs text-amber-900 space-y-2">
                             <div class="font-bold flex items-center gap-1.5 text-amber-950">
                                 <span class="material-symbols-outlined text-amber-600 text-[18px]">key</span>
@@ -449,7 +448,7 @@
                         </div>
                     </div>
 
-                    <!-- Card 3: Notification Triggers / Events -->
+                    {{-- Card 3: Notification Triggers / Events --}}
                     <div class="bg-white rounded-2xl border border-gray-200 shadow-xs p-6 space-y-6">
                         <div class="border-b border-gray-100 pb-3">
                             <h2 class="text-sm font-bold text-gray-900 flex items-center gap-2">
@@ -459,14 +458,14 @@
                             <p class="text-xs text-gray-500 mt-0.5">Tùy chỉnh các trường hợp hệ thống sẽ tự động gửi email thông báo tới danh sách email cấu hình ở trên</p>
                         </div>
 
-                        <!-- Group 1: Tickets & Support -->
+                        {{-- Group 1: Tickets & Support --}}
                         <div class="space-y-3">
                             <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-[16px] text-orange-500">confirmation_number</span>
                                 <span>1. Hỗ trợ Kỹ thuật &amp; Ticket</span>
                             </div>
 
-                            <!-- Trigger 1: On created -->
+                            {{-- Trigger 1: On created --}}
                             <label class="flex items-start gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50/70 transition cursor-pointer">
                                 <input 
                                     type="checkbox" 
@@ -484,7 +483,7 @@
                                 </div>
                             </label>
 
-                            <!-- Trigger 2: On comment / message -->
+                            {{-- Trigger 2: On comment / message --}}
                             <label class="flex items-start gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50/70 transition cursor-pointer">
                                 <input 
                                     type="checkbox" 
@@ -499,7 +498,7 @@
                                 </div>
                             </label>
 
-                            <!-- Trigger 3: On status changed -->
+                            {{-- Trigger 3: On status changed --}}
                             <label class="flex items-start gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50/70 transition cursor-pointer">
                                 <input 
                                     type="checkbox" 
@@ -515,14 +514,14 @@
                             </label>
                         </div>
 
-                        <!-- Group 2: CRM & Leads -->
+                        {{-- Group 2: CRM & Leads --}}
                         <div class="space-y-3 pt-2 border-t border-gray-100">
                             <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-[16px] text-blue-500">campaign</span>
                                 <span>2. CRM &amp; Tuyển sinh</span>
                             </div>
 
-                            <!-- Trigger 4: Stale lead >24h -->
+                            {{-- Trigger 4: Stale lead >24h --}}
                             <label class="flex items-start gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50/70 transition cursor-pointer">
                                 <input 
                                     type="checkbox" 
@@ -541,14 +540,14 @@
                             </label>
                         </div>
 
-                        <!-- Group 3: Financial & Transactions -->
+                        {{-- Group 3: Financial & Transactions --}}
                         <div class="space-y-3 pt-2 border-t border-gray-100">
                             <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-[16px] text-emerald-500">payments</span>
                                 <span>3. Tài chính &amp; Thu chi (Giao dịch)</span>
                             </div>
 
-                            <!-- Trigger 5: New transaction / receipt -->
+                            {{-- Trigger 5: New transaction / receipt --}}
                             <label class="flex items-start gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50/70 transition cursor-pointer">
                                 <input 
                                     type="checkbox" 
@@ -566,7 +565,7 @@
                                 </div>
                             </label>
 
-                            <!-- Trigger 6: Overdue debt reminder -->
+                            {{-- Trigger 6: Overdue debt reminder --}}
                             <label class="flex items-start gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50/70 transition cursor-pointer">
                                 <input 
                                     type="checkbox" 
@@ -585,14 +584,14 @@
                             </label>
                         </div>
 
-                        <!-- Group 4: Academic & Homework -->
+                        {{-- Group 4: Academic & Homework --}}
                         <div class="space-y-3 pt-2 border-t border-gray-100">
                             <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-[16px] text-purple-500">school</span>
                                 <span>4. Học vụ &amp; Đào tạo (Học viên &amp; Lớp học)</span>
                             </div>
 
-                            <!-- Trigger 7: Homework / test submission -->
+                            {{-- Trigger 7: Homework / test submission --}}
                             <label class="flex items-start gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50/70 transition cursor-pointer">
                                 <input 
                                     type="checkbox" 
@@ -612,7 +611,7 @@
                         </div>
                     </div>
 
-                    <!-- Save Action Bar -->
+                    {{-- Save Action Bar --}}
                     <div class="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-2xl">
                         <div class="text-xs text-gray-500">
                             Cấu hình sẽ được lưu trực tiếp vào cơ sở dữ liệu và có hiệu lực ngay lập tức.
@@ -628,9 +627,9 @@
                 </form>
             </div>
 
-            <!-- Right Column: Test Email Box & SMTP Specs -->
+            {{-- Right Column: Test Email Box & SMTP Specs --}}
             <div class="space-y-6">
-                <!-- Test Email Trigger Box -->
+                {{-- Test Email Trigger Box --}}
                 <div class="bg-white rounded-2xl border border-gray-200 shadow-xs p-6 space-y-4">
                     <div class="flex items-center gap-2 border-b border-gray-100 pb-3">
                         <span class="material-symbols-outlined text-primary text-[22px]">science</span>
@@ -665,7 +664,7 @@
                     </form>
                 </div>
 
-                <!-- SMTP Server Diagnostics (Live DB values) -->
+                {{-- SMTP Server Diagnostics (Live DB values) --}}
                 <div class="bg-white rounded-2xl border border-gray-200 shadow-xs p-6 space-y-4">
                     <div class="flex items-center gap-2 border-b border-gray-100 pb-3">
                         <span class="material-symbols-outlined text-primary text-[22px]">dns</span>

@@ -42,7 +42,7 @@
                 Không còn lớp đang học / sắp khai giảng nào còn chỗ. Bạn vẫn chốt được với "Xếp lớp sau" — học viên vào danh sách Chờ xếp lớp.
             </div>
         @endif
-        <!-- Wizard Step Indicator -->
+        {{-- Wizard Step Indicator --}}
         <div class="flex items-center justify-between rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
             <div class="flex items-center gap-3 cursor-pointer" @click="step = 1">
                 <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" :class="step >= 1 ? 'bg-primary-container text-white' : 'bg-gray-100 text-gray-500'">1</div>
@@ -82,7 +82,7 @@
 
         <form action="{{ route('crm.closing-wizard.store') }}" method="POST">
             @csrf
-            <!-- Hidden Form Inputs for Backend Submission -->
+            {{-- Hidden Form Inputs for Backend Submission --}}
             <input type="hidden" name="customer_id" :value="customerId" />
             <input type="hidden" name="class_id" :value="assignLater ? '' : classId" />
             <input type="hidden" name="course_id" :value="courseId" />
@@ -102,9 +102,9 @@
             <input type="hidden" name="bank_account_id" :value="selectedBankAccountId" />
             {{-- transfer_memo được server sinh từ mã học viên thật sau khi tạo hồ sơ, không lấy từ client --}}
 
-            <!-- ═════════════════════════════════════════════════════════════════
+            {{-- ═════════════════════════════════════════════════════════════════
                  BƯỚC 1: CHỌN KHÁCH HÀNG LEAD
-                 ═════════════════════════════════════════════════════════════════ -->
+                 ═════════════════════════════════════════════════════════════════ --}}
             <div x-show="step === 1" class="space-y-lg rounded-xl border border-surface-container-highest bg-surface-container-lowest p-lg shadow-sm">
                 <h2 class="flex items-center gap-sm border-b border-surface-container-highest pb-sm font-h3 text-h3 text-on-surface">
                     <span class="material-symbols-outlined text-primary-container text-base">person_search</span>
@@ -186,9 +186,9 @@
                 </div>
             </div>
 
-            <!-- ═════════════════════════════════════════════════════════════════
+            {{-- ═════════════════════════════════════════════════════════════════
                  BƯỚC 2: HỌC PHÍ, ƯU ĐÃI (CÓ NÚT TẠO MỚI), THU TRƯỚC, THU KHÁC
-                 ═════════════════════════════════════════════════════════════════ -->
+                 ═════════════════════════════════════════════════════════════════ --}}
             <div x-show="step === 2" class="space-y-lg rounded-xl border border-surface-container-highest bg-surface-container-lowest p-lg shadow-sm">
                 <div class="flex items-center justify-between pb-2 border-b border-gray-100">
                     <h2 class="flex items-center gap-sm font-h3 text-h3 text-on-surface">
@@ -207,7 +207,7 @@
                     @endcan
                 </div>
 
-                <!-- Dòng 1: Học phí niêm yết & Chọn ưu đãi -->
+                {{-- Dòng 1: Học phí niêm yết & Chọn ưu đãi --}}
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">
@@ -239,7 +239,7 @@
                     </div>
                 </div>
 
-                <!-- Dòng 2: Chiết khấu tiền, Thu khác, Thu trước -->
+                {{-- Dòng 2: Chiết khấu tiền, Thu khác, Thu trước --}}
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">
@@ -282,7 +282,7 @@
                     </div>
                 </div>
 
-                <!-- Bóc tách chi tiết các khoản Thu khác (Đồng phục, balo, học liệu, phụ phí...) -->
+                {{-- Bóc tách chi tiết các khoản Thu khác (Đồng phục, balo, học liệu, phụ phí...) --}}
                 <div class="p-4 bg-slate-50/90 rounded-2xl border border-slate-200/90 space-y-3">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div>
@@ -294,7 +294,7 @@
                         </div>
                     </div>
 
-                    <!-- Chọn từ Danh mục Hàng hóa & Vật phẩm -->
+                    {{-- Chọn từ Danh mục Hàng hóa & Vật phẩm --}}
                     <div class="flex flex-col sm:flex-row items-center gap-2 pt-1">
                         <div class="w-full sm:flex-1">
                             <select 
@@ -317,7 +317,7 @@
                         </a>
                     </div>
 
-                    <!-- Danh sách các mục đã thêm -->
+                    {{-- Danh sách các mục đã thêm --}}
                     <template x-if="feeItems.length > 0">
                         <div class="space-y-2 pt-2 border-t border-slate-200/80">
                             <template x-for="(item, idx) in feeItems" :key="idx">
@@ -349,7 +349,7 @@
                     </template>
                 </div>
 
-                <!-- Bảng tổng hợp thành tiền theo đúng công thức -->
+                {{-- Bảng tổng hợp thành tiền theo đúng công thức --}}
                 <div class="bg-gray-50/80 rounded-2xl p-4 border border-gray-200/80 space-y-2 text-xs">
                     <div class="flex justify-between items-center text-gray-600">
                         <span>Học phí niêm yết:</span>
@@ -388,9 +388,9 @@
                 </div>
             </div>
 
-            <!-- ═════════════════════════════════════════════════════════════════
+            {{-- ═════════════════════════════════════════════════════════════════
                  BƯỚC 3: XẾP LỚP & BÀN GIAO HỌC VIÊN
-                 ═════════════════════════════════════════════════════════════════ -->
+                 ═════════════════════════════════════════════════════════════════ --}}
             <div x-show="step === 3" class="space-y-lg rounded-xl border border-surface-container-highest bg-surface-container-lowest p-lg shadow-sm">
                 <h2 class="flex items-center gap-sm border-b border-surface-container-highest pb-sm font-h3 text-h3 text-on-surface">
                     <span class="material-symbols-outlined text-primary-container text-base">meeting_room</span>
@@ -434,7 +434,7 @@
                         </select>
 
                         @if ($classes->isNotEmpty())
-                            <!-- Thẻ gợi ý lớp: còn chỗ + ngưỡng khai giảng -->
+                            {{-- Thẻ gợi ý lớp: còn chỗ + ngưỡng khai giảng --}}
                             <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3" data-class-suggestions>
                                 @foreach ($classes as $cl)
                                     <button type="button" @click="selectClassCard('{{ $cl->id }}')"
@@ -480,17 +480,6 @@
                         @endif
                     </div>
 
-                    <div class="p-4 bg-orange-50/60 rounded-xl border border-orange-200 text-xs text-orange-900 space-y-1">
-                        <div class="font-bold flex items-center gap-1">
-                            <span class="material-symbols-outlined text-sm">info</span>
-                            Quy trình bàn giao học vụ tự động:
-                        </div>
-                        <ul class="list-disc list-inside space-y-0.5 text-gray-600 pl-1 text-[11px]">
-                            <li>Tạo hồ sơ học viên chính thức trong phân hệ Học vụ</li>
-                            <li>Gán học viên vào danh sách sĩ số lớp đã chọn</li>
-                            <li>Tự động kích hoạt tài khoản Cổng Học Sinh / Phụ Huynh</li>
-                        </ul>
-                    </div>
                 </div>
 
                 <div class="flex items-center justify-between pt-4 border-t border-gray-100">
@@ -504,9 +493,9 @@
                 </div>
             </div>
 
-            <!-- ═════════════════════════════════════════════════════════════════
+            {{-- ═════════════════════════════════════════════════════════════════
                  BƯỚC 4: XÁC NHẬN, CHỌN PHƯƠNG THỨC THANH TOÁN (KẾT HỢP) & VIETQR
-                 ═════════════════════════════════════════════════════════════════ -->
+                 ═════════════════════════════════════════════════════════════════ --}}
             <div x-show="step === 4" class="space-y-lg rounded-xl border border-surface-container-highest bg-surface-container-lowest p-lg shadow-sm">
                 <div class="flex items-center justify-between pb-2 border-b border-gray-100">
                     <h2 class="flex items-center gap-sm font-h3 text-h3 text-on-surface">
@@ -516,7 +505,7 @@
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                    <!-- Cột Trái: Tóm tắt hợp đồng & Phương thức thanh toán (7 cols) -->
+                    {{-- Cột Trái: Tóm tắt hợp đồng & Phương thức thanh toán (7 cols) --}}
                     <div class="lg:col-span-7 bg-slate-50 rounded-2xl p-5 border border-gray-200/90 space-y-4 text-xs">
                         <h3 class="font-bold text-gray-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-gray-500 text-sm">receipt_long</span>
@@ -574,7 +563,7 @@
                         </label>
                         <p x-show="!feePaid" x-cloak class="text-[11px] text-amber-700">Chưa thu tiền: hệ thống tạo task "Nhắc thu học phí" cho người phụ trách khách (hạn 3 ngày).</p>
 
-                        <!-- Số tiền thực thu đợt 1 -->
+                        {{-- Số tiền thực thu đợt 1 --}}
                         <div x-show="feePaid">
                             <label class="block text-xs font-bold text-gray-800 mb-1">
                                 Số tiền thu thực tế đợt 1 (VNĐ) <span class="text-rose-500">*</span>
@@ -587,7 +576,7 @@
                             />
                         </div>
 
-                        <!-- Chọn Tài khoản Ngân hàng từ Cấu hình -->
+                        {{-- Chọn Tài khoản Ngân hàng từ Cấu hình --}}
                         <div x-show="needsBankAccount" x-cloak>
                             <label class="block text-xs font-bold text-gray-800 mb-1 flex items-center justify-between">
                                 <span>Tài khoản Ngân hàng nhận tiền <span class="text-rose-500">*</span></span>
@@ -603,7 +592,7 @@
                             </select>
                         </div>
 
-                        <!-- CHỌN PHƯƠNG THỨC THANH TOÁN (HỖ TRỢ KẾT HỢP NHIỀU PHƯƠNG THỨC) -->
+                        {{-- CHỌN PHƯƠNG THỨC THANH TOÁN (HỖ TRỢ KẾT HỢP NHIỀU PHƯƠNG THỨC) --}}
                         <div class="space-y-3 pt-2 border-t border-gray-200/70">
                             <div>
                                 <label class="block text-xs font-bold text-gray-800 mb-1.5">Phương thức thanh toán giao dịch</label>
@@ -630,7 +619,7 @@
                                 </div>
                             </div>
 
-                            <!-- Form chia nhỏ tiền khi chọn phương thức kết hợp -->
+                            {{-- Form chia nhỏ tiền khi chọn phương thức kết hợp --}}
                             <div x-show="paymentMethod === 'split'" x-cloak class="p-4 bg-purple-50/70 border border-purple-200 rounded-xl space-y-3">
                                 <div class="flex items-center justify-between text-xs">
                                     <span class="font-bold text-purple-900 flex items-center gap-1">
@@ -660,14 +649,14 @@
                             </div>
                         </div>
 
-                        <!-- Ghi chú hóa đơn -->
+                        {{-- Ghi chú hóa đơn --}}
                         <div>
                             <label class="block text-xs font-bold text-gray-800 mb-1">Ghi chú trên Phiếu thu / Hóa đơn</label>
                             <input type="text" name="bill_notes" x-model="billNotes" class="w-full text-xs rounded-xl border border-gray-200 p-2.5 focus:border-primary-container focus:ring-primary-container bg-white" placeholder="Ghi chú thêm về học viên, phụ huynh hoặc cam kết..." />
                         </div>
                     </div>
 
-                    <!-- Cột Phải: VietQR Code Box & Cấu trúc Nội dung Chuyển tiền (5 cols) -->
+                    {{-- Cột Phải: VietQR Code Box & Cấu trúc Nội dung Chuyển tiền (5 cols) --}}
                     <div class="lg:col-span-5 bg-white rounded-2xl p-5 border border-orange-200/80 shadow-xs space-y-4 text-center flex flex-col items-center">
                         <div x-show="needsBankAccount" class="w-full flex items-center justify-between pb-2 border-b border-gray-100">
                             <div class="text-xs font-black text-gray-900 flex items-center gap-1.5">
@@ -679,7 +668,7 @@
                             </span>
                         </div>
 
-                        <!-- VietQR Image with Dynamic Amount & Bank Details -->
+                        {{-- VietQR Image with Dynamic Amount & Bank Details --}}
                         <div x-show="needsBankAccount" class="relative bg-white p-2.5 rounded-2xl border-2 border-primary-container/20 shadow-md group">
                             <img 
                                 :src="vietQrUrl" 
@@ -689,7 +678,7 @@
                             />
                         </div>
 
-                        <!-- Bank & Memo Details with Copy Buttons -->
+                        {{-- Bank & Memo Details with Copy Buttons --}}
                         <div x-show="needsBankAccount" class="w-full bg-gray-50/80 rounded-xl p-3 text-left space-y-2 text-[11px] border border-gray-200/80">
                             <div class="flex justify-between items-center">
                                 <span class="text-gray-500">Ngân hàng:</span>
@@ -721,7 +710,7 @@
                                 <span class="font-mono font-black text-primary-container text-xs" x-text="formatVND(effectiveTransferAmount)"></span>
                             </div>
 
-                            <!-- NỘI DUNG CHUYỂN KHOẢN THEO CẤU TRÚC: Mã hs + ten học sinh + tenlop + CN + xxx -->
+                            {{-- NỘI DUNG CHUYỂN KHOẢN THEO CẤU TRÚC: Mã hs + ten học sinh + tenlop + CN + xxx --}}
                             <div class="pt-1.5 border-t border-gray-200/80 space-y-1">
                                 <div class="flex justify-between items-center">
                                     <span class="text-gray-700 font-bold">Nội dung CK (Cấu trúc chuẩn):</span>
@@ -740,7 +729,7 @@
                             </div>
                         </div>
 
-                        <!-- Action Buttons: Tải QR & Xem Mẫu Bill -->
+                        {{-- Action Buttons: Tải QR & Xem Mẫu Bill --}}
                         <div class="w-full flex items-center gap-2">
                             <button
                                 x-show="needsBankAccount"
@@ -756,7 +745,7 @@
                                 Không phát sinh VietQR cho phương thức này
                             </div>
 
-                            <!-- Nút Xem & In Thông báo nộp học phí -->
+                            {{-- Nút Xem & In Thông báo nộp học phí --}}
                             <button 
                                 type="button" 
                                 @click="openBillModal()" 
@@ -769,7 +758,7 @@
                     </div>
                 </div>
 
-                <!-- Footer Bước 4 -->
+                {{-- Footer Bước 4 --}}
                 <div class="flex items-center justify-between pt-4 border-t border-gray-100">
                     <button type="button" @click="step = 3" class="px-4 py-2 border border-gray-200 text-xs font-semibold text-gray-700 rounded-xl hover:bg-gray-50 transition">
                         Quay lại
@@ -782,9 +771,9 @@
             </div>
         </form>
 
-        <!-- ═════════════════════════════════════════════════════════════════
+        {{-- ═════════════════════════════════════════════════════════════════
              MODAL: TẠO MỚI ƯU ĐÃI (BỔ SUNG ƯU ĐÃI NHANH TẠI CHỖ)
-             ═════════════════════════════════════════════════════════════════ -->
+             ═════════════════════════════════════════════════════════════════ --}}
         <div x-show="showCreatePromoModal" x-cloak class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
             <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
                 <div class="flex justify-between items-center pb-2 border-b border-gray-100">
@@ -846,12 +835,12 @@
             </div>
         </div>
 
-        <!-- ═════════════════════════════════════════════════════════════════
+        {{-- ═════════════════════════════════════════════════════════════════
              MODAL: XEM TRƯỚC VÀ IN THÔNG BÁO NỘP HỌC PHÍ (BILL GIAO DỊCH)
-             ═════════════════════════════════════════════════════════════════ -->
+             ═════════════════════════════════════════════════════════════════ --}}
         <div x-show="showBillModal" x-cloak class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3 sm:p-6 backdrop-blur-xs overflow-y-auto">
             <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[95vh] flex flex-col shadow-2xl overflow-hidden">
-                <!-- Modal Header -->
+                {{-- Modal Header --}}
                 <div class="p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary-container">print</span>
@@ -868,10 +857,10 @@
                     </div>
                 </div>
 
-                <!-- Modal Body: Exact User Bill Template -->
+                {{-- Modal Body: Exact User Bill Template --}}
                 <div class="p-6 overflow-y-auto flex-1 bg-white text-gray-900" id="printableBillArea">
                     <div style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.4;">
-                        <!-- HEADER -->
+                        {{-- HEADER --}}
                         <div style="display: flex; align-items: flex-start; margin-bottom: 20px;">
                             <div style="width: 65px; margin-right: 18px; flex-shrink: 0;">
                                 <div style="width: 60px; height: 60px; border-radius: 10px; background: linear-gradient(135deg, #ea580c, #c2410c); display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 24px;">
@@ -888,7 +877,7 @@
                             </div>
                         </div>
 
-                        <!-- TITLE -->
+                        {{-- TITLE --}}
                         <div style="text-align: center; margin: 10px 0 16px 0;">
                             <h2 style="margin: 0; font-size: 21px; font-weight: 700; color: #111;">THÔNG BÁO NỘP HỌC PHÍ</h2>
                             <div style="margin-top: 4px; font-size: 13px; color: #666;">
@@ -896,7 +885,7 @@
                             </div>
                         </div>
 
-                        <!-- INFORMATION TABLE -->
+                        {{-- INFORMATION TABLE --}}
                         <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
                             <tr>
                                 <td style="border: 1px solid #d5d5d5; padding: 8px 10px; width: 30%; font-weight: 700; background: #fafafa;">Họ tên:</td>
@@ -958,12 +947,12 @@
                             </tr>
                         </table>
 
-                        <!-- PAYMENT NOTE -->
+                        {{-- PAYMENT NOTE --}}
                         <div style="margin: 10px 0 8px 0; font-size: 13px; font-style: italic; color: #333;" x-text="needsBankAccount ? 'Thông tin chuyển khoản của giao dịch:' : 'Giao dịch được ghi nhận theo phương thức tiền mặt/POS, không phát sinh VietQR.'">
                         </div>
 
                         <div x-show="needsBankAccount">
-                        <!-- BANK TABLE -->
+                        {{-- BANK TABLE --}}
                         <table style="width: 100%; border-collapse: collapse; margin-top: 6px;">
                             <tr>
                                 <td style="border: 1px solid #d5d5d5; padding: 8px 10px; width: 32%; font-weight: 700; background: #fafafa;">Chủ tài khoản</td>
@@ -977,19 +966,19 @@
                             </tr>
                         </table>
 
-                        <!-- TRANSFER CONTENT -->
+                        {{-- TRANSFER CONTENT --}}
                         <div style="margin-top: 10px; font-size: 14px; padding: 8px 12px; background: #fff7ed; border: 1px solid #ffedd5; border-radius: 6px;">
                             <strong>Nội dung chuyển tiền :</strong>
                             <strong style="color: #c2410c; margin-left: 6px;" x-text="transferMemo"></strong>
                         </div>
 
-                        <!-- COMPANY NOTE -->
+                        {{-- COMPANY NOTE --}}
                         <div style="margin-top: 10px; font-size: 13px; line-height: 1.4;">
                             <strong>Ghi chú:</strong>
                             <div>Tk công ty. Quý phụ huynh vui lòng giữ nguyên nội dung chuyển tiền để hệ thống tự động ghi nhận gạch nợ.</div>
                         </div>
 
-                        <!-- QR CODE -->
+                        {{-- QR CODE --}}
                         <div style="margin-top: 20px; display: flex; align-items: center; gap: 16px; padding: 12px; border: 1px dashed #fdba74; border-radius: 10px; background: #fffaf5; width: fit-content;">
                             <img :src="vietQrUrl" alt="Mã QR thanh toán" style="width: 150px; height: 150px; object-fit: contain; background: white; padding: 4px; border-radius: 6px;" />
                             <div style="font-size: 12px; line-height: 1.5; color: #475569;">

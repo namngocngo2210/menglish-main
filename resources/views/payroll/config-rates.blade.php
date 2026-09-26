@@ -107,7 +107,7 @@
                     <x-ui.select name="rate_unit" label="Đơn vị tính" required x-model="unit"
                                  :options="['session' => 'Theo buổi dạy (VNĐ / buổi)', 'hour' => 'Theo giờ (VNĐ / giờ)']" />
                     <x-ui.field label="Mức đơn giá mới" name="hourly_rate" for="f_hourly_rate" required
-                                hint="* Đơn vị tính theo loại giáo viên: Part-time tính theo buổi (Q3).">
+                                hint="* Đơn vị tính theo loại giáo viên: Part-time tính theo buổi.">
                         <div class="flex items-center gap-sm">
                             <input type="number" id="f_hourly_rate" name="hourly_rate" required min="1000" step="1000" value="{{ old('hourly_rate') }}" placeholder="Nhập số tiền..."
                                    class="w-full rounded-lg border {{ $errors->has('hourly_rate') ? 'border-error' : 'border-outline-variant' }} bg-surface-container-lowest px-md py-sm text-right font-mono text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
@@ -118,7 +118,7 @@
                 <x-ui.textarea name="note" label="Ghi chú / Lý do thay đổi" rows="2" placeholder="Nhập ghi chú nếu có..." />
 
                 <p x-show="type === 'fulltime'" x-cloak class="rounded-lg bg-amber-50 px-md py-sm font-body-small text-body-small text-amber-900">
-                    GV Full-time hưởng lương cơ bản (Q3) — đơn giá buổi chỉ dùng để đối soát, không cộng vào lương.
+                    GV Full-time hưởng lương cơ bản — đơn giá buổi chỉ dùng để đối soát, không cộng vào lương.
                 </p>
                 <p x-show="type === 'foreign'" x-cloak class="rounded-lg bg-amber-50 px-md py-sm font-body-small text-body-small text-amber-900">
                     Lương buổi có GVNN đang chờ BA chốt cách tính — Kế toán nhập tay trên phiếu lương.

@@ -3,7 +3,6 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Quản lý Tuyển dụng & Hồ sơ Ứng viên</h1>
-                <p class="text-xs text-gray-500 mt-1">Theo dõi tin tuyển dụng, tiếp nhận CV trực tuyến và quản lý quy trình phỏng vấn</p>
             </div>
             <div class="flex items-center gap-2">
                 <a href="{{ route('portal.recruitment') }}" target="_blank" class="px-3.5 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold rounded-xl shadow-xs transition flex items-center gap-1.5">
@@ -17,7 +16,7 @@
     <div class="space-y-6" x-data="{ showNewJobModal: false }">
         
 
-        <!-- 4 Metric Cards -->
+        {{-- 4 Metric Cards --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
@@ -60,7 +59,7 @@
             </div>
         </div>
 
-        <!-- Tabs & Filters -->
+        {{-- Tabs & Filters --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
             <div class="border-b border-gray-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div class="flex items-center gap-2">
@@ -83,7 +82,7 @@
             </div>
 
             @if($tab === 'candidates')
-                <!-- Filter Status & Branch -->
+                {{-- Filter Status & Branch --}}
                 <div class="p-4 bg-gray-50/70 border-b border-gray-100 flex flex-wrap items-center gap-3">
                     <form method="GET" action="{{ route('recruitment.index') }}" class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                         <input type="hidden" name="tab" value="candidates">
@@ -105,7 +104,7 @@
                     </form>
                 </div>
 
-                <!-- Table CVs -->
+                {{-- Table CVs --}}
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs">
                         <thead class="bg-gray-50 text-gray-600 font-bold uppercase tracking-wider border-b border-gray-200">
@@ -162,7 +161,7 @@
                                             Cập nhật
                                         </button>
 
-                                        <!-- Dropdown Update Status Modal/Popover -->
+                                        {{-- Dropdown Update Status Modal/Popover --}}
                                         <div x-show="openEdit" x-cloak class="mt-2 p-3 bg-white border border-gray-200 rounded-xl shadow-lg text-left space-y-2 w-64 absolute right-4 z-20">
                                             <form action="{{ route('recruitment.cv.update-status', $can->id) }}" method="POST" class="space-y-2">
                                                 @csrf
@@ -201,7 +200,7 @@
             @endif
 
             @if($tab === 'jobs')
-                <!-- Table Jobs -->
+                {{-- Table Jobs --}}
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs">
                         <thead class="bg-gray-50 text-gray-600 font-bold uppercase tracking-wider border-b border-gray-200">
@@ -270,7 +269,7 @@
             @endif
         </div>
 
-        <!-- Modal Đăng tin tuyển dụng -->
+        {{-- Modal Đăng tin tuyển dụng --}}
         <div x-show="showNewJobModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto bg-black/50 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-xl">
                 <div class="flex items-center justify-between border-b pb-3">

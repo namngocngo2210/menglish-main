@@ -7,7 +7,7 @@
          bg-indigo-600 text-indigo-600 border-indigo-600/20 bg-emerald-600 text-emerald-600 border-emerald-600/20
          border-l-error border-l-amber-500 border-l-tertiary border-l-emerald-600 border-l-outline-variant --}}
     <div class="space-y-md" x-data="crmKanban(@js($stagePermissions))">
-        <!-- Toast Notification -->
+        {{-- Toast Notification --}}
         <div
             x-show="toast.show"
             x-cloak
@@ -30,7 +30,7 @@
 
         @include('crm.partials.list-filters', ['dateLabel' => 'Ngày tạo'])
 
-        <!-- Kanban 8 cột (mockup: tiêu đề cột = chấm màu + TÊN (số lượng)) -->
+        {{-- Kanban 8 cột (mockup: tiêu đề cột = chấm màu + TÊN (số lượng)) --}}
         <div class="custom-scrollbar overflow-x-auto pb-md">
             <div class="flex min-h-[calc(100vh-320px)] min-w-max items-start gap-md">
                 @foreach ($stages as $index => $stage)
@@ -42,7 +42,7 @@
                         @dragleave="onDragLeave($event)"
                         @drop="onDrop($event, @js($stage['id']))"
                     >
-                        <!-- Column Header -->
+                        {{-- Column Header --}}
                         <div class="flex items-center justify-between border-b px-xs py-xs {{ $stage['header_border'] }}">
                             <h3 class="flex items-center gap-sm font-label text-label uppercase {{ $stage['text'] }}">
                                 <span class="h-2 w-2 rounded-full {{ $stage['dot'] }}"></span>
@@ -53,7 +53,7 @@
                             @endif
                         </div>
 
-                        <!-- Cards list container -->
+                        {{-- Cards list container --}}
                         <div class="cards-container min-h-[120px] space-y-md py-xs" id="column-cards-{{ $stage['id'] }}">
                             @forelse ($stage['leads'] as $lead)
                                 @php
@@ -189,7 +189,7 @@
         </div>
 
         @if ($stagePermissions['canForward'] || $stagePermissions['canBackward'])
-            <!-- Sửa giai đoạn (A6): CM tiến 1 bước; chỉ Admin lùi bước (bắt buộc lý do); Thất bại bắt buộc lý do -->
+            {{-- Sửa giai đoạn (A6): CM tiến 1 bước; chỉ Admin lùi bước (bắt buộc lý do); Thất bại bắt buộc lý do --}}
             <div x-show="stageEdit.open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-md" role="dialog" aria-modal="true">
                 <div class="w-full max-w-md space-y-sm rounded-xl bg-surface-container-lowest p-lg font-body-small text-body-small shadow-level-3" @click.outside="stageEdit.open = false">
                     <h3 class="font-h3 text-h3 text-on-surface">Sửa giai đoạn: <span x-text="stageEdit.name"></span></h3>

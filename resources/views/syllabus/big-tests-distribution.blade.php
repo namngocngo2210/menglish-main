@@ -178,10 +178,6 @@
                                         </div>
                                     </div>
                                 @endif
-                                <div class="flex items-start gap-sm rounded-lg bg-secondary/5 p-md font-body-small text-body-small text-on-surface">
-                                    <span class="material-symbols-outlined text-[18px] text-secondary">info</span>
-                                    <span>Ghi chú nghiệp vụ: GV chỉ được quyền xem phần Speaking của đề sau khi phân phối.</span>
-                                </div>
 
                                 <form id="reject-order-form" method="POST" action="{{ route('syllabus.big-tests.orders.reject', $selectedOrder->id) }}" x-show="rejecting" x-cloak>
                                     @csrf

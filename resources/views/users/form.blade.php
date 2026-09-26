@@ -7,7 +7,6 @@
                 </a>
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight">{{ $user->exists ? 'Sửa thông tin nhân sự' : 'Thêm nhân viên mới' }}</h1>
-                    <p class="text-xs text-gray-500">Nhập đầy đủ thông tin tài khoản, vai trò và cơ sở công tác</p>
                 </div>
             </div>
         </div>
@@ -98,7 +97,7 @@
                 <x-input-error :messages="$errors->get('password')" class="mt-1 text-xs" />
             </div>
 
-            <!-- Hồ sơ nhân sự & Thông tin chuyên môn (Có thể cập nhật sau khi tạo) -->
+            {{-- Hồ sơ nhân sự & Thông tin chuyên môn (Có thể cập nhật sau khi tạo) --}}
             <div class="pt-4 border-t border-gray-200 space-y-4">
                 <div class="flex items-center justify-between">
                     <h3 class="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
@@ -149,7 +148,7 @@
                     </div>
                 </div>
 
-                <!-- Thông tin hợp đồng & chế độ lương -->
+                {{-- Thông tin hợp đồng & chế độ lương --}}
                 <div class="pt-3 border-t border-dashed border-gray-200 space-y-3">
                     <h4 class="text-xs font-bold text-gray-800 flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-blue-600 text-[16px]">description</span>

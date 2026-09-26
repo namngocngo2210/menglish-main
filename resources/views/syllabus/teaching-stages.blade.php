@@ -16,7 +16,7 @@
         $isAcademic = $user->can('syllabus.approve_adjustment');
     @endphp
     {{-- Mockup 03_Cong_Giao_Vien/07 (Chặng đang dạy & Order Test) + 10/11 (Lịch dự kiến Big Test): mỗi lớp đang mở chặng là một thẻ.
-         GV chính đặt ngày dự kiến Big Test cuối chặng và order đề cho đúng chặng đang mở (Q4); trợ giảng chỉ xem. --}}
+         GV chính đặt ngày dự kiến Big Test cuối chặng và order đề cho đúng chặng đang mở; trợ giảng chỉ xem. --}}
     @if ($assignments->isEmpty())
         <div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-xl shadow-sm flex flex-col items-center text-center gap-sm">
             <span class="material-symbols-outlined text-[48px] text-on-surface-variant">inventory_2</span>

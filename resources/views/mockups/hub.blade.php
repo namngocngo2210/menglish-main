@@ -35,9 +35,9 @@
             this.previewModalOpen = true;
         }
     }">
-        <!-- Search & Filter bar -->
+        {{-- Search & Filter bar --}}
         <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4">
-            <!-- Search input -->
+            {{-- Search input --}}
             <div class="relative w-full md:w-96">
                 <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
                 <input
@@ -48,7 +48,7 @@
                 />
             </div>
 
-            <!-- Quick module filters -->
+            {{-- Quick module filters --}}
             <div class="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
                 <button
                     @click="activeTab = 'all'"
@@ -109,7 +109,7 @@
             </div>
         </div>
 
-        <!-- Modules Grid -->
+        {{-- Modules Grid --}}
         <div class="space-y-8">
             @foreach ($modules as $module)
                 <div
@@ -181,7 +181,7 @@
             @endforeach
         </div>
 
-        <!-- Interactive Preview Modal -->
+        {{-- Interactive Preview Modal --}}
         <div
             x-show="previewModalOpen"
             x-cloak
@@ -192,7 +192,7 @@
                 class="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
                 @click.outside="previewModalOpen = false"
             >
-                <!-- Modal Header -->
+                {{-- Modal Header --}}
                 <div class="h-14 px-6 bg-navy text-white flex items-center justify-between shrink-0">
                     <div class="flex items-center gap-3">
                         <span class="material-symbols-outlined text-primary text-xl">devices</span>
@@ -219,7 +219,7 @@
                     </div>
                 </div>
 
-                <!-- Iframe Container -->
+                {{-- Iframe Container --}}
                 <div class="flex-1 bg-gray-100 p-2 overflow-hidden">
                     <iframe :src="previewSrc" class="w-full h-full rounded-xl border border-gray-200 bg-white shadow-inner" frameborder="0"></iframe>
                 </div>

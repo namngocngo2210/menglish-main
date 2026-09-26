@@ -8,9 +8,8 @@
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span class="material-symbols-outlined text-purple-600">rate_review</span>
-                        Flow 4 — Bước 7: Phụ huynh gửi Feedback chặng học (MH6)
+                        Góp ý chặng học
                     </h1>
-                    <p class="text-xs text-gray-500">Màn hình đánh giá chặng học 5 sao, lĩnh vực góp ý và gửi phản ánh chất lượng đào tạo.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -32,7 +31,7 @@
         $hasSaved = !empty($lastFeedback);
     @endphp
 
-    <!-- Mobile Frame for Feedback (Matches 04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback) -->
+    {{-- Mobile Frame for Feedback --}}
     <div class="max-w-[430px] mx-auto bg-white min-h-[844px] shadow-2xl rounded-3xl border border-gray-200 overflow-hidden flex flex-col relative pb-24 my-4"
          x-data="{
             viewState: '{{ $hasSaved ? 'form-updated' : 'form-new' }}', // 'form-new', 'form-updated', 'state-closed', 'state-empty'
@@ -63,41 +62,7 @@
             }
          }">
 
-        <!-- State Demo Switcher Bar (Exact Match Prototype for Testing 4 Business States) -->
-        <div class="bg-gray-900 text-white px-3 py-2 text-[11px] flex items-center justify-between sticky top-0 z-50 shadow-md">
-            <div class="flex items-center gap-1.5 font-medium text-gray-300">
-                <span class="inline-block w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
-                <span>Trạng thái:</span>
-            </div>
-            <div class="flex gap-1 overflow-x-auto">
-                <button type="button"
-                        @click="viewState = 'form-new'; serverError = null;"
-                        class="px-2 py-0.5 rounded text-[10px] font-medium transition"
-                        :class="viewState === 'form-new' ? 'bg-primary-container text-white font-bold' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'">
-                    Lần đầu
-                </button>
-                <button type="button"
-                        @click="viewState = 'form-updated'; serverError = null;"
-                        class="px-2 py-0.5 rounded text-[10px] font-medium transition"
-                        :class="viewState === 'form-updated' ? 'bg-primary-container text-white font-bold' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'">
-                    Đã gửi (sửa)
-                </button>
-                <button type="button"
-                        @click="viewState = 'state-closed'; serverError = null;"
-                        class="px-2 py-0.5 rounded text-[10px] font-medium transition"
-                        :class="viewState === 'state-closed' ? 'bg-primary-container text-white font-bold' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'">
-                    Đợt đóng
-                </button>
-                <button type="button"
-                        @click="viewState = 'state-empty'; serverError = null;"
-                        class="px-2 py-0.5 rounded text-[10px] font-medium transition"
-                        :class="viewState === 'state-empty' ? 'bg-primary-container text-white font-bold' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'">
-                    Chưa mở
-                </button>
-            </div>
-        </div>
-
-        <!-- Header Partial -->
+        {{-- Header Partial --}}
         @include('portal.partials.top-header', [
             'student' => $student,
             'students' => $students,
@@ -106,7 +71,7 @@
             'backUrl' => route('portal.student.survey', ['studentId' => $student?->id])
         ])
 
-        <!-- Subtab Switcher -->
+        {{-- Subtab Switcher --}}
         <div class="flex items-center border-b border-gray-200 bg-gray-50 px-3 pt-2">
             <a href="{{ route('portal.student.survey', ['studentId' => $student?->id]) }}"
                class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-transparent text-gray-500 hover:text-gray-900 font-semibold text-xs transition">
@@ -116,11 +81,11 @@
             <a href="{{ route('portal.student.feedback', ['studentId' => $student?->id]) }}"
                class="flex items-center gap-1.5 px-4 py-2 border-b-2 border-primary-container text-primary font-bold text-xs">
                 <span class="material-symbols-outlined text-[16px]">rate_review</span>
-                <span>Feedback chặng học (MH6)</span>
+                <span>Feedback chặng học</span>
             </a>
         </div>
 
-        <!-- Context Header -->
+        {{-- Context Header --}}
         <div class="px-4 pt-3 pb-2 border-b border-gray-100 flex items-center justify-between">
             <div>
                 <span class="text-[10px] font-bold text-primary uppercase tracking-wider bg-orange-50 px-2 py-0.5 rounded-full inline-block mb-0.5">
@@ -134,15 +99,15 @@
             </div>
         </div>
 
-        <!-- Main Body Content -->
+        {{-- Main Body Content --}}
         <main class="flex-1 p-4 space-y-4 overflow-y-auto">
 
-            <!-- ======================================================== -->
-            <!-- VIEW 1: FORM NHẬP / CHỈNH SỬA (Lần đầu & Đã gửi sửa tiếp) -->
-            <!-- ======================================================== -->
+            {{-- ======================================================== --}}
+            {{-- VIEW 1: FORM NHẬP / CHỈNH SỬA (Lần đầu & Đã gửi sửa tiếp) --}}
+            {{-- ======================================================== --}}
             <div x-show="viewState === 'form-new' || viewState === 'form-updated'" class="space-y-4">
 
-                <!-- Success Banner (When submitted or simulated updated) -->
+                {{-- Success Banner (When submitted or simulated updated) --}}
                 @if(session('success') || session('feedback_success'))
                     <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-start gap-2.5">
                         <span class="material-symbols-outlined text-emerald-600 text-[20px] shrink-0 mt-0.5">check_circle</span>
@@ -162,7 +127,7 @@
                     </div>
                 </div>
 
-                <!-- 1. Tên Chặng Đang Mở Thu Thập (Read-only, R-02) -->
+                {{-- 1. Tên Chặng Đang Mở Thu Thập (Read-only, R-02) --}}
                 <div class="bg-gray-50 border border-gray-200 rounded-2xl p-3.5 shadow-2xs">
                     <div class="flex items-center justify-between mb-1.5">
                         <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Chặng học đang mở thu thập</span>
@@ -185,14 +150,14 @@
                     </div>
                 </div>
 
-                <!-- FORM CHÍNH -->
+                {{-- FORM CHÍNH --}}
                 <form action="{{ route('portal.student.feedback.store') }}" method="POST" @submit="validateForm($event)" class="space-y-4">
                     @csrf
                     <input type="hidden" name="student_id" value="{{ $student?->id ?? 1 }}">
                     <input type="hidden" name="stage_name" value="{{ $stageName }}">
                     <input type="hidden" name="muc_do_hai_long" :value="rating">
 
-                    <!-- 1. Chọn Mức Hài Lòng 1-5 Sao (R-04) -->
+                    {{-- 1. Chọn Mức Hài Lòng 1-5 Sao (R-04) --}}
                     <div class="bg-white border border-gray-200 rounded-2xl p-4 shadow-2xs">
                         <div class="flex items-center justify-between mb-2">
                             <label class="text-xs font-bold text-gray-800 flex items-center gap-1">
@@ -202,7 +167,7 @@
                             <span class="text-xs font-bold text-primary" x-text="ratingLabels[rating]"></span>
                         </div>
 
-                        <!-- 5 Stars Rating Bar -->
+                        {{-- 5 Stars Rating Bar --}}
                         <div class="flex items-center justify-between py-1 px-1">
                             <template x-for="star in [1, 2, 3, 4, 5]" :key="star">
                                 <button type="button"
@@ -221,28 +186,28 @@
                         </div>
                     </div>
 
-                    <!-- 2. Lĩnh Vực Cần Góp Ý (3 Checkboxes - R-04) -->
+                    {{-- 2. Lĩnh Vực Cần Góp Ý (3 Checkboxes - R-04) --}}
                     <div class="bg-white border border-gray-200 rounded-2xl p-4 shadow-2xs">
                         <label class="text-xs font-bold text-gray-800 flex items-center justify-between mb-2.5">
                             <span>2. Lĩnh vực cần góp ý</span>
                             <span class="text-[10px] font-normal text-gray-400">(Tùy chọn)</span>
                         </label>
                         <div class="grid grid-cols-3 gap-2">
-                            <!-- Checkbox 1: fb_hoc_thuat -->
+                            {{-- Checkbox 1: fb_hoc_thuat --}}
                             <label class="cursor-pointer flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all"
                                    :class="fbHocThuat ? 'border-primary-container bg-orange-50/50 shadow-2xs' : 'border-gray-200 hover:border-gray-300'">
                                 <input type="checkbox" name="fb_hoc_thuat" value="1" x-model="fbHocThuat" @change="showValidationError = false" class="rounded border-gray-300 text-primary focus:ring-primary-container mb-1">
                                 <span class="text-xs font-semibold text-gray-700 select-none">Học thuật</span>
                             </label>
 
-                            <!-- Checkbox 2: fb_giao_vien -->
+                            {{-- Checkbox 2: fb_giao_vien --}}
                             <label class="cursor-pointer flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all"
                                    :class="fbGiaoVien ? 'border-primary-container bg-orange-50/50 shadow-2xs' : 'border-gray-200 hover:border-gray-300'">
                                 <input type="checkbox" name="fb_giao_vien" value="1" x-model="fbGiaoVien" @change="showValidationError = false" class="rounded border-gray-300 text-primary focus:ring-primary-container mb-1">
                                 <span class="text-xs font-semibold text-gray-700 select-none">Giáo viên</span>
                             </label>
 
-                            <!-- Checkbox 3: fb_khac -->
+                            {{-- Checkbox 3: fb_khac --}}
                             <label class="cursor-pointer flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all"
                                    :class="fbKhac ? 'border-primary-container bg-orange-50/50 shadow-2xs' : 'border-gray-200 hover:border-gray-300'">
                                 <input type="checkbox" name="fb_khac" value="1" x-model="fbKhac" @change="showValidationError = false" class="rounded border-gray-300 text-primary focus:ring-primary-container mb-1">
@@ -251,7 +216,7 @@
                         </div>
                     </div>
 
-                    <!-- 3. Textarea Nội Dung Feedback Chi Tiết (R-04) -->
+                    {{-- 3. Textarea Nội Dung Feedback Chi Tiết (R-04) --}}
                     <div class="bg-white border border-gray-200 rounded-2xl p-4 shadow-2xs">
                         <div class="flex items-center justify-between mb-2">
                             <label for="feedback-content" class="text-xs font-bold text-gray-800">
@@ -269,7 +234,7 @@
                         <p class="text-[10px] text-gray-400 mt-1">Ý kiến chân thực giúp trung tâm nâng cao chất lượng dạy học.</p>
                     </div>
 
-                    <!-- Thông Báo Lỗi Validation: Khi cả 3 mục đều trống (R-04) -->
+                    {{-- Thông Báo Lỗi Validation: Khi cả 3 mục đều trống (R-04) --}}
                     <div x-show="showValidationError" x-cloak class="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-center gap-2.5 shadow-2xs">
                         <span class="material-symbols-outlined text-amber-600 text-[20px] shrink-0">warning</span>
                         <p class="text-xs font-medium text-amber-900 leading-snug">
@@ -277,7 +242,7 @@
                         </p>
                     </div>
 
-                    <!-- Nút Gửi / Cập nhật feedback -->
+                    {{-- Nút Gửi / Cập nhật feedback --}}
                     <div>
                         <button type="submit"
                                 class="w-full py-3.5 px-4 bg-primary-container hover:bg-primary text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95">
@@ -305,11 +270,11 @@
                 @endif
             </div>
 
-            <!-- ======================================================== -->
-            <!-- VIEW 2: READ-ONLY KHI ĐỢT THU THẬP ĐÃ ĐÓNG (AC-R06b) -->
-            <!-- ======================================================== -->
+            {{-- ======================================================== --}}
+            {{-- VIEW 2: READ-ONLY KHI ĐỢT THU THẬP ĐÃ ĐÓNG (AC-R06b) --}}
+            {{-- ======================================================== --}}
             <div x-show="viewState === 'state-closed'" x-cloak class="space-y-4">
-                <!-- Banner cảnh báo Đợt thu thập đã đóng -->
+                {{-- Banner cảnh báo Đợt thu thập đã đóng --}}
                 <div class="bg-gray-100 border border-gray-300 rounded-2xl p-3.5 flex items-start gap-3">
                     <div class="w-6 h-6 rounded-full bg-gray-600 text-white flex items-center justify-center shrink-0 mt-0.5">
                         <span class="material-symbols-outlined text-[14px]">lock</span>
@@ -322,7 +287,7 @@
                     </div>
                 </div>
 
-                <!-- Tên chặng đã đóng -->
+                {{-- Tên chặng đã đóng --}}
                 <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 shadow-2xs">
                     <div class="flex items-center justify-between mb-1.5">
                         <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Chặng học đã hoàn thành</span>
@@ -341,9 +306,9 @@
                     </div>
                 </div>
 
-                <!-- Read-only Card Nội dung đã nộp -->
+                {{-- Read-only Card Nội dung đã nộp --}}
                 <div class="bg-white border border-gray-200 rounded-2xl p-4 space-y-3.5 shadow-2xs">
-                    <!-- Mức độ hài lòng -->
+                    {{-- Mức độ hài lòng --}}
                     <div class="border-b border-gray-100 pb-3">
                         <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Mức độ hài lòng đã gửi</span>
                         <div class="flex items-center gap-2">
@@ -357,7 +322,7 @@
                         </div>
                     </div>
 
-                    <!-- Lĩnh vực góp ý -->
+                    {{-- Lĩnh vực góp ý --}}
                     <div class="border-b border-gray-100 pb-3">
                         <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Lĩnh vực đã chọn</span>
                         <div class="flex flex-wrap gap-2">
@@ -379,7 +344,7 @@
                         </div>
                     </div>
 
-                    <!-- Nội dung chi tiết -->
+                    {{-- Nội dung chi tiết --}}
                     <div>
                         <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Nội dung đã gửi</span>
                         <p class="text-xs text-gray-800 bg-gray-50 rounded-xl p-3 border border-gray-200 leading-relaxed font-normal">
@@ -393,9 +358,9 @@
                 </div>
             </div>
 
-            <!-- ======================================================== -->
-            <!-- VIEW 3: TRẠNG THÁI RỖNG (Chưa có đợt thu thập nào mở - R-02) -->
-            <!-- ======================================================== -->
+            {{-- ======================================================== --}}
+            {{-- VIEW 3: TRẠNG THÁI RỖNG (Chưa có đợt thu thập nào mở - R-02) --}}
+            {{-- ======================================================== --}}
             <div x-show="viewState === 'state-empty'" x-cloak class="flex flex-col items-center justify-center py-10 px-4 text-center">
                 <div class="w-16 h-16 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center text-primary mb-4 shadow-inner">
                     <span class="material-symbols-outlined text-3xl">chat_bubble_outline</span>
@@ -417,7 +382,7 @@
 
         </main>
 
-        <!-- Bottom Navigation Bar Component -->
+        {{-- Bottom Navigation Bar Component --}}
         @include('portal.partials.bottom-nav', ['activeTab' => 'survey', 'student' => $student])
     </div>
 </x-app-layout>

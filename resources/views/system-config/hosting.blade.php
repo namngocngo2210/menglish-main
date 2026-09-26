@@ -6,7 +6,6 @@
                     <span class="material-symbols-outlined text-indigo-600">dns</span>
                     Thông Số Hosting &amp; Máy Chủ (Server Diagnostics)
                 </h1>
-                <p class="text-xs text-gray-500">Giám sát dung lượng lưu trữ đang sử dụng, phiên bản PHP/Laravel, máy chủ OpenLiteSpeed / DirectAdmin và cấu hình hệ thống thời gian thực</p>
             </div>
             <div class="flex items-center gap-2">
                 <button type="button" onclick="window.location.reload();" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold shadow-2xs transition">
@@ -18,7 +17,7 @@
     </x-slot>
 
     <div class="space-y-6">
-        <!-- Top Nav Tabs matching System Config -->
+        {{-- Top Nav Tabs matching System Config --}}
         <div class="flex items-center gap-2 border-b border-gray-200 pb-2 overflow-x-auto">
             <a 
                 href="{{ route('system-config.bank-accounts') }}"
@@ -53,9 +52,9 @@
             </a>
         </div>
 
-        <!-- 1. Top Quota & Storage Highlights -->
+        {{-- 1. Top Quota & Storage Highlights --}}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            <!-- Disk Storage Usage Card -->
+            {{-- Disk Storage Usage Card --}}
             <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-2xs p-5 md:p-6 space-y-4">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
@@ -73,7 +72,7 @@
                     </div>
                 </div>
 
-                <!-- Multi-component Composition Bar -->
+                {{-- Multi-component Composition Bar --}}
                 <div class="space-y-2">
                     <div class="w-full h-3 bg-gray-100 rounded-full overflow-hidden flex p-0.5 gap-0.5">
                         <div class="h-full rounded-l-full bg-indigo-600 transition-all duration-500" style="width: {{ max(1, $storageStats['uploads_percent']) }}%" title="Media Uploads: {{ $storageStats['uploads_size_formatted'] }} ({{ $storageStats['uploads_percent'] }}%)"></div>
@@ -101,7 +100,7 @@
                     </div>
                 </div>
 
-                <!-- Partition Breakdown -->
+                {{-- Partition Breakdown --}}
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-gray-100">
                     <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
                         <div class="flex items-center justify-between">
@@ -138,7 +137,7 @@
                 </div>
             </div>
 
-            <!-- Server Quick Status Card -->
+            {{-- Server Quick Status Card --}}
             <div class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl p-5 md:p-6 shadow-2xs flex flex-col justify-between space-y-4">
                 <div class="space-y-3">
                     <div class="flex items-center justify-between">
@@ -174,9 +173,9 @@
             </div>
         </div>
 
-        <!-- 2. Core Server & Runtime Specifications -->
+        {{-- 2. Core Server & Runtime Specifications --}}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <!-- PHP Configuration & Limits -->
+            {{-- PHP Configuration & Limits --}}
             <div class="bg-white rounded-2xl border border-gray-200 shadow-2xs p-5 space-y-4">
                 <div class="flex items-center gap-2 pb-2 border-b border-gray-100">
                     <span class="material-symbols-outlined text-indigo-600">tune</span>
@@ -211,7 +210,7 @@
                 </div>
             </div>
 
-            <!-- Web Server & Operating System -->
+            {{-- Web Server & Operating System --}}
             <div class="bg-white rounded-2xl border border-gray-200 shadow-2xs p-5 space-y-4">
                 <div class="flex items-center gap-2 pb-2 border-b border-gray-100">
                     <span class="material-symbols-outlined text-orange-600">computer</span>
@@ -253,9 +252,9 @@
             </div>
         </div>
 
-        <!-- 3. Laravel Framework & Database Specs -->
+        {{-- 3. Laravel Framework & Database Specs --}}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <!-- Laravel Framework Status -->
+            {{-- Laravel Framework Status --}}
             <div class="bg-white rounded-2xl border border-gray-200 shadow-2xs p-5 space-y-4">
                 <div class="flex items-center gap-2 pb-2 border-b border-gray-100">
                     <span class="material-symbols-outlined text-rose-600">deployed_code</span>
@@ -290,7 +289,7 @@
                 </div>
             </div>
 
-            <!-- Database Connection Specs -->
+            {{-- Database Connection Specs --}}
             <div class="bg-white rounded-2xl border border-gray-200 shadow-2xs p-5 space-y-4">
                 <div class="flex items-center gap-2 pb-2 border-b border-gray-100">
                     <span class="material-symbols-outlined text-emerald-600">database</span>
@@ -322,7 +321,7 @@
             </div>
         </div>
 
-        <!-- 4. PHP Extensions & Health Checks -->
+        {{-- 4. PHP Extensions & Health Checks --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-2xs p-5 space-y-4">
             <div class="flex items-center justify-between pb-2 border-b border-gray-100">
                 <div class="flex items-center gap-2">
@@ -332,7 +331,7 @@
                 <span class="text-[11px] text-gray-400">Kiểm tra tự động toàn bộ thư viện cần thiết</span>
             </div>
 
-            <!-- Permission checks -->
+            {{-- Permission checks --}}
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div class="p-3 rounded-xl border {{ $healthChecks['storage_writable'] ? 'bg-emerald-50/50 border-emerald-200' : 'bg-rose-50 border-rose-200' }} flex items-center justify-between text-xs">
                     <div class="flex items-center gap-2">
@@ -365,7 +364,7 @@
                 </div>
             </div>
 
-            <!-- Extensions Grid -->
+            {{-- Extensions Grid --}}
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 pt-2">
                 @foreach ($extensionStatuses as $extKey => $ext)
                     <div class="p-2.5 rounded-xl border {{ $ext['enabled'] ? 'bg-slate-50/70 border-slate-200' : 'bg-rose-50 border-rose-200' }} flex items-center justify-between text-xs">

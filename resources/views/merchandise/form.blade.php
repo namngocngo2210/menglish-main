@@ -8,7 +8,6 @@
                 <h1 class="text-xl font-bold text-gray-900 tracking-tight">
                     {{ $isEdit ? 'Cập nhật Hàng hóa: ' . $item->name : 'Thêm mới Hàng hóa & Vật phẩm' }}
                 </h1>
-                <p class="text-xs text-gray-500">Khai báo mã hàng, đơn vị tính, đơn giá niêm yết tính phụ phí vào hoá đơn và phiếu thu</p>
             </div>
         </div>
     </x-slot>
@@ -45,7 +44,7 @@
                 </h2>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <!-- Mã hàng hóa -->
+                    {{-- Mã hàng hóa --}}
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1">
                             Mã hàng hóa (SKU) <span class="text-rose-500">*</span>
@@ -62,7 +61,7 @@
                         <p class="text-[10px] text-gray-400 mt-1">Mã định danh duy nhất của hàng hóa trong hệ thống.</p>
                     </div>
 
-                    <!-- Phân loại nhóm hàng -->
+                    {{-- Phân loại nhóm hàng --}}
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1">
                             Nhóm phân loại <span class="text-rose-500">*</span>
@@ -82,7 +81,7 @@
                     </div>
                 </div>
 
-                <!-- Tên mặt hàng -->
+                {{-- Tên mặt hàng --}}
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">
                         Tên hàng hóa / Vật phẩm <span class="text-rose-500">*</span>
@@ -98,7 +97,7 @@
                     <x-input-error :messages="$errors->get('name')" class="mt-1" />
                 </div>
 
-                <!-- Đơn vị tính -->
+                {{-- Đơn vị tính --}}
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1">
@@ -115,7 +114,7 @@
                         <x-input-error :messages="$errors->get('unit')" class="mt-1" />
                     </div>
 
-                    <!-- Đơn giá niêm yết bán -->
+                    {{-- Đơn giá niêm yết bán --}}
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1">
                             Đơn giá niêm yết (VNĐ) <span class="text-rose-500">*</span>
@@ -133,7 +132,7 @@
                         <p class="text-[10px] text-gray-400 mt-1">Giá tính vào hợp đồng &amp; hoá đơn.</p>
                     </div>
 
-                    <!-- Giá vốn nhập (tùy chọn) -->
+                    {{-- Giá vốn nhập (tùy chọn) --}}
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1">
                             Giá vốn nhập (VNĐ)
@@ -151,7 +150,7 @@
                     </div>
                 </div>
 
-                <!-- Tồn kho & Trạng thái -->
+                {{-- Tồn kho & Trạng thái --}}
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1">
@@ -182,7 +181,7 @@
                     </div>
                 </div>
 
-                <!-- Mô tả chi tiết -->
+                {{-- Mô tả chi tiết --}}
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">
                         Mô tả &amp; Ghi chú về hàng hóa
@@ -197,7 +196,7 @@
                 </div>
             </div>
 
-            <!-- Nút thao tác -->
+            {{-- Nút thao tác --}}
             <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
                 <a href="{{ route('merchandise.index') }}" class="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 text-xs font-semibold hover:bg-gray-50 transition">
                     Hủy bỏ

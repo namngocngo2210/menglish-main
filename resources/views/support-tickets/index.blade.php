@@ -6,7 +6,6 @@
                     <span class="material-symbols-outlined text-primary">confirmation_number</span>
                     Trung Tâm Hỗ Trợ &amp; Xử Lý Yêu Cầu (Tickets)
                 </h1>
-                <p class="text-xs text-gray-500">Tiếp nhận yêu cầu kỹ thuật, vận hành, học vụ và theo dõi tiến độ xử lý</p>
             </div>
             <div class="flex items-center gap-2">
                 <a href="{{ route('system-config.ticket-emails') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold shadow-xs transition">
@@ -22,7 +21,7 @@
     </x-slot>
 
     <div class="space-y-6">
-        <!-- Stats Cards -->
+        {{-- Stats Cards --}}
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
                 <div>
@@ -65,7 +64,7 @@
             </div>
         </div>
 
-        <!-- Filter & Search Bar -->
+        {{-- Filter & Search Bar --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
             <form action="{{ route('tickets.index') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
                 <input type="text" name="search" value="{{ request('search') }}" placeholder="Tìm theo mã TK, tiêu đề, nội dung..." class="text-xs rounded-xl border border-gray-200 p-2 sm:col-span-2">
@@ -82,7 +81,7 @@
             </form>
         </div>
 
-        <!-- Tickets Table -->
+        {{-- Tickets Table --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <table class="w-full text-left border-collapse text-xs">
                 <thead>

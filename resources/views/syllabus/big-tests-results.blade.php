@@ -156,9 +156,9 @@
             </div>
         @endif
 
-        <!-- 1. Test Filter & Quick Stats -->
+        {{-- 1. Test Filter & Quick Stats --}}
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
-            <!-- Test Selector Card -->
+            {{-- Test Selector Card --}}
             <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-2xs p-4 space-y-3">
                 <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">Chọn Kỳ Thi Big Test:</label>
                 <div class="flex items-center gap-2">
@@ -185,7 +185,7 @@
                 @endif
             </div>
 
-            <!-- Stats Summary 1 -->
+            {{-- Stats Summary 1 --}}
             @php
                 $totalCount = $results->count();
                 $taken = $results->where('is_absent', false)->whereNotNull('overall_score');
@@ -205,7 +205,7 @@
                 </div>
             </div>
 
-            <!-- Stats Summary 2 -->
+            {{-- Stats Summary 2 --}}
             <div class="bg-white rounded-2xl border border-gray-200 shadow-2xs p-4 flex items-center justify-between">
                 <div>
                     <div class="text-[11px] font-bold text-gray-500 uppercase">Điểm Cao Nhất (Top Score)</div>
@@ -222,7 +222,7 @@
             </div>
         </div>
 
-        <!-- 2. Results Table -->
+        {{-- 2. Results Table --}}
         <div class="bg-white rounded-2xl border border-gray-200 shadow-2xs overflow-hidden">
             <div class="p-4 bg-slate-50/70 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
