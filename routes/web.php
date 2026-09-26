@@ -606,6 +606,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/support-sessions/{id}/complete', [WorkTaskController::class, 'completeSupportSession'])->name('support-sessions.complete');
         Route::post('/hr-demand', [WorkTaskController::class, 'saveHrDemand'])->middleware('can:work_task.assign')->name('hr-demand.save');
         Route::get('/kpi-dashboard', [WorkTaskController::class, 'kpiDashboard'])->name('kpi-dashboard');
+        // Chi tiết công việc: modal xem nhanh từ danh sách (htmx, đẩy URL) hoặc trang đầy đủ khi mở thẳng link.
+        Route::get('/{id}', [WorkTaskController::class, 'show'])->whereNumber('id')->name('show');
     });
 
     Route::get('/portal/ta-tasks', [WorkTaskController::class, 'taPortal'])->name('portal.ta-tasks');

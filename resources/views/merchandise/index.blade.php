@@ -147,7 +147,7 @@
         </div>
 
         {{-- Merchandise Table --}}
-        <div id="merchandise-list" hx-get="{{ route('merchandise.index', request()->query()) }}" hx-trigger="merchandise-changed from:body" hx-select="#merchandise-list" hx-swap="outerHTML"
+        <div id="merchandise-list" hx-get="{{ route('merchandise.index', request()->query()) }}" hx-trigger="merchandise-changed from:body" hx-select="#merchandise-list" hx-swap="outerHTML" hx-disinherit="*"
              class="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs border-collapse">

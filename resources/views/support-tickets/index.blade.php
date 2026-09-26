@@ -1,3 +1,5 @@
+{{-- Danh sách ticket: Tạo mở modal 2xl, "Trao đổi" mở modal 3xl (hội thoại + trả lời, đẩy URL /tickets/{id});
+     thao tác xong server phát "tickets-changed" → #ticket-list tự tải lại (giữ bộ lọc, trang hiện tại). --}}
 <x-app-layout>
     <x-slot name="header">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -12,7 +14,8 @@
                     <span class="material-symbols-outlined text-[18px] text-gray-500">settings</span>
                     <span>Cấu hình Email nhận</span>
                 </a>
-                <a href="{{ route('tickets.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
+                <a href="{{ route('tickets.create') }}" hx-get="{{ route('tickets.create') }}" hx-target="#remote-modal-body" hx-swap="innerHTML" data-modal-size="2xl"
+                   class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition">
                     <span class="material-symbols-outlined text-[18px]">add_circle</span>
                     <span>Tạo Ticket Mới</span>
                 </a>
@@ -20,7 +23,8 @@
         </div>
     </x-slot>
 
-    <div class="space-y-6">
+    <div id="ticket-list" class="space-y-6"
+         hx-get="{{ route('tickets.index', request()->query()) }}" hx-trigger="tickets-changed from:body" hx-select="#ticket-list" hx-swap="outerHTML" hx-disinherit="*">
         {{-- Stats Cards --}}
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
@@ -126,7 +130,8 @@
                                 </span>
                             </td>
                             <td class="py-3.5 px-4 text-right whitespace-nowrap">
-                                <a href="{{ route('tickets.show', $ticket->id) }}" class="px-3 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-primary font-bold text-xs transition inline-flex items-center gap-1">
+                                <a href="{{ route('tickets.show', $ticket->id) }}" hx-get="{{ route('tickets.show', $ticket->id) }}" hx-target="#remote-modal-body" hx-swap="innerHTML" hx-push-url="true" data-modal-size="3xl"
+                                   class="px-3 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-primary font-bold text-xs transition inline-flex items-center gap-1">
                                     <span>Trao đổi</span>
                                     <span class="material-symbols-outlined text-[14px]">forum</span>
                                 </a>

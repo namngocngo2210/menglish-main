@@ -156,16 +156,17 @@ class UserController extends Controller
         return view('users.show', compact('user', 'teachingClasses'));
     }
 
-    public function create(): View
+    /** Thêm nhân sự: mở từ danh sách → modal 3xl (htmx); mở thẳng URL → trang đầy đủ. */
+    public function create(): Response
     {
-        return view('users.form', [
+        return $this->modalView('users.form', [
             'user' => new User,
             'branches' => $this->assignableBranches(),
             'roles' => collect(Rbac::assignableRoles(auth()->user())),
         ]);
     }
 
-    public function store(UserRequest $request): RedirectResponse
+    public function store(UserRequest $request): Response|RedirectResponse
     {
         $this->ensureCanAssignRole($request->validated('role'));
         $this->ensureBranchInScope((int) $request->validated('branch_id'));
@@ -184,20 +185,21 @@ class UserController extends Controller
         $user->syncRoles($this->rolesWithConcurrent($request, $request->validated('role'), []));
         $this->storeContractFile($request, $user);
 
-        return redirect()->route('users.index')->with('status', 'Đã tạo tài khoản thành công.');
+        return $this->modalSaved('Đã tạo tài khoản thành công.', 'users-changed', route('users.index'));
     }
 
-    public function edit(User $user): View
+    public function edit(User $user): Response
     {
         $this->ensureCanManageTarget($user);
-        return view('users.form', [
+
+        return $this->modalView('users.form', [
             'user' => $user,
             'branches' => $this->assignableBranches(),
             'roles' => collect(Rbac::assignableRoles(auth()->user())),
         ]);
     }
 
-    public function update(UserRequest $request, User $user): RedirectResponse
+    public function update(UserRequest $request, User $user): Response|RedirectResponse
     {
         $this->ensureCanManageTarget($user);
         $this->ensureCanAssignRole($request->validated('role'));
@@ -222,7 +224,7 @@ class UserController extends Controller
 
         $this->storeContractFile($request, $user);
 
-        return redirect()->route('users.index')->with('status', 'Đã cập nhật tài khoản thành công.');
+        return $this->modalSaved('Đã cập nhật tài khoản thành công.', 'users-changed', route('users.index'));
     }
 
     public function destroy(User $user): RedirectResponse

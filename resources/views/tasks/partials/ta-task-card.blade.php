@@ -61,7 +61,7 @@
         @endif
         @if ($task->classModel && in_array($task->status, ['new', 'in_progress', 'overdue', 'blocked'], true) && $canComplete)
             <x-ui.button variant="secondary" icon="assignment" class="w-full"
-                         :href="route('tasks.class-reports.create', ['task_id' => $task->id, 'class_id' => $task->class_id])">Nộp báo cáo trực lớp</x-ui.button>
+                         :href="route('tasks.class-reports.create', ['task_id' => $task->id, 'class_id' => $task->class_id])" modal="2xl">Nộp báo cáo trực lớp</x-ui.button>
         @endif
     </div>
 </article>

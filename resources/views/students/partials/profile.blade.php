@@ -392,7 +392,8 @@
                         <h3 class="font-h3 text-h3 text-on-surface">Thông tin học phí</h3>
                     </div>
                     @can('tuition.create')
-                        <a href="{{ route('tuition.receipts.create', ['student_id' => $student->id]) }}" class="inline-flex items-center gap-xs font-body-small text-body-small font-semibold text-primary hover:underline">
+                        <a href="{{ route('tuition.receipts.create', ['student_id' => $student->id]) }}" hx-get="{{ route('tuition.receipts.create', ['student_id' => $student->id]) }}" hx-target="#remote-modal-body" hx-swap="innerHTML" data-modal-size="4xl"
+                           class="inline-flex items-center gap-xs font-body-small text-body-small font-semibold text-primary hover:underline">
                             Thêm phiếu thu <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add_circle</span>
                         </a>
                     @endcan

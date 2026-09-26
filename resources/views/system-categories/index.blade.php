@@ -25,7 +25,7 @@
 
     <div x-data="{ del: { url: '', name: '' } }">
     <div id="category-list" class="grid grid-cols-1 items-start gap-lg lg:grid-cols-3"
-         hx-get="{{ route('system-categories.index', request()->query()) }}" hx-trigger="system-categories-changed from:body" hx-select="#category-list" hx-swap="outerHTML">
+         hx-get="{{ route('system-categories.index', request()->query()) }}" hx-trigger="system-categories-changed from:body" hx-select="#category-list" hx-swap="outerHTML" hx-disinherit="*">
         <x-ui.data-table class="lg:col-span-2">
             <x-slot:header>
                 <form method="GET" action="{{ route('system-categories.index') }}" class="flex w-full items-center gap-sm">

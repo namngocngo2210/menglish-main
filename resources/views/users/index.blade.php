@@ -1,5 +1,5 @@
 {{-- Quản lý Tài khoản & Vai trò (mockup epic-5/quan-ly-tai-khoan-vai-tro).
-     "Vai trò & kiêm nhiệm" mở modal (htmx); lưu xong server phát "users-changed" → #user-list tự tải lại. Xóa tài khoản qua modal xác nhận. --}}
+     Thêm / Sửa nhân sự (modal 3xl, 3 tab), Phân quyền cá nhân (modal 4xl), "Vai trò & kiêm nhiệm" (modal md) mở bằng htmx; lưu xong server phát "users-changed" → #user-list tự tải lại. Xóa tài khoản qua modal xác nhận. --}}
 @php
     $viewer = auth()->user();
     $filtered = request()->hasAny(['search', 'branch_id', 'role', 'status']);
@@ -9,7 +9,7 @@
         <x-ui.page-header title="Quản lý Tài khoản & Vai trò" description="Danh sách nhân sự, vai trò chính và kiêm nhiệm, hợp đồng lao động.">
             <x-slot:actions>
                 @can('user.create')
-                    <x-ui.button icon="person_add" :href="route('users.create')">Thêm nhân viên mới</x-ui.button>
+                    <x-ui.button icon="person_add" :href="route('users.create')" modal="3xl">Thêm nhân viên mới</x-ui.button>
                 @endcan
             </x-slot:actions>
         </x-ui.page-header>
@@ -32,7 +32,7 @@
             </x-ui.alert>
         @endif
 
-        <div id="user-list" hx-get="{{ route('users.index', request()->query()) }}" hx-trigger="users-changed from:body" hx-select="#user-list" hx-swap="outerHTML">
+        <div id="user-list" hx-get="{{ route('users.index', request()->query()) }}" hx-trigger="users-changed from:body" hx-select="#user-list" hx-swap="outerHTML" hx-disinherit="*">
         <x-ui.data-table min-width="860px">
             <x-slot:header>
                 <form method="GET" action="{{ route('users.index') }}" class="flex w-full flex-col gap-sm md:flex-row md:items-center">
@@ -97,7 +97,7 @@
                             <td class="text-right">
                                 <div class="flex items-center justify-end gap-xs">
                                     @can('permission.override')
-                                        <x-ui.button variant="ghost" size="sm" icon="admin_panel_settings" :href="route('users.permissions.edit', $user)" title="Phân quyền cá nhân" aria-label="Phân quyền cá nhân" />
+                                        <x-ui.button variant="ghost" size="sm" icon="admin_panel_settings" :href="route('users.permissions.edit', $user)" modal="4xl" title="Phân quyền cá nhân" aria-label="Phân quyền cá nhân" />
                                     @endcan
                                     @can('user.lock')
                                         <form action="{{ $user->isLocked() ? route('users.unlock', $user) : route('users.lock', $user) }}" method="POST" class="inline">
@@ -112,7 +112,8 @@
                                         <x-ui.button variant="ghost" size="sm" icon="more_vert" aria-label="Thao tác khác" x-on:click="more = !more" x-on:click.outside="more = false" />
                                         <div x-show="more" x-cloak class="absolute right-0 z-20 mt-xs w-48 rounded-lg border border-outline-variant bg-surface-container-lowest py-xs text-left shadow-lg">
                                             @can('user.update')
-                                                <a href="{{ route('users.edit', $user) }}" class="flex items-center gap-sm px-md py-xs font-body-small text-body-small hover:bg-surface-container-low"><span class="material-symbols-outlined text-[16px]">edit</span>Sửa thông tin</a>
+                                                <a href="{{ route('users.edit', $user) }}" hx-get="{{ route('users.edit', $user) }}" hx-target="#remote-modal-body" hx-swap="innerHTML" data-modal-size="3xl" x-on:click="more = false"
+                                                   class="flex items-center gap-sm px-md py-xs font-body-small text-body-small hover:bg-surface-container-low"><span class="material-symbols-outlined text-[16px]">edit</span>Sửa thông tin</a>
                                             @endcan
                                             @can('user.assign_role')
                                                 <a href="{{ route('users.roles.edit', $user) }}" hx-get="{{ route('users.roles.edit', $user) }}" hx-target="#remote-modal-body" hx-swap="innerHTML" data-modal-size="md" x-on:click="more = false"

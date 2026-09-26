@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Concerns\RendersModals;
 use App\Support\DataScope;
 use App\Support\Rbac;
 use App\Models\AdminNotification;
@@ -32,6 +33,8 @@ use Illuminate\Validation\ValidationException;
 
 class WorkTaskController extends Controller
 {
+    use RendersModals;
+
     /**
      * 1. Danh sách công việc (Task List)
      */
@@ -93,10 +96,7 @@ class WorkTaskController extends Controller
             END ASC
         ")->latest()->paginate($request->perPage(10))->withQueryString();
 
-        $users = $this->assignableUsers($currentUser);
-        $branches = Branch::where('is_active', true)->get();
-        $classes = ClassModel::query()->visibleTo($currentUser)->where('status', 'active')->get();
-
+        // Form "Giao việc" tải riêng qua modal (tasks.create) nên danh sách không cần nạp nhân sự / chi nhánh / lớp.
         $visible = fn () => $this->scopeVisibleTasks(WorkTask::query(), $currentUser);
         $counts = [
             'all' => $visible()->count(),
@@ -106,7 +106,7 @@ class WorkTaskController extends Controller
             'pending' => $visible()->where('status', 'pending_confirmation')->count(),
         ];
 
-        return view('tasks.index', compact('tasks', 'tab', 'status', 'taskType', 'search', 'users', 'branches', 'classes', 'counts', 'canViewAll'));
+        return view('tasks.index', compact('tasks', 'tab', 'status', 'taskType', 'search', 'counts', 'canViewAll'));
     }
 
     /**
@@ -119,7 +119,25 @@ class WorkTaskController extends Controller
         $branches = Branch::where('is_active', true)->get();
         $classes = ClassModel::query()->visibleTo(Auth::user())->where('status', 'active')->get();
 
-        return view('tasks.create', compact('users', 'branches', 'classes'));
+        // Nút "Giao cho: Trợ giảng" trong form chuyển sang luồng giao việc theo ca (tasks.ta-assign — luật riêng).
+        $canTaAssign = Auth::user()->can('work_task.assign');
+
+        return $this->modalView('tasks.create', compact('users', 'branches', 'classes', 'canTaAssign'));
+    }
+
+    /**
+     * Chi tiết công việc: mở từ danh sách → modal xem nhanh (htmx, đẩy URL); mở thẳng link → trang đầy đủ.
+     * Chỉ công việc trong phạm vi được xem (cùng scope với danh sách) — ngoài phạm vi → 404.
+     */
+    public function show(Request $request, int $id)
+    {
+        $user = $request->user();
+        $task = $this->scopeVisibleTasks(WorkTask::query(), $user)
+            ->with(['creator:id,name', 'assignee:id,name', 'branch:id,name', 'classModel:id,name,code', 'confirmedBy:id,name'])
+            ->findOrFail($id);
+        $allowed = self::allowedTransitions($task, $user);
+
+        return $this->modalView('tasks.show', compact('task', 'allowed'));
     }
 
     public function store(Request $request)
@@ -167,7 +185,7 @@ class WorkTaskController extends Controller
 
         $this->notifyAssignee($task);
 
-        return redirect()->route('tasks.index')->with('success', "Đã giao việc '{$task->title}' thành công cho nhân sự!");
+        return $this->modalSaved("Đã giao việc '{$task->title}' thành công cho nhân sự!", 'tasks-changed', route('tasks.index'), 'success');
     }
 
     /**
@@ -193,12 +211,12 @@ class WorkTaskController extends Controller
                 ? 'Người thực hiện không tự xác nhận hoàn thành: hãy gửi "Chờ xác nhận" để người giao việc duyệt.'
                 : "Không thể chuyển công việc từ \"{$task->status_label}\" sang trạng thái này.";
 
-            return redirect()->back()->withErrors(['status' => $message]);
+            return $this->modalBack(['status' => $message]);
         }
 
         // Mockup "Thay đổi trạng thái": Bị chặn / Hủy bắt buộc ghi lý do.
         if (in_array($status, ['blocked', 'canceled'], true) && blank($reason ?? $note)) {
-            return redirect()->back()->withErrors(['reason' => $status === 'blocked'
+            return $this->modalBack(['reason' => $status === 'blocked'
                 ? 'Vui lòng nhập lý do khiến công việc bị chặn.'
                 : 'Vui lòng nhập lý do hủy công việc.']);
         }
@@ -229,7 +247,8 @@ class WorkTaskController extends Controller
             $this->notifyTaskConfirmer($task->loadMissing('assignee'));
         }
 
-        return redirect()->back()->with('success', 'Đã cập nhật trạng thái công việc thành công!');
+        // Từ modal xem nhanh: đóng modal + làm mới danh sách; từ trang: quay lại như cũ.
+        return $this->modalSaved('Đã cập nhật trạng thái công việc thành công!', 'tasks-changed', url()->previous(), 'success');
     }
 
     /**
@@ -368,7 +387,7 @@ class WorkTaskController extends Controller
 
         $cutoff = self::TA_ASSIGN_CUTOFF;
 
-        return view('tasks.ta-assign', compact('assistants', 'branches', 'classes', 'classSessions', 'cutoff'));
+        return $this->modalView('tasks.ta-assign', compact('assistants', 'branches', 'classes', 'classSessions', 'cutoff'));
     }
 
     public function taAssignStore(Request $request)
@@ -461,7 +480,12 @@ class WorkTaskController extends Controller
                     route('portal.ta-tasks', ['ta_id' => $validated['assistant_id'], 'date' => $assignDate])));
         }
 
-        return redirect()->route('tasks.index')->with('success', "Đã tạo thành công {$created->count()} nhiệm vụ cho Trợ giảng!".($late ? ' (Gửi sau '.self::TA_ASSIGN_CUTOFF.' — đã báo Admin.)' : ''));
+        return $this->modalSaved(
+            "Đã tạo thành công {$created->count()} nhiệm vụ cho Trợ giảng!".($late ? ' (Gửi sau '.self::TA_ASSIGN_CUTOFF.' — đã báo Admin.)' : ''),
+            'tasks-changed',
+            route('tasks.index'),
+            'success',
+        );
     }
 
     /**
@@ -628,7 +652,7 @@ class WorkTaskController extends Controller
         $confirmer = $confirmerId ? User::find($confirmerId, ['id', 'name']) : null;
         $taskId = $task?->id;
 
-        return view('tasks.class-report-create', compact(
+        return $this->modalView('tasks.class-report-create', compact(
             'classes', 'selectedClass', 'students', 'taskId', 'task', 'sessionOptions', 'defaultSessionId', 'confirmer'
         ));
     }
@@ -799,7 +823,7 @@ class WorkTaskController extends Controller
             : 'Đã nộp báo cáo trực lớp (không có ảnh) — chờ '.($report->confirmerRoleLabel() === 'GV chính của lớp' ? 'GV chính' : 'người giao việc')
                 .($confirmerName ? " {$confirmerName}" : '').' xác nhận.';
 
-        return redirect()->route('portal.ta-tasks')->with('success', $msg);
+        return $this->modalSaved($msg, 'tasks-changed', route('portal.ta-tasks'), 'success');
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Concerns\RendersModals;
 use App\Models\SupportTicket;
 use App\Models\TicketMessage;
 use App\Models\User;
@@ -15,6 +16,8 @@ use Illuminate\Validation\ValidationException;
 
 class SupportTicketController extends Controller
 {
+    use RendersModals;
+
     protected NotificationService $notificationService;
 
     public function __construct(NotificationService $notificationService)
@@ -75,7 +78,7 @@ class SupportTicketController extends Controller
             ? $this->ticketHandlers()
             : collect();
 
-        return view('support-tickets.create', compact('staffs'));
+        return $this->modalView('support-tickets.create', compact('staffs'));
     }
 
     public function store(Request $request)
@@ -120,10 +123,10 @@ class SupportTicketController extends Controller
         // Bắn thông báo chuông cho những người trong luồng ticket
         $this->notificationService->notifyTicketCreated($ticket);
 
-        return redirect()->route('tickets.show', $ticket->id)
-            ->with('status', "Đã tạo phiếu yêu cầu hỗ trợ / báo lỗi {$ticket->code} thành công!");
+        return $this->modalSaved("Đã tạo phiếu yêu cầu hỗ trợ / báo lỗi {$ticket->code} thành công!", 'tickets-changed', route('tickets.show', $ticket->id));
     }
 
+    /** Chi tiết ticket: htmx → modal (hội thoại + ô trả lời); mở thẳng URL → trang đầy đủ. */
     public function show($id)
     {
         $ticket = SupportTicket::with(['creator', 'assignee', 'messages.user'])->where('id', $id)->orWhere('code', $id)->firstOrFail();
@@ -139,7 +142,7 @@ class SupportTicketController extends Controller
             ? $this->ticketHandlers()
             : collect();
 
-        return view('support-tickets.show', compact('ticket', 'staffs', 'canPostInternal'));
+        return $this->modalView('support-tickets.show', compact('ticket', 'staffs', 'canPostInternal'));
     }
 
     public function storeMessage(Request $request, $id)
@@ -173,7 +176,7 @@ class SupportTicketController extends Controller
         // Bắn thông báo phản hồi mới cho những người trong luồng ticket
         $this->notificationService->notifyTicketMessage($ticket, $msg, Auth::user());
 
-        return redirect()->back()->with('status', 'Đã gửi phản hồi thành công!');
+        return $this->ticketActionDone($ticket, 'Đã gửi phản hồi thành công!');
     }
 
     public function updateStatus(Request $request, $id)
@@ -192,7 +195,7 @@ class SupportTicketController extends Controller
         // Bắn thông báo đổi trạng thái ticket
         $this->notificationService->notifyTicketStatusChanged($ticket, $validated['status'], Auth::user());
 
-        return redirect()->back()->with('status', "Đã cập nhật trạng thái ticket sang: {$ticket->status_label}!");
+        return $this->ticketActionDone($ticket, "Đã cập nhật trạng thái ticket sang: {$ticket->status_label}!");
     }
 
     public function assign(Request $request, $id)
@@ -212,7 +215,7 @@ class SupportTicketController extends Controller
             $this->notificationService->notifyTicketAssigned($ticket, $assignee, Auth::user());
         }
 
-        return redirect()->back()->with('status', "Đã phân công xử lý ticket cho {$ticket->assignee?->name}!");
+        return $this->ticketActionDone($ticket, "Đã phân công xử lý ticket cho {$ticket->assignee?->name}!");
     }
 
     /**
@@ -251,6 +254,19 @@ class SupportTicketController extends Controller
         return Storage::disk(self::ATTACHMENT_DISK)->response($path, basename($path), [
             'X-Content-Type-Options' => 'nosniff',
         ]);
+    }
+
+    /**
+     * Kết thúc thao tác trên ticket (phản hồi / đổi trạng thái / phân công): trong modal → trả lại nội dung modal mới
+     * (hội thoại cập nhật) + toast + làm mới danh sách; thường → quay lại trang trước kèm flash như cũ.
+     */
+    private function ticketActionDone(SupportTicket $ticket, string $message)
+    {
+        if (! $this->isModalRequest()) {
+            return redirect()->back()->with('status', $message);
+        }
+
+        return $this->modalUpdated($this->show($ticket->id), $message, 'tickets-changed');
     }
 
     /** Disk riêng tư lưu file đính kèm ticket (không truy cập trực tiếp qua URL công khai). */

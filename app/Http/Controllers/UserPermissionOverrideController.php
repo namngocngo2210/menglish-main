@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Concerns\RendersModals;
 use App\Http\Requests\UserPermissionOverrideRequest;
 use App\Models\Branch;
 use App\Models\ClassModel;
@@ -11,10 +12,10 @@ use App\Support\DataScope;
 use App\Support\PermissionCatalog;
 use App\Support\Rbac;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 use Spatie\Permission\Models\Permission;
 
 /**
@@ -29,10 +30,13 @@ use Spatie\Permission\Models\Permission;
  */
 class UserPermissionOverrideController extends Controller
 {
+    use RendersModals;
+
     /** Ký tự thay dấu "." trong tên action động (user.assign_role.<vai trò>) trên form (khóa mảng không chứa "."). */
     public const ACTION_DOT = ':';
 
-    public function edit(User $user): View
+    /** Mở từ danh sách nhân sự → modal 4xl (htmx); mở thẳng URL → trang đầy đủ. */
+    public function edit(User $user): Response
     {
         $this->ensureCanOverride($user);
 
@@ -85,13 +89,13 @@ class UserPermissionOverrideController extends Controller
         $scopeUnitCount = $scopes->sum(fn (array $scope) => count($scope['ids']));
         $moduleCount = collect($groups)->sum(fn ($modules) => count($modules));
 
-        return view('users.permissions', compact(
+        return $this->modalView('users.permissions', compact(
             'user', 'groups', 'rolePermissions', 'overrides', 'scopes', 'dataScopes', 'branches', 'classes',
             'effectiveCount', 'modulesWithAccess', 'scopeUnitCount', 'moduleCount'
         ));
     }
 
-    public function update(UserPermissionOverrideRequest $request, User $user): RedirectResponse
+    public function update(UserPermissionOverrideRequest $request, User $user): Response|RedirectResponse
     {
         $this->ensureCanOverride($user);
 
@@ -180,7 +184,7 @@ class UserPermissionOverrideController extends Controller
             ])
             ->log('Cập nhật phân quyền chi tiết cá nhân');
 
-        return redirect()->route('users.index')->with('status', 'Đã cập nhật phân quyền chi tiết của '.$user->name.'.');
+        return $this->modalSaved('Đã cập nhật phân quyền chi tiết của '.$user->name.'.', 'users-changed', route('users.index'));
     }
 
     /** Mọi quyền hiển thị trên ma trận (trừ quyền gán vai trò Super Admin). */

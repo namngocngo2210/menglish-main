@@ -30,8 +30,10 @@
 
         @include('crm.partials.list-filters', ['dateLabel' => 'Ngày tạo'])
 
-        {{-- Kanban 8 cột (mockup: tiêu đề cột = chấm màu + TÊN (số lượng)) --}}
-        <div class="custom-scrollbar overflow-x-auto pb-md">
+        {{-- Kanban 8 cột (mockup: tiêu đề cột = chấm màu + TÊN (số lượng)).
+             Bấm thẻ → modal xem nhanh (đẩy URL chi tiết); thêm / sửa khách trong modal xong → "crm-customers-changed" tải lại bảng (giữ bộ lọc). --}}
+        <div id="crm-kanban" class="custom-scrollbar overflow-x-auto pb-md"
+             hx-get="{{ route('crm.pipeline', request()->query()) }}" hx-trigger="crm-customers-changed from:body" hx-select="#crm-kanban" hx-swap="outerHTML" hx-disinherit="*">
             <div class="flex min-h-[calc(100vh-320px)] min-w-max items-start gap-md">
                 @foreach ($stages as $index => $stage)
                     <div
@@ -76,7 +78,7 @@
                                     data-stage-index="{{ $index }}"
                                     @dragstart="onDragStart($event, {{ (int) $lead['id'] }}, @js($stage['id']), @js($lead['name']))"
                                     @dragend="onDragEnd($event)"
-                                    @click="openLeadDetails(@js(route('crm.customers.show', $lead['id'])))"
+                                    hx-get="{{ route('crm.customers.show', $lead['id']) }}" hx-target="#remote-modal-body" hx-swap="innerHTML" hx-push-url="true" data-modal-size="3xl"
                                 >
                                     @if ($canEditStage)
                                         <button
@@ -177,7 +179,8 @@
 
                         @can('lead.create')
                             @if ($stage['id'] === 'new')
-                                <a href="{{ route('crm.customers.create') }}" class="flex w-full items-center justify-center gap-xs rounded-lg border-2 border-dashed border-outline-variant py-sm font-body-small text-body-small font-bold text-on-surface-variant transition hover:border-primary-container/50 hover:text-primary">
+                                <a href="{{ route('crm.customers.create') }}" hx-get="{{ route('crm.customers.create') }}" hx-target="#remote-modal-body" hx-swap="innerHTML" data-modal-size="2xl"
+                                   class="flex w-full items-center justify-center gap-xs rounded-lg border-2 border-dashed border-outline-variant py-sm font-body-small text-body-small font-bold text-on-surface-variant transition hover:border-primary-container/50 hover:text-primary">
                                     <span class="material-symbols-outlined text-[18px]">add</span>
                                     <span>Thêm khách mới</span>
                                 </a>
@@ -233,10 +236,6 @@
                     this.toast.timer = setTimeout(() => {
                         this.toast.show = false;
                     }, 3500);
-                },
-
-                openLeadDetails(url) {
-                    window.location.href = url;
                 },
 
                 indexOf(stage) {

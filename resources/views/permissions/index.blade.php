@@ -16,7 +16,7 @@
     @endif
 
     <div x-data="{ del: { url: '', name: '' } }">
-        <div id="permission-list" hx-get="{{ route('permissions.index', request()->query()) }}" hx-trigger="permissions-changed from:body" hx-select="#permission-list" hx-swap="outerHTML">
+        <div id="permission-list" hx-get="{{ route('permissions.index', request()->query()) }}" hx-trigger="permissions-changed from:body" hx-select="#permission-list" hx-swap="outerHTML" hx-disinherit="*">
             <x-ui.data-table min-width="760px">
                 <table>
                     <thead>

@@ -67,8 +67,9 @@
             <x-ui.alert type="warning" class="mb-md">Còn <strong>{{ $overdueCount }}</strong> nhiệm vụ của các ngày trước chưa hoàn thành.</x-ui.alert>
         @endif
 
-        {{-- Nhiệm vụ theo ca --}}
-        <section id="nhiem-vu" class="space-y-md" aria-label="Nhiệm vụ">
+        {{-- Nhiệm vụ theo ca — nộp báo cáo trực lớp trong modal xong → "tasks-changed" tải lại khối này (giữ ngày / TA đang xem) --}}
+        <section id="nhiem-vu" class="space-y-md" aria-label="Nhiệm vụ"
+                 hx-get="{{ route('portal.ta-tasks', request()->query()) }}" hx-trigger="tasks-changed from:body" hx-select="#nhiem-vu" hx-swap="outerHTML" hx-disinherit="*">
             @foreach ($groups as $group)
                 <div class="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest" x-data="{ open: @js($group['key'] === $firstOpen || $group['tasks']->isNotEmpty()) }">
                     <button type="button" x-on:click="open = !open" :aria-expanded="open"
@@ -136,7 +137,8 @@
                     </a>
                 </li>
                 <li>
-                    <a href="{{ route('tasks.class-reports.create') }}" class="flex flex-col items-center gap-[2px] rounded-xl px-xs py-xs text-on-surface-variant">
+                    <a href="{{ route('tasks.class-reports.create') }}" hx-get="{{ route('tasks.class-reports.create') }}" hx-target="#remote-modal-body" hx-swap="innerHTML" data-modal-size="2xl"
+                       class="flex flex-col items-center gap-[2px] rounded-xl px-xs py-xs text-on-surface-variant">
                         <span class="material-symbols-outlined text-[22px]" aria-hidden="true">bar_chart</span>
                         <span class="text-[11px] font-semibold">Báo cáo</span>
                     </a>

@@ -19,7 +19,7 @@
     @endif
 
     <div x-data="{ del: { url: '', name: '' } }">
-    <div id="role-list" hx-get="{{ route('roles.index', request()->query()) }}" hx-trigger="roles-changed from:body" hx-select="#role-list" hx-swap="outerHTML">
+    <div id="role-list" hx-get="{{ route('roles.index', request()->query()) }}" hx-trigger="roles-changed from:body" hx-select="#role-list" hx-swap="outerHTML" hx-disinherit="*">
     <x-ui.data-table min-width="860px">
         <table>
             <thead>

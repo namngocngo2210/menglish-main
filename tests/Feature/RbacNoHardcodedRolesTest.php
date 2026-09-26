@@ -44,7 +44,7 @@ class RbacNoHardcodedRolesTest extends TestCase
         'app/Models/Penalty.php' => 1,                     // người vi phạm không tự chốt biên bản (Super Admin miễn)
         'app/Http/Controllers/WorkTaskController.php' => 1, // tab mặc định "Tất cả" (giao diện)
         'app/Services/NotificationService.php' => 1,       // không tìm được người phân công ticket → báo Super Admin
-        'resources/views/tuition/create-receipt.blade.php' => 1,
+        'resources/views/tuition/receipts/_form.blade.php' => 1, // form phiếu thu (tách từ create-receipt, dùng chung trang ↔ modal)
         'resources/views/tuition/history.blade.php' => 1,
         'resources/views/tuition/approve-receipt.blade.php' => 1,
         'resources/views/users/permissions.blade.php' => 1, // cảnh báo "Super Admin luôn toàn quyền"

@@ -1,4 +1,6 @@
-{{-- Danh sách công việc (mockup phan-cong-cong-viec/danh_s_ch_c_ng_vi_c) — giao việc 2 chiều, đổi trạng thái theo luật. --}}
+{{-- Danh sách công việc (mockup phan-cong-cong-viec/danh_s_ch_c_ng_vi_c) — giao việc 2 chiều, đổi trạng thái theo luật.
+     Giao việc mở modal 2xl (htmx, có lựa chọn "Giao cho: Trợ giảng"); bấm tiêu đề → modal xem nhanh (đẩy URL /tasks/{id}).
+     Lưu xong server phát "tasks-changed" → #task-list tự tải lại (giữ tab, bộ lọc, trang hiện tại). --}}
 @php
     $statuses = [
         'all' => 'Tất cả', 'overdue' => 'Quá hạn', 'blocked' => 'Bị chặn', 'pending_confirmation' => 'Chờ xác nhận',
@@ -14,7 +16,6 @@
         'canceled' => ['Hủy công việc', 'cancel'],
     ];
     $canCreate = auth()->user()->can('work_task.create') || auth()->user()->can('work_task.request');
-    $createErrors = $errors->hasAny(['taskTitle', 'taskDescription', 'assignee', 'dueDate', 'taskType', 'frequency', 'branch_id', 'class_id']);
 @endphp
 <x-app-layout title="Danh sách công việc">
     <div x-data="{
@@ -38,7 +39,7 @@
                     </x-ui.button>
                 @endcan
                 @if ($canCreate)
-                    <x-ui.button icon="add" x-on:click="$dispatch('open-modal', 'create-task')">
+                    <x-ui.button icon="add" :href="route('tasks.create')" modal="2xl">
                         {{ auth()->user()->can('work_task.create') ? 'Giao việc' : 'Đề xuất việc cho Admin / Học vụ' }}
                     </x-ui.button>
                 @endif
@@ -52,6 +53,7 @@
             <x-ui.alert type="error" class="mb-md">{{ $errors->first('status') ?: $errors->first('reason') }}</x-ui.alert>
         @endif
 
+        <div id="task-list" hx-get="{{ route('tasks.index', request()->query()) }}" hx-trigger="tasks-changed from:body" hx-select="#task-list" hx-swap="outerHTML" hx-disinherit="*">
         <div class="mb-md grid grid-cols-2 gap-md sm:grid-cols-4">
             <x-ui.stat-card label="Tất cả công việc" :value="$counts['all']" icon="assignment" />
             <x-ui.stat-card label="Việc của tôi" :value="$counts['mine']" icon="person" tone="primary" />
@@ -103,7 +105,8 @@
                         @php $allowed = \App\Http\Controllers\WorkTaskController::allowedTransitions($task, auth()->user()); @endphp
                         <tr class="{{ $task->status === 'overdue' ? 'bg-error-container/20' : '' }} {{ $task->status === 'canceled' ? 'opacity-60' : '' }}">
                             <td class="max-w-[360px]">
-                                <div class="font-semibold text-on-surface {{ $task->status === 'canceled' ? 'line-through' : '' }}">{{ $task->title }}</div>
+                                <a href="{{ route('tasks.show', $task->id) }}" hx-get="{{ route('tasks.show', $task->id) }}" hx-target="#remote-modal-body" hx-swap="innerHTML" hx-push-url="true" data-modal-size="2xl"
+                                   class="font-semibold text-on-surface hover:text-primary {{ $task->status === 'canceled' ? 'line-through' : '' }}">{{ $task->title }}</a>
                                 @if ($task->description)
                                     <div class="line-clamp-1 font-caption text-caption text-on-surface-variant">{{ $task->description }}</div>
                                 @endif
@@ -168,20 +171,7 @@
                 <x-ui.pagination :paginator="$tasks" unit="công việc" />
             </x-slot:footer>
         </x-ui.data-table>
-
-        {{-- Modal: Giao việc mới --}}
-        @if ($canCreate)
-            <x-ui.modal name="create-task" title="Giao việc mới" max-width="xl" :show="$createErrors">
-                <form id="createTaskForm" action="{{ route('tasks.store') }}" method="POST">
-                    @csrf
-                    @include('tasks.partials.task-form-fields')
-                </form>
-                <x-slot:footer>
-                    <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'create-task')">Hủy</x-ui.button>
-                    <x-ui.button type="submit" form="createTaskForm" icon="send">Lưu và Giao việc</x-ui.button>
-                </x-slot:footer>
-            </x-ui.modal>
-        @endif
+        </div>
 
         {{-- Modal: Thay đổi trạng thái --}}
         <div x-show="statusModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/40 p-md" role="dialog" aria-modal="true">

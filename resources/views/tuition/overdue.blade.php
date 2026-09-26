@@ -17,7 +17,8 @@
         <x-ui.select name="type" :options="['all' => 'Quá hạn & sắp đến hạn', 'overdue' => 'Chỉ quá hạn', 'upcoming' => 'Chỉ sắp đến hạn']" inline-label="Nhóm:" />
     </x-ui.filter-bar>
 
-    <div class="space-y-xl">
+    <div id="tuition-overdue-list" class="space-y-xl"
+         hx-get="{{ route('tuition.overdue', request()->query()) }}" hx-trigger="tuition-receipts-changed from:body" hx-select="#tuition-overdue-list" hx-swap="outerHTML" hx-disinherit="*">
         @include('tuition.partials.due-groups')
 
         {{-- ĐANG KHẤT NỢ / BẢO LƯU --}}

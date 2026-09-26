@@ -1,4 +1,6 @@
-{{-- Mockup: ui-full-tinh-nang-menglish/hoc-phi-va-hoa-don-ui-mockup/danh-sach-hoc-vien-thu-phi --}}
+{{-- Mockup: ui-full-tinh-nang-menglish/hoc-phi-va-hoa-don-ui-mockup/danh-sach-hoc-vien-thu-phi
+     "Lập phiếu thu" ở từng dòng → modal 4xl (học viên + khoản nợ chọn sẵn); "Lập phiếu thu mới" (lập tự do) vẫn mở trang riêng.
+     Lưu phiếu xong → "tuition-receipts-changed" tải lại #tuition-list (giữ bộ lọc, trang hiện tại). --}}
 <x-app-layout title="Danh sách thu phí">
     <x-ui.page-header title="Danh sách học viên đến hạn thu phí" description="Theo dõi và quản lý công nợ học phí của học viên.">
         <x-slot:actions>
@@ -50,7 +52,8 @@
         <x-ui.stat-card label="Học viên quá hạn" :value="$stats['overdue'].' học viên'" tone="error" icon="report" />
     </div>
 
-    <div class="space-y-xl">
+    <div id="tuition-list" class="space-y-xl"
+         hx-get="{{ route('tuition.students', request()->query()) }}" hx-trigger="tuition-receipts-changed from:body" hx-select="#tuition-list" hx-swap="outerHTML" hx-disinherit="*">
         @include('tuition.partials.due-groups')
 
         {{-- Toàn bộ khoản học phí (sổ công nợ) --}}
@@ -104,7 +107,7 @@
                                 <td class="whitespace-nowrap text-right">
                                     @if ($t->debt_amount > 0)
                                         @can('tuition.create')
-                                            <x-ui.button size="sm" icon="payments" :href="route('tuition.receipts.create', ['tuition_id' => $t->id])">Lập phiếu thu</x-ui.button>
+                                            <x-ui.button size="sm" icon="payments" :href="route('tuition.receipts.create', ['tuition_id' => $t->id])" modal="4xl">Lập phiếu thu</x-ui.button>
                                         @endcan
                                     @else
                                         <span class="inline-flex items-center gap-xs font-body-small text-body-small text-tertiary">

@@ -27,7 +27,7 @@
     <div class="grid grid-cols-1 items-start gap-lg lg:grid-cols-12" x-data="{ del: { url: '', name: '' } }">
         {{-- Danh sách ngày nghỉ --}}
         <section class="{{ $holiday && $canManage ? 'lg:col-span-8' : 'lg:col-span-12' }}">
-            <div id="holiday-list" hx-get="{{ route('holidays.index', request()->query()) }}" hx-trigger="holidays-changed from:body" hx-select="#holiday-list" hx-swap="outerHTML">
+            <div id="holiday-list" hx-get="{{ route('holidays.index', request()->query()) }}" hx-trigger="holidays-changed from:body" hx-select="#holiday-list" hx-swap="outerHTML" hx-disinherit="*">
                 <x-ui.data-table min-width="640px">
                     <x-slot:header>
                         <h2 class="font-h3 text-h3 text-on-surface">Danh sách ngày nghỉ</h2>

@@ -153,7 +153,7 @@
                 </ul>
                 @can('work_task.assign')
                     <x-ui.button variant="secondary" class="mt-md w-full" :href="route('portal.ta-tasks', ['date' => $date])">Xem tất cả trợ giảng</x-ui.button>
-                    <x-ui.button variant="ghost" icon="add" class="mt-xs w-full" :href="route('tasks.ta-assign')">Giao việc cho trợ giảng</x-ui.button>
+                    <x-ui.button variant="ghost" icon="add" class="mt-xs w-full" :href="route('tasks.ta-assign')" modal="4xl">Giao việc cho trợ giảng</x-ui.button>
                 @endcan
             </aside>
         </div>

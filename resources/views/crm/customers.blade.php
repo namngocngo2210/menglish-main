@@ -1,3 +1,5 @@
+{{-- Danh sách khách: Thêm / Sửa mở modal 2xl, Xem mở modal xem nhanh 3xl (đẩy URL chi tiết);
+     lưu xong server phát "crm-customers-changed" → #customer-list tự tải lại (giữ bộ lọc, trang hiện tại). --}}
 <x-app-layout>
     @include('crm.partials.header-tabs')
 
@@ -43,6 +45,7 @@
             </div>
         </form>
 
+        <div id="customer-list" hx-get="{{ route('crm.customers.index', request()->query()) }}" hx-trigger="crm-customers-changed from:body" hx-select="#customer-list" hx-swap="outerHTML" hx-disinherit="*">
         <x-ui.data-table min-width="1020px">
             <table>
                 <thead>
@@ -61,7 +64,8 @@
                     @forelse ($customers as $c)
                         <tr class="group">
                             <td class="whitespace-nowrap">
-                                <a href="{{ route('crm.customers.show', $c->id) }}" class="font-body-medium text-body-medium text-on-background transition hover:text-primary">{{ $c->name }}</a>
+                                <a href="{{ route('crm.customers.show', $c->id) }}" hx-get="{{ route('crm.customers.show', $c->id) }}" hx-target="#remote-modal-body" hx-swap="innerHTML" hx-push-url="true" data-modal-size="3xl"
+                                   class="font-body-medium text-body-medium text-on-background transition hover:text-primary">{{ $c->name }}</a>
                                 <div class="font-code text-caption text-on-surface-variant">{{ $c->code }}</div>
                             </td>
                             <td class="whitespace-nowrap font-code text-code text-on-surface-variant">{{ $c->phone }}</td>
@@ -86,9 +90,9 @@
                             </td>
                             <td class="whitespace-nowrap text-right">
                                 <div class="flex items-center justify-end gap-xs">
-                                    <x-ui.button variant="ghost" size="sm" icon="visibility" :href="route('crm.customers.show', $c->id)" title="Xem chi tiết" aria-label="Xem chi tiết" />
+                                    <x-ui.button variant="ghost" size="sm" icon="visibility" :href="route('crm.customers.show', $c->id)" modal="3xl" hx-push-url="true" title="Xem nhanh" aria-label="Xem nhanh" />
                                     @can('lead.update')
-                                        <x-ui.button variant="ghost" size="sm" icon="edit" :href="route('crm.customers.edit', $c->id)" title="Sửa thông tin" aria-label="Sửa thông tin" />
+                                        <x-ui.button variant="ghost" size="sm" icon="edit" :href="route('crm.customers.edit', $c->id)" modal="2xl" title="Sửa thông tin" aria-label="Sửa thông tin" />
                                     @endcan
                                     @can('lead.delete')
                                         @if ($c->stage !== \App\Models\CrmCustomer::STAGE_LOST)
@@ -115,6 +119,7 @@
                 <x-ui.pagination :paginator="$customers" unit="khách" />
             </x-slot:footer>
         </x-ui.data-table>
+        </div>
     </div>
 
     @push('scripts')

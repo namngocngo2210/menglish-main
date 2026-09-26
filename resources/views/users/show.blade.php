@@ -201,15 +201,17 @@
 
             {{-- Right 1 Col: Kiêm nhiệm giảng dạy & Phân quyền --}}
             <div class="space-y-6">
-                {{-- Kiêm nhiệm giảng dạy --}}
-                <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
+                {{-- Kiêm nhiệm giảng dạy — gán vai trò trong modal xong ("users-changed") khối này tự tải lại --}}
+                <div id="user-roles-card" class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4"
+                     hx-get="{{ route('users.show', $user) }}" hx-trigger="users-changed from:body" hx-select="#user-roles-card" hx-swap="outerHTML" hx-disinherit="*">
                     <div class="flex items-center justify-between border-b border-gray-100 pb-3">
                         <h3 class="text-sm font-bold text-gray-900 flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-purple-600 text-[18px]">co_present</span>
                             Kiêm nhiệm &amp; lớp phụ trách
                         </h3>
                         @can('user.assign_role')
-                            <a href="{{ route('users.roles.edit', $user) }}" class="text-[11px] text-primary-container font-bold hover:underline flex items-center gap-0.5">
+                            <a href="{{ route('users.roles.edit', $user) }}" hx-get="{{ route('users.roles.edit', $user) }}" hx-target="#remote-modal-body" hx-swap="innerHTML" data-modal-size="md"
+                               class="text-[11px] text-primary-container font-bold hover:underline flex items-center gap-0.5">
                                 <span class="material-symbols-outlined text-[14px]">add</span> Thêm
                             </a>
                         @endcan
@@ -256,7 +258,8 @@
                         </a>
                     @endcan
                     @can('user.assign_role')
-                        <a href="{{ route('users.roles.edit', $user) }}" class="w-full py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-800 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition">
+                        <a href="{{ route('users.roles.edit', $user) }}" hx-get="{{ route('users.roles.edit', $user) }}" hx-target="#remote-modal-body" hx-swap="innerHTML" data-modal-size="md"
+                           class="w-full py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-800 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition">
                             <span class="material-symbols-outlined text-[16px] text-purple-600">badge</span>
                             Gán vai trò chức vụ
                         </a>

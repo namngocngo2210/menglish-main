@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\CrmStageTransitionException;
 use App\Exports\ArrayExport;
+use App\Http\Concerns\RendersModals;
 use App\Models\BankAccount;
 use App\Models\Branch;
 use App\Models\ClassEnrollment;
@@ -46,6 +47,8 @@ use Spatie\Permission\Models\Role;
 
 class CrmController extends Controller
 {
+    use RendersModals;
+
     /**
      * Scope dữ liệu CRM (BA chốt):
      * - Admin: toàn bộ.
@@ -336,7 +339,8 @@ class CrmController extends Controller
             $leadSources = collect(CrmCustomer::DEFAULT_SOURCES);
         }
 
-        return view('crm.create', compact('branches', 'salesUsers', 'leadSources'));
+        // Mở từ Kanban / danh sách → modal (htmx); mở thẳng URL → trang đầy đủ.
+        return $this->modalView('crm.create', compact('branches', 'salesUsers', 'leadSources'));
     }
 
     public function storeCustomer(Request $request)
@@ -408,12 +412,19 @@ class CrmController extends Controller
             'content' => 'Thêm mới khách hàng vào hệ thống CRM qua form nhập liệu (Nguồn: '.($customer->source ?? 'Trực tiếp').').',
         ]);
 
-        return redirect()->route('crm.customers.show', $customer->id)
-            ->with('status', "Đã thêm khách hàng {$customer->name} ({$customer->code}) thành công vào Cơ sở dữ liệu!");
+        return $this->modalSaved(
+            "Đã thêm khách hàng {$customer->name} ({$customer->code}) thành công vào Cơ sở dữ liệu!",
+            'crm-customers-changed',
+            route('crm.customers.show', $customer->id),
+        );
     }
 
     public function showCustomer(Request $request, CrmStageService $stages, $id)
     {
+        if ($this->isModalRequest()) {
+            return $this->customerQuickView($request, $id);
+        }
+
         $customer = $this->scopeCustomerQuery()
             ->with(['branch', 'assignedUser', 'assignedTest', 'examiner', 'waitingCourse', 'waitingBranch', 'histories.user', 'submissions.test', 'submissions.grader', 'latestSubmission',
                 'trialBookings' => fn ($query) => $query->with(['session', 'classModel.course', 'feedbackBy'])->latest()])
@@ -457,8 +468,32 @@ class CrmController extends Controller
         $canReassign = $user->can('lead.assign');
         $reassignUsers = $canReassign ? $this->assignableUsers($customer->branch_id) : collect();
 
-        return view('crm.show', compact('customer', 'placementTests', 'examiners', 'latestSubmission', 'courses', 'branches', 'portalTestLink', 'canBookTrial', 'trialSessions', 'stageControls',
+        return $this->modalView('crm.show', compact('customer', 'placementTests', 'examiners', 'latestSubmission', 'courses', 'branches', 'portalTestLink', 'canBookTrial', 'trialSessions', 'stageControls',
             'histories', 'logType', 'rubric', 'statusCard', 'canReassign', 'reassignUsers', 'trialRemaining'));
+    }
+
+    /** Số dòng lịch sử chăm sóc hiện trong modal xem nhanh (đủ xem nhanh; toàn bộ ở trang đầy đủ). */
+    private const QUICK_VIEW_HISTORY_LIMIT = 5;
+
+    /**
+     * Modal xem nhanh khách (Kanban / danh sách): thông tin chính, vài dòng chăm sóc gần nhất, nút hành động.
+     * Cùng phạm vi dữ liệu với trang đầy đủ (scopeCustomerQuery → 404 nếu ngoài phạm vi); 3 truy vấn, không N+1.
+     */
+    protected function customerQuickView(Request $request, $id)
+    {
+        $customer = $this->scopeCustomerQuery()
+            ->with(['branch:id,name', 'assignedUser:id,name'])
+            ->where(fn (Builder $query) => $query->where('id', $id)->orWhere('code', $id))
+            ->firstOrFail();
+        $recentHistories = $customer->histories()->with('user:id,name')->limit(self::QUICK_VIEW_HISTORY_LIMIT)->get();
+        $user = $request->user();
+
+        return $this->modalView('crm.customers.quick-view', [
+            'customer' => $customer,
+            'recentHistories' => $recentHistories,
+            'canEdit' => $user->can('lead.update'),
+            'canClose' => $user->can('lead.convert') && in_array($customer->stage, CrmCustomer::CLOSABLE_STAGES, true),
+        ]);
     }
 
     /**
@@ -860,7 +895,9 @@ class CrmController extends Controller
             $leadSources = collect(CrmCustomer::DEFAULT_SOURCES);
         }
 
-        return view('crm.edit', compact('customer', 'branches', 'salesUsers', 'leadSources'));
+        $courseNames = Course::where('is_active', true)->orderBy('name')->pluck('name');
+
+        return $this->modalView('crm.edit', compact('customer', 'branches', 'salesUsers', 'leadSources', 'courseNames'));
     }
 
     /** Trường theo dõi khi sửa thông tin khách: cột => nhãn (ghi lịch sử trước / sau). */
@@ -950,8 +987,7 @@ class CrmController extends Controller
             throw ValidationException::withMessages(['phone' => 'Số điện thoại hoặc email này vừa được phiên khác sử dụng. Vui lòng kiểm tra lại.']);
         }
 
-        return redirect()->route('crm.customers.show', $customer->id)
-            ->with('status', 'Cập nhật thông tin khách hàng thành công!');
+        return $this->modalSaved('Cập nhật thông tin khách hàng thành công!', 'crm-customers-changed', route('crm.customers.show', $customer->id));
     }
 
     protected function fieldChanged(CrmCustomer $customer, string $field, mixed $new): bool

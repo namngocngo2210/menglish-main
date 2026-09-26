@@ -83,7 +83,7 @@
 
                         <div class="flex flex-col justify-center gap-sm bg-surface-container-low p-md" x-data="{ contact: false, report: false }">
                             @can('tuition.create')
-                                <x-ui.button size="sm" icon="payments" :href="route('tuition.receipts.create', ['tuition_id' => $ot->id])">Lập phiếu thu</x-ui.button>
+                                <x-ui.button size="sm" icon="payments" :href="route('tuition.receipts.create', ['tuition_id' => $ot->id])" modal="4xl">Lập phiếu thu</x-ui.button>
                             @endcan
                             @can('tuition.mark_contacted')
                                 <x-ui.button size="sm" variant="secondary" icon="call" @click="contact = ! contact">Xác nhận đã liên hệ</x-ui.button>
@@ -182,7 +182,7 @@
                             </td>
                             <td class="whitespace-nowrap text-right">
                                 @can('tuition.create')
-                                    <x-ui.button size="sm" variant="ghost" icon="receipt_long" :href="route('tuition.receipts.create', ['tuition_id' => $ot->id])">Lập phiếu thu</x-ui.button>
+                                    <x-ui.button size="sm" variant="ghost" icon="receipt_long" :href="route('tuition.receipts.create', ['tuition_id' => $ot->id])" modal="4xl">Lập phiếu thu</x-ui.button>
                                 @endcan
                                 @can('tuition.mark_contacted')
                                     <form method="POST" action="{{ route('tuition.overdue.upcoming-remind', $ot->id) }}" class="inline">

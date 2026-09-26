@@ -34,6 +34,8 @@ final class Htmx
      *   1. Quy ước resource: `x.store` → `x.create`, `x.update` → `x.edit`.
      *   2. Màn cha: `x.<hành động>` → `x` — luồng nhiều bước trên cùng 1 màn, vd. `crm.import.preview` / `crm.import.store`
      *      → `crm.import`, `tuition.import.store` → `tuition.import`.
+     *   3. Tài nguyên con trên màn chi tiết: `x.<con>.<hành động>` → `x.show`, vd. `tickets.messages.store` → `tickets.show`
+     *      (ô trả lời nằm trong modal xem ticket).
      * Action của route form được gọi ngay trong request hiện tại (cùng tham số route); lỗi + old input chỉ sống trong
      * request này (session()->now), không rò sang request sau.
      * Trả null (để Laravel xử lý như cũ: redirect back) khi: không phải htmx, không tìm được route form, route form cần
@@ -71,6 +73,7 @@ final class Htmx
         $candidates = array_filter([
             isset(self::FORM_ROUTE[$action]) ? implode('.', [...$segments, self::FORM_ROUTE[$action]]) : null,
             $segments ? implode('.', $segments) : null,
+            count($segments) >= 2 ? implode('.', [...array_slice($segments, 0, -1), 'show']) : null,
         ]);
 
         // Middleware route submit (đã chạy) phải bao trùm middleware route form → không vượt quyền khi render form.

@@ -5,6 +5,7 @@ namespace App\Http\Concerns;
 use App\Support\Htmx;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Render form/chi tiết trong modal (htmx) mà vẫn giữ trang đầy đủ khi mở trực tiếp URL.
@@ -15,6 +16,7 @@ use Illuminate\Http\Response;
  * View nhận biến `$asModal` (bool): true → chỉ render `<x-ui.modal-frame>` bọc form partial; false → trang `<x-app-layout>`.
  * Validate lỗi khi gọi từ modal: xử lý chung ở bootstrap/app.php (App\Support\Htmx::renderValidationForm) → 422 + form kèm lỗi.
  * Lỗi nghiệp vụ (không phải validate, vd. không xoá được vì đang dùng): modalFailed(). Kết thúc bằng chuyển trang: modalRedirect().
+ * Lỗi nghiệp vụ cần hiện lại form (thay `back()->withErrors()`): modalBack(). Cập nhật tại chỗ (vd. gửi phản hồi ticket): modalUpdated().
  */
 trait RendersModals
 {
@@ -32,12 +34,13 @@ trait RendersModals
     }
 
     /**
-     * Lưu thành công. htmx: 204 + HX-Trigger {close-modal, toast, <refreshEvent>}; thường: redirect + flash `status` như cũ.
+     * Lưu thành công. htmx: 204 + HX-Trigger {close-modal, toast, <refreshEvent>}; thường: redirect + flash `$flashKey` như cũ
+     * (mặc định `status`; module dùng `success` thì truyền 'success').
      */
-    protected function modalSaved(string $message, string $refreshEvent, string $fallbackUrl): Response|RedirectResponse
+    protected function modalSaved(string $message, string $refreshEvent, string $fallbackUrl, string $flashKey = 'status'): Response|RedirectResponse
     {
         if (! $this->isModalRequest()) {
-            return redirect($fallbackUrl)->with('status', $message);
+            return redirect($fallbackUrl)->with($flashKey, $message);
         }
 
         return response()->noContent()->header('HX-Trigger', json_encode([
@@ -71,5 +74,33 @@ trait RendersModals
         return $this->isModalRequest()
             ? response()->noContent()->header('HX-Redirect', $redirect->getTargetUrl())
             : $redirect;
+    }
+
+    /**
+     * Lỗi nghiệp vụ cần hiện lại form kèm lỗi (thay `redirect()->back()->withErrors($errors)`).
+     * htmx: ném ValidationException → bootstrap/app.php render lại form trong modal (422, giữ dữ liệu đã nhập);
+     * thường: back()->withErrors() như cũ (nối thêm ->withInput() nếu luồng cũ có).
+     *
+     * @param  array<string, string>  $errors
+     */
+    protected function modalBack(array $errors): RedirectResponse
+    {
+        if ($this->isModalRequest()) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        return back()->withErrors($errors);
+    }
+
+    /**
+     * Thao tác trong modal xong nhưng giữ modal mở với nội dung mới (vd. gửi phản hồi ticket → hội thoại cập nhật).
+     * Gắn HX-Trigger {toast, <refreshEvent>} vào fragment vừa render.
+     */
+    protected function modalUpdated(Response $fragment, string $message, ?string $refreshEvent = null): Response
+    {
+        return $fragment->header('HX-Trigger', json_encode(array_filter([
+            'toast' => ['message' => $message, 'type' => 'success'],
+            $refreshEvent => $refreshEvent ? true : null,
+        ])));
     }
 }

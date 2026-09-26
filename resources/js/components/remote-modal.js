@@ -7,6 +7,9 @@
  *     close-modal → đóng modal chứa phần tử gửi request (mặc định: mọi modal), toast → toast chung,
  *     sự kiện làm mới (vd. holidays-changed) → tự nổi lên body, vùng danh sách nghe bằng hx-trigger="... from:body".
  * - Server trả trang đầy đủ (không phải fragment, vd. hết phiên → trang đăng nhập) → chuyển hẳn sang trang đó.
+ * - Modal xem nhanh có URL riêng: nút mở thêm hx-push-url="true" → mở xong đẩy URL chi tiết lên thanh địa chỉ (copy link
+ *   gửi đồng nghiệp vẫn mở đúng trang đầy đủ). Back → đóng modal; đóng modal (X/Esc/lưu xong) → trả lại URL danh sách;
+ *   Forward → mở lại modal. htmx tắt lịch sử riêng (historyEnabled=false) nên phần này tự làm bằng history API.
  */
 import htmx from 'htmx.org';
 
@@ -22,6 +25,8 @@ htmx.config.responseHandling = [
 // Không dùng lịch sử htmx (không push URL) và HX-Request luôn nghĩa là "trả fragment".
 htmx.config.historyEnabled = false;
 htmx.config.historyRestoreAsHxRequest = false;
+// hx-push-url vẫn khiến htmx chụp DOM vào sessionStorage → tắt cache (URL do phần "Push URL" bên dưới xử lý).
+htmx.config.historyCacheSize = 0;
 
 const modalBody = () => document.getElementById(BODY_ID);
 const isRemoteTarget = (target) => target?.id === BODY_ID;
@@ -39,12 +44,20 @@ function focusFirstField(body) {
     el?.focus({ preventScroll: true });
 }
 
+// ── Push URL cho modal xem nhanh ──
+let pendingPush = null; // { url, size } chờ push khi nội dung tải xong
+let pushedUrl = null;   // modal đang giữ 1 mục lịch sử do mình push
+let reopenSize = null;  // cỡ modal khi mở lại bằng Forward
+
 // Mở modal khi request đến từ nút bên ngoài (request từ form bên trong modal thì giữ nguyên nội dung).
 document.addEventListener('htmx:beforeRequest', (e) => {
     const body = modalBody();
     if (!isRemoteTarget(e.detail.target) || body?.contains(e.detail.elt)) return;
+    const size = e.detail.elt.dataset?.modalSize ?? reopenSize;
+    reopenSize = null;
+    pendingPush = e.detail.elt.getAttribute?.('hx-push-url') === 'true' ? { url: e.detail.requestConfig.path, size } : null;
     showSkeleton();
-    openModal('remote', e.detail.elt.dataset.modalSize);
+    openModal('remote', size);
 });
 
 // Form boost: đọc action lúc gửi (action có thể đổi bằng Alpine :action, vd. modal xác nhận xoá dùng chung).
@@ -66,7 +79,27 @@ document.addEventListener('htmx:beforeSwap', (e) => {
 });
 
 document.addEventListener('htmx:afterSwap', (e) => {
-    if (isRemoteTarget(e.detail.target)) focusFirstField(e.detail.target);
+    if (!isRemoteTarget(e.detail.target)) return;
+    focusFirstField(e.detail.target);
+    if (pendingPush && e.detail.xhr.status < 300) {
+        history.pushState({ remoteModal: pendingPush.url, size: pendingPush.size }, '', pendingPush.url);
+        pushedUrl = pendingPush.url;
+    }
+    pendingPush = null;
+});
+
+// Back khi modal xem nhanh đang mở → đóng modal; Forward tới URL modal → mở lại.
+window.addEventListener('popstate', (e) => {
+    if (pushedUrl) {
+        pushedUrl = null;
+        window.dispatchEvent(new CustomEvent('close-modal', { detail: 'remote' }));
+        return;
+    }
+    const url = e.state?.remoteModal;
+    if (!url) return;
+    reopenSize = e.state.size ?? null;
+    pushedUrl = url;
+    htmx.ajax('GET', url, { target: '#' + BODY_ID, swap: 'innerHTML' });
 });
 
 document.addEventListener('htmx:responseError', (e) => {
@@ -97,6 +130,12 @@ document.addEventListener('close-modal', (e) => {
 // Đóng xong thì dọn nội dung (form cũ không còn nằm trong DOM, lần mở sau luôn tải mới).
 window.addEventListener('modal-closed', (e) => {
     if (e.detail !== 'remote') return;
+    pendingPush = null;
+    // Đóng bằng X / Esc / lưu xong → bỏ mục lịch sử đã push (URL quay về danh sách).
+    if (pushedUrl) {
+        pushedUrl = null;
+        if (history.state?.remoteModal) history.back();
+    }
     setTimeout(() => {
         const host = document.querySelector('[data-modal="remote"]');
         if (host && !window.Alpine?.$data(host).show) modalBody()?.replaceChildren();

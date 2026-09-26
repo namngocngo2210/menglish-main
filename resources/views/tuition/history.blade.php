@@ -100,6 +100,8 @@
     @endif
 
     <div x-data="{ detail: null, printing: null, rows: @js($rows), open(id) { this.detail = this.rows[id]; }, print(id) { this.printing = this.rows[id]; this.$nextTick(() => window.print()); } }">
+        {{-- Sửa phiếu nháp / bị trả về mở modal 4xl; lưu xong "tuition-receipts-changed" tải lại bảng (giữ bộ lọc) --}}
+        <div id="receipt-history" hx-get="{{ route('tuition.history', request()->query()) }}" hx-trigger="tuition-receipts-changed from:body" hx-select="#receipt-history" hx-swap="outerHTML" hx-disinherit="*">
         <x-ui.data-table min-width="1100px">
             <table>
                 <thead>
@@ -152,7 +154,7 @@
                                 <x-ui.button size="sm" variant="ghost" icon="print" @click="print({{ $rc->id }})" title="In phiếu thu" aria-label="In phiếu thu" />
                                 @if (in_array($rc->status, \App\Models\TuitionReceipt::EDITABLE_STATUSES, true)
                                     && ((int) $rc->creator_id === (int) auth()->id() || auth()->user()?->isSuperAdmin()))
-                                    <x-ui.button size="sm" variant="ghost" icon="edit" :href="route('tuition.receipts.edit', $rc->id)" title="Sửa phiếu nháp / bị trả về rồi gửi duyệt lại" aria-label="Sửa phiếu" />
+                                    <x-ui.button size="sm" variant="ghost" icon="edit" :href="route('tuition.receipts.edit', $rc->id)" modal="4xl" title="Sửa phiếu nháp / bị trả về rồi gửi duyệt lại" aria-label="Sửa phiếu" />
                                 @endif
                             </td>
                         </tr>
@@ -165,6 +167,7 @@
                 <x-ui.pagination :paginator="$receipts" unit="phiếu thu" />
             </x-slot:footer>
         </x-ui.data-table>
+        </div>
 
         {{-- Chi tiết phiếu thu (ngăn bên phải) --}}
         <div x-show="detail" x-cloak class="fixed inset-0 z-50 flex justify-end print:hidden" role="dialog" aria-modal="true" aria-label="Chi tiết phiếu thu">
