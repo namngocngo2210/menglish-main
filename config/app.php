@@ -16,6 +16,12 @@ return [
     'name' => env('APP_NAME', 'Laravel'),
 
     /*
+     * Token cho hook chạy lệnh sau deploy trên shared hosting (DeployHookController).
+     * Để trống = tắt hook. Tối thiểu 32 ký tự, sinh ngẫu nhiên.
+     */
+    'deploy_hook_token' => env('DEPLOY_HOOK_TOKEN'),
+
+    /*
     | Thông tin trung tâm in trên phiếu thu / bảng điểm. Có thể ghi đè trong
     | system_settings (center_name, center_phone, center_tax_code, center_website).
     | Địa chỉ in theo danh sách chi nhánh đang hoạt động (bảng branches).
