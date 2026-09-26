@@ -1,29 +1,24 @@
-<x-app-layout hide-errors>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('tuition.students') }}" class="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span>{{ $editingReceipt ? 'Sửa phiếu thu học phí' : 'Lập phiếu thu học phí' }}</span>
-                    </h1>
-                    <p class="text-xs text-gray-500">Quy trình lập, đối soát thanh toán và xuất hóa đơn/biên lai học viên</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border {{ $editingReceipt ? $editingReceipt->status_badge : 'bg-amber-50 text-amber-700 border-amber-200' }}">
-                    <span class="material-symbols-outlined text-[14px] mr-1">edit_document</span>
-                    {{ $editingReceipt ? $editingReceipt->status_label : 'Phiếu mới' }}
-                </span>
-                <div class="bg-white px-3 py-1 rounded-xl border border-gray-200 text-xs shadow-xs">
-                    <span class="text-gray-400 font-semibold uppercase text-[10px]">Mã phiếu:</span>
-                    <span class="font-mono font-bold text-primary ml-1">{{ $nextReceiptNumber }}</span>
-                </div>
-            </div>
-        </div>
-    </x-slot>
+{{-- Mockup: ui-full-tinh-nang-menglish/hoc-phi-va-hoa-don-ui-mockup/lap-phieu-thu-hoc-phi --}}
+<x-app-layout :title="$editingReceipt ? 'Sửa phiếu thu học phí' : 'Lập phiếu thu học phí'" hide-errors>
+    <x-ui.page-header :title="$editingReceipt ? 'Sửa phiếu thu học phí' : 'Lập phiếu thu học phí'"
+                      description="Quy trình lập, đối soát thanh toán và xuất hóa đơn/biên lai học viên">
+        <x-slot:breadcrumbs>
+            <a href="{{ route('tuition.students') }}" class="hover:text-primary">Danh sách thu phí</a>
+            <span class="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
+            <span>{{ $editingReceipt ? 'Sửa phiếu thu' : 'Lập phiếu thu' }}</span>
+        </x-slot:breadcrumbs>
+        <x-slot:actions>
+            @if ($editingReceipt)
+                <x-ui.badge :color="$editingReceipt->status === 'rejected' ? 'error' : 'warning'">{{ $editingReceipt->status_label }}</x-ui.badge>
+            @else
+                <x-ui.badge color="warning">Bản nháp</x-ui.badge>
+            @endif
+            <span class="rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-body-small text-body-small">
+                <span class="font-label text-label uppercase text-on-surface-variant">Mã phiếu:</span>
+                <span class="ml-xs font-code text-code text-primary">{{ $nextReceiptNumber }}</span>
+            </span>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     @include('tuition.partials.errors')
 
@@ -51,7 +46,10 @@
                 'remaining_sessions' => $tuitionMeta[$t->id]['sessions']['remaining'] ?? null,
                 'is_deferred' => $t->student?->status === 'deferred',
                 'bank' => $tuitionMeta[$t->id]['bank'] ?? null,
-                'fee_items' => $t->fee_items ?? [],
+                'fee_items' => collect($t->fee_items ?? [])->map(fn ($i) => ['name' => (string) ($i['name'] ?? 'Khoản thu khác'), 'amount' => (float) ($i['amount'] ?? 0)])->values(),
+                // Học viên đã chuyển sang lớp khác so với lớp của khoản học phí → banner "Học viên vừa chuyển lớp mới".
+                'class_changed' => $t->class_id && $t->student?->current_class_id && (int) $t->class_id !== (int) $t->student->current_class_id,
+                'current_class_name' => $t->student?->currentClass?->name,
                 'receipt_count' => $t->receipts ? $t->receipts->count() : 0,
             ];
         });
@@ -137,6 +135,14 @@
                     </div>
                 </div>
             @endif
+
+            <div x-show="currentTuition?.class_changed && !skipTuition" x-cloak class="bg-blue-50/70 border-l-4 border-blue-500 p-4 rounded-r-xl shadow-xs flex items-start gap-3">
+                <span class="material-symbols-outlined text-blue-600 text-xl shrink-0 mt-0.5">info</span>
+                <div class="text-xs text-blue-900 space-y-0.5">
+                    <h4 class="font-bold">Học viên vừa chuyển lớp mới</h4>
+                    <p class="text-blue-800">Khoản học phí này thuộc lớp <strong x-text="currentTuition?.class_name"></strong>, học viên đang học lớp <strong x-text="currentTuition?.current_class_name"></strong>. Hệ thống ghi nhận thay đổi lộ trình — chỉ cần thu phần còn thiếu của khoản học phí (công nợ hiện tại).</p>
+                </div>
+            </div>
 
             <div class="bg-blue-50/70 border-l-4 border-blue-500 p-4 rounded-r-xl shadow-xs flex items-start gap-3">
                 <span class="material-symbols-outlined text-blue-600 text-xl shrink-0 mt-0.5">info</span>
@@ -282,7 +288,13 @@
                                 <span class="text-slate-600" x-text="'Học phí khóa / lớp ' + (currentTuition?.class_name || '—')"></span>
                                 <span class="font-mono font-bold text-slate-900" x-text="formatVND(currentTuition?.total_amount || 0)"></span>
                             </div>
-                            <div class="flex justify-between py-1.5 border-b border-dashed border-slate-200" x-show="currentTuition?.other_fees > 0">
+                            <template x-for="(item, idx) in (currentTuition?.fee_items || [])" :key="idx">
+                                <div class="flex justify-between py-1.5 border-b border-dashed border-slate-200">
+                                    <span class="text-slate-600" x-text="item.name"></span>
+                                    <span class="font-mono font-bold text-slate-900" x-text="formatVND(item.amount)"></span>
+                                </div>
+                            </template>
+                            <div class="flex justify-between py-1.5 border-b border-dashed border-slate-200" x-show="currentTuition?.other_fees > 0 && !(currentTuition?.fee_items || []).length">
                                 <span class="text-slate-600">Phí học liệu &amp; khoản thu khác</span>
                                 <span class="font-mono font-bold text-slate-900" x-text="formatVND(currentTuition?.other_fees || 0)"></span>
                             </div>
@@ -567,7 +579,7 @@
                     <!-- Ghi chú nội bộ -->
                     <div class="space-y-1 text-xs">
                         <label class="font-bold text-slate-700 uppercase tracking-wider block">Ghi chú nội bộ</label>
-                        <textarea name="notes" rows="3" placeholder="Nhập ghi chú quan trọng cho bộ phận kế toán và quản lý lớp..." class="w-full rounded-xl border border-slate-200 focus:border-primary-container focus:ring-primary-container/20 p-3 text-xs text-slate-800">{{ old('notes', $editingReceipt?->notes ?? 'Phụ huynh nộp thanh toán học phí & phụ thu qua cổng MEnglish.') }}</textarea>
+                        <textarea name="notes" rows="3" placeholder="Nhập ghi chú quan trọng cho bộ phận kế toán và quản lý lớp..." class="w-full rounded-xl border border-slate-200 focus:border-primary-container focus:ring-primary-container/20 p-3 text-xs text-slate-800">{{ old('notes', $editingReceipt?->notes) }}</textarea>
                     </div>
                 </div>
             </div>
@@ -738,11 +750,9 @@
                     this.skipTuition = val;
                 },
 
+                // Gợi ý nhanh chỉ điền số tiền; lý do phụ thu người lập phải tự nhập (không điền sẵn nội dung).
                 setSurcharge(val) {
                     this.surchargeAmount = val;
-                    if (!this.surchargeReason) {
-                        this.surchargeReason = 'Phụ thu giáo trình & học liệu bổ sung';
-                    }
                 },
 
                 get tuitionSubtotal() {
