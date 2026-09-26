@@ -355,12 +355,16 @@ class UiSweepTest extends TestCase
             ->assertOk()->assertDontSee('Khách Tìm Kiếm A')->assertDontSee('Học viên Tìm Kiếm A');
     }
 
-    public function test_topbar_has_global_search_and_quick_create(): void
+    public function test_topbar_has_global_search_and_no_quick_create(): void
     {
-        $this->actingAs($this->admin)->get(route('dashboard'))
-            ->assertOk()
-            ->assertSee('action="'.route('search').'"', false)
-            ->assertSee('Tạo mới');
+        $html = $this->actingAs($this->admin)->get(route('dashboard'))->assertOk()->getContent();
+        $topbar = substr($html, strpos($html, '<header class="sticky'), strpos($html, '</header>') - strpos($html, '<header class="sticky'));
+
+        $this->assertStringContainsString('action="'.route('search').'"', $topbar);
+        $this->assertStringNotContainsString('Tạo mới', $topbar);
+        // Nội dung slot header (tiêu đề + nút) nằm trong trang, topbar chỉ còn tiêu đề chữ thuần.
+        $this->assertStringContainsString('data-topbar-title>Bảng Điều Khiển Trung Tâm — MEnglish Admin<', $topbar);
+        $this->assertStringContainsString('data-page-header', $html);
     }
 
     public function test_sidebar_menu_has_no_duplicate_labels(): void

@@ -1,15 +1,27 @@
 {{--
     Layout ứng dụng (App Shell theo mockup crm-ui-mockup/app-shell-layout).
     Dùng: <x-app-layout title="Tiêu đề trang"> ... </x-app-layout>
-      - slot `header` (tuỳ chọn): nội dung tiêu đề trên topbar (mặc định = title).
+      - Topbar chỉ gồm: tiêu đề trang (chữ thuần) · tìm kiếm chung · thông báo · tài khoản.
+      - slot `header` (tuỳ chọn): khối tiêu đề + nút hành động của trang, hiển thị ở ĐẦU NỘI DUNG (không trên topbar).
       - thuộc tính `title`: <title> của tab trình duyệt + tiêu đề topbar.
+        Không có `title` → lấy chữ của thẻ h1/h2 đầu tiên trong slot `header` → tên workspace hiện tại → "MEnglish".
       - thuộc tính `hide-errors`: tắt alert lỗi validate toàn cục (khi trang tự hiển thị danh sách lỗi).
 --}}
 @php
     $pageTitle = $attributes->get('title');
     $currentUser = Auth::user();
     $menu = app(\App\Support\Navigation\SidebarMenu::class);
-    $quickCreate = $menu->quickCreateFor($currentUser);
+    // Tiêu đề topbar (chữ thuần): title → h1/h2 đầu tiên của slot header (bỏ chữ icon) → tên workspace.
+    $topbarTitle = $pageTitle;
+    if (! $topbarTitle && isset($header)) {
+        $headerHtml = preg_replace('/<span[^>]*material-symbols[^>]*>.*?<\/span>/su', '', (string) $header);
+        if (preg_match('/<h[12][^>]*>(.*?)<\/h[12]>/su', $headerHtml, $m)) {
+            $topbarTitle = trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($m[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+        }
+    }
+    if (! $topbarTitle && $currentUser) {
+        $topbarTitle = $menu->workspaceFor($currentUser, request())['label'] ?? null;
+    }
     // Ô tìm kiếm chung: tên màn hình + khách CRM / học viên / lớp (trang /search tự lọc theo quyền từng nhóm).
     $canGlobalSearch = $currentUser && Route::has('search');
     // Trang cấu hình / danh mục: bọc bằng menu con Cài đặt (URL cũ giữ nguyên).
@@ -49,13 +61,7 @@
                             <span class="material-symbols-outlined">menu</span>
                         </button>
 
-                        <div class="min-w-0 truncate font-h3 text-h3 text-on-surface">
-                            @isset($header)
-                                {{ $header }}
-                            @else
-                                {{ $pageTitle ?? 'MEnglish' }}
-                            @endisset
-                        </div>
+                        <div class="min-w-0 truncate font-h3 text-h3 text-on-surface" data-topbar-title>{{ $topbarTitle ?: 'MEnglish' }}</div>
 
                         @if ($canGlobalSearch)
                             <form method="GET" action="{{ route('search') }}" role="search" class="relative hidden w-[300px] shrink-0 lg:block">
@@ -146,28 +152,6 @@
                             </x-slot>
                         </x-dropdown>
 
-                        {{-- Tạo mới --}}
-                        @if ($quickCreate !== [])
-                            <x-dropdown align="right" width="56">
-                                <x-slot name="trigger">
-                                    <button type="button" class="inline-flex shrink-0 items-center gap-xs whitespace-nowrap rounded-lg bg-primary-container px-sm py-2 font-body-medium text-body-medium text-white shadow-md shadow-primary-container/20 transition-colors hover:bg-primary sm:px-md" aria-haspopup="menu">
-                                        <span class="material-symbols-outlined text-[20px]">add</span>
-                                        <span class="hidden sm:inline">Tạo mới</span>
-                                    </button>
-                                </x-slot>
-                                <x-slot name="content">
-                                    <div class="py-xs" role="menu">
-                                        @foreach ($quickCreate as $qc)
-                                            <a href="{{ $qc['url'] }}" role="menuitem" class="flex items-center gap-sm px-md py-sm font-body-medium text-body-medium text-on-surface transition-colors hover:bg-surface-container-low hover:text-primary">
-                                                <span class="material-symbols-outlined text-[20px] text-on-surface-variant">{{ $qc['icon'] }}</span>
-                                                {{ $qc['label'] }}
-                                            </a>
-                                        @endforeach
-                                    </div>
-                                </x-slot>
-                            </x-dropdown>
-                        @endif
-
                         {{-- Tài khoản --}}
                         <x-dropdown align="right" width="56">
                             <x-slot name="trigger">
@@ -202,6 +186,11 @@
 
                 {{-- Nội dung trang --}}
                 <main class="flex-1 p-md lg:p-lg">
+                    {{-- Khối tiêu đề + nút hành động của trang (slot header) --}}
+                    @isset($header)
+                        <div class="mb-lg" data-page-header>{{ $header }}</div>
+                    @endisset
+
                     {{-- Tab của workspace: trang tự đặt <x-ui.workspace-tabs> thì không chèn lại --}}
                     @unless (request()->attributes->get('workspace_tabs_rendered'))
                         <x-ui.workspace-tabs />
