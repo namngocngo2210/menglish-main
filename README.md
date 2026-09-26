@@ -190,3 +190,8 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+
+## Deploy lên hosting DirectAdmin
+
+Xem [docs/deploy-directadmin.md](docs/deploy-directadmin.md): deploy bằng GitHub Actions (workflow *Deploy hosting (DirectAdmin)*) qua FTP, không cần SSH.
