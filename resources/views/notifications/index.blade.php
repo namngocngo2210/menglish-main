@@ -1,12 +1,12 @@
 <x-app-layout>
-    <x-slot name="header">
+    @include('crm.partials.header-tabs')
+
+    <div class="space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    <span class="material-symbols-outlined text-rose-600">notifications_active</span>
-                    Trung Tâm Cảnh Báo &amp; Thông Báo Quản Trị
-                </h1>
-            </div>
+            <h2 class="text-lg font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                <span class="material-symbols-outlined text-rose-600">notifications_active</span>
+                Trung Tâm Cảnh Báo &amp; Thông Báo Quản Trị
+            </h2>
             <div class="flex items-center gap-2">
                 <form action="{{ route('notifications.scan') }}" method="POST" class="inline">
                     @csrf
@@ -24,9 +24,7 @@
                 </form>
             </div>
         </div>
-    </x-slot>
 
-    <div class="space-y-6">
         {{-- Stats Widgets --}}
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
