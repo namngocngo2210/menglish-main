@@ -4,7 +4,8 @@
       - Topbar chỉ gồm: tiêu đề trang (chữ thuần) · tìm kiếm chung · thông báo · tài khoản.
       - slot `header` (tuỳ chọn): khối tiêu đề + nút hành động của trang, hiển thị ở ĐẦU NỘI DUNG (không trên topbar).
       - thuộc tính `title`: <title> của tab trình duyệt + tiêu đề topbar.
-        Không có `title` → lấy chữ của thẻ h1/h2 đầu tiên trong slot `header` → tên workspace hiện tại → "MEnglish".
+        Không có `title` → tiêu đề của <x-ui.page-header> trong trang → h1/h2 đầu tiên của slot `header` (cũ)
+        → tên workspace hiện tại → "MEnglish". Trang mới: dùng <x-ui.page-header>, không dùng slot `header`.
       - thuộc tính `hide-errors`: tắt alert lỗi validate toàn cục (khi trang tự hiển thị danh sách lỗi).
 --}}
 @php
@@ -12,7 +13,7 @@
     $currentUser = Auth::user();
     $menu = app(\App\Support\Navigation\SidebarMenu::class);
     // Tiêu đề topbar (chữ thuần): title → h1/h2 đầu tiên của slot header (bỏ chữ icon) → tên workspace.
-    $topbarTitle = $pageTitle;
+    $topbarTitle = $pageTitle ?: request()->attributes->get('page_title');
     if (! $topbarTitle && isset($header)) {
         $headerHtml = preg_replace('/<span[^>]*material-symbols[^>]*>.*?<\/span>/su', '', (string) $header);
         if (preg_match('/<h[12][^>]*>(.*?)<\/h[12]>/su', $headerHtml, $m)) {
