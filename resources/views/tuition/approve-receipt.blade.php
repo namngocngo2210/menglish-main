@@ -1,26 +1,22 @@
-<x-app-layout hide-errors>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('tuition.students') }}" class="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-900 transition">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div class="flex items-center gap-2 text-xs text-slate-500 font-medium">
-                    <a href="{{ route('tuition.students') }}" class="hover:text-primary transition">Học phí &amp; Hóa đơn</a>
-                    <span class="material-symbols-outlined text-xs text-slate-300">chevron_right</span>
-                    <span class="text-slate-900 font-bold">Duyệt phiếu thu học phí</span>
-                </div>
-            </div>
-            <a href="{{ route('tuition.receipts.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary-container hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-xs transition">
-                <span class="material-symbols-outlined text-[18px]">add_circle</span>
-                <span>Lập phiếu thu mới</span>
-            </a>
-        </div>
-    </x-slot>
+{{-- Mockup: ui-full-tinh-nang-menglish/hoc-phi-va-hoa-don-ui-mockup/duyet-phieu-thu-hoc-phi --}}
+<x-app-layout title="Duyệt phiếu thu học phí" hide-errors>
+    <x-ui.page-header title="Duyệt phiếu thu học phí" description="Kiểm tra, đối chiếu chứng từ và phê duyệt các phiếu thu học phí & phụ thu từ nhân viên tư vấn/học vụ">
+        <x-slot:breadcrumbs>
+            <a href="{{ route('tuition.students') }}" class="hover:text-primary">Học phí &amp; Hóa đơn</a>
+            <span class="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
+            <span>Duyệt phiếu thu</span>
+        </x-slot:breadcrumbs>
+        <x-slot:actions>
+            @can('tuition.create')
+                <x-ui.button icon="add_circle" :href="route('tuition.receipts.create')">Lập phiếu thu mới</x-ui.button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
     @include('tuition.partials.errors')
 
-    <div class="max-w-[1520px] mx-auto space-y-5" x-data="{ showApproveModal: false, showRejectModal: false, zoomImage: false }">
+    <div class="max-w-[1520px] mx-auto space-y-5" x-data="{ showApproveModal: false, showRejectModal: false, zoomImage: false }"
+         x-init="setInterval(() => { if (! showApproveModal && ! showRejectModal && ! zoomImage && document.visibilityState === 'visible' && ! document.querySelector('input:focus, textarea:focus')) window.location.reload(); }, 90000)">
 
         @if (isset($errors) && $errors->any())
             <div class="p-4 bg-rose-50 border-l-4 border-rose-500 rounded-r-xl text-xs text-rose-800 space-y-1 shadow-xs">
@@ -40,13 +36,13 @@
         <header class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 space-y-4">
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
-                    <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-                        <span>Duyệt phiếu thu học phí</span>
+                    <h2 class="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-3">
+                        <span>Hàng đợi duyệt</span>
                         <span class="text-xs font-semibold px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200/80 rounded-full inline-flex items-center gap-1.5">
                             <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
                             {{ $pendingCount }} phiếu chờ xử lý
                         </span>
-                    </h1>
+                    </h2>
                     <p class="text-xs text-slate-500 mt-1">
                         Kiểm tra, đối chiếu chứng từ và phê duyệt các phiếu thu học phí &amp; phụ thu từ nhân viên tư vấn/học vụ
                     </p>
@@ -61,7 +57,7 @@
                         </div>
                         <div>
                             <div class="text-[10px] font-bold text-amber-700 uppercase">Chờ duyệt</div>
-                            <div class="text-sm font-bold leading-tight">{{ $pendingCount }} phiếu <span class="text-[11px] font-mono text-amber-800 font-normal">({{ number_format((float)$pendingTotal) }} VNĐ)</span></div>
+                            <div class="text-sm font-bold leading-tight">{{ $pendingCount }} phiếu <span class="text-[11px] font-mono text-amber-800 font-normal">({{ number_format((float) $pendingTotal, 0, ',', '.') }} VNĐ)</span></div>
                         </div>
                     </div>
 
@@ -152,7 +148,7 @@
                     </div>
                     <span class="text-[11px] text-slate-400 flex items-center gap-1">
                         <span class="material-symbols-outlined text-xs">autorenew</span>
-                        Tự động làm mới
+                        Tự động làm mới (90 giây)
                     </span>
                 </div>
 
@@ -199,7 +195,7 @@
                                     </p>
                                 </div>
                                 <div class="text-right">
-                                    <div class="text-sm font-bold font-mono {{ $isSelected ? 'text-primary' : 'text-slate-900' }}">{{ number_format($rc->amount) }} đ</div>
+                                    <div class="text-sm font-bold font-mono {{ $isSelected ? 'text-primary' : 'text-slate-900' }}">{{ number_format((float) $rc->amount, 0, ',', '.') }} đ</div>
                                     <div class="text-[10px] text-slate-400">{{ $branch?->name ?? 'Trụ sở chính' }}</div>
                                 </div>
                             </div>
@@ -210,6 +206,11 @@
                                     Người tạo: <strong class="text-slate-700">{{ $rc->creator?->name ?? 'CM' }}</strong>
                                 </span>
 
+                                @if ($rc->proof_image)
+                                    <span class="flex items-center gap-0.5 text-[10px] text-slate-500"><span class="material-symbols-outlined text-xs">attach_file</span>Có minh chứng</span>
+                                @elseif ($rc->paper_invoice_number)
+                                    <span class="text-[10px] text-slate-500">Biên lai số {{ $rc->paper_invoice_number }}</span>
+                                @endif
                                 @if ($isSelected)
                                     <span class="text-primary text-[11px] font-bold flex items-center gap-0.5">
                                         Đang xem
@@ -345,16 +346,17 @@
                                         <tbody class="divide-y divide-slate-100">
                                             <tr>
                                                 <td class="py-3 px-4 font-semibold text-slate-900">
-                                                    Học phí đào tạo
-                                                </td>
-                                                <td class="py-3 px-4 text-slate-600">
-                                                    Khóa {{ $tClass }}
-                                                    @if (($selectedReceipt->discount_amount ?? 0) > 0)
-                                                        (Đã áp dụng giảm trừ Voucher Ưu đãi {{ number_format((float)$selectedReceipt->discount_amount) }} đ)
+                                                    Học phí
+                                                    @if ($selectedReceipt->tuition?->due_date)
+                                                        <span class="block text-[11px] font-normal text-slate-500">(Hạn {{ $selectedReceipt->tuition->due_date->format('d/m/Y') }})</span>
                                                     @endif
                                                 </td>
+                                                <td class="py-3 px-4 text-slate-600">
+                                                    {{ $selectedReceipt->tuition?->fee_label ?? 'Không gắn khoản học phí (chỉ phụ thu)' }}
+                                                    (Đã miễn giảm {{ number_format((float) ($selectedReceipt->discount_amount ?? 0), 0, ',', '.') }} đ)
+                                                </td>
                                                 <td class="py-3 px-4 font-bold font-mono text-slate-900 text-right">
-                                                    {{ number_format((float)($selectedReceipt->tuition_amount ?: ($selectedReceipt->amount - ($selectedReceipt->surcharge_amount ?? 0)))) }} đ
+                                                    {{ number_format($selectedReceipt->tuitionPortion(), 0, ',', '.') }} đ
                                                 </td>
                                             </tr>
 
@@ -365,10 +367,10 @@
                                                         Phụ thu phát sinh
                                                     </td>
                                                     <td class="py-3 px-4 text-amber-800">
-                                                        {{ $selectedReceipt->surcharge_reason ?: 'Phụ thu giáo trình / học liệu' }}
+                                                        {{ $selectedReceipt->surcharge_reason ?: '—' }}
                                                     </td>
                                                     <td class="py-3 px-4 font-bold font-mono text-amber-900 text-right">
-                                                        + {{ number_format((float)$selectedReceipt->surcharge_amount) }} đ
+                                                        + {{ number_format((float) $selectedReceipt->surcharge_amount, 0, ',', '.') }} đ
                                                     </td>
                                                 </tr>
                                             @endif
@@ -379,7 +381,7 @@
                                                     TỔNG SỐ TIỀN THỰC THU
                                                 </td>
                                                 <td class="py-3.5 px-4 text-right">
-                                                    <span class="text-base font-bold font-mono text-primary">{{ number_format((float)$selectedReceipt->amount) }} VNĐ</span>
+                                                    <span class="text-base font-bold font-mono text-primary">{{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} VNĐ</span>
                                                 </td>
                                             </tr>
                                         </tfoot>
@@ -391,9 +393,7 @@
                                     <div class="p-3.5 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
                                         <span class="text-[10px] font-bold text-slate-500 uppercase block">Trạng thái đối soát &amp; Hóa đơn VAT</span>
                                         <div class="flex items-center gap-2 flex-wrap">
-                                            <span class="inline-flex items-center font-bold px-2.5 py-1 rounded border text-xs {{ $selectedReceipt->status_badge }}">
-                                                {{ $selectedReceipt->status_label }}
-                                            </span>
+                                            <x-ui.badge :color="$reconciliation['tone'] ?? 'neutral'">{{ $reconciliation['label'] ?? '—' }}</x-ui.badge>
                                             @if ($selectedReceipt->is_vat_invoice)
                                                 <span class="inline-flex items-center text-blue-700 font-bold bg-blue-50 px-2.5 py-1 rounded border border-blue-200 text-xs">
                                                     Yêu cầu hóa đơn đỏ (VAT)
@@ -409,7 +409,7 @@
                                     <div class="p-3.5 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
                                         <span class="text-[10px] font-bold text-slate-500 uppercase block">Ghi chú từ nhân viên tạo phiếu (CM)</span>
                                         <p class="text-slate-700 italic text-xs leading-relaxed">
-                                            "{{ $selectedReceipt->notes ?: 'Phụ huynh nộp thanh toán đúng số tiền và thông tin đối soát.' }}"
+                                            {{ $selectedReceipt->notes ? '"'.$selectedReceipt->notes.'"' : 'Không có ghi chú.' }}
                                         </p>
                                     </div>
                                 </div>
@@ -466,17 +466,17 @@
                                             </div>
                                             <div class="flex items-center justify-between">
                                                 <span class="text-slate-400">Tài khoản thụ hưởng:</span>
-                                                <span class="font-medium text-slate-200">{{ $selectedReceipt->tuition?->bankAccount ? $selectedReceipt->tuition->bankAccount->account_number.' ('.$selectedReceipt->tuition->bankAccount->bank_name.')' : '—' }}</span>
+                                                <span class="font-medium text-slate-200">{{ $beneficiaryAccount ? $beneficiaryAccount->account_number.' ('.$beneficiaryAccount->bank_name.')' : '—' }}</span>
                                             </div>
                                             <div class="flex items-center justify-between">
                                                 <span class="text-slate-400">Thời gian giao dịch:</span>
-                                                <span class="text-slate-200 font-mono">{{ $selectedReceipt->created_at?->format('H:i - d/m/Y') ?? now()->format('H:i - d/m/Y') }}</span>
+                                                <span class="text-slate-200 font-mono">{{ $selectedReceipt->payment_date?->format('H:i - d/m/Y') ?? '—' }}</span>
                                             </div>
                                             <div class="flex items-center justify-between">
                                                 <span class="text-slate-400">Trạng thái đối soát:</span>
-                                                <span class="text-amber-400 font-bold flex items-center gap-1 text-xs">
-                                                    <span class="material-symbols-outlined text-sm">pending</span>
-                                                    Cần đối chiếu thủ công
+                                                <span @class(['font-bold flex items-center gap-1 text-xs', 'text-emerald-400' => ($reconciliation['tone'] ?? '') === 'success', 'text-rose-400' => ($reconciliation['tone'] ?? '') === 'error', 'text-amber-400' => ! in_array($reconciliation['tone'] ?? '', ['success', 'error'], true)])>
+                                                    <span class="material-symbols-outlined text-sm">{{ ($reconciliation['tone'] ?? '') === 'success' ? 'verified' : 'pending' }}</span>
+                                                    {{ $reconciliation['label'] ?? 'Cần đối chiếu thủ công' }}
                                                 </span>
                                             </div>
                                         </div>
@@ -484,10 +484,11 @@
                                         <div class="p-3 rounded-lg bg-amber-900/20 border border-amber-700/40 text-amber-200 text-xs flex items-start gap-2">
                                             <span class="material-symbols-outlined text-amber-400 text-base shrink-0 mt-0.5">info</span>
                                             <span>
+                                                {{ $reconciliation['detail'] ?? '' }}
                                                 @if ($selectedReceipt->proof_image)
-                                                    Vui lòng đối chiếu minh chứng với sao kê ngân hàng / quỹ tiền mặt: số tiền <strong>{{ number_format((float)$selectedReceipt->amount) }} đ</strong> trước khi duyệt.
+                                                    Vui lòng đối chiếu minh chứng với sao kê ngân hàng / quỹ tiền mặt: số tiền <strong>{{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} đ</strong> trước khi duyệt.
                                                 @else
-                                                    Chưa có minh chứng. Chỉ duyệt khi đã xác nhận nhận đủ <strong>{{ number_format((float)$selectedReceipt->amount) }} đ</strong> trên sao kê / quỹ tiền mặt.
+                                                    Chưa có minh chứng. Chỉ duyệt khi đã xác nhận nhận đủ <strong>{{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} đ</strong> trên sao kê / quỹ tiền mặt.
                                                 @endif
                                             </span>
                                         </div>
@@ -511,7 +512,7 @@
                                     </button>
                                     <button type="button" @click="showApproveModal = true" class="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-primary-hover text-white font-bold text-xs transition shadow-sm inline-flex items-center gap-1.5 cursor-pointer">
                                         <span class="material-symbols-outlined text-base">check</span>
-                                        Duyệt phiếu thu ({{ number_format((float)$selectedReceipt->amount) }} VNĐ)
+                                        Duyệt phiếu thu ({{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} VNĐ)
                                     </button>
                                 @elseif ($selectedReceipt->status === 'approved')
                                     <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-3.5 py-2 rounded-xl border border-emerald-200 flex items-center gap-1.5">
@@ -563,7 +564,7 @@
 
                             <div class="space-y-2.5 text-xs text-slate-600 leading-relaxed">
                                 <p>
-                                    Bạn có chắc chắn muốn duyệt phiếu thu <strong class="text-slate-900 font-mono">{{ $selectedReceipt->receipt_number }}</strong> với tổng số tiền <strong class="text-primary font-bold text-sm font-mono">{{ number_format($selectedReceipt->amount) }} VNĐ</strong> cho học viên <strong class="text-slate-900">{{ $st?->name }}</strong>?
+                                    Bạn có chắc chắn muốn duyệt phiếu thu <strong class="text-slate-900 font-mono">{{ $selectedReceipt->receipt_number }}</strong> với tổng số tiền <strong class="text-primary font-bold text-sm font-mono">{{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} VNĐ</strong> cho học viên <strong class="text-slate-900">{{ $st?->name }}</strong>?
                                 </p>
                                 <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-[11px] space-y-1">
                                     <div class="font-bold flex items-center gap-1 text-amber-800">

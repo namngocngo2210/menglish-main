@@ -31,6 +31,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -39,10 +40,20 @@ class TuitionController extends Controller
     /** Minh chứng phiếu thu / hủy hóa đơn: ảnh hoặc PDF (theo nội dung file). */
     private const PROOF_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
 
+    /** Ảnh bằng chứng hoàn tiền (A6: "bắt buộc ảnh bằng chứng") — chỉ nhận ảnh. */
+    private const REFUND_PROOF_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+
     /** Chi nhánh người xem được thao tác ở các màn Học phí (null = toàn hệ thống). Xem TuitionBranchScope. */
     private function branchScope(): ?array
     {
         return TuitionBranchScope::branchIds(Auth::user());
+    }
+
+    private function branchAllowed(int $branchId): bool
+    {
+        $scope = $this->branchScope();
+
+        return $scope === null || in_array($branchId, $scope, true);
     }
 
     private const OUT_OF_SCOPE = 'Khoản học phí này thuộc chi nhánh ngoài phạm vi bạn được quản lý.';
@@ -72,11 +83,25 @@ class TuitionController extends Controller
             $query->where('class_id', $classId);
         }
 
+        // Thẻ thống kê theo đúng phạm vi chi nhánh + bộ lọc chi nhánh / lớp (trước đây cộng toàn hệ thống).
+        $statsQuery = TuitionBranchScope::tuitions(StudentTuition::query(), $scope)
+            ->when($request->input('branch_id'), fn ($q, $b) => $q->where('branch_id', $b))
+            ->when($request->input('class_id'), fn ($q, $c) => $q->where('class_id', $c));
+        $stats = [
+            'final' => (float) (clone $statsQuery)->sum('final_amount'),
+            'paid' => (float) (clone $statsQuery)->sum('paid_amount'),
+            'debt' => (float) (clone $statsQuery)->sum('debt_amount'),
+            'overdue' => (clone $statsQuery)->where('status', 'overdue')->count(),
+        ];
+
         $tuitions = $query->paginate($request->perPage(15))->withQueryString();
         $branches = TuitionBranchScope::branches($scope)->get();
         $classes = ClassModel::when($scope !== null, fn ($q) => $q->whereIn('branch_id', $scope))->orderBy('name')->get();
 
-        return view('tuition.students', compact('tuitions', 'branches', 'classes'));
+        // Mockup "Danh sách học viên đến hạn thu phí": nhóm quá hạn / sắp đến hạn dùng chung với màn Thu phí quá hạn.
+        $groups = $this->dueGroups($request, $scope);
+
+        return view('tuition.students', $groups + compact('tuitions', 'branches', 'classes', 'stats'));
     }
 
     /**
@@ -84,7 +109,8 @@ class TuitionController extends Controller
      */
     public function import(Request $request)
     {
-        $branches = Branch::where('is_active', true)->orderBy('name')->get();
+        // Phạm vi chi nhánh như các màn Học phí (TuitionBranchScope): chỉ nhập vào chi nhánh mình quản lý.
+        $branches = TuitionBranchScope::branches($this->branchScope())->where('is_active', true)->orderBy('name')->get();
         $preview = null;
         if ($request->filled('token')) {
             $preview = $request->session()->get('tuition_import.'.$request->input('token'));
@@ -109,6 +135,7 @@ class TuitionController extends Controller
             'excel_file.mimes' => 'Chỉ hỗ trợ file .xlsx, .xls hoặc .csv.',
             'excel_file.max' => 'File tối đa 10MB.',
         ]);
+        abort_unless($this->branchAllowed((int) $validated['branch_id']), 403, 'Bạn chỉ được nhập học phí cho chi nhánh mình quản lý.');
 
         try {
             $parsed = $importer->parse($request->file('excel_file'), (int) $validated['branch_id']);
@@ -145,6 +172,8 @@ class TuitionController extends Controller
         if (! $preview) {
             return redirect()->route('tuition.import')->withErrors(['excel_file' => 'Phiên xem trước đã hết hạn, vui lòng tải file lên lại.']);
         }
+
+        abort_unless($this->branchAllowed((int) $preview['branch_id']), 403, 'Bạn chỉ được nhập học phí cho chi nhánh mình quản lý.');
 
         $valid = array_values(array_filter($preview['rows'], fn ($row) => empty($row['errors'])));
         if ($valid === []) {
@@ -504,6 +533,39 @@ class TuitionController extends Controller
     }
 
     /**
+     * Trạng thái đối soát hiển thị ở màn Duyệt phiếu thu (mockup "Trạng thái đối soát"): so mã giao dịch của phiếu
+     * chuyển khoản với sao kê SePay đã nhận. Không có sao kê khớp → "Cần đối chiếu thủ công" (không tự khẳng định khớp).
+     *
+     * @return array{tone: string, label: string, detail: string}
+     */
+    private function receiptReconciliation(TuitionReceipt $receipt): array
+    {
+        if (! in_array($receipt->payment_method, TuitionReceipt::TRANSFER_METHODS, true)) {
+            return ['tone' => 'neutral', 'label' => 'Tiền mặt — đối chiếu quỹ', 'detail' => 'Đối chiếu số tiền với quỹ tiền mặt / biên lai giấy trước khi duyệt.'];
+        }
+
+        $normalized = TuitionReceipt::normalizeReference($receipt->transaction_code);
+        $tx = $normalized === null ? null : SepayTransaction::query()
+            ->where(function ($q) use ($normalized) {
+                $q->whereRaw('UPPER(sepay_id) = ?', [$normalized])
+                    ->orWhereRaw('UPPER(reference_code) = ?', [$normalized]);
+            })
+            ->latest('transaction_date')
+            ->first();
+
+        if (! $tx) {
+            return ['tone' => 'warning', 'label' => 'Cần đối chiếu thủ công', 'detail' => 'Chưa tìm thấy giao dịch khớp mã tham chiếu trong sao kê SePay. Đối chiếu minh chứng với sao kê ngân hàng trước khi duyệt.'];
+        }
+
+        $statementAmount = (float) $tx->transfer_amount;
+        if (abs($statementAmount - (float) $receipt->amount) < 0.5) {
+            return ['tone' => 'success', 'label' => 'Khớp số tiền & mã giao dịch', 'detail' => 'Sao kê SePay ghi nhận '.number_format($statementAmount, 0, ',', '.').' đ ngày '.($tx->transaction_date?->format('d/m/Y H:i') ?? '—').' vào TK '.($tx->account_number ?: '—').'.'];
+        }
+
+        return ['tone' => 'error', 'label' => 'Lệch số tiền', 'detail' => 'Sao kê SePay ghi nhận '.number_format($statementAmount, 0, ',', '.').' đ, phiếu ghi '.number_format((float) $receipt->amount, 0, ',', '.').' đ.'];
+    }
+
+    /**
      * Giao dịch SePay (theo mã giao dịch / mã tham chiếu) đã được ghi nhận bằng một phiếu thu KHÁC.
      * Giao dịch SePay đến sau phiếu tay chờ duyệt cùng mã được gắn vào chính phiếu tay đó (duplicate_manual):
      * không được coi là "đã gạch nợ" với chính phiếu ấy, nếu không phiếu tay không duyệt / gửi lại được.
@@ -649,7 +711,10 @@ class TuitionController extends Controller
         // Metrics
         $pendingCount = $scoped()->where('status', 'pending')->count();
         $pendingTotal = $scoped()->where('status', 'pending')->sum('amount');
-        $approvedTodayCount = $scoped()->where('status', 'approved')->whereDate('updated_at', today())->count();
+        // Đã duyệt hôm nay theo thời điểm duyệt thật (approved_at; phiếu cũ chưa có thì theo updated_at).
+        $approvedTodayCount = $scoped()->where('status', 'approved')
+            ->where(fn ($q) => $q->whereDate('approved_at', today())->orWhere(fn ($q) => $q->whereNull('approved_at')->whereDate('updated_at', today())))
+            ->count();
         $rejectedTodayCount = $scoped()->where('status', 'rejected')->whereDate('updated_at', today())->count();
 
         // Query
@@ -734,7 +799,12 @@ class TuitionController extends Controller
                 : $this->similarSepayTransactions($selectedReceipt);
         }
 
+        $reconciliation = $selectedReceipt ? $this->receiptReconciliation($selectedReceipt) : null;
+        $beneficiaryAccount = $selectedReceipt?->tuition?->resolveBankAccount();
+
         return view('tuition.approve-receipt', compact(
+            'reconciliation',
+            'beneficiaryAccount',
             'sepayWarnings',
             'pendingReceipts',
             'selectedReceipt',
@@ -1026,15 +1096,116 @@ class TuitionController extends Controller
         return redirect()->back()->with('status', "Đã từ chối phiếu thu {$receipt->receipt_number} và trả về người lập để chỉnh sửa, gửi duyệt lại!");
     }
 
+    /**
+     * Lịch sử thu học phí (mockup lich-su-thu-hoc-phi): lọc theo học viên / trạng thái / hình thức / ngày thu,
+     * chế độ "chỉ khoản tái tục" (bỏ khoản học phí đầu tiên của học viên), chi tiết phiếu + minh chứng, xuất Excel.
+     */
     public function history(Request $request)
     {
-        $receipts = TuitionBranchScope::receipts(TuitionReceipt::query(), $this->branchScope())
-            ->with(['tuition.student', 'tuition.classModel', 'student', 'creator', 'approver'])
+        $filters = $this->historyFilters($request);
+        $receipts = $this->historyQuery($filters)
+            ->with(['tuition.student', 'tuition.classModel.course', 'tuition.branch', 'student.branch', 'creator', 'approver'])
             ->latest()
             ->paginate($request->perPage(15))
             ->withQueryString();
 
-        return view('tuition.history', compact('receipts'));
+        $scope = $this->branchScope();
+        $student = $filters['student_id'] ? TuitionBranchScope::students(Student::query(), $scope)->find($filters['student_id']) : null;
+
+        // Mẫu số / ký hiệu hóa đơn lấy theo dải số thật (tiền tố số HĐ = ký hiệu dải), không ghi cứng.
+        $templates = InvoiceConfiguration::query()->pluck('template_code', 'series_code');
+
+        return view('tuition.history', compact('receipts', 'filters', 'student', 'templates'));
+    }
+
+    /** Xuất Excel (CSV UTF-8) lịch sử thu theo đúng bộ lọc đang xem. */
+    public function exportHistory(Request $request)
+    {
+        $filters = $this->historyFilters($request);
+        $rows = $this->historyQuery($filters)
+            ->with(['tuition.student', 'tuition.classModel.course', 'tuition.branch', 'student.branch', 'creator', 'approver'])
+            ->latest()
+            ->get();
+
+        return response()->streamDownload(function () use ($rows) {
+            $out = fopen('php://output', 'w');
+            fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
+            fputcsv($out, ['Mã phiếu', 'Số HĐĐT', 'Mã HV', 'Học viên', 'Khoản thu', 'Số tiền (VNĐ)', 'Phụ thu (VNĐ)', 'Hình thức', 'Mã giao dịch', 'Trạng thái', 'Ngày thu', 'Người lập', 'Người duyệt', 'Chi nhánh']);
+            foreach ($rows as $rc) {
+                $student = $rc->tuition?->student ?? $rc->student;
+                fputcsv($out, [
+                    $rc->receipt_number,
+                    $rc->invoice_number,
+                    $student?->code,
+                    $student?->name,
+                    $rc->tuition?->fee_label ?? 'Phụ thu',
+                    (int) round((float) $rc->amount),
+                    (int) round((float) $rc->surcharge_amount),
+                    TuitionReceipt::METHOD_LABELS[$rc->payment_method] ?? $rc->payment_method,
+                    $rc->transaction_code,
+                    $rc->status_label,
+                    $rc->payment_date?->format('d/m/Y'),
+                    $rc->creator?->name,
+                    $rc->approver?->name,
+                    $rc->tuition?->branch?->name ?? $student?->branch?->name,
+                ]);
+            }
+            fclose($out);
+        }, 'lich-su-thu-hoc-phi-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /** @return array{search: string, student_id: ?int, status: string, method: string, from: ?string, to: ?string, kind: string} */
+    private function historyFilters(Request $request): array
+    {
+        $date = fn ($v) => is_string($v) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) ? $v : null;
+
+        return [
+            'search' => trim((string) $request->input('search', '')),
+            'student_id' => $request->filled('student_id') ? (int) $request->input('student_id') : null,
+            'status' => in_array($request->input('status'), ['draft', 'pending', 'approved', 'rejected', 'cancelled'], true) ? $request->input('status') : '',
+            'method' => in_array($request->input('method'), ['transfer', 'vietqr', 'cash', 'pos'], true) ? $request->input('method') : '',
+            'from' => $date($request->input('from')),
+            'to' => $date($request->input('to')),
+            'kind' => $request->input('kind') === 'renewal' ? 'renewal' : 'all',
+        ];
+    }
+
+    private function historyQuery(array $filters)
+    {
+        $query = TuitionBranchScope::receipts(TuitionReceipt::query(), $this->branchScope());
+
+        if ($filters['student_id']) {
+            $query->where(fn ($q) => $q->where('student_id', $filters['student_id'])
+                ->orWhereHas('tuition', fn ($t) => $t->where('student_id', $filters['student_id'])));
+        }
+        if ($filters['search'] !== '') {
+            $search = $filters['search'];
+            $query->where(fn ($q) => $q->where('receipt_number', 'like', "%{$search}%")
+                ->orWhere('invoice_number', 'like', "%{$search}%")
+                ->orWhere('transaction_code', 'like', "%{$search}%")
+                ->orWhereHas('tuition.student', fn ($s) => $s->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))
+                ->orWhereHas('student', fn ($s) => $s->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%")));
+        }
+        if ($filters['status'] !== '') {
+            $query->where('status', $filters['status']);
+        }
+        if ($filters['method'] !== '') {
+            $query->where('payment_method', $filters['method']);
+        }
+        if ($filters['from']) {
+            $query->whereDate('payment_date', '>=', $filters['from']);
+        }
+        if ($filters['to']) {
+            $query->whereDate('payment_date', '<=', $filters['to']);
+        }
+        if ($filters['kind'] === 'renewal') {
+            // Khoản tái tục = phiếu thuộc khoản học phí KHÔNG phải khoản đầu tiên (id nhỏ nhất) của học viên
+            // — cùng định nghĩa "lần đầu" với hoa hồng tuyển sinh (Phase 3).
+            $query->whereNotNull('student_tuition_id')
+                ->whereRaw('student_tuition_id > (SELECT MIN(st2.id) FROM student_tuitions st2 WHERE st2.student_id = (SELECT st1.student_id FROM student_tuitions st1 WHERE st1.id = tuition_receipts.student_tuition_id))');
+        }
+
+        return $query;
     }
 
     public function invoiceCancellations(Request $request)
@@ -1051,38 +1222,7 @@ class TuitionController extends Controller
             ->count();
         $rejectedCount = $scoped()->where('status', 'rejected')->count();
 
-        // Query
-        $query = $scoped()->with([
-            'receipt.tuition.student.branch',
-            'receipt.student.branch',
-            'student.branch',
-            'requester',
-            'approver',
-        ]);
-
-        $statusFilter = $request->get('status', 'pending');
-        if ($statusFilter !== 'all' && ! empty($statusFilter)) {
-            $query->where('status', $statusFilter);
-        }
-
-        if ($request->filled('branch_id') && $request->input('branch_id') !== 'all') {
-            $bId = $request->input('branch_id');
-            $query->where(function ($q) use ($bId) {
-                $q->whereHas('student', fn ($sq) => $sq->where('branch_id', $bId))
-                    ->orWhereHas('receipt.tuition.student', fn ($sq) => $sq->where('branch_id', $bId));
-            });
-        }
-
-        if ($search = $request->input('q')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('invoice_number', 'like', "%{$search}%")
-                    ->orWhere('reason', 'like', "%{$search}%")
-                    ->orWhereHas('receipt', fn ($rq) => $rq->where('receipt_number', 'like', "%{$search}%"))
-                    ->orWhereHas('student', fn ($sq) => $sq->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"));
-            });
-        }
-
-        $cancellations = $query->latest()->get();
+        $cancellations = $this->filteredCancellations($request, $scope)->latest()->get();
 
         $selectedCancellation = null;
         if ($request->filled('selected_id')) {
@@ -1111,6 +1251,73 @@ class TuitionController extends Controller
             'approvedMonthCount',
             'rejectedCount'
         ));
+    }
+
+    /** Danh sách yêu cầu hủy theo bộ lọc màn hình (trạng thái, chi nhánh, tìm kiếm) — dùng cho màn hình và "Xuất danh sách". */
+    private function filteredCancellations(Request $request, ?array $scope)
+    {
+        $query = $this->scopedCancellations($scope)->with([
+            'receipt.tuition.student.branch',
+            'receipt.tuition.classModel.course',
+            'receipt.student.branch',
+            'student.branch',
+            'requester',
+            'approver',
+        ]);
+
+        $statusFilter = $request->get('status', 'pending');
+        if ($statusFilter !== 'all' && ! empty($statusFilter)) {
+            $query->where('status', $statusFilter);
+        }
+
+        if ($request->filled('branch_id') && $request->input('branch_id') !== 'all') {
+            $bId = $request->input('branch_id');
+            $query->where(function ($q) use ($bId) {
+                $q->whereHas('student', fn ($sq) => $sq->where('branch_id', $bId))
+                    ->orWhereHas('receipt.tuition.student', fn ($sq) => $sq->where('branch_id', $bId));
+            });
+        }
+
+        if ($search = $request->input('q')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('invoice_number', 'like', "%{$search}%")
+                    ->orWhere('reason', 'like', "%{$search}%")
+                    ->orWhereHas('receipt', fn ($rq) => $rq->where('receipt_number', 'like', "%{$search}%"))
+                    ->orWhereHas('student', fn ($sq) => $sq->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"));
+            });
+        }
+
+        return $query;
+    }
+
+    /** "Xuất danh sách" yêu cầu hủy hóa đơn (CSV UTF-8) theo bộ lọc đang xem. */
+    public function exportInvoiceCancellations(Request $request)
+    {
+        $rows = $this->filteredCancellations($request, $this->branchScope())->latest()->get();
+        $statusLabels = ['pending' => 'Chờ duyệt hủy', 'approved' => 'Đã duyệt hủy', 'rejected' => 'Đã từ chối hủy'];
+
+        return response()->streamDownload(function () use ($rows, $statusLabels) {
+            $out = fopen('php://output', 'w');
+            fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
+            fputcsv($out, ['Số hóa đơn', 'Mã phiếu thu', 'Mã HV', 'Học viên', 'Số tiền (VNĐ)', 'Lý do hủy', 'Người yêu cầu', 'Thời điểm gửi', 'Trạng thái', 'Người duyệt', 'Lý do từ chối']);
+            foreach ($rows as $can) {
+                $student = $can->student ?? $can->receipt?->tuition?->student ?? $can->receipt?->student;
+                fputcsv($out, [
+                    $can->invoice_number,
+                    $can->receipt?->receipt_number,
+                    $student?->code,
+                    $student?->name,
+                    (int) round((float) $can->amount),
+                    $can->reason,
+                    $can->requester?->name,
+                    $can->created_at?->format('d/m/Y H:i'),
+                    $statusLabels[$can->status] ?? $can->status,
+                    $can->approver?->name,
+                    $can->rejection_reason,
+                ]);
+            }
+            fclose($out);
+        }, 'yeu-cau-huy-hoa-don-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     /** Yêu cầu hủy hóa đơn trong phạm vi chi nhánh: theo phiếu thu gắn kèm, thiếu phiếu thì theo học viên. */
@@ -1186,6 +1393,8 @@ class TuitionController extends Controller
 
     public function approveInvoiceCancellation(Request $request, $id)
     {
+        // Mockup duyet-huy-hoa-don: "Chỉ Admin phê duyệt" hủy hóa đơn (chống nhảy số / thất thoát).
+        abort_unless($request->user()?->hasRole('admin'), 403, 'Chỉ Admin được phê duyệt hủy hóa đơn.');
         $this->abortUnlessCancellationInScope($id);
         $receiptId = InvoiceCancellation::query()->whereKey($id)->value('tuition_receipt_id');
         $tuitionId = $receiptId ? TuitionReceipt::query()->whereKey($receiptId)->value('student_tuition_id') : null;
@@ -1240,6 +1449,7 @@ class TuitionController extends Controller
 
     public function rejectInvoiceCancellation(Request $request, $id)
     {
+        abort_unless($request->user()?->hasRole('admin'), 403, 'Chỉ Admin được xử lý yêu cầu hủy hóa đơn.');
         $this->abortUnlessCancellationInScope($id);
         $validated = $request->validate([
             'rejection_reason' => 'nullable|string|max:1000',
@@ -1266,12 +1476,36 @@ class TuitionController extends Controller
         return redirect()->back()->with('status', "Đã từ chối yêu cầu hủy hóa đơn {$cancellation->invoice_number}!");
     }
 
-    public function refunds()
+    public function refunds(Request $request)
     {
         $scope = $this->branchScope();
+        $filters = [
+            'status' => in_array($request->input('status'), ['pending', 'approved', 'rejected', 'overdue'], true) ? $request->input('status') : '',
+            'type' => array_key_exists((string) $request->input('type'), TuitionRefundRequest::TYPES) ? (string) $request->input('type') : '',
+            'search' => trim((string) $request->input('search', '')),
+        ];
         $refundRequests = TuitionRefundRequest::with(['student.currentClass', 'student.tuition', 'targetStudent.currentClass', 'requester', 'approver', 'clawbackUser'])
             ->when($scope !== null, fn ($q) => $q->whereHas('student', fn ($s) => TuitionBranchScope::students($s, $scope)))
             ->latest()->get();
+
+        // Khối "Yêu cầu chờ phê duyệt" (mockup): hồ sơ quá hạn xử lý lên đầu, rồi theo hạn xử lý gần nhất.
+        $pendingRequests = $refundRequests->where('status', 'pending')
+            ->sortBy(fn (TuitionRefundRequest $r) => [$r->isProcessingOverdue() ? 0 : 1, $r->processing_deadline?->timestamp ?? PHP_INT_MAX, $r->id])
+            ->values();
+        $overdueCount = $pendingRequests->filter(fn (TuitionRefundRequest $r) => $r->isProcessingOverdue())->count();
+
+        // Bảng "Tất cả yêu cầu": lọc trạng thái / loại / tìm học viên.
+        $historyRequests = $refundRequests
+            ->when($filters['status'] === 'overdue', fn ($c) => $c->filter(fn (TuitionRefundRequest $r) => $r->isProcessingOverdue()))
+            ->when(in_array($filters['status'], ['pending', 'approved', 'rejected'], true), fn ($c) => $c->where('status', $filters['status']))
+            ->when($filters['type'] !== '', fn ($c) => $c->where('type', $filters['type']))
+            ->when($filters['search'] !== '', function ($c) use ($filters) {
+                $needle = Str::lower($filters['search']);
+
+                return $c->filter(fn (TuitionRefundRequest $r) => Str::contains(Str::lower(($r->student?->name ?? '').' '.($r->student?->code ?? '').' '.($r->targetStudent?->name ?? '').' '.($r->targetStudent?->code ?? '')), $needle));
+            })
+            ->values();
+        $canApproveRefund = (bool) Auth::user()?->hasRole('admin');
         // Gợi ý thu hồi hoa hồng cho hồ sơ hoàn phí đang chờ duyệt (học < 1 tháng → có).
         $commissionService = app(SalesCommissionService::class);
         $clawbackHints = $refundRequests->where('status', 'pending')->where('type', 'refund')
@@ -1287,7 +1521,7 @@ class TuitionController extends Controller
         $studentFinance = $students->mapWithKeys(fn (Student $student) => [$student->id => $this->refundBasis($student)]);
         $adminFeePercent = (float) config('tuition.refund_admin_fee_percent', 10);
 
-        return view('tuition.refunds', compact('refundRequests', 'students', 'clawbackHints', 'studentFinance', 'adminFeePercent'));
+        return view('tuition.refunds', compact('refundRequests', 'pendingRequests', 'overdueCount', 'historyRequests', 'filters', 'canApproveRefund', 'students', 'clawbackHints', 'studentFinance', 'adminFeePercent'));
     }
 
     /**
@@ -1341,7 +1575,11 @@ class TuitionController extends Controller
             'defer_from' => 'nullable|required_if:type,deferral|date',
             'defer_to' => 'nullable|required_if:type,deferral|date|after:defer_from',
             'reason' => 'required|string|max:1000',
+            // A6 "Hoàn phí": ưu tiên chuyển nhượng buổi dư, hoàn tiền là phương án cuối → phải ghi lý do không chuyển nhượng.
+            'no_transfer_reason' => 'nullable|required_if:type,refund|string|min:5|max:1000',
         ], [
+            'no_transfer_reason.required_if' => 'Hoàn tiền là phương án cuối: vui lòng ghi rõ lý do không chuyển nhượng buổi dư cho học viên khác.',
+            'no_transfer_reason.min' => 'Lý do không chuyển nhượng quá ngắn.',
             'extended_due_date.required_if' => 'Khất nợ cần chọn hạn đóng mới.',
             'extended_due_date.after' => 'Hạn đóng mới phải sau hôm nay.',
             'defer_from.required_if' => 'Bảo lưu cần chọn ngày bắt đầu.',
@@ -1379,6 +1617,7 @@ class TuitionController extends Controller
             'defer_to' => $type === TuitionRefundRequest::TYPE_DEFERRAL ? $validated['defer_to'] : null,
             'target_student_id' => $type === 'transfer' ? ($validated['target_student_id'] ?? null) : null,
             'reason' => $validated['reason'],
+            'no_transfer_reason' => $type === TuitionRefundRequest::TYPE_REFUND ? ($validated['no_transfer_reason'] ?? null) : null,
             'requester_id' => Auth::id(),
             'status' => 'pending',
         ]);
@@ -1390,7 +1629,12 @@ class TuitionController extends Controller
             default => 'hoàn trả học phí',
         };
 
-        return redirect()->back()->with('status', "Đã lập hồ sơ {$typeLabel} và gửi lên cấp Quản lý/Kế toán phê duyệt!");
+        $approverLabel = $type === TuitionRefundRequest::TYPE_REFUND ? 'Admin' : 'cấp Quản lý/Kế toán';
+        $deadlineNote = in_array($type, [TuitionRefundRequest::TYPE_REFUND, TuitionRefundRequest::TYPE_TRANSFER], true)
+            ? ' Hạn xử lý: '.TuitionRefundRequest::deadlineFor(now())->format('d/m/Y').'.'
+            : '';
+
+        return redirect()->back()->with('status', "Đã lập hồ sơ {$typeLabel} và gửi lên {$approverLabel} phê duyệt!{$deadlineNote}");
     }
 
     public function approveRefundRequest(Request $request, $id)
@@ -1401,9 +1645,23 @@ class TuitionController extends Controller
             'clawback_amount' => ['nullable', 'numeric', 'min:0'],
         ]);
 
-        abort_unless(TuitionBranchScope::allowsStudent(TuitionRefundRequest::with('student.currentClass')->findOrFail($id)->student, $this->branchScope()), 403, self::OUT_OF_SCOPE);
+        $pending = TuitionRefundRequest::with('student.currentClass')->findOrFail($id);
+        abort_unless(TuitionBranchScope::allowsStudent($pending->student, $this->branchScope()), 403, self::OUT_OF_SCOPE);
 
-        $result = DB::transaction(function () use ($id, $clawbackInput) {
+        // A6 "Hoàn phí": chỉ Admin duyệt hoàn tiền, và bắt buộc ảnh bằng chứng chi tiền. Quá hạn xử lý chỉ gắn cờ, không chặn.
+        $proofPath = null;
+        if ($pending->type === TuitionRefundRequest::TYPE_REFUND && $pending->status === 'pending') {
+            abort_unless(Auth::user()?->hasRole('admin'), 403, 'Chỉ Admin được duyệt hoàn tiền học phí.');
+            $request->validate([
+                'proof_image' => ['required', 'file', 'max:10240'],
+            ], [
+                'proof_image.required' => 'Hoàn tiền bắt buộc đính kèm ảnh bằng chứng (ủy nhiệm chi / biên nhận).',
+                'proof_image.max' => 'Ảnh bằng chứng tối đa 10MB.',
+            ]);
+            $proofPath = SafeUploadService::store($request->file('proof_image'), 'tuition/refund-proofs', self::REFUND_PROOF_EXTENSIONS, 'proof_image', TuitionRefundRequest::PROOF_DISK);
+        }
+
+        $result = DB::transaction(function () use ($id, $clawbackInput, $proofPath) {
             $refund = TuitionRefundRequest::query()->lockForUpdate()->findOrFail($id);
             $refund->load(['student', 'targetStudent']);
 
@@ -1452,7 +1710,7 @@ class TuitionController extends Controller
                 }
             }
 
-            $refund->update(['status' => 'approved', 'approver_id' => Auth::id()]);
+            $refund->update(['status' => 'approved', 'approver_id' => Auth::id(), 'proof_path' => $proofPath ?? $refund->proof_path]);
             // Chuyển nhượng phí không bao giờ thu hồi; hoàn phí theo lựa chọn (mặc định: gợi ý theo thời gian đã học).
             app(SalesCommissionService::class)->recordRefundDecision(
                 $refund,
@@ -1518,10 +1776,26 @@ class TuitionController extends Controller
         });
 
         if (isset($result['error'])) {
+            if ($proofPath) {
+                Storage::disk(TuitionRefundRequest::PROOF_DISK)->delete($proofPath);
+            }
+
             return redirect()->back()->withErrors([$result['field'] ?? 'refund' => $result['error']]);
         }
 
-        return redirect()->back()->with('status', $result['status']);
+        $late = $pending->isProcessingOverdue() ? ' Lưu ý: hồ sơ được xử lý sau hạn '.$pending->processing_deadline->format('d/m/Y').' (Quá hạn xử lý).' : '';
+
+        return redirect()->back()->with('status', $result['status'].$late);
+    }
+
+    /** Xem ảnh bằng chứng hoàn tiền (lưu riêng tư) — chỉ người xem được màn hoàn phí trong phạm vi chi nhánh. */
+    public function refundProof($id)
+    {
+        $refund = TuitionRefundRequest::with('student.currentClass')->findOrFail($id);
+        abort_unless(TuitionBranchScope::allowsStudent($refund->student, $this->branchScope()), 403, self::OUT_OF_SCOPE);
+        abort_unless($refund->proof_path && Storage::disk(TuitionRefundRequest::PROOF_DISK)->exists($refund->proof_path), 404);
+
+        return Storage::disk(TuitionRefundRequest::PROOF_DISK)->response($refund->proof_path);
     }
 
     /**
@@ -1598,10 +1872,11 @@ class TuitionController extends Controller
         return ['status' => "Đã duyệt bảo lưu cho học viên {$student?->name} từ {$refund->defer_from->format('d/m/Y')} đến {$refund->defer_to->format('d/m/Y')}; đã đóng băng số buổi còn lại và công nợ."];
     }
 
-    public function rejectRefundRequest($id)
+    public function rejectRefundRequest(Request $request, $id)
     {
+        $validated = $request->validate(['rejection_reason' => 'nullable|string|max:1000']);
         abort_unless(TuitionBranchScope::allowsStudent(TuitionRefundRequest::with('student.currentClass')->findOrFail($id)->student, $this->branchScope()), 403, self::OUT_OF_SCOPE);
-        $refund = DB::transaction(function () use ($id) {
+        $refund = DB::transaction(function () use ($id, $validated) {
             $refund = TuitionRefundRequest::query()->lockForUpdate()->findOrFail($id);
             if ($refund->status !== 'pending') {
                 return null;
@@ -1609,6 +1884,7 @@ class TuitionController extends Controller
             $refund->update([
                 'status' => 'rejected',
                 'approver_id' => Auth::id(),
+                'rejection_reason' => $validated['rejection_reason'] ?? null,
             ]);
 
             return $refund;
@@ -1622,19 +1898,54 @@ class TuitionController extends Controller
     }
 
     /**
-     * Danh sách thu phí quá hạn (mockup "Thu phí quá hạn"):
-     * - Quá hạn nghiêm trọng (≥ N ngày, N = "Mốc quá hạn bắt buộc liên hệ") và Mới quá hạn (1 → N-1 ngày), có số ngày quá hạn.
-     * - Sắp đến hạn (từ hôm nay tới 14 ngày tới).
-     * - Khoản đang khất nợ / bảo lưu (tạm dừng nhắc nợ) tách riêng, không tính quá hạn.
-     * - Mỗi dòng có trạng thái đôn đốc gần nhất: "Đã liên hệ — chờ thu", "Đã báo cáo Admin".
+     * Danh sách thu phí quá hạn (mockup "epic-8-thu-phi-qua-han"): nhóm quá hạn / sắp đến hạn (dueGroups),
+     * khoản đang khất nợ / bảo lưu và thống kê công nợ theo chi nhánh / lớp.
      */
     public function overdue(Request $request)
+    {
+        $scope = $this->branchScope();
+        $groups = $this->dueGroups($request, $scope);
+        $today = now()->startOfDay();
+
+        // Thống kê công nợ quá hạn theo chi nhánh / lớp (toàn bộ khoản đang nợ, không theo bộ lọc tìm kiếm).
+        $allDebts = TuitionBranchScope::tuitions(StudentTuition::query(), $scope)->with(['branch', 'classModel'])->where('debt_amount', '>', 0)->get();
+        $isOverdue = fn (StudentTuition $t) => $t->due_date && $t->due_date->lt($today) && ! $t->remindersPausedOn();
+        $statsByBranch = $allDebts->groupBy('branch_id')->map(fn ($items) => [
+            'branch_name' => $items->first()->branch?->name ?? 'Chưa gán chi nhánh',
+            'total_debt' => $items->sum('debt_amount'),
+            'count' => $items->count(),
+            'overdue_count' => $items->filter($isOverdue)->count(),
+        ])->values();
+        $statsByClass = $allDebts->groupBy('class_id')->map(fn ($items) => [
+            'class_name' => $items->first()->classModel?->name ?? 'Chưa xếp lớp',
+            'class_code' => $items->first()->classModel?->code ?? '—',
+            'total_debt' => $items->sum('debt_amount'),
+            'count' => $items->count(),
+            'overdue_count' => $items->filter($isOverdue)->count(),
+        ])->values();
+
+        $branches = TuitionBranchScope::branches($scope)->where('is_active', true)->get();
+        $classes = ClassModel::when($scope !== null, fn ($q) => $q->whereIn('branch_id', $scope))->orderBy('name')->get();
+
+        return view('tuition.overdue', $groups + compact('statsByBranch', 'statsByClass', 'branches', 'classes'));
+    }
+
+    /**
+     * Nhóm khoản học phí đến hạn / quá hạn (mockup "Danh sách học viên đến hạn thu phí" — dùng chung cho
+     * DS thu phí và Thu phí quá hạn):
+     * - Quá hạn nghiêm trọng (≥ N ngày, N = "Mốc quá hạn bắt buộc liên hệ") và Mới quá hạn (1 → N-1 ngày).
+     * - Sắp đến hạn (từ hôm nay tới 14 ngày tới), phân trang.
+     * - Khoản đang khất nợ / bảo lưu (tạm dừng nhắc nợ) tách riêng, không tính quá hạn.
+     * - Mỗi dòng có trạng thái đôn đốc gần nhất: "Đã liên hệ — chờ thu", "Đã báo cáo Admin".
+     *
+     * @return array<string, mixed>
+     */
+    private function dueGroups(Request $request, ?array $scope): array
     {
         $seriousDays = max(1, (int) SystemSetting::get('debt_reminder.must_contact_days', config('tuition.overdue_serious_days', 7)));
         $upcomingDays = (int) config('tuition.upcoming_days', 14);
         $today = now()->startOfDay();
 
-        $scope = $this->branchScope();
         $query = TuitionBranchScope::tuitions(StudentTuition::query(), $scope)
             ->with(['student', 'classModel.course', 'branch', 'contactLogs.user'])
             ->where('debt_amount', '>', 0)
@@ -1674,52 +1985,29 @@ class TuitionController extends Controller
 
         $seriousOverdue = $active->filter(fn (StudentTuition $t) => $t->days_overdue >= $seriousDays)->sortByDesc('days_overdue')->values();
         $newOverdue = $active->filter(fn (StudentTuition $t) => $t->days_overdue >= 1 && $t->days_overdue < $seriousDays)->sortByDesc('days_overdue')->values();
-        $upcoming = $active->filter(fn (StudentTuition $t) => $t->days_overdue <= 0)->sortByDesc('days_overdue')->values();
+        $upcomingAll = $active->filter(fn (StudentTuition $t) => $t->days_overdue <= 0)->sortByDesc('days_overdue')->values();
 
-        $type = $request->input('type', 'all');
+        $type = in_array($request->input('type'), ['overdue', 'upcoming'], true) ? $request->input('type') : 'all';
         if ($type === 'overdue') {
-            $upcoming = collect();
+            $upcomingAll = collect();
         } elseif ($type === 'upcoming') {
             $seriousOverdue = collect();
             $newOverdue = collect();
         }
 
+        $perPage = 10;
+        $page = max(1, (int) $request->input('upcoming_page', 1));
+        $upcoming = new \Illuminate\Pagination\LengthAwarePaginator(
+            $upcomingAll->forPage($page, $perPage)->values(),
+            $upcomingAll->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'pageName' => 'upcoming_page', 'query' => $request->query()],
+        );
+
         $overdueTuitions = $seriousOverdue->concat($newOverdue);
 
-        // Thống kê công nợ quá hạn theo chi nhánh / lớp (toàn bộ khoản đang nợ, không theo bộ lọc tìm kiếm).
-        $allDebts = TuitionBranchScope::tuitions(StudentTuition::query(), $scope)->with(['branch', 'classModel'])->where('debt_amount', '>', 0)->get();
-        $isOverdue = fn (StudentTuition $t) => $t->due_date && $t->due_date->lt($today) && ! $t->remindersPausedOn();
-        $statsByBranch = $allDebts->groupBy('branch_id')->map(fn ($items) => [
-            'branch_name' => $items->first()->branch?->name ?? 'Chưa gán chi nhánh',
-            'total_debt' => $items->sum('debt_amount'),
-            'count' => $items->count(),
-            'overdue_count' => $items->filter($isOverdue)->count(),
-        ])->values();
-        $statsByClass = $allDebts->groupBy('class_id')->map(fn ($items) => [
-            'class_name' => $items->first()->classModel?->name ?? 'Chưa xếp lớp',
-            'class_code' => $items->first()->classModel?->code ?? '—',
-            'total_debt' => $items->sum('debt_amount'),
-            'count' => $items->count(),
-            'overdue_count' => $items->filter($isOverdue)->count(),
-        ])->values();
-
-        $branches = TuitionBranchScope::branches($scope)->where('is_active', true)->get();
-        $classes = ClassModel::when($scope !== null, fn ($q) => $q->whereIn('branch_id', $scope))->orderBy('name')->get();
-
-        return view('tuition.overdue', compact(
-            'seriousOverdue',
-            'newOverdue',
-            'upcoming',
-            'paused',
-            'overdueTuitions',
-            'statsByBranch',
-            'statsByClass',
-            'branches',
-            'classes',
-            'type',
-            'seriousDays',
-            'upcomingDays'
-        ));
+        return compact('seriousOverdue', 'newOverdue', 'upcoming', 'paused', 'overdueTuitions', 'type', 'seriousDays', 'upcomingDays');
     }
 
     /** "Đã liên hệ": ghi nhật ký gọi điện / nhắn tin phụ huynh kèm ghi chú và thời gian. */
@@ -1833,7 +2121,10 @@ class TuitionController extends Controller
 
     public function config(Request $request)
     {
+        // Kế toán chi nhánh chỉ thấy dải của chi nhánh mình + dải mặc định (chỉ xem); Admin / kế toán tổng thấy tất cả.
+        $scope = $this->branchScope();
         $ranges = InvoiceConfiguration::with('branch')
+            ->when($scope !== null, fn ($q) => $q->where(fn ($q) => $q->whereNull('branch_id')->orWhereIn('branch_id', $scope)))
             ->orderByRaw('CASE WHEN branch_id IS NULL THEN 0 ELSE 1 END')
             ->orderBy('branch_id')
             ->orderBy('start_number')
@@ -1849,10 +2140,49 @@ class TuitionController extends Controller
                 ->get(['invoice_number', 'status', 'updated_at']),
         ]);
 
-        $branches = Branch::orderBy('name')->get();
+        $branches = TuitionBranchScope::branches($scope)->orderBy('name')->get();
         $editing = $request->filled('edit') ? $ranges->firstWhere('id', (int) $request->input('edit')) : null;
+        if ($editing && ! $this->canManageRange($editing->branch_id)) {
+            $editing = null;
+        }
+        $canManageDefault = $scope === null;
 
-        return view('tuition.config', compact('ranges', 'maxIssued', 'recentInvoices', 'branches', 'editing'));
+        return view('tuition.config', compact('ranges', 'maxIssued', 'recentInvoices', 'branches', 'editing', 'canManageDefault'));
+    }
+
+    /** Dải của chi nhánh trong phạm vi người dùng; dải mặc định (branch_id null) chỉ người không bị giới hạn chi nhánh. */
+    private function canManageRange(?int $branchId): bool
+    {
+        $scope = $this->branchScope();
+
+        return $scope === null || ($branchId !== null && in_array((int) $branchId, $scope, true));
+    }
+
+    /**
+     * Mockup "Chính sách đồng bộ số hóa đơn": mọi thay đổi dải số được thông báo tới chi nhánh liên quan —
+     * Kế toán + Quản lý cơ sở của chi nhánh (dải mặc định: mọi Kế toán), không gửi cho chính người thao tác.
+     */
+    private function notifyInvoiceRangeChange(InvoiceConfiguration $range, string $message): void
+    {
+        $recipients = User::query()
+            ->where('is_active', true)
+            ->whereKeyNot(Auth::id())
+            ->when($range->branch_id,
+                fn ($q) => $q->whereHas('roles', fn ($r) => $r->whereIn('name', ['accountant', 'manager']))
+                    ->where(fn ($q) => $q->where('branch_id', $range->branch_id)->orWhereHas('branches', fn ($b) => $b->where('branches.id', $range->branch_id))),
+                fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', 'accountant')))
+            ->pluck('id');
+
+        foreach ($recipients as $userId) {
+            AdminNotification::create([
+                'user_id' => $userId,
+                'type' => 'invoice_range_changed',
+                'title' => 'Thay đổi dải số hóa đơn',
+                'message' => $message,
+                'data' => ['invoice_configuration_id' => $range->id, 'link' => route('tuition.config')],
+                'is_read' => false,
+            ]);
+        }
     }
 
     /**
@@ -1876,6 +2206,7 @@ class TuitionController extends Controller
         $config = ! empty($validated['config_id'])
             ? InvoiceConfiguration::findOrFail($validated['config_id'])
             : (InvoiceConfiguration::whereNull('branch_id')->orderBy('id')->first() ?? new InvoiceConfiguration(['branch_id' => null]));
+        abort_unless($this->canManageRange($config->branch_id), 403, 'Bạn chỉ được cấu hình dải số hóa đơn của chi nhánh mình.');
 
         $series = strtoupper($validated['series_code']);
         $start = (int) ($validated['start_number'] ?? $config->start_number ?? 1);
@@ -1896,6 +2227,8 @@ class TuitionController extends Controller
             'provider' => $validated['provider'] ?? $config->provider ?? 'vnpt',
         ]);
         $config->save();
+        $this->notifyInvoiceRangeChange($config, (Auth::user()?->name ?? 'Hệ thống').' đã cập nhật dải số '.$config->series_code
+            .' ('.($config->branch?->name ?? 'dải mặc định').'): số kế tiếp '.$config->current_number.'.');
 
         return redirect()->route('tuition.config')->with('status', 'Đã lưu cấu hình dải số hóa đơn điện tử thành công!');
     }
@@ -1917,6 +2250,8 @@ class TuitionController extends Controller
             'end_number.gte' => 'Số kết thúc phải lớn hơn hoặc bằng số bắt đầu.',
             'series_code.regex' => 'Ký hiệu hóa đơn chỉ gồm chữ và số, không dấu, không khoảng trắng.',
         ]);
+
+        abort_unless($this->canManageRange(isset($validated['branch_id']) ? (int) $validated['branch_id'] : null), 403, 'Bạn chỉ được cấp dải số hóa đơn cho chi nhánh mình.');
 
         $series = strtoupper($validated['series_code']);
         $start = (int) $validated['start_number'];
@@ -1941,6 +2276,7 @@ class TuitionController extends Controller
         ]);
 
         $branchName = $range->branch?->name ?? 'Dải mặc định (dùng chung)';
+        $this->notifyInvoiceRangeChange($range, (Auth::user()?->name ?? 'Hệ thống')." đã cấp dải số hóa đơn mới {$series} {$start} – {$end} cho {$branchName}.");
 
         return redirect()->route('tuition.config')
             ->with('status', "Đã thêm dải số {$series} ".str_pad((string) $start, InvoiceConfiguration::NUMBER_PAD, '0', STR_PAD_LEFT)
@@ -1951,7 +2287,10 @@ class TuitionController extends Controller
     public function toggleInvoiceRange($id)
     {
         $range = InvoiceConfiguration::findOrFail($id);
+        abort_unless($this->canManageRange($range->branch_id), 403, 'Bạn chỉ được cấu hình dải số hóa đơn của chi nhánh mình.');
         $range->update(['is_active' => ! $range->is_active]);
+        $this->notifyInvoiceRangeChange($range, (Auth::user()?->name ?? 'Hệ thống').($range->is_active ? ' đã kích hoạt lại' : ' đã ngừng dùng')
+            ." dải số {$range->series_code} (".($range->branch?->name ?? 'dải mặc định').').');
 
         return redirect()->route('tuition.config')->with('status', $range->is_active
             ? "Đã kích hoạt lại dải số {$range->series_code}."

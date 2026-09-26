@@ -73,7 +73,7 @@
                                 <td class="text-right whitespace-nowrap">
                                     <div class="inline-flex items-center gap-xs">
                                         <x-ui.button variant="ghost" size="sm" icon="history" title="Số hóa đơn đã cấp gần đây" aria-label="Lịch sử cấp số" @click="$dispatch('open-modal', 'range-history-{{ $range->id }}')" />
-                                        @can('invoice_range.manage')
+                                        @if (auth()->user()->can('invoice_range.manage') && ($range->branch_id || $canManageDefault))
                                             <x-ui.button variant="ghost" size="sm" icon="edit" title="Sửa dải số" aria-label="Sửa dải số" :href="route('tuition.config', ['edit' => $range->id]).'#range-form'" />
                                             <form method="POST" action="{{ route('tuition.config.ranges.toggle', $range->id) }}" class="inline">
                                                 @csrf
@@ -82,7 +82,7 @@
                                                              :title="$range->is_active ? 'Ngừng dùng dải số' : 'Dùng lại dải số'"
                                                              :aria-label="$range->is_active ? 'Ngừng dùng dải số' : 'Dùng lại dải số'" />
                                             </form>
-                                        @endcan
+                                        @endif
                                     </div>
                                     <x-ui.modal :name="'range-history-'.$range->id" :title="'Số đã cấp gần đây — '.$range->series_code" max-width="md">
                                         <div class="space-y-xs text-left">
@@ -115,6 +115,7 @@
                     <li>Khi duyệt phiếu thu, hệ thống lấy số từ dải đang hiệu lực của <strong>chi nhánh ghi nhận học phí</strong>; chi nhánh chưa có dải riêng hoặc dải đã hết thì lấy từ <strong>dải mặc định</strong>.</li>
                     <li>Dải số không được chồng lấn dải khác cùng ký hiệu. "Số hiện tại" là số kế tiếp sẽ cấp và không được lùi về số đã cấp.</li>
                     <li>Hóa đơn bị hủy vẫn giữ số (không cấp lại cho phiếu khác).</li>
+                    <li>Mọi thay đổi dải số (thêm, sửa, ngừng / dùng lại) được thông báo trong hệ thống tới Kế toán và Quản lý cơ sở của chi nhánh liên quan.</li>
                 </ul>
             </x-ui.alert>
         </div>
@@ -149,8 +150,12 @@
                 @else
                     <form method="POST" action="{{ route('tuition.config.ranges.store') }}" class="space-y-md p-md">
                         @csrf
-                        <x-ui.select name="branch_id" label="Chọn chi nhánh" placeholder="Dải mặc định (dùng chung)"
-                                     :options="$branches->pluck('name', 'id')" />
+                        @if ($canManageDefault)
+                            <x-ui.select name="branch_id" label="Chọn chi nhánh" placeholder="Dải mặc định (dùng chung)"
+                                         :options="$branches->pluck('name', 'id')" />
+                        @else
+                            <x-ui.select name="branch_id" label="Chọn chi nhánh" :options="$branches->pluck('name', 'id')" required />
+                        @endif
                         <div class="grid grid-cols-2 gap-sm">
                             <x-ui.input name="template_code" label="Mẫu số" value="1/001" required />
                             <x-ui.input name="series_code" label="Ký hiệu" value="C26MEN" required />

@@ -18,6 +18,8 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class TuitionBusinessTest extends TestCase
@@ -296,14 +298,19 @@ class TuitionBusinessTest extends TestCase
         $cancellation = InvoiceCancellation::where('invoice_number', 'HDGTGT-001234')->first();
         $this->assertNotNull($cancellation);
 
-        // 2. Approve cancellation
-        $responseApprove = $this->actingAs($this->accountantUser)
+        // 2. Approve cancellation — Phase 4 (mockup duyet-huy-hoa-don): chỉ Admin phê duyệt hủy hóa đơn.
+        $this->actingAs($this->accountantUser)
+            ->post(route('tuition.invoices.cancellations.approve', $cancellation->id))
+            ->assertForbidden();
+        $admin = User::factory()->create(['is_active' => true]);
+        $admin->assignRole('admin');
+        $responseApprove = $this->actingAs($admin)
             ->post(route('tuition.invoices.cancellations.approve', $cancellation->id));
         $responseApprove->assertRedirect();
 
         $cancellation->refresh();
         $this->assertEquals('approved', $cancellation->status);
-        $this->assertEquals($this->accountantUser->id, $cancellation->approver_id);
+        $this->assertEquals($admin->id, $cancellation->approver_id);
         $this->assertEquals($receipt->id, $cancellation->tuition_receipt_id);
         $this->assertEquals('cancelled', $receipt->fresh()->status);
         $this->assertEquals(9000000, (float) $this->tuition->fresh()->debt_amount);
@@ -317,7 +324,7 @@ class TuitionBusinessTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $responseReject = $this->actingAs($this->accountantUser)
+        $responseReject = $this->actingAs($admin)
             ->post(route('tuition.invoices.cancellations.reject', $cancel2->id));
         $responseReject->assertRedirect();
 
@@ -349,6 +356,8 @@ class TuitionBusinessTest extends TestCase
                 'type' => 'refund',
                 'refund_amount' => 4500000,
                 'reason' => 'Học viên đi du học sớm, xin hoàn 50% học phí',
+                // Phase 4 (A6 "Hoàn phí"): hoàn tiền là phương án cuối → bắt buộc lý do không chuyển nhượng.
+                'no_transfer_reason' => 'Không có học viên nhận chuyển nhượng',
             ]);
 
         $responseStore->assertRedirect();
@@ -364,14 +373,20 @@ class TuitionBusinessTest extends TestCase
         $refund = TuitionRefundRequest::where('student_id', $this->student->id)->first();
         $this->assertNotNull($refund);
 
-        // 2. Approve refund request
-        $responseApprove = $this->actingAs($this->accountantUser)
-            ->post(route('tuition.refunds.approve', $refund->id));
+        // 2. Approve refund request — Phase 4 (A6 "Hoàn phí"): kế toán không duyệt hoàn tiền; Admin duyệt kèm ảnh bằng chứng.
+        Storage::fake('local');
+        $this->actingAs($this->accountantUser)
+            ->post(route('tuition.refunds.approve', $refund->id), ['proof_image' => UploadedFile::fake()->image('unc.jpg')])
+            ->assertForbidden();
+        $admin = User::factory()->create(['is_active' => true]);
+        $admin->assignRole('admin');
+        $responseApprove = $this->actingAs($admin)
+            ->post(route('tuition.refunds.approve', $refund->id), ['proof_image' => UploadedFile::fake()->image('unc.jpg')]);
         $responseApprove->assertRedirect();
 
         $refund->refresh();
         $this->assertEquals('approved', $refund->status);
-        $this->assertEquals($this->accountantUser->id, $refund->approver_id);
+        $this->assertEquals($admin->id, $refund->approver_id);
 
         // 3. Reject an extension request
         $extension = TuitionRefundRequest::create([
@@ -428,7 +443,14 @@ class TuitionBusinessTest extends TestCase
 
     public function test_can_update_electronic_invoice_configuration(): void
     {
-        $response = $this->actingAs($this->accountantUser)->post(route('tuition.config.update'), [
+        // Phase 4 (phạm vi chi nhánh): dải mặc định dùng chung chỉ kế toán tổng (không gán chi nhánh) / Admin sửa.
+        $this->actingAs($this->accountantUser)->post(route('tuition.config.update'), [
+            'template_code' => '1/001', 'series_code' => 'C26MEN', 'current_number' => 1500,
+        ])->assertForbidden();
+        $headAccountant = User::factory()->create(['branch_id' => null, 'is_active' => true]);
+        $headAccountant->assignRole('accountant');
+
+        $response = $this->actingAs($headAccountant)->post(route('tuition.config.update'), [
             'template_code' => '1/001',
             'series_code' => 'C26MEN',
             'current_number' => 1500,

@@ -31,6 +31,14 @@ class TuitionReceipt extends Model
     /** Hình thức thu qua ngân hàng (có thể trùng với giao dịch SePay tự động). */
     public const TRANSFER_METHODS = ['transfer', 'vietqr'];
 
+    /** Nhãn hình thức thu hiển thị trên các màn học phí / file xuất. */
+    public const METHOD_LABELS = [
+        'transfer' => 'Chuyển khoản',
+        'vietqr' => 'Chuyển khoản VietQR',
+        'cash' => 'Tiền mặt',
+        'pos' => 'Quẹt thẻ POS',
+    ];
+
     /** Hình thức thu bắt buộc minh chứng khi gửi duyệt (tiền mặt được miễn). */
     public const PROOF_REQUIRED_METHODS = ['transfer', 'vietqr', 'pos'];
 
@@ -116,6 +124,18 @@ class TuitionReceipt extends Model
             self::STATUS_REJECTED => 'Bị từ chối',
             self::STATUS_CANCELLED => 'Đã hủy hóa đơn',
             default => 'Chờ duyệt',
+        };
+    }
+
+    /** Màu <x-ui.badge> theo trạng thái phiếu. */
+    public function getStatusColorAttribute(): string
+    {
+        return match ($this->status) {
+            self::STATUS_DRAFT => 'neutral',
+            self::STATUS_APPROVED => 'success',
+            self::STATUS_REJECTED => 'error',
+            self::STATUS_CANCELLED => 'neutral',
+            default => 'warning',
         };
     }
 

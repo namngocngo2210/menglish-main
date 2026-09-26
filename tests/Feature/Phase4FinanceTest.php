@@ -182,12 +182,18 @@ class Phase4FinanceTest extends TestCase
             'start_number' => 1, 'end_number' => 1000, 'current_number' => 1, 'provider' => 'vnpt', 'auto_issue' => true,
         ]);
 
+        // Phase 4 (phạm vi chi nhánh): kế toán chi nhánh CG không cấp dải cho chi nhánh khác → dùng Admin.
         $this->actingAs($this->accountant)->post(route('tuition.config.ranges.store'), [
+            'branch_id' => $this->branch2->id, 'template_code' => '1/001', 'series_code' => 'C26MEN',
+            'start_number' => 2001, 'end_number' => 3000,
+        ])->assertForbidden();
+
+        $this->actingAs($this->admin)->post(route('tuition.config.ranges.store'), [
             'branch_id' => $this->branch2->id, 'template_code' => '1/001', 'series_code' => 'C26MEN',
             'start_number' => 900, 'end_number' => 1500,
         ])->assertSessionHasErrors('start_number');
 
-        $this->actingAs($this->accountant)->post(route('tuition.config.ranges.store'), [
+        $this->actingAs($this->admin)->post(route('tuition.config.ranges.store'), [
             'branch_id' => $this->branch2->id, 'template_code' => '1/001', 'series_code' => 'C26MEN',
             'start_number' => 2001, 'end_number' => 3000,
         ])->assertSessionHasNoErrors();
@@ -196,7 +202,7 @@ class Phase4FinanceTest extends TestCase
             'branch_id' => $this->branch2->id, 'start_number' => 2001, 'end_number' => 3000, 'current_number' => 2001,
         ]);
 
-        $this->actingAs($this->accountant)->get(route('tuition.config'))
+        $this->actingAs($this->admin)->get(route('tuition.config'))
             ->assertOk()
             ->assertSee('CN Đống Đa')
             ->assertSee('Đang hiệu lực');

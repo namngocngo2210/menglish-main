@@ -23,6 +23,8 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
@@ -142,7 +144,9 @@ class Round2LeftoversTest extends TestCase
             'reason' => 'Chuyển nhà', 'requester_id' => $this->accountant->id, 'status' => 'pending',
         ]);
         $refund = TuitionRefundRequest::latest('id')->first();
-        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id), ['clawback_commission' => 0])
+        // Phase 4 (A6 "Hoàn phí"): Admin duyệt hoàn tiền kèm ảnh bằng chứng.
+        Storage::fake('local');
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id), ['clawback_commission' => 0, 'proof_image' => UploadedFile::fake()->image('unc.jpg')])
             ->assertSessionHasNoErrors();
 
         $refundReceipt = TuitionReceipt::where('transaction_code', 'REFUND-'.$refund->id)->firstOrFail();

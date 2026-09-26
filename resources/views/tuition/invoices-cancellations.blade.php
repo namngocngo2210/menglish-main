@@ -1,31 +1,20 @@
-<x-app-layout hide-errors>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('tuition.students') }}" class="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-900 transition">
-                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                </a>
-                <div>
-                    <h1 class="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-                        <span>Duyệt hủy hóa đơn</span>
-                        <span class="text-xs font-semibold px-2.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full inline-flex items-center gap-1.5">
-                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                            {{ $pendingCount }} yêu cầu chờ xử lý
-                        </span>
-                        <span class="text-[11px] font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
-                            Chỉ Admin phê duyệt
-                        </span>
-                    </h1>
-                    <p class="text-xs text-slate-500 mt-0.5">Kiểm soát và phê duyệt các yêu cầu hủy hóa đơn thu học phí &amp; phụ thu từ Học vụ / CM. Chống thất thoát và nhảy số hóa đơn tự ý.</p>
-                </div>
-            </div>
-
-            <button type="button" onclick="document.getElementById('newCancelModal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs transition">
-                <span class="material-symbols-outlined text-[18px]">add_circle</span>
-                <span>Tạo yêu cầu hủy HĐ</span>
-            </button>
-        </div>
-    </x-slot>
+{{-- Mockup: ui-full-tinh-nang-menglish/hoc-phi-va-hoa-don-ui-mockup/duyet-huy-hoa-don --}}
+<x-app-layout title="Duyệt hủy hóa đơn" hide-errors>
+    @php $isAdmin = (bool) auth()->user()?->hasRole('admin'); @endphp
+    <x-ui.page-header title="Duyệt hủy hóa đơn" description="Kiểm soát và phê duyệt các yêu cầu hủy hóa đơn thu học phí & phụ thu từ Học vụ / CM. Chống thất thoát và nhảy số hóa đơn tự ý.">
+        <x-slot:breadcrumbs>
+            <a href="{{ route('tuition.students') }}" class="hover:text-primary">Học phí &amp; Hóa đơn</a>
+            <span class="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
+            <span>Duyệt hủy hóa đơn</span>
+            <x-ui.badge color="warning" class="ml-sm">{{ $pendingCount }} yêu cầu chờ xử lý</x-ui.badge>
+            <x-ui.badge color="neutral" :dot="false">Chỉ Admin phê duyệt</x-ui.badge>
+        </x-slot:breadcrumbs>
+        <x-slot:actions>
+            @can('invoice.request_cancel')
+                <x-ui.button variant="danger" icon="add_circle" onclick="document.getElementById('newCancelModal').classList.remove('hidden')">Tạo yêu cầu hủy HĐ</x-ui.button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
     @include('tuition.partials.errors')
 
@@ -110,8 +99,11 @@
             </div>
 
             <div class="flex items-center gap-2">
-                <a href="{{ route('tuition.invoices.cancellations') }}" class="inline-flex items-center gap-1 px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition">
+                <a href="{{ route('tuition.invoices.cancellations', request()->query()) }}" class="inline-flex items-center gap-1 px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition">
                     <span class="material-symbols-outlined text-sm">refresh</span> Làm mới
+                </a>
+                <a href="{{ route('tuition.invoices.cancellations.export', request()->query()) }}" class="inline-flex items-center gap-1 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition">
+                    <span class="material-symbols-outlined text-sm">download</span> Xuất danh sách
                 </a>
             </div>
         </form>
@@ -179,7 +171,7 @@
                                 </div>
                                 <div class="flex justify-between items-center">
                                     <span class="text-slate-500">Số tiền trên hóa đơn:</span>
-                                    <span class="font-bold font-mono text-xs text-slate-900">{{ number_format($can->amount) }} VNĐ</span>
+                                    <span class="font-bold font-mono text-xs text-slate-900">{{ number_format((float) ($can->amount), 0, ',', '.') }} VNĐ</span>
                                 </div>
                                 <div class="flex justify-between items-center">
                                     <span class="text-slate-500">Người yêu cầu hủy:</span>
@@ -303,7 +295,7 @@
                             </div>
                             <ul class="text-amber-900 space-y-1.5 pl-5 list-disc leading-relaxed">
                                 <li>
-                                    <strong>Trừ lùi công nợ (Revert):</strong> Vì phiếu <code>{{ $rc?->receipt_number ?? 'Gốc' }}</code> trước đó đã ở trạng thái <em>"Đã duyệt"</em>, hệ thống sẽ tự động trừ <strong>{{ number_format($selectedCancellation->amount) }} VNĐ</strong> khỏi <code>tong_da_thu</code> và cộng ngược <strong>{{ number_format($selectedCancellation->amount) }} VNĐ</strong> vào <code>tong_con_lai</code> của học viên {{ $st?->name }}.
+                                    <strong>Trừ lùi công nợ (Revert):</strong> Vì phiếu <code>{{ $rc?->receipt_number ?? 'Gốc' }}</code> trước đó đã ở trạng thái <em>"Đã duyệt"</em>, hệ thống sẽ tự động trừ <strong>{{ number_format((float) ($selectedCancellation->amount), 0, ',', '.') }} VNĐ</strong> khỏi <code>tong_da_thu</code> và cộng ngược <strong>{{ number_format((float) ($selectedCancellation->amount), 0, ',', '.') }} VNĐ</strong> vào <code>tong_con_lai</code> của học viên {{ $st?->name }}.
                                 </li>
                                 <li>
                                     <strong>Khóa số hóa đơn:</strong> Số hóa đơn <code>{{ $selectedCancellation->invoice_number }}</code> chuyển thành <em>"Đã hủy"</em>, giữ nguyên lịch sử kiểm toán trong dải số và <strong>không được tái sử dụng</strong>.
@@ -365,8 +357,8 @@
                                         @if ($rc && $rc->tuition_amount > 0)
                                             <tr>
                                                 <td class="py-2.5 px-3 font-semibold text-slate-800">Học phí đào tạo</td>
-                                                <td class="py-2.5 px-3 text-slate-600">Khóa {{ $className }} (Đã giảm trừ: {{ number_format($rc->discount_amount ?? 0) }} đ)</td>
-                                                <td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-900">{{ number_format($rc->tuition_amount) }} VNĐ</td>
+                                                <td class="py-2.5 px-3 text-slate-600">Khóa {{ $className }} (Đã giảm trừ: {{ number_format((float) ($rc->discount_amount ?? 0), 0, ',', '.') }} đ)</td>
+                                                <td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-900">{{ number_format((float) ($rc->tuition_amount), 0, ',', '.') }} VNĐ</td>
                                             </tr>
                                         @endif
                                         @if ($rc && $rc->surcharge_amount > 0)
@@ -375,12 +367,12 @@
                                                     <span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span> Phụ thu phát sinh
                                                 </td>
                                                 <td class="py-2.5 px-3 text-slate-600">{{ $rc->surcharge_reason ?: 'Phụ thu giáo trình & học liệu' }}</td>
-                                                <td class="py-2.5 px-3 text-right font-mono font-semibold text-primary">+{{ number_format($rc->surcharge_amount) }} VNĐ</td>
+                                                <td class="py-2.5 px-3 text-right font-mono font-semibold text-primary">+{{ number_format((float) ($rc->surcharge_amount), 0, ',', '.') }} VNĐ</td>
                                             </tr>
                                         @endif
                                         <tr class="bg-slate-50/80 font-bold">
                                             <td colspan="2" class="py-3 px-3 text-slate-900 text-xs">TỔNG SỐ TIỀN TRÊN HÓA ĐƠN:</td>
-                                            <td class="py-3 px-3 text-right text-sm font-mono text-primary">{{ number_format($selectedCancellation->amount) }} VNĐ</td>
+                                            <td class="py-3 px-3 text-right text-sm font-mono text-primary">{{ number_format((float) ($selectedCancellation->amount), 0, ',', '.') }} VNĐ</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -393,7 +385,7 @@
                                         <span class="material-symbols-outlined text-slate-500 text-base">image</span>
                                         Ảnh chụp minh chứng hóa đơn hỏng / gạch chéo hủy:
                                     </span>
-                                    <span class="text-slate-400 font-mono text-[11px]">{{ $selectedCancellation->proof_image ? basename($selectedCancellation->proof_image) : 'hoadon_gachcheo_huy.jpg' }}</span>
+                                    <span class="text-slate-400 font-mono text-[11px]">{{ $selectedCancellation->proof_image ? basename($selectedCancellation->proof_image) : 'Không có tệp' }}</span>
                                 </div>
 
                                 <div class="relative bg-slate-900 rounded-xl p-4 flex items-center justify-center text-slate-300 min-h-[160px] border border-slate-800 overflow-hidden">
@@ -402,12 +394,9 @@
                                     @else
                                         <div class="text-center space-y-2">
                                             <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-800 text-slate-400">
-                                                <span class="material-symbols-outlined text-2xl">receipt_long</span>
+                                                <span class="material-symbols-outlined text-2xl">image_not_supported</span>
                                             </div>
-                                            <div class="text-xs">
-                                                <div class="font-mono text-amber-400 font-bold">HÓA ĐƠN SỐ: {{ $selectedCancellation->invoice_number }} [ĐÃ GẠCH CHÉO HỦY]</div>
-                                                <div class="text-slate-400 text-[11px]">Học viên: {{ $st?->name }} • Đã gạch chéo 3 liên • Chữ ký xác nhận người viết</div>
-                                            </div>
+                                            <div class="text-xs text-slate-400">Người yêu cầu không đính kèm ảnh hóa đơn hỏng / gạch chéo. Đối chiếu bản giấy trước khi duyệt.</div>
                                         </div>
                                     @endif
                                 </div>
@@ -417,11 +406,16 @@
                         <!-- Khu vực hành động của Admin (Có xác nhận lần 2) -->
                         <div class="pt-4 border-t border-slate-200 space-y-3">
                             <div class="text-[11px] text-slate-500 flex items-center justify-between">
-                                <span>Quyền thực hiện: <strong class="text-slate-700">{{ Auth::user()?->name ?? 'Admin' }} (Admin)</strong></span>
+                                <span>Quyền thực hiện: <strong class="text-slate-700">Admin</strong>@if ($isAdmin) ({{ Auth::user()->name }})@endif</span>
                                 <span class="text-slate-400">Hệ thống ghi nhận thời điểm thao tác chính xác vào Audit Log</span>
                             </div>
 
-                            @if ($selectedCancellation->status === 'pending')
+                            @if ($selectedCancellation->status === 'pending' && ! $isAdmin)
+                                <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-base">hourglass_empty</span>
+                                    Yêu cầu đang chờ Admin phê duyệt.
+                                </div>
+                            @elseif ($selectedCancellation->status === 'pending')
                                 <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                                     <div class="space-y-0.5">
                                         <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
@@ -487,7 +481,7 @@
                                     </div>
                                     <div class="flex justify-between">
                                         <span class="text-slate-500">Số tiền hủy &amp; hoàn công nợ:</span>
-                                        <strong class="text-rose-600 font-mono font-bold">{{ number_format($selectedCancellation->amount) }} VNĐ</strong>
+                                        <strong class="text-rose-600 font-mono font-bold">{{ number_format((float) ($selectedCancellation->amount), 0, ',', '.') }} VNĐ</strong>
                                     </div>
                                     <div class="flex justify-between">
                                         <span class="text-slate-500">Học viên hưởng revert:</span>

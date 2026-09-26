@@ -51,7 +51,8 @@ class TuitionTest extends TestCase
         $response = $this->actingAs($user)->get('/tuition/students');
         $response->assertStatus(200);
         $response->assertSee('Nguyễn Thuỳ Trang');
-        $response->assertSee('7,500,000');
+        // Phase 4 (mockup): số tiền định dạng Việt Nam (dấu chấm).
+        $response->assertSee('7.500.000đ');
     }
 
     public function test_can_create_receipt_and_recalculate_debt(): void
@@ -192,7 +193,11 @@ class TuitionTest extends TestCase
             'requester_id' => $user->id,
         ]);
 
-        $responseApprove = $this->actingAs($user)->post(route('tuition.invoices.cancellations.approve', $cancellation->id));
+        // Phase 4 (mockup duyet-huy-hoa-don): chỉ Admin phê duyệt hủy hóa đơn.
+        $this->actingAs($user)->post(route('tuition.invoices.cancellations.approve', $cancellation->id))->assertForbidden();
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+        $responseApprove = $this->actingAs($admin)->post(route('tuition.invoices.cancellations.approve', $cancellation->id));
         $responseApprove->assertRedirect();
 
         $cancellation->refresh();

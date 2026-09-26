@@ -589,9 +589,37 @@ class DemoPhase3Seeder extends Seeder
         $this->asUser($this->staff['accountant_cg'], TuitionController::class, 'storeRefundRequest', [
             'student_id' => $studentId, 'type' => 'refund', 'refund_amount' => 3000000,
             'reason' => 'Gia đình chuyển công tác vào TP.HCM, xin hoàn phần học phí chưa học.',
+            // A6 "Hoàn phí": ưu tiên chuyển nhượng — hoàn tiền phải ghi lý do không chuyển nhượng.
+            'no_transfer_reason' => 'Không có học viên nhận buổi dư, phụ huynh yêu cầu hoàn tiền.',
         ]);
         $refund = TuitionRefundRequest::where('student_id', $studentId)->where('status', 'pending')->latest('id')->firstOrFail();
-        $this->asUser($this->staff['admin'], TuitionController::class, 'approveRefundRequest', ['clawback_commission' => 1], ['id' => $refund->id]);
+        // Admin duyệt kèm ảnh bằng chứng chi tiền (bắt buộc từ Phase 4).
+        $this->withRefundProof(fn () => $this->asUser($this->staff['admin'], TuitionController::class, 'approveRefundRequest', ['clawback_commission' => 1], ['id' => $refund->id]));
+    }
+
+    /**
+     * Gắn ảnh bằng chứng (PNG 1×1) vào request mà InvokesControllersAsUser dựng: request được bind vào container
+     * trước khi gọi controller, nên gắn file khi container resolve 'request'.
+     */
+    private function withRefundProof(Closure $callback): mixed
+    {
+        $path = tempnam(sys_get_temp_dir(), 'refund-proof');
+        file_put_contents($path, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='));
+        $file = new \Illuminate\Http\UploadedFile($path, 'uy-nhiem-chi.png', 'image/png', null, true);
+        $pending = true;
+        app()->rebinding('request', function ($app, $request) use ($file, &$pending) {
+            if ($pending && $request->getPathInfo() === '/demo-seed') {
+                $request->files->set('proof_image', $file);
+                $pending = false;
+            }
+        });
+
+        try {
+            return $callback();
+        } finally {
+            $pending = false;
+            @unlink($path);
+        }
     }
 
     // ── Kỳ lương ───────────────────────────────────────────────────────────────
