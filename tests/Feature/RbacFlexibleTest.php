@@ -387,8 +387,8 @@ class RbacFlexibleTest extends TestCase
         $role->givePermissionTo('lead.delete');
         Role::findByName('student', 'web')->delete();
 
-        $this->seed(PermissionSeeder::class);
-        $this->seed(RoleSeeder::class);
+        $this->runSeederForReal(PermissionSeeder::class);
+        $this->runSeederForReal(RoleSeeder::class);
 
         $role = $role->fresh();
         $this->assertFalse($role->hasPermissionTo('kpi.view'), 'Seeder không cấp lại quyền Admin đã thu hồi.');

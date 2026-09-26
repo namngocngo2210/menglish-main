@@ -21,9 +21,9 @@ class RecruitmentAndDashboardsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Role::create(['name' => 'admin']);
-        Role::create(['name' => 'teacher']);
-        Role::create(['name' => 'assistant']);
+        Role::firstOrCreate(['name' => 'admin']);
+        Role::firstOrCreate(['name' => 'teacher']);
+        Role::firstOrCreate(['name' => 'assistant']);
     }
 
     public function test_can_access_academic_reports_dashboard(): void
