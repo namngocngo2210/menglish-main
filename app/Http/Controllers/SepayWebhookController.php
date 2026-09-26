@@ -202,9 +202,11 @@ class SepayWebhookController extends Controller
                     return ! empty($cleanMemo) && str_contains($cleanContent, $cleanMemo);
                 });
 
-            // b. Check student code (HS\d + HV-<ULID>; chấp nhận cả mã không gạch nối)
+            // b. Check student code (HS\d, HV-00001 của DocumentCodeGenerator, HV-<ULID>; chấp nhận cả mã không gạch nối).
+            // Mã số HV-NNNNN (5 chữ số) phải được thử trước: mẫu HV-<ULID> đòi ≥ 6 ký tự nên trước đây bỏ sót mã này.
             if (! $matchedTuition) {
-                if (preg_match('/(HS\d+|HV-?[A-Z0-9]{6,})/i', $content, $matches)) {
+                if (preg_match('/\b(HV-?\d{5,})(?![A-Z0-9])/i', $content, $matches)
+                    || preg_match('/(HS\d+|HV-?[A-Z0-9]{6,})/i', $content, $matches)) {
                     $code = strtoupper(str_replace('-', '', $matches[1]));
                     $student = Student::where('code', strtoupper($matches[1]))
                         ->orWhereRaw("REPLACE(code, '-', '') = ?", [$code])

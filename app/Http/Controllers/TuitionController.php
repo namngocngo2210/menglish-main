@@ -494,7 +494,7 @@ class TuitionController extends Controller
                 return ['transaction_code' => "Mã giao dịch {$transactionCode} đã được ghi nhận ở phiếu {$duplicate->receipt_number} ({$duplicate->status_label}). Không ghi nhận một khoản chuyển khoản 2 lần."];
             }
 
-            if ($sepay = $this->appliedSepayTransactionFor($transactionCode)) {
+            if ($sepay = $this->appliedSepayTransactionFor($transactionCode, $ignoreReceiptId)) {
                 return ['transaction_code' => "Mã giao dịch {$transactionCode} đã được SePay tự động gạch nợ"
                     .($sepay->receipt ? " (phiếu {$sepay->receipt->receipt_number})" : '').'. Không lập thêm phiếu thu tay cho giao dịch này.'];
             }
@@ -503,8 +503,12 @@ class TuitionController extends Controller
         return null;
     }
 
-    /** Giao dịch SePay (theo mã giao dịch / mã tham chiếu) đã tự tạo phiếu thu gạch nợ. */
-    private function appliedSepayTransactionFor(?string $transactionCode): ?SepayTransaction
+    /**
+     * Giao dịch SePay (theo mã giao dịch / mã tham chiếu) đã được ghi nhận bằng một phiếu thu KHÁC.
+     * Giao dịch SePay đến sau phiếu tay chờ duyệt cùng mã được gắn vào chính phiếu tay đó (duplicate_manual):
+     * không được coi là "đã gạch nợ" với chính phiếu ấy, nếu không phiếu tay không duyệt / gửi lại được.
+     */
+    private function appliedSepayTransactionFor(?string $transactionCode, ?int $ignoreReceiptId = null): ?SepayTransaction
     {
         $normalized = TuitionReceipt::normalizeReference($transactionCode);
         if ($normalized === null) {
@@ -513,6 +517,7 @@ class TuitionController extends Controller
 
         return SepayTransaction::with('receipt')
             ->whereNotNull('matched_receipt_id')
+            ->when($ignoreReceiptId, fn ($q) => $q->where('matched_receipt_id', '!=', $ignoreReceiptId))
             ->where(function ($q) use ($normalized) {
                 $q->whereRaw('UPPER(sepay_id) = ?', [$normalized])
                     ->orWhereRaw('UPPER(reference_code) = ?', [$normalized]);
@@ -723,7 +728,7 @@ class TuitionController extends Controller
         // Cảnh báo trùng với giao dịch SePay đã tự động gạch nợ (chỉ phiếu chuyển khoản đang chờ duyệt).
         $sepayWarnings = collect();
         if ($selectedReceipt && $selectedReceipt->status === TuitionReceipt::STATUS_PENDING) {
-            $exact = $this->appliedSepayTransactionFor($selectedReceipt->transaction_code);
+            $exact = $this->appliedSepayTransactionFor($selectedReceipt->transaction_code, $selectedReceipt->id);
             $sepayWarnings = $exact && in_array($selectedReceipt->payment_method, TuitionReceipt::TRANSFER_METHODS, true)
                 ? collect([$exact])
                 : $this->similarSepayTransactions($selectedReceipt);
@@ -872,7 +877,7 @@ class TuitionController extends Controller
             return null;
         }
 
-        if ($applied = $this->appliedSepayTransactionFor($receipt->transaction_code)) {
+        if ($applied = $this->appliedSepayTransactionFor($receipt->transaction_code, $receipt->id)) {
             return 'Không thể duyệt: mã giao dịch '.$receipt->transaction_code.' đã được SePay tự động gạch nợ'
                 .($applied->receipt ? ' (phiếu '.$applied->receipt->receipt_number.')' : '').'. Vui lòng từ chối phiếu thu tay này.';
         }
@@ -909,6 +914,7 @@ class TuitionController extends Controller
 
         return SepayTransaction::with('receipt')
             ->whereNotNull('matched_receipt_id')
+            ->when($receipt->id, fn ($q) => $q->where('matched_receipt_id', '!=', $receipt->id))
             ->where(function ($q) use ($receipt, $studentId) {
                 if ($receipt->student_tuition_id) {
                     $q->orWhere('matched_tuition_id', $receipt->student_tuition_id);
