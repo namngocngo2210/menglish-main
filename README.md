@@ -89,6 +89,50 @@ Có gì trong dữ liệu (L = tháng trước, C = tháng này):
 
 Kiểm thử nghiệm thu Phase 3: `php artisan test --filter='Phase3AcceptanceTest|DemoPhase3SeederTest'`.
 
+## MEnglish — Dữ liệu demo (Phase 4: học phí, hỗ trợ, vận hành)
+
+`DemoPhase4Seeder` chạy sau `DemoPhase3Seeder` (cùng điều kiện môi trường, gọi từ `DatabaseSeeder`). Chạy riêng: `php artisan db:seed --class=DemoPhase4Seeder` (cần Phase 1–3 trước). Idempotent (đã có khách `0388000001` thì chỉ in số liệu), ~3 giây, 1 transaction; mọi thao tác đi qua controller thật với "đồng hồ" đặt đúng thời điểm trong quá khứ (khách chốt N ngày trước → hạn đóng N−7 ngày trước), nên nhóm quá hạn, doanh thu tháng trước / tháng này hình thành như thật. Seeder in bảng số dòng và các bước bị chặn / bỏ qua đúng quy tắc.
+
+Có gì trong dữ liệu:
+- **Cấu hình**: tài khoản ngân hàng riêng Cầu Giấy (MB) / Ba Đình (Techcombank) → QR theo chi nhánh; **dải số HĐ riêng** `C26MCG` / `C26MBD` (1–500); SePay xác thực HMAC-SHA256 với **khóa sinh ngẫu nhiên mỗi lần seed** (muốn thử webhook bằng tay: đặt `SEPAY_WEBHOOK_ENABLED=true` rồi nhập khóa mới ở Cấu hình → Tài khoản ngân hàng → SePay); mốc nhắc nợ thêm **T+7**, mốc "quá hạn bắt buộc liên hệ" = 7 ngày.
+- **9 khách học phí** (SĐT `0388…`, tên `# …`, Sale nhập → Học vụ chuyển Đang tư vấn → Quản lý Chốt & xếp lớp sau, khóa FAM 2):
+  - `# Đinh Khánh Linh` (CG): đợt 1 Học vụ lập **nháp** → gửi duyệt (CK + minh chứng) → Kế toán **trả về** (sai mã GD) → sửa, gửi lại → Kế toán duyệt (HĐ `C26MCG-…`); đợt 2 PH chuyển khoản đúng nội dung QR → **SePay tự gạch nợ** + xuất HĐ → **công nợ 0**; webhook gửi lại bị bỏ qua.
+  - `# Hồ Minh Châu` (CG): **quá hạn ≥ 7 ngày**, đã gửi nhắc, **Đã liên hệ** 2 lần, **Báo cáo Admin**; hôm nay PH báo đã CK → phiếu **chờ duyệt**.
+  - `# Quách Thu Trang` (BD): đóng 1 phần tiền mặt → **quá hạn 1–6 ngày**; đợt 2 phiếu tay CK rồi SePay cùng mã đến sau → `duplicate_manual` (không ghi 2 lần), Kế toán vẫn duyệt phiếu tay; **yêu cầu hủy HĐ đợt 1 chờ duyệt**.
+  - `# Lý Hoàng Nam` (BD): **khất nợ** (hạn mới +10 ngày, tạm dừng nhắc nợ). `# Mai Quốc Việt` (BD): đóng 50% → **bảo lưu** 30 ngày (học viên "Bảo lưu", đóng băng công nợ).
+  - `# Tăng Bảo Ngọc` (CG): đóng đủ khi chốt → **chuyển nhượng** 3.000.000đ sang em `# Tăng Bảo Anh` (Admin duyệt) → hồ sơ **hoàn phí chờ duyệt đã quá 1 tuần**.
+  - `# Trịnh Đức Anh` (CG): sắp đến hạn, 1 phiếu **nháp** + 1 phiếu CK **bị trả về** chưa sửa. `# Viên Thảo Nhi` (BD): đóng đủ → **hủy hóa đơn** (Kế toán yêu cầu, Quản lý duyệt) → công nợ khôi phục.
+  - SePay: thêm 1 giao dịch vào **tài khoản lạ** (không gạch nợ) và 1 giao dịch **không nhận ra học viên** (chờ đối soát tay).
+- **Thu chi**: 9 khoản chi vận hành tháng trước + tháng này cho CG / BD (mặt bằng, internet, in ấn…); doanh thu từ phiếu đã duyệt → màn Báo cáo doanh thu tạm tính.
+- **Vận hành**: giao việc **2 chiều** (Admin → GV; GV → Học vụ, Học vụ gửi chờ xác nhận, GV duyệt; TA → Quản lý); **trợ giảng 3 ca** hôm nay cho `ta.yen` (trước giờ có ảnh → hoàn thành, trong giờ không ảnh → chờ xác nhận); **báo cáo trực lớp** có ảnh bảng (`ta.tuan`, tự hoàn thành) và không ảnh (`ta.yen`, chờ GV chính `gv.cohuu2` xác nhận); 2 **ticket** (GV báo hỏng máy chiếu; học viên xin hóa đơn) có **ghi chú nội bộ** ẩn với người tạo.
+- **Tài khoản & phân quyền**: tài khoản mới `ketoan.moi@menglish.edu.vn` (**bắt đổi mật khẩu** lần đầu); `gv.cohuu1` **hợp đồng hết hạn sau 20 ngày** (nhãn "HĐ sắp hết hạn", thông báo Admin + Quản lý CG; nhật ký có trước / sau); **phân quyền cá nhân**: Sale CG xem lớp **chi nhánh CG**, Sale BD xem + sửa đúng **lớp `DEMO-BD-FAM1`**.
+
+Kiểm thử nghiệm thu Phase 4: `php artisan test --filter='Phase4AcceptanceTest|DemoPhase4SeederTest|FullBpmnSmokeTest'`.
+
+## Kiểm tra nhanh toàn hệ thống
+
+```bash
+cp .env.example .env && php artisan key:generate                   # lần đầu (APP_ENV=local để bật dữ liệu demo)
+touch /tmp/menglish-demo.sqlite
+DB_CONNECTION=sqlite DB_DATABASE=/tmp/menglish-demo.sqlite php artisan migrate:fresh --seed   # ~15 giây: hệ thống + demo Phase 1–4
+php artisan test --filter='Phase[1-4]AcceptanceTest|DemoPhase[1-4]SeederTest|FullBpmnSmokeTest'  # nghiệm thu từng phase + lượt BPMN 1–22
+```
+
+Mật khẩu chung các tài khoản demo = `SEED_DEFAULT_PASSWORD` (mặc định `Password123!`). Đi theo thứ tự BPMN:
+
+| Bước | Luồng | Tài khoản | Màn hình / thao tác |
+|---|---|---|---|
+| 1–4 | Khách → test → học thử → chốt | Sale `tranmaia@…`, Học vụ `nva@…`, Quản lý `manager@…`, GV `nguyenvanan@…` | CRM → Pipeline (Sale nhập, Học vụ chuyển bước), Test đầu vào (Học vụ chấm), Học thử (GV nhận xét), Chốt & Xếp lớp / Chờ xếp lớp / Xác nhận chính thức |
+| 5–8, 21 | Lớp, lịch, giáo trình, dạy & điểm danh, chăm sóc | Học vụ `nva@…`, Học thuật `academiclead@…`, GV `nguyenvanan@…` | Dashboard lớp, TKB, Giao chặng, Điểm danh theo buổi, Bổ trợ, việc chăm sóc tháng đầu |
+| 10–14 | Big Test → PH nhận kết quả; cổng học viên | Học thuật `academiclead@…`, học viên `hocvien1@…` | Duyệt kết quả & gửi PH; Cổng học viên: lịch, điểm danh, kết quả |
+| 9, 9b, 16, 17 | Chấm công → phạt / hoa hồng / KPI → lương | Học vụ `nva@…`, Kế toán `ketoan2@…`, Admin `admin@…`, GV `nguyenvanan@…` | Chấm công GV, Danh sách vi phạm, Bảng lương (kỳ tháng này Đang soát → Admin duyệt), Lương của tôi |
+| 15 | Phiếu thu → duyệt → HĐ → công nợ | Học vụ `nva@…` (lập), Kế toán `ketoan2@…` (duyệt, CG) / `ttb@…` (BD) | Học phí → Lập phiếu thu / Duyệt phiếu thu / Lịch sử thu; khách `# Đinh Khánh Linh` (nợ 0), `# Hồ Minh Châu` (chờ duyệt) |
+| 15b | Hủy HĐ, hoàn phí, chuyển nhượng, bảo lưu, khất nợ, quá hạn | Kế toán `ketoan2@…` / `ttb@…`, Quản lý `manager.bd@…`, Admin | Duyệt hủy HĐ, Hoàn tiền & khất nợ, Thu phí quá hạn (nhóm ≥ 7 / 1–6 ngày, Đã liên hệ, Báo cáo Admin), Cấu hình nhắc nợ, Dải số HĐ, Tài khoản NH |
+| 18–20 | Giao việc, trợ giảng 3 ca, trực lớp, ticket, thu chi | Admin, Quản lý `manager@…`, TA `ta.tuan@…` / `ta.yen@…`, GV `gv.cohuu2@…`, Kế toán `ketoan2@…` | Phân công công việc, Nhiệm vụ hôm nay (TA), Xác nhận hoàn thành (GV chính duyệt báo cáo không ảnh), Ticket, Báo cáo doanh thu tạm tính, Khoản chi |
+| 22 | Dashboard, tài khoản, phân quyền, nhật ký | Admin, Quản lý, Học thuật; `ketoan.moi@…` (bắt đổi mật khẩu) | Dashboard theo vai trò, Tài khoản (HĐ sắp hết hạn `gv.cohuu1`), Phân quyền cá nhân (`tranmaia`, `hoangthinh`), Nhật ký vận hành (so sánh trước / sau) |
+
+Quản lý / Kế toán có gán chi nhánh chỉ thấy học phí và báo cáo thu chi của chi nhánh mình (thử `manager.bd@…` / `ttb@…`); Sale không vào được Học phí / Thu chi.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:

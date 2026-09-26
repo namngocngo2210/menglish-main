@@ -509,7 +509,7 @@
 | 1 | Chặn rủi ro khẩn + Tuyển sinh → vào lớp | ✅ | 100% (phạm vi đã chốt) | Xong: 23 P0, CRM pipeline 8 bước + luật lùi bước/Thất bại/không hủy chốt, test đầu vào chấm theo khối lớp (Q2), học thử nhận xét theo khách, chốt & xếp lớp / Chờ xếp lớp / xác nhận chính thức, hồ sơ học viên, bộ sinh mã, nền giao diện + quét dữ liệu giả (B2), đối chiếu 12 màn mockup, dữ liệu demo + test nghiệm thu trọn luồng (725 test pass). **Chờ BA:** thang điểm học viên lớn (Q2); Học vụ có được chốt khách (`lead.convert`) không. Các mục "chưa làm" có lý do: xem nhật ký `feat/phase1-mockup-parity` |
 | 2 | Vận hành lớp học | ✅ | 100% (phạm vi đã chốt) | Xong: lịch/TKB/dashboard lớp, GVNN, nghỉ lễ (+ xếp bù), trình độ, Giáo trình → Chặng → Unit → Buổi (1 chặng mở, tự đóng/mở theo Big Test), điểm danh theo buổi, bổ trợ tự động, Big Test (order → duyệt tạo đợt thi → nháp/gửi duyệt → gửi PH), SĐT phụ huynh, portal GV (mobile) / TA / học viên, chăm sóc tháng đầu 3 mốc, đối chiếu mockup toàn bộ màn Phase 2, dữ liệu demo + test nghiệm thu (757 test pass). **Chờ BA / người dùng:** Zalo OA/ZNS thật (token, template); Quản lý cơ sở có giữ quyền duyệt Big Test/giáo trình không; "Buổi 4–5" tính buổi học viên đi học hay buổi của lớp; ngày chốt cho học viên không qua CRM; Học vụ có bị giới hạn chi nhánh không |
 | 3 | Chấm công → Lương | 🟦 | ~95% (luồng đã nghiệm thu; còn đối chiếu Excel + BA) | Xong: chấm công tay, quy trình phạt, phiếu lương từng người, hoa hồng theo tiền thực thu; **công thức lương theo BA (Q3)**: Part-time (buổi × đơn giá buổi riêng + KPI giữ HS + GVNN nhập tay + phụ cấp tự do), Full-time (lương cơ bản + KPI / hoa hồng / tái tục − BHXH 10,5% − Công đoàn 0,5% − TNCN tay), KPI Học vụ tự động 6 nhóm / 15 mục, hoa hồng theo bậc số HS chốt + gate kép (hoãn, trả kỳ sau), thưởng tái tục theo lớp (nhánh `feat/phase3-formula`); dữ liệu demo + test nghiệm thu trọn luồng buổi dạy → lương → duyệt → "Lương của tôi" (`feat/phase3-seed-acceptance`, sửa 4 lỗi khóa / trùng). **Chờ BA:** lương buổi có GVNN, bảng % tái tục đầy đủ, định nghĩa "số HS giữ được", ngưỡng bậc hoa hồng. Cần bảng lương Excel để đối chiếu |
-| 4 | Thu học phí, hỗ trợ, nghiệm thu | 🟦 | ~55% | Xong: học phí (dải số theo chi nhánh, bảo lưu/khất nợ, quá hạn, chống trùng chuyển khoản), nhật ký, phân quyền cá nhân, giao việc, ticket, dashboard vai trò, dọn view chết. Chờ tới lượt: hoàn phí 1 tuần, trực lớp (Q8), đối chiếu mockup, nghiệm thu |
+| 4 | Thu học phí, hỗ trợ, nghiệm thu | 🟦 | ~85% | Xong: học phí (dải số theo chi nhánh, bảo lưu/khất nợ, quá hạn, chống trùng chuyển khoản), nhật ký, phân quyền cá nhân, giao việc, ticket, dashboard vai trò, dọn view chết; **nghiệm thu** phiếu thu → duyệt → HĐ → công nợ 0 + lượt BPMN 1–22 + dữ liệu demo Phase 4 (`feat/phase4-seed-acceptance`, sửa 4 lỗi SePay / phạm vi / nhắc nợ). Đang làm (nhánh khác): hoàn phí 1 tuần (A6), trực lớp Q8, đối chiếu mockup. Còn: UAT người dùng, thông báo chung theo chi nhánh, ticket theo chi nhánh |
 
 > Cập nhật 25/09/2026. Cách làm đã chốt: **làm trọn từng phase theo thứ tự**; chỉ làm việc của phase sau khi phase trước phụ thuộc vào nó.
 
@@ -1100,6 +1100,87 @@ Test: thêm `Phase3AcceptanceTest` (1 luồng, 196 assertion) và `tests/Feature
 **Migration:** `2026_10_03_100000` (`teacher_timesheets.adjusted_at/adjusted_by/adjustment_reason`), `2026_10_03_100100` (`timesheet_sync_logs.source/failed_count/skipped_count/error_code/error_message/error_rows`), `2026_10_03_100200` (`penalties.remedied_at/remedied_by/remedy_note`), `2026_10_03_100300` (`teacher_hourly_rates.teacher_type`), `2026_10_03_100400` (`kpi_evaluation_items.actual/critical_error`, `kpi_evaluations.strengths/improvements/next_actions`).
 **Test:** thêm `tests/Feature/Phase3MockupParityTest.php` (1 test / màn — 4 màn chi tiết lương gộp 1 test, BXH KPI + KPI Học vụ gộp 1 test; 10 test). Sửa test khẳng định UI / luật cũ: `Phase3TimesheetTest` ("Chưa kết nối máy chấm công" → "Chưa kết nối nguồn đồng bộ"), `PayrollP0FixesTest` (lịch sử đồng bộ: "42 lượt", "40 / 42", "Thất bại" → cột số + "Lỗi toàn bộ"), `PayrollBusinessTest` (tên bậc hoa hồng không còn bắt buộc; tiêu đề "Lương của tôi").
 **Triển khai:** `php artisan migrate` (5 migration trên, chỉ thêm cột). Build lại asset (`npm run build`, commit riêng "chore: rebuild assets").
+
+#### Nghiệm thu Phase 4 — Lập phiếu thu → duyệt → xuất hóa đơn → công nợ về 0; lượt BPMN 1–22 (nhánh `feat/phase4-seed-acceptance`)
+**Kịch bản đã kiểm thử** (`tests/Feature/Phase4AcceptanceTest.php`, qua HTTP bằng đúng vai trò; 2 chi nhánh A / B, khóa 9.000.000đ):
+- [x] **Cấu hình**: Kế toán thêm dải số HĐ `N4A` / `N4B` và tài khoản ngân hàng theo chi nhánh (Sale 403); Admin cấu hình SePay HMAC-SHA256 (Sale 403). Sale nhập khách → CM chuyển "Đang tư vấn" → Sale chốt (chưa đóng phí) → học phí 9.000.000đ, hạn +7 ngày, **QR theo tài khoản chi nhánh**, có nội dung CK.
+- [x] **Đợt 1**: CM lập **nháp** (chưa có số HĐ) → gửi duyệt **thiếu minh chứng bị chặn** → gửi kèm ảnh → Kế toán **trả về** (người lập nhận thông báo) → CM sửa mã GD, gửi lại. Sale / CM (không có quyền duyệt) / Quản lý **chi nhánh khác** 403; **phiếu chờ duyệt chưa trừ nợ**. Kế toán duyệt → HĐ **`N4A-0000001`** (dải chi nhánh), nợ 5.000.000đ, "Đang nợ". **Nhật ký**: dòng `updated` của phiếu có trước `pending` / sau `approved`, người thao tác = Kế toán; màn Nhật ký hiện "So sánh trước / sau".
+- [x] **Đợt 2**: Kế toán lập phiếu tiền mặt (vượt nợ bị chặn), **tự duyệt bị chặn**; Quản lý chi nhánh duyệt → `N4A-0000002` → **công nợ 0, "Đã hoàn thành"**; Lịch sử thu hiện HĐ.
+- [x] **Hủy hóa đơn**: sai số tiền bị chặn; Quản lý chi nhánh B 403; Quản lý A duyệt → phiếu "Đã hủy", **giữ số HĐ**, công nợ khôi phục 5.000.000đ.
+- [x] **SePay**: tiền vào **tài khoản lạ** → `rejected_account`, không gạch nợ; **sai chữ ký** 401; đúng nội dung QR → gạch nợ, HĐ `N4A-0000003`, **nợ 0**; **gửi lại** cùng mã → bỏ qua (1 giao dịch, 1 phiếu); **phiếu tay** cho đúng mã SePay đã gạch nợ bị chặn; phiếu tay CK chờ duyệt rồi SePay cùng mã → `duplicate_manual`, không tạo phiếu 2, **Kế toán vẫn duyệt được phiếu tay** (sửa trong nhánh này); mã học viên dạng **`HV-00001`** trong nội dung CK được nhận ra (sửa trong nhánh này).
+- [x] **Chuyển nhượng + hoàn phí** (Sale 403; Kế toán lập, Admin duyệt): S1 → S2 2.000.000đ, hoàn S1 1.000.000đ → S1 hợp đồng 6.000.000đ, đã nộp 6.000.000đ, nợ 0; S2 nợ giảm; mọi phiếu đã duyệt có số HĐ, **đều thuộc dải chi nhánh A**, không trùng số.
+- [x] **Quá hạn & nhắc nợ** (20/09): lệnh `tuition:send-debt-reminders` tạo nhắc **T+3** cho khoản quá 3 ngày; danh sách **≥ 7 ngày** (12 ngày) và **1–6 ngày** (3 ngày) đúng khoản, đúng số ngày; "Đã liên hệ", "Báo cáo Admin" (Admin nhận thông báo), "Gửi nhắc"; Quản lý chi nhánh B 403; **khất nợ** (Quản lý duyệt) → khoản chuyển sang "tạm dừng nhắc nợ", rời nhóm quá hạn.
+- [x] **Phạm vi**: Quản lý B chỉ thấy khoản quá hạn / học phí chi nhánh B, báo cáo doanh thu chọn chi nhánh A vẫn bị đưa về B; **Kế toán có gán chi nhánh B chỉ thấy B** ở báo cáo thu chi (sửa trong nhánh này); Admin thấy doanh thu tháng; **Sale 403** ở Báo cáo doanh thu, Khoản chi, Học phí, Quá hạn.
+- [x] **Ticket**: học viên tạo ticket (mã `TK-YYYY-NNNN`, báo Quản lý cùng chi nhánh, không báo chi nhánh khác); học viên không gửi được ghi chú nội bộ (403); **ghi chú nội bộ ẩn với học viên**, phản hồi thường hiện; Quản lý thấy ghi chú; GV ngoài luồng 403.
+- [x] **Bắt đổi mật khẩu**: Admin tạo tài khoản → đăng nhập lần đầu mọi trang bị chuyển về "Đổi mật khẩu" → đổi xong vào được Học phí.
+- [x] **Trợ giảng 3 ca + trực lớp**: Học vụ giao 3 ca (trước / trong / sau, gắn lớp; TA nhận thông báo); báo cáo **có ảnh bảng → duyệt ngay, việc ca "sau" hoàn thành**; **không ảnh → chờ**, GV chính nhận thông báo, TA không tự duyệt (403), **GV chính duyệt** → việc ca "trong" hoàn thành.
+- [x] **Lượt BPMN 1–22** (`tests/Feature/FullBpmnSmokeTest.php`, trên dữ liệu demo Phase 1–4): Sale nhập khách → CM chuyển bước → test đầu vào / học thử → Chốt & xếp lớp sau → Chờ xếp lớp / Xác nhận → lớp, dashboard lớp, hồ sơ học viên → giáo trình / giao chặng / GV xem giáo trình / điểm danh → chấm công, vi phạm → bổ trợ, kết quả Big Test → cổng học viên → **phiếu thu (CM lập, Kế toán duyệt, HĐ `C26MCG-…`, nợ giảm)** → hoàn phí, quá hạn, hủy HĐ → bảng lương, "Lương của tôi" → giao việc, TA, xác nhận hoàn thành, ticket, doanh thu, khoản chi → KPI → dashboard 7 vai trò, nhật ký — mọi bước 200 / chuyển trang, không lỗi.
+
+**Lỗi phát hiện và đã sửa (không sửa view):**
+- [x] **Phiếu tay CK không duyệt được khi SePay cùng mã đến sau** (`TuitionController::appliedSepayTransactionFor` / `similarSepayTransactions`): webhook gắn giao dịch vào chính phiếu tay đang chờ (`duplicate_manual`, `matched_receipt_id` = phiếu đó), rồi kiểm tra "đã được SePay gạch nợ" lại khớp chính phiếu ấy → Kế toán bị chặn duyệt ("Vui lòng từ chối phiếu thu tay này"), người lập cũng không gửi lại được → **khoản tiền không bao giờ được ghi nhận**. Nay bỏ qua liên kết tới chính phiếu đang duyệt / sửa (cả cảnh báo "cùng tiền ±3 ngày").
+- [x] **SePay không nhận mã học viên `HV-00001`** (`SepayWebhookController`): mẫu `HV-?[A-Z0-9]{6,}` đòi ≥ 6 ký tự sau "HV" nên mã 5 chữ số của bộ sinh mã dùng chung (hồ sơ tạo ở màn Học viên) rơi vào "không khớp", phải đối soát tay. Nay thử `HV-?\d{5,}` trước.
+- [x] **Kế toán chi nhánh thấy báo cáo thu chi toàn công ty** (`FinanceController::scopedBranchIds`, việc "Chưa làm" của Vòng 2): nay cùng quy tắc với màn Học phí — Admin và kế toán tổng (không gán chi nhánh) thấy tất cả, kế toán có chi nhánh / Quản lý chỉ thấy chi nhánh mình.
+- [x] **"Gửi nhắc" tay bỏ qua mốc nhắc nợ đã cấu hình** (`NotificationService::debtMilestoneFor`): luôn chọn T-3 / T0 / T+3 → khoản quá 12 ngày nhận tin mốc 3 ngày dù đã có mốc T+7; tắt T+3 thì không gửi được. Nay chọn mốc đang bật gần nhất đã chạm tới (chưa chạm mốc nào → mốc sớm nhất); chưa cấu hình giữ như cũ.
+
+**Đối chiếu A3 "Học phí & Hóa đơn", "Nền tảng, Portal, Vận hành" + B4 "Học phí", "Cấu hình hệ thống" + Phần C Phase 4:**
+
+| Mục | Kết quả | Bằng chứng / ghi chú |
+|---|---|---|
+| A3 · Chuyển khoản ghi nhận 2 lần | ✅ Xong + sửa thêm | `transfer_reference` UNIQUE, `sepay_id` UNIQUE, `manualReceiptFor`; test gửi lại / phiếu tay trùng mã. **Sửa thêm:** phiếu tay + SePay đến sau bị kẹt |
+| A3 · Hai kế toán duyệt cùng lúc sai công nợ | ✅ Xong | `approveReceiptAction` khóa công nợ rồi khóa phiếu, kiểm trạng thái trong transaction, `recalculateDebt` từ phiếu đã duyệt |
+| A3 · Dải số HĐ theo chi nhánh, không cấp lại số | ✅ Xong | `InvoiceConfiguration::consumeNextInvoiceNumber`, `invoice_number` UNIQUE; test `N4A-0000001…3`, HĐ hủy giữ số |
+| A3 · QR trỏ TK viết cứng | ✅ Xong | `StudentTuition::resolveBankAccount` (hợp đồng → chi nhánh → mặc định); test |
+| A3 · Bảo lưu / khất nợ duyệt không tác dụng | ✅ Xong | `applyExtensionOrDeferral`; test khất nợ rời nhóm quá hạn; demo bảo lưu |
+| A3 · Nhập Excel học phí giả | ✅ Xong | `TuitionImportService` (`Phase4TuitionImportTest`) |
+| A3 · Sale xem báo cáo thu chi | ✅ Xong + sửa thêm | `finance.view`; test Sale 403. **Sửa thêm:** kế toán chi nhánh bị giới hạn chi nhánh |
+| A3 · Nhật ký không có trước / sau | ✅ Xong | `AuditsChanges`; test phiếu thu `pending → approved` |
+| A3 · Phân quyền cá nhân theo chi nhánh / lớp | 🟦 Một phần | Chạy thật cho module Lớp (demo: Sale CG theo chi nhánh, Sale BD theo lớp); module khác chỉ "Toàn hệ thống" — xem "Còn tồn" |
+| A3 · Giới hạn chi nhánh cho Quản lý | 🟦 Một phần | Lớp, tài khoản, giao việc, học phí, thu chi: ✅ (test). Ticket và **thông báo chung** chưa theo chi nhánh — xem "Còn tồn" |
+| A3 · Giao việc (xem, đổi trạng thái, tự duyệt, 2 chiều, thông báo) | ✅ Xong | `WorkTaskController` (`Phase4PlatformTest`); demo 2 chiều + TA 3 ca |
+| A3 · Báo cáo trực lớp có bước duyệt; KPI tự động số thật | ✅ Xong (Q8 phần người giao việc: nhánh khác) | Có ảnh → duyệt ngay, không ảnh → GV chính (test); `KpiBoardService` |
+| A3 · Ticket gửi sai người / mã TK- / file đính kèm công khai | ✅ Xong | Test thông báo theo chi nhánh, mã `TK-YYYY-NNNN`, ghi chú nội bộ ẩn; file riêng tư (`Phase4PlatformTest`) |
+| A3 · Menu theo vai trò | ✅ Xong | Phase 1 (`NavigationPermissionTest`) |
+| A3 · Portal dữ liệu giả, điểm "AI" ngẫu nhiên | ✅ Xong | `feat/phase4-platform` |
+| A3 · Không bắt đổi mật khẩu; tự xóa tài khoản | ✅ Xong | Test đăng nhập lần đầu bị chuyển trang tới khi đổi xong |
+| A3 · Cảnh báo HĐ nhân sự, dashboard vai trò (BPMN 22) | ✅ Xong | `hr:notify-expiring-contracts` (demo `gv.cohuu1` +20 ngày); smoke test dashboard 7 vai trò |
+| B4 · Lưu nháp thành Từ chối; không sửa / gửi lại; không bắt buộc minh chứng | ✅ Xong | Test nháp → thiếu minh chứng → trả về → gửi lại |
+| B4 · Phụ thu mặc định, số buổi cứng; UNC giả, "Khớp số tiền" | ✅ Logic / 🟦 giao diện | Logic `sessionStats`; phần hiển thị do nhánh đối chiếu mockup Phase 4 đang làm |
+| B4 · Quá hạn chia nhóm, Đã liên hệ, Báo cáo Admin, số ngày | ✅ Xong + sửa thêm | Test nhóm 12 / 3 ngày. **Sửa thêm:** "Gửi nhắc" theo mốc đã cấu hình |
+| B4 · Hoàn phí số liệu cứng, "Đánh dấu khất nợ" | ✅ Xong | `refundBasis`; luật 1 tuần / Admin duyệt / ảnh bằng chứng: nhánh khác |
+| B4 · Dải số HĐ, nhắc nợ khác mockup, biến mẫu sai | ✅ Xong | `DebtReminderRule::unknownVariables`; demo mốc T+7 |
+| B4 · Tài khoản: dữ liệu giả, kiêm nhiệm, upload HĐ | ✅ Xong | `Phase4PlatformTest` |
+| B4 · Phân quyền cá nhân: phạm vi, ma trận | ✅ Xong (module Lớp) | Như A3 |
+| B4 · Danh mục "Kích hoạt lại" | ✅ Xong | `Phase4PlatformTest` |
+| B4 · Nhật ký: so sánh, hoàn tác, lọc ngày, xuất Excel, ghi 2 lần | ✅ Xong (xuất CSV) | `Phase4PlatformTest` |
+| C4.1 Học phí (từng đợt nháp → duyệt / trả về; dải số; hủy HĐ; hoàn / chuyển / bảo lưu / khất; nhắc nợ, quá hạn) | ✅ Xong | Test + demo. Luật hoàn phí mới (A6): nhánh khác |
+| C4.2 Chuyển khoản (tự đối soát, không ghi 2 lần; QR theo chi nhánh) | ✅ Xong + sửa thêm | 2 lỗi SePay ở trên |
+| C4.3 Tài khoản & phân quyền (vai trò, phạm vi, menu, nhật ký, đổi mật khẩu, cảnh báo HĐ) | ✅ Xong (phạm vi: module Lớp) | Như trên |
+| C4.4 Vận hành (giao việc 2 chiều, TA 3 ca, trực lớp có duyệt, KPI thật, ticket đúng người) | ✅ Xong | Q8 "người giao việc xác nhận khi lớp chưa có GV chính": nhánh khác |
+| C4.5 Dashboard & nghiệm thu | ✅ Dashboard + nghiệm thu HTTP / ⚠️ người dùng thử | Chưa có buổi UAT với người dùng thật |
+| Kết quả: phiếu thu → duyệt → HĐ → công nợ 0 | ✅ Xong | `Phase4AcceptanceTest` + demo `# Đinh Khánh Linh` |
+| Kết quả: toàn bộ BPMN 1–22 chạy được | ✅ Mức HTTP | `FullBpmnSmokeTest` + Phase 1–4 Acceptance; "sẵn sàng đưa vào sử dụng" còn chờ UAT và các mục dưới |
+| Mockup các màn Phase 4 | 🟦 Nhánh khác đang làm | Nhánh này không sửa view |
+
+**Dữ liệu demo:** `Database\Seeders\DemoPhase4Seeder` (`DatabaseSeeder` gọi sau `DemoPhase3Seeder`, cùng điều kiện môi trường). Mọi thao tác qua controller thật (`TuitionController` phiếu thu / duyệt / trả về / hủy HĐ / hoàn – chuyển – bảo lưu – khất nợ / quá hạn / dải số, `SepayWebhookController` ký HMAC thật, `SystemConfigController` TK ngân hàng / SePay / nhắc nợ, `FinanceController` khoản chi, `CrmController` chốt khách, `WorkTaskController`, `SupportTicketController`, `UserController`, `UserPermissionOverrideController`), đồng hồ đặt đúng thời điểm trong quá khứ. Idempotent (khách `0388000001`), ~3 giây, 1 transaction. Sau `migrate:fresh --seed` trên SQLite trắng (26/09/2026, toàn bộ seed ~15 giây):
+- TK ngân hàng: CG (VCB mặc định + MB), BD (Techcombank); dải số HĐ `C26MEN` (mặc định), `C26MCG`, `C26MBD`; mốc nhắc nợ T-3 / T0 / T+3 / **T+7**; SePay HMAC khóa ngẫu nhiên.
+- 9 khách học phí → học phí: đã xong 2, đang nợ 3, chưa nộp 4. Phiếu thu toàn DB: đã duyệt 19, chờ duyệt 7, nháp 1, bị trả về 1, đã hủy 1; HĐ dải chi nhánh CG 5 / BD 4.
+- SePay: `matched` 1, `duplicate_manual` 1, `rejected_account` 1, `unmatched` 1 (+ 1 lần gửi lại bị bỏ qua). Hủy HĐ: đã duyệt 1, chờ 1. Hồ sơ: chuyển nhượng 1, khất nợ 1, bảo lưu 1 (đã duyệt), hoàn phí chờ duyệt quá 1 tuần 1 (+ hoàn phí có thu hồi của Phase 3).
+- Quá hạn (khách demo P4): ≥ 7 ngày 3, 1–6 ngày 1, tạm dừng nhắc 2; nhật ký liên hệ 3 + báo Admin 1.
+- 9 khoản chi (94.350.000đ, CG + BD, tháng trước + tháng này); 6 việc (hoàn thành 2, mới 2, chờ xác nhận 2) gồm 3 ca TA; báo cáo trực lớp: đã duyệt 2 (1 của Phase 2), chờ GV chính 1; 2 ticket, 2 ghi chú nội bộ; 3 override (1 theo chi nhánh, 2 theo lớp); 1 tài khoản bắt đổi mật khẩu; 1 HĐ nhân sự hết hạn ≤ 30 ngày.
+
+Test: thêm `Phase4AcceptanceTest` (3 test), `FullBpmnSmokeTest` (1 test), `DemoPhase4SeederTest` (đủ trạng thái, chạy lại không đổi số dòng, mở được các màn bằng tài khoản demo). Toàn bộ bộ test xanh: **__TOTAL__** (không sửa test cũ). Hướng dẫn + bảng tài khoản theo từng bước BPMN: `README.md` ("Dữ liệu demo Phase 4", "Kiểm tra nhanh toàn hệ thống").
+
+**Còn tồn / cần BA xác nhận:**
+- [ ] **Luật hoàn phí A6** (1 tuần & cùng tháng, chỉ Admin duyệt, bắt buộc ảnh bằng chứng, cờ "Quá hạn xử lý") và **Q8 người giao việc xác nhận báo cáo trực lớp khi lớp chưa có GV chính**: nhánh khác đang làm → bổ sung assertion vào `Phase4AcceptanceTest` sau khi gộp (demo đã có sẵn 1 hồ sơ hoàn phí chờ quá 1 tuần để hiện cờ). Khi ảnh bằng chứng thành bắt buộc, bước hoàn phí trong `DemoPhase4Seeder::refundRequest` cần gửi kèm file.
+- [ ] **Thông báo chung (`user_id` NULL) lộ chéo chi nhánh**: phiếu thu chờ duyệt, SePay… tạo thông báo chung mà mọi Quản lý cơ sở đều thấy (tên học viên + số tiền chi nhánh khác). Sửa cần đổi mô hình thông báo chung (và 1 test cũ khẳng định thông báo chung) → cần BA chốt ai nhận thông báo tài chính.
+- [ ] **Ticket chưa giới hạn chi nhánh** với người quản lý ticket (Quản lý cơ sở thấy / đóng ticket mọi chi nhánh) — cần BA xác nhận ticket xử lý theo chi nhánh hay toàn hệ thống.
+- [ ] Phạm vi chi nhánh / lớp của **phân quyền cá nhân** cho module ngoài Lớp (Học viên, Học phí, CRM…).
+- [ ] "Gửi nhắc" / lệnh nhắc nợ chỉ có kênh in-app + email; **Zalo ZNS / SMS** chưa tích hợp. Lệnh tự động chỉ gửi đúng ngày chạm mốc (khoản quá hạn lâu không được nhắc lại hằng ngày) — đúng ý BA chưa?
+- [ ] SePay chỉ nhận mã học viên / nội dung QR; khách chuyển **dính liền không dấu cách** sau mã ULID vẫn phải đối soát tay.
+- [ ] **UAT với người dùng thật**, khóa SePay / Zalo thật, dữ liệu thật trước khi "đưa vào sử dụng".
+- [ ] Xuất nhật ký vẫn là CSV (chưa .xlsx).
+
+**Triển khai:** không có migration. Demo/staging: `php artisan migrate:fresh --seed` hoặc `php artisan db:seed --class=DemoPhase4Seeder` (sau Phase 1–3). Production **không** đặt `SEED_DEMO=true`. Kế toán có gán chi nhánh từ nay chỉ thấy báo cáo thu chi chi nhánh mình — kế toán tổng để trống chi nhánh.
 
 ---
 
