@@ -77,6 +77,24 @@ class UiComponentsRenderTest extends TestCase
         $this->assertStringContainsString('value="2026-01-02"', $html);
     }
 
+    public function test_money_tone_and_input_suffix(): void
+    {
+        $html = (string) $this->blade(<<<'BLADE'
+            <x-ui.money :value="2500000" tone="success" sign />
+            <x-ui.money :value="-100" />
+            <x-ui.input name="capacity" label="Sĩ số" suffix="học viên" />
+            <x-ui.input name="plain" />
+        BLADE);
+
+        $this->assertMatchesRegularExpression('/text-tertiary[^>]*>\+2\.500\.000 ₫</u', $html);
+        $this->assertMatchesRegularExpression('/text-error[^>]*>-100 ₫</u', $html);
+        $this->assertStringContainsString('pr-16', $html);
+        $this->assertStringContainsString('>học viên</span>', $html);
+        // Không label / icon / suffix: chỉ thẻ input, không bọc <label>.
+        $this->assertMatchesRegularExpression('/<input type="text"\s+name="plain"/', $html);
+        $this->assertDoesNotMatchRegularExpression('/<label[^>]*>\s*<input type="text"\s+name="plain"/', $html);
+    }
+
     public function test_pagination_renders_with_record_options(): void
     {
         $paginator = new LengthAwarePaginator(range(1, 10), 45, 10, 2, ['path' => '/items']);
