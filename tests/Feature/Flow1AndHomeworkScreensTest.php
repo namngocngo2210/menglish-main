@@ -122,54 +122,68 @@ class Flow1AndHomeworkScreensTest extends TestCase
         $created = ClassModel::where('code', 'IE-TEST-99')->first();
         $this->assertNotNull($created);
         $this->assertEquals('IELTS Test K99', $created->name);
-        $response->assertRedirect(route('classes.profile', ['id' => $created->id]));
+        // Lớp chưa có lịch → mở Trang lớp ở tab Lịch & buổi học (bước tiếp theo của vòng đời).
+        $response->assertRedirect(route('classes.show', ['id' => $created->id, 'tab' => 'schedule']));
     }
 
     /**
-     * Test Flow 1 - Step 3: Hồ sơ lớp học
+     * Test Flow 1 - Step 3: Trang lớp (Tổng quan + Học viên) — link Hồ sơ lớp cũ chuyển hướng về đây.
      */
-    public function test_flow_1_step_3_profile_renders_successfully()
+    public function test_flow_1_step_3_class_page_renders_successfully()
     {
         $class = ClassModel::first();
-        $response = $this->actingAs($this->admin)->get(route('classes.profile', ['id' => $class?->id]));
+        $this->actingAs($this->admin)->get(route('classes.profile', ['id' => $class->id]))
+            ->assertRedirect(route('classes.show', ['id' => $class->id]));
+
+        $response = $this->actingAs($this->admin)->get(route('classes.show', $class->id));
         $response->assertStatus(200);
-        $response->assertSee('Hồ sơ lớp');
+        $response->assertSee($class->name);
         $response->assertSee('Thông tin chung');
-        $response->assertSee('Danh sách học sinh');
+        $response->assertSee('Vòng đời lớp');
+
+        $this->actingAs($this->admin)->get(route('classes.show', ['id' => $class->id, 'tab' => 'students']))
+            ->assertOk()->assertSee('Danh sách học sinh');
     }
 
     /**
-     * Test Flow 1 - Step 4: Sơ đồ khối lớp học thuật
+     * Test Flow 1 - Step 4: Sơ đồ khối → chip đếm theo chương trình / cấp độ trên Danh sách lớp.
      */
-    public function test_flow_1_step_4_academic_overview_renders_successfully()
+    public function test_flow_1_step_4_academic_overview_redirects_to_class_list()
     {
-        $response = $this->actingAs($this->admin)->get(route('classes.academic-overview'));
+        $this->actingAs($this->admin)->get(route('classes.academic-overview'))
+            ->assertRedirect(route('classes.index'));
+
+        $response = $this->actingAs($this->admin)->get(route('classes.index'));
         $response->assertStatus(200);
-        $response->assertSee('Tổng quan Danh sách lớp');
-        $response->assertSee('Số lớp theo chương trình');
-        $response->assertSee('Số lớp theo trình độ / khối', false);
+        $response->assertSee('Lọc theo trạng thái lớp', false);
     }
 
     /**
-     * Test Flow 1 - Step 5: Danh sách lớp chi tiết
+     * Test Flow 1 - Step 5: Danh sách lớp (gộp Danh sách lớp chi tiết).
      */
-    public function test_flow_1_step_5_academic_list_renders_successfully()
+    public function test_flow_1_step_5_class_list_renders_successfully()
     {
-        $response = $this->actingAs($this->admin)->get(route('classes.academic-list'));
+        $this->actingAs($this->admin)->get(route('classes.academic-list', ['program' => 'IELTS']))
+            ->assertRedirect(route('classes.index', ['program' => 'IELTS']));
+
+        $response = $this->actingAs($this->admin)->get(route('classes.index'));
         $response->assertStatus(200);
-        $response->assertSee('Danh sách lớp chi tiết Học thuật');
+        $response->assertSee('Danh sách lớp');
         $response->assertSee('Big Test');
+        $response->assertSee('Việc tiếp theo');
     }
 
     /**
-     * Test Flow 1 - Step 6: Chi tiết lớp học thuật
+     * Test Flow 1 - Step 6: tab Học thuật của Trang lớp (gộp Chi tiết lớp học thuật).
      */
-    public function test_flow_1_step_6_academic_detail_renders_successfully()
+    public function test_flow_1_step_6_academic_tab_renders_successfully()
     {
         $class = ClassModel::first();
-        $response = $this->actingAs($this->admin)->get(route('classes.academic-detail', ['id' => $class?->id]));
+        $this->actingAs($this->admin)->get(route('classes.academic-detail', ['id' => $class->id]))
+            ->assertRedirect(route('classes.show', ['id' => $class->id, 'tab' => 'academic']));
+
+        $response = $this->actingAs($this->admin)->get(route('classes.show', ['id' => $class->id, 'tab' => 'academic']));
         $response->assertStatus(200);
-        $response->assertSee('Chi tiết lớp');
         $response->assertSee('Chương trình &amp; Tiến độ', false);
         $response->assertSee('Lịch Big Test');
     }
