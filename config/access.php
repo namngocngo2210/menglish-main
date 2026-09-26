@@ -34,11 +34,15 @@ return [
         'syllabus' => ['view', 'update', 'manage', 'upload', 'propose_adjustment', 'approve_adjustment'],
         // Học thuật duyệt order đề / phân phối đề / duyệt kết quả Big Test / gửi kết quả cho phụ huynh.
         'big_test' => ['approve'],
-        'tuition' => ['view', 'create', 'approve', 'reject', 'mark_contacted', 'report_overdue'],
+        // BA 26/09/2026 "Phần kế toán cho Admin phân quyền linh hoạt": mọi thao tác kế toán gắn với một permission
+        // riêng, Admin cấp / thu hồi theo vai trò (màn Vai trò) hoặc theo người (Phân quyền cá nhân) — không kiểm tra
+        // cứng theo vai trò trong code. `*.all_branches` thay cho quy ước cũ "kế toán không gán chi nhánh = kế toán tổng".
+        'tuition' => ['view', 'create', 'approve', 'reject', 'mark_contacted', 'report_overdue', 'all_branches'],
         'invoice' => ['request_cancel', 'approve_cancel'],
-        'refund_transfer' => ['request', 'approve'],
+        // approve = duyệt khất nợ / bảo lưu; approve_transfer = duyệt chuyển nhượng phí; approve_refund = duyệt hoàn tiền (chi tiền).
+        'refund_transfer' => ['request', 'approve', 'approve_transfer', 'approve_refund', 'reject'],
         'bank_account' => ['manage'],
-        'invoice_range' => ['manage'],
+        'invoice_range' => ['manage', 'manage_default'],
         'fee_reminder_config' => ['manage'],
         'payroll' => ['view', 'create', 'edit', 'calculate', 'approve', 'mark_paid', 'view_own'],
         'kpi' => ['view', 'confirm', 'manage'],
@@ -58,7 +62,7 @@ return [
         'activity_log' => ['view'],
         'report' => ['view'],
         // Báo cáo thu chi / sổ khoản chi (finance.*). Tách khỏi report.view để Sale chỉ xem báo cáo CRM.
-        'finance' => ['view'],
+        'finance' => ['view', 'all_branches'],
     ],
 
     /**
@@ -75,7 +79,11 @@ return [
             'placement_test.view', 'placement_test.grade',
             // Duyệt đề xuất sửa giáo trình / giãn tiến độ / Big Test là việc của Học thuật (academic_lead) — BPMN.
             'level.*', 'syllabus.view', 'syllabus.update', 'syllabus.manage', 'syllabus.upload', 'syllabus.propose_adjustment',
-            'tuition.*', 'invoice.*', 'refund_transfer.*',
+            // Kế toán / Học phí: liệt kê từng quyền (không dùng "tuition.*" / "invoice.*" / "refund_transfer.*") để các quyền
+            // chỉ Admin mặc định (duyệt hoàn tiền, duyệt hủy HĐ, dải số mặc định, xem mọi chi nhánh) không tự lan sang vai trò này.
+            'tuition.view', 'tuition.create', 'tuition.approve', 'tuition.reject', 'tuition.mark_contacted', 'tuition.report_overdue',
+            'invoice.request_cancel',
+            'refund_transfer.request', 'refund_transfer.approve', 'refund_transfer.approve_transfer', 'refund_transfer.reject',
             // Flow §15: chỉ Admin duyệt/chi trả lương; Kế toán tính & soát; Manager chỉ xem.
             'payroll.view', 'payroll.view_own', 'kpi.*', 'teacher_rate.manage', 'commission_config.manage',
             'attendance_staff.view', 'attendance_staff.manual_record',
@@ -87,7 +95,11 @@ return [
         ],
 
         'accountant' => [
-            'tuition.*', 'invoice.*', 'refund_transfer.*',
+            // Kế toán / Học phí: liệt kê từng quyền (không dùng "tuition.*" / "invoice.*" / "refund_transfer.*") để các quyền
+            // chỉ Admin mặc định (duyệt hoàn tiền, duyệt hủy HĐ, dải số mặc định, xem mọi chi nhánh) không tự lan sang vai trò này.
+            'tuition.view', 'tuition.create', 'tuition.approve', 'tuition.reject', 'tuition.mark_contacted', 'tuition.report_overdue',
+            'invoice.request_cancel',
+            'refund_transfer.request', 'refund_transfer.approve', 'refund_transfer.approve_transfer', 'refund_transfer.reject',
             'bank_account.manage', 'invoice_range.manage', 'fee_reminder_config.manage',
             'payroll.view', 'payroll.create', 'payroll.edit', 'payroll.calculate', 'payroll.view_own', 'report.view', 'finance.view',
             'work_task.view', 'support_ticket.create', 'support_ticket.view',
@@ -95,13 +107,16 @@ return [
 
         'academic_staff' => [
             'user.view', 'user.create', 'user.update', 'user.assign_role',
-            'lead.view',
+            // BA 26/09/2026: Học vụ là actor chính bên CRM → toàn quyền CRM / test đầu vào TRỪ xóa (lead.delete,
+            // placement_test.delete). Vẫn giới hạn chi nhánh mình; lùi giai đoạn vẫn chỉ Admin (A6 Q1).
+            'lead.view', 'lead.create', 'lead.update', 'lead.assign', 'lead.convert', 'lead.mark_lost',
+            'promotion.manage',
             'student.*', 'class.*', 'attendance_student.*',
             'attendance_staff.view', 'attendance_staff.manual_record',
             // Học vụ không duyệt (syllabus.approve_adjustment, big_test.approve chỉ dành cho Học thuật + Admin).
             'level.*', 'syllabus.view', 'syllabus.update', 'syllabus.manage', 'syllabus.upload', 'syllabus.propose_adjustment',
             'entrance_test.*',
-            'placement_test.view', 'placement_test.grade',
+            'placement_test.view', 'placement_test.create', 'placement_test.update', 'placement_test.send', 'placement_test.grade', 'placement_test.distribute',
             'kpi.view', 'kpi.confirm',
             // CM chốt biên bản lỗi vận hành (Phase 3)
             'violation.view', 'violation.create', 'violation.confirm_error', 'violation.confirm_fine',

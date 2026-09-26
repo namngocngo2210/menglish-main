@@ -74,7 +74,11 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach ($permissionsByModule as $module => $permissions)
+                    @foreach (\App\Helpers\AclHelper::groupModules($permissionsByModule) as $groupLabel => $groupModules)
+                    <tr class="bg-surface-container-low" data-permission-group="{{ $groupLabel }}">
+                        <td colspan="{{ 2 + count(\App\Models\UserPermissionOverride::MATRIX_ACTIONS) }}" class="font-label text-label uppercase text-on-surface-variant">{{ $groupLabel }}</td>
+                    </tr>
+                    @foreach ($groupModules as $module => $permissions)
                         @php
                             $moduleActions = $permissions->map(fn ($p) => explode('.', $p->name, 2)[1] ?? $p->name);
                             $extraActions = $moduleActions->reject(fn ($a) => array_key_exists($a, \App\Models\UserPermissionOverride::MATRIX_ACTIONS))->values();
@@ -91,7 +95,7 @@
                                     <div>
                                         <div class="font-semibold text-on-surface">{{ \App\Helpers\AclHelper::moduleLabel($module) }}</div>
                                         @if ($extraActions->isNotEmpty())
-                                            <details class="mt-xs">
+                                            <details class="mt-xs" @if ($groupLabel === 'Kế toán / Học phí') open @endif>
                                                 <summary class="cursor-pointer font-caption text-caption font-semibold text-secondary">Quyền khác ({{ $extraActions->count() }})</summary>
                                                 <div class="mt-xs space-y-xs">
                                                     @foreach ($extraActions as $action)
@@ -149,6 +153,7 @@
                                 @endif
                             </td>
                         </tr>
+                    @endforeach
                     @endforeach
                 </tbody>
             </table>

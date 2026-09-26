@@ -34,8 +34,10 @@
                     <span class="text-xs text-gray-400">Chọn các quyền cho phép vai trò này thao tác</span>
                 </div>
 
+                @foreach (\App\Helpers\AclHelper::groupModules($permissionsByModule) as $groupLabel => $groupModules)
+                <div class="font-bold text-xs uppercase text-gray-500 mb-2 mt-4" data-permission-group="{{ $groupLabel }}">{{ $groupLabel }}</div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    @foreach ($permissionsByModule as $module => $permissions)
+                    @foreach ($groupModules as $module => $permissions)
                         <div class="border border-gray-200 rounded-2xl p-4 bg-gray-50/50 hover:bg-white hover:border-primary-container transition space-y-3">
                             <div class="font-bold text-xs text-gray-900 border-b border-gray-100 pb-2 flex items-center justify-between">
                                 <span>{{ \App\Helpers\AclHelper::moduleLabel($module) }}</span>
@@ -57,6 +59,7 @@
                         </div>
                     @endforeach
                 </div>
+                @endforeach
             </div>
 
             <div class="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">

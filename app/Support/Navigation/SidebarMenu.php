@@ -50,7 +50,8 @@ final class SidebarMenu
                 'id' => 'crm',
                 'label' => 'CRM & Tuyển sinh',
                 'icon' => 'person_search',
-                'roles' => ['admin', 'manager', 'sales_consultant'],
+                // BA 26/09/2026: Học vụ là actor chính bên CRM (mục con vẫn lọc theo quyền của route).
+                'roles' => ['admin', 'manager', 'sales_consultant', 'academic_staff'],
                 'items' => [
                     ['label' => 'Bảng Kanban Leads', 'route' => 'crm.pipeline'],
                     ['label' => 'Danh sách Lead', 'route' => 'crm.customers.index', 'active' => ['crm.customers.index', 'crm.customers.show', 'crm.customers.edit', 'crm.customers.create']],
@@ -223,10 +224,12 @@ final class SidebarMenu
                 'id' => 'timesheets',
                 'label' => 'Chấm công',
                 'icon' => 'schedule',
-                'roles' => ['admin', 'manager', 'academic_staff', ...self::TEACHER_ROLES],
+                // Kế toán chỉ thấy mục nào Admin cấp quyền (attendance_staff.*) — mặc định không có mục nào nên nhóm ẩn.
+                'roles' => ['admin', 'manager', 'academic_staff', 'accountant', ...self::TEACHER_ROLES],
                 'items' => [
                     ['label' => 'Chấm công đơn lẻ (GV & TA)', 'route' => 'payroll.timesheets.manual'],
-                    ['label' => 'Giờ dạy & Chấm công giáo viên', 'route' => 'payroll.timesheets.teachers', 'can' => ['attendance_staff.view', 'payroll.view_own']],
+                    ['label' => 'Giờ dạy & Chấm công giáo viên', 'route' => 'payroll.timesheets.teachers', 'can' => ['attendance_staff.view', 'payroll.view_own'],
+                        'roles' => ['admin', 'manager', 'academic_staff', ...self::TEACHER_ROLES]],
                     ['label' => 'Chấm công AppSheet', 'route' => 'payroll.timesheets.appsheet'],
                     ['label' => 'Lịch sử đồng bộ chấm công', 'route' => 'payroll.timesheets.sync-history'],
                 ],

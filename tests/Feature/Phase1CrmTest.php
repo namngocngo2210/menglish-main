@@ -314,14 +314,15 @@ class Phase1CrmTest extends TestCase
             ->assertSee('Nội dung cuộc gọi XYZ')->assertDontSee('Ghi chú riêng ABC');
     }
 
-    public function test_reassign_is_manager_only_requires_reason_and_is_logged(): void
+    public function test_reassign_needs_lead_assign_requires_reason_and_is_logged(): void
     {
         $lead = $this->lead('consulting');
         $newSales = $this->userWithRole('sales_consultant', $this->branch, 'Sale Mới');
 
         $this->actingAs($this->manager)->get(route('crm.customers.show', $lead))->assertOk()->assertSee('Phân công lại')->assertSee('Sale Mới');
         $this->actingAs($this->sales)->post(route('crm.customers.reassign', $lead), ['assigned_user_id' => $newSales->id, 'reason' => 'x'])->assertForbidden();
-        $this->actingAs($this->academic)->post(route('crm.customers.reassign', $lead), ['assigned_user_id' => $newSales->id, 'reason' => 'x'])->assertForbidden();
+        // BA 26/09/2026: Học vụ có lead.assign (toàn quyền CRM trừ xóa) → qua được cổng quyền, vẫn bắt buộc lý do.
+        $this->actingAs($this->academic)->post(route('crm.customers.reassign', $lead), ['assigned_user_id' => $newSales->id])->assertSessionHasErrors('reason');
         $this->actingAs($this->manager)->post(route('crm.customers.reassign', $lead), ['assigned_user_id' => $newSales->id])->assertSessionHasErrors('reason');
 
         $this->actingAs($this->manager)->post(route('crm.customers.reassign', $lead), ['assigned_user_id' => $newSales->id, 'reason' => 'Sale cũ nghỉ phép'])

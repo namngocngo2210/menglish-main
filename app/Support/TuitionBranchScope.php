@@ -10,44 +10,48 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Phạm vi chi nhánh cho các màn Học phí (A6 Q7: Quản lý cơ sở chỉ thấy chi nhánh mình).
+ * Phạm vi chi nhánh cho các màn Học phí / Báo cáo thu chi (A6 Q7: Quản lý cơ sở chỉ thấy chi nhánh mình).
  *
- * - Admin: toàn hệ thống.
- * - Quản lý cơ sở / Học vụ / Học thuật: chỉ chi nhánh của mình (users.branch_id + user_branches);
- *   tài khoản chưa gán chi nhánh không thấy khoản nào.
- * - Kế toán: kế toán tổng (không gán chi nhánh nào) thấy toàn hệ thống — khớp cách gửi thông báo
- *   phiếu chờ duyệt ("kế toán chi nhánh + kế toán không gán chi nhánh"); kế toán có gán chi nhánh chỉ
- *   thấy các chi nhánh đó. Chưa có cờ "đa chi nhánh" riêng: cấp thêm chi nhánh qua user_branches.
- * - Vai trò khác có quyền tuition.view qua phân quyền cá nhân: toàn hệ thống (UI phân quyền chỉ cấp
- *   phạm vi "Toàn hệ thống" cho module Học phí).
+ * BA 26/09/2026 "Phần kế toán cho Admin phân quyền linh hoạt": phạm vi KHÔNG còn suy ra từ vai trò hay từ việc
+ * "kế toán không gán chi nhánh = kế toán tổng". Quy tắc duy nhất:
+ * - Có quyền `tuition.all_branches` (màn Học phí) / `finance.all_branches` (báo cáo thu chi): toàn hệ thống.
+ *   Admin luôn có (Gate::before). Kế toán tổng được Admin cấp qua màn Vai trò hoặc Phân quyền cá nhân
+ *   (migration 2026_10_06_100000 cấp sẵn cho kế toán đang không gán chi nhánh để giữ hành vi cũ).
+ * - Không có: chỉ các chi nhánh của mình (users.branch_id + user_branches); chưa gán chi nhánh thì không thấy khoản nào.
  *
  * Chi nhánh của khoản học phí = student_tuitions.branch_id, thiếu thì theo học viên; của học viên =
  * students.branch_id, thiếu thì theo lớp đang học (như Student::scopeVisibleTo).
  */
 class TuitionBranchScope
 {
-    public const BRANCH_ROLES = ['manager', 'academic_staff', 'academic_lead'];
+    /** Quyền xem & xử lý học phí mọi chi nhánh. */
+    public const ALL_BRANCHES = 'tuition.all_branches';
+
+    /** Quyền xem báo cáo thu chi / sổ khoản chi mọi chi nhánh. */
+    public const FINANCE_ALL_BRANCHES = 'finance.all_branches';
 
     /**
      * @return array<int>|null null = không giới hạn
      */
-    public static function branchIds(?User $user): ?array
+    public static function branchIds(?User $user, string $allBranchesAbility = self::ALL_BRANCHES): ?array
     {
-        if (! $user || $user->hasRole('admin')) {
+        if (! $user) {
             return null;
         }
 
-        if ($user->hasAnyRole(self::BRANCH_ROLES)) {
-            return Student::branchIdsFor($user);
+        if ($user->can($allBranchesAbility)) {
+            return null;
         }
 
-        if ($user->hasRole('accountant')) {
-            $ids = Student::branchIdsFor($user);
+        return Student::branchIdsFor($user);
+    }
 
-            return $ids === [] ? null : $ids;
-        }
+    /** Người dùng có thấy dữ liệu học phí của chi nhánh này không (null = khoản chưa gắn chi nhánh). */
+    public static function coversBranch(?User $user, ?int $branchId, string $allBranchesAbility = self::ALL_BRANCHES): bool
+    {
+        $ids = self::branchIds($user, $allBranchesAbility);
 
-        return null;
+        return $ids === null || ($branchId !== null && in_array($branchId, $ids, true));
     }
 
     public static function students(Builder $query, ?array $ids): Builder

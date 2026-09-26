@@ -1,13 +1,14 @@
 {{-- Mockup: ui-full-tinh-nang-menglish/hoc-phi-va-hoa-don-ui-mockup/duyet-huy-hoa-don --}}
 <x-app-layout title="Duyệt hủy hóa đơn" hide-errors>
-    @php $isAdmin = (bool) auth()->user()?->hasRole('admin'); @endphp
+    {{-- Duyệt / từ chối hủy hóa đơn theo quyền invoice.approve_cancel (mặc định chỉ Admin; Admin cấp thêm ở màn Vai trò / Phân quyền cá nhân). --}}
+    @php $canApproveCancel = (bool) auth()->user()?->can('invoice.approve_cancel'); @endphp
     <x-ui.page-header title="Duyệt hủy hóa đơn" description="Kiểm soát và phê duyệt các yêu cầu hủy hóa đơn thu học phí & phụ thu từ Học vụ / CM. Chống thất thoát và nhảy số hóa đơn tự ý.">
         <x-slot:breadcrumbs>
             <a href="{{ route('tuition.students') }}" class="hover:text-primary">Học phí &amp; Hóa đơn</a>
             <span class="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
             <span>Duyệt hủy hóa đơn</span>
             <x-ui.badge color="warning" class="ml-sm">{{ $pendingCount }} yêu cầu chờ xử lý</x-ui.badge>
-            <x-ui.badge color="neutral" :dot="false">Chỉ Admin phê duyệt</x-ui.badge>
+            <x-ui.badge color="neutral" :dot="false">Admin phê duyệt (theo phân quyền)</x-ui.badge>
         </x-slot:breadcrumbs>
         <x-slot:actions>
             @can('invoice.request_cancel')
@@ -406,14 +407,14 @@
                         <!-- Khu vực hành động của Admin (Có xác nhận lần 2) -->
                         <div class="pt-4 border-t border-slate-200 space-y-3">
                             <div class="text-[11px] text-slate-500 flex items-center justify-between">
-                                <span>Quyền thực hiện: <strong class="text-slate-700">Admin</strong>@if ($isAdmin) ({{ Auth::user()->name }})@endif</span>
+                                <span>Quyền thực hiện: <strong class="text-slate-700">Duyệt hủy hóa đơn</strong> (mặc định Admin)@if ($canApproveCancel) — {{ Auth::user()->name }}@endif</span>
                                 <span class="text-slate-400">Hệ thống ghi nhận thời điểm thao tác chính xác vào Audit Log</span>
                             </div>
 
-                            @if ($selectedCancellation->status === 'pending' && ! $isAdmin)
+                            @if ($selectedCancellation->status === 'pending' && ! $canApproveCancel)
                                 <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-center gap-1.5">
                                     <span class="material-symbols-outlined text-base">hourglass_empty</span>
-                                    Yêu cầu đang chờ Admin phê duyệt.
+                                    Yêu cầu đang chờ Admin (hoặc người được cấp quyền duyệt hủy hóa đơn) phê duyệt.
                                 </div>
                             @elseif ($selectedCancellation->status === 'pending')
                                 <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">

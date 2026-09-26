@@ -22,6 +22,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\GrantsPersonalPermissions;
 use Tests\TestCase;
 
 /**
@@ -30,6 +31,7 @@ use Tests\TestCase;
 class Phase4FinanceTest extends TestCase
 {
     use RefreshDatabase;
+    use GrantsPersonalPermissions;
 
     private Branch $branch;
 
@@ -382,8 +384,12 @@ class Phase4FinanceTest extends TestCase
     public function test_new_receipt_notifies_branch_accountants_personally(): void
     {
         $otherBranchAccountant = $this->makeUser('accountant', $this->branch2);
+        // Kế toán tổng: Admin cấp tuition.all_branches (BA 26/09/2026). Kế toán không gán chi nhánh mà chưa được cấp → không nhận.
         $hqAccountant = User::factory()->create(['branch_id' => null, 'is_active' => true]);
         $hqAccountant->assignRole('accountant');
+        $this->grantHeadOffice($hqAccountant);
+        $unscopedAccountant = User::factory()->create(['branch_id' => null, 'is_active' => true]);
+        $unscopedAccountant->assignRole('accountant');
 
         $this->actingAs($this->staff)->post(route('tuition.receipts.store'), [
             'student_tuition_id' => $this->tuition->id, 'amount' => 1000000, 'payment_method' => 'cash',
@@ -393,6 +399,7 @@ class Phase4FinanceTest extends TestCase
         $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->accountant->id, 'type' => 'receipt_pending']);
         $this->assertDatabaseHas('admin_notifications', ['user_id' => $hqAccountant->id, 'type' => 'receipt_pending']);
         $this->assertDatabaseMissing('admin_notifications', ['user_id' => $otherBranchAccountant->id]);
+        $this->assertDatabaseMissing('admin_notifications', ['user_id' => $unscopedAccountant->id]);
 
         $this->assertSame(1, app(NotificationService::class)->getUnreadCount($this->accountant));
         $this->assertSame(0, app(NotificationService::class)->getUnreadCount($otherBranchAccountant));
