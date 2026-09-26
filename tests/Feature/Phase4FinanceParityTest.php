@@ -435,4 +435,37 @@ class Phase4FinanceParityTest extends TestCase
         $this->actingAs($this->accountant)->put(route('system-config.bank-accounts.update', $default->id), $payload($default))->assertSessionHasErrors('is_active');
         $this->assertTrue($default->fresh()->is_active);
     }
+
+    public function test_nhac_no_quick_settings_sync_reminder_rules(): void
+    {
+        \App\Models\DebtReminderRule::create(['milestone_key' => 'T-3', 'offset_days' => -3, 'title' => 'Nhắc cũ 3 ngày', 'template_content' => 'Nhắc {ten_hoc_vien}', 'is_enabled' => false]);
+
+        $this->actingAs($this->accountant)->get(route('system-config.debt-reminders'))
+            ->assertOk()
+            ->assertSee('Mốc nhắc nợ trước hạn')
+            ->assertSee('Mốc nhắc lại')
+            ->assertSee('Mốc nhắc lại bắt buộc phải nằm trong khoảng từ 1 đến 3 ngày trước hạn.')
+            ->assertSee('Mốc quá hạn bắt buộc liên hệ')
+            ->assertSee('Chuông thông báo in-app');
+
+        // Mốc nhắc lại ngoài 1–3 ngày bị chặn.
+        $this->actingAs($this->accountant)->post(route('system-config.debt-reminders.settings'), ['first_days' => 7, 'repeat_days' => 4, 'must_contact_days' => 7])
+            ->assertSessionHasErrors('repeat_days');
+
+        $this->actingAs($this->accountant)->post(route('system-config.debt-reminders.settings'), ['first_days' => 7, 'repeat_days' => 3, 'must_contact_days' => 10])
+            ->assertSessionHasNoErrors();
+
+        $first = \App\Models\DebtReminderRule::where('milestone_key', 'NHAC-TRUOC')->firstOrFail();
+        $this->assertSame(-7, $first->offset_days);
+        $this->assertTrue($first->is_enabled);
+        // Đã có mốc T-3 → bật lại mốc đó, không tạo mốc trùng ngày.
+        $this->assertTrue(\App\Models\DebtReminderRule::where('milestone_key', 'T-3')->firstOrFail()->is_enabled);
+        $this->assertNull(\App\Models\DebtReminderRule::where('milestone_key', 'NHAC-LAI')->first());
+        $this->assertSame(10, (int) \App\Models\SystemSetting::get('debt_reminder.must_contact_days'));
+
+        $this->actingAs($this->accountant)->post(route('system-config.debt-reminders.settings'), ['first_days' => 10, 'repeat_days' => 2, 'must_contact_days' => 10])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(-2, \App\Models\DebtReminderRule::where('milestone_key', 'NHAC-LAI')->firstOrFail()->offset_days);
+        $this->assertSame(-10, $first->fresh()->offset_days);
+    }
 }

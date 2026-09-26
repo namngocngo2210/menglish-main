@@ -183,7 +183,13 @@ class SystemConfigController extends Controller
             ->values();
         $mustContactDays = (int) SystemSetting::get('debt_reminder.must_contact_days', config('tuition.overdue_serious_days', 7));
 
-        return view('system-config.debt-reminders', compact('rules', 'mustContactDays'));
+        // Thiết lập nhanh theo mockup: mốc nhắc trước hạn (lần 1) và mốc nhắc lại (1–3 ngày trước hạn).
+        $beforeOffsets = $rules->filter(fn (DebtReminderRule $r) => $r->is_enabled && ($r->effectiveOffset() ?? 0) < 0)
+            ->map(fn (DebtReminderRule $r) => abs($r->effectiveOffset()));
+        $firstDays = (int) SystemSetting::get('debt_reminder.first_days', $beforeOffsets->max() ?? 7);
+        $repeatDays = (int) SystemSetting::get('debt_reminder.repeat_days', $beforeOffsets->filter(fn ($d) => $d <= self::REPEAT_MAX_DAYS)->min() ?? 3);
+
+        return view('system-config.debt-reminders', compact('rules', 'mustContactDays', 'firstDays', 'repeatDays'));
     }
 
     /**
@@ -260,20 +266,79 @@ class SystemConfigController extends Controller
             ->with('status', "Đã lưu mốc nhắc nợ {$rule->milestone_key} ({$rule->offset_label}) thành công!");
     }
 
-    /** Ngưỡng "quá hạn bắt buộc liên hệ" dùng để chia nhóm danh sách thu phí quá hạn. */
+    /** Mốc nhắc lại (mockup): chỉ 1–3 ngày trước hạn. */
+    private const REPEAT_MAX_DAYS = 3;
+
+    /** Mã mốc do "Thiết lập nhanh" quản lý. */
+    private const QUICK_RULES = [
+        'first' => ['key' => 'NHAC-TRUOC', 'title' => 'Nhắc nợ trước hạn'],
+        'repeat' => ['key' => 'NHAC-LAI', 'title' => 'Nhắc lại sát hạn'],
+    ];
+
+    /**
+     * Thiết lập nhanh (mockup cau-hinh-nhac-no): mốc nhắc trước hạn, mốc nhắc lại (1–3 ngày trước hạn) và
+     * ngưỡng "quá hạn bắt buộc liên hệ" (chia nhóm danh sách thu phí quá hạn). Hai mốc nhắc được đồng bộ thành
+     * mốc nhắc thật (DebtReminderRule) mà lệnh nhắc nợ 08:30 dùng; nếu đã có mốc khác cùng số ngày thì dùng mốc đó.
+     */
     public function updateDebtReminderSettings(Request $request)
     {
         $validated = $request->validate([
             'must_contact_days' => 'required|integer|min:1|max:60',
+            'first_days' => 'nullable|integer|min:1|max:60',
+            'repeat_days' => 'nullable|required_with:first_days|integer|min:1|max:'.self::REPEAT_MAX_DAYS.'|lt:first_days',
         ], [
             'must_contact_days.min' => 'Giá trị không hợp lệ. Vui lòng nhập trong khoảng từ 1–60 ngày.',
             'must_contact_days.max' => 'Giá trị không hợp lệ. Vui lòng nhập trong khoảng từ 1–60 ngày.',
+            'first_days.min' => 'Mốc nhắc trước hạn phải từ 1–60 ngày.',
+            'first_days.max' => 'Mốc nhắc trước hạn phải từ 1–60 ngày.',
+            'repeat_days.min' => 'Giá trị không hợp lệ. Vui lòng nhập trong khoảng từ 1-3 ngày.',
+            'repeat_days.max' => 'Giá trị không hợp lệ. Vui lòng nhập trong khoảng từ 1-3 ngày.',
+            'repeat_days.lt' => 'Mốc nhắc lại phải gần hạn hơn mốc nhắc trước hạn.',
+            'repeat_days.required_with' => 'Vui lòng nhập mốc nhắc lại (1-3 ngày).',
         ]);
 
         SystemSetting::set('debt_reminder.must_contact_days', (int) $validated['must_contact_days'], 'Số ngày quá hạn phải gọi điện liên hệ trực tiếp (nhóm quá hạn nghiêm trọng).');
 
+        if (! empty($validated['first_days'])) {
+            DB::transaction(function () use ($validated) {
+                SystemSetting::set('debt_reminder.first_days', (int) $validated['first_days'], 'Mốc nhắc nợ trước hạn (ngày).');
+                SystemSetting::set('debt_reminder.repeat_days', (int) $validated['repeat_days'], 'Mốc nhắc lại sát hạn (1–3 ngày).');
+                $this->syncQuickReminderRule(self::QUICK_RULES['first'], -1 * (int) $validated['first_days']);
+                $this->syncQuickReminderRule(self::QUICK_RULES['repeat'], -1 * (int) $validated['repeat_days']);
+            });
+
+            return redirect()->route('system-config.debt-reminders')
+                ->with('status', 'Đã lưu cấu hình nhắc nợ: nhắc trước hạn '.$validated['first_days'].' ngày, nhắc lại '.$validated['repeat_days']
+                    .' ngày trước hạn, quá hạn '.$validated['must_contact_days'].' ngày bắt buộc liên hệ.');
+        }
+
         return redirect()->route('system-config.debt-reminders')
             ->with('status', 'Đã lưu mốc quá hạn bắt buộc liên hệ: '.$validated['must_contact_days'].' ngày.');
+    }
+
+    /** @param  array{key: string, title: string}  $meta */
+    private function syncQuickReminderRule(array $meta, int $offset): void
+    {
+        $own = DebtReminderRule::where('milestone_key', $meta['key'])->first();
+        $sameOffset = DebtReminderRule::query()->where('milestone_key', '!=', $meta['key'])->get()
+            ->first(fn (DebtReminderRule $rule) => $rule->effectiveOffset() === $offset);
+
+        if ($sameOffset) {
+            // Đã có mốc cùng thời điểm (vd. T-3 cũ): bật mốc đó, bỏ mốc nhanh để không gửi 2 tin trong 1 ngày.
+            $sameOffset->update(['is_enabled' => true]);
+            $own?->update(['is_enabled' => false]);
+
+            return;
+        }
+
+        DebtReminderRule::updateOrCreate(['milestone_key' => $meta['key']], [
+            'title' => $own?->title ?? $meta['title'],
+            'offset_days' => $offset,
+            'template_content' => $own?->template_content
+                ?? 'Chào phụ huynh học viên {ten_hoc_vien}, học phí lớp {lop_hoc} ({so_tien}) sẽ đến hạn ngày {han_dong}. Vui lòng hoàn thành đúng hạn. Xin cảm ơn!',
+            'channels' => $own?->channels ?? DebtReminderRule::DEFAULT_CHANNELS,
+            'is_enabled' => true,
+        ]);
     }
 
     /**

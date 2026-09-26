@@ -10,10 +10,63 @@
         </nav>
 
         <x-ui.page-header title="Cấu hình Nhắc nợ"
-                          description="Thời điểm và kênh gửi thông báo nhắc học phí cho phụ huynh, giúp thu đúng hạn. Hệ thống tự quét lúc 08:30 hằng ngày." />
+                          description="Tối ưu hóa thời gian và tần suất gửi thông báo nhắc học phí cho phụ huynh, giúp cải thiện tỷ lệ thanh toán đúng hạn và duy trì sự chuyên nghiệp trong khâu vận hành." />
+
+        {{-- Thiết lập nhanh theo mockup: 3 mốc + kênh thông báo --}}
+        <form method="POST" action="{{ route('system-config.debt-reminders.settings') }}" class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg shadow-sm"
+              x-data="{ repeat: @js((int) old('repeat_days', $repeatDays)) }">
+            @csrf
+            <div class="grid grid-cols-1 gap-lg md:grid-cols-3">
+                <div class="space-y-xs">
+                    <label for="first_days" class="block font-body-medium text-body-medium text-on-surface">Mốc nhắc nợ trước hạn</label>
+                    <p class="font-caption text-caption text-on-surface-variant">Số ngày trước ngày đáo hạn để hệ thống gửi thông báo nhắc nhở đầu tiên.</p>
+                    <div class="flex items-center gap-sm">
+                        <input id="first_days" type="number" name="first_days" min="1" max="60" value="{{ old('first_days', $firstDays) }}" required class="w-24 rounded-lg border-outline-variant font-code text-code" />
+                        <span class="font-body-small text-body-small text-on-surface-variant">Ngày</span>
+                    </div>
+                    @error('first_days')<p class="font-caption text-caption text-error">{{ $message }}</p>@enderror
+                </div>
+                <div class="space-y-xs">
+                    <label for="repeat_days" class="block font-body-medium text-body-medium text-on-surface">Mốc nhắc lại</label>
+                    <p class="font-caption text-caption text-on-surface-variant">Gửi thông báo lần 2 sát ngày đáo hạn để tăng độ nhận diện.</p>
+                    <div class="flex items-center gap-sm">
+                        <input id="repeat_days" type="number" name="repeat_days" min="1" max="3" x-model.number="repeat" value="{{ old('repeat_days', $repeatDays) }}" required
+                               class="w-24 rounded-lg font-code text-code" :class="repeat < 1 || repeat > 3 ? 'border-error ring-2 ring-error/20' : 'border-outline-variant'" />
+                        <span class="font-body-small text-body-small text-on-surface-variant">Ngày</span>
+                    </div>
+                    <p x-show="repeat < 1 || repeat > 3" class="flex items-center gap-xs font-caption text-caption text-error"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">error</span>Giá trị không hợp lệ. Vui lòng nhập trong khoảng từ 1-3 ngày.</p>
+                    @error('repeat_days')<p class="font-caption text-caption text-error">{{ $message }}</p>@enderror
+                    <p class="flex items-center gap-xs font-caption text-caption text-on-surface-variant"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">info</span>Mốc nhắc lại bắt buộc phải nằm trong khoảng từ 1 đến 3 ngày trước hạn.</p>
+                </div>
+                <div class="space-y-xs">
+                    <label for="must_contact_days" class="block font-body-medium text-body-medium text-on-surface">Mốc quá hạn bắt buộc liên hệ</label>
+                    <p class="font-caption text-caption text-on-surface-variant">Tạo yêu cầu liên hệ trực tiếp (gọi điện) nếu quá hạn thanh toán.</p>
+                    <div class="flex items-center gap-sm">
+                        <input id="must_contact_days" type="number" name="must_contact_days" min="1" max="60" value="{{ old('must_contact_days', $mustContactDays) }}" required class="w-24 rounded-lg border-outline-variant font-code text-code" />
+                        <span class="font-body-small text-body-small text-on-surface-variant">Ngày</span>
+                    </div>
+                    @error('must_contact_days')<p class="font-caption text-caption text-error">{{ $message }}</p>@enderror
+                </div>
+            </div>
+            <div class="mt-lg flex flex-col gap-md border-t border-surface-container pt-md md:flex-row md:items-center md:justify-between">
+                <div class="flex items-center gap-sm">
+                    <span class="material-symbols-outlined text-primary" aria-hidden="true">notifications</span>
+                    <div>
+                        <p class="font-body-medium text-body-medium">Kênh thông báo: Chuông thông báo in-app</p>
+                        <p class="font-caption text-caption text-on-surface-variant">Thông báo đẩy trực tiếp tới Cổng phụ huynh / học sinh MENGLISH (kênh từng mốc chỉnh ở danh sách mốc bên dưới).</p>
+                    </div>
+                    <x-ui.badge color="success" pill>Hoạt động</x-ui.badge>
+                </div>
+                <div class="flex gap-sm">
+                    <x-ui.button variant="secondary" :href="route('system-config.debt-reminders')">Hủy</x-ui.button>
+                    <x-ui.button type="submit" icon="save">Lưu cấu hình</x-ui.button>
+                </div>
+            </div>
+        </form>
 
         <div class="grid grid-cols-1 gap-lg xl:grid-cols-3">
             <div class="space-y-lg xl:col-span-2">
+                <h2 class="font-h3 text-h3 text-on-surface">Các mốc nhắc chi tiết</h2>
                 {{-- Các mốc nhắc --}}
                 @forelse ($rules as $rule)
                     @php
@@ -125,17 +178,6 @@
             </div>
 
             <div class="space-y-lg">
-                {{-- Mốc quá hạn bắt buộc liên hệ --}}
-                <form method="POST" action="{{ route('system-config.debt-reminders.settings') }}" class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
-                    @csrf
-                    <div>
-                        <h2 class="font-h3 text-h3 text-on-surface">Mốc quá hạn bắt buộc liên hệ</h2>
-                        <p class="font-body-small text-body-small text-on-surface-variant">Quá hạn từ số ngày này, học viên vào nhóm "Quá hạn nghiêm trọng" trên danh sách thu phí và cần gọi điện trực tiếp.</p>
-                    </div>
-                    <x-ui.input name="must_contact_days" type="number" min="1" max="60" label="Số ngày" :value="$mustContactDays" required />
-                    <x-ui.button type="submit" icon="save" class="w-full">Lưu cấu hình</x-ui.button>
-                </form>
-
                 <x-ui.alert type="info" title="Biến dùng trong mẫu tin">
                     <ul class="space-y-xs">
                         @foreach (\App\Models\DebtReminderRule::VARIABLES as $variable => $label)
@@ -145,9 +187,10 @@
                     <p class="mt-xs">Viết thường hoặc IN HOA đều được (vd. <code class="font-code">{TEN_HOC_VIEN}</code>). Mẫu có biến khác sẽ không lưu được, để tin gửi đi không còn nguyên dấu ngoặc.</p>
                 </x-ui.alert>
 
-                <x-ui.alert type="info" title="Thông tin vận hành">
-                    Lệnh nhắc nợ chạy lúc 08:30 hằng ngày (giờ Việt Nam), gửi đúng ngày chạm mốc, mỗi mốc một lần/ngày.
-                    Khoản đang khất nợ hoặc bảo lưu được tạm dừng nhắc tới hạn mới / ngày học lại.
+                <x-ui.alert type="success" title="Thông tin vận hành">
+                    Các cấu hình mới có hiệu lực cho các đợt quét nhắc nợ từ lần chạy kế tiếp. Hệ thống tự động gửi thông báo vào lúc 08:30 sáng hằng ngày theo giờ Việt Nam (GMT+7),
+                    đúng ngày chạm mốc, mỗi mốc một lần/ngày. Khoản đang khất nợ hoặc bảo lưu được tạm dừng nhắc tới hạn mới / ngày học lại.
+                    Quá hạn từ "Mốc quá hạn bắt buộc liên hệ", học viên vào nhóm "Quá hạn nghiêm trọng" để gọi điện trực tiếp.
                 </x-ui.alert>
             </div>
         </div>
