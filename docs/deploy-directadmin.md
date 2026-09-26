@@ -44,6 +44,10 @@ Mỗi môi trường (staging `dungthu…`, production `portal…`) là một do
    ```
    (đường dẫn PHP xem trong DirectAdmin; nếu chọn PHP khác mặc định thường là `/usr/local/php83/bin/php`). Cron chạy: nhắc Big Test, nhắc nợ, chăm sóc tháng đầu, kết thúc bảo lưu, việc quá hạn, hợp đồng sắp hết hạn…
 
+## Staging mới (database trống)
+
+Chạy workflow với **`seed` = tick**: sau migrate, hook chạy `db:seed` (vai trò, quyền, chi nhánh, tài khoản mặc định; với `APP_ENV=staging` có thêm dữ liệu demo — xem README "Kiểm tra nhanh toàn hệ thống" để biết tài khoản). Mật khẩu mặc định = `SEED_DEFAULT_PASSWORD` trong `.env` (mặc định `Password123!` — nên đặt giá trị khác). Tùy chọn này **bị chặn trên production**.
+
 ## Mỗi lần deploy
 
 GitHub → *Actions* → **Deploy hosting (DirectAdmin)** → *Run workflow* → chọn `staging` hoặc `production`.

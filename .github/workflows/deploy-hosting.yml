@@ -25,6 +25,10 @@ on:
         description: Chạy toàn bộ test trước khi deploy
         type: boolean
         default: true
+      seed:
+        description: Chạy seed (vai trò, quyền, tài khoản mặc định, dữ liệu demo) — chỉ staging, bị chặn trên production
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-${{ inputs.environment }}
@@ -129,6 +133,7 @@ jobs:
           set -e
           status=$(curl -s -o hook.json -w '%{http_code}' -X POST \
             -H "X-Deploy-Token: ${{ secrets.DEPLOY_HOOK_TOKEN }}" \
+            -d "seed=${{ inputs.seed && '1' || '0' }}" \
             "${{ secrets.APP_URL }}/_deploy/hook")
           cat hook.json || true
           test "$status" = "200"

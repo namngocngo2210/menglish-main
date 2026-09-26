@@ -32,11 +32,21 @@ class DeployHookController extends Controller
         $run('optimize:clear');
         $migrateCode = $run('migrate', ['--force' => true]);
 
+        // Seed (vai trò, quyền, tài khoản mặc định + dữ liệu demo) — chỉ khi được yêu cầu và KHÔNG phải production.
+        if ($request->boolean('seed') && $migrateCode === 0) {
+            if (app()->environment('production')) {
+                $steps[] = ['command' => 'db:seed', 'exit' => 1, 'output' => 'Bị chặn: không chạy seed trên production.'];
+            } else {
+                $run('db:seed', ['--force' => true]);
+            }
+        }
+
         if (! File::exists(public_path('storage'))) {
             $run('storage:link');
         }
 
-        if ($migrateCode === 0) {
+        // Chỉ ghi cache khi chạy qua web trên hosting (không ghi khi chạy test / CLI trên máy dev).
+        if ($migrateCode === 0 && ! app()->runningInConsole()) {
             $run('config:cache');
             $run('route:cache');
             $run('view:cache');

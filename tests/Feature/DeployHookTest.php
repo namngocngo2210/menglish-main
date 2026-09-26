@@ -35,4 +35,21 @@ class DeployHookTest extends TestCase
         $response->assertJsonPath('steps.0.command', 'optimize:clear');
         $this->assertContains('migrate', collect($response->json('steps'))->pluck('command')->all());
     }
+
+    public function test_seed_runs_only_when_requested_and_never_in_production(): void
+    {
+        $token = str_repeat('d', 64);
+        config(['app.deploy_hook_token' => $token]);
+
+        $commands = fn ($response) => collect($response->json('steps'))->pluck('command')->all();
+
+        $this->assertNotContains('db:seed', $commands($this->post('/_deploy/hook', [], ['X-Deploy-Token' => $token])));
+
+        $this->app['env'] = 'production';
+        $blocked = $this->post('/_deploy/hook', ['seed' => 1], ['X-Deploy-Token' => $token]);
+        $step = collect($blocked->json('steps'))->firstWhere('command', 'db:seed');
+        $this->assertNotNull($step);
+        $this->assertSame(1, $step['exit']);
+        $this->assertStringContainsString('production', $step['output']);
+    }
 }
