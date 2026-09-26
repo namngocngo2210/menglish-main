@@ -194,6 +194,7 @@
 | 25/09/2026 | Thưởng tái tục | Khoản **riêng**: % theo số HS nghỉ trong lớp phụ trách (giữ đủ 100% → 1%, nghỉ 1 HS → 0,7%…) × doanh thu lớp |
 | 25/09/2026 | Hoàn phí | Xử lý **trong 1 tuần** và **trong cùng tháng phát sinh**. **Admin** duyệt. **Ưu tiên chuyển nhượng** buổi dư, hoàn tiền là phương án cuối. Hoàn tiền **bắt buộc ảnh bằng chứng**. Quá hạn → gắn cờ **"Quá hạn xử lý"**, không chặn nút duyệt |
 | 25/09/2026 | Q8 — Báo cáo trực lớp | Ảnh **không bắt buộc**. Có ≥ 1 ảnh → đầu việc "Trực lớp" tự **Hoàn thành**. Không ảnh → **Chờ xác nhận**, GV chính của lớp xác nhận; lớp chưa có GV chính thì **người giao việc** xác nhận |
+| 26/09/2026 | Chốt bảng lương | Còn nhân sự **chưa chốt KPI** thì **chặn** chốt bảng lương (không chỉ cảnh báo) |
 
 **Còn chờ trả lời:**
 - **Q2 — Học viên lớn:** chưa có thang điểm. File thang điểm chỉ có 4 khối (Khối 1-2 → Khối 4 lên 5); "Phân loại bài test" có bài cho lớp 5–9 (lớp 8–9 chỉ 3 kỹ năng, không nói) nhưng chưa có băng điểm / mapping lớp. Chờ Học thuật / chị Kiều Liên bổ sung.

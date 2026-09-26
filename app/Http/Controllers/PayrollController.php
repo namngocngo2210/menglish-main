@@ -202,6 +202,17 @@ class PayrollController extends Controller
             return redirect()->back()->withErrors(['period' => $message])->with('error', $message);
         }
 
+        // BA chốt: còn nhân sự chưa chốt KPI thì không được chốt bảng lương (mockup "Chưa thể chốt bảng lương").
+        $kpiPending = $period->records()->with('user')->get()
+            ->filter(fn (PayrollRecord $record) => $record->kpi_state[0] === 'pending');
+        if ($kpiPending->isNotEmpty()) {
+            $message = 'Chưa thể chốt bảng lương: còn '.$kpiPending->count().' nhân sự chưa chốt KPI ('
+                .$kpiPending->take(5)->map(fn ($r) => $r->user?->name)->filter()->implode(', ')
+                .($kpiPending->count() > 5 ? '…' : '').'). Chốt KPI rồi bấm "Đồng bộ & Tính lại".';
+
+            return redirect()->back()->withErrors(['period' => $message])->with('error', $message);
+        }
+
         DB::transaction(function () use ($period) {
             $period->update(['status' => 'approved']);
             $period->records()->update(['status' => 'confirmed']);

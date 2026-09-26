@@ -460,6 +460,7 @@ class Phase3FormulaTest extends TestCase
         $this->assertEquals(1200000, $record->commission_deferred);  // 4% × 30.000.000
         $this->assertSame(6, CommissionItem::where('status', CommissionItem::STATUS_DEFERRED)->count());
         $this->assertStringContainsString('chưa đủ 30 ngày', CommissionItem::first()->deferred_reason);
+        $this->finalizeKpi($september);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $september->id))->assertSessionHasNoErrors();
         $this->assertSame(0, CommissionItem::whereNotNull('settled_at')->count());
 
@@ -481,6 +482,7 @@ class Phase3FormulaTest extends TestCase
 
         $this->actingAs($this->accountant)->get(route('payroll.records.show', $record->id))
             ->assertOk()->assertSee('Trả trong kỳ')->assertSee('Hoãn 200.000đ')->assertSee('chăm sóc tháng đầu mới 2/3 mốc');
+        $this->finalizeKpi($october);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $october->id))->assertSessionHasNoErrors();
         $this->assertSame(4, CommissionItem::where('status', CommissionItem::STATUS_PAID)->whereNotNull('settled_at')->count());
 
@@ -600,6 +602,7 @@ class Phase3FormulaTest extends TestCase
         $record = $this->record($period, $teacher);
 
         $this->actingAs($this->accountant)->post(route('payroll.periods.approve', $period->id))->assertForbidden();
+        $this->finalizeKpi($period);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))->assertSessionHasNoErrors();
         $this->assertSame('approved', $period->fresh()->status);
 
@@ -627,5 +630,20 @@ class Phase3FormulaTest extends TestCase
 
         $this->actingAs($manager)->get(route('payroll.config.teacher-rates', ['teacher_id' => $teacher->id]))
             ->assertOk()->assertSee('đ/buổi')->assertSee('320.000');
+    }
+
+    /** BA chốt: phải chốt KPI mọi nhân sự trước khi chốt bảng lương — đánh dấu KPI đã chốt (không đổi số tiền đã tính). */
+    private function finalizeKpi(\App\Models\PayrollPeriod $period): void
+    {
+        foreach ($period->records()->get() as $record) {
+            if ($record->kpi_state[0] !== 'pending') {
+                continue;
+            }
+            match ($record->kpi_source) {
+                \App\Models\PayrollRecord::KPI_RETENTION => $record->forceFill(['retention_tier' => 0])->saveQuietly(),
+                \App\Models\PayrollRecord::KPI_ACADEMIC => $record->forceFill(['kpi_score' => 0])->saveQuietly(),
+                default => $record->forceFill(['kpi_manual_amount' => 0])->saveQuietly(),
+            };
+        }
     }
 }

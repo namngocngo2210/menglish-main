@@ -30,11 +30,14 @@
             @endcan
             @can('payroll.approve')
                 @unless ($period->isLocked())
-                    <form action="{{ route('payroll.periods.approve', $period->id) }}" method="POST"
-                          @if ($kpiPending->isNotEmpty()) data-confirm="Còn {{ $kpiPending->count() }} nhân sự chưa chốt KPI — KPI của họ sẽ tính 0đ. Vẫn chốt bảng lương?" @endif>
-                        @csrf
-                        <x-ui.button type="submit" icon="task_alt">Chốt bảng lương</x-ui.button>
-                    </form>
+                    @if ($kpiPending->isNotEmpty())
+                        <span title="Còn {{ $kpiPending->count() }} nhân sự chưa chốt KPI"><x-ui.button icon="task_alt" disabled>Chốt bảng lương</x-ui.button></span>
+                    @else
+                        <form action="{{ route('payroll.periods.approve', $period->id) }}" method="POST">
+                            @csrf
+                            <x-ui.button type="submit" icon="task_alt">Chốt bảng lương</x-ui.button>
+                        </form>
+                    @endif
                 @endunless
             @endcan
             @can('payroll.mark_paid')

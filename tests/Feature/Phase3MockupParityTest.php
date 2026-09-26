@@ -407,6 +407,11 @@ class Phase3MockupParityTest extends TestCase
             ->assertSee('Đang tính')
             ->assertSee('Chi tiết');
 
+        // BA chốt: còn nhân sự chưa chốt KPI thì chặn chốt bảng lương (không chỉ cảnh báo).
+        $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))
+            ->assertSessionHasErrors('period');
+        $this->assertNotSame('approved', $period->fresh()->status);
+
         $this->actingAs($this->admin)->get(route('payroll.periods.show', [$period->id, 'search' => 'GV-0492']))
             ->assertViewHas('records', fn ($p) => $p->total() === 1);
         $this->actingAs($this->admin)->get(route('payroll.periods.show', [$period->id, 'kpi' => 'done']))
@@ -513,6 +518,7 @@ class Phase3MockupParityTest extends TestCase
 
         // Chốt bảng lương → thông báo cho nhân sự; phiếu khóa, bản in không còn "tạm tính".
         $period->update(['calculated_at' => now()->addMinute()]);
+        $this->finalizeKpi($period);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))->assertSessionHasNoErrors();
         $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->teacher->id, 'type' => 'payroll_approved']);
         $this->actingAs($this->admin)->get(route('payroll.records.show', $pt->id))
@@ -625,5 +631,20 @@ class Phase3MockupParityTest extends TestCase
             ->assertDontSee('9,876,000');
 
         $this->actingAs($this->teacher)->get(route('portal.my-salary', ['period_id' => $september->id]))->assertNotFound();
+    }
+
+    /** BA chốt: phải chốt KPI mọi nhân sự trước khi chốt bảng lương — đánh dấu KPI đã chốt (không đổi số tiền đã tính). */
+    private function finalizeKpi(\App\Models\PayrollPeriod $period): void
+    {
+        foreach ($period->records()->get() as $record) {
+            if ($record->kpi_state[0] !== 'pending') {
+                continue;
+            }
+            match ($record->kpi_source) {
+                \App\Models\PayrollRecord::KPI_RETENTION => $record->forceFill(['retention_tier' => 0])->saveQuietly(),
+                \App\Models\PayrollRecord::KPI_ACADEMIC => $record->forceFill(['kpi_score' => 0])->saveQuietly(),
+                default => $record->forceFill(['kpi_manual_amount' => 0])->saveQuietly(),
+            };
+        }
     }
 }
