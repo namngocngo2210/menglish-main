@@ -1168,7 +1168,7 @@ Test: thêm `Phase3AcceptanceTest` (1 luồng, 196 assertion) và `tests/Feature
 - Quá hạn (khách demo P4): ≥ 7 ngày 3, 1–6 ngày 1, tạm dừng nhắc 2; nhật ký liên hệ 3 + báo Admin 1.
 - 9 khoản chi (94.350.000đ, CG + BD, tháng trước + tháng này); 6 việc (hoàn thành 2, mới 2, chờ xác nhận 2) gồm 3 ca TA; báo cáo trực lớp: đã duyệt 2 (1 của Phase 2), chờ GV chính 1; 2 ticket, 2 ghi chú nội bộ; 3 override (1 theo chi nhánh, 2 theo lớp); 1 tài khoản bắt đổi mật khẩu; 1 HĐ nhân sự hết hạn ≤ 30 ngày.
 
-Test: thêm `Phase4AcceptanceTest` (3 test), `FullBpmnSmokeTest` (1 test), `DemoPhase4SeederTest` (đủ trạng thái, chạy lại không đổi số dòng, mở được các màn bằng tài khoản demo). Toàn bộ bộ test xanh: **__TOTAL__** (không sửa test cũ). Hướng dẫn + bảng tài khoản theo từng bước BPMN: `README.md` ("Dữ liệu demo Phase 4", "Kiểm tra nhanh toàn hệ thống").
+Test: thêm `Phase4AcceptanceTest` (3 test), `FullBpmnSmokeTest` (1 test), `DemoPhase4SeederTest` (đủ trạng thái, chạy lại không đổi số dòng, mở được các màn bằng tài khoản demo). Toàn bộ bộ test xanh: **786 test, 9515 assertion** (sau khi gộp `main`) (không sửa test cũ). Hướng dẫn + bảng tài khoản theo từng bước BPMN: `README.md` ("Dữ liệu demo Phase 4", "Kiểm tra nhanh toàn hệ thống").
 
 **Còn tồn / cần BA xác nhận:**
 - [ ] **Luật hoàn phí A6** (1 tuần & cùng tháng, chỉ Admin duyệt, bắt buộc ảnh bằng chứng, cờ "Quá hạn xử lý") và **Q8 người giao việc xác nhận báo cáo trực lớp khi lớp chưa có GV chính**: nhánh khác đang làm → bổ sung assertion vào `Phase4AcceptanceTest` sau khi gộp (demo đã có sẵn 1 hồ sơ hoàn phí chờ quá 1 tuần để hiện cờ). Khi ảnh bằng chứng thành bắt buộc, bước hoàn phí trong `DemoPhase4Seeder::refundRequest` cần gửi kèm file.
