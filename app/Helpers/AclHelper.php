@@ -113,4 +113,23 @@ class AclHelper
             default => $roleName,
         };
     }
+
+    /** Nhãn vai trò ngắn (bảng, ô chọn người nhận) theo mockup: "Admin", "Học thuật", "Kế toán"… */
+    public static function shortRoleLabel(string $roleName): string
+    {
+        return match ($roleName) {
+            'admin' => 'Admin',
+            'manager' => 'Quản lý cơ sở',
+            'accountant' => 'Kế toán',
+            'academic_lead', 'academic' => 'Học thuật',
+            'academic_staff' => 'Học vụ',
+            'sales_consultant' => 'Tư vấn viên',
+            'teacher' => 'Giáo viên',
+            'teacher_fulltime' => 'Giáo viên Full-time',
+            'teacher_parttime' => 'Giáo viên Part-time',
+            'assistant' => 'Trợ giảng',
+            'student' => 'Học viên',
+            default => $roleName,
+        };
+    }
 }

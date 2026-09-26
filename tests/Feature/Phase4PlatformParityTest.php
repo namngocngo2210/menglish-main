@@ -263,6 +263,59 @@ class Phase4PlatformParityTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_task_list_modal_reason_rules_labels_and_recurring_next_occurrence(): void
+    {
+        $academic = $this->makeUser('academic_staff', $this->branch);
+        $teacher = $this->makeUser('teacher', $this->branch);
+
+        $this->actingAs($academic)->get(route('tasks.index'))->assertOk()
+            ->assertSee('Giao việc mới')->assertSee('Lưu và Giao việc')
+            ->assertSee($teacher->name.' (Giáo viên)')          // nhãn vai trò, không phải mã "teacher"
+            ->assertDontSee('('.$teacher->name.' (teacher)', false)
+            ->assertSeeInOrder(['Của tôi', 'Tôi giao', 'Tất cả']);
+
+        // Lỗi validate mở lại modal Giao việc với lỗi từng trường.
+        $this->actingAs($academic)->post(route('tasks.store'), ['taskTitle' => '', 'assignee' => $teacher->id, 'taskType' => 'one_time'])
+            ->assertSessionHasErrors(['taskTitle', 'dueDate']);
+
+        $task = WorkTask::create(['title' => 'Kiểm kê kho tháng', 'creator_id' => $academic->id, 'assignee_id' => $teacher->id,
+            'due_date' => today(), 'task_type' => 'recurring', 'frequency' => 'monthly', 'status' => 'in_progress']);
+
+        // Bị chặn bắt buộc lý do.
+        $this->actingAs($teacher)->post(route('tasks.status.update', $task->id), ['status' => 'blocked'])->assertSessionHasErrors('reason');
+        $this->assertSame('in_progress', $task->fresh()->status);
+        $this->actingAs($teacher)->post(route('tasks.status.update', $task->id), ['status' => 'blocked', 'reason' => 'Thiếu đề bài từ GV'])->assertSessionHasNoErrors();
+        $this->assertSame('Thiếu đề bài từ GV', $task->fresh()->blocked_reason);
+        $this->actingAs($teacher)->post(route('tasks.status.update', $task->id), ['status' => 'in_progress']);
+
+        // Gửi chờ xác nhận → báo người giao việc; xác nhận → việc lặp sinh lượt tháng sau.
+        $this->actingAs($teacher)->post(route('tasks.status.update', $task->id), ['status' => 'pending_confirmation', 'reason' => 'Đã kiểm kê']);
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $academic->id, 'title' => 'Việc chờ xác nhận: Kiểm kê kho tháng']);
+        $this->actingAs($academic)->post(route('tasks.approve', $task->id))->assertRedirect(route('tasks.manual-approvals'));
+        $next = WorkTask::where('title', 'Kiểm kê kho tháng')->where('status', 'new')->firstOrFail();
+        $this->assertSame(today()->addMonthNoOverflow()->toDateString(), $next->due_date->toDateString());
+        $this->assertSame($teacher->id, $next->assignee_id);
+    }
+
+    public function test_kpi_board_period_range_and_staff_scope(): void
+    {
+        $teacher = $this->makeUser('teacher', $this->branch, ['name' => 'Giáo viên KPI Một']);
+        $this->makeUser('teacher', $this->branch, ['name' => 'Giáo viên KPI Hai']);
+        $this->makeUser('teacher', $this->otherBranch, ['name' => 'Giáo viên KPI Ba']);
+        $manager = $this->makeUser('manager', $this->branch);
+
+        $this->actingAs($this->admin)->get(route('tasks.kpi-dashboard', ['month' => '2026-08', 'month_to' => '2026-09']))->assertOk()
+            ->assertSee('Tháng 08/2026 - Tháng 09/2026')
+            ->assertSee('Giáo viên KPI Ba');
+
+        $this->actingAs($manager)->get(route('tasks.kpi-dashboard'))->assertOk()
+            ->assertSee('Giáo viên KPI Hai')->assertDontSee('Giáo viên KPI Ba');
+
+        // Giáo viên chỉ thấy KPI của chính mình (kể cả khi cố truyền user_id người khác).
+        $this->actingAs($teacher)->get(route('tasks.kpi-dashboard', ['user_id' => $this->admin->id]))->assertOk()
+            ->assertSee('Giáo viên KPI Một')->assertDontSee('Giáo viên KPI Hai')->assertSee('KPI của chính mình');
+    }
+
     public function test_q8_report_form_lists_only_own_classes_and_roster(): void
     {
         $teacher = $this->makeUser('teacher', $this->branch);

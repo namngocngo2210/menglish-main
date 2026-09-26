@@ -49,7 +49,7 @@ class WorkTaskController extends Controller
         $taskType = $request->get('task_type', 'all');
         $search = $request->get('q', '');
 
-        $query = WorkTask::with(['creator', 'assignee', 'branch', 'classModel']);
+        $query = WorkTask::with(['creator', 'assignee.roles', 'branch', 'classModel']);
         $this->scopeVisibleTasks($query, $currentUser);
 
         if ($tab === 'mine') {
@@ -192,6 +192,14 @@ class WorkTaskController extends Controller
 
             return redirect()->back()->withErrors(['status' => $message]);
         }
+
+        // Mockup "Thay đổi trạng thái": Bị chặn / Hủy bắt buộc ghi lý do.
+        if (in_array($status, ['blocked', 'canceled'], true) && blank($reason ?? $note)) {
+            return redirect()->back()->withErrors(['reason' => $status === 'blocked'
+                ? 'Vui lòng nhập lý do khiến công việc bị chặn.'
+                : 'Vui lòng nhập lý do hủy công việc.']);
+        }
+        $note ??= $reason;
 
         $updateData = ['status' => $status];
 
@@ -1663,25 +1671,42 @@ class WorkTaskController extends Controller
     {
         $validated = $request->validate([
             'month' => ['nullable', 'date_format:Y-m'],
+            'month_to' => ['nullable', 'date_format:Y-m'],
             'user_id' => ['nullable', 'integer'],
         ]);
+        // Kỳ báo cáo (mockup "Tháng 10/2023 - Tháng 11/2023"): từ tháng → đến tháng.
         $month = $validated['month'] ?? now()->format('Y-m');
+        $monthTo = $validated['month_to'] ?? $month;
+        if ($monthTo < $month) {
+            [$month, $monthTo] = [$monthTo, $month];
+        }
         $from = CarbonImmutable::createFromFormat('!Y-m', $month)->startOfMonth();
-        $to = $from->endOfMonth();
+        $to = CarbonImmutable::createFromFormat('!Y-m', $monthTo)->endOfMonth();
 
-        $staffOptions = $kpi->staffQuery()->get(['id', 'name']);
+        // Người có quyền duyệt công việc xem KPI nhân sự (Quản lý cơ sở: chi nhánh mình); người khác chỉ xem KPI của mình.
+        $viewer = $request->user();
+        $managed = $viewer->managedBranchIds();
+        $canSeeStaff = $viewer->can('work_task.approve');
+        $scopedStaff = fn () => $kpi->staffQuery()
+            ->when(! $canSeeStaff, fn ($q) => $q->whereKey($viewer->id))
+            ->when($canSeeStaff && $managed !== null, fn ($q) => $q->whereIn('branch_id', $managed));
+        if (! $canSeeStaff) {
+            $validated['user_id'] = $viewer->id;
+        }
+
+        $staffOptions = $scopedStaff()->get(['id', 'name', 'employee_code']);
 
         // Xuất Excel toàn bộ nhân sự theo bộ lọc hiện tại (không phân trang).
         if ($request->boolean('export')) {
             $fmt = fn ($v) => $v === null ? 'Chưa có dữ liệu' : $v.'%';
-            $rows = $kpi->staffQuery()
+            $rows = $scopedStaff()
                 ->when($validated['user_id'] ?? null, fn ($q, $userId) => $q->whereKey($userId))
                 ->get()
                 ->map(function (User $user) use ($kpi, $from, $to, $fmt) {
                     $m = $kpi->metricsFor($user, $from, $to);
 
                     return [
-                        'NS-'.str_pad((string) $user->id, 3, '0', STR_PAD_LEFT),
+                        $user->employee_code ?: 'NS-'.str_pad((string) $user->id, 3, '0', STR_PAD_LEFT),
                         $user->name,
                         $m['classes'] ?? 0,
                         $fmt($m['attendance'] ?? null), $m['attendance_detail'] ?? '',
@@ -1692,22 +1717,22 @@ class WorkTaskController extends Controller
                 })->all();
 
             return \App\Exports\ArrayExport::download(
-                'kpi-'.$month,
+                'kpi-'.$month.($monthTo !== $month ? '-'.$monthTo : ''),
                 ['Mã NS', 'Nhân sự', 'Số lớp', 'Chuyên cần', 'Chi tiết chuyên cần', 'Bài tập', 'Chi tiết bài tập', 'Công việc', 'Chi tiết công việc', 'Giữ chân', 'Chi tiết giữ chân'],
                 $rows,
                 $request->query('format', 'xlsx')
             );
         }
-        $staff = $kpi->staffQuery()
+        $staff = $scopedStaff()
             ->when($validated['user_id'] ?? null, fn ($q, $userId) => $q->whereKey($userId))
             ->paginate($request->perPage(20))
             ->withQueryString();
 
         $kpiData = $staff->getCollection()->map(fn (User $user) => [
             'user' => $user,
-            'code' => 'NS-'.str_pad((string) $user->id, 3, '0', STR_PAD_LEFT),
+            'code' => $user->employee_code ?: 'NS-'.str_pad((string) $user->id, 3, '0', STR_PAD_LEFT),
         ] + $kpi->metricsFor($user, $from, $to));
 
-        return view('tasks.kpi-dashboard', compact('staff', 'staffOptions', 'kpiData', 'month', 'from', 'to'));
+        return view('tasks.kpi-dashboard', compact('staff', 'staffOptions', 'kpiData', 'month', 'monthTo', 'from', 'to', 'canSeeStaff'));
     }
 }
