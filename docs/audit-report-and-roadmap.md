@@ -196,6 +196,8 @@
 | 25/09/2026 | Q8 — Báo cáo trực lớp | Ảnh **không bắt buộc**. Có ≥ 1 ảnh → đầu việc "Trực lớp" tự **Hoàn thành**. Không ảnh → **Chờ xác nhận**, GV chính của lớp xác nhận; lớp chưa có GV chính thì **người giao việc** xác nhận |
 | 26/09/2026 | Chốt bảng lương | Còn nhân sự **chưa chốt KPI** thì **chặn** chốt bảng lương (không chỉ cảnh báo) |
 | 26/09/2026 | Q2 — Học viên lớn (lớp 5–9) | **Không xếp lớp theo thang điểm tự động.** Nhập điểm thô bài test, Học vụ xem điểm và **chủ động chọn lớp thủ công**. Lớp 8–9 không test Nói → được để trống Nói |
+| 26/09/2026 | Phân quyền kế toán | **"Phần kế toán cho Admin phân quyền linh hoạt."** Mọi thao tác kế toán / học phí / lương gắn với **một permission riêng**; Admin cấp / thu hồi **theo vai trò** (màn Vai trò) hoặc **theo người** (Phân quyền cá nhân, nhóm "Kế toán / Học phí"). Code không kiểm tra cứng vai trò (Admin, Kế toán, "kế toán tổng = không gán chi nhánh"). Mặc định giữ đúng hành vi cũ: duyệt hoàn tiền, duyệt / từ chối hủy HĐ, dải số mặc định, xem mọi chi nhánh, duyệt bảng lương = Admin; Kế toán / Quản lý giữ quyền đang có. Luật nghiệp vụ không đổi: người lập phiếu không tự duyệt phiếu; hoàn tiền bắt buộc ảnh bằng chứng. Danh sách quyền: Phần D, nhánh `feat/ba-permissions` |
+| 26/09/2026 | Học vụ bên CRM | **"Học vụ là actor chính làm việc bên CRM nên full quyền, trừ delete."** Học vụ có toàn bộ quyền CRM / test đầu vào / đề test (tạo, sửa, giao & phân công lại Sale, **Chốt & Xếp lớp**, gán lớp, đánh dấu thất bại, ưu đãi, tick chăm sóc, báo cáo, nhập Excel, chấm test) **trừ xóa** (`lead.delete`, `placement_test.delete`). Vẫn **chỉ chi nhánh mình**; **lùi giai đoạn vẫn chỉ Admin** (A6 Q1) |
 
 **Còn chờ trả lời:**
 - **Q4 — Cấu trúc bảng:** chang_buoi_hoc / buoi_giao_trinh có cần bảng UNIT riêng không; NOI_DUNG_BUOI_HOC đang tự đánh số (so_unit, so_buoi), chưa nối buoi_giao_trinh_id — hai hệ đánh số phải khớp. Chờ Mai Le Quel Owen / Nam Ngo xác nhận.
@@ -506,7 +508,7 @@
 
 | Phase | Nội dung | Trạng thái | % hoàn thành (ước lượng) | Ghi chú |
 |---|---|---|---|---|
-| 1 | Chặn rủi ro khẩn + Tuyển sinh → vào lớp | ✅ | 100% (phạm vi đã chốt) | Xong: 23 P0, CRM pipeline 8 bước + luật lùi bước/Thất bại/không hủy chốt, test đầu vào chấm theo khối lớp (Q2), học thử nhận xét theo khách, chốt & xếp lớp / Chờ xếp lớp / xác nhận chính thức, hồ sơ học viên, bộ sinh mã, nền giao diện + quét dữ liệu giả (B2), đối chiếu 12 màn mockup, dữ liệu demo + test nghiệm thu trọn luồng (725 test pass). **Chờ BA:** thang điểm học viên lớn (Q2); Học vụ có được chốt khách (`lead.convert`) không. Các mục "chưa làm" có lý do: xem nhật ký `feat/phase1-mockup-parity` |
+| 1 | Chặn rủi ro khẩn + Tuyển sinh → vào lớp | ✅ | 100% (phạm vi đã chốt) | Xong: 23 P0, CRM pipeline 8 bước + luật lùi bước/Thất bại/không hủy chốt, test đầu vào chấm theo khối lớp (Q2), học thử nhận xét theo khách, chốt & xếp lớp / Chờ xếp lớp / xác nhận chính thức, hồ sơ học viên, bộ sinh mã, nền giao diện + quét dữ liệu giả (B2), đối chiếu 12 màn mockup, dữ liệu demo + test nghiệm thu trọn luồng (725 test pass). **Chờ BA:** thang điểm học viên lớn (Q2). ~~Học vụ có được chốt khách (`lead.convert`) không~~ → BA 26/09: Học vụ toàn quyền CRM trừ xóa (Admin chỉnh được ở màn Vai trò). Các mục "chưa làm" có lý do: xem nhật ký `feat/phase1-mockup-parity` |
 | 2 | Vận hành lớp học | ✅ | 100% (phạm vi đã chốt) | Xong: lịch/TKB/dashboard lớp, GVNN, nghỉ lễ (+ xếp bù), trình độ, Giáo trình → Chặng → Unit → Buổi (1 chặng mở, tự đóng/mở theo Big Test), điểm danh theo buổi, bổ trợ tự động, Big Test (order → duyệt tạo đợt thi → nháp/gửi duyệt → gửi PH), SĐT phụ huynh, portal GV (mobile) / TA / học viên, chăm sóc tháng đầu 3 mốc, đối chiếu mockup toàn bộ màn Phase 2, dữ liệu demo + test nghiệm thu (757 test pass). **Chờ BA / người dùng:** Zalo OA/ZNS thật (token, template); Quản lý cơ sở có giữ quyền duyệt Big Test/giáo trình không; "Buổi 4–5" tính buổi học viên đi học hay buổi của lớp; ngày chốt cho học viên không qua CRM; Học vụ có bị giới hạn chi nhánh không |
 | 3 | Chấm công → Lương | ✅ | 100% (phạm vi đã chốt) | Xong: chấm công theo buổi thật + chấm tay có lý do/giờ vào-ra, không trùng; kỷ luật (ghi nhận → giải trình → HT/CM chốt → nộp 2 ngày → quá hạn trừ lương); công thức lương Part-time / Full-time theo BA (BHXH 10,5%, Công đoàn 0,5%, TNCN nhập tay), KPI Học vụ quỹ 2tr 6 nhóm/15 mục, KPI giữ HS 15k/20k/25k; hoa hồng theo bậc số HS chốt × doanh thu thật + gate kép (30 ngày + 3/3 mốc chăm sóc) hoãn sang kỳ sau; thưởng tái tục; đơn giá theo buổi có lịch sử; phiếu lương 4 loại; chỉ Admin duyệt, chặn duyệt khi còn người chưa chốt KPI, kỳ đã duyệt khóa dữ liệu; đối chiếu mockup 13 màn; dữ liệu demo + test nghiệm thu. **Chờ BA / người dùng:** lương buổi có GVNN; bảng % thưởng tái tục đầy đủ; định nghĩa "HS giữ được"; ngưỡng bậc hoa hồng; file bảng lương Excel thật để đối chiếu |
 | 4 | Thu học phí, hỗ trợ, nghiệm thu | 🟦 | ~85% | Xong: học phí (dải số theo chi nhánh, bảo lưu/khất nợ, quá hạn, chống trùng chuyển khoản), nhật ký, phân quyền cá nhân, giao việc, ticket, dashboard vai trò, dọn view chết; **nghiệm thu** phiếu thu → duyệt → HĐ → công nợ 0 + lượt BPMN 1–22 + dữ liệu demo Phase 4 (`feat/phase4-seed-acceptance`, sửa 4 lỗi SePay / phạm vi / nhắc nợ). Đang làm (nhánh khác): hoàn phí 1 tuần (A6), trực lớp Q8, đối chiếu mockup. Còn: UAT người dùng, thông báo chung theo chi nhánh, ticket theo chi nhánh |
@@ -692,7 +694,7 @@
 - [x] Hủy hóa đơn sau khi kỳ lương chứa phiếu đã duyệt/trả: tạo khoản thu hồi hoa hồng (CommissionAdjustment âm, cơ chế như hoàn phí) = tiền phiếu × % hoa hồng sale đã hưởng kỳ đó, trừ ở lần tính lương kế tiếp. Kỳ chưa duyệt → không tạo gì, tính lại tự loại phiếu đã hủy.
 - [x] Phạm vi chi nhánh màn Học phí (danh sách học phí, lập phiếu, duyệt phiếu, lịch sử, hủy HĐ, hoàn phí/chuyển nhượng, quá hạn + các thao tác duyệt/từ chối/liên hệ/nhắc): `App\Support\TuitionBranchScope`.
 **Quyết định phát sinh (tạm, chờ BA):**
-- Phạm vi Học phí: Admin toàn hệ thống; Quản lý cơ sở / Học vụ / Học thuật chỉ chi nhánh mình; **Kế toán không gán chi nhánh = kế toán tổng, thấy tất cả**; kế toán có gán chi nhánh chỉ thấy các chi nhánh đó (cấp thêm qua chi nhánh phụ). Không có cờ "đa chi nhánh" riêng.
+- Phạm vi Học phí: Admin toàn hệ thống; Quản lý cơ sở / Học vụ / Học thuật chỉ chi nhánh mình; ~~**Kế toán không gán chi nhánh = kế toán tổng, thấy tất cả**~~ (thay bằng quyền `tuition.all_branches` / `finance.all_branches` do Admin cấp — BA 26/09/2026); kế toán có gán chi nhánh chỉ thấy các chi nhánh đó (cấp thêm qua chi nhánh phụ). Không có cờ "đa chi nhánh" riêng.
 - Thu hồi khi hủy HĐ không tính phần thưởng vượt mốc và không xét việc sale tụt bậc hoa hồng (như hoàn phí).
 - Hết bảo lưu mà học viên không có lớp → "Chờ khai giảng".
 **Chưa làm:** màn Báo cáo thu chi (FinanceController) vẫn cho kế toán thấy toàn hệ thống như cũ; phạm vi chi nhánh ở nhập học phí Excel chưa áp. ✅ `feat/phase4-finance-parity`
@@ -783,7 +785,7 @@
 **Dữ liệu demo:** `Database\Seeders\DemoPhase1Seeder` (gọi từ `DatabaseSeeder` khi `local`/`testing`/`staging` hoặc `SEED_DEMO=true`), chi nhánh CG và BD, dùng tài khoản UserSeeder, đi qua controller / service thật (thêm khách, chuyển bước, hẹn test, chấm theo khối, đặt học thử, GV nhận xét, Chốt & Xếp lớp, Kế toán duyệt phiếu, gán lớp, xác nhận chính thức). Mỗi chi nhánh: 14 khách phủ đủ 8 bước pipeline, trong đó 2 Thất bại (có lý do), hạn liên hệ quá hạn / sắp hết hạn, khách bị bỏ quên; bài test 5 khối (4 khối có thang + nhóm thủ công) đã chấm + 1 bài chờ chấm; 3 buổi học thử (2 đã hẹn, 1 đã học có nhận xét); 3 lớp (FAM 1 đang học còn chỗ, FAM 2 sắp khai giảng thiếu 3 HV, FAM 0 đầy) với 112 buổi, bỏ ngày nghỉ `HOL-DEMO-<CN>`; 3 khách Đã chốt (đã đóng phí + đã xác nhận / chưa đóng phí + task nhắc thu / gán lớp từ lớp chờ) + 1 Chờ xếp lớp. Idempotent (chạy lại không đổi số dòng), ~3,5 giây. Test: `tests/Feature/DemoPhase1SeederTest.php`. Hướng dẫn + tài khoản demo: `README.md`.
 
 **Còn tồn / cần BA xác nhận:**
-- [ ] Học vụ (`academic_staff`) không có quyền `lead.convert` nên không tự **Chốt & Xếp lớp** (Sale / Quản lý cơ sở / Admin chốt; Học vụ gán lớp). A6 gọi "CM" gồm cả Học vụ → cần BA xác nhận Học vụ có được chốt không.
+- [x] ~~Học vụ (`academic_staff`) không có quyền `lead.convert` nên không tự **Chốt & Xếp lớp** (Sale / Quản lý cơ sở / Admin chốt; Học vụ gán lớp). A6 gọi "CM" gồm cả Học vụ → cần BA xác nhận Học vụ có được chốt không.~~ → **Đã chốt BA 26/09/2026**: Học vụ có `lead.convert` (và toàn bộ quyền CRM trừ xóa); Admin cấp / thu hồi ở màn Vai trò hoặc Phân quyền cá nhân (`feat/ba-permissions`).
 - [ ] Hồ sơ học viên (`StudentProfileController::assertClassHasSeat`, "Liên kết lớp khác") vẫn đếm sĩ số theo `class_enrollments` (cùng lỗi đã sửa ở CRM) → nhóm Hồ sơ học viên.
 - [ ] Ghép trình độ lớp học thử vẫn chỉ là gợi ý; màn cũ `classes/trial-booking` vẫn còn (xem mục BA 25/09).
 - [ ] Nghiệm thu chạy ở mức HTTP/test; chưa đối chiếu ảnh chụp 12 màn mockup Phase 1 (nhánh giao diện đang làm song song).
@@ -1070,7 +1072,7 @@ Test: thêm `Phase3AcceptanceTest` (1 luồng, 196 assertion) và `tests/Feature
 - [ ] **Định nghĩa "số HS giữ được"** (mẫu số tại ngày đầu kỳ, chỉ Thôi học là mất, lớp GV chính + lớp có ca dạy) — cần BA xác nhận.
 - [ ] **Ngưỡng số HS của 3 bậc hoa hồng** (0–5 / 6–10 / từ 11 là giá trị dev đặt).
 - [ ] **File Excel bảng lương thật của Kế toán** để đối chiếu từng dòng (điều kiện "Kết quả đạt được" của Phase 3).
-- [ ] **Kế toán có được chấm công tay / duyệt chấm công không?** Hiện chỉ Học vụ, Quản lý cơ sở, Admin (`attendance_staff.manual_record`); Kế toán chỉ tính và soát lương. Nhánh này giữ nguyên quyền, kịch bản dùng Học vụ.
+- [x] ~~**Kế toán có được chấm công tay / duyệt chấm công không?** Hiện chỉ Học vụ, Quản lý cơ sở, Admin (`attendance_staff.manual_record`); Kế toán chỉ tính và soát lương. Nhánh này giữ nguyên quyền, kịch bản dùng Học vụ.~~ → **Đã chốt BA 26/09/2026**: chấm công tay chỉ theo quyền `attendance_staff.manual_record` (không chặn theo vai trò). Mặc định Kế toán chưa có; Admin cấp theo vai trò / theo người — Kế toán chấm được lớp thuộc chi nhánh mình (có `tuition.all_branches` → mọi lớp).
 - [ ] Học vụ (CM) không có `lead.update` nên không tick checklist chăm sóc ở CRM (tick qua hoàn thành việc chăm sóc; Quản lý / Sale tick được ở CRM) — đúng ý BA chưa?
 - [ ] Tích hợp máy chấm công (FaceID) thật — chưa có thiết bị / API.
 - [ ] Nghiệm thu chạy ở mức HTTP/test; đối chiếu ảnh mockup các màn Phase 3 do nhánh giao diện làm song song.
@@ -1250,15 +1252,50 @@ Test: thêm `Phase4AcceptanceTest` (3 test), `FullBpmnSmokeTest` (1 test), `Demo
 
 **Quyết định phát sinh (tạm, chờ BA):**
 - Hạn xử lý áp cho hoàn tiền **và** chuyển nhượng (cùng hồ sơ nghỉ giữa khóa); khất nợ / bảo lưu không có hạn.
-- "Admin duyệt" áp cho **duyệt** hoàn tiền; chuyển nhượng / khất nợ / bảo lưu vẫn do Kế toán / Quản lý (`refund_transfer.approve`) duyệt; từ chối hoàn tiền vẫn cho người có quyền duyệt.
-- Duyệt / từ chối **hủy hóa đơn chỉ Admin** (theo mockup; A6 không nói).
-- Kế toán chi nhánh không sửa dải số mặc định dùng chung; kế toán tổng (không gán chi nhánh) và Admin sửa được.
+- (BA 26/09/2026: nay là quyền `refund_transfer.approve_refund` / `approve_transfer` / `approve` / `reject`, Admin cấu hình được) "Admin duyệt" áp cho **duyệt** hoàn tiền; chuyển nhượng / khất nợ / bảo lưu vẫn do Kế toán / Quản lý (`refund_transfer.approve`) duyệt; từ chối hoàn tiền vẫn cho người có quyền duyệt.
+- ~~Duyệt / từ chối **hủy hóa đơn chỉ Admin** (theo mockup; A6 không nói).~~ → BA 26/09/2026: theo quyền `invoice.approve_cancel`, mặc định chỉ Admin, **Admin cấp thêm được**.
+- ~~Kế toán chi nhánh không sửa dải số mặc định dùng chung; kế toán tổng (không gán chi nhánh) và Admin sửa được.~~ → BA 26/09/2026: sửa dải mặc định theo quyền `invoice_range.manage_default` (mặc định Admin; kế toán tổng được migration cấp riêng), **Admin cấu hình được**.
 - Báo cáo thu chi dùng đúng quy tắc phạm vi Học phí (Vòng 2), Học vụ / Học thuật vẫn không có `finance.view`.
 
 **Migration:** `2026_10_04_300000` (`tuition_refund_requests.no_transfer_reason/proof_path/rejection_reason`), `2026_10_04_300100` (`bank_accounts.account_type`, mặc định `company`).
 **Route mới:** `tuition.refunds.proof`, `tuition.history.export`, `tuition.invoices.cancellations.export`.
 **Test:** thêm `tests/Feature/Phase4FinanceParityTest.php` (luật hoàn phí + 1 test / màn). Sửa test mã hóa hành vi cũ: `Phase3CommissionTest`, `Round2LeftoversTest`, `TuitionP0FixesTest`, `TuitionBusinessTest` (duyệt hoàn tiền bằng Admin + ảnh bằng chứng; lý do không chuyển nhượng; duyệt hủy HĐ bằng Admin; dải mặc định / chi nhánh khác do Admin / kế toán tổng), `TuitionTest` (tiền định dạng `7.500.000đ`; duyệt hủy HĐ bằng Admin), `Phase4FinanceTest` (cấp dải cho chi nhánh khác bằng Admin). `DemoPhase3Seeder`: hồ sơ hoàn phí demo có lý do không chuyển nhượng và Admin duyệt kèm ảnh bằng chứng.
 **Triển khai:** `php artisan migrate` (2 migration trên, chỉ thêm cột). Thư mục `storage/app/private` phải ghi được (ảnh bằng chứng hoàn tiền). Kế toán chi nhánh từ nay chỉ thấy báo cáo thu chi / dải số / nhập Excel của chi nhánh mình — kiểm tra kế toán tổng để trống chi nhánh. Build lại asset (`npm run build`, commit riêng).
+
+
+#### BA 26/09 — Phân quyền kế toán linh hoạt & Học vụ toàn quyền CRM (nhánh `feat/ba-permissions`)
+**Quyết định (A6, 26/09/2026):** (1) "Phần kế toán cho Admin phân quyền linh hoạt"; (2) "Học vụ là actor chính làm việc bên CRM nên full quyền, trừ delete". Các câu hỏi BA liên quan (Kế toán chấm công tay; Học vụ chốt khách; hủy HĐ chỉ Admin; kế toán chi nhánh / dải số mặc định) đã gạch khỏi danh sách chờ — nay **Admin tự cấu hình** ở màn Vai trò hoặc Phân quyền cá nhân.
+
+**Đã làm:**
+- [x] Bỏ kiểm tra cứng theo vai trò trong phần kế toán: duyệt hoàn tiền (`hasRole('admin')`), duyệt / từ chối hủy HĐ (`hasRole('admin')`), phạm vi "kế toán không gán chi nhánh = kế toán tổng" (`TuitionBranchScope`, `FinanceController::scopedBranchIds`, người nhận thông báo phiếu chờ duyệt), dải số mặc định "chỉ người không bị giới hạn chi nhánh" (`TuitionController::canManageRange`), `PayrollController::periods` chặn cứng Học viên / GV / Học thuật (nay chỉ theo `payroll.view`), "khoản thu trước khi chốt" chỉ Admin / Quản lý (nay theo `tuition.approve`). Duyệt bảng lương đã theo `payroll.approve` (route) — giữ, chỉ Admin mặc định.
+- [x] Chấm công tay / chỉnh ca / xác nhận theo lịch: chỉ theo quyền `attendance_staff.*`. Người có quyền mà không quản lý lớp (vd. Kế toán được cấp) chấm được lớp thuộc chi nhánh mình (`tuition.all_branches` → mọi lớp) + lớp mình phụ trách (`PayrollController::timesheetClasses`). Menu "Chấm công" hiện cho Kế toán khi được cấp.
+- [x] Hồ sơ hoàn / chuyển / khất nợ / bảo lưu duyệt theo quyền của từng loại (`TuitionRefundRequest::approvePermission`), từ chối theo `refund_transfer.reject`; màn Hoàn tiền & khất nợ chỉ hiện nút người xem được phép.
+- [x] Màn **Vai trò** và ma trận **Phân quyền cá nhân** gom module theo nhóm **"Kế toán / Học phí"** (học phí, hóa đơn, hoàn / chuyển phí, dải số, TK ngân hàng & SePay, nhắc nợ, thu chi, lương), **"CRM & Tuyển sinh"**, còn lại; nhãn tiếng Việt theo từng quyền (`AclHelper::PERMISSION_LABELS`, `moduleGroup`). Nhóm Kế toán mở sẵn phần "Quyền khác".
+- [x] Học vụ: toàn quyền CRM trừ xóa; `CrmController` bỏ chặn "chỉ Admin / Quản lý" ở phân công lại (`lead.assign`), khách đã xóa (`lead.delete`). Menu "CRM & Tuyển sinh" hiện cho Học vụ. Vẫn lọc chi nhánh (`CrmCustomer` scope); lùi bước vẫn chỉ Admin (`CrmStageService::BACKWARD_ROLES`).
+
+**Permission mới / đổi mặc định** (nhóm "Kế toán / Học phí" trừ dòng CRM):
+
+| Permission | Nhãn | Mặc định |
+|---|---|---|
+| `tuition.all_branches` *(mới)* | Xem & xử lý học phí mọi chi nhánh (kế toán tổng) | Admin. Migration cấp riêng (Phân quyền cá nhân) cho Kế toán hiện **không gán chi nhánh nào** để giữ hành vi cũ |
+| `finance.all_branches` *(mới)* | Xem báo cáo thu chi mọi chi nhánh | Như trên |
+| `invoice_range.manage_default` *(mới)* | Cấu hình dải số hóa đơn mặc định (dùng chung) | Như trên |
+| `refund_transfer.approve_refund` *(mới)* | Duyệt hoàn tiền (chi tiền) | Admin |
+| `refund_transfer.approve_transfer` *(mới)* | Duyệt chuyển nhượng phí | Admin, Quản lý cơ sở, Kế toán (mọi vai trò đang có `refund_transfer.approve`) |
+| `refund_transfer.reject` *(mới)* | Từ chối yêu cầu hoàn / chuyển / khất nợ / bảo lưu | Như trên |
+| `refund_transfer.approve` *(đổi nghĩa)* | Duyệt khất nợ / bảo lưu | Admin, Quản lý cơ sở, Kế toán (không đổi) |
+| `invoice.approve_cancel` *(đổi mặc định)* | Duyệt / từ chối hủy hóa đơn | **Chỉ Admin** — thu hồi khỏi Quản lý cơ sở / Kế toán (trước có nhưng controller chặn → hiệu lực không đổi) |
+| `invoice_range.manage`, `bank_account.manage`, `fee_reminder_config.manage`, `tuition.*` còn lại, `payroll.create/edit/calculate` | (không đổi) | Admin, Kế toán (+ Quản lý cơ sở với `tuition.*`) như cũ |
+| `tuition.approve` | Duyệt phiếu thu (không tự duyệt phiếu mình lập) — nay cũng là quyền xác nhận "khoản thu trước" khi chốt | Admin, Quản lý cơ sở, Kế toán |
+| `attendance_staff.manual_record` | Chấm công thủ công | Admin, Quản lý cơ sở, Học vụ (Kế toán: Admin cấp) |
+| `payroll.approve`, `payroll.mark_paid` | Duyệt / chốt bảng lương, đánh dấu đã chi trả | Admin (Giám đốc) |
+| CRM — `academic_staff` | `lead.view/create/update/assign/convert/mark_lost`, `promotion.manage`, `entrance_test.*`, `placement_test.view/create/update/send/grade/distribute` | Thêm cho Học vụ; **không** `lead.delete`, `placement_test.delete` |
+
+Cấu hình `config/access.php`: Quản lý cơ sở / Kế toán liệt kê từng quyền (bỏ `tuition.*`, `invoice.*`, `refund_transfer.*`) để quyền chỉ-Admin mới không tự lan sang.
+
+**Migration:** `2026_10_06_100000_add_flexible_finance_and_crm_permissions` (tạo 6 permission, gán mặc định trên, thu hồi `invoice.approve_cancel` khỏi vai trò khác Admin, thêm quyền CRM cho Học vụ, cấp override "Toàn hệ thống" `tuition.all_branches` / `finance.all_branches` / `invoice_range.manage_default` cho Kế toán không gán chi nhánh, xóa cache quyền; chạy lại không tạo trùng; có `down`).
+**Test:** thêm `tests/Feature/BaPermissionsTest.php` (mặc định giữ hành vi cũ; Admin cấp duyệt hoàn tiền cho vai trò Kế toán ở màn Vai trò; thu hồi duyệt chuyển nhượng của một Quản lý; cấp duyệt hủy HĐ cho một Kế toán; kế toán tổng / dải mặc định theo quyền, không theo "không gán chi nhánh"; Kế toán chấm công tay khi được cấp, vẫn trong chi nhánh; duyệt lương theo quyền; migration; Học vụ chốt khách, gán lớp, phân công lại, tick chăm sóc, nhập Excel, chấm test, báo cáo; Học vụ không xóa khách / đề, không lùi bước, không ra ngoài chi nhánh; Quản lý / Sale không đổi) + trait `tests/Concerns/GrantsPersonalPermissions`. Sửa test mã hóa quy ước cũ "kế toán không gán chi nhánh = kế toán tổng": `TuitionTest`, `TuitionBusinessTest`, `Round2LeftoversTest`, `Phase4FinanceTest`, `Phase4FinanceParityTest` (cấp quyền như Admin làm; thêm assert kế toán không gán chi nhánh chưa được cấp không thấy gì); `Phase4FinanceParityTest` (nhãn màn hủy HĐ); `Phase1CrmTest` (Học vụ nay phân công lại được), `Phase1MockupParityTest` (Học vụ bật / tắt đề test, vẫn không xóa). Toàn bộ bộ test xanh: **829 test, 10158 assertion**.
+**Triển khai:** `php artisan migrate` (1 migration, chỉ đụng bảng quyền; migration tự xóa cache quyền — nếu dùng cache ngoài thì chạy thêm `php artisan permission:cache-reset`). Sau khi migrate: vào **Nhân sự → Phân quyền cá nhân** kiểm tra các kế toán tổng đã có "Xem & xử lý học phí mọi chi nhánh"; kế toán tổng tạo mới sau này phải được Admin cấp quyền này (không còn tự suy ra từ việc để trống chi nhánh). Học vụ thấy thêm menu CRM và nút Chốt / Phân công lại. Không build lại asset (không thêm class Tailwind mới).
 
 ---
 
