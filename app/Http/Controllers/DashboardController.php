@@ -3,9 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\BigTest;
+use App\Models\BigTestOrder;
+use App\Models\BigTestResult;
+use App\Models\ClassReport;
 use App\Models\ClassModel;
 use App\Models\CrmCustomer;
 use App\Models\Student;
+use App\Models\SupportTicket;
+use App\Models\SyllabusChangeProposal;
 use App\Models\SyllabusAdjustmentRequest;
 use App\Models\TuitionReceipt;
 use App\Models\User;
@@ -80,6 +85,26 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
+        // Hàng chờ xử lý (BPMN 22): việc chờ xác nhận, báo cáo trực lớp chờ xác nhận (Q8),
+        // phiếu thu chờ duyệt, ticket chưa xử lý — đều trong phạm vi chi nhánh.
+        $pendingTasks = WorkTask::query()->where('status', 'pending_confirmation')
+            ->when($branchIds !== null, fn (Builder $q) => $q->where(fn (Builder $b) => $b
+                ->whereIn('branch_id', $branchIds)
+                ->orWhereHas('assignee', fn (Builder $a) => $a->whereIn('branch_id', $branchIds))))
+            ->count();
+        $pendingReports = ClassReport::query()->where('status', ClassReport::STATUS_PENDING)
+            ->when($branchIds !== null, fn (Builder $q) => $q->whereHas('classModel', fn (Builder $c) => $c->whereIn('branch_id', $branchIds)))
+            ->count();
+        $pendingReceipts = TuitionReceipt::query()->where('status', TuitionReceipt::STATUS_PENDING)
+            ->when($branchIds !== null, fn (Builder $q) => $q->whereHas('student', fn (Builder $s) => $s->whereIn('branch_id', $branchIds)))
+            ->count();
+        $openTickets = SupportTicket::query()->whereIn('status', ['open', 'in_progress'])
+            ->when($branchIds !== null, fn (Builder $q) => $q->whereHas('creator', fn (Builder $c) => $c->whereIn('branch_id', $branchIds)))
+            ->count();
+        $unassignedTickets = SupportTicket::query()->where('status', 'open')->whereNull('assignee_id')
+            ->when($branchIds !== null, fn (Builder $q) => $q->whereHas('creator', fn (Builder $c) => $c->whereIn('branch_id', $branchIds)))
+            ->count();
+
         return [
             'type' => $branchIds === null ? 'admin' : 'manager',
             'title' => $branchIds === null ? 'Tổng quan toàn hệ thống' : 'Tổng quan chi nhánh',
@@ -90,6 +115,12 @@ class DashboardController extends Controller
                 ['label' => 'Lead mới trong tháng', 'value' => number_format($newLeads), 'icon' => 'person_add', 'tone' => 'secondary', 'hint' => null],
                 ['label' => 'Lớp đang chạy', 'value' => number_format($runningClasses), 'icon' => 'co_present', 'tone' => 'default', 'hint' => null],
                 ['label' => 'Việc quá hạn', 'value' => number_format($overdueTasks), 'icon' => 'alarm', 'tone' => $overdueTasks > 0 ? 'error' : 'default', 'hint' => null],
+            ],
+            'queues' => [
+                ['label' => 'Việc chờ xác nhận', 'value' => $pendingTasks, 'icon' => 'pending_actions', 'href' => route('tasks.manual-approvals')],
+                ['label' => 'Báo cáo trực lớp chờ xác nhận', 'value' => $pendingReports, 'icon' => 'fact_check', 'href' => route('tasks.manual-approvals', ['kind' => 'report']), 'hint' => 'GV chính / người giao việc xác nhận'],
+                ['label' => 'Phiếu thu chờ duyệt', 'value' => $pendingReceipts, 'icon' => 'receipt_long', 'href' => route('tuition.receipts.approve')],
+                ['label' => 'Ticket đang mở', 'value' => $openTickets, 'icon' => 'support_agent', 'href' => route('tickets.index'), 'hint' => $unassignedTickets > 0 ? "{$unassignedTickets} ticket chưa có người xử lý" : null],
             ],
             'overdueTasks' => $overdueList,
         ];
@@ -103,6 +134,9 @@ class DashboardController extends Controller
             ->where('status', 'pending')
             ->latest()
             ->get();
+        $pendingProposals = SyllabusChangeProposal::query()->where('status', 'pending')->count();
+        $pendingOrders = BigTestOrder::query()->where('status', 'pending')->count();
+        $pendingResults = BigTestResult::query()->where('status', 'pending_review')->distinct('big_test_id')->count('big_test_id');
         $upcomingBigTests = BigTest::query()
             ->with('classModel:id,name')
             ->whereNotNull('scheduled_at')
@@ -117,8 +151,13 @@ class DashboardController extends Controller
             'scope' => 'Học thuật',
             'stats' => [
                 ['label' => 'Lớp đang chạy', 'value' => number_format($runningClasses), 'icon' => 'co_present', 'tone' => 'primary', 'hint' => null],
-                ['label' => 'Đề xuất giáo trình / giãn tiến độ chờ duyệt', 'value' => number_format($pendingAdjustments->count()), 'icon' => 'pending_actions', 'tone' => $pendingAdjustments->isNotEmpty() ? 'warning' : 'default', 'hint' => null],
+                ['label' => 'Đề xuất giáo trình / giãn tiến độ chờ duyệt', 'value' => number_format($pendingAdjustments->count() + $pendingProposals), 'icon' => 'pending_actions', 'tone' => ($pendingAdjustments->count() + $pendingProposals) > 0 ? 'warning' : 'default', 'hint' => "{$pendingProposals} đề xuất sửa giáo trình · {$pendingAdjustments->count()} giãn tiến độ"],
                 ['label' => 'Big Test trong 14 ngày tới', 'value' => number_format($upcomingBigTests->count()), 'icon' => 'quiz', 'tone' => 'secondary', 'hint' => null],
+            ],
+            'queues' => [
+                ['label' => 'Đề xuất sửa giáo trình', 'value' => $pendingProposals, 'icon' => 'edit_note', 'href' => route('syllabus.versions', ['status' => 'pending'])],
+                ['label' => 'Order đề Big Test chờ duyệt', 'value' => $pendingOrders, 'icon' => 'assignment', 'href' => route('syllabus.big-tests.distribution')],
+                ['label' => 'Đợt Big Test có kết quả chờ duyệt', 'value' => $pendingResults, 'icon' => 'grading', 'href' => route('syllabus.big-tests.results')],
             ],
             'pendingAdjustments' => $pendingAdjustments->take(5),
             'upcomingBigTests' => $upcomingBigTests,

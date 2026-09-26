@@ -464,6 +464,44 @@ class Phase4PlatformParityTest extends TestCase
         $this->assertStringContainsString('.xlsx', (string) $export->headers->get('content-disposition'));
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // Dashboard theo vai trò (BPMN 22)
+    // ─────────────────────────────────────────────────────────────
+
+    public function test_role_dashboards_show_scoped_work_queues(): void
+    {
+        $ta = $this->makeUser('assistant', $this->branch);
+        $classA = $this->makeClass(['teacher_id' => $this->admin->id]);
+        $classB = $this->makeClass(['branch_id' => $this->otherBranch->id]);
+        foreach ([$classA, $classB, $classB] as $i => $class) {
+            ClassReport::create(['class_id' => $class->id, 'reporter_id' => $ta->id, 'session_name' => 'Buổi '.$i,
+                'session_date' => today(), 'topics_learned' => 'Unit', 'status' => ClassReport::STATUS_PENDING]);
+        }
+        \App\Models\SupportTicket::create(['code' => 'TK-Q-1', 'title' => 'Máy chiếu hỏng', 'category' => 'technical_issue', 'priority' => 'high',
+            'status' => 'open', 'creator_id' => $ta->id, 'description' => 'x']);
+
+        $admin = $this->actingAs($this->admin)->get(route('dashboard'))->assertOk()
+            ->assertSee('Hàng chờ cần xử lý')
+            ->assertSee('Báo cáo trực lớp chờ xác nhận')
+            ->assertSee('Phiếu thu chờ duyệt')
+            ->assertSee('1 ticket chưa có người xử lý');
+        $queues = collect($admin->viewData('roleDashboard')['queues'])->pluck('value', 'label');
+        $this->assertSame(3, $queues['Báo cáo trực lớp chờ xác nhận']);
+        $this->assertSame(1, $queues['Ticket đang mở']);
+
+        $managerB = $this->makeUser('manager', $this->otherBranch);
+        $managerQueues = collect($this->actingAs($managerB)->get(route('dashboard'))->assertOk()->viewData('roleDashboard')['queues'])->pluck('value', 'label');
+        $this->assertSame(2, $managerQueues['Báo cáo trực lớp chờ xác nhận']);
+        $this->assertSame(0, $managerQueues['Ticket đang mở']);
+
+        $lead = $this->makeUser('academic_lead', $this->branch);
+        $this->actingAs($lead)->get(route('dashboard'))->assertOk()
+            ->assertSee('Tổng quan học thuật')
+            ->assertSee('Order đề Big Test chờ duyệt')
+            ->assertSee('Đợt Big Test có kết quả chờ duyệt')
+            ->assertSee('Đề xuất sửa giáo trình');
+    }
+
     public function test_q8_report_form_lists_only_own_classes_and_roster(): void
     {
         $teacher = $this->makeUser('teacher', $this->branch);
