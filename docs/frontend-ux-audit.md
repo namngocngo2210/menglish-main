@@ -190,6 +190,7 @@ resources/
 | Sprint | Trạng thái | Đã làm | Chưa làm / chuyển sprint |
 |---|---|---|---|
 | FE-1 | Chưa bắt đầu | | |
+| Dọn mockup (26/09) | Xong | 849 comment HTML → comment Blade (không còn gửi xuống trình duyệt). Gỡ thanh quy trình BA ở 14 màn lớp/giáo trình, thanh đổi trạng thái demo ở portal feedback. Bỏ tiêu đề "Flow N — Bước N" và mã BA/Q/R khỏi chữ hiển thị. Gỡ 8 khối "quy tắc/lưu ý nghiệp vụ" trùng lặp và 34 phụ đề mô tả màn hình. Sửa 5 assertion test bám vào chữ giải thích. | Bộ `academic-system` / `mockup-hub` giữ nguyên theo yêu cầu. Portal feedback còn 2 khối trạng thái `state-closed` / `state-empty` chỉ mở được bằng thanh demo, cần server trả trạng thái thật |
 | FE-2 | Chưa bắt đầu | | |
 | FE-3 | Chưa bắt đầu | | |
 | FE-4 | Chưa bắt đầu | | |
