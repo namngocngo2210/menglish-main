@@ -179,4 +179,19 @@ class ClassFlowRedesignTest extends TestCase
         ])->assertForbidden();
         $this->assertDatabaseMissing('staff_reports', ['title' => 'Sự vụ ngoài phạm vi']);
     }
+
+    public function test_create_class_stays_in_class_section_and_trial_page_has_no_create_button(): void
+    {
+        $this->makeClass();
+
+        $create = $this->actingAs($this->admin)->get(route('classes.create'))->assertOk()
+            ->assertSee('href="'.route('classes.index').'"', false)
+            ->assertDontSee('Flow 1')
+            ->assertDontSee('href="'.route('classes.trial-booking').'" class="mt-0.5', false);
+        // Tab "Danh sách lớp" của mục Lớp học đang sáng trên trang tạo lớp.
+        $this->assertMatchesRegularExpression('/<a[^>]*href="'.preg_quote(route('classes.index'), '/').'"[^>]*aria-current="page"/', $create->getContent());
+
+        $this->actingAs($this->admin)->get(route('classes.trial-booking'))->assertOk()
+            ->assertDontSee('href="'.route('classes.create').'"', false);
+    }
 }

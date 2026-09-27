@@ -122,7 +122,7 @@ final class SidebarMenu
                 'items' => self::anchored(self::CLASS_MANAGER, [
                     // Danh sách lớp → Trang lớp (tab con). Hồ sơ lớp / Sơ đồ khối / Danh sách chi tiết / Chi tiết học thuật
                     // cũ chuyển hướng về đây (chip lọc + tab con thay cho màn riêng).
-                    ['label' => 'Danh sách lớp', 'route' => 'classes.index', 'active' => ['classes.index', 'classes.show', 'classes.edit', 'classes.profile', 'classes.academic-*']],
+                    ['label' => 'Danh sách lớp', 'route' => 'classes.index', 'active' => ['classes.index', 'classes.show', 'classes.create', 'classes.edit', 'classes.profile', 'classes.academic-*']],
                     ['label' => 'Lịch học & điểm danh', 'route' => 'tasks.classes-dashboard'],
                     ['label' => 'Báo cáo & sự vụ', 'route' => 'academic.dashboards.reports', 'active' => ['academic.dashboards.*']],
                 ]),
