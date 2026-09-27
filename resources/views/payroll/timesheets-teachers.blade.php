@@ -11,8 +11,9 @@
     <div x-data="{
             selected: [],
             pendingIds: @js($pendingOnPage),
-            edit: { action: '', timeIn: '', timeOut: '', label: '' },
-            reject: { action: '', label: '' },
+            {{-- Sau lỗi validate, modal mở lại (:show) nên phải khôi phục action/nhãn, nếu không form gửi về URL rỗng. --}}
+            edit: { action: @js(old('_modal_action', '')), timeIn: @js(old('time_in', '')), timeOut: @js(old('time_out', '')), label: @js(old('_modal_label', '')) },
+            reject: { action: @js(old('_modal_action', '')), label: @js(old('_modal_label', '')) },
             toggleAll(e) { this.selected = e.target.checked ? [...this.pendingIds] : []; },
          }">
         <x-ui.page-header :title="$canViewAll ? 'Chi tiết chấm công giáo viên' : 'Chấm công của tôi'"
@@ -291,6 +292,8 @@
                 <form method="POST" :action="edit.action" id="ts-adjust-form" class="space-y-md">
                     @csrf
                     @method('PUT')
+                    <input type="hidden" name="_modal_action" :value="edit.action">
+                    <input type="hidden" name="_modal_label" :value="edit.label">
                     <p class="font-body-small text-body-small text-on-surface-variant" x-text="edit.label"></p>
                     <x-ui.alert type="info">Ca sau khi chỉnh chuyển về <strong>Chờ đối soát</strong>. Kỳ lương đã chốt thì không thể chỉnh sửa.</x-ui.alert>
                     <div class="grid grid-cols-2 gap-md">
@@ -311,6 +314,8 @@
                 <form method="POST" :action="reject.action" id="ts-reject-form" class="space-y-md">
                     @csrf
                     <input type="hidden" name="decision" value="invalid">
+                    <input type="hidden" name="_modal_action" :value="reject.action">
+                    <input type="hidden" name="_modal_label" :value="reject.label">
                     <p class="font-body-small text-body-small text-on-surface-variant" x-text="reject.label"></p>
                     <x-ui.textarea name="rejection_reason" label="Lý do từ chối" required rows="3" placeholder="VD: Không có buổi học trên lịch, trùng ca đã chấm..." />
                 </form>

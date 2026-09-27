@@ -238,7 +238,13 @@ class KpiController extends Controller
         );
 
         foreach ($validated['score'] as $criterionId => $score) {
-            if (! isset($criteria[$criterionId]) || $score === null || $score === '') {
+            if (! isset($criteria[$criterionId])) {
+                continue;
+            }
+            if ($score === null || $score === '') {
+                // Ô để trống: tổng điểm tính mục này = 0 → đưa điểm cũ (nếu có) về 0 cho khớp, không để điểm cũ còn hiện.
+                KpiEvaluationItem::where('kpi_evaluation_id', $evaluation->id)->where('kpi_criterion_id', $criterionId)->update(['score' => 0]);
+
                 continue;
             }
             KpiEvaluationItem::updateOrCreate(

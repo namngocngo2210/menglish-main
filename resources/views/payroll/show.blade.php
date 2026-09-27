@@ -77,7 +77,7 @@
         </nav>
 
         <div class="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-4">
-            <x-ui.stat-card label="Tổng chi quỹ lương" :value="number_format((float) $period->total_amount, 0, ',', '.').'đ'" tone="primary" icon="account_balance_wallet"
+            <x-ui.stat-card label="Tổng chi quỹ lương" :value="number_format((float) (\App\Support\DataScope::isAll(auth()->user(), 'payroll') ? $period->total_amount : $period->records->sum('net_salary')), 0, ',', '.').'đ'" tone="primary" icon="account_balance_wallet"
                             :hint="$period->records->count().' nhân sự nhận lương'" />
             <x-ui.stat-card label="Tổng buổi dạy (Part-time)" :value="$period->records->where('employee_type', 'parttime')->sum('teaching_sessions').' buổi'" icon="event_available"
                             :hint="$period->records->sum('actual_hours').' giờ chấm công hợp lệ'" />

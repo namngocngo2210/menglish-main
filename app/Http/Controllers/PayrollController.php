@@ -35,7 +35,12 @@ class PayrollController extends Controller
         $search = trim((string) $request->query('search', ''));
         $status = $request->query('status');
 
-        $periods = PayrollPeriod::withCount('records')
+        // Người xem theo chi nhánh / của tôi: số người, giờ, tổng tiền chỉ tính trên phiếu lương trong phạm vi.
+        $scoped = ! DataScope::isAll($request->user(), 'payroll');
+        $periods = PayrollPeriod::withCount(['records' => fn ($q) => $scoped ? $this->scopeRecords($q) : $q])
+            ->when($scoped, fn ($q) => $q
+                ->withSum(['records as scoped_hours' => fn ($r) => $this->scopeRecords($r)], 'actual_hours')
+                ->withSum(['records as scoped_amount' => fn ($r) => $this->scopeRecords($r)], 'net_salary'))
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('code', 'like', "%{$search}%")
                 ->orWhere('title', 'like', "%{$search}%")
                 ->orWhereHas('records.user', fn ($u) => $u->where('name', 'like', "%{$search}%"))))
@@ -45,7 +50,7 @@ class PayrollController extends Controller
             ->withQueryString();
         $allPeriods = PayrollPeriod::latest()->get(['id', 'code', 'title']);
 
-        return view('payroll.periods', compact('periods', 'allPeriods', 'search', 'status'));
+        return view('payroll.periods', compact('periods', 'allPeriods', 'search', 'status', 'scoped'));
     }
 
     public function storePeriod(Request $request)
@@ -310,7 +315,7 @@ class PayrollController extends Controller
      */
     public function updateRecord(Request $request, $id)
     {
-        $record = PayrollRecord::with('period')->findOrFail($id);
+        $record = $this->scopeRecords(PayrollRecord::with('period'))->findOrFail($id);
         abort_if($record->isLocked(), 422, 'Không thể sửa kỳ lương đã khóa.');
 
         $validated = $request->validate([
@@ -320,9 +325,8 @@ class PayrollController extends Controller
 
         $before = $record->only(['foreign_session_pay', 'net_salary']);
         $record->foreign_session_pay = $validated['foreign_session_pay'];
-        if (filled($validated['notes'] ?? null)) {
-            $record->adjustment_notes = $validated['notes'];
-        }
+        // Ô ghi chú luôn hiển thị giá trị hiện tại → để trống nghĩa là xóa ghi chú.
+        $record->adjustment_notes = $validated['notes'] ?? null;
         $record->applyManualInputs();
         $record->save();
         $record->period->refreshTotals();
@@ -397,7 +401,7 @@ class PayrollController extends Controller
      */
     public function adjustRecord(Request $request, int $id)
     {
-        $record = PayrollRecord::with('period')->findOrFail($id);
+        $record = $this->scopeRecords(PayrollRecord::with('period'))->findOrFail($id);
         abort_if($record->isLocked(), 422, 'Không thể sửa phiếu lương của kỳ đã duyệt/đã chi trả.');
 
         $tiers = PayrollPeriod::payrollSettings()['retention_tiers'];
@@ -489,6 +493,14 @@ class PayrollController extends Controller
      * - Chi nhánh (Quản lý cơ sở, Kế toán): lớp thuộc chi nhánh của mình + lớp mình được xem (ClassModel::visibleTo).
      * - Của tôi: lớp mình được xem (ClassModel::visibleTo).
      */
+    /** Ca dạy thuộc lớp trong phạm vi chấm công của người thao tác (ca không gắn lớp: chỉ phạm vi toàn hệ thống). */
+    private function canReachTimesheet(User $user, TeacherTimesheet $timesheet): bool
+    {
+        return $timesheet->class_id
+            ? $this->timesheetClasses($user)->whereKey($timesheet->class_id)->exists()
+            : DataScope::level($user, 'attendance_staff') === DataScope::ALL;
+    }
+
     private function timesheetClasses(User $user): \Illuminate\Database\Eloquent\Builder
     {
         return match (DataScope::level($user, 'attendance_staff')) {
@@ -773,6 +785,7 @@ class PayrollController extends Controller
             'rejection_reason' => ['nullable', 'required_if:decision,invalid', 'string', 'max:1000'],
         ], ['rejection_reason.required_if' => 'Vui lòng nhập lý do từ chối ca dạy.']);
         $timesheet = TeacherTimesheet::findOrFail($id);
+        abort_unless($this->canReachTimesheet($request->user(), $timesheet), 403);
         if (PayrollPeriod::isLockedFor($timesheet->teaching_date)) {
             return $this->rejectLockedDate('teaching_date', $timesheet->teaching_date);
         }
@@ -800,7 +813,9 @@ class PayrollController extends Controller
 
         $approved = 0;
         $skipped = 0;
-        TeacherTimesheet::whereIn('id', $validated['ids'])->get()->each(function (TeacherTimesheet $ts) use (&$approved, &$skipped) {
+        $user = $request->user();
+        TeacherTimesheet::whereIn('id', $validated['ids'])->get()
+            ->filter(fn (TeacherTimesheet $ts) => $this->canReachTimesheet($user, $ts))->each(function (TeacherTimesheet $ts) use (&$approved, &$skipped) {
             if ($ts->status !== 'pending_review' || PayrollPeriod::isLockedFor($ts->teaching_date)) {
                 $skipped++;
 
@@ -1091,6 +1106,9 @@ class PayrollController extends Controller
                         ->whereDate('effective_from', Carbon::parse($value)->toDateString())->exists();
                     if ($exists) {
                         $fail('Giáo viên đã có đơn giá hiệu lực từ ngày này — chọn ngày hiệu lực khác để tạo phiên bản mới.');
+                    } elseif (PayrollPeriod::isLockedFor(Carbon::parse($value))) {
+                        // Kỳ đã khóa không tính lại → đơn giá mới sẽ không khớp phiếu lương đã chi.
+                        $fail(PayrollPeriod::lockedMessage($value));
                     }
                 },
             ],

@@ -61,9 +61,9 @@
                         <td class="font-code text-code font-semibold">{{ $p->code }}</td>
                         <td class="font-semibold">{{ $p->title }}</td>
                         <td class="font-code text-code">{{ $p->start_date->format('d/m/Y') }} – {{ $p->end_date->format('d/m/Y') }}</td>
-                        <td class="text-center">{{ $p->records_count > 0 ? $p->records_count : $p->total_staff }} người</td>
-                        <td class="text-right font-mono">{{ $p->total_hours }}h</td>
-                        <td><x-ui.money :value="$p->total_amount" suffix="đ" /></td>
+                        <td class="text-center">{{ $p->records_count > 0 || $scoped ? $p->records_count : $p->total_staff }} người</td>
+                        <td class="text-right font-mono">{{ $scoped ? (float) $p->scoped_hours : $p->total_hours }}h</td>
+                        <td><x-ui.money :value="$scoped ? (float) $p->scoped_amount : $p->total_amount" suffix="đ" /></td>
                         <td><x-ui.badge :color="$statusColors[$p->status] ?? 'neutral'">{{ $statusTexts[$p->status] ?? $p->status_label }}</x-ui.badge></td>
                         <td class="text-right">
                             <x-ui.button variant="ghost" size="sm" icon="visibility" :href="route('payroll.periods.show', $p->id)">Chi tiết bảng lương</x-ui.button>
