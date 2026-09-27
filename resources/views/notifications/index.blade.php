@@ -1,4 +1,7 @@
 <x-app-layout>
+    {{-- Trang thông báo đứng riêng (mở từ chuông): không hiện thanh tab workspace "Cá nhân" (Báo cáo định kỳ, Lương...). --}}
+    @php(request()->attributes->set('workspace_tabs_rendered', true))
+
     <x-ui.page-header title="Trung Tâm Cảnh Báo & Thông Báo Quản Trị" icon="notifications_active">
         <x-slot:actions>
             <form action="{{ route('notifications.scan') }}" method="POST" class="inline">

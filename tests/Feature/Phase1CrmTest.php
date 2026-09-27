@@ -225,7 +225,8 @@ class Phase1CrmTest extends TestCase
         $this->actingAs($this->sales)->get(route('notifications.index'))->assertOk()->assertSee($neglected->name);
         // Trang thông báo có tiêu đề riêng, không kèm header/tab của Quản lý tuyển sinh.
         $this->actingAs($this->admin)->get(route('notifications.index'))
-            ->assertSee('Trung Tâm Cảnh Báo')->assertDontSee('Quản lý tuyển sinh')->assertDontSee('Thêm khách mới');
+            ->assertSee('Trung Tâm Cảnh Báo')->assertDontSee('Quản lý tuyển sinh')->assertDontSee('Thêm khách mới')
+            ->assertDontSee('data-workspace-tabs', false);
 
         // Quét lại không cảnh báo trùng; có hoạt động mới rồi lại bị bỏ quên → cảnh báo lại.
         $this->assertSame(0, $service->scanAndSyncStaleLeads());
