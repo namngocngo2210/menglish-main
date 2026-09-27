@@ -60,7 +60,7 @@
                                         <div>
                                             <a href="{{ route('crm.customers.show', $enrollment->customer_id) }}" class="font-body-medium text-body-medium text-on-surface hover:text-primary">{{ $enrollment->student?->name }}</a>
                                             <div class="font-code text-caption text-on-surface-variant">{{ $enrollment->student?->phone ?? $enrollment->customer?->phone }}</div>
-                                            <div class="font-code text-[10px] text-on-surface-variant/70">{{ $enrollment->student?->code }}</div>
+                                            <div class="font-code text-[10px] text-on-surface-variant/70"><x-ui.code :value="$enrollment->student?->code" /></div>
                                         </div>
                                     </div>
                                 </td>
@@ -99,7 +99,7 @@
                                         @if ($enrollment->student?->user)
                                             <form method="POST" action="{{ route('crm.enrollments.reset-account', $enrollment) }}" class="mt-xs flex flex-wrap items-center gap-xs font-caption text-caption text-on-surface-variant">
                                                 @csrf
-                                                <span class="max-w-[240px] break-all">Tài khoản: <span class="font-code">{{ $enrollment->student->user->email }}</span></span>
+                                                <span class="flex min-w-0 max-w-[240px] items-center gap-xs">Tài khoản: <span class="truncate font-code" title="{{ $enrollment->student->user->email }}">{{ $enrollment->student->user->email }}</span></span>
                                                 <button type="submit" class="font-semibold text-primary hover:underline">Cấp mật khẩu tạm</button>
                                             </form>
                                         @endif

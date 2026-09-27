@@ -38,7 +38,7 @@
                                 <div>
                                     <p class="font-caption text-caption text-on-surface-variant">Học viên</p>
                                     <h4 class="font-body-medium text-body-medium font-semibold text-on-surface">{{ $selectedResult->student?->name }}</h4>
-                                    <p class="font-caption text-caption text-on-surface-variant">Mã HV: {{ $selectedResult->student?->code ?? 'HV-'.$selectedResult->student_id }}</p>
+                                    <p class="font-caption text-caption text-on-surface-variant">Mã HV: <x-ui.code :value="$selectedResult->student?->code ?? 'HV-'.$selectedResult->student_id" /></p>
                                 </div>
                             </div>
                             <div>
@@ -241,7 +241,7 @@
                                 <td>
                                     <input type="hidden" name="results[{{ $index }}][student_id]" value="{{ $student->id }}" @disabled($locked)>
                                     <div class="font-bold text-on-surface">{{ $student->name }}</div>
-                                    <div class="text-[11px] text-on-surface-variant/70 font-mono mt-0.5">Mã HV: {{ $student->code ?? 'HV-' . $student->id }}</div>
+                                    <div class="text-[11px] text-on-surface-variant/70 font-mono mt-0.5">Mã HV: <x-ui.code :value="$student->code ?? 'HV-' . $student->id" /></div>
                                 </td>
                                 <td class="text-center">
                                     <input type="checkbox" name="results[{{ $index }}][is_absent]" value="1" x-model="absent" @checked($absent) @disabled($locked)

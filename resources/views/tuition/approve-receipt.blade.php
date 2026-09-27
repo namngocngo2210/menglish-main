@@ -118,7 +118,7 @@
                             <div class="mb-1.5 flex items-start justify-between gap-2">
                                 <div class="flex items-center gap-1.5">
                                     <span class="rounded px-2 py-0.5 font-code text-xs font-bold {{ $isSelected ? 'border border-primary-container/40 bg-surface-container-lowest text-on-surface' : 'border border-surface-container-highest bg-surface-container text-on-surface-variant' }}">
-                                        {{ $rc->receipt_number }}
+                                        <x-ui.code :value="$rc->receipt_number" />
                                     </span>
                                     @if ($rc->payment_method === 'cash')
                                         <x-ui.badge color="success" :dot="false"><span class="material-symbols-outlined text-xs">payments</span>Tiền mặt</x-ui.badge>
@@ -133,7 +133,7 @@
                                 <div>
                                     <h4 class="flex items-center gap-1 text-xs font-bold text-on-surface">
                                         <span>{{ $student?->name ?? 'Học viên' }}</span>
-                                        <span class="font-code text-[11px] font-normal text-on-surface-variant/70">({{ $student?->code ?? 'HV' }})</span>
+                                        <span class="font-code text-[11px] font-normal text-on-surface-variant/70">(<x-ui.code :value="$student?->code" />)</span>
                                     </h4>
                                     <p class="mt-0.5 flex items-center gap-1.5 text-[11px] text-on-surface-variant">
                                         <span>{{ $className }}</span>
@@ -191,7 +191,7 @@
                                     <li>
                                         SePay #{{ $tx->sepay_id }} — {{ number_format((float) $tx->transfer_amount, 0, ',', '.') }} đ
                                         ngày {{ $tx->transaction_date?->format('d/m/Y H:i') }}
-                                        @if ($tx->receipt) (phiếu {{ $tx->receipt->receipt_number }}) @endif
+                                        @if ($tx->receipt) (phiếu <x-ui.code :value="$tx->receipt->receipt_number" />) @endif
                                     </li>
                                 @endforeach
                             </ul>
@@ -204,7 +204,7 @@
                         <div class="flex flex-wrap items-center justify-between gap-4 border-b border-surface-container-highest bg-surface-container-low p-5 lg:p-6">
                             <div>
                                 <div class="flex items-center gap-2.5">
-                                    <h2 class="text-lg font-bold text-on-surface">Chi tiết phiếu thu: <span class="font-code text-primary">{{ $selectedReceipt->receipt_number }}</span></h2>
+                                    <h2 class="text-lg font-bold text-on-surface">Chi tiết phiếu thu: <x-ui.code :value="$selectedReceipt->receipt_number" class="font-code text-primary" /></h2>
                                     @if ($selectedReceipt->status === 'approved')
                                         <x-ui.badge color="success" pill>Đã duyệt (HĐ: {{ $selectedReceipt->invoice_number ?? 'Auto' }})</x-ui.badge>
                                     @elseif ($selectedReceipt->status !== 'pending')
@@ -239,7 +239,7 @@
                                     <div class="space-y-0.5 rounded-lg border border-surface-container-highest bg-surface-container-lowest p-3.5">
                                         <span class="mb-0.5 block text-xs uppercase text-on-surface-variant/70">Học viên</span>
                                         <div class="text-sm font-bold text-on-surface">{{ $st?->name ?? 'Học viên' }}</div>
-                                        <span class="font-code text-xs font-semibold text-primary">{{ $st?->code ?? 'HV' }}</span>
+                                        <x-ui.code :value="$st?->code" class="font-code text-xs font-semibold text-primary" />
                                     </div>
                                     <div class="space-y-0.5 rounded-lg border border-surface-container-highest bg-surface-container-lowest p-3.5">
                                         <span class="mb-0.5 block text-xs uppercase text-on-surface-variant/70">Lớp học hiện tại</span>

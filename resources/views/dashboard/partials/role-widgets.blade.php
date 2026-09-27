@@ -46,7 +46,7 @@
             @forelse ($roleDashboard['overdueTasks'] as $task)
                 <div class="flex items-center justify-between gap-sm border-b border-surface-variant/60 px-md py-sm last:border-0">
                     <div class="min-w-0">
-                        <p class="truncate font-body-medium text-body-medium text-on-surface">{{ $task->title }}</p>
+                        <p class="truncate font-body-medium text-body-medium text-on-surface" title="{{ $task->title }}">{{ \App\Support\DisplayCode::shortenIn($task->title) }}</p>
                         <p class="font-caption text-caption text-on-surface-variant">{{ $task->assignee?->name ?? 'Chưa phân công' }}</p>
                     </div>
                     <span class="shrink-0 rounded-full bg-error-container px-sm py-xs font-caption text-caption text-error">Hạn {{ $task->due_date?->format('d/m/Y') ?? '—' }}</span>

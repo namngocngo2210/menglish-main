@@ -1,7 +1,9 @@
 {{-- Danh sách học viên đến hạn / quá hạn thu phí (mockup: epic-8-thu-phi-qua-han). --}}
-<x-app-layout title="Thu phí quá hạn">
-    <x-ui.page-header title="Danh sách học viên đến hạn thu phí" description="Theo dõi và đôn đốc công nợ học phí: quá hạn nghiêm trọng, mới quá hạn và sắp đến hạn.">
+<x-app-layout title="Quá hạn & Nhắc phí">
+    {{-- Màn xử lý: đôn đốc từng khoản quá hạn / sắp đến hạn. Tra cứu toàn bộ khoản học phí ở "Công nợ học viên". --}}
+    <x-ui.page-header title="Quá hạn & Nhắc phí" description="Đôn đốc thu phí: lập phiếu thu, gửi nhắc nợ, ghi nhận liên hệ cho khoản quá hạn và sắp đến hạn.">
         <x-slot:actions>
+            <x-ui.button variant="ghost" icon="menu_book" :href="route('tuition.students')">Xem sổ công nợ</x-ui.button>
             @can('fee_reminder_config.manage')
                 <x-ui.button variant="secondary" icon="settings" :href="route('system-config.debt-reminders')">Cấu hình nhắc nợ</x-ui.button>
             @endcan
@@ -30,7 +32,7 @@
                         <tbody>
                             @foreach ($paused as $ot)
                                 <tr>
-                                    <td>{{ $ot->student?->name }} <span class="font-caption text-caption text-on-surface-variant">({{ $ot->student?->code }})</span></td>
+                                    <td>{{ $ot->student?->name }} <x-ui.code :value="$ot->student?->code" class="font-caption text-caption text-on-surface-variant" /></td>
                                     <td>{{ $ot->classModel?->name ?? '—' }}</td>
                                     <td><x-ui.money :value="$ot->debt_amount" /></td>
                                     <td class="font-code text-code">{{ $ot->due_date?->format('d/m/Y') }}</td>

@@ -45,7 +45,8 @@
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="download" :href="route('tuition.history.export', request()->query())">Xuất Excel</x-ui.button>
             @can('tuition.create')
-                <x-ui.button icon="add" :href="route('tuition.receipts.create', $student ? ['student_id' => $student->id] : [])">Tải lên biên lai mới</x-ui.button>
+                {{-- Nút chính "Lập phiếu thu" đã ở thanh tab Học phí → nút này là nút phụ. --}}
+                <x-ui.button variant="secondary" icon="add" :href="route('tuition.receipts.create', $student ? ['student_id' => $student->id] : [])">Tải lên biên lai mới</x-ui.button>
             @endcan
         </x-slot:actions>
     </x-ui.page-header>
@@ -61,7 +62,7 @@
         <x-ui.date name="from" label="Từ ngày" :value="$filters['from']" />
         <x-ui.date name="to" label="Đến ngày" :value="$filters['to']" />
         <x-ui.select name="kind" label="Khoản thu" :value="$filters['kind']" :options="['all' => 'Tất cả khoản thu', 'renewal' => 'Chỉ khoản thu tái tục']" />
-        <x-ui.button type="submit" icon="filter_list">Lọc</x-ui.button>
+        <x-ui.button type="submit" variant="secondary" icon="filter_list">Lọc</x-ui.button>
         @if (request()->hasAny(['search', 'status', 'method', 'from', 'to', 'kind', 'student_id']))
             <x-ui.button variant="ghost" icon="restart_alt" :href="route('tuition.history')">Xóa lọc</x-ui.button>
         @endif
@@ -74,19 +75,17 @@
     <div x-data="{ detail: null, printing: null, rows: @js($rows), open(id) { this.detail = this.rows[id]; }, print(id) { this.printing = this.rows[id]; this.$nextTick(() => window.print()); } }">
         {{-- Sửa phiếu nháp / bị trả về mở modal 4xl; lưu xong "tuition-receipts-changed" tải lại bảng (giữ bộ lọc) --}}
         <div id="receipt-history" hx-get="{{ route('tuition.history', request()->query()) }}" hx-trigger="tuition-receipts-changed from:body" hx-select="#receipt-history" hx-swap="outerHTML" hx-disinherit="*">
-        <x-ui.data-table min-width="1100px">
+        <x-ui.data-table min-width="960px">
             <table>
                 <thead>
                     <tr>
-                        <th>Mã phiếu</th>
-                        <th>Số HĐĐT</th>
+                        <th>Mã phiếu · Số HĐĐT</th>
                         <th>Học viên</th>
                         <th>Khoản thu</th>
                         <th class="text-right">Số tiền</th>
                         <th>Hình thức</th>
-                        <th>Trạng thái</th>
+                        <th>Trạng thái · Đối soát</th>
                         <th>Ngày thu</th>
-                        <th>Đối soát</th>
                         <th class="text-right">Thao tác</th>
                     </tr>
                 </thead>
@@ -94,11 +93,13 @@
                     @forelse ($receipts as $rc)
                         @php $st = $rc->tuition?->student ?? $rc->student; @endphp
                         <tr>
-                            <td class="whitespace-nowrap font-code text-code text-primary">{{ $rc->receipt_number }}</td>
-                            <td class="whitespace-nowrap font-code text-code">{{ $rc->invoice_number ?? '—' }}</td>
+                            <td class="whitespace-nowrap">
+                                <x-ui.code :value="$rc->receipt_number" class="font-code text-code text-primary" />
+                                <div class="font-code text-caption text-on-surface-variant">{{ $rc->invoice_number ?? '—' }}</div>
+                            </td>
                             <td>
                                 <a href="{{ route('tuition.history', ['student_id' => $st?->id]) }}" class="font-body-medium hover:text-primary">{{ $st?->name ?? '—' }}</a>
-                                <div class="font-code text-caption text-on-surface-variant">{{ $st?->code }}</div>
+                                <div class="font-code text-caption text-on-surface-variant"><x-ui.code :value="$st?->code" /></div>
                             </td>
                             <td>
                                 {{ $rc->tuition?->fee_label ?? 'Phụ thu' }}
@@ -110,17 +111,15 @@
                             <td class="whitespace-nowrap">
                                 <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[18px] text-on-surface-variant" aria-hidden="true">{{ $methodIcon[$rc->payment_method] ?? 'payments' }}</span>{{ \App\Models\TuitionReceipt::METHOD_LABELS[$rc->payment_method] ?? $rc->payment_method }}</span>
                             </td>
-                            <td><x-ui.badge :color="$rc->status_color">{{ $rc->status_label }}</x-ui.badge></td>
-                            <td class="whitespace-nowrap font-code text-code">{{ $rc->payment_date?->format('d/m/Y') ?? '—' }}</td>
                             <td class="whitespace-nowrap">
+                                <x-ui.badge :color="$rc->status_color">{{ $rc->status_label }}</x-ui.badge>
                                 @if ($rc->status === 'approved' && $rc->invoice_number)
-                                    <span class="font-body-medium text-tertiary">Chính thức</span>
+                                    <div class="font-caption text-caption text-tertiary">Chính thức</div>
                                 @elseif ($rc->status === 'cancelled')
-                                    <span class="text-error">Đã hủy HĐ</span>
-                                @else
-                                    <span class="text-on-surface-variant">-</span>
+                                    <div class="font-caption text-caption text-error">Đã hủy HĐ</div>
                                 @endif
                             </td>
+                            <td class="whitespace-nowrap font-code text-code">{{ $rc->payment_date?->format('d/m/y') ?? '—' }}</td>
                             <td class="whitespace-nowrap text-right">
                                 <x-ui.button size="sm" variant="ghost" icon="visibility" @click="open({{ $rc->id }})" title="Xem chi tiết" aria-label="Xem chi tiết" />
                                 <x-ui.button size="sm" variant="ghost" icon="print" @click="print({{ $rc->id }})" title="In phiếu thu" aria-label="In phiếu thu" />
@@ -131,7 +130,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="10"><x-ui.empty-state icon="receipt_long" title="Chưa có phiếu thu phù hợp" /></td></tr>
+                        <tr><td colspan="8"><x-ui.empty-state icon="receipt_long" title="Chưa có phiếu thu phù hợp" /></td></tr>
                     @endforelse
                 </tbody>
             </table>

@@ -12,7 +12,8 @@
         </x-slot:breadcrumbs>
         <x-slot:actions>
             @can('invoice.request_cancel')
-                <x-ui.button variant="danger" icon="add_circle" x-on:click="$dispatch('open-modal', 'new-cancel')">Tạo yêu cầu hủy HĐ</x-ui.button>
+                {{-- Việc chính của màn là duyệt → nút tạo yêu cầu là nút viền; màu đỏ chỉ ở nút xác nhận trong hộp thoại. --}}
+                <x-ui.button variant="secondary" icon="add_circle" x-on:click="$dispatch('open-modal', 'new-cancel')">Yêu cầu hủy HĐ</x-ui.button>
             @endcan
         </x-slot:actions>
     </x-ui.page-header>
@@ -117,7 +118,7 @@
                                         <x-ui.badge color="error" :dot="false">Hóa đơn giấy</x-ui.badge>
                                     </div>
                                     <div class="mt-0.5 text-[11px] text-on-surface-variant">
-                                        Mã phiếu thu: <strong class="font-code text-on-surface-variant">{{ $can->receipt?->receipt_number ?? 'PT-Trực tiếp' }}</strong>
+                                        Mã phiếu thu: <strong class="font-code text-on-surface-variant">@if ($can->receipt)<x-ui.code :value="$can->receipt->receipt_number" />@else PT-Trực tiếp @endif</strong>
                                     </div>
                                 </div>
                                 <div class="text-right">
@@ -136,7 +137,7 @@
                             <div class="space-y-1.5 py-2.5 text-xs">
                                 <div class="flex items-center justify-between">
                                     <span class="text-on-surface-variant">Học viên:</span>
-                                    <span class="font-bold text-on-surface">{{ $st?->name ?? '—' }} <span class="font-code font-normal text-on-surface-variant/70">({{ $st?->code ?? 'HV' }})</span></span>
+                                    <span class="font-bold text-on-surface">{{ $st?->name ?? '—' }} <span class="font-code font-normal text-on-surface-variant/70">(<x-ui.code :value="$st?->code" />)</span></span>
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span class="text-on-surface-variant">Số tiền trên hóa đơn:</span>
@@ -198,7 +199,7 @@
                                     @endif
                                 </div>
                                 <p class="mt-1 text-xs text-on-surface-variant">
-                                    Gắn với phiếu thu: <strong class="font-code text-on-surface">{{ $rc?->receipt_number ?? '—' }}</strong> • Tạo ngày {{ $selectedCancellation->created_at->format('d/m/Y') }} bởi <span class="font-medium text-on-surface-variant">{{ $selectedCancellation->requester?->name ?? 'Chưa cập nhật' }}</span>
+                                    Gắn với phiếu thu: <strong class="font-code text-on-surface"><x-ui.code :value="$rc?->receipt_number" /></strong> • Tạo ngày {{ $selectedCancellation->created_at->format('d/m/Y') }} bởi <span class="font-medium text-on-surface-variant">{{ $selectedCancellation->requester?->name ?? 'Chưa cập nhật' }}</span>
                                 </p>
                             </div>
 
@@ -267,7 +268,7 @@
                                 <div>
                                     <span class="block text-[10px] uppercase text-on-surface-variant/70">Học viên</span>
                                     <span class="font-bold text-on-surface">{{ $st?->name ?? '—' }}</span>
-                                    <span class="block font-code text-[11px] text-on-surface-variant">Mã: {{ $st?->code ?? 'HV' }}</span>
+                                    <span class="block font-code text-[11px] text-on-surface-variant">Mã: <x-ui.code :value="$st?->code" /></span>
                                 </div>
                                 <div>
                                     <span class="block text-[10px] uppercase text-on-surface-variant/70">Lớp học hiện tại</span>
@@ -381,7 +382,7 @@
 
                                     <div class="flex w-full items-center gap-2.5 sm:w-auto">
                                         <x-ui.button variant="secondary" icon="close" class="flex-1 sm:flex-initial" x-on:click="$dispatch('open-modal', 'reject-cancellation')">Từ chối hủy</x-ui.button>
-                                        <x-ui.button variant="danger" icon="delete_forever" class="flex-1 sm:flex-initial" x-on:click="$dispatch('open-modal', 'confirm-cancellation')">Duyệt hủy hóa đơn</x-ui.button>
+                                        <x-ui.button icon="delete_forever" class="flex-1 sm:flex-initial" x-on:click="$dispatch('open-modal', 'confirm-cancellation')">Duyệt hủy hóa đơn</x-ui.button>
                                     </div>
                                 </div>
                             @elseif ($selectedCancellation->status === 'approved')

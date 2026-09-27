@@ -37,7 +37,7 @@
                 <div>
                     <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider block">Tài khoản học viên:</span>
                     <strong class="text-sm text-on-surface">{{ $student?->name ?? '—' }}</strong>
-                    <span class="text-xs text-on-surface-variant font-mono">({{ $student?->code ?? '—' }})</span>
+                    <span class="text-xs text-on-surface-variant font-mono">(<x-ui.code :value="$student?->code" />)</span>
                 </div>
             </div>
 

@@ -304,7 +304,7 @@ class Phase4FinanceParityTest extends TestCase
 
         $this->actingAs($this->manager)->get(route('tuition.students'))
             ->assertOk()
-            ->assertSee('Danh sách học viên đến hạn thu phí')
+            ->assertSee('Công nợ học viên')
             ->assertSee('Nhóm "Quá hạn"', false)
             ->assertSee('Quá hạn nghiêm trọng')
             ->assertSee('Nhóm "Sắp đến hạn"', false)
