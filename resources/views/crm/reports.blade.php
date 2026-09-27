@@ -42,7 +42,7 @@
                     </div>
                 </x-ui.field>
                 <x-ui.select id="report_branch" name="branch_id" label="Chi nhánh" :options="$branches->pluck('name', 'id')" :value="(string) $branchId" placeholder="Tất cả" class="min-w-[220px]" />
-                <x-ui.button type="submit" name="preset" value="custom" icon="search">Lọc dữ liệu</x-ui.button>
+                <x-ui.button type="submit" name="preset" value="custom" variant="secondary" icon="filter_list">Lọc</x-ui.button>
             </div>
         </form>
 

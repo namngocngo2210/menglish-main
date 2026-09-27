@@ -132,7 +132,7 @@ final class SidebarMenu
                     ['label' => 'Đã xóa', 'route' => 'crm.customers.deleted', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'deleted'],
                 ]),
                 'actions' => self::anchored(self::CLASS_MANAGER, [
-                    ['label' => 'Chốt học phí & Xếp lớp', 'route' => 'crm.closing-wizard', 'icon' => 'how_to_reg', 'variant' => 'secondary', 'menu' => 'Xếp lớp'],
+                    ['label' => 'Chốt & Xếp lớp', 'route' => 'crm.closing-wizard', 'icon' => 'how_to_reg', 'variant' => 'secondary', 'menu' => 'Xếp lớp'],
                 ]),
             ],
             [

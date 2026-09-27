@@ -10,7 +10,7 @@
             </x-ui.alert>
         @endif
 
-        {{-- Bộ lọc (mockup danh-sach-khach): Từ khóa, Nguồn, Người phụ trách, Giai đoạn, Chi nhánh, "Lọc dữ liệu" --}}
+        {{-- Bộ lọc (mockup danh-sach-khach): Từ khóa, Nguồn, Người phụ trách, Giai đoạn, Chi nhánh, nút "Lọc" (kiểu phụ, cùng nhãn với các màn CRM khác) --}}
         <form method="GET" action="{{ route('crm.customers.index') }}" role="search"
               class="rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
             <x-ui.workspace-chips workspace="crm" class="mb-md border-b border-surface-container-highest pb-md" />
@@ -39,7 +39,7 @@
                     </x-ui.field>
                 @endif
                 <div class="flex gap-sm">
-                    <x-ui.button type="submit" variant="info" icon="filter_list" class="flex-1">Lọc dữ liệu</x-ui.button>
+                    <x-ui.button type="submit" variant="secondary" icon="filter_list" class="flex-1">Lọc</x-ui.button>
                     @if (request()->hasAny(['search', 'branch_id', 'stage', 'source', 'assigned_user_id', 'sla']))
                         <x-ui.button variant="ghost" icon="filter_alt_off" :href="route('crm.customers.index')" aria-label="Xóa bộ lọc" title="Xóa bộ lọc" />
                     @endif
@@ -68,7 +68,7 @@
                             <td class="whitespace-nowrap">
                                 <a href="{{ route('crm.customers.show', $c->id) }}"
                                    class="font-body-medium text-body-medium text-on-background transition hover:text-primary">{{ $c->name }}</a>
-                                <div class="font-code text-caption text-on-surface-variant">{{ $c->code }}</div>
+                                <div class="font-code text-caption text-on-surface-variant" title="{{ $c->code }}">{{ $c->short_code }}</div>
                             </td>
                             <td class="whitespace-nowrap font-code text-code text-on-surface-variant">{{ $c->phone }}</td>
                             <td class="whitespace-nowrap text-on-surface-variant">{{ $c->parent_name ?: '—' }}</td>
@@ -96,7 +96,7 @@
                                     <x-ui.button variant="ghost" size="sm" icon="edit" :href="route('crm.customers.show', ['id' => $c->id, 'tab' => 'info'])" title="Mở hồ sơ" aria-label="Mở hồ sơ {{ $c->name }}" />
                                     @can('lead.delete')
                                         @if (! in_array($c->stage, ['won', \App\Models\CrmCustomer::STAGE_LOST], true) && ! $c->converted_student_id)
-                                            <form action="{{ route('crm.customers.destroy', $c->id) }}" method="POST" class="inline" data-confirm="Bạn có chắc chắn muốn xóa khách {{ $c->name }} ({{ $c->code }})?">
+                                            <form action="{{ route('crm.customers.destroy', $c->id) }}" method="POST" class="inline" data-confirm="Bạn có chắc chắn muốn xóa khách {{ $c->name }} ({{ $c->short_code }})?">
                                                 @csrf
                                                 @method('DELETE')
                                                 <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete" title="Xóa khách" aria-label="Xóa khách" />

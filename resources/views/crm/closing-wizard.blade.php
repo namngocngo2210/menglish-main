@@ -117,7 +117,7 @@
                                     data-level="{{ $c->level_label }}"
                                     data-level-keys="{{ implode('|', $c->level_keys) }}"
                                 >
-                                    {{ $c->name }} ({{ $c->code }} - {{ $c->phone }}) · {{ $c->course_interest ?? 'Chưa chọn khóa' }} · {{ $c->stage_label }}
+                                    {{ $c->name }} ({{ $c->short_code }} - {{ $c->phone }}) · {{ $c->course_interest ?? 'Chưa chọn khóa' }} · {{ $c->stage_label }}
                                 </option>
                             @endforeach
                         </x-ui.select>

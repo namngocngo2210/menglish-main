@@ -317,6 +317,17 @@ class CrmCustomer extends Model
         };
     }
 
+    /**
+     * Mã khách để hiển thị: mã dài KH-<ULID> rút gọn còn KH-<6 ký tự cuối> (vẫn tìm được vì ô tìm khớp một phần mã);
+     * mã đầy đủ giữ trong `code` (tooltip, nội dung chuyển khoản).
+     */
+    public function getShortCodeAttribute(): string
+    {
+        $code = (string) $this->code;
+
+        return preg_match('/^KH-[0-9A-Z]{26}$/', $code) ? 'KH-'.substr($code, -6) : $code;
+    }
+
     public function getStageLabelAttribute(): string
     {
         return self::stageLabel($this->stage);

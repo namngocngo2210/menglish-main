@@ -1,8 +1,8 @@
 <x-app-layout>
     @include('crm.partials.header-tabs')
 
-    {{-- Mockup crm-ui-mockup/khach-hang-chot-thanh-cong: (1) Chờ xếp lớp (Cần xử lý gấp) + Gán lớp, (2) bộ lọc Chi nhánh / Lớp học / Tìm kiếm,
-         (3) Khách đã có lớp + Tải báo cáo chi tiết + phân trang. A6: không có "Hủy chốt". --}}
+    {{-- Mockup crm-ui-mockup/khach-hang-chot-thanh-cong: (1) băng nhắc Chờ xếp lớp (link sang màn Chờ xếp lớp), (2) bộ lọc Chi nhánh / Lớp học / Tìm kiếm,
+         (3) Khách đã có lớp + Xuất Excel + phân trang. A6: không có "Hủy chốt". --}}
     <div class="flex flex-col gap-lg">
         @if (session('status'))
             <x-ui.alert type="success">
@@ -22,7 +22,8 @@
             </x-ui.alert>
         @endif
 
-        @include('crm.partials.waiting-class-table')
+        {{-- Chờ xếp lớp: chỉ băng nhắc + link, xếp lớp làm ở màn Chờ xếp lớp --}}
+        @include('crm.partials.waiting-class-banner')
 
         @include('crm.partials.list-filters', ['dateLabel' => 'Ngày chốt', 'searchPlaceholder' => 'Nhập tên hoặc số điện thoại...'])
 
@@ -40,7 +41,7 @@
                     <span class="rounded-full bg-primary-container/10 px-sm py-0.5 font-code text-caption font-bold text-primary">{{ number_format($wonCustomers->total(), 0, ',', '.') }}</span>
                 </div>
                 <div class="flex items-center gap-xs">
-                    <x-ui.button variant="secondary" size="sm" icon="download" :href="request()->fullUrlWithQuery(['export' => 'xlsx', 'page' => null])">Tải báo cáo chi tiết</x-ui.button>
+                    <x-ui.button variant="secondary" size="sm" icon="download" :href="request()->fullUrlWithQuery(['export' => 'xlsx', 'page' => null])">Xuất Excel</x-ui.button>
                     <x-ui.button variant="ghost" size="sm" :href="request()->fullUrlWithQuery(['export' => 'csv', 'page' => null])">CSV</x-ui.button>
                 </div>
             </x-slot:header>

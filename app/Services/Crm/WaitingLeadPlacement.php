@@ -55,6 +55,6 @@ class WaitingLeadPlacement
         $enrollment->update(['customer_id' => $customer->id]);
         StudentTuition::where('student_id', $student->id)->whereNull('class_id')->update(['class_id' => $class->id]);
         $customer->update(['waiting_since' => null]);
-        $this->stages->advanceTo($customer, 'won', $actor, "Học vụ gán lớp {$class->name} cho học viên {$student->code}.");
+        $this->stages->advanceTo($customer, 'won', $actor, "Học vụ xếp lớp {$class->name} cho học viên {$student->code}.");
     }
 }

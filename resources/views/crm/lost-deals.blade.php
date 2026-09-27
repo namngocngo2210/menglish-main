@@ -6,7 +6,7 @@
         <div class="flex flex-col gap-md lg:flex-row lg:items-center">
             <x-ui.stat-card label="Tổng số khách không chốt" :value="number_format($lostTotal, 0, ',', '.')" icon="person_off" tone="error" class="shadow-sm lg:min-w-[280px]" />
             <div class="flex-1 [&>form]:mb-0">
-                @include('crm.partials.list-filters', ['dateLabel' => 'Thời điểm dừng', 'exportable' => true, 'searchPlaceholder' => 'Tìm theo lý do không chốt, tên, SĐT...', 'exportLabel' => 'Xuất báo cáo'])
+                @include('crm.partials.list-filters', ['dateLabel' => 'Thời điểm dừng', 'exportable' => true, 'searchPlaceholder' => 'Tìm theo lý do không chốt, tên, SĐT...'])
             </div>
         </div>
 

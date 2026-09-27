@@ -1,7 +1,7 @@
 <x-app-layout>
     @include('crm.partials.header-tabs')
 
-    {{-- Mockup epic-6/khach-hang-chot-thanh-cong-xac-nhan: tiêu đề + số học viên, thẻ "Chờ xếp lớp" + Gán lớp, lọc Chi nhánh / Lớp học / Tìm kiếm,
+    {{-- Mockup epic-6/khach-hang-chot-thanh-cong-xac-nhan: tiêu đề + số học viên, băng nhắc "Chờ xếp lớp" (link sang màn Chờ xếp lớp), lọc Chi nhánh / Lớp học / Tìm kiếm,
          bảng Khách đã có lớp (Trạng thái, Xác nhận chính thức / Đã là học viên) + popup xác nhận.
          A6 Q5: không có trạng thái "Học thử" trên hồ sơ học viên. Checklist hồ sơ nhập học giữ theo Phase 1 (tài khoản, Zalo, giáo trình). --}}
     <div class="flex flex-col gap-lg" x-data="{ confirmForm: null, confirmName: '' }">
@@ -21,49 +21,8 @@
             </x-ui.alert>
         @endif
 
-        {{-- 1. Chờ xếp lớp (Cần xử lý gấp) --}}
-        @if ($waitingLeads->isNotEmpty())
-            <section class="rounded-xl border border-error/20 bg-error-container/20 p-lg">
-                <div class="mb-md flex items-center gap-sm">
-                    <span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1;">warning</span>
-                    <h2 class="font-h3 text-h3 text-on-surface">Chờ xếp lớp (Cần xử lý gấp)</h2>
-                    <span class="rounded-full bg-error px-sm py-0.5 font-code text-caption font-bold text-white">{{ str_pad((string) $waitingLeads->count(), 2, '0', STR_PAD_LEFT) }}</span>
-                </div>
-                <div class="grid grid-cols-1 gap-md md:grid-cols-2 xl:grid-cols-4">
-                    @foreach ($waitingLeads as $lead)
-                        @php $matches = $matchingClassesByLead->get($lead->id, collect()); @endphp
-                        <div class="flex flex-col gap-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
-                            <div class="flex items-center gap-sm">
-                                <x-ui.avatar :name="$lead->name" />
-                                <div class="min-w-0">
-                                    <h3 class="truncate font-body-semibold text-body-semibold text-on-surface"><a href="{{ route('crm.customers.show', $lead->id) }}" class="hover:text-primary">{{ $lead->name }}</a></h3>
-                                    <p class="font-code text-caption text-on-surface-variant">{{ $lead->phone }}</p>
-                                </div>
-                            </div>
-                            <div class="space-y-xs font-body-small text-body-small">
-                                <div class="flex justify-between gap-sm"><span class="text-on-surface-variant">Chi nhánh:</span><span class="text-right font-medium text-on-surface">{{ $lead->waitingBranch?->name ?? $lead->branch?->name ?? '—' }}</span></div>
-                                <div class="flex justify-between gap-sm"><span class="text-on-surface-variant">Ngày chốt:</span><span class="font-code text-on-surface">{{ $lead->converted_at?->format('d/m/Y H:i') ?? '—' }}</span></div>
-                            </div>
-                            @can('student.assign_class')
-                                @if ($matches->isNotEmpty())
-                                    <form action="{{ route('crm.customers.assign-class', $lead->id) }}" method="POST" class="mt-auto flex flex-col gap-sm">
-                                        @csrf
-                                        <x-ui.select name="class_id" value="" placeholder="— Chọn lớp —" required aria-label="Lớp gán cho {{ $lead->name }}" class="font-body-small text-body-small">
-                                            @foreach ($matches as $class)
-                                                <option value="{{ $class->id }}">{{ $class->name }} · còn {{ $class->max_capacity > 0 ? max(0, $class->max_capacity - $class->active_enrollments_count) : '∞' }} chỗ</option>
-                                            @endforeach
-                                        </x-ui.select>
-                                        <x-ui.button type="submit" size="sm" icon="group_add" class="w-full">Gán lớp</x-ui.button>
-                                    </form>
-                                @else
-                                    <p class="mt-auto font-body-small text-body-small font-semibold text-warning">Chưa có lớp phù hợp</p>
-                                @endif
-                            @endcan
-                        </div>
-                    @endforeach
-                </div>
-            </section>
-        @endif
+        {{-- 1. Chờ xếp lớp: chỉ băng nhắc + link, xếp lớp làm ở màn Chờ xếp lớp (không lặp khối xếp lớp ở đây) --}}
+        @include('crm.partials.waiting-class-banner')
 
         {{-- 2. Khách đã có lớp --}}
         <section class="flex flex-col gap-md">

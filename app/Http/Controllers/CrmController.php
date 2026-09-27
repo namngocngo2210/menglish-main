@@ -293,7 +293,7 @@ class CrmController extends Controller
         return view('crm.customers', ['customers' => $dbCustomers] + $this->listFilterOptions());
     }
 
-    /** Danh sách học viên đã chốt nhưng chưa có lớp (Chờ xếp lớp) để Học vụ gán lớp. */
+    /** Danh sách học viên đã chốt nhưng chưa có lớp (Chờ xếp lớp) — nơi duy nhất Học vụ xếp lớp cho khách đã chốt. */
     public function waitingList()
     {
         return view('crm.waiting-list', $this->waitingClassData());
@@ -329,6 +329,17 @@ class CrmController extends Controller
         });
 
         return compact('waitingLeads', 'matchingClassesByLead');
+    }
+
+    /**
+     * Chỉ số khách Chờ xếp lớp — các màn phụ (Khách chốt, Xác nhận chính thức) hiện băng nhắc + link về
+     * màn Chờ xếp lớp (nơi xếp lớp duy nhất), không lặp lại cả khối xếp lớp.
+     *
+     * @return array{waitingCount: int}
+     */
+    protected function waitingClassCount(): array
+    {
+        return ['waitingCount' => $this->scopeCustomerQuery()->where('stage', 'waiting_class')->count()];
     }
 
     /**
@@ -1323,7 +1334,7 @@ class CrmController extends Controller
         $totalCount = $scoped()->count();
 
         return view('crm.confirmations', compact('enrollments', 'status', 'pendingCount', 'totalCount', 'filterClasses', 'filterBranches')
-            + $this->waitingClassData());
+            + $this->waitingClassCount());
     }
 
     public function confirmEnrollment(Request $request, ClassEnrollment $enrollment)
@@ -1468,7 +1479,7 @@ class CrmController extends Controller
             ->paginate($request->perPage(20))->withQueryString();
 
         return view('crm.won', compact('wonCustomers', 'totalCount', 'totalContractAmount', 'totalCollectedAmount', 'totalDebtAmount', 'filterClasses')
-            + $this->waitingClassData() + $this->listFilterOptions());
+            + $this->waitingClassCount() + $this->listFilterOptions());
     }
 
     protected function exportWon(Collection $customers, string $format)
@@ -2008,7 +2019,7 @@ class CrmController extends Controller
                 ->firstOrFail();
             $student = $customer->converted_student_id ? Student::lockForUpdate()->find($customer->converted_student_id) : null;
             if ($customer->stage !== 'waiting_class' || ! $student) {
-                throw ValidationException::withMessages(['class_id' => 'Chỉ gán lớp cho học viên đang Chờ xếp lớp.']);
+                throw ValidationException::withMessages(['class_id' => 'Chỉ xếp lớp cho học viên đang Chờ xếp lớp.']);
             }
 
             $class = ClassModel::with('course')->lockForUpdate()->findOrFail($validated['class_id']);
@@ -2030,7 +2041,7 @@ class CrmController extends Controller
             $placement->complete($customer, $student, $class, $enrollment, $request->user());
         }, 3);
 
-        return redirect()->back()->with('status', 'Đã gán lớp cho học viên và chuyển Lead sang Đã chốt.');
+        return redirect()->back()->with('status', 'Đã xếp lớp cho học viên và chuyển Lead sang Đã chốt.');
     }
 
     protected function resolveFeeItems(mixed $raw): array

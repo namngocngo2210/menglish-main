@@ -15,17 +15,23 @@
         'reading_writing' => 'bg-tertiary/5 border-tertiary/20 text-tertiary',
         'speaking' => 'bg-primary/5 border-primary/20 text-primary',
     ];
+    // Điểm cũ dạng chữ (vd. "5.5 Overall (L: 5.5, R: 6.0, ...)"): ô vuông chỉ hiện số đầu, phần còn lại thành dòng chữ bên cạnh.
+    $legacyScore = (string) ($submission?->overall_score ?? $fallbackScore ?? '');
+    $legacyHead = preg_split('/\s+/u', trim($legacyScore), 2);
+    $legacyBadge = mb_strlen($legacyHead[0] ?? '') > 0 && mb_strlen($legacyHead[0]) <= 6 ? $legacyHead[0] : '—';
+    $legacyDetail = preg_replace('/^[\s·\-]+|[\s·\-]+$/u', '', $legacyBadge === '—' ? $legacyScore : ($legacyHead[1] ?? ''));
+    $suggestedClass = $rubric['chosen_class'] ?? $submission?->recommended_course;
 @endphp
 
 <div class="space-y-3 text-xs" data-testid="rubric-result">
     <div class="flex flex-wrap items-center justify-between gap-md rounded-xl border border-primary/20 bg-primary-fixed/30 p-md">
         <div class="flex items-center gap-3">
-            <div class="w-14 h-12 px-1 rounded-xl bg-primary-container text-white flex flex-col items-center justify-center font-black shadow-sm">
+            <div class="w-14 h-12 shrink-0 overflow-hidden px-1 rounded-xl bg-primary-container text-white flex flex-col items-center justify-center font-black shadow-sm">
                 @if ($rubric && ! $rubric['legacy'])
                     <span class="text-sm leading-none">{{ $fmt($rubric['total']) }}</span>
                     <span class="text-[9px] tracking-wider font-semibold opacity-90">/ {{ $rubric['max_total'] }}</span>
                 @else
-                    <span class="text-sm leading-none">{{ $submission?->overall_score ?? $fallbackScore ?? '—' }}</span>
+                    <span class="text-sm leading-none" title="{{ $legacyScore }}">{{ $legacyBadge }}</span>
                 @endif
             </div>
             <div>
@@ -35,9 +41,15 @@
                         <span class="px-2 py-0.5 bg-surface-container-lowest border border-warning/30 text-on-warning-container rounded-md text-[10px] font-bold shadow-2xs">{{ $rubric['grade_group_label'] }}</span>
                     @endif
                 </div>
-                <p class="mt-0.5 font-semibold text-on-surface">
-                    Đề xuất xếp lớp: <span class="text-primary-container font-bold">{{ $rubric['chosen_class'] ?? $submission?->recommended_course ?? '—' }}</span>
-                </p>
+                @if (! ($rubric && ! $rubric['legacy']) && $legacyDetail !== '')
+                    <p class="mt-0.5 text-on-surface-variant">{{ $legacyDetail }}</p>
+                @endif
+                {{-- Không có lớp đề xuất (điểm cũ dạng chữ) thì không hiện dòng trống "–" --}}
+                @if (filled($suggestedClass))
+                    <p class="mt-0.5 font-semibold text-on-surface">
+                        Đề xuất xếp lớp: <span class="text-primary-container font-bold">{{ $suggestedClass }}</span>
+                    </p>
+                @endif
                 @if ($rubric && $rubric['overridden'])
                     <p class="text-[11px] text-on-surface-variant">Lớp đề xuất theo thang điểm: <strong>{{ $rubric['suggested_class'] }}</strong> (Học vụ đã chọn lại)</p>
                 @elseif ($rubric && ! $rubric['legacy'] && ! $rubric['has_rubric'])
