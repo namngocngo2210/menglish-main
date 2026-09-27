@@ -353,6 +353,7 @@ class SupportTicketController extends Controller
             ->where('is_active', true)
             ->whereNull('locked_at')
             ->orderBy('name')
+            ->with(['permissionOverrides', 'roles', 'permissions'])
             ->get()
             ->filter(fn (User $user) => $user->can('support_ticket.update'))
             ->values();

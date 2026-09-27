@@ -36,6 +36,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Menu dùng chung 1 instance: sidebar, tab workspace, Cài đặt dùng chung cache quyền theo request.
         $this->app->singleton(\App\Support\Navigation\SidebarMenu::class);
+
+        // Bộ nhớ tạm theo request (App\Support\RequestMemo): scoped để hàng đợi làm mới sau mỗi job.
+        $this->app->scoped(\App\Support\RequestMemo::class);
     }
 
     /**
@@ -46,6 +49,9 @@ class AppServiceProvider extends ServiceProvider
         $this->registerRequestMacros();
         $this->registerDynamicMailConfig();
         $this->registerActivityLogHardening();
+
+        // Mỗi request bắt đầu với bộ nhớ tạm trống (test gọi nhiều request trên cùng một app).
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Routing\Events\Routing::class, fn () => \App\Support\RequestMemo::flush());
     }
 
     /**

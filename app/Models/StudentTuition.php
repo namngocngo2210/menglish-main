@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class StudentTuition extends Model
 {
@@ -69,7 +71,7 @@ class StudentTuition extends Model
      * Quá hạn thực tế: còn nợ, đã qua hạn và không trong thời gian tạm dừng nhắc nợ — cùng quy tắc màn
      * "Thu phí quá hạn". Cột status chỉ cập nhật khi tính lại công nợ nên không dùng để đếm/lọc.
      */
-    public function scopeOverdueNow(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    public function scopeOverdueNow(Builder $query): Builder
     {
         $today = now()->toDateString();
 
@@ -173,8 +175,12 @@ class StudentTuition extends Model
      * Tài khoản nhận tiền cho mã QR của khoản học phí: tài khoản gắn với hợp đồng → tài khoản của chi nhánh
      * (ưu tiên mặc định VietQR) → tài khoản mặc định toàn hệ thống. Chỉ dùng tài khoản đang hoạt động.
      */
-    public function resolveBankAccount(): ?BankAccount
+    public function resolveBankAccount(?Collection $activeAccounts = null): ?BankAccount
     {
+        if ($activeAccounts !== null) {
+            return $this->resolveBankAccountFrom($activeAccounts);
+        }
+
         if ($this->bank_account_id) {
             $own = BankAccount::query()->whereKey($this->bank_account_id)->where('is_active', true)->first();
             if ($own) {
@@ -199,6 +205,36 @@ class StudentTuition extends Model
     }
 
     /**
+     * Cùng thứ tự ưu tiên như resolveBankAccount() nhưng chọn trong danh sách tài khoản đang hoạt động đã nạp sẵn
+     * (BankAccount::activeForResolve()) — dùng khi hiển thị nhiều khoản học phí trên một trang.
+     */
+    private function resolveBankAccountFrom(Collection $activeAccounts): ?BankAccount
+    {
+        if ($this->bank_account_id && ($own = $activeAccounts->firstWhere('id', (int) $this->bank_account_id))) {
+            return $own;
+        }
+
+        $branchId = $this->branch_id ?? $this->student?->branch_id;
+        if ($branchId) {
+            $branchAccount = $activeAccounts
+                ->filter(fn (BankAccount $a) => (int) $a->branch_id === (int) $branchId)
+                ->sortBy([fn ($a, $b) => (int) $b->is_default_vietqr <=> (int) $a->is_default_vietqr, fn ($a, $b) => $a->id <=> $b->id])
+                ->first();
+            if ($branchAccount) {
+                return $branchAccount;
+            }
+        }
+
+        return $activeAccounts
+            ->sortBy([
+                fn ($a, $b) => (int) $b->is_default_vietqr <=> (int) $a->is_default_vietqr,
+                fn ($a, $b) => ($a->branch_id === null ? 0 : 1) <=> ($b->branch_id === null ? 0 : 1),
+                fn ($a, $b) => $a->id <=> $b->id,
+            ])
+            ->first();
+    }
+
+    /**
      * Số buổi thật của khoản học phí: tổng buổi theo khóa (course.total_lessons) hoặc số buổi đã lên lịch của lớp,
      * số buổi đã học theo điểm danh (có mặt / đi muộn). Không đủ dữ liệu -> null (màn hình ẩn khối số buổi).
      *
@@ -206,12 +242,78 @@ class StudentTuition extends Model
      */
     public function sessionStats(): ?array
     {
+        if ($this->preloadedSessionStats !== false) {
+            return $this->preloadedSessionStats;
+        }
+
+        return $this->computeSessionStats(
+            fn (int $classId) => ClassSession::query()->where('class_id', $classId)->where('status', '!=', 'cancelled')->count(),
+            fn (?int $classId) => StudentAttendance::query()
+                ->where('student_id', $this->student_id)
+                ->when($classId, fn ($q) => $q->where('class_id', $classId))
+                ->whereIn('status', ['present', 'late'])
+                ->count(),
+        );
+    }
+
+    /**
+     * Tính sẵn sessionStats() cho cả danh sách bằng 2 truy vấn gộp (thay vì 1–2 truy vấn cho mỗi khoản học phí).
+     * Nên nạp sẵn classModel.course và student.currentClass.course trước khi gọi.
+     *
+     * @param  iterable<StudentTuition|null>  $tuitions
+     */
+    public static function preloadSessionStats(iterable $tuitions): void
+    {
+        $tuitions = collect($tuitions)->filter()->values();
+        if ($tuitions->isEmpty()) {
+            return;
+        }
+
+        $scheduleClassIds = $tuitions
+            ->map(fn (self $t) => $t->classModel ?? $t->student?->currentClass)
+            ->filter(fn ($class) => $class && (int) ($class->course?->total_lessons ?? 0) <= 0)
+            ->pluck('id')->unique()->values();
+        $scheduled = $scheduleClassIds->isEmpty() ? collect() : ClassSession::query()
+            ->whereIn('class_id', $scheduleClassIds)
+            ->where('status', '!=', 'cancelled')
+            ->groupBy('class_id')
+            ->selectRaw('class_id, count(*) as aggregate')
+            ->pluck('aggregate', 'class_id');
+
+        $attendance = StudentAttendance::query()
+            ->whereIn('student_id', $tuitions->pluck('student_id')->filter()->unique()->values())
+            ->whereIn('status', ['present', 'late'])
+            ->groupBy('student_id', 'class_id')
+            ->selectRaw('student_id, class_id, count(*) as aggregate')
+            ->get()
+            ->groupBy('student_id');
+
+        foreach ($tuitions as $tuition) {
+            $rows = $attendance->get($tuition->student_id, collect());
+            $tuition->preloadedSessionStats = $tuition->computeSessionStats(
+                fn (int $classId) => (int) ($scheduled[$classId] ?? 0),
+                fn (?int $classId) => (int) ($classId
+                    ? $rows->where('class_id', $classId)->sum('aggregate')
+                    : $rows->sum('aggregate')),
+            );
+        }
+    }
+
+    /** Kết quả sessionStats() đã tính sẵn (false = chưa tính). */
+    protected array|null|false $preloadedSessionStats = false;
+
+    /**
+     * @param  \Closure(int): int  $scheduledCount  số buổi (không huỷ) của lớp
+     * @param  \Closure(?int): int  $attendedCount  số buổi có mặt / đi muộn của học viên (trong lớp, hoặc mọi lớp khi null)
+     */
+    private function computeSessionStats(\Closure $scheduledCount, \Closure $attendedCount): ?array
+    {
         $class = $this->classModel ?? $this->student?->currentClass;
         $total = (int) ($class?->course?->total_lessons ?? 0);
         $source = 'course';
 
         if ($total <= 0 && $class) {
-            $total = ClassSession::query()->where('class_id', $class->id)->where('status', '!=', 'cancelled')->count();
+            $total = $scheduledCount((int) $class->id);
             $source = 'schedule';
         }
 
@@ -219,11 +321,7 @@ class StudentTuition extends Model
             return null;
         }
 
-        $attended = StudentAttendance::query()
-            ->where('student_id', $this->student_id)
-            ->when($class, fn ($q) => $q->where('class_id', $class->id))
-            ->whereIn('status', ['present', 'late'])
-            ->count();
+        $attended = $attendedCount($class ? (int) $class->id : null);
 
         return [
             'total' => $total,

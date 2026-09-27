@@ -465,24 +465,24 @@ class PayrollController extends Controller
 
     public function fulltimePeriod($id)
     {
-        $period = PayrollPeriod::with(['records.user'])->where('id', $id)->orWhere('code', $id)->firstOrFail();
-        $records = $this->scopeRecords($period->records())->where('department', 'fulltime')->get();
+        $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $records = $this->scopeRecords($period->records())->with('user')->where('department', 'fulltime')->get();
 
         return view('payroll.fulltime', compact('period', 'records'));
     }
 
     public function academicPeriod($id)
     {
-        $period = PayrollPeriod::with(['records.user'])->where('id', $id)->orWhere('code', $id)->firstOrFail();
-        $records = $this->scopeRecords($period->records())->where('department', 'academic')->get();
+        $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $records = $this->scopeRecords($period->records())->with('user')->where('department', 'academic')->get();
 
         return view('payroll.academic', compact('period', 'records'));
     }
 
     public function operationsPeriod($id)
     {
-        $period = PayrollPeriod::with(['records.user'])->where('id', $id)->orWhere('code', $id)->firstOrFail();
-        $records = $this->scopeRecords($period->records())->where('department', 'operations')->get();
+        $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $records = $this->scopeRecords($period->records())->with('user')->where('department', 'operations')->get();
 
         return view('payroll.operations', compact('period', 'records'));
     }

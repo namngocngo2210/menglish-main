@@ -1121,8 +1121,8 @@ class SyllabusController extends Controller
         $pendingOrders = BigTestOrder::visibleTo($user)->where('status', 'pending')->count();
 
         // "Gắn chặng" cho đợt thi: chặng của các giáo trình lớp đã/đang học (hoặc giáo trình theo trình độ).
-        $stageOptions = $bigTests->getCollection()->pluck('class_id')->filter()->unique()
-            ->mapWithKeys(fn ($classId) => [$classId => $this->stageOptionsForClass((int) $classId)->pluck('label', 'id')]);
+        $stageOptions = $this->stageOptionsForClasses($bigTests->getCollection()->pluck('class_id')->filter()->unique())
+            ->map(fn (Collection $stages) => $stages->pluck('label', 'id'));
 
         return view('syllabus.big-tests-distribution', compact('classes', 'bigTests', 'orders', 'selectedOrder', 'orderStatus', 'orderSearch', 'pendingOrders', 'stageOptions'));
     }
@@ -1130,12 +1130,37 @@ class SyllabusController extends Controller
     /** Các chặng có thể gắn cho đợt thi của lớp: giáo trình của các lượt chặng của lớp + giáo trình theo trình độ lớp. */
     private function stageOptionsForClass(int $classId): Collection
     {
-        $class = ClassModel::find($classId);
-        $curriculumIds = SyllabusAssignment::where('class_id', $classId)->pluck('curriculum_id')
-            ->push($class ? CourseLevel::where('code', $class->level)->value('syllabus_curriculum_id') : null)
-            ->filter()->unique();
+        return $this->stageOptionsForClasses(collect([$classId]))->get($classId);
+    }
 
-        return SyllabusStage::whereIn('curriculum_id', $curriculumIds)->orderBy('curriculum_id')->orderBy('position')->get();
+    /**
+     * stageOptionsForClass() cho nhiều lớp bằng 4 truy vấn gộp (trang phân phối Big Test hiển thị nhiều lớp).
+     *
+     * @return Collection<int, Collection> theo id lớp
+     */
+    private function stageOptionsForClasses(Collection $classIds): Collection
+    {
+        $classIds = $classIds->map(fn ($id) => (int) $id)->unique()->values();
+        if ($classIds->isEmpty()) {
+            return collect();
+        }
+
+        $classes = ClassModel::whereIn('id', $classIds)->get(['id', 'level'])->keyBy('id');
+        $assigned = SyllabusAssignment::whereIn('class_id', $classIds)->get(['class_id', 'curriculum_id'])->groupBy('class_id');
+        $levelCurriculum = CourseLevel::whereIn('code', $classes->pluck('level')->filter()->unique()->values())
+            ->get(['code', 'syllabus_curriculum_id'])
+            ->groupBy('code')->map(fn ($levels) => $levels->first()->syllabus_curriculum_id);
+
+        $curriculumIdsByClass = $classIds->mapWithKeys(fn (int $classId) => [$classId => $assigned->get($classId, collect())->pluck('curriculum_id')
+            ->push(($class = $classes->get($classId)) ? $levelCurriculum->get($class->level) : null)
+            ->filter()->unique()->values()]);
+
+        $stages = SyllabusStage::whereIn('curriculum_id', $curriculumIdsByClass->flatten()->unique()->values())
+            ->orderBy('curriculum_id')->orderBy('position')->get();
+
+        return $curriculumIdsByClass->map(fn ($curriculumIds) => $stages
+            ->filter(fn (SyllabusStage $stage) => $curriculumIds->contains($stage->curriculum_id))
+            ->values());
     }
 
     /**

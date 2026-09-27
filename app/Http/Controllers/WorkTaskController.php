@@ -1552,7 +1552,7 @@ class WorkTaskController extends Controller
             ->whereNotIn('status', ['completed', 'cancelled'])
             ->orderBy('name')
             ->get();
-        $classRosters = $classes->mapWithKeys(fn (ClassModel $class) => [$class->id => $class->rosterStudents()]);
+        $classRosters = ClassModel::rosterStudentsFor($classes);
 
         // Theo flow BA, buổi bổ trợ do CM/Học vụ hoặc TA đảm nhận (không nhất thiết GV chính),
         // nên picker bao gồm cả trợ giảng và học vụ bên cạnh các vai trò giáo viên.
@@ -1709,11 +1709,13 @@ class WorkTaskController extends Controller
         // Xuất Excel toàn bộ nhân sự theo bộ lọc hiện tại (không phân trang).
         if ($request->boolean('export')) {
             $fmt = fn ($v) => $v === null ? 'Chưa có dữ liệu' : $v.'%';
-            $rows = $scopedStaff()
+            $exportStaff = $scopedStaff()
                 ->when($validated['user_id'] ?? null, fn ($q, $userId) => $q->whereKey($userId))
-                ->get()
-                ->map(function (User $user) use ($kpi, $from, $to, $fmt) {
-                    $m = $kpi->metricsFor($user, $from, $to);
+                ->get();
+            $metrics = $kpi->metricsForMany($exportStaff, $from, $to);
+            $rows = $exportStaff
+                ->map(function (User $user) use ($metrics, $fmt) {
+                    $m = $metrics[$user->id];
 
                     return [
                         $user->employee_code ?: 'NS-'.str_pad((string) $user->id, 3, '0', STR_PAD_LEFT),
@@ -1738,10 +1740,11 @@ class WorkTaskController extends Controller
             ->paginate($request->perPage(20))
             ->withQueryString();
 
+        $metrics = $kpi->metricsForMany($staff->getCollection(), $from, $to);
         $kpiData = $staff->getCollection()->map(fn (User $user) => [
             'user' => $user,
             'code' => $user->employee_code ?: 'NS-'.str_pad((string) $user->id, 3, '0', STR_PAD_LEFT),
-        ] + $kpi->metricsFor($user, $from, $to));
+        ] + $metrics[$user->id]);
 
         return view('tasks.kpi-dashboard', compact('staff', 'staffOptions', 'kpiData', 'month', 'monthTo', 'from', 'to', 'canSeeStaff'));
     }

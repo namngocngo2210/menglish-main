@@ -209,9 +209,8 @@ class User extends Authenticatable
      */
     public function branchIds(): array
     {
-        $extra = $this->relationLoaded('branches')
-            ? $this->getRelation('branches')->pluck('id')
-            : $this->branches()->pluck('branches.id');
+        // Nạp 1 lần rồi giữ trên model: DataScope gọi hàm này nhiều lần trong một request (mỗi truy vấn có lọc phạm vi).
+        $extra = $this->loadMissing('branches')->getRelation('branches')->pluck('id');
 
         return $extra->push($this->branch_id)
             ->filter()

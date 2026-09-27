@@ -12,6 +12,7 @@ use App\Models\StaffReport;
 use App\Models\SupportTicket;
 use App\Models\SyllabusAdjustmentRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 class AcademicDashboardController extends Controller
@@ -58,13 +59,16 @@ class AcademicDashboardController extends Controller
 
         // Sĩ số / có mặt theo lớp + ngày của từng báo cáo trực lớp
         $reportAttendance = [];
-        foreach ($classReports as $cr) {
-            if (! $cr->class_id || ! $cr->session_date) {
-                continue;
-            }
-            $rows = StudentAttendance::where('class_id', $cr->class_id)
-                ->whereDate('session_date', $cr->session_date)
-                ->get(['status']);
+        $reportsWithSession = $classReports->filter(fn ($cr) => $cr->class_id && $cr->session_date);
+        // Điểm danh của mọi (lớp, ngày) trong các báo cáo: 1 truy vấn rồi nhóm lại, thay vì 1 truy vấn / báo cáo.
+        $attendanceByClassDay = $reportsWithSession->isEmpty() ? collect() : StudentAttendance::query()
+            ->whereIn('class_id', $reportsWithSession->pluck('class_id')->unique()->values())
+            ->whereDate('session_date', '>=', Carbon::parse($reportsWithSession->min('session_date'))->toDateString())
+            ->whereDate('session_date', '<=', Carbon::parse($reportsWithSession->max('session_date'))->toDateString())
+            ->get(['class_id', 'session_date', 'status'])
+            ->groupBy(fn ($row) => $row->class_id.'|'.Carbon::parse($row->session_date)->toDateString());
+        foreach ($reportsWithSession as $cr) {
+            $rows = $attendanceByClassDay->get($cr->class_id.'|'.Carbon::parse($cr->session_date)->toDateString(), collect());
             if ($rows->isNotEmpty()) {
                 $reportAttendance[$cr->id] = [
                     'total' => $rows->count(),

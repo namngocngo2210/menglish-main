@@ -65,7 +65,7 @@ class TuitionController extends Controller
     {
         $scope = $this->branchScope();
         // Học viên đã xóa (xóa mềm) không còn tính công nợ.
-        $query = TuitionBranchScope::tuitions(StudentTuition::with(['student', 'classModel', 'branch'])->whereHas('student')->latest(), $scope);
+        $query = TuitionBranchScope::tuitions(StudentTuition::with(['student', 'classModel.course', 'branch'])->whereHas('student')->latest(), $scope);
 
         if ($search = $request->input('search')) {
             $query->whereHas('student', function ($q) use ($search) {
@@ -91,10 +91,13 @@ class TuitionController extends Controller
         $statsQuery = TuitionBranchScope::tuitions(StudentTuition::query()->whereHas('student'), $scope)
             ->when($request->input('branch_id'), fn ($q, $b) => $q->where('branch_id', $b))
             ->when($request->input('class_id'), fn ($q, $c) => $q->where('class_id', $c));
+        $sums = (clone $statsQuery)->toBase()
+            ->selectRaw('COALESCE(SUM(final_amount), 0) as final, COALESCE(SUM(paid_amount), 0) as paid, COALESCE(SUM(debt_amount), 0) as debt')
+            ->first();
         $stats = [
-            'final' => (float) (clone $statsQuery)->sum('final_amount'),
-            'paid' => (float) (clone $statsQuery)->sum('paid_amount'),
-            'debt' => (float) (clone $statsQuery)->sum('debt_amount'),
+            'final' => (float) $sums->final,
+            'paid' => (float) $sums->paid,
+            'debt' => (float) $sums->debt,
             'overdue' => (clone $statsQuery)->overdueNow()->count(),
         ];
 
@@ -257,8 +260,10 @@ class TuitionController extends Controller
         }
 
         // Mỗi khoản học phí dùng tài khoản của hợp đồng / chi nhánh (fallback mặc định) để tạo QR; số buổi lấy từ dữ liệu thật.
-        $tuitionMeta = $tuitions->mapWithKeys(function (StudentTuition $t) {
-            $bank = $t->resolveBankAccount();
+        $activeAccounts = BankAccount::activeForResolve();
+        StudentTuition::preloadSessionStats($tuitions);
+        $tuitionMeta = $tuitions->mapWithKeys(function (StudentTuition $t) use ($activeAccounts) {
+            $bank = $t->resolveBankAccount($activeAccounts);
 
             return [$t->id => [
                 'sessions' => $t->sessionStats(),
@@ -1525,6 +1530,8 @@ class TuitionController extends Controller
         $students = TuitionBranchScope::students(Student::with(['currentClass.course', 'tuition.classModel.course', 'branch']), $scope)->orderBy('name')->get();
 
         // Số liệu thật cho bảng tính hoàn phí / chuyển nhượng / bảo lưu (không còn số ghi cứng).
+        $students->each(fn (Student $student) => $student->tuition?->setRelation('student', $student));
+        StudentTuition::preloadSessionStats($students->pluck('tuition'));
         $studentFinance = $students->mapWithKeys(fn (Student $student) => [$student->id => $this->refundBasis($student)]);
         $adminFeePercent = (float) config('tuition.refund_admin_fee_percent', 10);
 
@@ -1998,7 +2005,9 @@ class TuitionController extends Controller
             $query->where('class_id', $classId);
         }
 
-        $rows = $query->orderBy('due_date')->get()->map(function (StudentTuition $tuition) {
+        $rows = $query->orderBy('due_date')->get();
+        StudentTuition::preloadSessionStats($rows);
+        $rows = $rows->map(function (StudentTuition $tuition) {
             $tuition->setAttribute('days_overdue', $tuition->daysOverdue());
             $tuition->setAttribute('session_stats', $tuition->sessionStats());
             $tuition->setAttribute('last_contact', $tuition->contactLogs->firstWhere('action', TuitionContactLog::ACTION_CONTACTED));

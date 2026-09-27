@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Services\PayrollFormulaService;
 use App\Services\SalesCommissionService;
+use App\Support\RequestMemo;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -56,6 +57,12 @@ class PayrollPeriod extends Model
         return in_array($this->status, self::LOCKED_STATUSES, true);
     }
 
+    protected static function booted(): void
+    {
+        static::saved(fn () => RequestMemo::forget('payroll_periods.'));
+        static::deleted(fn () => RequestMemo::forget('payroll_periods.'));
+    }
+
     /**
      * Ngày này có thuộc một kỳ lương đã duyệt/đã chi trả không. Dữ liệu chấm công
      * hay phạt ghi vào ngày đó sẽ không bao giờ được trả/trừ (kỳ sau chỉ quét
@@ -65,11 +72,13 @@ class PayrollPeriod extends Model
     {
         $day = Carbon::parse($date)->toDateString();
 
-        return static::query()
+        // Khoảng ngày của các kỳ đã khoá nạp 1 lần / request (màn chấm công kiểm tra từng dòng).
+        $ranges = RequestMemo::remember('payroll_periods.locked', fn () => static::query()
             ->whereIn('status', self::LOCKED_STATUSES)
-            ->whereDate('start_date', '<=', $day)
-            ->whereDate('end_date', '>=', $day)
-            ->exists();
+            ->get(['start_date', 'end_date'])
+            ->map(fn (self $period) => [Carbon::parse($period->start_date)->toDateString(), Carbon::parse($period->end_date)->toDateString()]));
+
+        return $ranges->contains(fn (array $range) => $range[0] <= $day && $range[1] >= $day);
     }
 
     public static function lockedMessage(CarbonInterface|string $date): string

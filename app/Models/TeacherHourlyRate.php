@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Services\PayrollFormulaService;
+use App\Support\RequestMemo;
+use App\Support\StaffType;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -48,14 +51,14 @@ class TeacherHourlyRate extends Model
     /** Loại giáo viên mặc định theo vai trò / hợp đồng (Q3). */
     public static function defaultTeacherType(User $user): string
     {
-        if (\App\Support\StaffType::isForeignTeacher($user)) {
+        if (StaffType::isForeignTeacher($user)) {
             return 'foreign';
         }
-        if (\App\Support\StaffType::isAssistantOnly($user)) {
+        if (StaffType::isAssistantOnly($user)) {
             return 'assistant';
         }
 
-        return app(\App\Services\PayrollFormulaService::class)->profile($user)['employee_type'] === PayrollRecord::TYPE_PARTTIME
+        return app(PayrollFormulaService::class)->profile($user)['employee_type'] === PayrollRecord::TYPE_PARTTIME
             ? 'parttime' : 'fulltime';
     }
 
@@ -77,11 +80,20 @@ class TeacherHourlyRate extends Model
     /** Phiên bản đơn giá riêng hiệu lực tại một ngày (null = GV chưa có đơn giá riêng tại ngày đó). */
     public static function effectiveFor(int $userId, CarbonInterface|string $date): ?self
     {
-        return static::query()
+        $day = Carbon::parse($date)->toDateString();
+
+        // Các phiên bản đơn giá của GV nạp 1 lần / request: bảng lương, chấm công gọi hàm này cho từng ca dạy.
+        return RequestMemo::remember("teacher_hourly_rates.{$userId}", fn () => static::query()
             ->where('user_id', $userId)
-            ->whereDate('effective_from', '<=', Carbon::parse($date)->toDateString())
             ->orderByDesc('effective_from')
-            ->first();
+            ->get())
+            ->first(fn (self $rate) => $rate->effective_from !== null && $rate->effective_from->toDateString() <= $day);
+    }
+
+    protected static function booted(): void
+    {
+        static::saved(fn () => RequestMemo::forget('teacher_hourly_rates.'));
+        static::deleted(fn () => RequestMemo::forget('teacher_hourly_rates.'));
     }
 
     /**

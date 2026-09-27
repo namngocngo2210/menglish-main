@@ -57,6 +57,12 @@ class BankAccount extends Model
         return $this->belongsTo(Branch::class);
     }
 
+    /** Tài khoản đang hoạt động (kèm chi nhánh) để StudentTuition::resolveBankAccount() chọn trong bộ nhớ. */
+    public static function activeForResolve(): \Illuminate\Database\Eloquent\Collection
+    {
+        return static::query()->with('branch')->where('is_active', true)->get();
+    }
+
     /** Tài khoản mặc định toàn hệ thống (đang hoạt động, ưu tiên cờ mặc định VietQR). */
     public static function defaultAccount(): ?self
     {

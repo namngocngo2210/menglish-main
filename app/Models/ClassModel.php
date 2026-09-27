@@ -143,6 +143,31 @@ class ClassModel extends Model
         return $this->roster()->orderBy('name')->get();
     }
 
+    /**
+     * rosterStudents() của nhiều lớp bằng 2 truy vấn (học viên + lượt xếp lớp còn hiệu lực), thay vì 1 truy vấn / lớp.
+     *
+     * @param  iterable<ClassModel>  $classes
+     * @return \Illuminate\Support\Collection<int, Collection<int, Student>> theo id lớp
+     */
+    public static function rosterStudentsFor(iterable $classes): \Illuminate\Support\Collection
+    {
+        $ids = collect($classes)->pluck('id')->map(fn ($id) => (int) $id)->values();
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        $students = static::rosterQuery($ids->all())
+            ->with(['enrollments' => fn ($q) => $q->whereIn('class_id', $ids->all())
+                ->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)])
+            ->orderBy('name')
+            ->get();
+
+        return $ids->mapWithKeys(fn (int $classId) => [$classId => $students
+            ->filter(fn (Student $student) => (int) $student->current_class_id === $classId
+                || $student->enrollments->contains(fn ($e) => (int) $e->class_id === $classId))
+            ->values()]);
+    }
+
     public function hasOnRoster(int $studentId): bool
     {
         return $this->roster()->whereKey($studentId)->exists();
@@ -211,7 +236,8 @@ class ClassModel extends Model
      */
     public function seatSummary(): array
     {
-        $occupied = $this->occupiedSeats();
+        // Danh sách lớp đã gọi loadRosterCounts() → dùng số đã đếm gộp, không đếm lại từng lớp.
+        $occupied = $this->rosterCountCache ?? $this->occupiedSeats();
         $capacity = (int) $this->max_capacity;
         $min = (int) ($this->min_students ?? self::DEFAULT_MIN_STUDENTS);
         $notStarted = in_array($this->status, ['pending_schedule', 'upcoming'], true)
