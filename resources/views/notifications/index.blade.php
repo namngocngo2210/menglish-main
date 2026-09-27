@@ -1,24 +1,18 @@
 <x-app-layout>
-    @include('crm.partials.header-tabs')
+    <x-ui.page-header title="Trung Tâm Cảnh Báo & Thông Báo Quản Trị" icon="notifications_active">
+        <x-slot:actions>
+            <form action="{{ route('notifications.scan') }}" method="POST" class="inline">
+                @csrf
+                <x-ui.button type="submit" variant="secondary" size="sm" icon="sync">Quét lại hệ thống</x-ui.button>
+            </form>
+            <form action="{{ route('notifications.read-all') }}" method="POST" class="inline">
+                @csrf
+                <x-ui.button type="submit" size="sm" icon="done_all">Đánh dấu tất cả đã đọc</x-ui.button>
+            </form>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="space-y-6">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <h2 class="text-lg font-bold text-on-surface tracking-tight flex items-center gap-2">
-                <span class="material-symbols-outlined text-error">notifications_active</span>
-                Trung Tâm Cảnh Báo &amp; Thông Báo Quản Trị
-            </h2>
-            <div class="flex items-center gap-2">
-                <form action="{{ route('notifications.scan') }}" method="POST" class="inline">
-                    @csrf
-                    <x-ui.button type="submit" variant="secondary" size="sm" icon="sync">Quét lại hệ thống</x-ui.button>
-                </form>
-                <form action="{{ route('notifications.read-all') }}" method="POST" class="inline">
-                    @csrf
-                    <x-ui.button type="submit" size="sm" icon="done_all">Đánh dấu tất cả đã đọc</x-ui.button>
-                </form>
-            </div>
-        </div>
-
         {{-- Stats Widgets --}}
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <x-ui.stat-card label="Tổng thông báo" :value="$stats['total']" icon="notifications" />
