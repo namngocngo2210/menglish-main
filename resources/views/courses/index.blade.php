@@ -166,7 +166,7 @@
                     @csrf
 
                     <div class="grid grid-cols-2 gap-3">
-                        <x-ui.input id="create_code" label="Mã khóa học" value="Tự sinh khi lưu" disabled hint="Hệ thống cấp mã dạng KHOA-0001" class="text-xs font-mono" />
+                        <x-ui.input id="create_code" label="Mã khóa học" value="Tự sinh khi lưu" disabled hint="Hệ thống cấp mã dạng CS0001" class="text-xs font-mono" />
                         <x-ui.input type="number" name="total_lessons" id="create_total_lessons" label="Số buổi học" required value="24" min="1" class="text-xs font-mono" />
                     </div>
 

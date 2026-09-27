@@ -31,7 +31,7 @@ class Course extends Model
         'is_active' => 'boolean',
     ];
 
-    /** Mã khóa học do hệ thống sinh (KHOA-0001) khi tạo mà không truyền mã. */
+    /** Mã khóa học do hệ thống sinh (CS0001) khi tạo mà không truyền mã. */
     protected static function booted(): void
     {
         static::creating(function (Course $course) {

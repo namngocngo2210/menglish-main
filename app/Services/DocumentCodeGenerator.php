@@ -30,7 +30,7 @@ use Illuminate\Support\Facades\DB;
  *  - Big Test:   BT-2026-0001    (dãy "big_test", reset theo năm)
  *  - Ticket:     TK-2026-0001    (dãy "support_ticket", reset theo năm)
  *  - Biên bản:   BB-2026-001     (dãy "penalty", reset theo năm; giữ 3 chữ số như mã cũ)
- *  - Khóa học:   KHOA-0001       (dãy "course", không reset; khóa học cũ nhập tay giữ nguyên mã)
+ *  - Khóa học:   CS0001          (dãy "course", không reset; khóa học cũ nhập tay giữ nguyên mã)
  *
  * Số hóa đơn phiếu thu dùng dải số riêng (InvoiceConfiguration), không qua lớp này.
  */
@@ -150,8 +150,8 @@ class DocumentCodeGenerator
         return $this->generate(
             'course',
             '',
-            fn (int $n) => 'KHOA-'.str_pad((string) $n, 4, '0', STR_PAD_LEFT),
-            fn () => $this->maxNumericSuffix(Course::withTrashed()->where('code', 'like', 'KHOA-%')->pluck('code'), '/^KHOA-(\d+)$/'),
+            fn (int $n) => 'CS'.str_pad((string) $n, 4, '0', STR_PAD_LEFT),
+            fn () => $this->maxNumericSuffix(Course::withTrashed()->where('code', 'like', 'CS%')->pluck('code'), '/^CS(\d{4,})$/'),
             fn (string $code) => Course::withTrashed()->where('code', $code)->exists(),
         );
     }

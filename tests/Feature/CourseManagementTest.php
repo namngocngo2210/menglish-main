@@ -76,7 +76,7 @@ class CourseManagementTest extends TestCase
         $response->assertSessionHas('status');
 
         $this->assertDatabaseHas('courses', [
-            'code' => 'KHOA-0001',
+            'code' => 'CS0001',
             'name' => 'Khóa Luyện Thi TOEIC 750+',
             'tuition_fee' => 8500000,
             'total_lessons' => 20,
@@ -85,9 +85,9 @@ class CourseManagementTest extends TestCase
 
     public function test_course_code_is_generated_sequentially_and_never_reused(): void
     {
-        // Mã cũ nhập tay (khác định dạng) không ảnh hưởng dãy số; mã KHOA- của khóa đã xóa mềm không bị cấp lại.
+        // Mã cũ nhập tay (khác định dạng) không ảnh hưởng dãy số; mã CS của khóa đã xóa mềm không bị cấp lại.
         Course::create(['code' => 'IE-65', 'name' => 'Khóa cũ', 'is_active' => true]);
-        Course::create(['code' => 'KHOA-0007', 'name' => 'Khóa đã xóa', 'is_active' => true])->delete();
+        Course::create(['code' => 'CS0007', 'name' => 'Khóa đã xóa', 'is_active' => true])->delete();
 
         $this->actingAs($this->admin)->post(route('courses.store'), [
             'code' => 'HACK-1', 'name' => 'Khóa A', 'tuition_fee' => 1000000, 'total_lessons' => 10, 'is_active' => 1,
@@ -96,8 +96,8 @@ class CourseManagementTest extends TestCase
             'name' => 'Khóa B', 'tuition_fee' => 1000000, 'total_lessons' => 10, 'is_active' => 1,
         ])->assertRedirect(route('courses.index'));
 
-        $this->assertSame('KHOA-0008', Course::where('name', 'Khóa A')->value('code'));
-        $this->assertSame('KHOA-0009', Course::where('name', 'Khóa B')->value('code'));
+        $this->assertSame('CS0008', Course::where('name', 'Khóa A')->value('code'));
+        $this->assertSame('CS0009', Course::where('name', 'Khóa B')->value('code'));
         $this->assertDatabaseMissing('courses', ['code' => 'HACK-1']);
     }
 
