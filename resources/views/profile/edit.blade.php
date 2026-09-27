@@ -132,9 +132,11 @@
                                 <span class="material-symbols-outlined text-primary text-[20px]">assignment</span>
                                 Nhiệm vụ &amp; Công việc được giao
                             </h2>
+                            @can('work_task.view')
                             <a href="{{ route('tasks.index') }}" class="text-xs font-bold text-primary hover:underline">
                                 Xem tất cả việc &rarr;
                             </a>
+                            @endcan
                         </div>
 
                         <div class="space-y-2.5">
@@ -164,9 +166,11 @@
                                         </div>
                                     </div>
 
+                                    @can('work_task.view')
                                     <x-ui.button variant="secondary" size="sm" :href="route('tasks.index')">
                                         Chi tiết
                                     </x-ui.button>
+                                    @endcan
                                 </div>
                             @empty
                                 <x-ui.empty-state icon="task" title="Hiện tại bạn không có nhiệm vụ tồn đọng nào cần xử lý." />
@@ -181,9 +185,11 @@
                                 <span class="material-symbols-outlined text-secondary text-[20px]">school</span>
                                 Lớp học đang phụ trách
                             </h2>
+                            @can('work_task.view')
                             <a href="{{ route('tasks.classes-dashboard') }}" class="text-xs font-bold text-primary hover:underline">
                                 Xem Dashboard Lớp &rarr;
                             </a>
+                            @endcan
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">

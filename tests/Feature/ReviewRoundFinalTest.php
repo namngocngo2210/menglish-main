@@ -122,6 +122,20 @@ class ReviewRoundFinalTest extends TestCase
         ]);
     }
 
+    public function test_links_and_pages_follow_permissions(): void
+    {
+        $this->actingAs($this->accountant)->get('/syllabus')->assertForbidden();
+        $this->actingAs($this->accountant)->get(route('system-config.debt-reminders'))
+            ->assertOk()->assertDontSee(route('system-config.ticket-emails'));
+
+        $student = $this->userWithRole('student');
+        $this->actingAs($student)->get(route('portal.ta-tasks'))->assertForbidden();
+        $this->actingAs($student)->get(route('classes.checklist'))
+            ->assertOk()->assertDontSee(route('tuition.overdue'));
+
+        $this->actingAs($this->userWithRole('assistant'))->get(route('portal.ta-tasks'))->assertOk();
+    }
+
     private function userWithRole(string $role): User
     {
         $user = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
