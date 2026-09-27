@@ -48,7 +48,7 @@
             </thead>
             <tbody>
                 @foreach ($rows as $row)
-                    <tr @class(['bg-error-container/30' => ! empty($row['errors'])])>
+                    <tr @class(['!bg-error-container [&>td:first-child]:border-l-4 [&>td:first-child]:border-error' => ! empty($row['errors'])])>
                         <td class="font-code">{{ $row['line'] }}</td>
                         <td class="font-semibold">{{ $row['data']['name'] ?? '—' }}</td>
                         <td class="font-code">{{ $row['data']['phone'] ?? '—' }}</td>
