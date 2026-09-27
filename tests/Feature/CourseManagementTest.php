@@ -64,7 +64,6 @@ class CourseManagementTest extends TestCase
     public function test_can_create_new_course_with_tuition_fee(): void
     {
         $response = $this->actingAs($this->admin)->post(route('courses.store'), [
-            'code' => 'TOEIC-750',
             'name' => 'Khóa Luyện Thi TOEIC 750+',
             'course_level_id' => $this->level->id,
             'tuition_fee' => 8500000,
@@ -77,10 +76,40 @@ class CourseManagementTest extends TestCase
         $response->assertSessionHas('status');
 
         $this->assertDatabaseHas('courses', [
-            'code' => 'TOEIC-750',
+            'code' => 'KHOA-0001',
+            'name' => 'Khóa Luyện Thi TOEIC 750+',
             'tuition_fee' => 8500000,
             'total_lessons' => 20,
         ]);
+    }
+
+    public function test_course_code_is_generated_sequentially_and_never_reused(): void
+    {
+        // Mã cũ nhập tay (khác định dạng) không ảnh hưởng dãy số; mã KHOA- của khóa đã xóa mềm không bị cấp lại.
+        Course::create(['code' => 'IE-65', 'name' => 'Khóa cũ', 'is_active' => true]);
+        Course::create(['code' => 'KHOA-0007', 'name' => 'Khóa đã xóa', 'is_active' => true])->delete();
+
+        $this->actingAs($this->admin)->post(route('courses.store'), [
+            'code' => 'HACK-1', 'name' => 'Khóa A', 'tuition_fee' => 1000000, 'total_lessons' => 10, 'is_active' => 1,
+        ])->assertRedirect(route('courses.index'));
+        $this->actingAs($this->admin)->post(route('courses.store'), [
+            'name' => 'Khóa B', 'tuition_fee' => 1000000, 'total_lessons' => 10, 'is_active' => 1,
+        ])->assertRedirect(route('courses.index'));
+
+        $this->assertSame('KHOA-0008', Course::where('name', 'Khóa A')->value('code'));
+        $this->assertSame('KHOA-0009', Course::where('name', 'Khóa B')->value('code'));
+        $this->assertDatabaseMissing('courses', ['code' => 'HACK-1']);
+    }
+
+    public function test_course_code_cannot_be_changed_on_update(): void
+    {
+        $course = Course::create(['code' => 'GT-B1', 'name' => 'Giao tiếp B1', 'tuition_fee' => 9000000, 'total_lessons' => 24, 'is_active' => true]);
+
+        $this->actingAs($this->admin)->put(route('courses.update', $course->id), [
+            'code' => 'DOI-MA', 'name' => 'Giao tiếp B1', 'tuition_fee' => 9000000, 'total_lessons' => 24, 'is_active' => 1,
+        ])->assertRedirect(route('courses.index'));
+
+        $this->assertSame('GT-B1', $course->fresh()->code);
     }
 
     public function test_can_update_course_tuition_fee_and_info(): void

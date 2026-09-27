@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\BigTest;
+use App\Models\Course;
 use App\Models\Holiday;
 use App\Models\Penalty;
 use App\Models\Student;
@@ -29,6 +30,7 @@ use Illuminate\Support\Facades\DB;
  *  - Big Test:   BT-2026-0001    (dãy "big_test", reset theo năm)
  *  - Ticket:     TK-2026-0001    (dãy "support_ticket", reset theo năm)
  *  - Biên bản:   BB-2026-001     (dãy "penalty", reset theo năm; giữ 3 chữ số như mã cũ)
+ *  - Khóa học:   KHOA-0001       (dãy "course", không reset; khóa học cũ nhập tay giữ nguyên mã)
  *
  * Số hóa đơn phiếu thu dùng dải số riêng (InvoiceConfiguration), không qua lớp này.
  */
@@ -140,6 +142,17 @@ class DocumentCodeGenerator
             fn (int $n) => "BB-{$year}-".str_pad((string) $n, 3, '0', STR_PAD_LEFT),
             fn () => $this->maxNumericSuffix(Penalty::where('code', 'like', "BB-{$year}-%")->pluck('code'), '/^BB-'.$year.'-(\d+)$/'),
             fn (string $code) => Penalty::where('code', $code)->exists(),
+        );
+    }
+
+    public function courseCode(): string
+    {
+        return $this->generate(
+            'course',
+            '',
+            fn (int $n) => 'KHOA-'.str_pad((string) $n, 4, '0', STR_PAD_LEFT),
+            fn () => $this->maxNumericSuffix(Course::withTrashed()->where('code', 'like', 'KHOA-%')->pluck('code'), '/^KHOA-(\d+)$/'),
+            fn (string $code) => Course::withTrashed()->where('code', $code)->exists(),
         );
     }
 

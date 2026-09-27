@@ -54,7 +54,6 @@ class CourseController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'code' => 'required|string|unique:courses,code|max:30',
             'name' => 'required|string|max:255',
             'course_level_id' => 'nullable|exists:course_levels,id,deleted_at,NULL',
             'tuition_fee' => 'required|numeric|min:0',
@@ -62,8 +61,6 @@ class CourseController extends Controller
             'description' => 'nullable|string|max:1000',
             'is_active' => 'nullable|boolean',
         ], [
-            'code.required' => 'Vui lòng nhập mã khóa học.',
-            'code.unique' => 'Mã khóa học này đã tồn tại trong hệ thống.',
             'name.required' => 'Vui lòng nhập tên khóa học.',
             'tuition_fee.required' => 'Vui lòng nhập giá học phí.',
             'tuition_fee.numeric' => 'Giá học phí phải là số hợp lệ.',
@@ -72,6 +69,7 @@ class CourseController extends Controller
 
         $validated['is_active'] = $request->has('is_active') ? (bool)$request->is_active : true;
 
+        // Mã khóa học do hệ thống tự sinh (Course::booted), không nhận từ form.
         $course = Course::create($validated);
 
         return redirect()->route('courses.index')
@@ -86,7 +84,6 @@ class CourseController extends Controller
         $course = Course::findOrFail($id);
 
         $validated = $request->validate([
-            'code' => 'required|string|max:30|unique:courses,code,' . $course->id,
             'name' => 'required|string|max:255',
             'course_level_id' => 'nullable|exists:course_levels,id,deleted_at,NULL',
             'tuition_fee' => 'required|numeric|min:0',
@@ -94,7 +91,6 @@ class CourseController extends Controller
             'description' => 'nullable|string|max:1000',
             'is_active' => 'nullable|boolean',
         ], [
-            'code.required' => 'Vui lòng nhập mã khóa học.',
             'name.required' => 'Vui lòng nhập tên khóa học.',
             'tuition_fee.required' => 'Vui lòng nhập giá học phí.',
             'tuition_fee.numeric' => 'Giá học phí phải là số hợp lệ.',
