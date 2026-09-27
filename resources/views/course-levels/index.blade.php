@@ -1,7 +1,7 @@
 {{-- Cấu hình Trình độ & Syllabus (mockup cau-hinh-trinh-do): thống kê, tìm kiếm, kéo thả sắp xếp, sửa/xóa, bật/tắt trạng thái,
      nhóm trình độ, mô tả, gắn giáo trình — form thêm/sửa là panel trượt bên phải như mockup. --}}
 @php
-    $blank = ['id' => null, 'code' => '', 'name' => '', 'description' => '', 'level_group' => '', 'target' => '', 'duration' => '', 'lessons_count' => 24, 'syllabus_curriculum_id' => '', 'is_active' => true];
+    $blank = ['id' => null, 'code' => '', 'name' => '', 'description' => '', 'level_group' => '', 'target' => '', 'lessons_count' => 24, 'syllabus_curriculum_id' => '', 'is_active' => true];
     $inputClass = 'w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20';
     $syllabusOptions = $curriculums->mapWithKeys(fn ($c) => [$c->id => [
         'label' => $c->code.($c->version ? '.'.$c->version : '').' - '.$c->title,
@@ -17,7 +17,7 @@
             syllabi: @js($syllabusOptions),
             pickSyllabus: false,
             create() { this.level = @js($blank); this.pickSyllabus = false; this.open = true; },
-            edit(level) { this.level = { ...level, syllabus_curriculum_id: level.syllabus_curriculum_id ?? '', level_group: level.level_group ?? '', duration: level.duration ?? '', description: level.description ?? '' }; this.pickSyllabus = false; this.open = true; },
+            edit(level) { this.level = { ...level, syllabus_curriculum_id: level.syllabus_curriculum_id ?? '', level_group: level.level_group ?? '', description: level.description ?? '' }; this.pickSyllabus = false; this.open = true; },
          }"
          x-effect="document.body.classList.toggle('overflow-hidden', open)">
         <x-ui.page-header title="Cấu hình Trình độ & Syllabus" description="Quản lý danh sách trình độ đào tạo và thiết lập giáo trình tương ứng.">
@@ -85,7 +85,7 @@
                             <td class="font-code font-semibold">{{ $lv->code }}</td>
                             <td>
                                 <div class="font-semibold">{{ $lv->name }}</div>
-                                <div class="font-caption text-caption text-on-surface-variant">{{ $lv->target }} · {{ $lv->duration ?: $lv->lessons_count.' buổi' }}</div>
+                                <div class="font-caption text-caption text-on-surface-variant">{{ $lv->target }} · {{ $lv->lessons_count }} buổi</div>
                                 @if ($lv->description)
                                     <div class="max-w-xs truncate font-caption text-caption text-on-surface-variant" title="{{ $lv->description }}">{{ $lv->description }}</div>
                                 @endif
@@ -122,7 +122,7 @@
                                 <div class="inline-flex items-center justify-end gap-xs">
                                     @if ($canUpdate)
                                         <x-ui.button variant="ghost" icon="edit" title="Chỉnh sửa" aria-label="Sửa {{ $lv->name }}"
-                                            x-on:click="edit({{ \Illuminate\Support\Js::from($lv->only(['id', 'code', 'name', 'description', 'level_group', 'target', 'duration', 'lessons_count', 'syllabus_curriculum_id', 'is_active'])) }})" />
+                                            x-on:click="edit({{ \Illuminate\Support\Js::from($lv->only(['id', 'code', 'name', 'description', 'level_group', 'target', 'lessons_count', 'syllabus_curriculum_id', 'is_active'])) }})" />
                                     @endif
                                     @can('level.delete')
                                         @if ($inUse)
@@ -191,10 +191,7 @@
                         <x-ui.input label="Tên trình độ" name="name" id="lv_name" x-model="level.name" required placeholder="Nhập tên trình độ..." />
                         <x-ui.textarea label="Mô tả" name="description" id="lv_description" x-model="level.description" rows="3" maxlength="1000" placeholder="Mô tả tóm tắt về trình độ này..." />
                         <x-ui.input label="Chuẩn đầu ra (Target)" name="target" id="lv_target" x-model="level.target" required placeholder="CEFR B1 / IELTS 5.0" />
-                        <div class="grid grid-cols-2 gap-md">
-                            <x-ui.input type="number" label="Số buổi học" name="lessons_count" id="lv_lessons" min="1" x-model="level.lessons_count" required />
-                            <x-ui.input label="Thời lượng" name="duration" id="lv_duration" x-model="level.duration" placeholder="12 tuần / 24 buổi" />
-                        </div>
+                        <x-ui.input type="number" label="Số buổi học" name="lessons_count" id="lv_lessons" min="1" x-model="level.lessons_count" required />
                         <label class="flex cursor-pointer items-center justify-between gap-md rounded-lg border border-outline-variant bg-surface-container-low p-md">
                             <span>
                                 <span class="block font-body-medium text-body-medium text-on-surface">Trạng thái hoạt động</span>
