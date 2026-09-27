@@ -24,7 +24,8 @@ class WorkspaceNavigationTest extends TestCase
      * từ sidebar, tab workspace, nút hành động workspace, menu con Cài đặt hoặc "Tạo mới".
      */
     private const OLD_MENU_ROUTES = [
-        'crm.pipeline', 'crm.customers.index', 'notifications.index', 'crm.waiting-list', 'classes.trial-booking', 'crm.closing-wizard',
+        // crm.closing-wizard (Chốt & Xếp lớp) bỏ khỏi header CRM theo yêu cầu: mở từ thẻ Kanban, hồ sơ khách và Dashboard.
+        'crm.pipeline', 'crm.customers.index', 'notifications.index', 'crm.waiting-list', 'classes.trial-booking',
         'crm.customers.won', 'crm.lost-deals', 'placement-tests.index', 'placement-tests.rubric-guide', 'crm.reports',
         // Hồ sơ lớp / Sơ đồ khối / Danh sách lớp chi tiết gộp vào Danh sách lớp + Trang lớp (route cũ chuyển hướng).
         'students.index', 'students.enrollments', 'classes.index',
@@ -291,17 +292,17 @@ class WorkspaceNavigationTest extends TestCase
         $html = $this->actingAs($this->makeUser('admin'))->get(route('crm.customers.index'))->assertOk()->getContent();
         $bar = substr($html, strpos($html, 'data-workspace-tabs="crm"'));
 
-        // Chỉ 2 tab; các màn khác là chip lọc nhanh / menu "Xếp lớp".
+        // Chỉ 2 tab; các màn khác là chip lọc nhanh. Không còn nút thả xuống "Xếp lớp" ở header.
         $tabs = substr($bar, 0, strpos($bar, 'data-workspace-chips'));
         $this->assertStringContainsString('Kanban', $tabs);
         $this->assertStringNotContainsString('>Chờ xếp lớp<', $tabs);
         $this->assertStringContainsString('data-workspace-chips', $bar);
         $this->assertStringContainsString(route('crm.customers.index', ['sla' => 1]), $bar);
         $this->assertStringContainsString(route('crm.waiting-list'), $bar);
-        $this->assertStringContainsString('data-workspace-menu="Xếp lớp"', $bar);
+        $this->assertStringNotContainsString('data-workspace-menu', $bar);
         // Xác nhận chính thức chuyển sang khu Phê duyệt.
         $this->assertStringNotContainsString(route('crm.confirmations'), $bar);
-        $this->assertStringContainsString(route('crm.closing-wizard'), $bar);
+        $this->assertStringNotContainsString(route('crm.closing-wizard'), $bar);
         $this->assertStringNotContainsString(route('crm.reports'), $bar);
 
         // Trang con (chip) vẫn thuộc workspace CRM, tab Danh sách đang mở.

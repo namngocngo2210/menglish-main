@@ -8,6 +8,13 @@
             : 0;
         $canHandoff = auth()->user()->can('student.assign_class');
         $canOpenConfirmations = $canHandoff && auth()->user()->can('lead.view');
+        // Mở từ cột Hành động của bảng Chờ xếp lớp (?student_id=): chọn sẵn học viên, nhắc khóa / chi nhánh đã chốt.
+        $preselectedId = (string) old('student_id', request('student_id'));
+        $preselected = $preselectedId !== '' ? $students->firstWhere('id', (int) $preselectedId) : null;
+        $preselectedLead = $preselected
+            ? \App\Models\CrmCustomer::query()->with(['waitingCourse', 'waitingBranch', 'branch'])
+                ->where('stage', 'waiting_class')->where('converted_student_id', $preselected->id)->first()
+            : null;
     @endphp
 
     <div class="space-y-6">
@@ -28,10 +35,22 @@
                 <span class="material-symbols-outlined text-primary text-base">person_add</span>
                 Xếp lớp cho học viên
             </h2>
+            @if ($preselectedLead)
+                <div class="flex flex-wrap items-center justify-between gap-sm rounded-lg border border-warning/30 bg-warning/10 px-md py-sm font-body-small text-body-small text-on-surface">
+                    <span>
+                        <strong>{{ $preselected->name }}</strong> đã chốt khóa <strong>{{ $preselectedLead->waitingCourse?->name ?? '—' }}</strong>
+                        tại <strong>{{ $preselectedLead->waitingBranch?->name ?? $preselectedLead->branch?->name ?? '—' }}</strong>.
+                        Chọn lớp đúng khóa đã chốt, hoặc tạo lớp mới nếu chưa có.
+                    </span>
+                    @can('class.create')
+                        <x-ui.button variant="secondary" size="sm" icon="add" :href="route('classes.create')">Tạo lớp mới</x-ui.button>
+                    @endcan
+                </div>
+            @endif
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <x-ui.select name="student_id" label="Chọn Học viên" required>
                     @foreach ($students as $st)
-                        <option value="{{ $st->id }}">{{ $st->name }} ({{ $st->code }})</option>
+                        <option value="{{ $st->id }}" @selected((string) $st->id === $preselectedId)>{{ $st->name }} ({{ $st->code }})</option>
                     @endforeach
                 </x-ui.select>
                 <x-ui.select name="class_id" label="Chọn Lớp học mục tiêu" required class="font-semibold text-primary">

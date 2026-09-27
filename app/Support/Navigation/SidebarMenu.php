@@ -116,7 +116,7 @@ final class SidebarMenu
                 'label' => 'Khách hàng (CRM)',
                 'icon' => 'person_search',
                 // Tab: Kanban | Danh sách. Các màn còn lại hiển thị dạng lọc nhanh (`as` => chip, dưới tab `chip_of`)
-                // hoặc trong menu thả xuống (`as` => menu / action có `menu`) để thanh tab gọn.
+                // để thanh tab gọn.
                 'items' => self::anchored(self::CRM, [
                     ['label' => 'Kanban', 'route' => 'crm.pipeline'],
                     ['label' => 'Danh sách', 'route' => 'crm.customers.index', 'active' => ['crm.customers.index', 'crm.customers.show', 'crm.customers.edit', 'crm.customers.create', 'crm.import*']],
@@ -127,9 +127,8 @@ final class SidebarMenu
                     ['label' => 'Thất bại', 'route' => 'crm.lost-deals', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'lost'],
                     ['label' => 'Đã xóa', 'route' => 'crm.customers.deleted', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'deleted'],
                 ]),
-                'actions' => self::anchored(self::CLASS_MANAGER, [
-                    ['label' => 'Chốt & Xếp lớp', 'route' => 'crm.closing-wizard', 'icon' => 'how_to_reg', 'variant' => 'secondary', 'menu' => 'Xếp lớp'],
-                ]),
+                // Không đặt nút "Xếp lớp" ở header: Chốt & Xếp lớp mở từ thẻ Kanban / hồ sơ khách / Dashboard,
+                // khách Chờ xếp lớp xếp từ cột Hành động của bảng Chờ xếp lớp.
             ],
             [
                 'id' => 'trial',
