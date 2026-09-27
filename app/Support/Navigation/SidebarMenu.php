@@ -3,6 +3,7 @@
 namespace App\Support\Navigation;
 
 use App\Models\User;
+use App\Providers\ApprovalServiceProvider;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Str;
@@ -78,7 +79,7 @@ final class SidebarMenu
                 'icon' => 'fact_check',
                 'items' => [
                     // Hộp chung: chỉ hiện khi duyệt được ít nhất 1 nguồn (Gate ApprovalServiceProvider::INBOX_ABILITY).
-                    ['label' => 'Việc cần duyệt', 'route' => 'approvals.index', 'active' => ['approvals.*'], 'can' => [\App\Providers\ApprovalServiceProvider::INBOX_ABILITY]],
+                    ['label' => 'Việc cần duyệt', 'route' => 'approvals.index', 'active' => ['approvals.*'], 'can' => [ApprovalServiceProvider::INBOX_ABILITY]],
                     ...self::anchored(self::TUITION, [
                         ['label' => 'Phiếu thu', 'route' => 'tuition.receipts.approve', 'active' => ['tuition.receipts.approve*']],
                         ['label' => 'Hủy hóa đơn', 'route' => 'tuition.invoices.cancellations', 'active' => ['tuition.invoices.cancellations*']],
