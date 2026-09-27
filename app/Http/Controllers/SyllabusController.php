@@ -642,10 +642,9 @@ class SyllabusController extends Controller
     public function closeAssignment(Request $request, int $id, SyllabusProgressionService $progression)
     {
         $assignment = SyllabusAssignment::whereIn('class_id', ClassModel::visibleTo($request->user())->select('id'))->findOrFail($id);
-        if (trim((string) $request->input('reason')) === '' || mb_strlen((string) $request->input('reason')) > 2000) {
-            return redirect()->back()->with('error', 'Vui lòng nhập lý do đóng chặng (tối đa 2000 ký tự).');
-        }
-        $validated = ['reason' => trim((string) $request->input('reason'))];
+        $validated = $request->validate(['reason' => ['required', 'string', 'max:2000']], [
+            'reason.required' => 'Vui lòng nhập lý do đóng chặng.',
+        ]);
 
         $outcome = $progression->close($assignment, $request->user(), 'Học thuật đóng tay: '.$validated['reason'], null, $request->boolean('open_next'));
 

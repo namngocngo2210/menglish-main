@@ -1,5 +1,7 @@
 <x-app-layout>
-    @php($isApprover = auth()->user()->can('big_test.approve'))
+    @php
+        $isApprover = auth()->user()->can('big_test.approve');
+    @endphp
     <x-ui.page-header :title="$isApprover ? 'Duyệt kết quả Big Test & gửi phụ huynh' : 'Nhập điểm Big Test'"
                       :description="$isApprover ? 'Bảng điểm 4 kỹ năng, nhận xét, link video; Học thuật duyệt và gửi kết quả cho phụ huynh qua Zalo.' : 'Nhập điểm 4 kỹ năng, nhận xét, link video cho lớp mình dạy rồi gửi Học thuật duyệt.'"
                       :back="auth()->user()->can('syllabus.manage') || $isApprover ? route('syllabus.big-tests.distribution') : null">

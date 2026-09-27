@@ -20,7 +20,7 @@
 
     {{-- Mockup 01_Web_Admin/03: form "Thiết lập chặng mới" (lớp, GV, chặng, ngày bắt đầu, lưu ý R19) + "Lịch sử phân quyền chặng học". --}}
     <div class="grid grid-cols-1 2xl:grid-cols-12 gap-6"
-         x-data="{ closeUrl: '', closeLabel: '', editUrl: '', edit: { label: '', user_id: '', start_date: '', deadline: '' } }">
+         x-data="{ closeUrl: @js(old('_close_url', '')), closeLabel: @js(old('_close_label', '')), editUrl: '', edit: { label: '', user_id: '', start_date: '', deadline: '' } }">
         <aside class="2xl:col-span-4 space-y-6">
             @if ($canManage)
             <section class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm"
@@ -218,9 +218,12 @@
         @endif
 
         @if ($canOverride)
-            <x-ui.modal name="close-stage" title="Đóng tay chặng đang mở" max-width="md">
+            <x-ui.modal name="close-stage" title="Đóng tay chặng đang mở" max-width="md" :show="$errors->has('reason') && old('_close_url')">
                 <form id="close-stage-form" method="POST" :action="closeUrl" class="space-y-3 p-md">
                     @csrf
+                    {{-- Giữ đích + nhãn để hộp thoại mở lại đúng chặng khi thiếu lý do. --}}
+                    <input type="hidden" name="_close_url" :value="closeUrl">
+                    <input type="hidden" name="_close_label" :value="closeLabel">
                     <p class="font-body-small text-body-small text-on-surface-variant">Chặng: <strong x-text="closeLabel"></strong>. Thông thường chặng tự đóng khi Big Test được duyệt và gửi phụ huynh — chỉ đóng tay khi có ngoại lệ.</p>
                     <x-ui.textarea name="reason" label="Lý do" required rows="3" />
                     <label class="flex items-center gap-2 font-body-small text-body-small text-on-surface">
