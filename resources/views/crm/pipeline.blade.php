@@ -32,24 +32,14 @@
 
         {{-- Kanban 8 cột (mockup: tiêu đề cột = chấm màu + TÊN (số lượng)).
              Bấm thẻ → trang hồ sơ đầy đủ; thêm / sửa khách trong modal xong → "crm-customers-changed" tải lại bảng (giữ bộ lọc). --}}
-        {{-- Bảng rộng hơn khung: dải tóm tắt số khách mỗi cột (bấm để nhảy tới cột) + vùng mờ & mũi tên ở mép khi còn cột bị che. --}}
+        {{-- Bảng rộng hơn khung: vùng mờ & mũi tên ở mép khi còn cột bị che. --}}
         <div id="crm-kanban" class="space-y-sm"
              hx-get="{{ route('crm.pipeline', request()->query()) }}" hx-trigger="crm-customers-changed from:body" hx-select="#crm-kanban" hx-swap="outerHTML" hx-disinherit="*"
              x-data="{
                  canLeft: false, canRight: false,
                  sync() { const b = this.$refs.board; if (! b) return; this.canLeft = b.scrollLeft > 4; this.canRight = b.scrollLeft + b.clientWidth < b.scrollWidth - 4; },
-                 jump(id) { const b = this.$refs.board; const col = b.querySelector('.kanban-column[data-stage-id=' + JSON.stringify(id) + ']'); if (col) b.scrollTo({ left: col.offsetLeft - b.offsetLeft, behavior: 'smooth' }); },
              }"
              x-init="$nextTick(() => sync())" @resize.window.debounce.100ms="sync()">
-            <nav class="flex flex-wrap items-center gap-xs" aria-label="Số khách mỗi cột">
-                @foreach ($stages as $stage)
-                    <button type="button" @click="jump(@js($stage['id']))"
-                            class="inline-flex items-center gap-xs rounded-full border border-outline-variant bg-surface-container-lowest px-sm py-0.5 font-caption text-caption text-on-surface-variant transition-colors hover:border-primary-container/50 hover:text-primary">
-                        <span class="h-2 w-2 rounded-full {{ $stage['dot'] }}"></span>{{ $stage['name'] }}
-                        <span class="font-code font-bold {{ $stage['count'] > 0 ? 'text-on-surface' : '' }}">{{ $stage['count'] }}</span>
-                    </button>
-                @endforeach
-            </nav>
             <div class="relative">
             <div x-ref="board" @scroll.debounce.50ms="sync()" class="custom-scrollbar overflow-x-auto pb-md">
             <div class="flex min-h-[calc(100vh-320px)] min-w-max items-start gap-md">
