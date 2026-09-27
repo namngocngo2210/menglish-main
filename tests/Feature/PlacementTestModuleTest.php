@@ -24,6 +24,49 @@ class PlacementTestModuleTest extends TestCase
         $this->seed(RoleSeeder::class);
     }
 
+    public function test_preset_tests_are_installed_by_migration_so_crm_has_levels(): void
+    {
+        // Migration nạp bộ đề mẫu cho môi trường thật: có đề cho từng khối lớp có thang điểm.
+        $this->assertGreaterThan(0, PlacementTest::installMissingPresets());
+        $groups = PlacementTest::where('is_active', true)->pluck('code')
+            ->map(fn ($code) => PlacementRubricService::detectGradeGroup($code))->unique();
+
+        foreach (['khoi_1_2', 'khoi_2_3', 'khoi_3_4', 'khoi_4_5'] as $group) {
+            $this->assertContains($group, $groups);
+        }
+
+        $this->assertSame('lop_3', PlacementTest::where('code', 'TEST-G3-G4')->value('grade_level'));
+        $this->assertSame('lop_8', PlacementTest::where('code', 'TEST-G8-G9')->value('grade_level'));
+        $this->assertSame('mau_giao', PlacementTest::where('code', 'TEST-SPEAKING-PRE-G1')->value('grade_level'));
+
+        // Chạy lại không nhân đôi, không khôi phục đề đã xóa mềm.
+        PlacementTest::where('code', 'TEST-G1-G2')->first()->delete();
+        $count = PlacementTest::withTrashed()->count();
+        $this->assertSame(0, PlacementTest::installMissingPresets());
+        $this->assertSame($count, PlacementTest::withTrashed()->count());
+        $this->assertNull(PlacementTest::where('code', 'TEST-G1-G2')->first());
+    }
+
+    public function test_create_test_with_grade_level_sets_rubric_group_from_level(): void
+    {
+        $user = User::factory()->create();
+        $user->assignRole('academic_lead');
+
+        $this->actingAs($user)->get('/placement-tests/create')->assertOk()
+            ->assertSeeInOrder(['Mẫu giáo', 'Lớp 1', 'Lớp 9']);
+
+        $this->actingAs($user)->post('/placement-tests', [
+            'code' => 'TEST-G7-260927', 'title' => 'Đề lớp 7', 'grade_level' => 'lop_7',
+            'grade_group' => 'khoi_3_4', 'duration_minutes' => 45,
+        ])->assertRedirect(route('placement-tests.index'));
+        $this->assertDatabaseHas('placement_tests', ['code' => 'TEST-G7-260927', 'grade_level' => 'lop_7', 'target_level' => 'Lớp 7']);
+
+        // Lớp 3 chấm theo thang Khối 3–4: mã đề phải chứa G3-G4.
+        $this->actingAs($user)->post('/placement-tests', [
+            'code' => 'TEST-X-01', 'title' => 'Đề lớp 3', 'grade_level' => 'lop_3', 'duration_minutes' => 45,
+        ])->assertSessionHasErrors('code');
+    }
+
     public function test_can_create_test_and_grade_submission(): void
     {
         $user = User::factory()->create();

@@ -423,13 +423,23 @@
                                     @csrf
                                     <input type="hidden" name="appointment_type" value="online" />
                                     @php
-                                        $testGroups = $placementTests->mapWithKeys(fn ($t) => [$t->id => \App\Services\PlacementRubricService::detectGradeGroup($t->code)]);
-                                        $levelOptions = collect(\App\Services\PlacementRubricService::gradeGroups())->only($testGroups->unique()->values()->all());
+                                        $testGroups = $placementTests->mapWithKeys(fn ($t) => [$t->id => $t->grade_level ?? \App\Models\PlacementTest::detectGradeLevel($t->code)]);
+                                        $levelOptions = \App\Models\PlacementTest::GRADE_LEVELS;
                                     @endphp
+                                    @if ($placementTests->isEmpty())
+                                        <x-ui.alert type="warning">
+                                            Chưa có đề test đầu vào nào đang mở.
+                                            @can('placement_test.create')
+                                                <a href="{{ route('placement-tests.create') }}" class="font-body-semibold underline">Tạo đề test</a> (chọn cấp độ khi tạo đề) rồi quay lại hẹn test.
+                                            @else
+                                                Nhờ Quản lý cơ sở / Admin tạo đề ở mục Test đầu vào &amp; học thử → Đề test đầu vào.
+                                            @endcan
+                                        </x-ui.alert>
+                                    @endif
                                     {{-- Mockup: "Chọn cấp độ" → "Danh sách đề tương ứng" --}}
                                     <div class="grid grid-cols-1 gap-md sm:grid-cols-2" x-data="{ level: '', groups: @js($testGroups), testId: @js((string) old('assigned_test_id', $placementTests->first()?->id)) }">
                                         <x-ui.field label="Chọn cấp độ" for="test_level">
-                                            <x-ui.select id="test_level" x-model="level" x-on:change="const first = Object.keys(groups).find((id) => !level || groups[id] === level); if (first) testId = first">
+                                            <x-ui.select id="test_level" x-model="level" x-on:change="const first = Object.keys(groups).find((id) => !level || groups[id] === level); testId = first ?? ''">
                                                 <option value="">Tất cả cấp độ</option>
                                                 @foreach ($levelOptions as $groupKey => $groupLabel)
                                                     <option value="{{ $groupKey }}">{{ $groupLabel }}</option>
@@ -442,6 +452,12 @@
                                                     <option value="{{ $t->id }}" x-show="!level || groups[{{ $t->id }}] === level">[{{ $t->code }}] {{ $t->title }}{{ $t->duration_minutes ? ' ('.$t->duration_minutes.'\')' : '' }}</option>
                                                 @endforeach
                                             </x-ui.select>
+                                            <p x-cloak x-show="level && !Object.values(groups).includes(level)" class="mt-xs font-caption text-caption text-danger">
+                                                Chưa có đề cho cấp độ này.
+                                                @can('placement_test.create')
+                                                    <a href="{{ route('placement-tests.create') }}" class="underline">Tạo đề</a>
+                                                @endcan
+                                            </p>
                                         </x-ui.field>
                                         <x-ui.date name="appointment_date" label="Ngày hẹn làm test" required min="{{ now()->toDateString() }}" :value="old('appointment_date', now()->addDay()->toDateString())" />
                                         <x-ui.input type="time" name="appointment_time" label="Giờ hẹn" required :value="old('appointment_time', '09:00')" />
@@ -469,7 +485,7 @@
                                     <x-ui.button variant="secondary" size="sm" icon="edit" onclick="window.dispatchEvent(new CustomEvent('open-modal', { detail: 'crm-edit-test-score' }))">Nhập điểm ngay</x-ui.button>
                                 @endcan
                             </div>
-                            <p class="font-body-small text-body-small text-on-surface-variant">Cấp độ: <strong class="text-on-surface">{{ \App\Services\PlacementRubricService::groupLabel(\App\Services\PlacementRubricService::detectGradeGroup($customer->assignedTest?->code)) }}</strong></p>
+                            <p class="font-body-small text-body-small text-on-surface-variant">Cấp độ: <strong class="text-on-surface">{{ \App\Models\PlacementTest::gradeLevelLabel($customer->assignedTest?->grade_level ?? \App\Models\PlacementTest::detectGradeLevel($customer->assignedTest?->code)) ?? 'Chưa chọn cấp độ' }}</strong></p>
                             @if ($portalTestLink)
                                 <div class="flex flex-wrap gap-sm" x-data="{ testLink: @js($portalTestLink) }">
                                     <x-ui.button variant="secondary" size="sm" icon="refresh" x-on:click="navigator.clipboard.writeText(testLink); $dispatch('toast', { message: 'Đã tạo và sao chép link mới (hiệu lực {{ \App\Services\PlacementPortalLinkService::LINK_TTL_DAYS }} ngày) — gửi lại cho khách qua Zalo/SMS.', type: 'success' })">Gửi lại link</x-ui.button>

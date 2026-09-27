@@ -14,6 +14,8 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -301,12 +303,12 @@ class Phase1MockupParityTest extends TestCase
 
     public function test_create_test_screen_matches_mockup_and_supports_draft_grade_group_and_uploads(): void
     {
-        \Illuminate\Support\Facades\Storage::fake('public');
+        Storage::fake('public');
         $academicLead = $this->userWithRole('academic_lead', 'Học Thuật');
 
         $this->actingAs($academicLead)->get(route('placement-tests.create'))->assertOk()
             ->assertSee('Tạo đề thi mới')->assertSee('Lưu đề thi')->assertSee('Thông tin chung')->assertSee('Tên đề thi')
-            ->assertSee('Cấp độ (khối lớp)')->assertSee('Khối 3 lên 4')->assertSee('Thời gian (phút)')
+            ->assertSee('Cấp độ')->assertSeeInOrder(['Mẫu giáo', 'Lớp 1', 'Lớp 9'])->assertSee('Thời gian (phút)')
             ->assertSee('Danh sách câu hỏi')->assertSee('Thêm câu hỏi mới vào đề')->assertSee('Xóa câu')
             ->assertSee('Điền vào chỗ trống')->assertSee('Tải file nghe (.mp3)')->assertSee('Tải ảnh lên')
             ->assertSee("Teacher's Note", false)->assertSee('Lưu nháp')->assertSee('Lưu và Tiếp theo')
@@ -321,20 +323,21 @@ class Phase1MockupParityTest extends TestCase
             ->assertRedirect(route('placement-tests.index'));
         $draft = PlacementTest::where('code', 'TEST-G3-G4-900')->firstOrFail();
         $this->assertFalse($draft->is_active);
-        $this->assertSame('Khối 3 lên 4', $draft->target_level);
+        $this->assertSame('lop_3', $draft->grade_level);
+        $this->assertSame('Lớp 3', $draft->target_level);
 
         // Tải file nghe / ảnh (đuôi theo nội dung).
-        $audio = \Illuminate\Http\UploadedFile::fake()->createWithContent('bai-nghe.mp3', "ID3\x03\x00\x00\x00\x00\x00\x00".str_repeat("\xFF\xFB\x90\x00", 64));
+        $audio = UploadedFile::fake()->createWithContent('bai-nghe.mp3', "ID3\x03\x00\x00\x00\x00\x00\x00".str_repeat("\xFF\xFB\x90\x00", 64));
         $response = $this->actingAs($academicLead)->post(route('placement-tests.media.store'), ['kind' => 'audio', 'file' => $audio], ['Accept' => 'application/json']);
         $response->assertOk()->assertJsonStructure(['url', 'path']);
-        \Illuminate\Support\Facades\Storage::disk('public')->assertExists($response->json('path'));
+        Storage::disk('public')->assertExists($response->json('path'));
 
         // File thật (không phải fake) để đuôi được đoán từ nội dung: mã PHP đổi tên .mp3 bị chặn.
         $tmp = tempnam(sys_get_temp_dir(), 'upl');
         file_put_contents($tmp, '<?php echo 1;');
-        $php = new \Illuminate\Http\UploadedFile($tmp, 'x.mp3', null, null, true);
+        $php = new UploadedFile($tmp, 'x.mp3', null, null, true);
         $this->actingAs($academicLead)->post(route('placement-tests.media.store'), ['kind' => 'audio', 'file' => $php], ['Accept' => 'application/json'])->assertStatus(422);
-        $this->actingAs($this->sales)->post(route('placement-tests.media.store'), ['kind' => 'image', 'file' => \Illuminate\Http\UploadedFile::fake()->image('a.png')], ['Accept' => 'application/json'])->assertForbidden();
+        $this->actingAs($this->sales)->post(route('placement-tests.media.store'), ['kind' => 'image', 'file' => UploadedFile::fake()->image('a.png')], ['Accept' => 'application/json'])->assertForbidden();
     }
 
     // ── 12. Test online & thang điểm ─────────────────────────────────────

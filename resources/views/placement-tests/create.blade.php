@@ -50,12 +50,15 @@
     @endphp
 
     @php
-        $initialGroup = old('grade_group', 'khoi_3_4');
+        $initialLevel = old('grade_level', 'lop_3');
+        $initialGroup = $levelRubricGroups[$initialLevel] ?? 'khac';
     @endphp
     <div class="space-y-6" x-data="testCreatorApp({
         questions: {{ Js::from($initialQuestions) }},
         gradeGroup: {{ Js::from($initialGroup) }},
-        code: {{ Js::from(old('code', 'TEST-'.($gradeCodeTokens[$initialGroup] ?? 'KHAC').'-'.date('ymd-His'))) }},
+        gradeLevel: {{ Js::from($initialLevel) }},
+        levelGroups: {{ Js::from($levelRubricGroups) }},
+        code: {{ Js::from(old('code', 'TEST-'.($gradeCodeTokens[$initialGroup] ?? 'G3').'-'.date('ymd-His'))) }},
         codeTouched: {{ old('code') ? 'true' : 'false' }},
         codeTokens: {{ Js::from($gradeCodeTokens) }},
     })">
@@ -91,8 +94,9 @@
                             </div>
 
                             <div>
-                                <x-ui.select name="grade_group" label="Cấp độ (khối lớp)" x-model="gradeGroup" x-on:change="syncCode()" required :options="$gradeGroups" class="font-semibold" />
-                                <p class="mt-1 text-[11px] text-on-surface-variant">Mã đề chứa khối lớp (vd. <span class="font-mono">G3-G4</span>) để hệ thống chấm theo thang điểm khối; khối chưa có thang điểm thì Học thuật chọn lớp thủ công.</p>
+                                <x-ui.select name="grade_level" label="Cấp độ" x-model="gradeLevel" x-on:change="gradeGroup = levelGroups[gradeLevel] || 'khac'; syncCode()" required :options="$gradeLevels" class="font-semibold" />
+                                <input type="hidden" name="grade_group" :value="gradeGroup" />
+                                <p class="mt-1 text-[11px] text-on-surface-variant">Lớp hiện tại của khách làm đề này (ô "Chọn cấp độ" khi hẹn test ở CRM). Lớp 1–4 chấm theo thang điểm khối (mã đề chứa khối, vd. <span class="font-mono">G3-G4</span>); các lớp khác Học thuật chọn lớp thủ công.</p>
                             </div>
 
                             <x-ui.textarea name="description" label="Mô tả / Hướng dẫn làm bài" rows="2" placeholder="Ghi chú hướng dẫn..." />
@@ -415,6 +419,8 @@
                 questions: cfg.questions || [],
                 currentIndex: 0,
                 gradeGroup: cfg.gradeGroup,
+                gradeLevel: cfg.gradeLevel,
+                levelGroups: cfg.levelGroups,
                 code: cfg.code,
                 codeTouched: cfg.codeTouched,
                 codeTokens: cfg.codeTokens,
@@ -424,7 +430,8 @@
                 syncCode() {
                     if (this.codeTouched) return;
                     const stamp = new Date().toISOString().slice(2, 10).replace(/-/g, '') + '-' + String(Date.now()).slice(-4);
-                    this.code = 'TEST-' + (this.codeTokens[this.gradeGroup] || 'KHAC') + '-' + stamp;
+                    const levelToken = this.gradeLevel === 'mau_giao' ? 'PRE-G1' : 'G' + String(this.gradeLevel).replace('lop_', '');
+                    this.code = 'TEST-' + (this.gradeGroup !== 'khac' && this.codeTokens[this.gradeGroup] ? this.codeTokens[this.gradeGroup] : levelToken) + '-' + stamp;
                 },
 
                 async uploadMedia(event, kind, apply) {

@@ -38,9 +38,10 @@
                     <span class="text-xs font-normal text-on-surface-variant/70">Các trường đánh dấu <span class="text-error">*</span> là bắt buộc</span>
                 </h2>
                 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
                     <x-ui.input label="Mã đề thi (Code)" :value="$test->code" disabled class="font-mono font-bold" />
                     <x-ui.input type="number" name="duration_minutes" label="Thời gian làm bài (Phút)" :value="$test->duration_minutes" min="5" required class="font-mono font-bold" />
+                    <x-ui.select name="grade_level" label="Cấp độ" :value="$test->grade_level" class="font-semibold" placeholder="-- Chưa chọn --" :options="$gradeLevels" />
                     <x-ui.select name="target_level" label="Trình độ mục tiêu" required :value="$test->target_level" class="font-semibold" :options="[
                         'Tổng hợp A1 - B2' => 'Tổng hợp A1 - B2',
                         'IELTS Foundation (3.0 - 4.5)' => 'IELTS Foundation (3.0 - 4.5)',
@@ -48,13 +49,13 @@
                         'IELTS Master (6.5 - 7.5+)' => 'IELTS Master (6.5 - 7.5+)',
                         'Giao tiếp Quốc tế B1 - B2' => 'Giao tiếp Quốc tế B1 - B2',
                     ]" />
-                    <div class="md:col-span-3">
+                    <div class="md:col-span-4">
                         <x-ui.input name="title" label="Tiêu đề đề thi" :value="$test->title" required class="font-bold" />
                     </div>
-                    <div class="md:col-span-3">
+                    <div class="md:col-span-4">
                         <x-ui.textarea name="description" label="Mô tả / Hướng dẫn thí sinh khi bắt đầu" rows="2" :value="$test->description" />
                     </div>
-                    <div class="md:col-span-3 flex items-center gap-2 pt-1">
+                    <div class="md:col-span-4 flex items-center gap-2 pt-1">
                         <input type="checkbox" name="is_active" id="is_active" value="1" {{ $test->is_active ? 'checked' : '' }} class="rounded border-outline-variant text-primary focus:ring-primary-container">
                         <label for="is_active" class="text-xs font-semibold text-on-surface">Đang kích hoạt đề thi (Hiển thị cho Lead / Thí sinh truy cập làm bài)</label>
                     </div>
