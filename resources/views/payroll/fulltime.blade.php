@@ -15,7 +15,8 @@
 
         {{-- Navigation Sub-tabs --}}
         <nav class="flex flex-wrap gap-sm border-b border-surface-container pb-sm" aria-label="Bảng lương theo khối">
-            <x-ui.button variant="secondary" size="sm" icon="groups" :href="route('payroll.periods.show', $period->id)">Toàn bộ / GV Part-time</x-ui.button>
+            <x-ui.button variant="secondary" size="sm" icon="groups" :href="route('payroll.periods.show', $period->id)">Tất cả</x-ui.button>
+            <x-ui.button variant="secondary" size="sm" icon="schedule" :href="route('payroll.periods.show', [$period->id, 'type' => 'teacher_parttime'])">GV Part-time</x-ui.button>
             <x-ui.button size="sm" icon="work" :href="route('payroll.periods.fulltime', $period->id)">Giáo viên Full-time</x-ui.button>
             <x-ui.button variant="secondary" size="sm" icon="school" :href="route('payroll.periods.academic', $period->id)">Khối Học Thuật</x-ui.button>
             <x-ui.button variant="secondary" size="sm" icon="support_agent" :href="route('payroll.periods.operations', $period->id)">Khối Học Vụ &amp; Vận Hành</x-ui.button>
@@ -68,18 +69,18 @@
                     </div>
                     <div>
                         <div class="text-3xl font-black font-mono tracking-tight">
-                            {{ number_format($records->sum('net_salary')) }}đ
+                            {{ number_format($records->sum('net_salary'), 0, ',', '.') }}đ
                         </div>
                         <p class="text-xs text-orange-100 mt-1">{{ $records->count() }} giáo viên cơ hữu trong kỳ</p>
                     </div>
                     <div class="pt-3 border-t border-white/20 grid grid-cols-2 gap-2 text-xs">
                         <div>
                             <span class="text-orange-200 block text-[10px] uppercase font-bold">Thưởng tái tục:</span>
-                            <span class="font-bold font-mono text-sm">{{ number_format($records->sum('renew_bonus')) }}đ</span>
+                            <span class="font-bold font-mono text-sm">{{ number_format($records->sum('renew_bonus'), 0, ',', '.') }}đ</span>
                         </div>
                         <div>
                             <span class="text-orange-200 block text-[10px] uppercase font-bold">Tổng KPI thưởng:</span>
-                            <span class="font-bold font-mono text-sm">{{ number_format($records->sum('kpi_bonus')) }}đ</span>
+                            <span class="font-bold font-mono text-sm">{{ number_format($records->sum('kpi_bonus'), 0, ',', '.') }}đ</span>
                         </div>
                     </div>
                 </div>

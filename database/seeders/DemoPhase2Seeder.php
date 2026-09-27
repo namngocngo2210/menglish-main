@@ -389,6 +389,8 @@ class DemoPhase2Seeder extends Seeder
         $this->enterResults($test, $class, absentIndex: 0);
         $last = $class->rosterStudents()->values()->last();
         if ($last) {
+            // "Lưu nháp" không kéo dòng đã gửi duyệt về nháp → HV này chưa được gửi duyệt (GV còn đang chấm).
+            BigTestResult::where('big_test_id', $test->id)->where('student_id', $last->id)->delete();
             $this->asUser($this->staff['teacher'], SyllabusController::class, 'storeBigTestResults', ['action' => 'draft', 'results' => [
                 ['student_id' => $last->id, 'listening_score' => 7, 'reading_score' => 7.5, 'progress_note' => 'Đang chấm lại phần Viết.'],
             ]], ['id' => $test->id]);

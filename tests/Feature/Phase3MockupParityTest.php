@@ -283,16 +283,15 @@ class Phase3MockupParityTest extends TestCase
         $this->actingAs($manager)->get(route('penalties.index', ['step' => 'remedied']))
             ->assertViewHas('penalties', fn ($p) => $p->total() === 1);
 
-        // Kỳ lương đã khóa → "Chốt mức phạt" bị chặn với thông báo theo mockup.
+        // Kỳ lương đã khóa vẫn "Chốt mức phạt" được (chủ dự án chốt 27/09/2026): tiền phạt trừ vào kỳ đang mở.
         PayrollPeriod::create([
             'code' => 'PR-2026-09', 'title' => 'Bảng lương Tháng 9/2026', 'month' => 9, 'year' => 2026,
             'start_date' => '2026-09-01', 'end_date' => '2026-09-30', 'status' => 'approved',
         ]);
         $this->actingAs($manager)->from(route('penalties.index'))
             ->post(route('penalties.confirm', $confirmed->id), ['decision' => 'fine', 'amount' => 100000])
-            ->assertSessionHasErrors('violation_date')
-            ->assertSessionHas('locked_penalty', fn ($m) => str_contains($m, 'Kỳ lương hiện tại của nhân viên GV Mockup P3 đã khóa. Không thể thực hiện chốt mức phạt.'));
-        $this->assertSame('confirmed', $confirmed->fresh()->status);
+            ->assertSessionHasNoErrors();
+        $this->assertSame('fined', $confirmed->fresh()->status);
     }
 
     /** Màn "Đơn giá GV" (epic-7/cau-hinh-don-gia-giao-vien): theo từng GV, loại GV, hiệu lực, lịch sử có "Đến ngày". */
@@ -398,7 +397,7 @@ class Phase3MockupParityTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('payroll.periods.show', $period->id))
             ->assertOk()
-            ->assertSee('Danh sách bảng lương theo kỳ')
+            ->assertSee('Bảng lương tháng')
             ->assertSee('Chốt bảng lương')->assertSee('Đánh dấu đã trả')
             ->assertSee('Kỳ lương')->assertSee('Tháng 07/2026')
             ->assertSee('Tìm giáo viên / nhân sự...')
@@ -548,7 +547,7 @@ class Phase3MockupParityTest extends TestCase
             ->assertSee('Kỳ lương')->assertSee('Chi nhánh')
             ->assertSeeInOrder(['Hạng', 'Nhân viên', 'Chi nhánh', 'Số HS Giữ', 'Đơn giá (VNĐ/hs)', 'Tổng KPI'])
             ->assertSeeInOrder(['GV Mockup P3', 'GV Hạng Hai'])
-            ->assertSee('900,000')
+            ->assertSee('900.000')
             ->assertSee('Số liệu tạm tính — kỳ chưa chốt')
             ->assertDontSee('9,999,000'); // không lộ thực nhận
 
@@ -623,12 +622,12 @@ class Phase3MockupParityTest extends TestCase
             ->assertSee('Kỳ lương hiện tại: Đã duyệt')
             ->assertSee('Tháng 08/2026')->assertSee('Tháng 07/2026')->assertDontSee('Tháng 09/2026')
             ->assertSee('Tải phiếu lương')
-            ->assertSee('Tổng thu nhập')->assertSee('2,400,000')->assertSee('+20% so với tháng trước')
+            ->assertSee('Tổng thu nhập')->assertSee('2.400.000')->assertSee('+20% so với tháng trước')
             ->assertSee('Tổng khoản trừ')->assertSee('Bao gồm phạt và các khoản khác')
-            ->assertSee('Thực nhận')->assertSee('2,200,000')
+            ->assertSee('Thực nhận')->assertSee('2.200.000')
             ->assertSeeInOrder(['Hạng mục', 'Số lượng', 'Thành tiền'])->assertSee('12 buổi')->assertSee('9/10 HS')
             ->assertSee('Các khoản trừ')->assertSee('Đi muộn (Quá 15p)')->assertSee('Lớp MP3-01')
-            ->assertSee('Chi tiết buổi dạy')->assertSee('18:00 - 19:30')->assertSee('Cover')->assertSee('300,000')
+            ->assertSee('Chi tiết buổi dạy')->assertSee('18:00 - 19:30')->assertSee('Cover')->assertSee('300.000')
             ->assertSee('PHIẾU LƯƠNG THÁNG 08/2026')
             ->assertDontSee('9,876,000');
 

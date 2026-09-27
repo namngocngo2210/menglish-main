@@ -72,9 +72,9 @@
                             </div>
                         </td>
                         <td>{{ $r->user?->branch?->name ?? 'Hệ thống MEnglish' }}</td>
-                        <td class="text-right font-mono">{{ number_format((int) $r->retention_students) }} <span class="font-caption text-caption text-on-surface-variant">/ {{ (int) $r->retention_base_students }}</span></td>
-                        <td class="text-right font-mono">{{ $r->retention_tier !== null ? number_format($r->retention_tier) : 'Chưa chọn bậc' }}</td>
-                        <td class="text-right font-mono font-bold text-primary">{{ number_format($r->kpi_bonus) }}</td>
+                        <td class="text-right font-mono">{{ number_format((int) $r->retention_students, 0, ',', '.') }} <span class="font-caption text-caption text-on-surface-variant">/ {{ (int) $r->retention_base_students }}</span></td>
+                        <td class="text-right font-mono">{{ $r->retention_tier !== null ? number_format($r->retention_tier, 0, ',', '.') : 'Chưa chọn bậc' }}</td>
+                        <td class="text-right font-mono font-bold text-primary">{{ number_format($r->kpi_bonus, 0, ',', '.') }}</td>
                     </tr>
                 @empty
                     <tr><td colspan="6"><x-ui.empty-state icon="leaderboard" title="Chưa có KPI giữ học sinh"
@@ -131,8 +131,8 @@
                         <td>{{ $item['branch_name'] }}</td>
                         <td class="text-right font-mono">{{ $item['closed'] }}</td>
                         <td class="text-right font-mono">{{ rtrim(rtrim(number_format($item['percent'], 2), '0'), '.') }}%</td>
-                        <td class="text-right font-mono">{{ number_format($item['revenue']) }}</td>
-                        <td class="text-right font-mono font-bold text-primary">{{ number_format($item['commission']) }}</td>
+                        <td class="text-right font-mono">{{ number_format($item['revenue'], 0, ',', '.') }}</td>
+                        <td class="text-right font-mono font-bold text-primary">{{ number_format($item['commission'], 0, ',', '.') }}</td>
                     </tr>
                 @empty
                     <tr><td colspan="7"><x-ui.empty-state icon="leaderboard" title="Chưa có nhân viên tư vấn trong phạm vi lọc" /></td></tr>

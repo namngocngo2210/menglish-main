@@ -1,9 +1,11 @@
 <x-app-layout>
-    <x-ui.page-header title="Cổng Phụ huynh / Học sinh" icon="smartphone" :back="auth()->user()?->can('system_category.manage') ? route('academic-system.index', ['cat' => '04_Cong_Phu_Huynh_Hoc_Sinh']) : null">
+    {{-- Trên điện thoại: thanh điều hướng đáy là điều hướng chính, ẩn tiêu đề/nút quay lại và dải tab. --}}
+    <x-ui.page-header class="hidden md:flex" title="Cổng Phụ huynh / Học sinh" icon="smartphone" :back="auth()->user()?->can('system_category.manage') ? route('academic-system.index', ['cat' => '04_Cong_Phu_Huynh_Hoc_Sinh']) : null">
         <x-slot:actions>
             <x-ui.button icon="cottage" :href="route('portal.student.home', ['studentId' => $student?->id])">Vào Trang chủ</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
+    <x-ui.workspace-tabs class="hidden md:block" />
 
     {{-- Outer Mobile Shell Container --}}
     <div class="max-w-[430px] mx-auto bg-surface-container-lowest min-h-[844px] shadow-2xl rounded-3xl border border-surface-container-highest overflow-hidden flex flex-col relative pb-20 my-4">

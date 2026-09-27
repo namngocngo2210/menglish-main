@@ -1,8 +1,11 @@
 <x-app-layout>
     <x-ui.page-header title="Bài nộp của lớp" icon="video_library" :back="route('syllabus.teacher-view')">
-        <x-slot:actions>
-            <x-ui.button variant="secondary" icon="upload_file" :href="route('portal.student.homework')">Xem giao diện Học sinh nộp bài</x-ui.button>
-        </x-slot:actions>
+        {{-- Cổng học viên chỉ mở cho người xem được hồ sơ học viên (tránh nút dẫn tới 403). --}}
+        @can('student.view')
+            <x-slot:actions>
+                <x-ui.button variant="secondary" icon="upload_file" :href="route('portal.student.homework')">Xem giao diện Học sinh nộp bài</x-ui.button>
+            </x-slot:actions>
+        @endcan
     </x-ui.page-header>
 
     

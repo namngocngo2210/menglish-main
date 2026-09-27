@@ -15,13 +15,15 @@
     }
     $initial['class_id'] = (string) ($selectedClassId ?? '');
     $canSchedule = auth()->user()->can('work_task.assign');
+    // Báo cáo phòng / nhân sự là việc khác với xếp lịch: tách sang tab riêng (mở sẵn khi đang lọc báo cáo).
+    $initialView = request('view') === 'report' || request()->hasAny(['report_branch_id', 'report_date']) ? 'report' : 'config';
 @endphp
-<x-app-layout title="TKB — Quản lý lớp học">
-    <x-ui.page-header title="TKB — Quản lý lớp học" description="Cấu hình thời khóa biểu lớp học và báo cáo phòng / nhân sự theo buổi học thực tế.">
+<x-app-layout title="Lịch & TKB lớp">
+    <x-ui.page-header title="Lịch & TKB lớp" description="Cấu hình thời khóa biểu lớp học và báo cáo phòng / nhân sự theo buổi học thực tế.">
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="download" :href="request()->fullUrlWithQuery(['export' => 1])" title="Xuất báo cáo phòng / nhân sự 7 ngày">Xuất Excel</x-ui.button>
             @can('class.create')
-                <x-ui.button icon="add" :href="route('classes.create')">Tạo lớp mới</x-ui.button>
+                <x-ui.button variant="secondary" icon="add" :href="route('classes.create')">Tạo lớp mới</x-ui.button>
             @endcan
         </x-slot:actions>
     </x-ui.page-header>
@@ -30,9 +32,20 @@
         <x-ui.alert type="success" class="mb-lg" dismissible>{{ session('success') }}</x-ui.alert>
     @endif
 
-    <div class="grid grid-cols-1 items-start gap-lg lg:grid-cols-12">
+    <div x-data="{ view: @js($initialView), show(v) { this.view = v; const u = new URL(location.href); v === 'report' ? u.searchParams.set('view', 'report') : u.searchParams.delete('view'); history.replaceState(null, '', u); } }">
+    <div class="mb-lg flex gap-xs border-b border-surface-container-highest" role="tablist" aria-label="Nội dung trang TKB">
+        @foreach (['config' => ['calendar_month', 'Cấu hình lịch lớp'], 'report' => ['groups', 'Báo cáo phòng / nhân sự']] as $key => [$icon, $label])
+            <button type="button" role="tab" x-on:click="show('{{ $key }}')" :aria-selected="view === '{{ $key }}'"
+                    :class="view === '{{ $key }}' ? 'border-primary-container text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface'"
+                    class="-mb-px inline-flex items-center gap-xs border-b-2 px-md py-sm font-body-medium text-body-medium font-semibold transition-colors {{ $initialView === $key ? 'border-primary-container text-primary' : 'border-transparent text-on-surface-variant' }}">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ $icon }}</span>{{ $label }}
+            </button>
+        @endforeach
+    </div>
+
+    <div class="grid grid-cols-1 items-start gap-lg">
         {{-- ─── Cấu hình lịch lớp ─── --}}
-        <section class="space-y-lg lg:col-span-7">
+        <section class="mx-auto w-full max-w-5xl space-y-lg" x-show="view === 'config'" @if ($initialView !== 'config') x-cloak @endif>
             @php $conflictError = $errors->first('class_id') ?: $errors->first('slot2_start') ?: $errors->first('slot1_day') ?: $errors->first('start_date') ?: $errors->first('end_date'); @endphp
             @if ($conflictError)
                 <x-ui.alert type="error" :title="str_contains($conflictError, 'Xung đột') || str_contains($conflictError, 'trùng') ? 'Cảnh báo xung đột lịch' : 'Không lưu được lịch lớp'" data-testid="schedule-conflict">
@@ -178,12 +191,26 @@
                                         @if ($canSchedule && ! in_array($c->status, ['cancelled', 'completed'], true))
                                             <x-ui.button size="sm" variant="ghost" icon="edit_calendar" :href="route('tasks.schedule-config', ['class_id' => $c->id])">{{ $c->scheduleConfig ? 'Sửa lịch' : 'Xếp lịch' }}</x-ui.button>
                                         @endif
+                                        {{-- Kết thúc / mở lại lớp là thao tác hiếm: để trong menu "⋯" và hỏi xác nhận. --}}
                                         @if (in_array($c->status, ['active', 'completed'], true) && auth()->user()->can('class.update'))
-                                            <form action="{{ route('tasks.schedule-config.update') }}" method="POST" class="inline">
-                                                @csrf
-                                                <input type="hidden" name="toggle_class_id" value="{{ $c->id }}">
-                                                <x-ui.button type="submit" size="sm" :variant="$c->status === 'active' ? 'danger-text' : 'ghost'">{{ $c->status === 'active' ? 'Kết thúc lớp' : 'Mở lại lớp' }}</x-ui.button>
-                                            </form>
+                                            <div class="inline-block text-left">
+                                                <x-ui.dropdown align="right" width="48">
+                                                    <x-slot name="trigger">
+                                                        <x-ui.button type="button" size="sm" variant="ghost" icon="more_horiz" aria-label="Thao tác khác với lớp {{ $c->code }}" aria-haspopup="menu" />
+                                                    </x-slot>
+                                                    <x-slot name="content">
+                                                        <form action="{{ route('tasks.schedule-config.update') }}" method="POST" role="menu"
+                                                              data-confirm="{{ $c->status === 'active' ? 'Kết thúc lớp '.$c->name.'? Lớp chuyển sang "Đã kết thúc".' : 'Mở lại lớp '.$c->name.'?' }}">
+                                                            @csrf
+                                                            <input type="hidden" name="toggle_class_id" value="{{ $c->id }}">
+                                                            <button type="submit" role="menuitem" class="flex w-full items-center gap-sm px-md py-sm text-left font-body-medium text-body-medium transition-colors {{ $c->status === 'active' ? 'text-error hover:bg-error/5' : 'text-on-surface hover:bg-surface-container-low' }}">
+                                                                <span class="material-symbols-outlined text-[20px]" aria-hidden="true">{{ $c->status === 'active' ? 'event_available' : 'restart_alt' }}</span>
+                                                                {{ $c->status === 'active' ? 'Kết thúc lớp' : 'Mở lại lớp' }}
+                                                            </button>
+                                                        </form>
+                                                    </x-slot>
+                                                </x-ui.dropdown>
+                                            </div>
                                         @endif
                                     </td>
                                 </tr>
@@ -203,7 +230,7 @@
         </section>
 
         {{-- ─── Báo cáo phòng / nhân sự ─── --}}
-        <section class="lg:col-span-5">
+        <section class="mx-auto w-full max-w-3xl" x-show="view === 'report'" @if ($initialView !== 'report') x-cloak @endif>
             <div class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
                 <div class="flex items-center gap-sm border-b border-surface-container pb-sm">
                     <span class="material-symbols-outlined text-primary-container" aria-hidden="true">groups</span>
@@ -211,6 +238,7 @@
                 </div>
 
                 <form method="GET" action="{{ route('tasks.schedule-config') }}" class="grid grid-cols-1 gap-sm sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                    <input type="hidden" name="view" value="report">
                     <x-ui.select name="report_branch_id" label="Chi nhánh" :options="$branches->pluck('name', 'id')" :value="$reportBranchId" />
                     <x-ui.date name="report_date" label="Từ ngày (7 ngày)" :value="$reportStart->toDateString()" />
                     <x-ui.button type="submit" variant="secondary" icon="filter_list">Xem</x-ui.button>
@@ -269,6 +297,9 @@
             </div>
         </section>
     </div>
+    </div>
+
+    @include('partials.data-confirm')
 
     @push('scripts')
         <script>

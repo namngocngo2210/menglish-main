@@ -63,7 +63,7 @@ class TicketEmailConfigTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('system-config.ticket-emails'));
 
         $response->assertStatus(200);
-        $response->assertSee('Cấu hình Email nhận Ticket');
+        $response->assertSee('Cấu hình Email nhận &amp; Hòm thư gửi', false);
         $response->assertSee('Danh sách Email nhận thông báo Ticket');
         $response->assertSee('Gửi Thử Nghiệm (Test Email)');
     }

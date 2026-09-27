@@ -191,11 +191,16 @@ class ClosingWizardRulesTest extends TestCase
     {
         $lead = $this->closeWithoutClass();
 
+        // Màn Khách chốt chỉ còn băng nhắc + link; xếp lớp làm ở màn Chờ xếp lớp.
         $this->actingAs($this->academic)->get(route('crm.customers.won'))
+            ->assertOk()
+            ->assertSee('khách đã chốt đang chờ xếp lớp')
+            ->assertSee(route('crm.waiting-list'), false);
+        $this->actingAs($this->academic)->get(route('crm.waiting-list'))
             ->assertOk()
             ->assertSee('Chờ xếp lớp (Cần xử lý gấp)')
             ->assertSee($lead->name)
-            ->assertSee('Gán lớp')
+            ->assertSee('Xếp lớp')
             ->assertSee($this->classModel->name);
     }
 

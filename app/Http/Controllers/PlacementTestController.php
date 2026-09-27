@@ -21,7 +21,9 @@ class PlacementTestController extends Controller
 {
     public function index(Request $request)
     {
-        $allTests = PlacementTest::withCount('submissions')->latest()->get()
+        $allTests = PlacementTest::withCount(['submissions' => fn ($query) => $query->where(fn ($inner) => $inner
+            ->whereNull('customer_id')
+            ->orWhereIn('customer_id', CrmCustomer::query()->visibleTo(Auth::user())->select('id')))])->latest()->get()
             ->each(fn (PlacementTest $test) => $test->setAttribute('grade_group', PlacementRubricService::detectGradeGroup($test->code)));
 
         // Mockup quan-ly-de-dau-vao: lọc Cấp độ (khối lớp theo thang điểm A6 Q2), Trạng thái (Hoạt động / Ẩn), Tìm kiếm tên đề — phía server.
@@ -156,7 +158,13 @@ class PlacementTestController extends Controller
 
     public function showTest($id)
     {
-        $test = PlacementTest::with(['submissions.customer', 'submissions.grader'])->where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $test = PlacementTest::where('id', $id)->orWhere('code', $id)->firstOrFail();
+        // Chỉ bài làm của khách trong phạm vi chi nhánh người xem (giống màn kết quả).
+        $test->setRelation('submissions', $this->visibleSubmissionsQuery()
+            ->where('placement_test_id', $test->id)
+            ->with(['customer', 'grader'])
+            ->latest()
+            ->get());
 
         return view('placement-tests.show', compact('test'));
     }

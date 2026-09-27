@@ -1,5 +1,6 @@
 <x-app-layout>
-    <x-ui.page-header title="Bảng Điều Khiển Trung Tâm — MEnglish Admin" icon="dashboard" />
+    {{-- Tiêu đề "…Admin" chỉ cho bảng điều hành; nhân sự khác (GV, TA…) thấy "Tổng quan" như tên menu. --}}
+    <x-ui.page-header :title="auth()->user()?->can('dashboard.operations') ? 'Bảng Điều Khiển Trung Tâm — MEnglish Admin' : 'Tổng quan'" icon="dashboard" />
 
     @php
         $user = Auth::user();
@@ -18,12 +19,12 @@
     <div class="space-y-6">
         @unless($isAdminOrManager)
             {{-- Welcome Banner for Staff / Teachers --}}
-            <div class="bg-surface-container-lowest rounded-2xl p-6 border border-surface-container-highest shadow-sm flex items-center justify-between">
+            <div class="bg-surface-container-lowest rounded-2xl p-6 border border-surface-container-highest shadow-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 class="text-lg font-bold text-on-surface">Xin chào, {{ $user->name }}!</h2>
-                    <p class="text-xs text-on-surface-variant mt-1">Vai trò: <span class="font-semibold text-primary">{{ ucfirst($user->getRoleNames()->first() ?? 'Nhân viên') }}</span> · Chi nhánh: {{ $user->branch?->name ?? 'Trung tâm' }}</p>
+                    <p class="text-xs text-on-surface-variant mt-1">Vai trò: <span class="font-semibold text-primary">{{ $user->getRoleNames()->map(fn ($r) => \App\Helpers\AclHelper::shortRoleLabel($r))->implode(', ') ?: 'Nhân viên' }}</span> · Chi nhánh: {{ $user->branch?->name ?? 'Trung tâm' }}</p>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
                     @if($canPayroll)
                         <x-ui.button variant="secondary" size="sm" icon="payments" :href="route('portal.my-salary')">Lương của tôi</x-ui.button>
                     @endif
@@ -38,20 +39,44 @@
             @include('dashboard.partials.role-widgets', ['roleDashboard' => $roleDashboard])
         @endif
 
+        @php
+            // Thẻ số liệu & ô phân hệ chỉ hiện link user mở được: quyền đọc từ middleware `can:` của route như menu trái
+            // (SidebarMenu::canSee). `can` bổ sung cho route tự kiểm tra quyền trong controller.
+            $navMenu = app(\App\Support\Navigation\SidebarMenu::class);
+            $canOpen = fn (string $route, array $can = []) => $user && $navMenu->canSee($user, ['route' => $route, 'can' => $can], request());
+            $linkTo = fn (string $label, string $route, array $params = [], array $can = []) => $canOpen($route, $can)
+                ? ['label' => $label, 'url' => route($route, $params)]
+                : null;
+        @endphp
+
         @if (empty($roleDashboard))
         {{-- Key Operating KPI Cards (Gated by Permissions) — vai trò không có dashboard riêng --}}
         @php
-            $dbLeadCount = \App\Models\CrmCustomer::count();
-            $dbWonCount = \App\Models\CrmCustomer::where('stage', 'won')->count();
-            $dbTuitionPaid = \App\Models\StudentTuition::sum('paid_amount');
-            $dbOverdueCount = \App\Models\StudentTuition::where('status', 'overdue')->count();
-            $dbStudentCount = \App\Models\Student::count();
-            $dbClassCount = \App\Models\ClassModel::count();
-            $latestPayroll = \App\Models\PayrollPeriod::latest()->first();
+            // Số liệu theo phạm vi dữ liệu của user (chi nhánh / lớp mình), không phải toàn trung tâm.
+            $showLeadCard = $canLead && $canOpen('crm.pipeline');
+            $showTuitionCard = $canTuition && $canOpen('tuition.students');
+            $showStudentCard = $canStudent && $canOpen('students.index');
+            $payrollRoute = $user->can('payroll.view') ? 'payroll.periods.index' : 'portal.my-salary';
+            $showPayrollCard = $canPayroll && $canOpen($payrollRoute);
+
+            if ($showLeadCard) {
+                $dbLeadCount = \App\Models\CrmCustomer::query()->visibleTo($user)->count();
+                $dbWonCount = \App\Models\CrmCustomer::query()->visibleTo($user)->where('stage', 'won')->count();
+            }
+            if ($showTuitionCard) {
+                $tuitionScope = fn () => \App\Models\StudentTuition::query()->whereHas('student', fn ($q) => $q->visibleTo($user));
+                $dbTuitionPaid = $tuitionScope()->sum('paid_amount');
+                $dbOverdueCount = $tuitionScope()->where('status', 'overdue')->count();
+            }
+            if ($showStudentCard) {
+                $dbStudentCount = \App\Models\Student::query()->visibleTo($user)->count();
+                $dbClassCount = \App\Models\ClassModel::query()->visibleTo($user)->where('status', 'active')->count();
+            }
+            $latestPayroll = $showPayrollCard ? \App\Models\PayrollPeriod::latest()->first() : null;
         @endphp
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            @if($canLead)
+            @if($showLeadCard)
                 {{-- CRM Lead KPI --}}
                 <a href="{{ route('crm.pipeline') }}" class="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-highest shadow-sm hover:border-primary-container hover:shadow-md transition group">
                     <div class="flex items-center justify-between">
@@ -68,7 +93,7 @@
                 </a>
             @endif
 
-            @if($canTuition)
+            @if($showTuitionCard)
                 {{-- Tuition KPI --}}
                 <a href="{{ route('tuition.students') }}" class="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-highest shadow-sm hover:border-warning hover:shadow-md transition group">
                     <div class="flex items-center justify-between">
@@ -85,8 +110,8 @@
                 </a>
             @endif
 
-            @if($canStudent || $canClass)
-                {{-- Active Students KPI --}}
+            @if($showStudentCard)
+                {{-- Active Students KPI (GV / TA không xem được danh sách học viên → không hiện) --}}
                 <a href="{{ route('students.index') }}" class="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-highest shadow-sm hover:border-tertiary hover:shadow-md transition group">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Học Viên Trong Hệ Thống</span>
@@ -102,9 +127,9 @@
                 </a>
             @endif
 
-            @if($canPayroll)
+            @if($showPayrollCard)
                 {{-- Payroll KPI --}}
-                <a href="{{ $user->can('payroll.view') ? route('payroll.periods.index') : route('portal.my-salary') }}" class="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-highest shadow-sm hover:border-info hover:shadow-md transition group">
+                <a href="{{ route($payrollRoute) }}" class="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-highest shadow-sm hover:border-info hover:shadow-md transition group">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Lương &amp; Thu nhập</span>
                         <div class="w-10 h-10 rounded-xl bg-info-container text-info flex items-center justify-center group-hover:scale-110 transition">
@@ -122,6 +147,56 @@
 
         @endif
 
+        @php
+            // Phân hệ: [bật?, tiêu đề, mô tả, icon, lớp icon, lớp viền hover, lớp link hover, links]; ô không còn link nào thì ẩn.
+            $modules = collect([
+                [$canLead, 'CRM &amp; Tuyển sinh', 'Quản lý khách hàng tiềm năng', 'pie_chart', 'bg-primary-container/10 text-primary', 'hover:border-primary-container/50', 'hover:bg-primary-container/10 hover:text-primary', fn () => [
+                    $linkTo('Pipeline Kanban', 'crm.pipeline'),
+                    $linkTo('DS Khách hàng', 'crm.customers.index'),
+                    $linkTo('Chốt &amp; Xếp lớp', 'crm.closing-wizard', [], ['class.update']),
+                    $linkTo('Báo cáo Doanh số', 'crm.reports'),
+                ]],
+                [$canTuition, 'Học phí &amp; Hóa đơn', 'Thu phí và quản lý công nợ', 'receipt_long', 'bg-warning-container text-warning', 'hover:border-warning/50', 'hover:bg-warning-container hover:text-on-warning-container', fn () => [
+                    $linkTo('DS Thu phí', 'tuition.students'),
+                    $linkTo('Lập Phiếu thu', 'tuition.receipts.create'),
+                    $linkTo('Duyệt Phiếu thu', 'tuition.receipts.approve'),
+                    $linkTo('Thu quá hạn', 'tuition.overdue'),
+                ]],
+                [$canStudent, 'Hồ sơ Học sinh', 'Quản lý thông tin học viên', 'school', 'bg-tertiary/10 text-tertiary', 'hover:border-tertiary/50', 'hover:bg-tertiary/10 hover:text-tertiary', fn () => [
+                    $linkTo('DS &amp; Liên kết lớp', 'students.index'),
+                    $linkTo('Chờ khai giảng', 'students.index', ['status' => 'waiting_start']),
+                    $linkTo('Đang học', 'students.index', ['status' => 'studying']),
+                    $linkTo('Xác nhận nhập học', 'students.enrollments'),
+                ]],
+                [$canClass, 'Lớp học &amp; Lịch dạy', 'Lịch học, điểm danh &amp; TKB', 'meeting_room', 'bg-secondary/10 text-secondary', 'hover:border-secondary/50', 'hover:bg-secondary/10 hover:text-secondary', fn () => [
+                    $linkTo('Lịch học các lớp', 'tasks.classes-dashboard'),
+                    $linkTo('Lịch &amp; TKB lớp', 'tasks.schedule-config'),
+                    $linkTo('Lịch dạy GV', 'payroll.timesheets.teachers', [], ['attendance_staff.view', 'payroll.view_own']),
+                ]],
+                [$canTask, 'Phân công &amp; Trợ giảng', 'Công việc ca trực &amp; báo cáo', 'task_alt', 'bg-primary-container/10 text-primary', 'hover:border-primary-container/50', 'hover:bg-primary-container/10 hover:text-primary', fn () => [
+                    $linkTo('Danh sách việc', 'tasks.index'),
+                    $linkTo('Nhiệm vụ hôm nay', 'portal.ta-tasks'),
+                    $linkTo('Báo cáo trực lớp', 'tasks.class-reports.create'),
+                ]],
+                [$canSyllabus, 'Syllabus &amp; Giáo trình', 'Soạn giáo trình &amp; Big Test', 'auto_stories', 'bg-purple-50 text-purple-600', 'hover:border-purple-500/50', 'hover:bg-purple-50 hover:text-purple-700', fn () => [
+                    $linkTo('Giáo trình tài liệu', 'syllabus.documents'),
+                    $linkTo('Soạn Syllabus', 'syllabus.builder'),
+                    $linkTo('Phân phối Big Test', 'syllabus.big-tests.distribution'),
+                ]],
+                [$canSystem, 'Quản trị Hệ thống', 'Tài khoản &amp; Phân quyền', 'settings', 'bg-info-container text-info', 'hover:border-info/50', 'hover:bg-info-container hover:text-info', fn () => [
+                    $linkTo('Tài khoản', 'users.index'),
+                    $linkTo('Vai trò (Roles)', 'roles.index'),
+                    $linkTo('Permissions', 'permissions.index'),
+                    $linkTo('Nhật ký vận hành', 'activity-logs.index'),
+                ]],
+            ])
+                ->filter(fn (array $module) => $module[0])
+                ->map(fn (array $module) => [...array_slice($module, 1, 6), array_values(array_filter(($module[7])()))])
+                ->filter(fn (array $module) => $module[6] !== [])
+                ->values();
+        @endphp
+
+        @if ($modules->isNotEmpty())
         {{-- Quick Access Module Grid --}}
         <div class="space-y-3">
             <h2 class="text-sm font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
@@ -130,164 +205,28 @@
             </h2>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                @if($canLead)
-                    {{-- Module 1: CRM --}}
-                    <div class="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-highest shadow-sm hover:border-primary-container/50 transition space-y-3">
+                @foreach ($modules as [$title, $subtitle, $icon, $iconClass, $borderClass, $linkClass, $links])
+                    <div class="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-highest shadow-sm {{ $borderClass }} transition space-y-3">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2.5">
-                                <div class="w-9 h-9 rounded-xl bg-primary-container/10 text-primary flex items-center justify-center">
-                                    <span class="material-symbols-outlined text-lg">pie_chart</span>
+                                <div class="w-9 h-9 rounded-xl {{ $iconClass }} flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-lg">{{ $icon }}</span>
                                 </div>
                                 <div>
-                                    <h3 class="font-bold text-sm text-on-surface">CRM &amp; Tuyển sinh</h3>
-                                    <span class="text-[11px] text-on-surface-variant/70">Quản lý khách hàng tiềm năng</span>
+                                    <h3 class="font-bold text-sm text-on-surface">{!! $title !!}</h3>
+                                    <span class="text-[11px] text-on-surface-variant/70">{!! $subtitle !!}</span>
                                 </div>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-1.5 text-xs">
-                            <a href="{{ route('crm.pipeline') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-primary-container/10 hover:text-primary transition font-medium">Pipeline Kanban</a>
-                            <a href="{{ route('crm.customers.index') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-primary-container/10 hover:text-primary transition font-medium">DS Khách hàng</a>
-                            <a href="{{ route('crm.closing-wizard') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-primary-container/10 hover:text-primary transition font-medium">Chốt &amp; Xếp lớp</a>
-                            <a href="{{ route('crm.reports') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-primary-container/10 hover:text-primary transition font-medium">Báo cáo Doanh số</a>
+                            @foreach ($links as $link)
+                                <a href="{{ $link['url'] }}" class="p-2 rounded-lg bg-surface-container-low {{ $linkClass }} transition font-medium">{!! $link['label'] !!}</a>
+                            @endforeach
                         </div>
                     </div>
-                @endif
-
-                @if($canTuition)
-                    {{-- Module 2: Tuition --}}
-                    <div class="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-highest shadow-sm hover:border-warning/50 transition space-y-3">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-9 h-9 rounded-xl bg-warning-container text-warning flex items-center justify-center">
-                                    <span class="material-symbols-outlined text-lg">receipt_long</span>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-sm text-on-surface">Học phí &amp; Hóa đơn</h3>
-                                    <span class="text-[11px] text-on-surface-variant/70">Thu phí và quản lý công nợ</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-1.5 text-xs">
-                            <a href="{{ route('tuition.students') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-warning-container hover:text-on-warning-container transition font-medium">DS Thu phí</a>
-                            <a href="{{ route('tuition.receipts.create') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-warning-container hover:text-on-warning-container transition font-medium">Lập Phiếu thu</a>
-                            <a href="{{ route('tuition.receipts.approve') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-warning-container hover:text-on-warning-container transition font-medium">Duyệt Phiếu thu</a>
-                            <a href="{{ route('tuition.overdue') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-warning-container hover:text-on-warning-container transition font-medium">Thu quá hạn</a>
-                        </div>
-                    </div>
-                @endif
-
-                @if($canStudent)
-                    {{-- Module 3: Students --}}
-                    <div class="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-highest shadow-sm hover:border-tertiary/50 transition space-y-3">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-9 h-9 rounded-xl bg-tertiary/10 text-tertiary flex items-center justify-center">
-                                    <span class="material-symbols-outlined text-lg">school</span>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-sm text-on-surface">Hồ sơ Học sinh</h3>
-                                    <span class="text-[11px] text-on-surface-variant/70">Quản lý thông tin học viên</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-1.5 text-xs">
-                            <a href="{{ route('students.index') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-tertiary/10 hover:text-tertiary transition font-medium">DS &amp; Liên kết lớp</a>
-                            <a href="{{ route('students.index', ['status' => 'waiting_start']) }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-tertiary/10 hover:text-tertiary transition font-medium">Chờ khai giảng</a>
-                            <a href="{{ route('students.index', ['status' => 'studying']) }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-tertiary/10 hover:text-tertiary transition font-medium">Đang học</a>
-                            <a href="{{ route('students.enrollments') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-tertiary/10 hover:text-tertiary transition font-medium">Xác nhận nhập học</a>
-                        </div>
-                    </div>
-                @endif
-
-                @if($canClass)
-                    {{-- Module 4: Classes --}}
-                    <div class="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-highest shadow-sm hover:border-secondary/50 transition space-y-3">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-9 h-9 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center">
-                                    <span class="material-symbols-outlined text-lg">meeting_room</span>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-sm text-on-surface">Lớp học &amp; Lịch dạy</h3>
-                                    <span class="text-[11px] text-on-surface-variant/70">Lịch học, điểm danh &amp; TKB</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-1.5 text-xs">
-                            <a href="{{ route('tasks.classes-dashboard') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-secondary/10 hover:text-secondary transition font-medium">Dashboard Lớp</a>
-                            <a href="{{ route('tasks.schedule-config') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-secondary/10 hover:text-secondary transition font-medium">TKB Lớp học</a>
-                            <a href="{{ route('payroll.timesheets.teachers') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-secondary/10 hover:text-secondary transition font-medium">Lịch dạy GV</a>
-                        </div>
-                    </div>
-                @endif
-
-                @if($canTask)
-                    {{-- Module 5: Tasks --}}
-                    <div class="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-highest shadow-sm hover:border-primary-container/50 transition space-y-3">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-9 h-9 rounded-xl bg-primary-container/10 text-primary flex items-center justify-center">
-                                    <span class="material-symbols-outlined text-lg">task_alt</span>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-sm text-on-surface">Phân công &amp; Trợ giảng</h3>
-                                    <span class="text-[11px] text-on-surface-variant/70">Công việc ca trực &amp; báo cáo</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-1.5 text-xs">
-                            <a href="{{ route('tasks.index') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-primary-container/10 hover:text-primary transition font-medium">Danh sách việc</a>
-                            <a href="{{ route('portal.ta-tasks') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-primary-container/10 hover:text-primary transition font-medium">Nhiệm vụ hôm nay</a>
-                            <a href="{{ route('tasks.class-reports.create') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-primary-container/10 hover:text-primary transition font-medium">Báo cáo trực lớp</a>
-                        </div>
-                    </div>
-                @endif
-
-                @if($canSyllabus)
-                    {{-- Module 6: Syllabus --}}
-                    <div class="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-highest shadow-sm hover:border-purple-500/50 transition space-y-3">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-                                    <span class="material-symbols-outlined text-lg">auto_stories</span>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-sm text-on-surface">Syllabus &amp; Giáo trình</h3>
-                                    <span class="text-[11px] text-on-surface-variant/70">Soạn giáo trình &amp; Big Test</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-1.5 text-xs">
-                            <a href="{{ route('syllabus.documents') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-purple-50 hover:text-purple-700 transition font-medium">Giáo trình tài liệu</a>
-                            <a href="{{ route('syllabus.builder') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-purple-50 hover:text-purple-700 transition font-medium">Soạn Syllabus</a>
-                            <a href="{{ route('syllabus.big-tests.distribution') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-purple-50 hover:text-purple-700 transition font-medium">Phân phối Big Test</a>
-                        </div>
-                    </div>
-                @endif
-
-                @if($canSystem)
-                    {{-- Module 7: System Config --}}
-                    <div class="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-highest shadow-sm hover:border-info/50 transition space-y-3">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-9 h-9 rounded-xl bg-info-container text-info flex items-center justify-center">
-                                    <span class="material-symbols-outlined text-lg">settings</span>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-sm text-on-surface">Quản trị Hệ thống</h3>
-                                    <span class="text-[11px] text-on-surface-variant/70">Tài khoản &amp; Phân quyền</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-1.5 text-xs">
-                            <a href="{{ route('users.index') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-info-container hover:text-info transition font-medium">Tài khoản</a>
-                            <a href="{{ route('roles.index') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-info-container hover:text-info transition font-medium">Vai trò (Roles)</a>
-                            <a href="{{ route('permissions.index') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-info-container hover:text-info transition font-medium">Permissions</a>
-                            <a href="{{ route('activity-logs.index') }}" class="p-2 rounded-lg bg-surface-container-low hover:bg-info-container hover:text-info transition font-medium">Nhật ký vận hành</a>
-                        </div>
-                    </div>
-                @endif
+                @endforeach
             </div>
         </div>
+        @endif
     </div>
 </x-app-layout>

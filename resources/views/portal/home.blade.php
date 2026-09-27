@@ -1,9 +1,8 @@
 <x-app-layout>
-    <x-ui.page-header title="Trang chủ" icon="cottage" :back="route('portal.app-shell', ['student_id' => $student?->id])">
-        <x-slot:actions>
-            <x-ui.button icon="upload_file" :href="route('portal.student.homework', ['studentId' => $student?->id])">Nộp bài tập</x-ui.button>
-        </x-slot:actions>
-    </x-ui.page-header>
+    {{-- Trên điện thoại: thanh điều hướng đáy là điều hướng chính, ẩn tiêu đề/nút quay lại và dải tab.
+         Lối vào "Nộp bài tập" chỉ giữ ở ô truy cập nhanh trong trang. --}}
+    <x-ui.page-header class="hidden md:flex" title="Trang chủ" icon="cottage" :back="route('portal.app-shell', ['student_id' => $student?->id])" />
+    <x-ui.workspace-tabs class="hidden md:block" />
 
     {{-- Outer Mobile Mockup Frame --}}
     <div class="max-w-[430px] mx-auto bg-background min-h-[844px] shadow-2xl rounded-3xl border border-surface-container-highest overflow-hidden flex flex-col relative pb-20 my-4" x-data>
@@ -229,7 +228,16 @@
                         <div class="flex justify-between items-start">
                             <div class="flex flex-col">
                                 <span class="text-[11px] font-bold text-primary font-mono">{{ $rc->receipt_number ?? ('PT-' . $rc->id) }}</span>
-                                <span class="text-xs font-semibold text-on-surface">{{ $rc->title ?? trim('Học phí ' . ($student?->currentClass?->name ?? '')) }}</span>
+                                @php
+                                    $rcCode = (string) $rc->transaction_code;
+                                    $rcTitle = match (true) {
+                                        str_starts_with($rcCode, 'XFER-OUT-') => 'Chuyển phí sang học viên khác',
+                                        str_starts_with($rcCode, 'XFER-IN-') => 'Nhận chuyển phí',
+                                        str_starts_with($rcCode, 'REFUND-') || (float) $rc->amount < 0 => 'Hoàn học phí',
+                                        default => $rc->title ?? trim('Học phí ' . ($student?->currentClass?->name ?? '')),
+                                    };
+                                @endphp
+                                <span class="text-xs font-semibold text-on-surface">{{ $rcTitle }}</span>
                             </div>
                             <x-ui.badge color="success" :pill="true" :dot="false">
                                 <span class="material-symbols-outlined text-[12px]">check_circle</span> Đã duyệt
@@ -241,7 +249,7 @@
                                     <span class="material-symbols-outlined text-[13px]">calendar_today</span> {{ is_string($rc->payment_date) ? $rc->payment_date : ($rc->payment_date?->format('d/m/Y') ?? '—') }}
                                 </span>
                                 <span class="flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-[13px]">payments</span> {{ $rc->payment_method ?? '—' }}
+                                    <span class="material-symbols-outlined text-[13px]">payments</span> {{ \App\Models\TuitionReceipt::METHOD_LABELS[$rc->payment_method] ?? ($rc->payment_method ?: '—') }}
                                 </span>
                             </div>
                             <x-ui.money :value="(float) $rc->amount" class="font-bold" />

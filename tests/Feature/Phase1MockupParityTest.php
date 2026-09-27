@@ -85,7 +85,7 @@ class Phase1MockupParityTest extends TestCase
 
         $this->actingAs($this->manager)->get(route('crm.customers.index'))->assertOk()
             ->assertSee('Từ khóa (Tên/SĐT)')->assertSee('Nguồn')->assertSee('Người phụ trách')
-            ->assertSee('Giai đoạn')->assertSee('Chi nhánh')->assertSee('Lọc dữ liệu')
+            ->assertSee('Giai đoạn')->assertSee('Chi nhánh')->assertSee('Lọc')->assertDontSee('Lọc dữ liệu')
             ->assertSee('Tên phụ huynh')->assertSee('Cập nhật gần nhất')
             ->assertSee('Trần Thu Hà')->assertSee('trong tổng số', false);
 
@@ -124,7 +124,7 @@ class Phase1MockupParityTest extends TestCase
             'test_score' => '30/45 · Luyện MOVERS', 'next_follow_up_at' => now()->addHours(2)->addMinutes(20)]);
 
         $this->actingAs($this->manager)->get(route('crm.customers.show', $lead))->assertOk()
-            ->assertSee('Chi tiết Khách hàng')->assertSee('Thất bại')->assertSee('In hồ sơ')->assertSee('Phân công lại')
+            ->assertSee('<span class="min-w-0">Nguyễn Lam Anh</span>', false)->assertSee('Thất bại')->assertSee('In hồ sơ')->assertSee('Phân công lại')
             ->assertSee('Số điện thoại')->assertSee('Tên phụ huynh')->assertSee('SĐT phụ huynh')->assertSee('0909 888 999')
             ->assertSee('Người phụ trách')->assertSee('Chi nhánh')->assertSee('Cơ sở Đội Cấn')
             ->assertSee('Trạng thái &amp; Hạn xử lý', false)->assertSee('Giai đoạn hiện tại')->assertSee('Còn 2 giờ')
@@ -155,7 +155,7 @@ class Phase1MockupParityTest extends TestCase
         $this->lead('lost', ['name' => 'Khách Không Nghe Máy', 'lost_reason' => 'Gọi 5 lần không nghe máy', 'lost_at' => now()->subDays(2)]);
 
         $this->actingAs($this->manager)->get(route('crm.lost-deals'))->assertOk()
-            ->assertSee('Tổng số khách không chốt')->assertSee('Tìm theo lý do không chốt')->assertSee('Xuất báo cáo')
+            ->assertSee('Tổng số khách không chốt')->assertSee('Tìm theo lý do không chốt')->assertSee('Xuất Excel')
             ->assertSee('Lý do không chốt')->assertSee('Người phụ trách trước khi fail')->assertSee('Thời điểm dừng')
             ->assertSee('Nhu cầu: Giao tiếp')
             // A6: không mở lại khách Thất bại
@@ -173,7 +173,7 @@ class Phase1MockupParityTest extends TestCase
         $this->lead('lost', ['name' => 'Khách Ở Xa', 'lost_reason' => 'Vị trí xa nhà, không có người đưa đón', 'lost_at' => now()->subDays(2)]);
 
         $this->actingAs($this->manager)->get(route('crm.reports'))->assertOk()
-            ->assertSee('Khoảng thời gian')->assertSee('Chi nhánh')->assertSee('Lọc dữ liệu')
+            ->assertSee('Khoảng thời gian')->assertSee('Chi nhánh')->assertSee('Lọc')->assertDontSee('Lọc dữ liệu')
             ->assertSee('Giai đoạn chuyển đổi')->assertSee('Hẹn test')->assertSee('Chờ xếp lớp')
             ->assertSee('Lý do khách không chốt')->assertSee('hồ sơ thất bại trong kỳ')
             ->assertSee('Nội dung lý do (Log chi tiết)')->assertSee('Vị trí xa nhà, không có người đưa đón')->assertSee('Khách Ở Xa')
@@ -223,16 +223,18 @@ class Phase1MockupParityTest extends TestCase
         $this->lead('waiting_class', ['name' => 'Nguyễn Văn An', 'converted_student_id' => $waitingStudent->id, 'waiting_course_id' => $course->id, 'converted_at' => now()->subDays(8)]);
 
         $this->actingAs($this->academic)->get(route('crm.customers.won'))->assertOk()
-            ->assertSee('Chờ xếp lớp (Cần xử lý gấp)')->assertSee('Ưu tiên xử lý')->assertSee('Nguyễn Văn An')->assertSee('Gán lớp')
-            ->assertSee('Chờ 8 ngày')
+            // Chờ xếp lớp chỉ còn băng nhắc + link sang màn Chờ xếp lớp (không lặp khối xếp lớp).
+            ->assertSee('khách đã chốt đang chờ xếp lớp')->assertSee(route('crm.waiting-list'), false)
             ->assertSee('Lớp học')->assertSee('Nhập tên hoặc số điện thoại...')
-            ->assertSee('Khách đã có lớp')->assertSee('Tải báo cáo chi tiết')->assertSee('Thời điểm chốt')
+            ->assertSee('Khách đã có lớp')->assertSee('Xuất Excel')->assertSee('Thời điểm chốt')
             ->assertSee('Movers A')->assertDontSee('Hủy chốt');
 
         $this->actingAs($this->academic)->get(route('crm.customers.won', ['class_id' => $classB->id]))
             ->assertSee('Ngô Bảo Ngọc')->assertDontSee('Phạm Minh Quân');
 
-        $this->actingAs($this->academic)->get(route('crm.waiting-list'))->assertOk()->assertSee('Nguyễn Văn An')->assertSee('Gán lớp');
+        $this->actingAs($this->academic)->get(route('crm.waiting-list'))->assertOk()
+            ->assertSee('Chờ xếp lớp (Cần xử lý gấp)')->assertSee('Ưu tiên xử lý')->assertSee('Nguyễn Văn An')->assertSee('Xếp lớp')
+            ->assertSee('Chờ 8 ngày');
     }
 
     // ── 9. Xác nhận chính thức ───────────────────────────────────────────
@@ -249,9 +251,9 @@ class Phase1MockupParityTest extends TestCase
 
         $this->actingAs($this->academic)->get(route('crm.confirmations'))->assertOk()
             ->assertSee('Khách hàng đã chốt thành công')->assertSee('học viên')
-            ->assertSee('Chờ xếp lớp (Cần xử lý gấp)')->assertSee('Nguyễn Hoàng Anh')->assertSee('Gán lớp')
+            ->assertSee('khách đã chốt đang chờ xếp lớp')->assertSee(route('crm.waiting-list'), false)
             ->assertSee('Chi nhánh')->assertSee('Lớp học')->assertSee('Tìm kiếm học viên...')
-            ->assertSee('Khách đã có lớp')->assertSee('Lớp ID: IF-202310')->assertSee('Ngày chốt')->assertSee('Trạng thái')
+            ->assertSee('Khách đã có lớp')->assertSee('Lớp ID: IF-202310')->assertSee('Chốt: '.now()->format('d/m/Y'))->assertSee('Trạng thái')
             ->assertSee('Chờ khai giảng')->assertSee('Xác nhận chính thức')->assertSee('Xác nhận học viên')
             ->assertDontSee('@js(', false)
             // A6 Q5: không có trạng thái Học thử

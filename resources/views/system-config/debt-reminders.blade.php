@@ -5,7 +5,9 @@
         <nav class="flex items-center gap-sm overflow-x-auto border-b border-surface-container-highest pb-sm" aria-label="Cấu hình hệ thống">
             <x-ui.button variant="secondary" size="sm" icon="account_balance_wallet" :href="route('system-config.bank-accounts')">Tài khoản Ngân hàng</x-ui.button>
             <x-ui.button size="sm" icon="notifications_active" :href="route('system-config.debt-reminders')">Cấu hình nhắc nợ</x-ui.button>
+            @can('support_ticket.update')
             <x-ui.button variant="secondary" size="sm" icon="mail" :href="route('system-config.ticket-emails')">Email nhận Ticket</x-ui.button>
+            @endcan
             <x-ui.button variant="secondary" size="sm" icon="dns" :href="route('system-config.hosting')">Hosting &amp; Máy chủ</x-ui.button>
         </nav>
 

@@ -4,7 +4,7 @@
             @can('activity_log.view')
                 <x-ui.button variant="secondary" icon="history" :href="route('activity-logs.index', ['log_name' => 'Giáo trình & Syllabus'])">Xem log hệ thống</x-ui.button>
             @endcan
-            <x-ui.button icon="menu_book" :href="route('syllabus.teacher-view')">Màn GV xem giáo trình</x-ui.button>
+            <x-ui.button variant="secondary" icon="menu_book" :href="route('syllabus.teacher-view')">Màn GV xem giáo trình</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -19,9 +19,9 @@
     @endphp
 
     {{-- Mockup 01_Web_Admin/03: form "Thiết lập chặng mới" (lớp, GV, chặng, ngày bắt đầu, lưu ý R19) + "Lịch sử phân quyền chặng học". --}}
-    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6"
-         x-data="{ closeUrl: '', closeLabel: '', editUrl: '', edit: { label: '', user_id: '', start_date: '', deadline: '' } }">
-        <aside class="xl:col-span-4 space-y-6">
+    <div class="grid grid-cols-1 2xl:grid-cols-12 gap-6"
+         x-data="{ closeUrl: @js(old('_close_url', '')), closeLabel: @js(old('_close_label', '')), editUrl: '', edit: { label: '', user_id: '', start_date: '', deadline: '' } }">
+        <aside class="2xl:col-span-4 space-y-6">
             @if ($canManage)
             <section class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm"
                      x-data="{
@@ -90,20 +90,10 @@
             </section>
             @endif
 
-            <section class="rounded-xl border border-outline-variant bg-surface-container-low p-lg flex items-start justify-between gap-md">
-                <div>
-                    <h4 class="font-body-medium text-body-medium font-semibold text-on-surface">Cần hỗ trợ?</h4>
-                    <p class="mt-xs font-body-small text-body-small text-on-surface-variant">Liên hệ bộ phận Học thuật hoặc Kỹ thuật nếu bạn gặp vấn đề trong quá trình phân quyền giáo trình.</p>
-                    @if (Route::has('tickets.create'))
-                        <a href="{{ route('tickets.create') }}" class="mt-sm inline-flex items-center gap-1 font-body-small text-body-small font-semibold text-primary hover:underline">Tạo ticket hỗ trợ <span class="material-symbols-outlined text-[16px]">arrow_forward</span></a>
-                    @endif
-                </div>
-                <span class="material-symbols-outlined text-[32px] text-on-surface-variant">contact_support</span>
-            </section>
         </aside>
 
         {{-- Lịch sử phân quyền chặng học --}}
-        <div class="xl:col-span-8 min-w-0">
+        <div class="2xl:col-span-8 min-w-0">
             <x-ui.data-table min-width="860px">
                 <x-slot:header>
                     <div class="flex items-center gap-2">
@@ -164,8 +154,7 @@
                                 </td>
                                 <td class="whitespace-nowrap">
                                     @if ($as->isOpen())
-                                        <x-ui.badge color="success">Đang học</x-ui.badge>
-                                        <p class="font-caption text-caption text-tertiary mt-1">Đang hiệu lực</p>
+                                        <x-ui.badge color="success">Đang hiệu lực</x-ui.badge>
                                     @else
                                         <x-ui.badge>Đã đóng</x-ui.badge>
                                         @if ($as->curriculum_completed_at)
@@ -178,11 +167,11 @@
                                         <div class="flex items-center justify-end gap-1">
                                             @if ($canManage)
                                                 <x-ui.button variant="ghost" size="sm" icon="edit" title="Chỉnh sửa"
-                                                             @click="editUrl = @js(route('syllabus.assignments.update', $as->id)); edit = { label: @js(($as->stage?->label ?? $as->stage_name).' — lớp '.$as->classModel?->name), user_id: @js((string) $as->user_id), start_date: @js(($as->opened_at ?? $as->created_at)?->toDateString()), deadline: @js($as->deadline?->toDateString() ?? '') }; $dispatch('open-modal', 'edit-stage')" />
+                                                             @click="editUrl = {{ \Illuminate\Support\Js::from(route('syllabus.assignments.update', $as->id)) }}; edit = { label: {{ \Illuminate\Support\Js::from(($as->stage?->label ?? $as->stage_name).' — lớp '.$as->classModel?->name) }}, user_id: {{ \Illuminate\Support\Js::from((string) $as->user_id) }}, start_date: {{ \Illuminate\Support\Js::from(($as->opened_at ?? $as->created_at)?->toDateString()) }}, deadline: {{ \Illuminate\Support\Js::from($as->deadline?->toDateString() ?? '') }} }; $dispatch('open-modal', 'edit-stage')" />
                                             @endif
                                             @if ($canOverride)
                                                 <x-ui.button variant="secondary" size="sm" icon="lock"
-                                                             @click="closeUrl = @js(route('syllabus.assignments.close', $as->id)); closeLabel = @js(($as->stage?->label ?? $as->stage_name).' — lớp '.$as->classModel?->name); $dispatch('open-modal', 'close-stage')">Đóng tay</x-ui.button>
+                                                             @click="closeUrl = {{ \Illuminate\Support\Js::from(route('syllabus.assignments.close', $as->id)) }}; closeLabel = {{ \Illuminate\Support\Js::from(($as->stage?->label ?? $as->stage_name).' — lớp '.$as->classModel?->name) }}; $dispatch('open-modal', 'close-stage')">Đóng tay</x-ui.button>
                                             @endif
                                         </div>
                                     @else
@@ -198,6 +187,18 @@
                 <x-slot:footer><x-ui.pagination :paginator="$assignments" unit="lượt" /></x-slot:footer>
             </x-ui.data-table>
         </div>
+
+        {{-- Khung hỗ trợ để cuối trang, không chen giữa form giao chặng và bảng lịch sử --}}
+        <section class="2xl:col-span-12 rounded-xl border border-outline-variant bg-surface-container-low p-lg flex items-start justify-between gap-md">
+            <div>
+                <h4 class="font-body-medium text-body-medium font-semibold text-on-surface">Cần hỗ trợ?</h4>
+                <p class="mt-xs font-body-small text-body-small text-on-surface-variant">Liên hệ bộ phận Học thuật hoặc Kỹ thuật nếu bạn gặp vấn đề trong quá trình phân quyền giáo trình.</p>
+                @if (Route::has('tickets.create'))
+                    <a href="{{ route('tickets.create') }}" class="mt-sm inline-flex items-center gap-1 font-body-small text-body-small font-semibold text-primary hover:underline">Tạo ticket hỗ trợ <span class="material-symbols-outlined text-[16px]">arrow_forward</span></a>
+                @endif
+            </div>
+            <span class="material-symbols-outlined text-[32px] text-on-surface-variant">contact_support</span>
+        </section>
 
         @if ($canManage)
             <x-ui.modal name="edit-stage" title="Chỉnh sửa chặng đang hiệu lực" max-width="md">
@@ -218,9 +219,12 @@
         @endif
 
         @if ($canOverride)
-            <x-ui.modal name="close-stage" title="Đóng tay chặng đang mở" max-width="md" :show="$errors->has('reason') && ! old('class_id')">
+            <x-ui.modal name="close-stage" title="Đóng tay chặng đang mở" max-width="md" :show="$errors->has('reason') && old('_close_url')">
                 <form id="close-stage-form" method="POST" :action="closeUrl" class="space-y-3 p-md">
                     @csrf
+                    {{-- Giữ đích + nhãn để hộp thoại mở lại đúng chặng khi thiếu lý do. --}}
+                    <input type="hidden" name="_close_url" :value="closeUrl">
+                    <input type="hidden" name="_close_label" :value="closeLabel">
                     <p class="font-body-small text-body-small text-on-surface-variant">Chặng: <strong x-text="closeLabel"></strong>. Thông thường chặng tự đóng khi Big Test được duyệt và gửi phụ huynh — chỉ đóng tay khi có ngoại lệ.</p>
                     <x-ui.textarea name="reason" label="Lý do" required rows="3" />
                     <label class="flex items-center gap-2 font-body-small text-body-small text-on-surface">

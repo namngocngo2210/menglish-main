@@ -1,9 +1,11 @@
 <x-app-layout>
-    <x-ui.page-header title="Thông báo" icon="notifications" :back="route('portal.student.home', ['studentId' => $student?->id])">
+    {{-- Trên điện thoại: thanh điều hướng đáy là điều hướng chính, ẩn tiêu đề/nút quay lại và dải tab. --}}
+    <x-ui.page-header class="hidden md:flex" title="Thông báo" icon="notifications" :back="route('portal.student.home', ['studentId' => $student?->id])">
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="cottage" :href="route('portal.student.home', ['studentId' => $student?->id])">Về Trang chủ</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
+    <x-ui.workspace-tabs class="hidden md:block" />
 
     
 

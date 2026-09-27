@@ -36,7 +36,7 @@
                 <x-ui.input type="number" label="Số tiền (VNĐ)" id="payslip-draft-amount-{{ $kind }}" min="0" step="1000" x-model="draft.amount" placeholder="0" class="text-right font-mono" />
             </div>
             <x-ui.button variant="secondary" size="sm" icon="add"
-                         x-on:click="if (draft.label.trim() !== '') { lines.push({ kind: @js($kind), label: draft.label.trim(), amount: draft.amount }); draft = { label: '', amount: '' } }">{{ $addLabel }}</x-ui.button>
+                         x-on:click="if (draft.label.trim() !== '') { lines.push({ kind: {{ \Illuminate\Support\Js::from($kind) }}, label: draft.label.trim(), amount: draft.amount }); draft = { label: '', amount: '' } }">{{ $addLabel }}</x-ui.button>
         </div>
     </div>
 @else

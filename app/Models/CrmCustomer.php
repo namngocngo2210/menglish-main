@@ -239,6 +239,16 @@ class CrmCustomer extends Model
         return $this->hasMany(CrmTrialBooking::class, 'customer_id');
     }
 
+    /** Hủy các buổi học thử đang chờ (khách thất bại / bị xóa) để giáo viên không còn thấy khách trong lịch học thử. */
+    public function cancelPendingTrialBookings(string $reason): int
+    {
+        return $this->trialBookings()->where('status', 'scheduled')->get()
+            ->each(fn (CrmTrialBooking $booking) => $booking->update([
+                'status' => 'cancelled',
+                'notes' => trim(($booking->notes ? $booking->notes."\n" : '').'Hủy: '.$reason),
+            ]))->count();
+    }
+
     public function waitingCourse(): BelongsTo
     {
         return $this->belongsTo(Course::class, 'waiting_course_id');
@@ -305,6 +315,17 @@ class CrmCustomer extends Model
             'won' => ['border' => 'border-emerald-600', 'badge' => 'bg-emerald-100 text-emerald-700', 'bar' => 'bg-emerald-600', 'text' => 'text-emerald-600', 'header_border' => 'border-emerald-600/20', 'source_badge' => 'bg-emerald-100 text-emerald-700'],
             default => ['border' => 'border-error', 'badge' => 'bg-error/10 text-error', 'bar' => 'bg-error', 'text' => 'text-error', 'header_border' => 'border-error/20', 'source_badge' => 'bg-error/10 text-error'],
         };
+    }
+
+    /**
+     * Mã khách để hiển thị: mã dài KH-<ULID> rút gọn còn KH-<6 ký tự cuối> (vẫn tìm được vì ô tìm khớp một phần mã);
+     * mã đầy đủ giữ trong `code` (tooltip, nội dung chuyển khoản).
+     */
+    public function getShortCodeAttribute(): string
+    {
+        $code = (string) $this->code;
+
+        return preg_match('/^KH-[0-9A-Z]{26}$/', $code) ? 'KH-'.substr($code, -6) : $code;
     }
 
     public function getStageLabelAttribute(): string

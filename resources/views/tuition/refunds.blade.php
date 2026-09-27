@@ -6,18 +6,22 @@
         $targetList = $students->map(fn ($st) => [
             'id' => (string) $st->id,
             'name' => $st->name,
-            'code' => $st->code,
+            'code' => \App\Support\DisplayCode::short($st->code),
             'class' => $st->currentClass?->name,
             'debt' => (float) ($st->tuition?->debt_amount ?? 0),
             'search' => \Illuminate\Support\Str::lower(\Illuminate\Support\Str::ascii($st->name.' '.$st->code)),
         ])->values();
         $oldType = old('type');
+        // Nhãn ô chọn: tên trước, mã rút gọn sau (mã ULID dài làm dòng bị cắt).
+        $studentLabel = fn ($st) => $st->name.' · '.\App\Support\DisplayCode::short($st->code);
+        // Chỉ học viên có hồ sơ học phí mới hoàn / chuyển nhượng / bảo lưu được.
+        $sourceStudents = $students->filter(fn ($st) => $studentFinance[$st->id]['has_tuition'] ?? false);
     @endphp
 
     <x-ui.page-header title="Xử lý khất nợ / hoàn tiền"
                       description="Quản lý các yêu cầu tài chính phát sinh trong quá trình học tập: khất nợ, bảo lưu, chuyển nhượng buổi dư và hoàn tiền.">
         <x-slot:actions>
-            <x-ui.button variant="secondary" icon="arrow_back" :href="route('tuition.students')">Danh sách thu phí</x-ui.button>
+            <x-ui.button variant="secondary" icon="arrow_back" :href="route('tuition.students')">Công nợ học viên</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -29,9 +33,10 @@
         <strong>bắt buộc ảnh bằng chứng</strong> chi tiền. Hồ sơ quá hạn được gắn cờ "Quá hạn xử lý" nhưng vẫn duyệt được.
     </x-ui.alert>
 
-    <div class="grid grid-cols-12 gap-lg" x-data="refundTransferManager(@js($studentFinance), @js((string) (old('student_id') ?? $students->first()?->id ?? '')), @js((float) $adminFeePercent), @js($targetList), @js(in_array($oldType, ['transfer', 'refund', 'deferral'], true) ? $oldType : 'transfer'), @js((string) old('target_student_id', '')))">
+    <div class="grid grid-cols-12 gap-lg" x-data="refundTransferManager(@js($studentFinance), @js((string) (old('student_id') ?? '')), @js((float) $adminFeePercent), @js($targetList), @js(in_array($oldType, ['transfer', 'refund', 'deferral'], true) ? $oldType : 'transfer'), @js((string) old('target_student_id', '')))">
         {{-- Cột trái: các khối nghiệp vụ --}}
         <div class="col-span-12 flex flex-col gap-lg lg:col-span-7">
+            @can('refund_transfer.request')
             {{-- Đánh dấu khất nợ: dời hạn đóng, vẫn giữ lịch học; duyệt xong tạm dừng nhắc nợ tới hạn mới. --}}
             <form action="{{ route('tuition.refunds.store') }}" method="POST" class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg shadow-sm">
                 @csrf
@@ -46,12 +51,12 @@
                 </div>
                 <div class="grid grid-cols-1 gap-md md:grid-cols-3">
                     <div class="md:col-span-2">
-                        <x-ui.select name="student_id" id="extension_student_id" label="Học viên đang nợ" required>
-                            @forelse ($students->filter(fn ($st) => (float) ($st->tuition?->debt_amount ?? 0) > 0) as $st)
-                                <option value="{{ $st->id }}">{{ $st->code }} - {{ $st->name }} · Còn nợ {{ $money($st->tuition->debt_amount) }} · Hạn {{ $st->tuition->due_date?->format('d/m/Y') ?? 'chưa đặt' }}</option>
-                            @empty
-                                <option value="">Không có học viên còn nợ</option>
-                            @endforelse
+                        @php $debtors = $students->filter(fn ($st) => (float) ($st->tuition?->debt_amount ?? 0) > 0); @endphp
+                        <x-ui.select name="student_id" id="extension_student_id" label="Học viên đang nợ" required
+                                     :placeholder="$debtors->isEmpty() ? 'Không có học viên còn nợ' : '— Chọn học viên —'">
+                            @foreach ($debtors as $st)
+                                <option value="{{ $st->id }}" @selected((string) old('type') === 'extension' && (string) old('student_id') === (string) $st->id)>{{ $studentLabel($st) }} · Còn nợ {{ $money($st->tuition->debt_amount) }} · Hạn {{ $st->tuition->due_date?->format('d/m/Y') ?? 'chưa đặt' }}</option>
+                            @endforeach
                         </x-ui.select>
                     </div>
                     <x-ui.date name="extended_due_date" label="Hạn đóng mới" :min="now()->addDay()->toDateString()" required />
@@ -79,9 +84,10 @@
                 <input type="hidden" name="admin_fee" :value="actionType === 'refund' ? adminFee : 0" />
 
                 <div class="mb-md">
-                    <x-ui.select name="student_id" id="refund_student_id" label="Học viên nguồn" x-model="selectedStudentId" x-on:change="resetFromBasis()" required>
-                        @foreach ($students as $st)
-                            <option value="{{ $st->id }}">{{ $st->code }} - {{ $st->name }} ({{ $st->currentClass?->name ?? 'Chưa gán lớp' }})</option>
+                    <x-ui.select name="student_id" id="refund_student_id" label="Học viên nguồn" x-model="selectedStudentId" x-on:change="resetFromBasis()" required
+                                 placeholder="— Chọn học viên —" hint="Chỉ liệt kê học viên đã có hồ sơ học phí.">
+                        @foreach ($sourceStudents as $st)
+                            <option value="{{ $st->id }}">{{ $studentLabel($st) }} ({{ $st->currentClass?->name ?? 'Chưa gán lớp' }})</option>
                         @endforeach
                     </x-ui.select>
                 </div>
@@ -105,7 +111,7 @@
                         <p class="font-label text-label uppercase text-on-surface-variant">Đã thu</p>
                         <p class="font-body-medium text-body-medium text-tertiary" x-text="money(basis.paid)"></p>
                     </div>
-                    <template x-if="!basis.has_tuition">
+                    <template x-if="selectedStudentId && !basis.has_tuition">
                         <p class="col-span-full font-body-small text-body-small text-error">Học viên chưa có hồ sơ học phí — không thể hoàn / chuyển nhượng / bảo lưu.</p>
                     </template>
                 </div>
@@ -214,12 +220,19 @@
                         Hạn xử lý: <strong>{{ \App\Models\TuitionRefundRequest::deadlineFor(now())->format('d/m/Y') }}</strong> (1 tuần, trong tháng {{ now()->format('m/Y') }})<span x-show="actionType === 'refund'"> · Admin duyệt</span>
                     </p>
                     <x-ui.button type="submit" icon="send" x-bind:disabled="!basis.has_tuition">Gửi yêu cầu phê duyệt</x-ui.button>
+                    {{-- Lý do nút bị khóa, đặt ngay dưới nút. --}}
+                    <p x-show="!basis.has_tuition" x-cloak class="font-caption text-caption text-on-surface-variant"
+                       x-text="selectedStudentId ? 'Học viên này chưa có hồ sơ học phí nên chưa gửi được yêu cầu.' : 'Chọn học viên nguồn để gửi yêu cầu.'"></p>
                 </div>
             </form>
+            @else
+                <x-ui.alert type="info">Bạn chỉ xem được các yêu cầu. Tạo yêu cầu khất nợ / chuyển phí / hoàn phí / bảo lưu cần quyền của Kế toán hoặc Quản lý.</x-ui.alert>
+            @endcan
         </div>
 
         {{-- Cột phải: yêu cầu chờ phê duyệt --}}
-        <div class="col-span-12 lg:col-span-5">
+        {{-- Màn thuộc nhóm "Cần duyệt": khối chờ phê duyệt đứng trước form tạo yêu cầu. --}}
+        <div class="order-first col-span-12 lg:col-span-5">
             <section class="flex h-full flex-col rounded-xl border border-outline-variant bg-surface-container-lowest p-lg shadow-sm">
                 <div class="mb-lg flex items-center justify-between gap-sm">
                     <div class="flex items-center gap-sm">
@@ -250,7 +263,7 @@
                                 <tr class="align-top">
                                     <td>
                                         <p class="font-body-medium text-body-medium text-on-surface">{{ $rq->student?->name }}</p>
-                                        <p class="font-code text-caption text-on-surface-variant">{{ $rq->student?->code }}</p>
+                                        <p class="font-code text-caption text-on-surface-variant"><x-ui.code :value="$rq->student?->code" /></p>
                                         @if ($overdue)
                                             <x-ui.badge color="error" class="mt-xs">Quá hạn xử lý · {{ $rq->processingOverdueDays() }} ngày</x-ui.badge>
                                         @elseif ($rq->processing_deadline)
@@ -261,7 +274,7 @@
                                         <x-ui.badge :color="$typeBadge[$rq->type] ?? 'neutral'" pill :dot="false">{{ $rq->type_label }}</x-ui.badge>
                                         <p class="mt-xs font-body-small text-body-small text-on-surface">
                                             @if ($rq->type === 'transfer')
-                                                {{ $money($rq->refund_amount) }} → {{ $rq->targetStudent?->code ?? '—' }}
+                                                {{ $money($rq->refund_amount) }} → <x-ui.code :value="$rq->targetStudent?->code" />
                                             @elseif ($rq->type === 'refund')
                                                 <strong>{{ $money($rq->refund_amount) }}</strong>
                                             @elseif ($rq->type === 'deferral')
@@ -313,12 +326,12 @@
                             <x-ui.alert type="warning">Hồ sơ đã <strong>quá hạn xử lý</strong> (hạn {{ $rq->processing_deadline->format('d/m/Y') }}). Vẫn duyệt được; hồ sơ giữ cờ "Quá hạn xử lý".</x-ui.alert>
                         @endif
                         <dl class="grid grid-cols-2 gap-sm font-body-small text-body-small">
-                            <dt class="text-on-surface-variant">Học viên</dt><dd class="text-on-surface">{{ $rq->student?->code }} - {{ $rq->student?->name }}</dd>
+                            <dt class="text-on-surface-variant">Học viên</dt><dd class="text-on-surface">{{ $rq->student?->name }} · <x-ui.code :value="$rq->student?->code" class="text-on-surface-variant" /></dd>
                             @if (in_array($rq->type, ['refund', 'transfer'], true))
                                 <dt class="text-on-surface-variant">Số tiền</dt><dd class="font-code text-on-surface">{{ $money($rq->refund_amount) }}</dd>
                             @endif
                             @if ($rq->targetStudent)
-                                <dt class="text-on-surface-variant">Học viên nhận</dt><dd class="text-on-surface">{{ $rq->targetStudent->code }} - {{ $rq->targetStudent->name }}</dd>
+                                <dt class="text-on-surface-variant">Học viên nhận</dt><dd class="text-on-surface">{{ $rq->targetStudent->name }} · <x-ui.code :value="$rq->targetStudent->code" class="text-on-surface-variant" /></dd>
                             @endif
                             <dt class="text-on-surface-variant">Lý do</dt><dd class="text-on-surface">{{ $rq->reason }}</dd>
                             @if ($rq->no_transfer_reason)
@@ -406,7 +419,7 @@
                             <td class="whitespace-nowrap font-code text-code text-on-surface-variant">{{ $rq->created_at->format('d/m/Y H:i') }}</td>
                             <td>
                                 <div class="font-body-medium text-body-medium">{{ $rq->student?->name }}</div>
-                                <div class="font-code text-caption text-on-surface-variant">{{ $rq->student?->code }} ({{ $rq->student?->currentClass?->name ?? '—' }})</div>
+                                <div class="font-code text-caption text-on-surface-variant"><x-ui.code :value="$rq->student?->code" /> ({{ $rq->student?->currentClass?->name ?? '—' }})</div>
                             </td>
                             <td>
                                 <x-ui.badge :color="$typeBadge[$rq->type] ?? 'neutral'">{{ $rq->type_label }}</x-ui.badge>
@@ -419,7 +432,7 @@
                             <td>
                                 @if ($rq->targetStudent)
                                     <div class="font-body-medium text-body-medium">{{ $rq->targetStudent->name }}</div>
-                                    <div class="font-code text-caption text-on-surface-variant">{{ $rq->targetStudent->code }}</div>
+                                    <div class="font-code text-caption text-on-surface-variant"><x-ui.code :value="$rq->targetStudent->code" /></div>
                                 @else
                                     <span class="text-on-surface-variant">—</span>
                                 @endif

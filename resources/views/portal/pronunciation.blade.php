@@ -1,9 +1,11 @@
 <x-app-layout>
-    <x-ui.page-header title="Luyện phát âm" icon="mic" :back="route('portal.student.homework', ['studentId' => $student?->id])">
+    {{-- Trên điện thoại: thanh điều hướng đáy là điều hướng chính, ẩn tiêu đề/nút quay lại và dải tab. --}}
+    <x-ui.page-header class="hidden md:flex" title="Luyện phát âm" icon="mic" :back="route('portal.student.homework', ['studentId' => $student?->id])">
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="assignment" :href="route('portal.student.homework', ['studentId' => $student?->id])">Xem bài tập viết</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
+    <x-ui.workspace-tabs class="hidden md:block" />
 
     
 
@@ -120,7 +122,7 @@
                                     <p class="truncate text-xs font-semibold text-on-surface">{{ $item['title'] }}</p>
                                     <p class="text-[10px] text-on-surface-variant/70">{{ $item['class_name'] }}</p>
                                 </div>
-                                <x-ui.button variant="ghost" size="sm" class="text-primary" x-on:click="pickUnit(@js($item['title']))">Chọn</x-ui.button>
+                                <x-ui.button variant="ghost" size="sm" class="text-primary" x-on:click="pickUnit({{ \Illuminate\Support\Js::from($item['title']) }})">Chọn</x-ui.button>
                             </div>
                             <audio controls preload="none" class="mt-2 h-8 w-full" src="{{ $item['audio_url'] }}"></audio>
                         </div>
@@ -238,6 +240,6 @@
         </main>
 
         {{-- Bottom Navigation Bar Component --}}
-        @include('portal.partials.bottom-nav', ['activeTab' => 'learning', 'student' => $student])
+        @include('portal.partials.bottom-nav', ['activeTab' => 'pronunciation', 'student' => $student])
     </div>
 </x-app-layout>

@@ -72,7 +72,12 @@ class CrmStageService
         if ($from === CrmCustomer::STAGE_LOST) {
             throw new CrmStageTransitionException('Lead đã thất bại được lưu để đối soát, không thể mở lại.');
         }
-        if (! $this->canMoveForward($user)) {
+        // Đánh dấu Thất bại theo quyền riêng lead.mark_lost (có cả Sales — chủ dự án chốt 27/09/2026);
+        // các bước pipeline khác vẫn chỉ Học vụ / Quản lý / Admin.
+        if ($stage === CrmCustomer::STAGE_LOST && ! $user->can('lead.mark_lost')) {
+            throw CrmStageTransitionException::forbidden('Bạn không có quyền đánh dấu khách Thất bại.');
+        }
+        if ($stage !== CrmCustomer::STAGE_LOST && ! $this->canMoveForward($user)) {
             throw CrmStageTransitionException::forbidden('Chỉ Học vụ / Quản lý cơ sở / Admin được chuyển giai đoạn Lead.');
         }
 
@@ -84,6 +89,7 @@ class CrmStageService
                 throw new CrmStageTransitionException('Vui lòng nhập lý do thất bại.');
             }
             $this->apply($customer, $stage, $user, $reason, ['lost_reason' => $reason, 'lost_at' => now()]);
+            $customer->cancelPendingTrialBookings('khách chuyển Thất bại');
 
             return;
         }

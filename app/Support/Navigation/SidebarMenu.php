@@ -89,10 +89,10 @@ final class SidebarMenu
                     ...self::anchored(self::CRM, [
                         ['label' => 'Xác nhận chính thức', 'route' => 'crm.confirmations'],
                     ]),
-                    ...self::anchored(self::SYLLABUS_MANAGER, [
-                        ['label' => 'Sửa giáo trình', 'route' => 'syllabus.versions'],
+                    // Chỉ người có quyền duyệt (Học thuật / Admin); Học vụ xem đề xuất của mình ở "Xin duyệt".
+                    ...self::anchored(['syllabus.approve_adjustment'], [
+                        ['label' => 'Đề xuất sửa giáo trình', 'route' => 'syllabus.versions'],
                         ['label' => 'Điều chỉnh tiến độ', 'route' => 'syllabus.adjustment-requests'],
-                        ['label' => 'Phân phối Big Test', 'route' => 'syllabus.big-tests.distribution'],
                     ]),
                     ...self::anchored(self::TASK_ASSIGNER, [
                         ['label' => 'Hoàn thành công việc', 'route' => 'tasks.manual-approvals'],
@@ -128,7 +128,7 @@ final class SidebarMenu
                     ['label' => 'Đã xóa', 'route' => 'crm.customers.deleted', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'deleted'],
                 ]),
                 'actions' => self::anchored(self::CLASS_MANAGER, [
-                    ['label' => 'Chốt học phí & Xếp lớp', 'route' => 'crm.closing-wizard', 'icon' => 'how_to_reg', 'variant' => 'secondary', 'menu' => 'Xếp lớp'],
+                    ['label' => 'Chốt & Xếp lớp', 'route' => 'crm.closing-wizard', 'icon' => 'how_to_reg', 'variant' => 'secondary', 'menu' => 'Xếp lớp'],
                 ]),
             ],
             [
@@ -162,12 +162,14 @@ final class SidebarMenu
                     // Danh sách lớp → Trang lớp (tab con). Hồ sơ lớp / Sơ đồ khối / Danh sách chi tiết / Chi tiết học thuật
                     // cũ chuyển hướng về đây (chip lọc + tab con thay cho màn riêng).
                     ['label' => 'Danh sách lớp', 'route' => 'classes.index', 'active' => ['classes.index', 'classes.show', 'classes.create', 'classes.edit', 'classes.profile', 'classes.academic-*']],
-                    ['label' => 'Lịch học & điểm danh', 'route' => 'tasks.classes-dashboard'],
+                    // Tên tab = tiêu đề trang; tránh trùng với tab "Lịch & buổi học" / "Điểm danh" bên trong Trang lớp.
+                    ['label' => 'Lịch học các lớp', 'route' => 'tasks.classes-dashboard'],
                     ['label' => 'Báo cáo & sự vụ', 'route' => 'academic.dashboards.reports', 'active' => ['academic.dashboards.*']],
                 ]),
                 // Nút chung mọi tab Lớp học (trước nằm ở menu "Tạo mới" trên topbar); quyền theo middleware can:class.create.
                 'actions' => [
-                    ['label' => 'Tạo lớp mới', 'route' => 'classes.create', 'icon' => 'add'],
+                    // Ẩn trên trang một lớp cụ thể: ở đó nút chính là bước tiếp theo của lớp (`hide_on` = routeIs).
+                    ['label' => 'Tạo lớp mới', 'route' => 'classes.create', 'icon' => 'add', 'hide_on' => ['classes.show', 'classes.edit']],
                 ],
             ],
             [
@@ -191,10 +193,18 @@ final class SidebarMenu
                 'section' => 'Đào tạo',
                 'label' => 'Big Test',
                 'icon' => 'assignment',
-                'items' => self::anchored(self::SYLLABUS_MANAGER, [
-                    ['label' => 'Nhắc lịch', 'route' => 'syllabus.big-tests.schedules'],
-                    ['label' => 'Bảng điểm & Kết quả', 'route' => 'syllabus.big-tests.results', 'active' => ['syllabus.big-tests.results*']],
-                ]),
+                'items' => [
+                    ...self::anchored(self::SYLLABUS_MANAGER, [
+                        ['label' => 'Nhắc lịch', 'route' => 'syllabus.big-tests.schedules'],
+                    ]),
+                    // Cả quy trình Big Test ở một nhóm: Học vụ tạo đợt thi, Học thuật duyệt & phân phối đề.
+                    // "Cần duyệt" chỉ còn số đếm + link sang tab này qua hộp "Việc cần duyệt".
+                    ...self::anchored([...self::SYLLABUS_MANAGER, 'big_test.approve'], [
+                        ['label' => 'Phân phối đề', 'route' => 'syllabus.big-tests.distribution'],
+                    ]),
+                    // Giáo viên (syllabus.update) nhập điểm Big Test lớp mình.
+                    ['label' => 'Bảng điểm & Kết quả', 'route' => 'syllabus.big-tests.results', 'active' => ['syllabus.big-tests.results*'], 'anchor' => ['syllabus.update', 'big_test.approve']],
+                ],
             ],
             [
                 'id' => 'surveys',

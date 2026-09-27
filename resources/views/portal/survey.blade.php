@@ -1,9 +1,11 @@
 <x-app-layout>
-    <x-ui.page-header title="Khảo sát chất lượng" icon="contact_support" :back="route('portal.student.home', ['studentId' => $student?->id])">
+    {{-- Trên điện thoại: thanh điều hướng đáy là điều hướng chính, ẩn tiêu đề/nút quay lại và dải tab. --}}
+    <x-ui.page-header class="hidden md:flex" title="Khảo sát chất lượng" icon="contact_support" :back="route('portal.student.home', ['studentId' => $student?->id])">
         <x-slot:actions>
             <x-ui.button icon="rate_review" :href="route('portal.student.feedback', ['studentId' => $student?->id])">Đánh giá chặng học</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
+    <x-ui.workspace-tabs class="hidden md:block" />
 
     
 

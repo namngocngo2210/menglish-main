@@ -43,7 +43,7 @@
                                 <x-ui.avatar :name="$ot->student?->name" />
                                 <div class="min-w-0">
                                     <p class="truncate font-body-medium text-body-medium text-on-surface">{{ $ot->student?->name }}</p>
-                                    <p class="font-caption text-caption text-on-surface-variant">MS: {{ $ot->student?->code }} · {{ $ot->student?->phone }}</p>
+                                    <p class="font-caption text-caption text-on-surface-variant">MS: <x-ui.code :value="$ot->student?->code" /> · {{ $ot->student?->phone }}</p>
                                 </div>
                             </div>
                             @forelse ($sessionLines($ot) as $label => $value)
@@ -81,40 +81,62 @@
                             </div>
                         </div>
 
+                        {{-- Nút chính "Lập phiếu thu", nút phụ "Gửi nhắc nợ"; thao tác còn lại trong menu "⋯". --}}
                         <div class="flex flex-col justify-center gap-sm bg-surface-container-low p-md" x-data="{ contact: false, report: false }">
                             @can('tuition.create')
                                 <x-ui.button size="sm" icon="payments" :href="route('tuition.receipts.create', ['tuition_id' => $ot->id])" modal="4xl">Lập phiếu thu</x-ui.button>
                             @endcan
-                            @can('tuition.mark_contacted')
-                                <x-ui.button size="sm" variant="secondary" icon="call" @click="contact = ! contact">Xác nhận đã liên hệ</x-ui.button>
+                            @php
+                                $canContact = auth()->user()?->can('tuition.mark_contacted');
+                                $canReport = ! $ot->last_report && auth()->user()?->can('tuition.report_overdue');
+                            @endphp
+                            @if ($canContact || $canReport)
+                                <div class="flex items-center gap-sm">
+                                    @if ($canContact)
+                                        <form method="POST" action="{{ route('tuition.overdue.remind', $ot->id) }}" class="flex-1">
+                                            @csrf
+                                            <x-ui.button type="submit" size="sm" variant="secondary" icon="notifications_active" class="w-full">Gửi nhắc nợ</x-ui.button>
+                                        </form>
+                                    @endif
+                                    <x-ui.dropdown align="right" width="56">
+                                        <x-slot name="trigger">
+                                            <x-ui.button size="sm" variant="ghost" icon="more_horiz" aria-label="Thao tác khác" title="Thao tác khác" />
+                                        </x-slot>
+                                        <x-slot name="content">
+                                            @if ($canContact)
+                                                <button type="button" class="flex w-full items-center gap-sm px-md py-sm text-left font-body-small text-body-small hover:bg-surface-container-low" @click="contact = ! contact; report = false">
+                                                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">call</span>Xác nhận đã liên hệ
+                                                </button>
+                                            @endif
+                                            @if ($canReport)
+                                                <button type="button" class="flex w-full items-center gap-sm px-md py-sm text-left font-body-small text-body-small hover:bg-surface-container-low" @click="report = ! report; contact = false">
+                                                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">flag</span>Báo cáo Admin
+                                                </button>
+                                            @endif
+                                        </x-slot>
+                                    </x-ui.dropdown>
+                                </div>
+                            @endif
+                            @if ($canContact)
                                 <form x-show="contact" x-cloak method="POST" action="{{ route('tuition.overdue.contacted', $ot->id) }}" class="space-y-xs">
                                     @csrf
                                     <input type="datetime-local" name="contacted_at" value="{{ now()->format('Y-m-d\TH:i') }}" max="{{ now()->format('Y-m-d\TH:i') }}" aria-label="Thời gian liên hệ" class="w-full rounded-lg border border-outline-variant px-sm py-xs font-body-small text-body-small">
                                     <textarea name="note" rows="2" placeholder="Nội dung trao đổi, hẹn ngày đóng..." class="w-full rounded-lg border border-outline-variant px-sm py-xs font-body-small text-body-small"></textarea>
-                                    <x-ui.button type="submit" size="sm" icon="check" class="w-full">Lưu liên hệ</x-ui.button>
+                                    <x-ui.button type="submit" size="sm" variant="secondary" icon="check" class="w-full">Lưu liên hệ</x-ui.button>
                                 </form>
-                            @endcan
+                            @endif
                             @if ($ot->last_report)
-                                <p class="flex items-center gap-xs rounded-lg bg-error-container/60 px-sm py-xs font-body-small text-body-small italic text-on-error-container">
+                                <p class="flex items-center gap-xs rounded-lg bg-surface-container px-sm py-xs font-body-small text-body-small italic text-on-surface-variant">
                                     <span class="material-symbols-outlined text-[16px]" aria-hidden="true">check_circle</span>
                                     Đã báo cáo Admin — {{ $ot->last_report->contacted_at->format('d/m/Y') }}
                                 </p>
-                            @else
-                                @can('tuition.report_overdue')
-                                    <x-ui.button size="sm" variant="danger-text" icon="report" @click="report = ! report">Báo cáo Admin</x-ui.button>
-                                    <form x-show="report" x-cloak method="POST" action="{{ route('tuition.overdue.report-admin', $ot->id) }}" class="space-y-xs">
-                                        @csrf
-                                        <textarea name="note" rows="2" placeholder="Tình hình liên hệ, đề xuất xử lý..." class="w-full rounded-lg border border-outline-variant px-sm py-xs font-body-small text-body-small"></textarea>
-                                        <x-ui.button type="submit" size="sm" variant="danger" icon="send" class="w-full">Gửi báo cáo</x-ui.button>
-                                    </form>
-                                @endcan
-                            @endif
-                            @can('tuition.mark_contacted')
-                                <form method="POST" action="{{ route('tuition.overdue.remind', $ot->id) }}">
+                            @elseif ($canReport)
+                                <form x-show="report" x-cloak method="POST" action="{{ route('tuition.overdue.report-admin', $ot->id) }}" class="space-y-xs">
                                     @csrf
-                                    <x-ui.button type="submit" size="sm" variant="ghost" icon="notifications_active" class="w-full">Gửi nhắc nợ</x-ui.button>
+                                    <textarea name="note" rows="2" placeholder="Tình hình liên hệ, đề xuất xử lý..." class="w-full rounded-lg border border-outline-variant px-sm py-xs font-body-small text-body-small"></textarea>
+                                    <x-ui.button type="submit" size="sm" variant="secondary" icon="send" class="w-full">Gửi báo cáo</x-ui.button>
                                 </form>
-                            @endcan
+                            @endif
                         </div>
                     </article>
                 @empty
@@ -154,7 +176,7 @@
                                     <x-ui.avatar :name="$ot->student?->name" size="sm" />
                                     <div>
                                         <div class="font-body-medium">{{ $ot->student?->name }}</div>
-                                        <div class="font-caption text-caption text-on-surface-variant">MS: {{ $ot->student?->code }}</div>
+                                        <div class="font-caption text-caption text-on-surface-variant">MS: <x-ui.code :value="$ot->student?->code" /></div>
                                     </div>
                                 </div>
                             </td>

@@ -295,7 +295,7 @@ class Phase3FormulaTest extends TestCase
             ->assertSee('2.630.000')
             ->assertDontSee('Công đoàn (');
         $this->actingAs($this->admin)->get(route('payroll.periods.show', $period->id))
-            ->assertOk()->assertSee('Part-time')->assertSee('9 HS × 20,000');
+            ->assertOk()->assertSee('Part-time')->assertSee('9 HS × 20.000');
     }
 
     public function test_foreign_session_line_is_manual_and_no_longer_deducts(): void

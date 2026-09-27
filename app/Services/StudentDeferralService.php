@@ -41,6 +41,60 @@ class StudentDeferralService
     }
 
     /**
+     * Học viên có bảo lưu đã duyệt trước, tới hôm nay bắt đầu (chưa chuyển "Bảo lưu").
+     *
+     * @return Collection<int, Student>
+     */
+    public function startingStudents(): Collection
+    {
+        $today = now()->toDateString();
+
+        return Student::query()
+            ->whereIn('status', ['waiting_start', 'studying', 'summer_break'])
+            ->whereHas('tuition', fn ($q) => $q->whereNotNull('deferred_from')->whereDate('deferred_from', '<=', $today)
+                ->whereDate('deferred_until', '>=', $today))
+            ->get();
+    }
+
+    /**
+     * Bắt đầu bảo lưu đã duyệt trước: đóng băng số buổi còn lại / công nợ tại ngày bắt đầu, chuyển "Bảo lưu".
+     * Trả về false nếu học viên đã bảo lưu / không còn khoảng bảo lưu (idempotent).
+     */
+    public function start(Student $student): bool
+    {
+        return DB::transaction(function () use ($student) {
+            /** @var Student|null $locked */
+            $locked = Student::query()->lockForUpdate()->with(['tuition', 'currentClass'])->find($student->id);
+            $tuition = $locked?->tuition;
+            if (! $locked || $locked->status === 'deferred' || ! $tuition?->isDeferredOn()) {
+                return false;
+            }
+
+            $stamp = '['.now()->format('d/m/Y H:i').'] ';
+            // Tính số buổi còn lại khi chưa đóng băng (sessionStats trả về số đã đóng băng nếu có).
+            $tuition->frozen_remaining_sessions = null;
+            $tuition->frozen_debt_amount = null;
+            $tuition->recalculateDebt();
+            $stats = $tuition->sessionStats();
+            $tuition->frozen_remaining_sessions = $stats['remaining'] ?? null;
+            $tuition->frozen_debt_amount = $tuition->debt_amount;
+            $tuition->notes = trim(($tuition->notes ? $tuition->notes."\n" : '').$stamp
+                .'Bắt đầu bảo lưu: đóng băng '.($stats ? $stats['remaining'].' buổi còn lại' : 'số buổi còn lại').' và công nợ '
+                .number_format((float) $tuition->debt_amount, 0, ',', '.').' VNĐ.');
+            $tuition->save();
+
+            $locked->update([
+                'status' => 'deferred',
+                'notes' => trim(($locked->notes ? $locked->notes."\n" : '').$stamp
+                    .'Bắt đầu bảo lưu tới '.$tuition->deferred_until->format('d/m/Y').' (hệ thống tự chuyển).'),
+            ]);
+            $student->setRawAttributes($locked->getAttributes(), true);
+
+            return true;
+        });
+    }
+
+    /**
      * Kết thúc bảo lưu của học viên. Trả về trạng thái mới, hoặc null nếu học viên không ở trạng thái Bảo lưu.
      */
     public function end(Student $student, ?User $actor = null, bool $automatic = false): ?string

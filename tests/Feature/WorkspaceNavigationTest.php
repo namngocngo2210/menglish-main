@@ -176,9 +176,11 @@ class WorkspaceNavigationTest extends TestCase
         $routesOf = fn (string $id) => collect(collect($menu->definition())->firstWhere('id', $id)['items'])->pluck('route')->all();
 
         $approve = ['approvals.index', 'tuition.receipts.approve', 'tuition.invoices.cancellations', 'tuition.refunds', 'students.enrollments',
-            'crm.confirmations', 'syllabus.versions', 'syllabus.adjustment-requests', 'syllabus.big-tests.distribution', 'tasks.manual-approvals'];
+            'crm.confirmations', 'syllabus.versions', 'syllabus.adjustment-requests', 'tasks.manual-approvals'];
         $this->assertSame($approve, $routesOf('approvals'));
         $this->assertSame(['syllabus.teacher-propose', 'syllabus.teacher-adjust'], $routesOf('approval_requests'));
+        // Cả quy trình Big Test nằm trong nhóm Big Test (Nhắc lịch, Phân phối đề, Bảng điểm).
+        $this->assertSame(['syllabus.big-tests.schedules', 'syllabus.big-tests.distribution', 'syllabus.big-tests.results'], $routesOf('big_test'));
 
         // Không còn nằm ở workspace nghiệp vụ cũ.
         foreach (['crm', 'students', 'syllabus', 'big_test', 'tuition', 'tasks'] as $id) {

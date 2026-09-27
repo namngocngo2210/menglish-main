@@ -65,6 +65,19 @@ class StudentTuition extends Model
         return $this->reminder_paused_until !== null && $this->reminder_paused_until->copy()->startOfDay()->gt($day);
     }
 
+    /**
+     * Quá hạn thực tế: còn nợ, đã qua hạn và không trong thời gian tạm dừng nhắc nợ — cùng quy tắc màn
+     * "Thu phí quá hạn". Cột status chỉ cập nhật khi tính lại công nợ nên không dùng để đếm/lọc.
+     */
+    public function scopeOverdueNow(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        $today = now()->toDateString();
+
+        return $query->where('debt_amount', '>', 0)
+            ->whereNotNull('due_date')->whereDate('due_date', '<', $today)
+            ->where(fn ($q) => $q->whereNull('reminder_paused_until')->orWhereDate('reminder_paused_until', '<=', $today));
+    }
+
     /** Đang trong thời gian bảo lưu (công nợ & số buổi được đóng băng). */
     public function isDeferredOn($on = null): bool
     {

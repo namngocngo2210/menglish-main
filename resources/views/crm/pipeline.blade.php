@@ -32,12 +32,30 @@
 
         {{-- Kanban 8 cột (mockup: tiêu đề cột = chấm màu + TÊN (số lượng)).
              Bấm thẻ → trang hồ sơ đầy đủ; thêm / sửa khách trong modal xong → "crm-customers-changed" tải lại bảng (giữ bộ lọc). --}}
-        <div id="crm-kanban" class="custom-scrollbar overflow-x-auto pb-md"
-             hx-get="{{ route('crm.pipeline', request()->query()) }}" hx-trigger="crm-customers-changed from:body" hx-select="#crm-kanban" hx-swap="outerHTML" hx-disinherit="*">
+        {{-- Bảng rộng hơn khung: dải tóm tắt số khách mỗi cột (bấm để nhảy tới cột) + vùng mờ & mũi tên ở mép khi còn cột bị che. --}}
+        <div id="crm-kanban" class="space-y-sm"
+             hx-get="{{ route('crm.pipeline', request()->query()) }}" hx-trigger="crm-customers-changed from:body" hx-select="#crm-kanban" hx-swap="outerHTML" hx-disinherit="*"
+             x-data="{
+                 canLeft: false, canRight: false,
+                 sync() { const b = this.$refs.board; if (! b) return; this.canLeft = b.scrollLeft > 4; this.canRight = b.scrollLeft + b.clientWidth < b.scrollWidth - 4; },
+                 jump(id) { const b = this.$refs.board; const col = b.querySelector('.kanban-column[data-stage-id=' + JSON.stringify(id) + ']'); if (col) b.scrollTo({ left: col.offsetLeft - b.offsetLeft, behavior: 'smooth' }); },
+             }"
+             x-init="$nextTick(() => sync())" @resize.window.debounce.100ms="sync()">
+            <nav class="flex flex-wrap items-center gap-xs" aria-label="Số khách mỗi cột">
+                @foreach ($stages as $stage)
+                    <button type="button" @click="jump(@js($stage['id']))"
+                            class="inline-flex items-center gap-xs rounded-full border border-outline-variant bg-surface-container-lowest px-sm py-0.5 font-caption text-caption text-on-surface-variant transition-colors hover:border-primary-container/50 hover:text-primary">
+                        <span class="h-2 w-2 rounded-full {{ $stage['dot'] }}"></span>{{ $stage['name'] }}
+                        <span class="font-code font-bold {{ $stage['count'] > 0 ? 'text-on-surface' : '' }}">{{ $stage['count'] }}</span>
+                    </button>
+                @endforeach
+            </nav>
+            <div class="relative">
+            <div x-ref="board" @scroll.debounce.50ms="sync()" class="custom-scrollbar overflow-x-auto pb-md">
             <div class="flex min-h-[calc(100vh-320px)] min-w-max items-start gap-md">
                 @foreach ($stages as $index => $stage)
                     <div
-                        class="kanban-column flex w-[280px] shrink-0 flex-col gap-md rounded-xl transition-colors duration-200"
+                        class="kanban-column flex w-[240px] shrink-0 flex-col gap-md rounded-xl transition-colors duration-200"
                         data-stage-id="{{ $stage['id'] }}"
                         data-stage-index="{{ $index }}"
                         @dragover.prevent="onDragOver($event, @js($stage['id']))"
@@ -69,6 +87,12 @@
                                         default => 'border-l-outline-variant',
                                     };
                                     $canEditStage = ($stagePermissions['canForward'] || $stagePermissions['canBackward']) && ! in_array($stage['id'], $stagePermissions['closed'], true);
+                                    // Chỉ vẽ phần chân thẻ khi có nội dung (tránh đường kẻ + khoảng trống thừa).
+                                    $hasFooter = $stage['id'] === 'won'
+                                        || $lead['follow_up_state']
+                                        || ($stage['id'] === 'waiting_class' && auth()->user()->can('student.assign_class'))
+                                        || ($stage['id'] !== 'waiting_class' && $stagePermissions['canForward'] && $stage['next'] && ! in_array($stage['next'], $stagePermissions['closed'], true))
+                                        || (in_array($stage['id'], \App\Models\CrmCustomer::CLOSABLE_STAGES, true) && $stagePermissions['canConvert']);
                                 @endphp
                                 <div
                                     class="kanban-card group relative space-y-md rounded-lg border border-l-4 border-outline-variant/30 bg-surface-container-lowest p-md shadow-level-2 transition-all hover:shadow-level-3 {{ $accent }} {{ $draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer' }}"
@@ -121,6 +145,7 @@
                                         @endif
                                     </div>
 
+                                    @if ($hasFooter)
                                     <div class="space-y-md border-t border-surface-container-highest pt-sm">
                                         @if ($stage['id'] === 'won')
                                             <div class="flex items-center gap-xs font-body-small text-body-small font-medium text-tertiary">
@@ -151,22 +176,21 @@
 
                                             @if ($stage['id'] === 'waiting_class')
                                                 @can('student.assign_class')
-                                                    <x-ui.button :href="route('crm.waiting-list')" x-on:click.stop="" icon="assignment_turned_in" class="w-full">Gán lớp</x-ui.button>
+                                                    <x-ui.button variant="secondary" size="sm" :href="route('crm.waiting-list')" x-on:click.stop="" icon="assignment_turned_in" class="w-full">Xếp lớp</x-ui.button>
                                                 @endcan
                                             @elseif ($stagePermissions['canForward'] && $stage['next'] && ! in_array($stage['next'], $stagePermissions['closed'], true))
-                                                <button
-                                                    type="button"
-                                                    @click.stop="moveToNextStage({{ (int) $lead['id'] }}, @js($lead['name']))"
-                                                    class="w-full rounded-lg bg-primary-container py-2 font-body-medium text-body-medium text-white shadow-sm transition-all hover:brightness-110"
-                                                    title="Chuyển sang: {{ $stagePermissions['labels'][$stage['next']] }}"
-                                                >Sang bước tiếp theo</button>
+                                                {{-- Ghi rõ bước đích; kiểu phụ — chỉ thẻ quá hạn dùng màu nhấn để nổi bật trên bảng --}}
+                                                <x-ui.button size="sm" :variant="$lead['follow_up_state'] === 'overdue' ? 'primary' : 'secondary'" icon="arrow_forward" class="w-full"
+                                                    x-on:click.stop="moveToNextStage({{ (int) $lead['id'] }}, {{ \Illuminate\Support\Js::from($lead['name']) }})"
+                                                    title="Sang bước tiếp theo: {{ $stagePermissions['labels'][$stage['next']] }}">Sang bước: {{ $stagePermissions['labels'][$stage['next']] }}</x-ui.button>
                                             @endif
 
                                             @if (in_array($stage['id'], \App\Models\CrmCustomer::CLOSABLE_STAGES, true) && $stagePermissions['canConvert'])
-                                                <x-ui.button variant="secondary" size="sm" :href="route('crm.closing-wizard', ['customer_id' => $lead['id']])" x-on:click.stop="" icon="how_to_reg" class="w-full !border-primary-container/40 !text-primary hover:!bg-primary-container/10">Chốt &amp; Xếp lớp</x-ui.button>
+                                                <x-ui.button variant="secondary" size="sm" :href="route('crm.closing-wizard', ['customer_id' => $lead['id']])" x-on:click.stop="" icon="how_to_reg" class="w-full">Chốt &amp; Xếp lớp</x-ui.button>
                                             @endif
                                         @endif
                                     </div>
+                                    @endif
                                 </div>
                             @empty
                                 <p class="px-xs py-md text-center font-caption text-caption text-on-surface-variant/70">Chưa có khách</p>
@@ -184,6 +208,19 @@
                         @endcan
                     </div>
                 @endforeach
+            </div>
+            </div>
+            {{-- Mép trái / phải: vùng mờ + mũi tên cuộn khi còn cột bị che --}}
+            <div x-show="canLeft" x-cloak class="pointer-events-none absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-surface to-transparent"></div>
+            <div x-show="canRight" x-cloak class="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-surface to-transparent"></div>
+            <button type="button" x-show="canLeft" x-cloak @click="$refs.board.scrollBy({ left: -500, behavior: 'smooth' })" aria-label="Xem các cột bên trái" title="Xem các cột bên trái"
+                    class="absolute left-2 top-28 flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant bg-surface-container-lowest text-on-surface shadow-level-2 hover:text-primary">
+                <span class="material-symbols-outlined text-[20px]" aria-hidden="true">chevron_left</span>
+            </button>
+            <button type="button" x-show="canRight" x-cloak @click="$refs.board.scrollBy({ left: 500, behavior: 'smooth' })" aria-label="Xem các cột bên phải" title="Xem các cột bên phải"
+                    class="absolute right-2 top-28 flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant bg-surface-container-lowest text-on-surface shadow-level-2 hover:text-primary">
+                <span class="material-symbols-outlined text-[20px]" aria-hidden="true">chevron_right</span>
+            </button>
             </div>
         </div>
 
@@ -326,7 +363,7 @@
                     if (sourceStageId === targetStageId) return;
 
                     if (['waiting_class', 'won'].includes(targetStageId)) {
-                        this.showToast('Hãy dùng Chốt & Xếp lớp (hoặc Gán lớp) để chốt Lead.', 'error');
+                        this.showToast('Hãy dùng Chốt & Xếp lớp (hoặc Xếp lớp ở màn Chờ xếp lớp) để chốt Lead.', 'error');
                         return;
                     }
 

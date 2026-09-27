@@ -137,7 +137,7 @@ class Phase2MockupClassesTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)->get(route('tasks.schedule-config'))->assertOk()
-            ->assertSee('TKB — Quản lý lớp học')->assertSee('Xuất Excel')->assertSee('Tạo lớp mới')
+            ->assertSee('Lịch & TKB lớp')->assertSee('Xuất Excel')->assertSee('Tạo lớp mới')
             ->assertSee('Năm học 2026 - 2027')
             ->assertSee('Slot 1')->assertSee('Slot 2')->assertSee('Hủy thay đổi')
             ->assertSee('Danh sách lớp hiện tại')->assertSee('GV: Nguyễn Văn Giáo')
@@ -172,10 +172,10 @@ class Phase2MockupClassesTest extends TestCase
             'student_id' => $student->id, 'user_id' => $this->teacher->id, 'session_date' => '2026-10-07', 'status' => 'present']);
 
         $this->actingAs($this->admin)->get(route('tasks.classes-dashboard', ['date' => '2026-10-07']))->assertOk()
-            ->assertSee('Quản lý lịch học, điểm danh và chấm công giảng viên')
+            ->assertSee('Buổi học của mọi lớp theo ngày / tuần: điểm danh và chấm công giảng viên')
             ->assertSee('Xuất báo cáo')->assertSee('Tạo lớp mới')
             ->assertSee('Theo ngày')->assertSee('Theo tuần')->assertSee('Lọc thêm')
-            ->assertSee('Chỉ được chấm công trong vòng 24h sau giờ học')
+            ->assertSee('Chỉ được điểm danh trong vòng 24h sau giờ học')
             ->assertSee('Xem điểm danh')
             ->assertSee('Trợ giảng làm việc hôm nay')->assertSee('Xem tất cả trợ giảng')
             ->assertSee('Hiển thị 2 buổi học của 1 lớp học')

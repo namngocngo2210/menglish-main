@@ -89,7 +89,13 @@ class PayrollPeriod extends Model
         $range = [$this->start_date, $this->end_date];
 
         return TeacherTimesheet::whereBetween('teaching_date', $range)->where('updated_at', '>', $this->calculated_at)->exists()
-            || Penalty::whereBetween('violation_date', $range)->where('updated_at', '>', $this->calculated_at)->exists()
+            // Chỉ biên bản đã quyết phạt mới ảnh hưởng lương (ghi nhận / giải trình / khắc phục không bắt tính lại)
+            || Penalty::whereBetween('violation_date', $range)->whereIn('status', Penalty::payableStatuses())->where('updated_at', '>', $this->calculated_at)->exists()
+            // Đơn giá dạy, cấu hình lương (BHXH, công đoàn, tái tục...) và tiêu chí KPI đổi sau lần tính
+            || TeacherHourlyRate::whereBetween('updated_at', [$this->calculated_at, now()])->where('updated_at', '>', $this->calculated_at)->exists()
+            || TeacherRate::whereBetween('updated_at', [$this->calculated_at, now()])->where('updated_at', '>', $this->calculated_at)->exists()
+            || SystemSetting::where('key', 'like', 'payroll_%')->whereBetween('updated_at', [$this->calculated_at, now()])->where('updated_at', '>', $this->calculated_at)->exists()
+            || KpiCriterion::whereBetween('updated_at', [$this->calculated_at, now()])->where('updated_at', '>', $this->calculated_at)->exists()
             // Biên bản đổi trạng thái sau lần tính (quyết phạt/nộp) hoặc vừa quá hạn nộp mà chưa được trừ
             || Penalty::whereIn('payroll_record_id', $this->records()->select('id'))->where('updated_at', '>', $this->calculated_at)->exists()
             || Penalty::deductibleFor($this)->whereNull('payroll_record_id')
@@ -207,7 +213,14 @@ class PayrollPeriod extends Model
     private function runCalculation(): void
     {
         $settings = self::payrollSettings();
-        $users = User::with('roles')->where('is_active', true)->get();
+        // Nhân sự đang hoạt động + người đã nghỉ / bị xóa (xóa mềm) nhưng còn công dạy hợp lệ trong kỳ,
+        // để tính lại không làm mất lương những buổi họ đã dạy.
+        $departedIds = TeacherTimesheet::whereBetween('teaching_date', [$this->start_date, $this->end_date])
+            ->where('status', 'valid')->distinct()->pluck('user_id');
+        $users = User::withTrashed()->with('roles')
+            ->where(fn ($query) => $query->where(fn ($active) => $active->where('is_active', true)->whereNull('deleted_at'))
+                ->orWhereIn('id', $departedIds))
+            ->get();
         $producedUserIds = [];
         $commissionService = app(SalesCommissionService::class);
         $formula = app(PayrollFormulaService::class);

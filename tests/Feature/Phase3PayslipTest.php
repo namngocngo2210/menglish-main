@@ -159,7 +159,7 @@ class Phase3PayslipTest extends TestCase
         $this->actingAs($this->teacher)->get(route('portal.my-salary'))
             ->assertOk()
             ->assertSee('Thưởng / cộng khác')
-            ->assertSee('250,000')
+            ->assertSee('250.000')
             ->assertSee('Thưởng nóng');
     }
 

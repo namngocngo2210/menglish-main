@@ -1,7 +1,7 @@
 <x-app-layout>
     @include('crm.partials.header-tabs')
 
-    {{-- Mockup epic-6/khach-hang-chot-thanh-cong-xac-nhan: tiêu đề + số học viên, thẻ "Chờ xếp lớp" + Gán lớp, lọc Chi nhánh / Lớp học / Tìm kiếm,
+    {{-- Mockup epic-6/khach-hang-chot-thanh-cong-xac-nhan: tiêu đề + số học viên, băng nhắc "Chờ xếp lớp" (link sang màn Chờ xếp lớp), lọc Chi nhánh / Lớp học / Tìm kiếm,
          bảng Khách đã có lớp (Trạng thái, Xác nhận chính thức / Đã là học viên) + popup xác nhận.
          A6 Q5: không có trạng thái "Học thử" trên hồ sơ học viên. Checklist hồ sơ nhập học giữ theo Phase 1 (tài khoản, Zalo, giáo trình). --}}
     <div class="flex flex-col gap-lg" x-data="{ confirmForm: null, confirmName: '' }">
@@ -21,49 +21,8 @@
             </x-ui.alert>
         @endif
 
-        {{-- 1. Chờ xếp lớp (Cần xử lý gấp) --}}
-        @if ($waitingLeads->isNotEmpty())
-            <section class="rounded-xl border border-error/20 bg-error-container/20 p-lg">
-                <div class="mb-md flex items-center gap-sm">
-                    <span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1;">warning</span>
-                    <h2 class="font-h3 text-h3 text-on-surface">Chờ xếp lớp (Cần xử lý gấp)</h2>
-                    <span class="rounded-full bg-error px-sm py-0.5 font-code text-caption font-bold text-white">{{ str_pad((string) $waitingLeads->count(), 2, '0', STR_PAD_LEFT) }}</span>
-                </div>
-                <div class="grid grid-cols-1 gap-md md:grid-cols-2 xl:grid-cols-4">
-                    @foreach ($waitingLeads as $lead)
-                        @php $matches = $matchingClassesByLead->get($lead->id, collect()); @endphp
-                        <div class="flex flex-col gap-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
-                            <div class="flex items-center gap-sm">
-                                <x-ui.avatar :name="$lead->name" />
-                                <div class="min-w-0">
-                                    <h3 class="truncate font-body-semibold text-body-semibold text-on-surface"><a href="{{ route('crm.customers.show', $lead->id) }}" class="hover:text-primary">{{ $lead->name }}</a></h3>
-                                    <p class="font-code text-caption text-on-surface-variant">{{ $lead->phone }}</p>
-                                </div>
-                            </div>
-                            <div class="space-y-xs font-body-small text-body-small">
-                                <div class="flex justify-between gap-sm"><span class="text-on-surface-variant">Chi nhánh:</span><span class="text-right font-medium text-on-surface">{{ $lead->waitingBranch?->name ?? $lead->branch?->name ?? '—' }}</span></div>
-                                <div class="flex justify-between gap-sm"><span class="text-on-surface-variant">Ngày chốt:</span><span class="font-code text-on-surface">{{ $lead->converted_at?->format('d/m/Y H:i') ?? '—' }}</span></div>
-                            </div>
-                            @can('student.assign_class')
-                                @if ($matches->isNotEmpty())
-                                    <form action="{{ route('crm.customers.assign-class', $lead->id) }}" method="POST" class="mt-auto flex flex-col gap-sm">
-                                        @csrf
-                                        <x-ui.select name="class_id" value="" required aria-label="Lớp gán cho {{ $lead->name }}" class="font-body-small text-body-small">
-                                            @foreach ($matches as $class)
-                                                <option value="{{ $class->id }}">{{ $class->name }} · còn {{ $class->max_capacity > 0 ? max(0, $class->max_capacity - $class->active_enrollments_count) : '∞' }} chỗ</option>
-                                            @endforeach
-                                        </x-ui.select>
-                                        <x-ui.button type="submit" size="sm" icon="group_add" class="w-full">Gán lớp</x-ui.button>
-                                    </form>
-                                @else
-                                    <p class="mt-auto font-body-small text-body-small font-semibold text-warning">Chưa có lớp phù hợp</p>
-                                @endif
-                            @endcan
-                        </div>
-                    @endforeach
-                </div>
-            </section>
-        @endif
+        {{-- 1. Chờ xếp lớp: chỉ băng nhắc + link, xếp lớp làm ở màn Chờ xếp lớp (không lặp khối xếp lớp ở đây) --}}
+        @include('crm.partials.waiting-class-banner')
 
         {{-- 2. Khách đã có lớp --}}
         <section class="flex flex-col gap-md">
@@ -78,7 +37,7 @@
                 <x-ui.select name="class_id" label="Lớp học" :options="$filterClasses->pluck('name', 'id')" placeholder="Tất cả lớp" />
             </x-ui.filter-bar>
 
-            <x-ui.data-table min-width="1180px">
+            <x-ui.data-table min-width="960px">
                 <x-slot:header>
                     <h2 class="font-h3 text-h3 text-on-surface">Khách đã có lớp <span class="font-body-medium text-body-medium text-on-surface-variant">({{ $enrollments->total() }})</span></h2>
                 </x-slot:header>
@@ -86,10 +45,7 @@
                     <thead>
                         <tr>
                             <th>Họ tên</th>
-                            <th>Số điện thoại</th>
-                            <th>Chi nhánh</th>
                             <th>Lớp học</th>
-                            <th>Ngày chốt</th>
                             <th>Trạng thái</th>
                             <th>Hồ sơ nhập học</th>
                             <th class="text-right">Thao tác</th>
@@ -103,22 +59,22 @@
                                         <x-ui.avatar :name="$enrollment->student?->name ?? '?'" size="sm" />
                                         <div>
                                             <a href="{{ route('crm.customers.show', $enrollment->customer_id) }}" class="font-body-medium text-body-medium text-on-surface hover:text-primary">{{ $enrollment->student?->name }}</a>
-                                            <div class="font-code text-caption text-on-surface-variant">{{ $enrollment->student?->code }}</div>
+                                            <div class="font-code text-caption text-on-surface-variant">{{ $enrollment->student?->phone ?? $enrollment->customer?->phone }}</div>
+                                            <div class="font-code text-[10px] text-on-surface-variant/70"><x-ui.code :value="$enrollment->student?->code" /></div>
                                         </div>
                                     </div>
                                 </td>
-                                <td class="whitespace-nowrap font-code text-code text-on-surface-variant">{{ $enrollment->student?->phone ?? $enrollment->customer?->phone }}</td>
-                                <td class="whitespace-nowrap text-on-surface-variant">{{ $enrollment->classModel?->branch?->name ?? '—' }}</td>
-                                <td class="whitespace-nowrap">
+                                <td class="min-w-[180px]">
                                     <div class="font-body-medium text-body-medium text-on-surface">{{ $enrollment->classModel?->name ?? '—' }}</div>
+                                    <div class="font-caption text-caption text-on-surface-variant">{{ $enrollment->classModel?->branch?->name ?? '—' }}</div>
                                     <div class="font-code text-caption text-on-surface-variant">Lớp ID: {{ $enrollment->classModel?->code ?? '—' }}
                                         · {{ \App\Services\Students\ClassStartActivation::classHasStarted($enrollment->classModel) || $enrollment->classModel?->status === 'completed' ? 'Đã khai giảng' : 'Sắp khai giảng'.($enrollment->classModel?->start_date ? ' '.$enrollment->classModel->start_date->format('d/m/Y') : '') }}</div>
                                 </td>
-                                <td class="whitespace-nowrap font-code text-code text-on-surface-variant">{{ ($enrollment->customer?->converted_at ?? $enrollment->enrolled_at)?->format('d/m/Y') ?? '—' }}</td>
                                 <td class="whitespace-nowrap">
                                     @if ($enrollment->student)
                                         <x-ui.badge :color="$enrollment->student->status === 'studying' ? 'success' : 'warning'" pill>{{ $enrollment->student->status_label }}</x-ui.badge>
                                     @endif
+                                    <div class="mt-xs font-caption text-caption text-on-surface-variant">Chốt: {{ ($enrollment->customer?->converted_at ?? $enrollment->enrolled_at)?->format('d/m/Y') ?? '—' }}</div>
                                 </td>
                                 @if ($enrollment->confirmed_at)
                                     <td>
@@ -130,7 +86,7 @@
                                     </td>
                                 @else
                                     <td>
-                                        <form id="confirm-{{ $enrollment->id }}" method="POST" action="{{ route('crm.enrollments.confirm', $enrollment) }}" class="flex flex-col gap-xs font-body-small text-body-small">
+                                        <form id="confirm-{{ $enrollment->id }}" method="POST" action="{{ route('crm.enrollments.confirm', $enrollment) }}" class="flex min-w-[190px] flex-col gap-xs font-body-small text-body-small">
                                             @csrf
                                             @foreach (\App\Models\ClassEnrollment::CONFIRMATION_CHECKLIST as $field => $label)
                                                 <label class="flex items-center gap-sm">
@@ -143,7 +99,7 @@
                                         @if ($enrollment->student?->user)
                                             <form method="POST" action="{{ route('crm.enrollments.reset-account', $enrollment) }}" class="mt-xs flex flex-wrap items-center gap-xs font-caption text-caption text-on-surface-variant">
                                                 @csrf
-                                                <span>Tài khoản: <span class="font-code">{{ $enrollment->student->user->email }}</span></span>
+                                                <span class="flex min-w-0 max-w-[240px] items-center gap-xs">Tài khoản: <span class="truncate font-code" title="{{ $enrollment->student->user->email }}">{{ $enrollment->student->user->email }}</span></span>
                                                 <button type="submit" class="font-semibold text-primary hover:underline">Cấp mật khẩu tạm</button>
                                             </form>
                                         @endif
@@ -153,7 +109,7 @@
                                             {{-- Thẻ <button> thường: @js không biên dịch trong thuộc tính của Blade component. --}}
                                             <button type="button"
                                                     @click="confirmForm = @js('confirm-'.$enrollment->id); confirmName = @js($enrollment->student?->name ?? ''); $dispatch('open-modal', 'confirm-official')"
-                                                    class="inline-flex items-center gap-xs rounded-lg bg-primary-container px-sm py-xs font-body-medium text-body-small text-white shadow-sm hover:bg-primary">
+                                                    class="inline-flex items-center gap-xs whitespace-nowrap rounded-lg bg-primary-container px-sm py-xs font-body-medium text-body-small text-white shadow-sm hover:bg-primary">
                                                 <span class="material-symbols-outlined text-[16px]">verified_user</span>Xác nhận chính thức
                                             </button>
                                             <x-ui.button type="submit" form="confirm-{{ $enrollment->id }}" name="action" value="save" size="sm" variant="ghost">Lưu tiến độ</x-ui.button>
@@ -162,7 +118,7 @@
                                 @endif
                             </tr>
                         @empty
-                            <tr><td colspan="8"><x-ui.empty-state icon="verified_user" :title="$status === 'confirmed' ? 'Chưa có học viên được xác nhận' : 'Không có học viên chờ xác nhận'" /></td></tr>
+                            <tr><td colspan="5"><x-ui.empty-state icon="verified_user" :title="$status === 'confirmed' ? 'Chưa có học viên được xác nhận' : 'Không có học viên chờ xác nhận'" /></td></tr>
                         @endforelse
                     </tbody>
                 </table>

@@ -30,13 +30,7 @@ class AdminNotificationController extends Controller
 
         // Phân quyền hiển thị thông báo theo luồng
         if ($user) {
-            if ($isGlobalViewer) {
-                $query->where(function ($q) use ($user) {
-                    $q->whereNull('user_id')->orWhere('user_id', $user->id);
-                });
-            } else {
-                $query->where('user_id', $user->id);
-            }
+            $query->forRecipient($user);
         }
 
         if ($type = $request->input('type')) {
@@ -51,13 +45,7 @@ class AdminNotificationController extends Controller
 
         $baseQuery = AdminNotification::query();
         if ($user) {
-            if ($isGlobalViewer) {
-                $baseQuery->where(function ($q) use ($user) {
-                    $q->whereNull('user_id')->orWhere('user_id', $user->id);
-                });
-            } else {
-                $baseQuery->where('user_id', $user->id);
-            }
+            $baseQuery->forRecipient($user);
         }
 
         $stats = [

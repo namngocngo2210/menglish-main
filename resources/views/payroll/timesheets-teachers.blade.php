@@ -11,8 +11,9 @@
     <div x-data="{
             selected: [],
             pendingIds: @js($pendingOnPage),
-            edit: { action: '', timeIn: '', timeOut: '', label: '' },
-            reject: { action: '', label: '' },
+            {{-- Sau lỗi validate, modal mở lại (:show) nên phải khôi phục action/nhãn, nếu không form gửi về URL rỗng. --}}
+            edit: { action: @js(old('_modal_action', '')), timeIn: @js(old('time_in', '')), timeOut: @js(old('time_out', '')), label: @js(old('_modal_label', '')) },
+            reject: { action: @js(old('_modal_action', '')), label: @js(old('_modal_label', '')) },
             toggleAll(e) { this.selected = e.target.checked ? [...this.pendingIds] : []; },
          }">
         <x-ui.page-header :title="$canViewAll ? 'Chi tiết chấm công giáo viên' : 'Chấm công của tôi'"
@@ -22,7 +23,7 @@
                     <x-ui.button variant="secondary" icon="sync" :href="route('payroll.timesheets.sync-history')">Lịch sử đồng bộ</x-ui.button>
                 @endcan
                 @if ($canAdjust)
-                    <x-ui.button icon="timer" :href="route('payroll.timesheets.manual')">Chấm công thủ công</x-ui.button>
+                    <x-ui.button variant="secondary" icon="timer" :href="route('payroll.timesheets.manual')">Chấm công thủ công</x-ui.button>
                 @endif
             </x-slot:actions>
         </x-ui.page-header>
@@ -105,7 +106,7 @@
                                     @if (! ($sts && $sts->status === 'valid') && $canReview && ! $session->date->isFuture() && ! \App\Models\PayrollPeriod::isLockedFor($session->date))
                                         <form method="POST" action="{{ route('payroll.timesheets.sessions.confirm', $session->id) }}">
                                             @csrf
-                                            <x-ui.button type="submit" size="sm" icon="check">Xác nhận</x-ui.button>
+                                            <x-ui.button type="submit" size="sm" variant="secondary" icon="check">Xác nhận</x-ui.button>
                                         </form>
                                     @endif
                                 </td>
@@ -153,7 +154,8 @@
                         @csrf
                         <template x-for="id in selected" :key="id"><input type="hidden" name="ids[]" :value="id"></template>
                         <x-ui.button type="submit" icon="task_alt" x-bind:disabled="selected.length === 0">
-                            Chốt bảng công (<span x-text="selected.length">0</span>)
+                            {{-- Chỉ "Chốt bảng công" là nút chính; chưa chọn ca nào thì khóa và không hiện "(0)" --}}
+                            Chốt bảng công<span x-show="selected.length > 0" x-cloak>&nbsp;(<span x-text="selected.length">0</span>)</span>
                         </x-ui.button>
                     </form>
                 @endif
@@ -237,11 +239,11 @@
                                                 <x-ui.button type="submit" name="decision" value="valid" variant="ghost" size="sm" icon="check">Duyệt</x-ui.button>
                                             </form>
                                             <x-ui.button variant="danger-text" size="sm" icon="close"
-                                                         x-on:click="reject = { action: '{{ route('payroll.timesheets.review', $ts->id) }}', label: @js(($ts->teacher?->name ?? '').' — '.$ts->teaching_date->format('d/m/Y')) }; $dispatch('open-modal', 'ts-reject')">Từ chối</x-ui.button>
+                                                         x-on:click="reject = { action: '{{ route('payroll.timesheets.review', $ts->id) }}', label: {{ \Illuminate\Support\Js::from(($ts->teacher?->name ?? '').' — '.$ts->teaching_date->format('d/m/Y')) }} }; $dispatch('open-modal', 'ts-reject')">Từ chối</x-ui.button>
                                         @endif
                                         @if ($canAdjust)
                                             <x-ui.button variant="ghost" size="sm" icon="edit" aria-label="Chỉnh tay bổ sung"
-                                                         x-on:click="edit = { action: '{{ route('payroll.timesheets.adjust', $ts->id) }}', timeIn: @js($ts->checkin_time ?? ''), timeOut: @js($ts->display_checkout ?? ''), label: @js(($ts->teacher?->name ?? '').' — '.($ts->classModel?->code ?? '').' — '.$ts->teaching_date->format('d/m/Y')) }; $dispatch('open-modal', 'ts-adjust')" />
+                                                         x-on:click="edit = { action: '{{ route('payroll.timesheets.adjust', $ts->id) }}', timeIn: {{ \Illuminate\Support\Js::from($ts->checkin_time ?? '') }}, timeOut: {{ \Illuminate\Support\Js::from($ts->display_checkout ?? '') }}, label: {{ \Illuminate\Support\Js::from(($ts->teacher?->name ?? '').' — '.($ts->classModel?->code ?? '').' — '.$ts->teaching_date->format('d/m/Y')) }} }; $dispatch('open-modal', 'ts-adjust')" />
                                         @endif
                                     @endif
                                 </div>
@@ -291,6 +293,8 @@
                 <form method="POST" :action="edit.action" id="ts-adjust-form" class="space-y-md">
                     @csrf
                     @method('PUT')
+                    <input type="hidden" name="_modal_action" :value="edit.action">
+                    <input type="hidden" name="_modal_label" :value="edit.label">
                     <p class="font-body-small text-body-small text-on-surface-variant" x-text="edit.label"></p>
                     <x-ui.alert type="info">Ca sau khi chỉnh chuyển về <strong>Chờ đối soát</strong>. Kỳ lương đã chốt thì không thể chỉnh sửa.</x-ui.alert>
                     <div class="grid grid-cols-2 gap-md">
@@ -311,6 +315,8 @@
                 <form method="POST" :action="reject.action" id="ts-reject-form" class="space-y-md">
                     @csrf
                     <input type="hidden" name="decision" value="invalid">
+                    <input type="hidden" name="_modal_action" :value="reject.action">
+                    <input type="hidden" name="_modal_label" :value="reject.label">
                     <p class="font-body-small text-body-small text-on-surface-variant" x-text="reject.label"></p>
                     <x-ui.textarea name="rejection_reason" label="Lý do từ chối" required rows="3" placeholder="VD: Không có buổi học trên lịch, trùng ca đã chấm..." />
                 </form>

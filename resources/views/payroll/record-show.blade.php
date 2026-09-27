@@ -238,7 +238,9 @@
                                 @empty
                                     <p class="font-body-small text-body-small text-on-surface-variant">Chưa có đánh giá KPI tháng {{ $period->month }}/{{ $period->year }} được chốt.</p>
                                 @endforelse
+                                @can('kpi.view')
                                 <x-ui.button variant="ghost" size="sm" icon="open_in_new" :href="route('kpi.evaluate', ['userId' => $record->user_id, 'month' => $period->month, 'year' => $period->year])">Chốt / xem đánh giá KPI tháng</x-ui.button>
+                                @endcan
                             </div>
                         </details>
                     @endif

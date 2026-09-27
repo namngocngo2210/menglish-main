@@ -112,6 +112,26 @@ class Phase2AttendanceTest extends TestCase
         $this->assertSame(3, StudentAttendance::count());
     }
 
+    public function test_attendance_and_remarks_open_latest_unattended_session_when_none_today(): void
+    {
+        // Hôm nay (07/10) lớp không có buổi: trang mở buổi mà ô chọn đang hiện, không báo "không có buổi".
+        $older = $this->makeSession('2026-10-03');
+        $done = $this->makeSession('2026-10-06');
+        StudentAttendance::create(['class_id' => $this->classModel->id, 'class_session_id' => $done->id, 'student_id' => $this->student->id,
+            'user_id' => $this->teacher->id, 'session_date' => '2026-10-06', 'status' => 'present']);
+
+        $this->actingAs($this->teacher)->get(route('teacher.attendance', $this->classModel->id))->assertOk()
+            ->assertViewHas('session', fn ($s) => $s?->id === $older->id)
+            ->assertDontSee('Lớp không có buổi học trong ngày này')->assertSee($this->student->name);
+        $this->actingAs($this->teacher)->get(route('teacher.remarks', $this->classModel->id))->assertOk()
+            ->assertViewHas('session', fn ($s) => $s?->id === $done->id)
+            ->assertDontSee('Lớp không có buổi học trong ngày này');
+
+        // Chọn một ngày không có buổi: vẫn báo trống và ô chọn hiện "— Chọn buổi —".
+        $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'date' => '2026-10-04']))->assertOk()
+            ->assertViewHas('session', null)->assertSee('— Chọn buổi —');
+    }
+
     public function test_cancelled_future_and_foreign_sessions_are_rejected(): void
     {
         $cancelled = $this->makeSession('2026-10-06', status: 'cancelled');

@@ -30,20 +30,6 @@
                     </div>
                 </x-slot:meta>
             @endif
-            @if ($session && ! $blockReason)
-                <x-slot:actions>
-                    <div class="flex items-center gap-sm rounded-lg border px-md py-sm {{ $window === 'closed' ? 'border-warning/30 bg-warning-container' : 'border-tertiary/30 bg-tertiary-fixed/20' }}" data-testid="attendance-window">
-                        <span class="relative flex h-3 w-3">
-                            @if ($window !== 'closed')<span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-tertiary-container opacity-60"></span>@endif
-                            <span class="relative inline-flex h-3 w-3 rounded-full {{ $window === 'closed' ? 'bg-warning' : 'bg-tertiary-container' }}"></span>
-                        </span>
-                        <div>
-                            <div class="font-body-medium text-body-medium text-on-surface">{{ $window === 'closed' ? 'Ngoài cửa sổ 24h — điểm danh bù' : 'Đang trong cửa sổ điểm danh' }}</div>
-                            <div class="font-caption text-caption text-on-surface-variant">Quy định: Buổi học ±24 giờ{{ $window === 'closed' ? ' · Học vụ sẽ rà soát' : '' }}</div>
-                        </div>
-                    </div>
-                </x-slot:actions>
-            @endif
         </x-ui.page-header>
 
         @if ($session && ! $blockReason && $students->isNotEmpty())
@@ -66,6 +52,10 @@
             <form method="GET" action="{{ route('teacher.attendance', $class->id) }}" class="flex flex-col gap-sm rounded-xl border border-outline-variant bg-surface-container-lowest p-md sm:flex-row sm:items-center">
                 <label for="session-picker" class="shrink-0 font-label-caps text-label-caps uppercase text-on-surface-variant">Buổi điểm danh</label>
                 <x-ui.select id="session-picker" name="session" onchange="this.form.submit()" class="flex-1">
+                    @unless ($session)
+                        {{-- Chưa chọn buổi: ô chọn để trống thay vì hiện buổi đầu danh sách mà trang không mở. --}}
+                        <option value="" selected disabled>— Chọn buổi —</option>
+                    @endunless
                     @foreach ($recentSessions as $s)
                         <option value="{{ $s->id }}" @selected($session && $session->id === $s->id) @disabled($s->status === 'cancelled')>
                             {{ $s->date->format('d/m/Y') }} · {{ $s->start_time?->format('H:i') }}-{{ $s->end_time?->format('H:i') }}
@@ -95,19 +85,32 @@
                     Bạn đang điểm danh thay {{ $session->teacher?->name ?? $class->teacher?->name ?? 'giáo viên của lớp' }}. Hệ thống ghi nhận bạn là người lưu điểm danh.
                 </x-ui.alert>
             @endif
-            @if ($session->date->isBefore(today()))
-                <x-ui.alert type="warning">Điểm danh bù cho buổi đã qua ngày {{ $session->date->format('d/m/Y') }}.</x-ui.alert>
-            @endif
-
-            <x-ui.alert type="info" title="Quy tắc nghiệp vụ điểm danh dành cho Giáo viên:">
+            {{-- Gộp cửa sổ ±24h, "điểm danh bù" và quy định thành một dòng; quy định mở khi cần. --}}
+            <details class="group rounded-lg border {{ $window === 'closed' ? 'border-warning/30 bg-warning-container' : 'border-tertiary/30 bg-tertiary-fixed/20' }}" data-testid="attendance-window">
+                <summary class="flex cursor-pointer list-none flex-wrap items-center gap-x-sm gap-y-xs px-md py-sm [&::-webkit-details-marker]:hidden">
+                    <span class="relative flex h-3 w-3 shrink-0">
+                        @if ($window !== 'closed')<span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-tertiary-container opacity-60"></span>@endif
+                        <span class="relative inline-flex h-3 w-3 rounded-full {{ $window === 'closed' ? 'bg-warning' : 'bg-tertiary-container' }}"></span>
+                    </span>
+                    <span class="font-body-medium text-body-medium text-on-surface">{{ $window === 'closed' ? 'Ngoài cửa sổ 24h — điểm danh bù' : 'Đang trong cửa sổ điểm danh' }}</span>
+                    <span class="font-caption text-caption text-on-surface-variant">
+                        Quy định: Buổi học ±24 giờ{{ $window === 'closed' ? ' · Học vụ sẽ rà soát' : '' }}@if ($session->date->isBefore(today())) · Điểm danh bù cho buổi đã qua ngày {{ $session->date->format('d/m/Y') }}@endif
+                    </span>
+                    <span class="ml-auto inline-flex items-center gap-xs font-caption text-caption font-semibold text-primary">
+                        Xem quy định<span class="material-symbols-outlined text-[16px] transition-transform group-open:rotate-180" aria-hidden="true">expand_more</span>
+                    </span>
+                </summary>
+                <div class="border-t border-outline-variant/60 px-md py-sm font-body-small text-body-small text-on-surface-variant">
+                    <p class="mb-xs font-semibold text-on-surface">Quy tắc nghiệp vụ điểm danh dành cho Giáo viên:</p>
                 <ul class="list-disc space-y-xs pl-md">
                     <li>Người điểm danh được ghi nhận tự động theo tài khoản đang đăng nhập (GV chính/GVNN/Trợ giảng).</li>
                     <li>Khi chọn <strong>"Nghỉ có phép"</strong> hoặc <strong>"Nghỉ không phép"</strong>, ô <strong>Ghi chú là bắt buộc</strong> để lưu trữ lý do vắng học của học viên.</li>
                     <li>Trong cửa sổ ±24h, giáo viên có thể cập nhật lại nhiều lần; ngoài cửa sổ vẫn điểm danh bù được, Học vụ sẽ rà soát.</li>
                 </ul>
-            </x-ui.alert>
+                </div>
+            </details>
 
-            <form method="POST" action="{{ route('teacher.attendance.store', $class->id) }}" class="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
+            <form method="POST" action="{{ route('teacher.attendance.store', $class->id) }}" class="rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
                 @csrf
                 <input type="hidden" name="class_session_id" value="{{ $session->id }}">
                 <div class="flex flex-col justify-between gap-sm border-b border-surface-container p-md sm:flex-row sm:items-center">
@@ -159,8 +162,9 @@
                     @endforeach
                 </div>
 
-                <div class="flex flex-col justify-between gap-sm border-t border-surface-container bg-surface-container-low p-md sm:flex-row sm:items-center">
-                    <p class="font-caption text-caption text-on-surface-variant">Phiếu điểm danh sẽ được ghi đè (upsert) cập nhật trực tiếp cho buổi học này. Học viên vắng tự vào danh sách bổ trợ.</p>
+                {{-- Điện thoại: thanh lưu bám ngay trên thanh điều hướng dưới, không phải cuộn hết danh sách. --}}
+                <div class="sticky bottom-[72px] z-20 flex flex-col justify-between gap-sm border-t border-surface-container bg-surface-container-low p-md shadow-level-3 sm:flex-row sm:items-center md:static md:shadow-none">
+                    <p class="hidden font-caption text-caption text-on-surface-variant sm:block">Phiếu điểm danh sẽ được ghi đè (upsert) cập nhật trực tiếp cho buổi học này. Học viên vắng tự vào danh sách bổ trợ.</p>
                     <x-ui.button type="submit" icon="save" class="w-full sm:w-auto">Lưu điểm danh</x-ui.button>
                 </div>
             </form>

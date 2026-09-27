@@ -37,7 +37,8 @@ class NotificationService
      * - Khách "Mới" quá 24h chưa được tiếp nhận (stale_lead_24h — giữ hành vi cũ, mỗi khách 1 lần).
      * - Khách đang chăm sóc (Đang tư vấn → Gửi kết quả; không gồm Chờ xếp lớp / Đã chốt / Thất bại)
      *   không có hoạt động nào trong N ngày (stale_lead_care). Cảnh báo lại nếu sau đó có hoạt động rồi lại bị bỏ quên.
-     * Mỗi cảnh báo gửi cho Admin / Quản lý (thông báo chung) và thông báo cá nhân cho Sales phụ trách.
+     * Mỗi cảnh báo gửi cho Admin / Quản lý (thông báo chung — chỉ người xem được khách theo chi nhánh mới thấy, xem
+     * AdminNotification::scopeForRecipient) và thông báo cá nhân cho Sales phụ trách.
      */
     public function scanAndSyncStaleLeads(): int
     {
@@ -85,6 +86,7 @@ class NotificationService
                 'idle_days' => $idleDays,
                 'last_activity_at' => $marker,
                 'assigned_user' => $lead->assignedUser?->name ?? 'Chưa phân công',
+                'branch_id' => $lead->branch_id,
                 'link' => route('crm.customers.show', $lead->id),
             ];
 
@@ -144,6 +146,7 @@ class NotificationService
                         'customer_phone' => $lead->phone,
                         'hours_elapsed' => $hoursElapsed,
                         'assigned_user' => $lead->assignedUser?->name ?? 'Chưa phân công',
+                        'branch_id' => $lead->branch_id,
                         'link' => route('crm.customers.show', $lead->id),
                     ]
                 );
@@ -195,15 +198,7 @@ class NotificationService
         }
 
         $query = AdminNotification::where('is_read', false);
-        $isGlobalViewer = self::seesSystemNotifications($user);
-
-        if ($isGlobalViewer) {
-            $query->where(function ($q) use ($user) {
-                $q->whereNull('user_id')->orWhere('user_id', $user->id);
-            });
-        } else {
-            $query->where('user_id', $user->id);
-        }
+        $query->forRecipient($user);
 
         return $query->count();
     }
@@ -222,17 +217,7 @@ class NotificationService
 
         // Việc quét stale lead chỉ chạy qua command định kỳ (crm:scan-stale-leads),
         // không tự chạy khi đọc danh sách thông báo để tránh query + email lặp lại.
-        $isGlobalViewer = self::seesSystemNotifications($user);
-
-        $query = AdminNotification::latest();
-
-        if ($isGlobalViewer) {
-            $query->where(function ($q) use ($user) {
-                $q->whereNull('user_id')->orWhere('user_id', $user->id);
-            });
-        } else {
-            $query->where('user_id', $user->id);
-        }
+        $query = AdminNotification::latest()->forRecipient($user);
 
         return $query->take($limit)->get();
     }
@@ -606,13 +591,7 @@ class NotificationService
 
         $query = AdminNotification::where('is_read', false);
 
-        if ($user->can('notification.view_system')) {
-            $query->where(function ($q) use ($user) {
-                $q->whereNull('user_id')->orWhere('user_id', $user->id);
-            });
-        } else {
-            $query->where('user_id', $user->id);
-        }
+        $query->forRecipient($user);
 
         return $query->update([
             'is_read' => true,

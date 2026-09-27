@@ -3,7 +3,9 @@
 <x-app-layout>
     <x-ui.page-header title="Trung Tâm Hỗ Trợ & Xử Lý Yêu Cầu (Tickets)" icon="confirmation_number">
         <x-slot:actions>
-            <x-ui.button variant="secondary" icon="settings" :href="route('system-config.ticket-emails')">Cấu hình Email nhận</x-ui.button>
+            @can('support_ticket.update')
+                <x-ui.button variant="secondary" icon="settings" :href="route('system-config.ticket-emails')">Cấu hình Email nhận</x-ui.button>
+            @endcan
             <x-ui.button icon="add_circle" :href="route('tickets.create')" modal="2xl">Tạo Ticket Mới</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>

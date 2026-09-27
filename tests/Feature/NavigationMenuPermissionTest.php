@@ -56,6 +56,36 @@ class NavigationMenuPermissionTest extends TestCase
         $this->assertSame([], $failures, "Menu hiển thị link bị chặn quyền:\n".implode("\n", $failures));
     }
 
+    public function test_dashboard_tiles_and_cards_only_link_to_accessible_pages(): void
+    {
+        // Thẻ số liệu + ô "Các phân hệ" trên Tổng quan lọc theo quyền route như sidebar (không dẫn tới 403).
+        $failures = [];
+        $base = rtrim(url('/'), '/');
+
+        foreach (array_keys(config('access.roles')) as $role) {
+            if ($role === 'student') {
+                continue; // Học viên được chuyển sang cổng học viên.
+            }
+            $user = $this->makeUser($role);
+            $html = $this->actingAs($user)->get(route('dashboard'))->assertOk()->getContent();
+            $start = strpos($html, '<main');
+            $main = substr($html, $start, strpos($html, '</main>', $start) - $start);
+            preg_match_all('/<a\s[^>]*href="([^"]+)"/', $main, $matches);
+
+            foreach (array_unique($matches[1]) as $href) {
+                $href = html_entity_decode($href);
+                if (! str_starts_with($href, $base)) {
+                    continue;
+                }
+                if ($this->actingAs($user)->get($href)->getStatusCode() === 403) {
+                    $failures[] = "{$role}: {$href} => 403";
+                }
+            }
+        }
+
+        $this->assertSame([], $failures, "Tổng quan hiển thị link bị chặn quyền:\n".implode("\n", $failures));
+    }
+
     public function test_quick_create_links_are_accessible_for_each_seeded_role(): void
     {
         $menu = app(SidebarMenu::class);

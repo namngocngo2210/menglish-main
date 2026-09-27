@@ -168,8 +168,10 @@ class SupportTicketController extends Controller
             'is_internal_note' => $request->boolean('is_internal_note'),
         ]);
 
-        // Nếu ticket đang ở trạng thái open mà có phản hồi, chuyển sang in_progress
-        if ($ticket->status === 'open') {
+        // Người xử lý (không phải người tạo) phản hồi → "Đang xử lý"; người tạo trả lời ticket đã giải quyết
+        // → mở lại để người xử lý thấy.
+        $byCreator = (int) Auth::id() === (int) $ticket->creator_id;
+        if (($ticket->status === 'open' && ! $byCreator) || ($ticket->status === 'resolved' && $byCreator && ! $msg->is_internal_note)) {
             $ticket->update(['status' => 'in_progress']);
         }
 

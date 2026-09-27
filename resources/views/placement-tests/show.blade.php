@@ -22,7 +22,9 @@
             <x-ui.button size="sm" icon="open_in_new" :href="route('portal.test.take', $test->code)" target="_blank">Cổng làm bài</x-ui.button>
 
             @if (!$test->is_preset)
-                <x-ui.button variant="success" size="sm" icon="edit" :href="route('placement-tests.edit', $test->id)">Sửa đề</x-ui.button>
+                @can('placement_test.update')
+                    <x-ui.button variant="success" size="sm" icon="edit" :href="route('placement-tests.edit', $test->id)">Sửa đề</x-ui.button>
+                @endcan
             @endif
         </x-slot:actions>
     </x-ui.page-header>
@@ -92,7 +94,9 @@
                             <td class="text-right whitespace-nowrap">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <x-ui.button variant="secondary" size="sm" icon="description" :href="\Illuminate\Support\Facades\URL::signedRoute('portal.test.scorecard', ['id' => $sub->id])" target="_blank">Phiếu điểm</x-ui.button>
-                                    <x-ui.button variant="ghost" size="sm" icon="edit_note" :href="route('placement-tests.results.show', $sub->id)">{{ $sub->isPending() ? 'Chấm bài' : 'Chấm lại' }}</x-ui.button>
+                                    @can('placement_test.grade')
+                                        <x-ui.button variant="ghost" size="sm" icon="edit_note" :href="route('placement-tests.results.show', $sub->id)">{{ $sub->isPending() ? 'Chấm bài' : 'Chấm lại' }}</x-ui.button>
+                                    @endcan
                                 </div>
                             </td>
                         </tr>

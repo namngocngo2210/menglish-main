@@ -53,18 +53,18 @@
                                 @if ($matches->isNotEmpty())
                                     <form action="{{ route('crm.customers.assign-class', $lead->id) }}" method="POST" class="inline-flex items-center justify-end gap-sm">
                                         @csrf
-                                        <x-ui.select name="class_id" value="" required aria-label="Lớp gán cho {{ $lead->name }}" class="max-w-[320px] font-body-small text-body-small">
+                                        <x-ui.select name="class_id" value="" placeholder="— Chọn lớp —" required aria-label="Lớp xếp cho {{ $lead->name }}" class="max-w-[320px] font-body-small text-body-small">
                                             @foreach ($matches as $class)
                                                 <option value="{{ $class->id }}">{{ $class->name }}{{ $class->status === 'upcoming' ? ' (sắp khai giảng)' : '' }} · còn {{ $class->max_capacity > 0 ? max(0, $class->max_capacity - $class->active_enrollments_count) : '∞' }} chỗ{{ $class->status === 'upcoming' && $class->active_enrollments_count < (int) $class->min_students ? ' · cần thêm '.((int) $class->min_students - $class->active_enrollments_count).' HV để khai giảng' : '' }}</option>
                                             @endforeach
                                         </x-ui.select>
-                                        <x-ui.button type="submit" size="sm" icon="assignment_turned_in">Gán lớp</x-ui.button>
+                                        <x-ui.button type="submit" size="sm" icon="assignment_turned_in">Xếp lớp</x-ui.button>
                                     </form>
                                 @else
                                     <span class="font-body-small text-body-small font-semibold text-warning">Chưa có lớp phù hợp</span>
                                 @endif
                             @else
-                                <span class="font-body-small text-body-small text-on-surface-variant">Học vụ sẽ gán lớp</span>
+                                <span class="font-body-small text-body-small text-on-surface-variant">Học vụ sẽ xếp lớp</span>
                             @endcan
                         </td>
                     </tr>

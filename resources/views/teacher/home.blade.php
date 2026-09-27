@@ -105,91 +105,17 @@
             @endif
         </section>
 
-        {{-- ─── Thẻ tổng quan ─── --}}
-        <div class="grid grid-cols-1 gap-lg md:grid-cols-2">
-            <div class="{{ $card }} flex flex-col" data-testid="widget-attention">
-                <div class="mb-md flex items-center justify-between">
-                    <h3 class="font-h3 text-h3 text-on-surface">Học sinh cần chú ý</h3>
-                    <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">priority_high</span>
-                </div>
-                <div class="flex-1 space-y-sm">
-                    @forelse ($widgets['attention'] as $score)
-                        <div class="rounded border border-error-container/60 bg-error-container/20 p-sm">
-                            <p class="font-body-medium text-body-medium text-on-surface">{{ $score->student?->name }}</p>
-                            <p class="font-caption text-caption text-on-surface-variant">
-                                {{ $score->classModel?->name }} • {{ $score->name }} • Điểm: <span class="font-bold text-error">{{ rtrim(rtrim(number_format((float) $score->score, 2, '.', ''), '0'), '.') }}/{{ rtrim(rtrim(number_format((float) $score->max_score, 2, '.', ''), '0'), '.') }}</span>
-                            </p>
-                        </div>
-                    @empty
-                        <p class="font-body-small text-body-small text-on-surface-variant">Không có học sinh nào dưới mục tiêu trong 30 ngày qua.</p>
-                    @endforelse
-                    <p class="font-caption text-caption italic text-on-surface-variant">* Danh sách học sinh có kết quả Mini Test dưới mục tiêu (dưới 7/10).</p>
-                </div>
-            </div>
-
-            <div class="{{ $card }} flex flex-col" data-testid="widget-salary">
-                <div class="mb-md flex items-center justify-between">
-                    <h3 class="font-h3 text-h3 text-on-surface">Lương tạm tính tháng {{ now()->month }}</h3>
-                    <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">payments</span>
-                </div>
-                <div class="flex flex-1 flex-col justify-center">
-                    @if ($widgets['estimate'] !== null)
-                        <p class="text-[28px] font-bold leading-9 text-primary">{{ number_format($widgets['estimate'], 0, ',', '.') }}đ</p>
-                        <p class="font-caption text-caption text-on-surface-variant">Tính đến ngày {{ now()->format('d/m') }} · {{ rtrim(rtrim(number_format($widgets['hours'], 1, ',', '.'), '0'), ',') }} giờ dạy × đơn giá (chưa gồm phụ cấp, KPI, khấu trừ)</p>
-                    @else
-                        <p class="text-[28px] font-bold leading-9 text-primary">{{ rtrim(rtrim(number_format($widgets['hours'], 1, ',', '.'), '0'), ',') }} giờ</p>
-                        <p class="font-caption text-caption text-on-surface-variant">Giờ dạy đã chấm công tính đến ngày {{ now()->format('d/m') }} — chưa có đơn giá riêng để tạm tính lương.</p>
-                    @endif
-                </div>
-                <x-ui.button variant="secondary" class="mt-md w-full" :href="route('portal.my-salary')">Chi tiết</x-ui.button>
-            </div>
-
-            <div class="{{ $card }} flex flex-col" data-testid="widget-timesheet">
-                <div class="mb-md flex items-center justify-between">
-                    <h3 class="font-h3 text-h3 text-on-surface">Báo cáo chấm công</h3>
-                    <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">assignment_turned_in</span>
-                </div>
-                <p class="flex-1 font-body-base text-body-base text-on-surface-variant">
-                    Kỳ lương {{ now()->format('m/Y') }}: {{ $widgets['timesheets_total'] }} ca đã chấm công, {{ $widgets['timesheets_pending'] }} ca chờ Học vụ duyệt.
-                    Vui lòng kiểm tra giờ dạy trước 23:59 ngày {{ now()->endOfMonth()->format('d/m') }}.
-                    @if ($stats['pending'] > 0)<span class="font-semibold text-error">Còn {{ $stats['pending'] }} buổi chưa điểm danh.</span>@endif
-                </p>
-                <x-ui.button class="mt-md w-full" :href="route('teacher.general-report')">Xem bảng công</x-ui.button>
-            </div>
-
-            <div class="{{ $card }} flex flex-col" data-testid="widget-violations">
-                <div class="mb-md flex items-center justify-between">
-                    <h3 class="font-h3 text-h3 text-on-surface">Vi phạm &amp; Khoản trừ</h3>
-                    <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">gavel</span>
-                </div>
-                <div class="flex flex-1 items-center gap-md">
-                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-4 {{ $widgets['violations']->isEmpty() ? 'border-tertiary text-tertiary' : 'border-error text-error' }}">
-                        <span class="font-bold">{{ $widgets['violations']->count() }}</span>
-                    </div>
-                    <div>
-                        @if ($widgets['violations']->isEmpty())
-                            <p class="font-body-medium text-body-medium text-on-surface">Không có vi phạm trong tháng</p>
-                        @else
-                            @php $latest = $widgets['violations']->first(); @endphp
-                            <p class="font-body-medium text-body-medium text-on-surface">{{ $widgets['violations']->count() }} lỗi vi phạm trong tháng</p>
-                            <p class="font-caption text-caption text-on-surface-variant">{{ $latest->violation_type }} — {{ $latest->violation_date?->format('d/m') }} · {{ $latest->status_label }}</p>
-                        @endif
-                    </div>
-                </div>
-                <x-ui.button variant="secondary" class="mt-md w-full" :href="route('penalties.index')">Xem biên bản</x-ui.button>
-            </div>
-        </div>
-
+        {{-- Thứ tự: việc cần làm (hôm nay, điểm danh bù) lên trước; lương/vi phạm để cuối. --}}
         {{-- ─── Buổi đã qua chưa điểm danh ─── --}}
         @if ($pendingSessions->isNotEmpty())
-            <section class="overflow-hidden rounded-xl border border-error/30 bg-surface-container-lowest shadow-sm">
+            <section class="overflow-hidden rounded-xl border border-error/30 bg-surface-container-lowest shadow-sm" x-data="{ all: false }" data-testid="pending-attendance">
                 <div class="flex items-center gap-sm border-b border-error/20 bg-error-container/30 px-md py-sm">
                     <span class="material-symbols-outlined text-error" aria-hidden="true">pending_actions</span>
-                    <h2 class="font-body-semibold text-body-semibold text-on-error-container">Buổi đã dạy chưa điểm danh (điểm danh bù)</h2>
+                    <h2 class="font-body-semibold text-body-semibold text-on-error-container">Buổi đã dạy chưa điểm danh (điểm danh bù) · {{ $pendingSessions->count() }}</h2>
                 </div>
                 <ul class="divide-y divide-surface-container">
                     @foreach ($pendingSessions as $s)
-                        <li class="flex flex-col justify-between gap-sm px-md py-sm font-body-small text-body-small sm:flex-row sm:items-center">
+                        <li @if ($loop->index >= 3) x-show="all" x-cloak @endif class="flex flex-col justify-between gap-sm px-md py-sm font-body-small text-body-small sm:flex-row sm:items-center">
                             <div>
                                 <span class="font-semibold text-on-surface">{{ $s->classModel?->name }}</span>
                                 <span class="text-on-surface-variant">· {{ $s->date->format('d/m/Y') }} · {{ $s->start_time?->format('H:i') }}-{{ $s->end_time?->format('H:i') }}</span>
@@ -199,6 +125,11 @@
                         </li>
                     @endforeach
                 </ul>
+                @if ($pendingSessions->count() > 3)
+                    <button type="button" x-show="! all" @click="all = true" class="w-full border-t border-surface-container px-md py-sm text-left font-body-small text-body-small font-semibold text-primary hover:underline">
+                        Xem tất cả {{ $pendingSessions->count() }} buổi
+                    </button>
+                @endif
             </section>
         @endif
 
@@ -251,6 +182,80 @@
                 @endforeach
             </div>
         </section>
+
+        {{-- ─── Thẻ tổng quan ─── --}}
+        <div class="grid grid-cols-1 gap-lg md:grid-cols-2">
+            <div class="{{ $card }} flex flex-col" data-testid="widget-attention">
+                <div class="mb-md flex items-center justify-between">
+                    <h3 class="font-h3 text-h3 text-on-surface">Học sinh cần chú ý</h3>
+                    <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">priority_high</span>
+                </div>
+                <div class="flex-1 space-y-sm">
+                    @forelse ($widgets['attention'] as $score)
+                        <div class="rounded border border-error-container/60 bg-error-container/20 p-sm">
+                            <p class="font-body-medium text-body-medium text-on-surface">{{ $score->student?->name }}</p>
+                            <p class="font-caption text-caption text-on-surface-variant">
+                                {{ $score->classModel?->name }} • {{ $score->name }} • Điểm: <span class="font-bold text-error">{{ rtrim(rtrim(number_format((float) $score->score, 2, '.', ''), '0'), '.') }}/{{ rtrim(rtrim(number_format((float) $score->max_score, 2, '.', ''), '0'), '.') }}</span>
+                            </p>
+                        </div>
+                    @empty
+                        <p class="font-body-small text-body-small text-on-surface-variant">Không có học sinh nào dưới mục tiêu trong 30 ngày qua.</p>
+                    @endforelse
+                    <p class="font-caption text-caption italic text-on-surface-variant">* Danh sách học sinh có kết quả Mini Test dưới mục tiêu (dưới 7/10).</p>
+                </div>
+            </div>
+
+            <div class="{{ $card }} flex flex-col" data-testid="widget-salary">
+                <div class="mb-md flex items-center justify-between">
+                    <h3 class="font-h3 text-h3 text-on-surface">Lương tạm tính tháng {{ now()->month }}</h3>
+                    <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">payments</span>
+                </div>
+                <div class="flex flex-1 flex-col justify-center">
+                    @if ($widgets['estimate'] !== null)
+                        <p class="text-[28px] font-bold leading-9 text-primary">{{ number_format($widgets['estimate'], 0, ',', '.') }}đ</p>
+                        <p class="font-caption text-caption text-on-surface-variant">Tính đến ngày {{ now()->format('d/m') }} · {{ rtrim(rtrim(number_format($widgets['hours'], 1, ',', '.'), '0'), ',') }} giờ dạy × đơn giá (chưa gồm phụ cấp, KPI, khấu trừ)</p>
+                    @else
+                        <p class="text-[28px] font-bold leading-9 text-primary">{{ rtrim(rtrim(number_format($widgets['hours'], 1, ',', '.'), '0'), ',') }} giờ</p>
+                        <p class="font-caption text-caption text-on-surface-variant">Giờ dạy đã chấm công tính đến ngày {{ now()->format('d/m') }} — chưa có đơn giá riêng để tạm tính lương.</p>
+                    @endif
+                </div>
+                <x-ui.button variant="secondary" class="mt-md w-full" :href="route('portal.my-salary')">Chi tiết</x-ui.button>
+            </div>
+
+            <div class="{{ $card }} flex flex-col" data-testid="widget-timesheet">
+                <div class="mb-md flex items-center justify-between">
+                    <h3 class="font-h3 text-h3 text-on-surface">Báo cáo chấm công</h3>
+                    <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">assignment_turned_in</span>
+                </div>
+                <p class="flex-1 font-body-base text-body-base text-on-surface-variant">
+                    Kỳ lương {{ now()->format('m/Y') }}: {{ $widgets['timesheets_total'] }} ca đã chấm công, {{ $widgets['timesheets_pending'] }} ca chờ Học vụ duyệt.
+                    Vui lòng kiểm tra giờ dạy trước 23:59 ngày {{ now()->endOfMonth()->format('d/m') }}.
+                </p>
+                <x-ui.button class="mt-md w-full" :href="route('teacher.general-report')">Xem bảng công</x-ui.button>
+            </div>
+
+            <div class="{{ $card }} flex flex-col" data-testid="widget-violations">
+                <div class="mb-md flex items-center justify-between">
+                    <h3 class="font-h3 text-h3 text-on-surface">Vi phạm &amp; Khoản trừ</h3>
+                    <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">gavel</span>
+                </div>
+                <div class="flex flex-1 items-center gap-md">
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-4 {{ $widgets['violations']->isEmpty() ? 'border-tertiary text-tertiary' : 'border-error text-error' }}">
+                        <span class="font-bold">{{ $widgets['violations']->count() }}</span>
+                    </div>
+                    <div>
+                        @if ($widgets['violations']->isEmpty())
+                            <p class="font-body-medium text-body-medium text-on-surface">Không có vi phạm trong tháng</p>
+                        @else
+                            @php $latest = $widgets['violations']->first(); @endphp
+                            <p class="font-body-medium text-body-medium text-on-surface">{{ $widgets['violations']->count() }} lỗi vi phạm trong tháng</p>
+                            <p class="font-caption text-caption text-on-surface-variant">{{ $latest->violation_type }} — {{ $latest->violation_date?->format('d/m') }} · {{ $latest->status_label }}</p>
+                        @endif
+                    </div>
+                </div>
+                <x-ui.button variant="secondary" class="mt-md w-full" :href="route('penalties.index')">Xem biên bản</x-ui.button>
+            </div>
+        </div>
     </div>
 
     @include('teacher.partials.bottom-nav')

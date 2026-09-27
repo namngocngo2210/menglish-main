@@ -193,7 +193,8 @@ class MultiRoleComprehensiveQaTest extends TestCase
                 'password' => 'Password123!',
             ]);
 
-            $response->assertRedirect(route('dashboard'));
+            // Giáo viên vào thẳng Cổng Giáo viên; vai trò khác vào Tổng quan.
+            $response->assertRedirect($email === 'giaovien@menglish.edu.vn' ? route('teacher.home') : route('dashboard'));
             $this->assertAuthenticated();
 
             // Đăng xuất để kiểm tra tài khoản tiếp theo

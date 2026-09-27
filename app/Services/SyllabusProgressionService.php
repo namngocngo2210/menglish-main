@@ -172,11 +172,19 @@ class SyllabusProgressionService
     /** Big Test đã duyệt và gửi đủ: có kết quả, không còn kết quả chưa duyệt, mọi kết quả có điểm đã gửi PH. */
     public function bigTestCompleted(BigTest $test): bool
     {
-        $results = BigTestResult::where('big_test_id', $test->id)->get(['status', 'is_absent']);
+        $results = BigTestResult::where('big_test_id', $test->id)->get(['student_id', 'status', 'is_absent']);
 
-        return $results->isNotEmpty() && $results->every(
+        $allDone = $results->isNotEmpty() && $results->every(
             fn ($r) => $r->status === 'sent' || ($r->is_absent && $r->status === 'approved')
         );
+        if (! $allDone) {
+            return false;
+        }
+
+        // Đủ cả lớp: mọi học viên đang học của lớp phải có kết quả (không đóng chặng khi mới gửi vài em).
+        $rosterIds = $test->classModel?->roster()->pluck('students.id') ?? collect();
+
+        return $rosterIds->diff($results->pluck('student_id'))->isEmpty();
     }
 
     /**

@@ -1,9 +1,11 @@
 <x-app-layout>
-    <x-ui.page-header title="Góp ý chặng học" icon="rate_review" :back="route('portal.student.survey', ['studentId' => $student?->id])">
+    {{-- Trên điện thoại: thanh điều hướng đáy là điều hướng chính, ẩn tiêu đề/nút quay lại và dải tab. --}}
+    <x-ui.page-header class="hidden md:flex" title="Góp ý chặng học" icon="rate_review" :back="route('portal.student.survey', ['studentId' => $student?->id])">
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="assignment" :href="route('portal.student.survey', ['studentId' => $student?->id])">Khảo sát định kỳ</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
+    <x-ui.workspace-tabs class="hidden md:block" />
 
     @php
         $existingData = $lastFeedback?->data ?? [];

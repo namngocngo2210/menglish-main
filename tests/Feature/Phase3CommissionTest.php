@@ -411,8 +411,8 @@ class Phase3CommissionTest extends TestCase
         $this->actingAs($this->admin)->get(route('payroll.kpi-leaderboard', ['month' => 9, 'year' => 2026]))
             ->assertOk()
             ->assertSee('Sale Thực Thu')
-            ->assertSee('7,000,000')
-            ->assertSee('350,000')
+            ->assertSee('7.000.000')
+            ->assertSee('350.000')
             ->assertDontSee('99,000,000');
 
         $this->actingAs($this->admin)->get(route('crm.reports', ['preset' => 'this_month']))

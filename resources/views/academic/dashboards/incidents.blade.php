@@ -59,7 +59,11 @@
                     @foreach ($urgentTickets as $ticket)
                         <tr class="{{ $ticket->priority === 'urgent' ? 'bg-error/5' : '' }}">
                             <td>
-                                <a href="{{ route('tickets.show', $ticket->id) }}" class="font-code font-bold text-on-surface hover:underline">{{ $ticket->code }}</a>
+                                @if (\App\Models\SupportTicket::userCanManage(auth()->user()) || (int) $ticket->creator_id === (int) auth()->id() || (int) $ticket->assignee_id === (int) auth()->id())
+                                    <a href="{{ route('tickets.show', $ticket->id) }}" class="font-code font-bold text-on-surface hover:underline">{{ $ticket->code }}</a>
+                                @else
+                                    <span class="font-code font-bold text-on-surface">{{ $ticket->code }}</span>
+                                @endif
                                 <span class="block text-[11px] text-on-surface-variant">{{ $ticket->creator?->branch?->name ?? 'Chưa cập nhật' }}</span>
                             </td>
                             <td>

@@ -1,9 +1,14 @@
 {{-- Mockup: ui-full-tinh-nang-menglish/hoc-phi-va-hoa-don-ui-mockup/danh-sach-hoc-vien-thu-phi
      "Lập phiếu thu" ở từng dòng → modal 4xl (học viên + khoản nợ chọn sẵn); "Lập phiếu thu mới" (lập tự do) vẫn mở trang riêng.
      Lưu phiếu xong → "tuition-receipts-changed" tải lại #tuition-list (giữ bộ lọc, trang hiện tại). --}}
-<x-app-layout title="Danh sách thu phí">
+<x-app-layout title="Công nợ học viên">
     {{-- Nút "Nhập Excel" / "Lập phiếu thu" nằm ở thanh tab workspace Học phí (SidebarMenu). --}}
-    <x-ui.page-header title="Danh sách học viên đến hạn thu phí" description="Theo dõi và quản lý công nợ học phí của học viên." />
+    {{-- Sổ công nợ: tra cứu mọi khoản học phí. Đôn đốc khoản quá hạn / sắp đến hạn làm ở "Quá hạn & Nhắc phí". --}}
+    <x-ui.page-header title="Công nợ học viên" description="Sổ toàn bộ khoản học phí: đã thu, còn nợ, hạn nộp và trạng thái của từng học viên.">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="notifications_active" :href="route('tuition.overdue')">Xử lý quá hạn &amp; nhắc phí</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <form method="GET" action="{{ route('tuition.students') }}" class="mb-lg grid grid-cols-1 gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md md:grid-cols-12 md:items-end">
         <div class="md:col-span-3">
@@ -20,7 +25,7 @@
             <x-ui.input type="search" name="search" label="Tìm kiếm học sinh" icon="search" :value="request('search')" placeholder="Họ tên hoặc mã học sinh..." />
         </div>
         <div class="flex gap-sm md:col-span-2">
-            <x-ui.button type="submit" icon="filter_list" class="flex-1">Lọc</x-ui.button>
+            <x-ui.button type="submit" variant="secondary" icon="filter_list" class="flex-1">Lọc</x-ui.button>
             @if (request()->hasAny(['branch_id', 'class_id', 'search', 'status', 'type']))
                 <x-ui.button variant="secondary" icon="restart_alt" :href="route('tuition.students')" aria-label="Xóa bộ lọc" />
             @endif
@@ -36,8 +41,6 @@
 
     <div id="tuition-list" class="space-y-xl"
          hx-get="{{ route('tuition.students', request()->query()) }}" hx-trigger="tuition-receipts-changed from:body" hx-select="#tuition-list" hx-swap="outerHTML" hx-disinherit="*">
-        @include('tuition.partials.due-groups')
-
         {{-- Toàn bộ khoản học phí (sổ công nợ) --}}
         <section id="all-tuitions" class="space-y-md">
             <div class="flex flex-wrap items-center gap-sm border-l-4 border-outline pl-sm">
@@ -50,14 +53,13 @@
                                  :options="['paid' => 'Đã hoàn thành', 'partial' => 'Đang nợ (Đã cọc)', 'overdue' => 'Quá hạn', 'unpaid' => 'Chưa nộp']" />
                 </form>
             </div>
-            <x-ui.data-table min-width="1020px">
+            <x-ui.data-table min-width="900px">
                 <table>
                     <thead>
                         <tr>
                             <th>Học viên</th>
-                            <th>Lớp học</th>
+                            <th>Lớp học · Cơ sở</th>
                             <th>Khoản thu</th>
-                            <th>Cơ sở</th>
                             <th class="text-right">Tổng học phí</th>
                             <th class="text-right">Đã nộp</th>
                             <th class="text-right">Còn nợ</th>
@@ -71,11 +73,13 @@
                             <tr>
                                 <td class="whitespace-nowrap">
                                     <div class="font-body-medium">{{ $t->student?->name }}</div>
-                                    <div class="font-code text-caption text-on-surface-variant">{{ $t->student?->code }} · {{ $t->student?->phone }}</div>
+                                    <div class="font-code text-caption text-on-surface-variant"><x-ui.code :value="$t->student?->code" /> · {{ $t->student?->phone }}</div>
                                 </td>
-                                <td class="whitespace-nowrap text-primary">{{ $t->classModel?->name ?? 'Chưa gán lớp' }}</td>
+                                <td>
+                                    <div class="text-primary">{{ $t->classModel?->name ?? 'Chưa gán lớp' }}</div>
+                                    <div class="font-caption text-caption text-on-surface-variant">{{ $t->branch?->name ?? '—' }}</div>
+                                </td>
                                 <td>{{ $t->fee_label }}</td>
-                                <td class="whitespace-nowrap">{{ $t->branch?->name ?? '—' }}</td>
                                 <td class="whitespace-nowrap text-right font-code">{{ number_format((float) $t->final_amount, 0, ',', '.') }}đ</td>
                                 <td class="whitespace-nowrap text-right font-code text-tertiary">{{ number_format((float) $t->paid_amount, 0, ',', '.') }}đ</td>
                                 <td class="whitespace-nowrap text-right font-code {{ $t->debt_amount > 0 ? 'text-error' : 'text-on-surface-variant' }}">{{ number_format((float) $t->debt_amount, 0, ',', '.') }}đ</td>
@@ -84,17 +88,17 @@
                                 <td class="whitespace-nowrap text-right">
                                     @if ($t->debt_amount > 0)
                                         @can('tuition.create')
-                                            <x-ui.button size="sm" icon="payments" :href="route('tuition.receipts.create', ['tuition_id' => $t->id])" modal="4xl">Lập phiếu thu</x-ui.button>
+                                            <x-ui.button size="sm" variant="ghost" icon="payments" :href="route('tuition.receipts.create', ['tuition_id' => $t->id])" modal="4xl" title="Lập phiếu thu" aria-label="Lập phiếu thu" />
                                         @endcan
                                     @else
-                                        <span class="inline-flex items-center gap-xs font-body-small text-body-small text-tertiary">
-                                            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">verified</span> Đã tất toán
+                                        <span class="inline-flex items-center text-tertiary" title="Đã tất toán">
+                                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">verified</span><span class="sr-only">Đã tất toán</span>
                                         </span>
                                     @endif
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="10"><x-ui.empty-state icon="payments" title="Không tìm thấy khoản học phí nào" /></td></tr>
+                            <tr><td colspan="9"><x-ui.empty-state icon="payments" title="Không tìm thấy khoản học phí nào" /></td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -103,5 +107,19 @@
                 </x-slot:footer>
             </x-ui.data-table>
         </section>
+
+        {{-- Nhóm quá hạn / sắp đến hạn: thu gọn, việc đôn đốc chính nằm ở màn "Quá hạn & Nhắc phí". --}}
+        <details class="group rounded-xl border border-outline-variant bg-surface-container-lowest">
+            <summary class="flex cursor-pointer list-none flex-wrap items-center gap-sm p-md">
+                <span class="material-symbols-outlined text-[20px] text-on-surface-variant transition group-open:rotate-90" aria-hidden="true">chevron_right</span>
+                <span class="font-body-medium text-body-medium text-on-surface">Khoản quá hạn &amp; sắp đến hạn</span>
+                <x-ui.badge color="error" pill :dot="false">{{ $overdueTuitions->count() }} quá hạn</x-ui.badge>
+                <x-ui.badge color="warning" pill :dot="false">{{ $upcoming->total() }} sắp đến hạn</x-ui.badge>
+                <a href="{{ route('tuition.overdue') }}" class="ml-auto font-body-small text-body-small text-primary hover:underline">Mở màn Quá hạn &amp; Nhắc phí →</a>
+            </summary>
+            <div class="space-y-xl border-t border-outline-variant p-md">
+                @include('tuition.partials.due-groups')
+            </div>
+        </details>
     </div>
 </x-app-layout>

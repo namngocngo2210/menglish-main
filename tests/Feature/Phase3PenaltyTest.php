@@ -185,6 +185,8 @@ class Phase3PenaltyTest extends TestCase
 
     public function test_payroll_deducts_only_overdue_unpaid_fines(): void
     {
+        // Cố định thời gian trước khi tạo biên bản: updated_at theo giờ thật làm bài test hỏng sau 27/09/2026 10:00.
+        $this->travelTo(Carbon::parse('2026-09-25 09:00:00'));
         $this->teacher->update(['base_salary' => 5000000]);
         $base = ['user_id' => $this->teacher->id, 'violation_type' => 'Đi muộn', 'error_category' => 'operations', 'violation_date' => '2026-09-05'];
         $overdue = Penalty::create($base + ['code' => 'BB-1', 'amount' => 100000, 'status' => 'fined', 'due_date' => '2026-09-20']);

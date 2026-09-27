@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Services\NotificationService;
+use App\Support\DataScope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,6 +30,30 @@ class AdminNotification extends Model
         'is_read' => 'boolean',
         'read_at' => 'datetime',
     ];
+
+    /**
+     * Thông báo user được xem: thông báo cá nhân + thông báo chung (user_id NULL) nếu có quyền xem thông báo hệ thống.
+     * Thông báo chung gắn với một khách CRM (data.customer_id, vd. lead tồn đọng) chỉ hiện khi khách nằm trong phạm vi
+     * dữ liệu CRM của user — tránh link "Xử lý ngay" dẫn tới trang 404 của khách chi nhánh khác.
+     */
+    public function scopeForRecipient(Builder $query, User $user): Builder
+    {
+        if (! NotificationService::seesSystemNotifications($user)) {
+            return $query->where('user_id', $user->id);
+        }
+
+        return $query->where(function (Builder $q) use ($user) {
+            $q->where('user_id', $user->id)
+                ->orWhere(function (Builder $system) use ($user) {
+                    $system->whereNull('user_id');
+                    if (! DataScope::isAll($user, 'lead')) {
+                        $system->where(fn (Builder $c) => $c
+                            ->whereNull('data->customer_id')
+                            ->orWhereIn('data->customer_id', CrmCustomer::query()->visibleTo($user)->select('id')));
+                    }
+                });
+        });
+    }
 
     public function user(): BelongsTo
     {
