@@ -48,7 +48,7 @@
                                 @if ($matches->isNotEmpty())
                                     <form action="{{ route('crm.customers.assign-class', $lead->id) }}" method="POST" class="mt-auto flex flex-col gap-sm">
                                         @csrf
-                                        <x-ui.select name="class_id" value="" required aria-label="Lớp gán cho {{ $lead->name }}" class="font-body-small text-body-small">
+                                        <x-ui.select name="class_id" value="" placeholder="— Chọn lớp —" required aria-label="Lớp gán cho {{ $lead->name }}" class="font-body-small text-body-small">
                                             @foreach ($matches as $class)
                                                 <option value="{{ $class->id }}">{{ $class->name }} · còn {{ $class->max_capacity > 0 ? max(0, $class->max_capacity - $class->active_enrollments_count) : '∞' }} chỗ</option>
                                             @endforeach

@@ -1526,8 +1526,13 @@ class CrmController extends Controller
                 $customer->setAttribute('level_label', $customer->latestSubmission?->finalClass() ?? $customer->course_interest);
                 $customer->setAttribute('level_keys', $this->trialLevelKeywords($customer, $customer->latestSubmission));
             });
-        // Mở từ menu (không có customer_id): lọc lớp / tài khoản nhận tiền theo chi nhánh của khách đang chọn sẵn (khách đầu).
-        $selectedCustomer ??= $customers->first();
+        // Mở từ menu (không có customer_id): không tự chọn khách (dễ chốt nhầm) — trừ khi chỉ có đúng 1 khách.
+        // Người dùng chọn khách → trang tải lại theo customer_id để lọc lớp / tài khoản theo chi nhánh và trình độ.
+        if (! $selectedCustomer && $customers->count() === 1) {
+            $selectedCustomer = $customers->first();
+        }
+        $pickedCustomer = $selectedCustomer ? $customers->firstWhere('id', $selectedCustomer->id) : null;
+        $levelKeys = $pickedCustomer?->level_keys ?? [];
         $branches = Branch::all();
         $courses = Course::where('is_active', true)->get();
         // Lớp đang học + lớp sắp khai giảng (chưa bắt đầu), còn chỗ.
@@ -1545,7 +1550,15 @@ class CrmController extends Controller
                     $class->name, $class->level, $class->course?->name, $class->course?->level?->name,
                 ]))));
             })
+            // Lớp khớp trình độ của khách lên đầu (sortBy giữ nguyên thứ tự khai giảng trong cùng nhóm).
+            ->each(fn (ClassModel $class) => $class->setAttribute('level_match', collect($levelKeys)->contains(fn (string $key) => str_contains($class->level_haystack, $key))))
+            ->sortBy(fn (ClassModel $class) => $class->level_match ? 0 : 1)
             ->values();
+        // Chỉ chọn sẵn lớp khi khớp trình độ; không có thì để trống cho người dùng tự chọn.
+        $defaultClass = $classes->first(fn (ClassModel $class) => $class->level_match);
+        $defaultCourseId = $defaultClass?->course_id
+            ?? ($levelKeys ? Course::where('is_active', true)->get()->first(fn (Course $course) => collect($levelKeys)
+                ->contains(fn (string $key) => str_contains(Str::upper($course->name.' '.$course->code), $key)))?->id : null);
         $bankAccounts = BankAccount::where('is_active', true)
             ->when($selectedCustomer?->branch_id, fn (Builder $query, int $branchId) => $query
                 ->where(fn (Builder $accountQuery) => $accountQuery->where('branch_id', $branchId)->orWhereNull('branch_id')))
@@ -1557,7 +1570,8 @@ class CrmController extends Controller
             ->get();
         $merchandiseItems = MerchandiseItem::active()->orderBy('category')->orderBy('name')->get();
 
-        return view('crm.closing-wizard', compact('customers', 'branches', 'courses', 'classes', 'bankAccounts', 'promotions', 'merchandiseItems'));
+        return view('crm.closing-wizard', compact('customers', 'branches', 'courses', 'classes', 'bankAccounts', 'promotions', 'merchandiseItems',
+            'pickedCustomer', 'defaultClass', 'defaultCourseId'));
     }
 
     public function storePromotion(Request $request)

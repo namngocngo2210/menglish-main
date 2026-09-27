@@ -1,7 +1,9 @@
 <x-app-layout>
     <x-ui.page-header title="Quy trình Chốt & Xếp lớp" description="Chốt khách → tạo học viên, tài khoản, học phí → xếp lớp (hoặc Chờ xếp lớp) → thu phí đăng ký" :back="route('crm.pipeline')">
         <x-slot:actions>
-            <x-ui.button variant="secondary" icon="account_balance" :href="route('system-config.bank-accounts')" target="_blank" title="Cài đặt tài khoản ngân hàng thụ hưởng & SePay">Cài đặt STK &amp; SePay</x-ui.button>
+            @can('bank_account.manage')
+                <x-ui.button variant="secondary" icon="account_balance" :href="route('system-config.bank-accounts')" target="_blank" title="Cài đặt tài khoản ngân hàng thụ hưởng & SePay">Cài đặt STK &amp; SePay</x-ui.button>
+            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -98,10 +100,13 @@
                 <div class="space-y-4">
                     <x-ui.field label="Khách cần chốt" for="closing_customer" :required="true">
                         <x-ui.select id="closing_customer" class="font-bold" x-on:change="updateCustomer($event)">
+                            @unless ($pickedCustomer)
+                                <option value="" selected>— Chọn khách cần chốt —</option>
+                            @endunless
                             @foreach ($customers as $c)
                                 <option
                                     value="{{ $c->id }}" 
-                                    @selected($loop->first)
+                                    @selected($pickedCustomer && $c->id === $pickedCustomer->id)
                                     data-name="{{ $c->name }}" 
                                     data-phone="{{ $c->phone }}" 
                                     data-parent="{{ $c->parent_name ?? '' }}"
@@ -155,6 +160,7 @@
                     <x-ui.field label="Khóa học đăng ký" for="closing_course">
                         {{-- JS (courseTuition) tìm select[x-model="courseId"] — giữ nguyên thuộc tính x-model. --}}
                         <x-ui.select id="closing_course" x-model="courseId" x-on:change="updateCourse($event)" class="font-bold !text-primary-container">
+                            <option value="">— Chọn khóa học —</option>
                             @foreach ($courses as $crs)
                                 <option value="{{ $crs->id }}" data-name="{{ $crs->name }}" data-tuition="{{ (float) $crs->tuition_fee }}">{{ $crs->name }} (Học phí niêm yết: {{ number_format($crs->tuition_fee) }}đ)</option>
                             @endforeach
@@ -164,7 +170,7 @@
                 </div>
 
                 <div class="flex items-center justify-end pt-4 border-t border-surface-container-highest">
-                    <x-ui.button x-on:click="step = 2">
+                    <x-ui.button x-on:click="step = 2" x-bind:disabled="!customerId">
                         <span>Tiếp tục: Tính học phí &amp; Ưu đãi</span>
                         <span class="material-symbols-outlined text-base">arrow_forward</span>
                     </x-ui.button>
@@ -264,10 +270,12 @@
                                 @endif
                             </x-ui.select>
                         </div>
+                        @can('system_category.manage')
                         <a href="{{ route('merchandise.index') }}" target="_blank" class="text-[11px] font-bold text-secondary hover:text-secondary hover:underline flex items-center gap-0.5 shrink-0" title="Mở quản lý danh mục hàng hóa trong tab mới">
                             <span class="material-symbols-outlined text-sm">open_in_new</span>
                             <span>Quản lý danh mục</span>
                         </a>
+                        @endcan
                     </div>
 
                     {{-- Danh sách các mục đã thêm --}}
@@ -369,8 +377,10 @@
                         <x-ui.field label="Chọn lớp đang học hoặc sắp khai giảng (còn chỗ)" for="closing_class" :required="true">
                         {{-- JS (setAssignLater / selectClassCard) tìm select[data-class-select]. --}}
                         <x-ui.select id="closing_class" data-class-select="1" class="font-bold !text-primary-container" x-on:change="updateClass($event)">
+                            <option value="" @selected(! $defaultClass)>— Chọn lớp —</option>
                             @foreach ($classes as $cl)
                                 <option 
+                                    @selected($defaultClass && $cl->id === $defaultClass->id)
                                     value="{{ $cl->id }}"
                                     data-name="{{ $cl->name }}"
                                     data-branch="{{ $cl->branch?->code ?? 'BD' }}"
@@ -439,7 +449,7 @@
                     <x-ui.button variant="secondary" x-on:click="step = 2">
                         Quay lại
                     </x-ui.button>
-                    <x-ui.button x-on:click="step = 4; syncSplitAmounts()">
+                    <x-ui.button x-on:click="step = 4; syncSplitAmounts()" x-bind:disabled="!assignLater && !classId">
                         <span>Tiếp tục: Xác nhận &amp; Thu tiền</span>
                         <span class="material-symbols-outlined text-base">arrow_forward</span>
                     </x-ui.button>
@@ -529,7 +539,9 @@
                         <div x-show="needsBankAccount" x-cloak>
                             <label class="block text-xs font-bold text-on-surface mb-1 flex items-center justify-between">
                                 <span>Tài khoản Ngân hàng nhận tiền <span class="text-error">*</span></span>
-                                <a href="{{ route('system-config.bank-accounts') }}" target="_blank" class="text-[10px] text-primary-container hover:underline font-normal">Đổi STK trong Admin &rarr;</a>
+                                @can('bank_account.manage')
+                                    <a href="{{ route('system-config.bank-accounts') }}" target="_blank" class="text-[10px] text-primary-container hover:underline font-normal">Đổi STK trong Admin &rarr;</a>
+                                @endcan
                             </label>
                             <x-ui.select x-model="selectedBankAccountId" class="font-semibold" aria-label="Tài khoản Ngân hàng nhận tiền">
                                 <template x-for="bank in bankAccounts" :key="bank.id">
@@ -880,32 +892,33 @@
         function closingWizard() {
             return {
                 step: 1,
-                customerId: @js($customers->first()?->id ?? ''),
-                customerName: @js($customers->first()?->name ?? ''),
-                customerPhone: @js($customers->first()?->phone ?? ''),
-                customerBranch: @js($customers->first()?->branch?->code ?? 'BD'),
-                customerBranchId: @js((string) ($customers->first()?->branch_id ?? '')),
-                customerStage: @js($customers->first()?->stage_label ?? ''),
-                customerLevel: @js($customers->first()?->level_label ?? ''),
-                customerLevelKeys: @js($customers->first()?->level_keys ?? []),
+                customerId: @js($pickedCustomer?->id ?? ''),
+                customerName: @js($pickedCustomer?->name ?? ''),
+                customerPhone: @js($pickedCustomer?->phone ?? ''),
+                customerBranch: @js($pickedCustomer?->branch?->code ?? 'BD'),
+                customerBranchId: @js((string) ($pickedCustomer?->branch_id ?? '')),
+                customerStage: @js($pickedCustomer?->stage_label ?? ''),
+                customerLevel: @js($pickedCustomer?->level_label ?? ''),
+                customerLevelKeys: @js($pickedCustomer?->level_keys ?? []),
                 // Mã học viên do hệ thống sinh khi chốt — không đoán trước.
                 studentCodePreview: 'mã HV sinh khi chốt',
-                courseName: @js($classes->first()?->course?->name ?? ''),
-                classId: @js($classes->first()?->id ?? ''),
+                // Chỉ chọn sẵn lớp khớp trình độ của khách (controller); không có thì để trống.
+                courseName: @js($defaultClass?->course?->name ?? $courses->firstWhere('id', $defaultCourseId)?->name ?? ''),
+                classId: @js($defaultClass?->id ?? ''),
                 assignLater: @js($classes->isEmpty()),
                 feePaid: true,
-                className: @js($classes->first()?->name ?? ''),
-                classBranch: @js($classes->first()?->branch?->code ?? 'BD'),
-                classBranchId: @js($classes->first()?->branch_id ?? ''),
-                courseId: @js((string) ($classes->first()?->course_id ?? $courses->first()?->id ?? '')),
+                className: @js($defaultClass?->name ?? ''),
+                classBranch: @js($defaultClass?->branch?->code ?? 'BD'),
+                classBranchId: @js($defaultClass?->branch_id ?? ''),
+                courseId: @js((string) ($defaultCourseId ?? '')),
 
                 // Financial fields
-                baseTuition: {{ (float) (($classes->first()?->tuition_fee ?? 0) > 0 ? $classes->first()?->tuition_fee : ($classes->first()?->course?->tuition_fee ?? 0)) }},
+                baseTuition: {{ (float) ($defaultClass ? (($defaultClass->tuition_fee ?? 0) > 0 ? $defaultClass->tuition_fee : ($defaultClass->course?->tuition_fee ?? 0)) : ($courses->firstWhere('id', $defaultCourseId)?->tuition_fee ?? 0)) }},
                 discount: 0,
                 otherFees: 0,
                 feeItems: [],
                 prepaidAmount: 0,
-                paidAmount: {{ (float) (($classes->first()?->tuition_fee ?? 0) > 0 ? $classes->first()?->tuition_fee : ($classes->first()?->course?->tuition_fee ?? 0)) }},
+                paidAmount: {{ (float) ($defaultClass ? (($defaultClass->tuition_fee ?? 0) > 0 ? $defaultClass->tuition_fee : ($defaultClass->course?->tuition_fee ?? 0)) : ($courses->firstWhere('id', $defaultCourseId)?->tuition_fee ?? 0)) }},
                 
                 // Promotions
                 promotionsList: @json($promotions),
@@ -1244,8 +1257,8 @@
                     this.customerName = opt.getAttribute('data-name');
                     this.customerPhone = opt.getAttribute('data-phone');
                     this.customerBranch = opt.getAttribute('data-branch') || 'BD';
-                    // Lớp và tài khoản nhận tiền được lọc theo chi nhánh của khách → đổi sang khách chi nhánh khác thì tải lại.
-                    if ((opt.getAttribute('data-branch-id') || '') !== this.customerBranchId) {
+                    // Lớp, tài khoản nhận tiền và lớp gợi ý theo trình độ được tính theo khách → đổi khách thì tải lại.
+                    if (opt.value) {
                         const url = new URL(window.location.href);
                         url.searchParams.set('customer_id', opt.value);
                         window.location.href = url.toString();
