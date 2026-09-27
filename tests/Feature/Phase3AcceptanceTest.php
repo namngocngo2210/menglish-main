@@ -334,7 +334,7 @@ class Phase3AcceptanceTest extends TestCase
             ->assertSessionHasErrors('teaching_date');
         $this->actingAs($this->academic)->post(route('payroll.timesheets.review', $workshop->id), ['decision' => 'valid'])->assertSessionHasErrors('teaching_date');
         $this->actingAs($this->academic)->post(route('penalties.store'), $this->violation($this->partTime, 'operations', 'Vi phạm nội quy trung tâm', '2026-08-20'))
-            ->assertSessionHasErrors('violation_date');
+            ->assertSessionHasNoErrors(); // vi phạm kỳ đã chốt vẫn ghi nhận được, phạt trừ vào kỳ đang mở (27/09/2026)
         $this->actingAs($this->manager)->post(route('kpi.evaluate.store', $this->academic->id), ['month' => 8, 'year' => 2026, 'score' => array_map(fn () => 100, $scores)])
             ->assertSessionHasErrors('month');
         $this->assertEquals(92.5, (float) KpiEvaluation::where('user_id', $this->academic->id)->value('total_score'));

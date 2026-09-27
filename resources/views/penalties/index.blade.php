@@ -7,7 +7,6 @@
             'remedied' => 'info', 'resolved' => 'secondary', 'cancelled' => 'neutral',
         ];
         $currentStep = request('step');
-        $isLockedDate = fn ($date) => $lockedRanges->contains(fn ($p) => $date->between(\Illuminate\Support\Carbon::parse($p->start_date)->startOfDay(), \Illuminate\Support\Carbon::parse($p->end_date)->endOfDay()));
         $advancedOpen = request()->hasAny(['category', 'status', 'from', 'to']) && collect(request()->only(['category', 'status', 'from', 'to']))->filter()->isNotEmpty();
     @endphp
 
@@ -90,7 +89,6 @@
                         $canDecide = auth()->user()->can('violation.confirm_fine') && $pen->canBeDecidedBy(auth()->user())
                             && in_array($pen->status, ['pending', 'explained', 'confirmed'], true);
                         $canExplain = $pen->user_id === auth()->id() && $pen->status === 'pending';
-                        $locked = $isLockedDate($pen->violation_date);
                         [$employeeState, $employeeColor] = $pen->employee_state;
                     @endphp
                     <tr class="align-top">
@@ -141,11 +139,7 @@
                                     <x-ui.button size="sm" icon="gavel" x-on:click="$dispatch('open-modal', 'decide-{{ $pen->id }}')">Chốt lỗi</x-ui.button>
                                 @endif
                                 @if ($canDecide && $pen->status === 'confirmed')
-                                    @if ($locked)
-                                        <x-ui.button size="sm" icon="lock" disabled title="Kỳ lương của nhân viên đã khóa — không thể chốt mức phạt">Chốt mức phạt</x-ui.button>
-                                    @else
-                                        <x-ui.button size="sm" icon="payments" x-on:click="$dispatch('open-modal', 'decide-{{ $pen->id }}')">Chốt mức phạt</x-ui.button>
-                                    @endif
+                                    <x-ui.button size="sm" icon="payments" x-on:click="$dispatch('open-modal', 'decide-{{ $pen->id }}')">Chốt mức phạt</x-ui.button>
                                 @endif
                                 @can('violation.mark_resolved')
                                     @if (in_array($pen->status, ['pending', 'explained', 'confirmed'], true))

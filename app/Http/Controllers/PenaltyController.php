@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClassModel;
-use App\Models\PayrollPeriod;
 use App\Models\Penalty;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -71,9 +70,8 @@ class PenaltyController extends Controller
             ->where('status', 'fined')->whereDate('due_date', '<', today()->toDateString())->count();
 
         // Ngày thuộc kỳ lương đã khóa: nút "Chốt mức phạt" bị khóa trên dòng tương ứng.
-        $lockedRanges = PayrollPeriod::whereIn('status', PayrollPeriod::LOCKED_STATUSES)->get(['start_date', 'end_date']);
 
-        return view('penalties.index', compact('penalties', 'users', 'classes', 'canViewAll', 'counts', 'overdueCount', 'lockedRanges'));
+        return view('penalties.index', compact('penalties', 'users', 'classes', 'canViewAll', 'counts', 'overdueCount'));
     }
 
     /**
@@ -92,9 +90,8 @@ class PenaltyController extends Controller
             'notes' => 'nullable|string|max:500',
         ]);
 
-        if (PayrollPeriod::isLockedFor($validated['violation_date'])) {
-            return $this->rejectLockedDate($validated['violation_date']);
-        }
+        // Vi phạm thuộc kỳ lương đã chốt vẫn ghi nhận được: tiền phạt trừ theo hạn nộp vào kỳ lương đang mở
+        // (Penalty::scopeDeductibleFor), không sửa kỳ đã chốt — chủ dự án chốt 27/09/2026.
 
         $penalty = Penalty::create([
             'code' => Penalty::generateCode(),
@@ -159,12 +156,6 @@ class PenaltyController extends Controller
             'amount.required_if' => 'Vui lòng nhập số tiền phạt khi quyết phạt.',
         ]);
         abort_unless(in_array($penalty->status, ['pending', 'explained', 'confirmed'], true), 422, 'Biên bản không ở trạng thái cho phép chốt.');
-        if (PayrollPeriod::isLockedFor($penalty->violation_date)) {
-            $message = 'Kỳ lương hiện tại của nhân viên '.($penalty->user?->name ?? '').' đã khóa. Không thể thực hiện chốt mức phạt. '
-                .'Vui lòng liên hệ bộ phận Kế toán để được hỗ trợ mở khóa kỳ lương nếu cần thiết.';
-
-            return redirect()->back()->withInput()->withErrors(['violation_date' => $message])->with('locked_penalty', $message);
-        }
 
         $attributes = [
             'decided_by' => $request->user()->id,
@@ -271,17 +262,6 @@ class PenaltyController extends Controller
         }
 
         return 'operations';
-    }
-
-    /**
-     * Ngày vi phạm thuộc kỳ lương đã khoá: kỳ sau không quét lại ngày này nên
-     * biên bản sẽ không bao giờ được trừ lương.
-     */
-    private function rejectLockedDate($date): RedirectResponse
-    {
-        $message = PayrollPeriod::lockedMessage($date);
-
-        return redirect()->back()->withInput()->withErrors(['violation_date' => $message])->with('error', $message);
     }
 
     /** Biên bản đã nằm trong kỳ lương đã duyệt/chi trả thì không được đổi trạng thái nữa. */

@@ -339,22 +339,24 @@ class PayrollP0FixesTest extends TestCase
             ->assertSessionHasErrors('teaching_date');
         $this->assertSame('pending_review', $pending->fresh()->status);
 
+        // Chủ dự án chốt 27/09/2026: vi phạm thuộc kỳ đã chốt vẫn ghi nhận + quyết phạt được,
+        // tiền phạt trừ vào kỳ lương đang mở theo hạn nộp; kỳ đã chốt không bị đụng.
+        $this->travelTo('2026-09-25 09:00');
         $this->actingAs($this->admin)->post(route('penalties.store'), [
             'user_id' => $this->teacher->id, 'violation_type' => 'Đi muộn',
             'violation_date' => '2026-08-15', 'amount' => 100000,
-        ])->assertSessionHasErrors('violation_date');
-        $this->assertDatabaseCount('penalties', 0);
+        ])->assertSessionHasNoErrors();
 
         $penalty = $this->penalty($this->teacher, '2026-08-15', 100000, 'pending');
         $this->actingAs($this->admin)->post(route('penalties.confirm', $penalty->id), ['decision' => 'fine', 'amount' => 100000])
-            ->assertSessionHasErrors('violation_date');
-        $this->assertSame('pending', $penalty->fresh()->status);
+            ->assertSessionHasNoErrors();
+        $this->assertSame('fined', $penalty->fresh()->status);
 
-        // Ngoài kỳ đã khoá thì vẫn cho phép bình thường
-        $this->actingAs($this->admin)->post(route('penalties.store'), [
-            'user_id' => $this->teacher->id, 'violation_type' => 'Đi muộn',
-            'violation_date' => '2026-09-15', 'amount' => 100000,
-        ])->assertSessionHasNoErrors();
+        $this->travelTo('2026-09-28 09:00');
+        $this->timesheet($this->teacher, '2026-09-10', 2, 200000);
+        $september = $this->period(9, 2026);
+        $september->calculatePayrollForPeriod();
+        $this->assertEquals(100000, (float) $this->record($september, $this->teacher)->penalty_deduction);
     }
 
     public function test_checkin_is_rejected_when_today_is_in_locked_period(): void

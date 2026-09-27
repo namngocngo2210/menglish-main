@@ -283,16 +283,15 @@ class Phase3MockupParityTest extends TestCase
         $this->actingAs($manager)->get(route('penalties.index', ['step' => 'remedied']))
             ->assertViewHas('penalties', fn ($p) => $p->total() === 1);
 
-        // Kỳ lương đã khóa → "Chốt mức phạt" bị chặn với thông báo theo mockup.
+        // Kỳ lương đã khóa vẫn "Chốt mức phạt" được (chủ dự án chốt 27/09/2026): tiền phạt trừ vào kỳ đang mở.
         PayrollPeriod::create([
             'code' => 'PR-2026-09', 'title' => 'Bảng lương Tháng 9/2026', 'month' => 9, 'year' => 2026,
             'start_date' => '2026-09-01', 'end_date' => '2026-09-30', 'status' => 'approved',
         ]);
         $this->actingAs($manager)->from(route('penalties.index'))
             ->post(route('penalties.confirm', $confirmed->id), ['decision' => 'fine', 'amount' => 100000])
-            ->assertSessionHasErrors('violation_date')
-            ->assertSessionHas('locked_penalty', fn ($m) => str_contains($m, 'Kỳ lương hiện tại của nhân viên GV Mockup P3 đã khóa. Không thể thực hiện chốt mức phạt.'));
-        $this->assertSame('confirmed', $confirmed->fresh()->status);
+            ->assertSessionHasNoErrors();
+        $this->assertSame('fined', $confirmed->fresh()->status);
     }
 
     /** Màn "Đơn giá GV" (epic-7/cau-hinh-don-gia-giao-vien): theo từng GV, loại GV, hiệu lực, lịch sử có "Đến ngày". */
