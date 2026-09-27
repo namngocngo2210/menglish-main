@@ -68,8 +68,7 @@ class TuitionImportService
      */
     public function parse(UploadedFile $file, int $branchId): array
     {
-        $sheets = Excel::toArray(new RawRowsImport, $file);
-        $raw = array_values(array_filter($sheets[0] ?? [], fn ($row) => collect($row)->filter(fn ($v) => trim((string) $v) !== '')->isNotEmpty()));
+        $raw = array_values(array_filter(RawRowsImport::firstSheet($file), fn ($row) => collect($row)->filter(fn ($v) => trim((string) $v) !== '')->isNotEmpty()));
 
         if ($raw === []) {
             return ['rows' => [], 'missing_columns' => array_values(self::TEMPLATE_HEADINGS)];

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Exports\ArrayExport;
 use App\Models\Branch;
 use App\Models\CrmCustomer;
 use App\Models\MerchandiseItem;
@@ -14,6 +15,8 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
+use Maatwebsite\Excel\Excel as ExcelFormat;
+use Maatwebsite\Excel\Facades\Excel;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -271,6 +274,28 @@ class ModalFlowsTest extends TestCase
         $response->assertNoContent()->assertHeader('HX-Redirect', route('crm.customers.index'));
         $this->assertSame(1, CrmCustomer::count());
         $this->assertStringStartsWith('Đã nhập 1 khách hàng mới', session('status'));
+    }
+
+    public function test_crm_import_reads_xlsx_directly_when_laravel_excel_fails(): void
+    {
+        // Hosting: Laravel Excel hỏng ở bước chép file tạm (thư mục không ghi được...) → vẫn đọc thẳng file upload.
+        $xlsx = Excel::raw(new ArrayExport(['Họ tên', 'Số điện thoại'], [['Nguyễn An', '0912345678'], [null, null], ['Trần Bình', '0987654321']]), ExcelFormat::XLSX);
+        Excel::shouldReceive('toArray')->once()->andThrow(new \ErrorException('mkdir(): Permission denied'));
+
+        $file = UploadedFile::fake()->createWithContent('khach.xlsx', $xlsx);
+        $this->actingAs($this->admin)->post(route('crm.import.preview'), ['file' => $file, 'branch_id' => $this->branch->id], self::HX)
+            ->assertRedirect(route('crm.import'))->assertSessionHasNoErrors();
+        $rows = session('crm_customer_import')['rows'];
+        $this->assertSame(['Nguyễn An', 'Trần Bình'], array_column(array_column($rows, 'data'), 'name'));
+        $this->assertSame('0912345678', $rows[0]['data']['phone']);
+        $this->assertSame([[], []], array_column($rows, 'errors'));
+    }
+
+    public function test_crm_import_shows_reason_when_file_is_unreadable(): void
+    {
+        $file = UploadedFile::fake()->createWithContent('khach.xlsx', 'không phải file excel');
+        $this->actingAs($this->admin)->post(route('crm.import.preview'), ['file' => $file, 'branch_id' => $this->branch->id], self::HX)
+            ->assertStatus(422)->assertSee('Không đọc được file')->assertSee('Chi tiết:');
     }
 
     // ── Nhập học phí từ Excel (3 bước trong modal) ───────────────────────────────────────────

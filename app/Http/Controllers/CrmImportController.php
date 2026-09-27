@@ -87,11 +87,10 @@ class CrmImportController extends Controller
         $assigneeId = $this->resolveAssignee($user, $validated['assigned_user_id'] ?? null, $options['salesUsers']);
 
         try {
-            $sheets = Excel::toArray(new RawRowsImport, $request->file('file'));
+            $rawRows = RawRowsImport::firstSheet($request->file('file'));
         } catch (\Throwable $e) {
-            throw ValidationException::withMessages(['file' => 'Không đọc được file: hãy dùng file mẫu .xlsx hoặc .csv (UTF-8).']);
+            throw ValidationException::withMessages(['file' => 'Không đọc được file: hãy dùng file mẫu .xlsx hoặc .csv (UTF-8). Chi tiết: '.Str::limit($e->getMessage(), 160)]);
         }
-        $rawRows = $sheets[0] ?? [];
         if (count($rawRows) < 2) {
             throw ValidationException::withMessages(['file' => 'File không có dữ liệu (dòng 1 là tiêu đề, dữ liệu từ dòng 2).']);
         }
