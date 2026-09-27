@@ -23,3 +23,5 @@ Schedule::command('bigtests:remind-upcoming')->dailyAt('07:45');
 Schedule::command('hr:notify-expiring-contracts')->dailyAt('07:50');
 // Hết thời gian bảo lưu → học viên về Đang học / Chờ khai giảng, báo Học vụ (idempotent). Chạy trước nhắc nợ 08:30.
 Schedule::command('students:end-deferrals')->dailyAt('06:50');
+// Lớp tới ngày khai giảng → học viên Chờ khai giảng đã hoàn tất nhập học sang Đang học (idempotent). Chạy trước chăm sóc tháng đầu 07:40.
+Schedule::command('students:start-studying')->dailyAt('06:55');

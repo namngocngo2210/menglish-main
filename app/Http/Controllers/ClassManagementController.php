@@ -10,6 +10,8 @@ use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\Course;
 use App\Models\CourseLevel;
+use App\Models\CrmCustomer;
+use App\Models\CrmTrialBooking;
 use App\Models\User;
 use App\Services\ClassDashboardService;
 use App\Services\SessionScheduleService;
@@ -26,89 +28,28 @@ class ClassManagementController extends Controller
     public function __construct(private readonly SessionScheduleService $schedule) {}
 
     /**
-     * Flow 1 - Bước #1: Đặt lịch khách học thử vào buổi popup
-     * Khớp 100% UI: 01_Web_Admin/12_dat_lich_hoc_thu_popup
+     * "Lịch học thử": các buổi học thử đặt từ hồ sơ khách CRM (crm_trial_bookings), trong phạm vi khách user được xem.
+     * Đặt / hủy học thử làm trong hồ sơ khách (gắn lead, giáo viên buổi đó thấy và nhận xét).
      */
     public function trialBooking(Request $request)
     {
-        $branches = Branch::where('is_active', true)->get();
-        $selectedBranchId = $request->query('branch_id', $branches->first()?->id);
-
         $this->ensureCanBrowseClasses();
-        $classesQuery = ClassModel::with(['course', 'branch', 'teacher'])->visibleTo(auth()->user())->where('status', '!=', 'cancelled');
-        if ($selectedBranchId) {
-            $classesQuery->where('branch_id', $selectedBranchId);
-        }
-        $classes = $classesQuery->get();
+        $scope = $request->input('scope') === 'past' ? 'past' : 'upcoming';
+        $status = array_key_exists((string) $request->input('status'), CrmTrialBooking::STATUSES) ? $request->input('status') : null;
 
-        // Thông tin khách truyền từ CRM (không có thì để trống cho người dùng nhập)
-        $customerName = (string) $request->query('customer_name', '');
-        $customerLevel = (string) $request->query('customer_level', '');
-        $customerBranch = $branches->firstWhere('id', $selectedBranchId)?->name ?? '';
+        $bookings = CrmTrialBooking::query()
+            ->with(['customer:id,code,name,parent_name,phone,test_score,stage,assigned_user_id', 'customer.assignedUser:id,name', 'session', 'classModel.course', 'classModel.branch', 'feedbackBy:id,name', 'bookedBy:id,name'])
+            ->whereIn('crm_trial_bookings.customer_id', CrmCustomer::query()->visibleTo($request->user())->select('id'))
+            ->when($status, fn ($query) => $query->where('crm_trial_bookings.status', $status))
+            ->join('class_sessions', 'class_sessions.id', '=', 'crm_trial_bookings.class_session_id')
+            ->when($scope === 'past',
+                fn ($query) => $query->whereDate('class_sessions.date', '<', today())->orderByDesc('class_sessions.date')->orderByDesc('class_sessions.start_time'),
+                fn ($query) => $query->whereDate('class_sessions.date', '>=', today())->orderBy('class_sessions.date')->orderBy('class_sessions.start_time'))
+            ->select('crm_trial_bookings.*')
+            ->paginate($request->perPage(20))
+            ->withQueryString();
 
-        // Lấy lịch sử đặt học thử đã lưu
-        $bookings = AcademicRecord::where('screen_key', '01_Web_Admin/12_dat_lich_hoc_thu_popup')
-            ->latest()
-            ->take(10)
-            ->get();
-
-        // Buổi học thực tế đã lên lịch (sắp diễn ra) của chi nhánh đang chọn —
-        // thay cho 3 buổi mockup cứng tháng 10/2023 trước đây.
-        $upcomingSessions = ClassSession::query()
-            ->with(['classModel:id,name,code,course_id,branch_id', 'classModel.course:id,name'])
-            ->where('status', 'scheduled')
-            ->whereDate('date', '>=', today())
-            ->when($selectedBranchId, fn ($query) => $query->where('branch_id', $selectedBranchId))
-            ->orderBy('date')->orderBy('start_time')
-            ->take(24)
-            ->get();
-
-        return view('classes.trial-booking', compact(
-            'classes',
-            'branches',
-            'selectedBranchId',
-            'customerName',
-            'customerLevel',
-            'customerBranch',
-            'bookings',
-            'upcomingSessions'
-        ));
-    }
-
-    /**
-     * Xử lý xác nhận đặt lịch học thử
-     */
-    public function trialBookingStore(Request $request)
-    {
-        $validated = $request->validate([
-            'class_id' => 'nullable|integer',
-            'class_name' => 'required|string',
-            'session_time' => 'required|string',
-            'customer_name' => 'required|string',
-            'customer_level' => 'nullable|string',
-            'branch_name' => 'nullable|string',
-        ]);
-
-        $record = AcademicRecord::create([
-            'screen_key' => '01_Web_Admin/12_dat_lich_hoc_thu_popup',
-            'module' => 'classes',
-            'record_code' => 'TRIAL-'.strtoupper(Str::random(6)),
-            'title' => 'Lịch học thử: '.$validated['customer_name'].' ('.$validated['class_name'].')',
-            'status' => 'confirmed',
-            'data' => [
-                'customer_name' => $validated['customer_name'],
-                'customer_level' => $validated['customer_level'] ?? null,
-                'class_name' => $validated['class_name'],
-                'class_id' => $validated['class_id'] ?? null,
-                'session_time' => $validated['session_time'],
-                'branch_name' => $validated['branch_name'] ?? null,
-                'booked_at' => now()->toDateTimeString(),
-            ],
-            'user_id' => Auth::id(),
-        ]);
-
-        return redirect()->route('classes.trial-booking')
-            ->with('success', 'Đã đặt lịch học thử thành công cho học viên '.$validated['customer_name'].' vào buổi '.$validated['session_time']);
+        return view('classes.trial-booking', compact('bookings', 'scope', 'status'));
     }
 
     /**

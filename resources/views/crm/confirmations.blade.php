@@ -13,6 +13,14 @@
             <p class="mt-xs font-body-medium text-body-medium text-on-surface-variant">Quản lý danh sách học viên sau khi hoàn tất thủ tục đăng ký và phân bổ lớp học. Học vụ / Quản lý cơ sở kiểm tra hồ sơ nhập học rồi xác nhận học viên chính thức.</p>
         </header>
 
+        @if (session('temporary_password'))
+            <x-ui.alert type="warning" title="Mật khẩu tạm của học viên — chỉ hiển thị một lần">
+                <div>Email đăng nhập: <span class="font-code font-semibold">{{ session('student_account_email') }}</span></div>
+                <div>Mật khẩu tạm: <span class="font-code font-semibold">{{ session('temporary_password') }}</span></div>
+                <div class="font-caption text-caption">Gửi cho phụ huynh; học viên phải đổi mật khẩu ở lần đăng nhập đầu tiên.</div>
+            </x-ui.alert>
+        @endif
+
         {{-- 1. Chờ xếp lớp (Cần xử lý gấp) --}}
         @if ($waitingLeads->isNotEmpty())
             <section class="rounded-xl border border-error/20 bg-error-container/20 p-lg">
@@ -104,7 +112,7 @@
                                 <td class="whitespace-nowrap">
                                     <div class="font-body-medium text-body-medium text-on-surface">{{ $enrollment->classModel?->name ?? '—' }}</div>
                                     <div class="font-code text-caption text-on-surface-variant">Lớp ID: {{ $enrollment->classModel?->code ?? '—' }}
-                                        · {{ $enrollment->classModel?->status === 'upcoming' ? 'Sắp khai giảng'.($enrollment->classModel?->start_date ? ' '.$enrollment->classModel->start_date->format('d/m/Y') : '') : 'Đã khai giảng' }}</div>
+                                        · {{ \App\Services\Students\ClassStartActivation::classHasStarted($enrollment->classModel) || $enrollment->classModel?->status === 'completed' ? 'Đã khai giảng' : 'Sắp khai giảng'.($enrollment->classModel?->start_date ? ' '.$enrollment->classModel->start_date->format('d/m/Y') : '') }}</div>
                                 </td>
                                 <td class="whitespace-nowrap font-code text-code text-on-surface-variant">{{ ($enrollment->customer?->converted_at ?? $enrollment->enrolled_at)?->format('d/m/Y') ?? '—' }}</td>
                                 <td class="whitespace-nowrap">
@@ -132,6 +140,13 @@
                                                 </label>
                                             @endforeach
                                         </form>
+                                        @if ($enrollment->student?->user)
+                                            <form method="POST" action="{{ route('crm.enrollments.reset-account', $enrollment) }}" class="mt-xs flex flex-wrap items-center gap-xs font-caption text-caption text-on-surface-variant">
+                                                @csrf
+                                                <span>Tài khoản: <span class="font-code">{{ $enrollment->student->user->email }}</span></span>
+                                                <button type="submit" class="font-semibold text-primary hover:underline">Cấp mật khẩu tạm</button>
+                                            </form>
+                                        @endif
                                     </td>
                                     <td class="text-right">
                                         <div class="flex flex-col items-end gap-xs">
