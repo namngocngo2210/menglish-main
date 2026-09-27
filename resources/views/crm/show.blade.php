@@ -321,7 +321,10 @@
                         <x-ui.alert type="error">Khách chưa có hoạt động chăm sóc nào trong {{ $statusCard['neglect_days'] }} ngày gần đây.</x-ui.alert>
                     @endif
                     @can('lead.update')
-                        <a href="{{ route('crm.customers.show', ['id' => $customer->id, 'tab' => 'info']) }}#next_follow_up_at" class="inline-flex items-center gap-xs font-body-small text-body-small font-semibold text-primary hover:underline">
+                        {{-- Mở tab "Thông tin khách hàng" ngay trên trang, cuộn tới và focus ô "Hạn liên hệ tiếp theo" --}}
+                        <a href="{{ route('crm.customers.show', ['id' => $customer->id, 'tab' => 'info']) }}#next_follow_up_at" x-data
+                           @click.prevent="$dispatch('crm-focus-follow-up')" data-testid="set-follow-up"
+                           class="inline-flex items-center gap-xs font-body-small text-body-small font-semibold text-primary hover:underline">
                             <span class="material-symbols-outlined text-[16px]">event</span>Đặt hạn liên hệ
                         </a>
                     @endcan
@@ -374,7 +377,19 @@
 
         {{-- ── Cột phải: thao tác (tab) + lịch sử hoạt động ── --}}
         <div class="space-y-lg lg:col-span-8">
-            <div class="{{ $card }} overflow-hidden" x-data="{ tab: @js(old('_tab', request('tab')) === 'info' ? 'info' : 'ops') }">
+            <div class="{{ $card }} overflow-hidden" x-data="{
+                     tab: @js(old('_tab', request('tab')) === 'info' ? 'info' : 'ops'),
+                     focusFollowUp() {
+                         const el = document.getElementById('next_follow_up_at');
+                         if (! el) return;
+                         this.tab = 'info';
+                         const details = el.closest('details');
+                         if (details) details.open = true;
+                         this.$nextTick(() => { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.focus({ preventScroll: true }); });
+                     },
+                 }"
+                 x-init="if (location.hash === '#next_follow_up_at') focusFollowUp()"
+                 @crm-focus-follow-up.window="focusFollowUp()">
                 <div class="flex border-b border-surface-container-highest" role="tablist">
                     <button type="button" role="tab" @click="tab = 'ops'" :class="tab === 'ops' ? 'border-primary-container text-primary font-semibold' : 'border-transparent text-on-surface-variant hover:text-primary'"
                             class="-mb-px border-b-2 px-lg py-md font-body-medium text-body-medium transition-colors">Đặt lịch &amp; Kết quả</button>

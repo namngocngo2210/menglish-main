@@ -61,7 +61,12 @@
                                         <x-ui.button type="submit" size="sm" icon="assignment_turned_in">Xếp lớp</x-ui.button>
                                     </form>
                                 @else
-                                    <span class="font-body-small text-body-small font-semibold text-warning">Chưa có lớp phù hợp</span>
+                                    {{-- Chưa có lớp đúng khóa / chi nhánh / còn chỗ: sang màn Xếp lớp (chọn sẵn học viên), ở đó chọn lớp hoặc tạo lớp mới. --}}
+                                    <a href="{{ route('students.enrollments', array_filter(['student_id' => $lead->convertedStudent?->id])) }}"
+                                       class="inline-flex items-center gap-xs font-body-small text-body-small font-semibold text-primary underline-offset-2 hover:underline"
+                                       title="Chưa có lớp phù hợp — mở luồng xếp lớp">
+                                        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">assignment_turned_in</span>Xếp lớp
+                                    </a>
                                 @endif
                             @else
                                 <span class="font-body-small text-body-small text-on-surface-variant">Học vụ sẽ xếp lớp</span>
