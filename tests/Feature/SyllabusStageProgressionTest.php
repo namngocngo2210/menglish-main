@@ -242,7 +242,7 @@ class SyllabusStageProgressionTest extends TestCase
         $this->actingAs($this->academic)->post(route('syllabus.assignments.close', $first->id))->assertSessionHasErrors('reason');
 
         $this->actingAs($this->academic)->get(route('syllabus.assignments'))
-            ->assertOk()->assertSee('Lớp GT-01')->assertSee('Đang học')->assertSee('Đóng tay');
+            ->assertOk()->assertSee('Lớp GT-01')->assertSee('Đang hiệu lực')->assertSee('Đóng tay');
 
         $this->actingAs($this->academic)->post(route('syllabus.assignments.close', $first->id), ['reason' => 'Thi bù ở lớp khác', 'open_next' => '1'])
             ->assertRedirect();

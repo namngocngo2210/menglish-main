@@ -69,18 +69,18 @@
                     </div>
                     <div>
                         <div class="text-3xl font-black font-mono tracking-tight">
-                            {{ number_format($records->sum('net_salary')) }}đ
+                            {{ number_format($records->sum('net_salary'), 0, ',', '.') }}đ
                         </div>
                         <p class="text-xs text-purple-200 mt-1">{{ $records->count() }} chuyên viên học thuật</p>
                     </div>
                     <div class="pt-3 border-t border-white/20 grid grid-cols-2 gap-2 text-xs">
                         <div>
                             <span class="text-purple-300 block text-[10px] uppercase font-bold">Lương cứng:</span>
-                            <span class="font-bold font-mono text-sm">{{ number_format($records->sum('base_salary')) }}đ</span>
+                            <span class="font-bold font-mono text-sm">{{ number_format($records->sum('base_salary'), 0, ',', '.') }}đ</span>
                         </div>
                         <div>
                             <span class="text-purple-300 block text-[10px] uppercase font-bold">KPI &amp; Phụ cấp:</span>
-                            <span class="font-bold font-mono text-sm">{{ number_format($records->sum('kpi_bonus') + $records->sum('allowance')) }}đ</span>
+                            <span class="font-bold font-mono text-sm">{{ number_format($records->sum('kpi_bonus') + $records->sum('allowance'), 0, ',', '.') }}đ</span>
                         </div>
                     </div>
                 </div>

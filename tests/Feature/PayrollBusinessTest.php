@@ -671,7 +671,7 @@ class PayrollBusinessTest extends TestCase
         $this->actingAs($this->hrManager)->get(route('payroll.kpi-leaderboard'))
             ->assertOk()
             ->assertSee('Sales Chốt Đơn')
-            ->assertSee('20,000,000')
+            ->assertSee('20.000.000')
             ->assertDontSee('Học Viên Không Rank');
     }
 }

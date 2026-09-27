@@ -34,13 +34,13 @@
                     </div>
                 </td>
                 <td class="text-right font-mono font-semibold">
-                    {{ number_format((float) $r->base_salary + (float) $r->teaching_salary) }}đ
+                    {{ number_format((float) $r->base_salary + (float) $r->teaching_salary, 0, ',', '.') }}đ
                     @if ((int) $r->teaching_sessions > 0)
                         <p class="text-[10px] text-on-surface-variant/70">{{ (int) $r->teaching_sessions }} buổi dạy</p>
                     @endif
                 </td>
                 <td class="text-right font-mono text-warning font-semibold">
-                    {{ number_format($r->kpi_bonus) }}đ
+                    {{ number_format($r->kpi_bonus, 0, ',', '.') }}đ
                     @if ($r->kpi_source === 'academic_kpi')
                         <p class="text-[10px] text-on-surface-variant/70">{{ $r->kpi_score !== null ? rtrim(rtrim(number_format((float) $r->kpi_score, 2), '0'), '.').'% × quỹ' : 'chưa chấm KPI' }}</p>
                     @elseif ($r->kpi_source === 'manual')
@@ -49,21 +49,21 @@
                 </td>
                 @if ($showCommission)
                     <td class="text-right font-mono text-tertiary font-semibold">
-                        {{ number_format($r->commission_bonus) }}đ
+                        {{ number_format($r->commission_bonus, 0, ',', '.') }}đ
                         @if ((float) $r->commission_deferred > 0)
-                            <p class="text-[10px] text-warning font-semibold">Hoãn {{ number_format($r->commission_deferred) }}đ</p>
+                            <p class="text-[10px] text-warning font-semibold">Hoãn {{ number_format($r->commission_deferred, 0, ',', '.') }}đ</p>
                         @endif
                     </td>
                 @endif
                 @if ($showRenewal)
-                    <td class="text-right font-mono text-tertiary font-semibold">{{ number_format($r->renew_bonus) }}đ</td>
+                    <td class="text-right font-mono text-tertiary font-semibold">{{ number_format($r->renew_bonus, 0, ',', '.') }}đ</td>
                 @endif
-                <td class="text-right font-mono">{{ number_format((float) $r->allowance + (float) $r->other_bonus) }}đ</td>
-                <td class="text-right font-mono text-error">-{{ number_format($r->insurance_deduction) }}đ</td>
-                <td class="text-right font-mono text-error">-{{ number_format($r->union_deduction) }}đ</td>
-                <td class="text-right font-mono text-error">-{{ number_format($r->tax_deduction) }}đ</td>
-                <td class="text-right font-mono text-error">-{{ number_format((float) $r->penalty_deduction + (float) $r->commission_clawback + (float) $r->other_deduction + (float) $r->foreign_teacher_deduction) }}đ</td>
-                <td class="text-right font-mono font-black text-primary text-sm">{{ number_format($r->net_salary) }}đ</td>
+                <td class="text-right font-mono">{{ number_format((float) $r->allowance + (float) $r->other_bonus, 0, ',', '.') }}đ</td>
+                <td class="text-right font-mono text-error">-{{ number_format($r->insurance_deduction, 0, ',', '.') }}đ</td>
+                <td class="text-right font-mono text-error">-{{ number_format($r->union_deduction, 0, ',', '.') }}đ</td>
+                <td class="text-right font-mono text-error">-{{ number_format($r->tax_deduction, 0, ',', '.') }}đ</td>
+                <td class="text-right font-mono text-error">-{{ number_format((float) $r->penalty_deduction + (float) $r->commission_clawback + (float) $r->other_deduction + (float) $r->foreign_teacher_deduction, 0, ',', '.') }}đ</td>
+                <td class="text-right font-mono font-black text-primary text-sm">{{ number_format($r->net_salary, 0, ',', '.') }}đ</td>
             </tr>
         @empty
             <tr>

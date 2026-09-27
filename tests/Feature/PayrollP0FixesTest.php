@@ -178,17 +178,17 @@ class PayrollP0FixesTest extends TestCase
         }
 
         $this->actingAs($this->admin)->get(route('payroll.periods.show', $period->id))
-            ->assertOk()->assertSee('Hoa hồng')->assertSee('1,234,000');
+            ->assertOk()->assertSee('Hoa hồng')->assertSee('1.234.000');
 
         // Q3: bảng Full-time tách BHXH / Công đoàn / TNCN / phạt; cột hoa hồng ở bảng Học vụ & Vận hành (khối có sale)
         $this->actingAs($this->admin)->get(route('payroll.periods.operations', $period->id))
-            ->assertOk()->assertSee('Hoa hồng')->assertSee('1,234,000');
+            ->assertOk()->assertSee('Hoa hồng')->assertSee('1.234.000');
         foreach (['fulltime', 'academic', 'operations'] as $department) {
             $this->actingAs($this->admin)->get(route("payroll.periods.{$department}", $period->id))
                 ->assertOk()
-                ->assertSee('-525,000')    // BHXH
-                ->assertSee('-100,000')    // phạt
-                ->assertSee('7,409,000');
+                ->assertSee('-525.000')    // BHXH
+                ->assertSee('-100.000')    // phạt
+                ->assertSee('7.409.000');
         }
     }
 
@@ -455,15 +455,15 @@ class PayrollP0FixesTest extends TestCase
         $this->actingAs($this->teacher)->get(route('portal.my-salary'))
             ->assertOk()
             ->assertSee('Bảng lương Tháng 8/2026')
-            ->assertSee('3,700,000')  // tổng thu nhập gồm hoa hồng
-            ->assertSee('150,000')    // tổng trừ gồm GVNN
-            ->assertSee('3,550,000')
+            ->assertSee('3.700.000')  // tổng thu nhập gồm hoa hồng
+            ->assertSee('150.000')    // tổng trừ gồm GVNN
+            ->assertSee('3.550.000')
             ->assertSee('Đã duyệt')
             ->assertDontSee('9,999,000');
 
         $this->actingAs($this->teacher)->get(route('portal.my-salary', ['period_id' => $paid->id]))
             ->assertOk()
-            ->assertSee('2,100,000')
+            ->assertSee('2.100.000')
             ->assertSee('Đã chi trả');
 
         // Không xem được kỳ chưa duyệt bằng cách đổi period_id

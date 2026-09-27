@@ -59,10 +59,10 @@
                             <span class="block font-semibold">{{ $log->device_name }}</span>
                             <span class="block font-body-small text-body-small text-on-surface-variant">{{ $log->branch?->name ?? 'Toàn hệ thống' }}</span>
                         </td>
-                        <td class="text-center font-mono">{{ number_format($log->records_count) }}</td>
-                        <td class="text-center font-mono text-tertiary">{{ number_format($log->matched_count) }}</td>
-                        <td class="text-center font-mono {{ $log->failed_count ? 'text-error font-semibold' : '' }}">{{ number_format($log->failed_count) }}</td>
-                        <td class="text-center font-mono">{{ number_format($log->skipped_count) }}</td>
+                        <td class="text-center font-mono">{{ number_format($log->records_count, 0, ',', '.') }}</td>
+                        <td class="text-center font-mono text-tertiary">{{ number_format($log->matched_count, 0, ',', '.') }}</td>
+                        <td class="text-center font-mono {{ $log->failed_count ? 'text-error font-semibold' : '' }}">{{ number_format($log->failed_count, 0, ',', '.') }}</td>
+                        <td class="text-center font-mono">{{ number_format($log->skipped_count, 0, ',', '.') }}</td>
                         <td>
                             <span class="inline-flex items-center gap-xs font-body-medium text-body-medium {{ $tone }}">
                                 <span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ $icon }}</span>{{ $log->status_label }}
