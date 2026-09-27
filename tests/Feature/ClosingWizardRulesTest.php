@@ -204,6 +204,26 @@ class ClosingWizardRulesTest extends TestCase
             ->assertSee($this->classModel->name);
     }
 
+    public function test_waiting_student_without_matching_class_links_to_class_placement(): void
+    {
+        $lead = $this->closeWithoutClass();
+        // Lớp duy nhất chuyển sang khóa khác → không còn lớp đúng khóa đã chốt.
+        $otherCourse = Course::create(['code' => 'FAM2', 'name' => 'Starters FAM 2', 'tuition_fee' => 10000000, 'total_lessons' => 48, 'is_active' => true]);
+        $this->classModel->update(['course_id' => $otherCourse->id]);
+
+        // Không còn lớp phù hợp: cột Hành động là liên kết "Xếp lớp" sang màn Xếp lớp, chọn sẵn học viên.
+        $placementUrl = route('students.enrollments', ['student_id' => $lead->converted_student_id]);
+        $this->actingAs($this->academic)->get(route('crm.waiting-list'))
+            ->assertOk()
+            ->assertDontSee('Chưa có lớp phù hợp</span>', false)
+            ->assertSee($placementUrl, false);
+
+        $this->actingAs($this->academic)->get($placementUrl)
+            ->assertOk()
+            ->assertSee('value="'.$lead->converted_student_id.'" selected', false)
+            ->assertSee('Chọn lớp đúng khóa đã chốt');
+    }
+
     public function test_academic_assigns_class_to_waiting_student_and_lead_becomes_won(): void
     {
         $lead = $this->closeWithoutClass();
