@@ -13,11 +13,12 @@
         <x-slot:actions>
             @if($test)
                 @can('big_test.approve')
+                    {{-- Việc chính của người duyệt là duyệt; gửi phụ huynh là bước sau nên để nút phụ --}}
                     <form method="POST" action="{{ route('syllabus.big-tests.results.approve', $test->id) }}">@csrf
-                        <x-ui.button type="submit" variant="secondary" icon="task_alt">Duyệt kết quả</x-ui.button>
+                        <x-ui.button type="submit" icon="task_alt">Duyệt kết quả</x-ui.button>
                     </form>
                     <form method="POST" action="{{ route('syllabus.big-tests.send-zalo', $test->id) }}">@csrf
-                        <x-ui.button type="submit" icon="send">Gửi kết quả đã duyệt</x-ui.button>
+                        <x-ui.button type="submit" variant="secondary" icon="send" title="Gửi các kết quả đã duyệt cho phụ huynh qua Zalo">Gửi phụ huynh</x-ui.button>
                     </form>
                 @endcan
             @endif
@@ -199,9 +200,11 @@
             </x-slot:header>
 
             @php($resultsByStudent = $results->keyBy('student_id'))
-            {{-- Đề chưa duyệt & phân phối thì server từ chối nhập điểm → không hiện form nhập. --}}
-            @php($canGrade = $test && $test->is_distributed && auth()->user()->can('syllabus.update'))
-            @if ($test && ! $test->is_distributed && auth()->user()->can('syllabus.update'))
+            {{-- Đề chưa duyệt & phân phối thì server từ chối nhập điểm → không hiện form nhập.
+                 Người duyệt chỉ xem & duyệt, không thấy form nhập điểm / Lưu nháp / Gửi duyệt của giáo viên. --}}
+            @php($canGradeRole = auth()->user()->can('syllabus.update') && ! $isApprover)
+            @php($canGrade = $test && $test->is_distributed && $canGradeRole)
+            @if ($test && ! $test->is_distributed && $canGradeRole)
                 <div class="border-b border-surface-container bg-warning-container/40 px-md py-sm text-xs text-on-surface">Đề thi của đợt này chưa được duyệt và phân phối, chưa nhập điểm được.</div>
             @endif
             @php($canSend = $test && auth()->user()->can('big_test.approve'))
@@ -220,15 +223,15 @@
                 <table class="text-xs min-w-[1100px]">
                     <thead>
                         <tr>
-                            <th>Học viên &amp; Mã số</th>
-                            <th class="text-center">Vắng thi</th>
-                            <th class="text-center">Listening</th>
-                            <th class="text-center">Reading</th>
-                            <th class="text-center">Writing</th>
-                            <th class="text-center">Speaking</th>
-                            <th class="text-center bg-primary-container/10 !text-primary">Overall</th>
-                            <th>Nhận xét &amp; link video bài thi</th>
+                            <th class="sticky left-0 z-10 border-r border-surface-container bg-surface-container-low">Học viên &amp; Mã số</th>
                             <th>Trạng thái</th>
+                            <th class="text-center !px-xs">Vắng thi</th>
+                            <th class="text-center !px-xs">Listening</th>
+                            <th class="text-center !px-xs">Reading</th>
+                            <th class="text-center !px-xs">Writing</th>
+                            <th class="text-center !px-xs">Speaking</th>
+                            <th class="text-center bg-primary-container/10 !text-primary">Overall</th>
+                            <th>Nhận xét &amp; video</th>
                             <th>Đã gửi PH</th>
                         </tr>
                     </thead>
@@ -238,17 +241,25 @@
                             @php($locked = ! $canGrade || ($res?->isLocked() ?? false))
                             @php($absent = (bool) old("results.$index.is_absent", $res?->is_absent))
                             <tr x-data="{ absent: @js($absent) }">
-                                <td>
+                                <td class="sticky left-0 z-10 border-r border-surface-container bg-surface-container-lowest">
                                     <input type="hidden" name="results[{{ $index }}][student_id]" value="{{ $student->id }}" @disabled($locked)>
                                     <div class="font-bold text-on-surface">{{ $student->name }}</div>
-                                    <div class="text-[11px] text-on-surface-variant/70 font-mono mt-0.5">Mã HV: <x-ui.code :value="$student->code ?? 'HV-' . $student->id" /></div>
+                                    <div class="max-w-[200px] truncate text-[11px] text-on-surface-variant/70 font-mono mt-0.5">Mã HV: <x-ui.code :value="$student->code ?? 'HV-' . $student->id" /></div>
                                 </td>
-                                <td class="text-center">
+                                <td class="whitespace-nowrap">
+                                    <x-ui.badge :color="match ($res?->status) { 'approved' => 'success', 'sent' => 'info', 'pending_review' => 'warning', default => 'neutral' }">{{ $res?->status === 'draft' ? 'Nháp (GV chưa gửi duyệt)' : ($res?->status_label ?? 'Chưa nhập') }}</x-ui.badge>
+                                    @if ($res && $res->status !== 'draft')
+                                        <a href="{{ route('syllabus.big-tests.results', ['id' => $test->id, 'result' => $res->id]) }}" class="mt-1 flex items-center gap-0.5 text-[11px] font-semibold text-primary hover:underline">
+                                            <span class="material-symbols-outlined text-[14px]">rate_review</span>Xem &amp; duyệt
+                                        </a>
+                                    @endif
+                                </td>
+                                <td class="text-center !px-xs">
                                     <input type="checkbox" name="results[{{ $index }}][is_absent]" value="1" x-model="absent" @checked($absent) @disabled($locked)
                                            class="rounded border-outline-variant text-error focus:ring-error h-4 w-4" title="Đánh dấu học viên vắng thi">
                                 </td>
                                 @foreach (['listening_score', 'reading_score', 'writing_score', 'speaking_score'] as $skill)
-                                    <td>
+                                    <td class="!px-xs text-center">
                                         <input type="number" step=".1" min="0" max="10" name="results[{{ $index }}][{{ $skill }}]" value="{{ old("results.$index.$skill", $res?->$skill) }}" placeholder="—"
                                                @disabled($locked) :disabled="absent || @js($locked)" class="w-16 rounded border-surface-container-highest text-xs disabled:bg-surface-container-low">
                                     </td>
@@ -260,7 +271,7 @@
                                         {{ $res?->overall_score ?? '—' }}
                                     @endif
                                 </td>
-                                <td class="space-y-1 min-w-[220px]">
+                                <td class="space-y-1 min-w-[180px]">
                                     <textarea name="results[{{ $index }}][progress_note]" rows="2" @disabled($locked) placeholder="Nhận xét tiến độ" class="w-full rounded border-surface-container-highest text-xs disabled:bg-surface-container-low">{{ old("results.$index.progress_note", $res?->progress_note) }}</textarea>
                                     @if ($locked)
                                         @if ($res?->video_url)
@@ -270,14 +281,6 @@
                                         @endif
                                     @else
                                         <input type="url" name="results[{{ $index }}][video_url]" value="{{ old("results.$index.video_url", $res?->video_url) }}" placeholder="Link video bài thi (https://...)" class="w-full rounded border-surface-container-highest text-xs">
-                                    @endif
-                                </td>
-                                <td class="whitespace-nowrap">
-                                    <x-ui.badge :color="match ($res?->status) { 'approved' => 'success', 'sent' => 'info', 'pending_review' => 'warning', default => 'neutral' }">{{ $res?->status === 'draft' ? 'Nháp (GV chưa gửi duyệt)' : ($res?->status_label ?? 'Chưa nhập') }}</x-ui.badge>
-                                    @if ($res && $res->status !== 'draft')
-                                        <a href="{{ route('syllabus.big-tests.results', ['id' => $test->id, 'result' => $res->id]) }}" class="mt-1 flex items-center gap-0.5 text-[11px] font-semibold text-primary hover:underline">
-                                            <span class="material-symbols-outlined text-[14px]">rate_review</span>Xem &amp; duyệt
-                                        </a>
                                     @endif
                                 </td>
                                 <td class="whitespace-nowrap">

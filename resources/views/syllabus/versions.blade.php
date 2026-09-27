@@ -7,9 +7,6 @@
         </x-slot:breadcrumbs>
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="edit_attributes" :href="route('syllabus.teacher-propose')">Gửi đề xuất</x-ui.button>
-            @can('syllabus.approve_adjustment')
-                <x-ui.button icon="rule" :href="route('syllabus.adjustment-requests')">Duyệt tiến độ</x-ui.button>
-            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -44,7 +41,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td><x-ui.empty-state icon="inbox" title="Chưa có đề xuất nào" /></td></tr>
+                            <tr><td><x-ui.empty-state icon="inbox" title="Chưa có đề xuất nào" description="Giáo viên gửi đề xuất từ Xin duyệt › Đề xuất sửa giáo trình." /></td></tr>
                         @endforelse
                     </tbody>
                 </table>

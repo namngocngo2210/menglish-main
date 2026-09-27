@@ -23,7 +23,7 @@
                     <x-ui.button variant="secondary" icon="sync" :href="route('payroll.timesheets.sync-history')">Lịch sử đồng bộ</x-ui.button>
                 @endcan
                 @if ($canAdjust)
-                    <x-ui.button icon="timer" :href="route('payroll.timesheets.manual')">Chấm công thủ công</x-ui.button>
+                    <x-ui.button variant="secondary" icon="timer" :href="route('payroll.timesheets.manual')">Chấm công thủ công</x-ui.button>
                 @endif
             </x-slot:actions>
         </x-ui.page-header>
@@ -106,7 +106,7 @@
                                     @if (! ($sts && $sts->status === 'valid') && $canReview && ! $session->date->isFuture() && ! \App\Models\PayrollPeriod::isLockedFor($session->date))
                                         <form method="POST" action="{{ route('payroll.timesheets.sessions.confirm', $session->id) }}">
                                             @csrf
-                                            <x-ui.button type="submit" size="sm" icon="check">Xác nhận</x-ui.button>
+                                            <x-ui.button type="submit" size="sm" variant="secondary" icon="check">Xác nhận</x-ui.button>
                                         </form>
                                     @endif
                                 </td>
@@ -154,7 +154,8 @@
                         @csrf
                         <template x-for="id in selected" :key="id"><input type="hidden" name="ids[]" :value="id"></template>
                         <x-ui.button type="submit" icon="task_alt" x-bind:disabled="selected.length === 0">
-                            Chốt bảng công (<span x-text="selected.length">0</span>)
+                            {{-- Chỉ "Chốt bảng công" là nút chính; chưa chọn ca nào thì khóa và không hiện "(0)" --}}
+                            Chốt bảng công<span x-show="selected.length > 0" x-cloak>&nbsp;(<span x-text="selected.length">0</span>)</span>
                         </x-ui.button>
                     </form>
                 @endif

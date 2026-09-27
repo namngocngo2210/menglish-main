@@ -65,7 +65,7 @@
             @if (collect(request()->except(['page', 'per_page']))->filter()->isNotEmpty())
                 <x-ui.button variant="ghost" :href="route('penalties.index')">Xoá lọc</x-ui.button>
             @endif
-            <x-ui.button type="submit" icon="search">Lọc</x-ui.button>
+            <x-ui.button type="submit" variant="secondary" icon="search">Lọc</x-ui.button>
         </div>
     </form>
 
@@ -141,22 +141,6 @@
                                 @if ($canDecide && $pen->status === 'confirmed')
                                     <x-ui.button size="sm" icon="payments" x-on:click="$dispatch('open-modal', 'decide-{{ $pen->id }}')">Chốt mức phạt</x-ui.button>
                                 @endif
-                                @can('violation.mark_resolved')
-                                    @if (in_array($pen->status, ['pending', 'explained', 'confirmed'], true))
-                                        <form action="{{ route('penalties.resolve', $pen->id) }}" method="POST" data-confirm="Đóng biên bản {{ $pen->code }} — không phạt tiền?">
-                                            @csrf
-                                            <x-ui.button type="submit" size="sm" variant="secondary">Đóng - không phạt</x-ui.button>
-                                        </form>
-                                    @endif
-                                @endcan
-                                @can('violation.cancel')
-                                    @if (in_array($pen->status, ['pending', 'explained', 'confirmed'], true))
-                                        <form action="{{ route('penalties.cancel', $pen->id) }}" method="POST" data-confirm="Hủy biên bản {{ $pen->code }}?">
-                                            @csrf
-                                            <x-ui.button type="submit" size="sm" variant="danger-text">Hủy vi phạm</x-ui.button>
-                                        </form>
-                                    @endif
-                                @endcan
                                 @can('violation.mark_paid')
                                     @if ($pen->status === 'fined')
                                         <form action="{{ route('penalties.mark-paid', $pen->id) }}" method="POST">
@@ -170,7 +154,8 @@
                                         <x-ui.button size="sm" variant="secondary" icon="build" x-on:click="$dispatch('open-modal', 'remedy-{{ $pen->id }}')">Ghi nhận khắc phục</x-ui.button>
                                     @endif
                                 @endcan
-                                <x-ui.button size="sm" variant="ghost" icon="visibility" aria-label="Xem chi tiết {{ $pen->code }}" @click="$dispatch('open-modal', 'view-{{ $pen->id }}')" />
+                                {{-- Mỗi dòng chỉ giữ nút của bước tiếp theo; Đóng - không phạt / Hủy vi phạm nằm trong "⋯" (xem chi tiết) --}}
+                                <x-ui.button size="sm" variant="ghost" icon="more_horiz" title="Xem chi tiết & thao tác khác" aria-label="Xem chi tiết & thao tác khác {{ $pen->code }}" @click="$dispatch('open-modal', 'view-{{ $pen->id }}')" />
                             </div>
 
                             <x-ui.modal name="view-{{ $pen->id }}" title="Biên bản {{ $pen->code }}" class="text-left">
@@ -187,6 +172,25 @@
                                         <dt class="text-on-surface-variant">Khắc phục</dt><dd class="col-span-2">{{ $pen->remedied_at->format('d/m/Y') }} — {{ $pen->remedier?->name }}{{ $pen->remedy_note ? ': '.$pen->remedy_note : '' }}</dd>
                                     @endif
                                 </dl>
+                                <x-slot:footer>
+                                    @can('violation.mark_resolved')
+                                        @if (in_array($pen->status, ['pending', 'explained', 'confirmed'], true))
+                                            <form action="{{ route('penalties.resolve', $pen->id) }}" method="POST" data-confirm="Đóng biên bản {{ $pen->code }} — không phạt tiền?">
+                                                @csrf
+                                                <x-ui.button type="submit" variant="secondary">Đóng - không phạt</x-ui.button>
+                                            </form>
+                                        @endif
+                                    @endcan
+                                    @can('violation.cancel')
+                                        @if (in_array($pen->status, ['pending', 'explained', 'confirmed'], true))
+                                            <form action="{{ route('penalties.cancel', $pen->id) }}" method="POST" data-confirm="Hủy biên bản {{ $pen->code }}?">
+                                                @csrf
+                                                <x-ui.button type="submit" variant="danger-text">Hủy vi phạm</x-ui.button>
+                                            </form>
+                                        @endif
+                                    @endcan
+                                    <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'view-{{ $pen->id }}')">Quay lại</x-ui.button>
+                                </x-slot:footer>
                             </x-ui.modal>
 
                             @if ($canExplain)

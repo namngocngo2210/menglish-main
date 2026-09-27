@@ -1,7 +1,8 @@
 {{-- Mockup: ui-full-tinh-nang-menglish/epic-7/luong-cua-toi-teacher-portal — chỉ hiện kỳ lương đã duyệt / đã chi trả (A6) --}}
 <x-app-layout>
     @php
-        $n = fn ($v) => number_format((float) $v);
+        // Cùng định dạng tiền với Học phí / <x-ui.money>: dấu chấm phân tách hàng nghìn (13.300.000)
+        $n = fn ($v) => number_format((float) $v, 0, ',', '.');
         $incomeTotal = $record ? $record->gross_income : 0;
         $deductionTotal = $record ? $record->total_deductions : 0;
         $netSalary = $record ? $record->net_salary : 0;
@@ -118,7 +119,7 @@
             </x-ui.data-table>
         </div>
 
-        <x-ui.data-table min-width="640px" x-data="{ all: false, cls: '' }">
+        <x-ui.data-table :min-width="$timesheets->isEmpty() ? null : '640px'" x-data="{ all: false, cls: '' }">
             <x-slot:header>
                 <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface"><span class="material-symbols-outlined text-primary-container" aria-hidden="true">history_edu</span>Chi tiết buổi dạy ({{ $timesheets->count() }})</h3>
                 @if ($classes->count() > 1)
@@ -130,10 +131,14 @@
                     </label>
                 @endif
             </x-slot:header>
+            {{-- Trạng thái trống đặt ngoài bảng để không bị cắt chữ trong khung cuộn ngang trên điện thoại --}}
+            @if ($timesheets->isEmpty())
+                <x-ui.empty-state icon="schedule" title="Không có buổi dạy hợp lệ trong kỳ" />
+            @else
             <table>
                 <thead><tr><th>Ngày dạy</th><th>Thời gian</th><th>Lớp học</th><th class="text-right">Đơn giá (₫)</th><th class="text-right">Thành tiền (₫)</th></tr></thead>
                 <tbody>
-                    @forelse ($timesheets as $i => $ts)
+                    @foreach ($timesheets as $i => $ts)
                         @php $pay = $ts->sessionPay($user); $code = $ts->classModel?->code ?? $ts->classModel?->name; @endphp
                         <tr x-show="(all || {{ $i }} < 10) && (! cls || cls === @js($code))" @if ($i >= 10) x-cloak @endif>
                             <td class="font-code text-code">{{ $ts->teaching_date->format('d/m/Y') }}</td>
@@ -148,11 +153,10 @@
                                 @endif
                             </td>
                         </tr>
-                    @empty
-                        <tr><td colspan="5"><x-ui.empty-state icon="schedule" title="Không có buổi dạy hợp lệ trong kỳ" /></td></tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
+            @endif
             @if ($timesheets->count() > 10)
                 <x-slot:footer>
                     <div class="p-sm text-center"><x-ui.button variant="ghost" size="sm" x-on:click="all = ! all"><span x-text="all ? 'Thu gọn' : 'Xem thêm các buổi khác'">Xem thêm các buổi khác</span></x-ui.button></div>

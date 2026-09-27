@@ -2,7 +2,7 @@
     <x-ui.page-header title="Quản lý tài liệu giáo trình" description="Quản lý và cập nhật tài liệu cho các khóa học.">
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="edit_document" :href="route('syllabus.builder')">Soạn syllabus</x-ui.button>
-            <x-ui.button icon="menu_book" :href="route('syllabus.teacher-view')">Xem như giáo viên</x-ui.button>
+            <x-ui.button variant="secondary" icon="menu_book" :href="route('syllabus.teacher-view')">Xem như giáo viên</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
 

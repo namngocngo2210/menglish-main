@@ -91,12 +91,8 @@ final class SidebarMenu
                     ]),
                     // Chỉ người có quyền duyệt (Học thuật / Admin); Học vụ xem đề xuất của mình ở "Xin duyệt".
                     ...self::anchored(['syllabus.approve_adjustment'], [
-                        ['label' => 'Sửa giáo trình', 'route' => 'syllabus.versions'],
+                        ['label' => 'Đề xuất sửa giáo trình', 'route' => 'syllabus.versions'],
                         ['label' => 'Điều chỉnh tiến độ', 'route' => 'syllabus.adjustment-requests'],
-                    ]),
-                    // Học vụ tạo đợt thi ở đây; Học thuật duyệt & phân phối.
-                    ...self::anchored([...self::SYLLABUS_MANAGER, 'big_test.approve'], [
-                        ['label' => 'Phân phối Big Test', 'route' => 'syllabus.big-tests.distribution'],
                     ]),
                     ...self::anchored(self::TASK_ASSIGNER, [
                         ['label' => 'Hoàn thành công việc', 'route' => 'tasks.manual-approvals'],
@@ -200,6 +196,11 @@ final class SidebarMenu
                 'items' => [
                     ...self::anchored(self::SYLLABUS_MANAGER, [
                         ['label' => 'Nhắc lịch', 'route' => 'syllabus.big-tests.schedules'],
+                    ]),
+                    // Cả quy trình Big Test ở một nhóm: Học vụ tạo đợt thi, Học thuật duyệt & phân phối đề.
+                    // "Cần duyệt" chỉ còn số đếm + link sang tab này qua hộp "Việc cần duyệt".
+                    ...self::anchored([...self::SYLLABUS_MANAGER, 'big_test.approve'], [
+                        ['label' => 'Phân phối đề', 'route' => 'syllabus.big-tests.distribution'],
                     ]),
                     // Giáo viên (syllabus.update) nhập điểm Big Test lớp mình.
                     ['label' => 'Bảng điểm & Kết quả', 'route' => 'syllabus.big-tests.results', 'active' => ['syllabus.big-tests.results*'], 'anchor' => ['syllabus.update', 'big_test.approve']],

@@ -4,7 +4,7 @@
             @can('activity_log.view')
                 <x-ui.button variant="secondary" icon="history" :href="route('activity-logs.index', ['log_name' => 'Giáo trình & Syllabus'])">Xem log hệ thống</x-ui.button>
             @endcan
-            <x-ui.button icon="menu_book" :href="route('syllabus.teacher-view')">Màn GV xem giáo trình</x-ui.button>
+            <x-ui.button variant="secondary" icon="menu_book" :href="route('syllabus.teacher-view')">Màn GV xem giáo trình</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -90,16 +90,6 @@
             </section>
             @endif
 
-            <section class="rounded-xl border border-outline-variant bg-surface-container-low p-lg flex items-start justify-between gap-md">
-                <div>
-                    <h4 class="font-body-medium text-body-medium font-semibold text-on-surface">Cần hỗ trợ?</h4>
-                    <p class="mt-xs font-body-small text-body-small text-on-surface-variant">Liên hệ bộ phận Học thuật hoặc Kỹ thuật nếu bạn gặp vấn đề trong quá trình phân quyền giáo trình.</p>
-                    @if (Route::has('tickets.create'))
-                        <a href="{{ route('tickets.create') }}" class="mt-sm inline-flex items-center gap-1 font-body-small text-body-small font-semibold text-primary hover:underline">Tạo ticket hỗ trợ <span class="material-symbols-outlined text-[16px]">arrow_forward</span></a>
-                    @endif
-                </div>
-                <span class="material-symbols-outlined text-[32px] text-on-surface-variant">contact_support</span>
-            </section>
         </aside>
 
         {{-- Lịch sử phân quyền chặng học --}}
@@ -164,8 +154,7 @@
                                 </td>
                                 <td class="whitespace-nowrap">
                                     @if ($as->isOpen())
-                                        <x-ui.badge color="success">Đang học</x-ui.badge>
-                                        <p class="font-caption text-caption text-tertiary mt-1">Đang hiệu lực</p>
+                                        <x-ui.badge color="success">Đang hiệu lực</x-ui.badge>
                                     @else
                                         <x-ui.badge>Đã đóng</x-ui.badge>
                                         @if ($as->curriculum_completed_at)
@@ -198,6 +187,18 @@
                 <x-slot:footer><x-ui.pagination :paginator="$assignments" unit="lượt" /></x-slot:footer>
             </x-ui.data-table>
         </div>
+
+        {{-- Khung hỗ trợ để cuối trang, không chen giữa form giao chặng và bảng lịch sử --}}
+        <section class="2xl:col-span-12 rounded-xl border border-outline-variant bg-surface-container-low p-lg flex items-start justify-between gap-md">
+            <div>
+                <h4 class="font-body-medium text-body-medium font-semibold text-on-surface">Cần hỗ trợ?</h4>
+                <p class="mt-xs font-body-small text-body-small text-on-surface-variant">Liên hệ bộ phận Học thuật hoặc Kỹ thuật nếu bạn gặp vấn đề trong quá trình phân quyền giáo trình.</p>
+                @if (Route::has('tickets.create'))
+                    <a href="{{ route('tickets.create') }}" class="mt-sm inline-flex items-center gap-1 font-body-small text-body-small font-semibold text-primary hover:underline">Tạo ticket hỗ trợ <span class="material-symbols-outlined text-[16px]">arrow_forward</span></a>
+                @endif
+            </div>
+            <span class="material-symbols-outlined text-[32px] text-on-surface-variant">contact_support</span>
+        </section>
 
         @if ($canManage)
             <x-ui.modal name="edit-stage" title="Chỉnh sửa chặng đang hiệu lực" max-width="md">

@@ -15,7 +15,8 @@
 
         {{-- Navigation Sub-tabs --}}
         <nav class="flex flex-wrap gap-sm border-b border-surface-container pb-sm" aria-label="Bảng lương theo khối">
-            <x-ui.button variant="secondary" size="sm" icon="groups" :href="route('payroll.periods.show', $period->id)">Toàn bộ / GV Part-time</x-ui.button>
+            <x-ui.button variant="secondary" size="sm" icon="groups" :href="route('payroll.periods.show', $period->id)">Tất cả</x-ui.button>
+            <x-ui.button variant="secondary" size="sm" icon="schedule" :href="route('payroll.periods.show', [$period->id, 'type' => 'teacher_parttime'])">GV Part-time</x-ui.button>
             <x-ui.button variant="secondary" size="sm" icon="work" :href="route('payroll.periods.fulltime', $period->id)">Giáo viên Full-time</x-ui.button>
             <x-ui.button size="sm" icon="school" :href="route('payroll.periods.academic', $period->id)">Khối Học Thuật</x-ui.button>
             <x-ui.button variant="secondary" size="sm" icon="support_agent" :href="route('payroll.periods.operations', $period->id)">Khối Học Vụ &amp; Vận Hành</x-ui.button>

@@ -2,7 +2,6 @@
     <x-ui.page-header title="Nhắc lịch Big Test" description="Danh sách các chặng học sắp đến hạn thi Big Test (trong vòng 7 ngày) chưa được duyệt đề thi." :back="route('syllabus.documents')">
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="event_note" :href="route('syllabus.teaching-stages')">Lịch dự kiến theo lớp</x-ui.button>
-            <x-ui.button icon="add_circle" :href="route('syllabus.big-tests.distribution')">Tạo đợt Big Test</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
 
