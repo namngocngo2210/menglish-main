@@ -162,6 +162,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/customers/{id}/print', [CrmController::class, 'printCustomer'])->name('customers.print');
         Route::get('/confirmations', [CrmController::class, 'confirmations'])->middleware('can:student.assign_class')->name('confirmations');
         Route::post('/enrollments/{enrollment}/confirm', [CrmController::class, 'confirmEnrollment'])->middleware('can:student.assign_class')->name('enrollments.confirm');
+        Route::post('/enrollments/{enrollment}/reset-account', [CrmController::class, 'resetStudentAccount'])->middleware('can:student.assign_class')->name('enrollments.reset-account');
         Route::get('/import', [CrmImportController::class, 'create'])->middleware('can:lead.create')->name('import');
         Route::get('/import/template', [CrmImportController::class, 'template'])->middleware('can:lead.create')->name('import.template');
         Route::post('/import/preview', [CrmImportController::class, 'preview'])->middleware('can:lead.create')->name('import.preview');
@@ -247,7 +248,6 @@ Route::middleware('auth')->group(function () {
     // ─────────────────────────────────────────────
     Route::prefix('classes')->name('classes.')->middleware('can:class.view')->group(function () {
         Route::get('/trial-booking', [ClassManagementController::class, 'trialBooking'])->name('trial-booking');
-        Route::post('/trial-booking', [ClassManagementController::class, 'trialBookingStore'])->middleware('can:class.update')->name('trial-booking.store');
         Route::get('/create', [ClassManagementController::class, 'create'])->middleware('can:class.create')->name('create');
         Route::post('/', [ClassManagementController::class, 'store'])->middleware('can:class.create')->name('store');
         Route::get('/profile/{id?}', [ClassManagementController::class, 'profile'])->name('profile');

@@ -166,7 +166,9 @@ class CrmCustomer extends Model
     /** Khách "Mới" quá 24h chưa được tiếp nhận (SLA liên hệ 24h, cùng tiêu chí cảnh báo stale_lead_24h). */
     public function scopeStaleNew(Builder $query): Builder
     {
-        return $query->where('stage', 'new')->where('created_at', '<=', now()->subHours(24));
+        // Sales không đổi giai đoạn (lead vẫn "Mới" sau khi gọi) → đã có nhật ký liên hệ thì không tính là chưa liên hệ.
+        return $query->where('stage', 'new')->where('created_at', '<=', now()->subHours(24))
+            ->whereDoesntHave('histories', fn (Builder $history) => $history->whereIn('type', CrmCustomerHistory::CONTACT_TYPES));
     }
 
     /**

@@ -38,46 +38,40 @@ class Flow1AndHomeworkScreensTest extends TestCase
     }
 
     /**
-     * Test Flow 1 - Step 1: Đặt lịch khách học thử
+     * "Lịch học thử" liệt kê buổi học thử thật đặt từ hồ sơ khách CRM (crm_trial_bookings),
+     * không còn là form mockup lưu bản ghi chữ tách khỏi lead.
      */
-    public function test_flow_1_step_1_trial_booking_renders_successfully()
-    {
-        $response = $this->actingAs($this->admin)->get(route('classes.trial-booking'));
-        $response->assertStatus(200);
-        $response->assertSee('Đặt lịch khách học thử vào buổi');
-        $response->assertSee('Chọn lớp');
-        $response->assertSee('Chọn buổi học');
-    }
-
-    /**
-     * Trang đặt học thử phải hiển thị buổi học THẬT sắp diễn ra từ ClassSession
-     * (trước đây là 3 buổi mockup cứng tháng 10/2023) và ẩn buổi đã hủy/quá khứ.
-     */
-    public function test_trial_booking_lists_real_upcoming_sessions_only()
+    public function test_trial_booking_page_lists_crm_trial_bookings()
     {
         $branchId = Branch::first()->id;
-        \App\Models\ClassSession::create([
-            'class_id' => ClassModel::first()->id, 'branch_id' => $branchId,
+        $class = ClassModel::first();
+        $upcoming = \App\Models\ClassSession::create([
+            'class_id' => $class->id, 'branch_id' => $branchId,
             'date' => now()->addDay()->toDateString(),
             'shift_name' => 'Ca 1', 'start_time' => '08:00', 'end_time' => '09:30', 'status' => 'scheduled',
         ]);
-        \App\Models\ClassSession::create([
-            'class_id' => ClassModel::first()->id, 'branch_id' => $branchId,
-            'date' => now()->addDays(2)->toDateString(),
-            'shift_name' => 'Ca 2', 'start_time' => '09:30', 'end_time' => '11:00', 'status' => 'cancelled',
-        ]);
-        \App\Models\ClassSession::create([
-            'class_id' => ClassModel::first()->id, 'branch_id' => $branchId,
+        $past = \App\Models\ClassSession::create([
+            'class_id' => $class->id, 'branch_id' => $branchId,
             'date' => now()->subDay()->toDateString(),
             'shift_name' => 'Ca 3', 'start_time' => '14:00', 'end_time' => '15:30', 'status' => 'scheduled',
         ]);
+        $lead = \App\Models\CrmCustomer::create(['code' => \App\Models\CrmCustomer::generateCode(), 'name' => 'Khách Sắp Học Thử', 'phone' => '0911000001', 'phone_normalized' => '0911000001', 'branch_id' => $branchId, 'stage' => 'consulting']);
+        $oldLead = \App\Models\CrmCustomer::create(['code' => \App\Models\CrmCustomer::generateCode(), 'name' => 'Khách Đã Học Thử', 'phone' => '0911000002', 'phone_normalized' => '0911000002', 'branch_id' => $branchId, 'stage' => 'consulting']);
+        \App\Models\CrmTrialBooking::create(['customer_id' => $lead->id, 'class_id' => $class->id, 'class_session_id' => $upcoming->id, 'booked_by' => $this->admin->id, 'status' => 'scheduled']);
+        \App\Models\CrmTrialBooking::create(['customer_id' => $oldLead->id, 'class_id' => $class->id, 'class_session_id' => $past->id, 'booked_by' => $this->admin->id, 'status' => 'attended']);
 
-        $response = $this->actingAs($this->admin)->get(route('classes.trial-booking'));
-        $response->assertOk();
-        $response->assertSee(now()->addDay()->format('d/m/Y'));
-        $response->assertSee('Ca 1');
-        $response->assertDontSee('Ca 2');
-        $response->assertDontSee(now()->subDay()->format('d/m/Y'));
+        $this->actingAs($this->admin)->get(route('classes.trial-booking'))
+            ->assertOk()
+            ->assertSee('Lịch học thử')
+            ->assertSee('Khách Sắp Học Thử')
+            ->assertSee(now()->addDay()->format('d/m/Y'))
+            ->assertSee(route('crm.customers.show', $lead->id))
+            ->assertDontSee('Khách Đã Học Thử');
+
+        $this->actingAs($this->admin)->get(route('classes.trial-booking', ['scope' => 'past']))
+            ->assertOk()
+            ->assertSee('Khách Đã Học Thử')
+            ->assertDontSee('Khách Sắp Học Thử');
     }
 
     /**

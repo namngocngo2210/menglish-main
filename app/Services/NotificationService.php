@@ -114,12 +114,9 @@ class NotificationService
 
     protected function scanNewStaleLeads(): int
     {
-        $cutoffTime = Carbon::now()->subHours(24);
-
-        // Tìm các lead ở trạng thái 'new' được tạo trước mốc 24h
+        // Lead 'new' tạo trước mốc 24h mà chưa có nhật ký liên hệ (CrmCustomer::scopeStaleNew)
         $staleLeads = CrmCustomer::with('assignedUser')
-            ->where('stage', 'new')
-            ->where('created_at', '<=', $cutoffTime)
+            ->staleNew()
             ->get();
 
         $generatedCount = 0;

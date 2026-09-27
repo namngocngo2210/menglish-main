@@ -25,6 +25,8 @@ use App\Models\SystemCategory;
 use App\Models\TuitionReceipt;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\Crm\WaitingLeadPlacement;
+use App\Services\Students\ClassStartActivation;
 use App\Services\CrmStageService;
 use App\Services\NotificationService;
 use App\Services\PlacementPortalLinkService;
@@ -1272,7 +1274,7 @@ class CrmController extends Controller
             ->whereIn('customer_id', $this->scopeCustomerQuery()->select('id'))
             ->whereIn('status', ['pending', 'completed']);
         $query = $scoped()
-            ->with(['student', 'classModel.branch', 'classModel.course', 'customer.assignedUser', 'confirmedBy'])
+            ->with(['student.user:id,email', 'classModel.branch', 'classModel.course', 'customer.assignedUser', 'confirmedBy'])
             ->when($status === 'confirmed', fn (Builder $q) => $q->whereNotNull('confirmed_at'), fn (Builder $q) => $q->whereNull('confirmed_at'));
         if ($search = trim((string) $request->input('search'))) {
             $query->whereHas('student', fn (Builder $q) => $q->where('name', 'like', "%{$search}%")
@@ -1323,12 +1325,9 @@ class CrmController extends Controller
             if ($confirming) {
                 $enrollment->fill(['status' => 'completed', 'confirmed_at' => now(), 'confirmed_by' => $request->user()->id]);
                 $class = $enrollment->classModel;
-                $student = $enrollment->student;
-                // Lớp đã khai giảng → học viên chính thức "Đang học"; lớp sắp mở giữ "Chờ khai giảng".
-                if ($student && $class && $class->status === 'active' && (! $class->start_date || $class->start_date->lte(today()))
-                    && $student->status === Student::INITIAL_STATUS) {
-                    $student->update(['status' => 'studying']);
-                }
+                // Lớp đã khai giảng → học viên chính thức "Đang học"; lớp sắp mở giữ "Chờ khai giảng" tới ngày khai giảng
+                // (lệnh hằng ngày students:start-studying).
+                app(ClassStartActivation::class)->forEnrollment($enrollment);
                 CrmCustomerHistory::create([
                     'customer_id' => $enrollment->customer_id,
                     'user_id' => $request->user()->id,
@@ -1343,6 +1342,42 @@ class CrmController extends Controller
         return back()->with('status', $confirming
             ? 'Đã xác nhận chính thức học viên '.($enrollment->student?->name ?? '').'.'
             : 'Đã lưu tiến độ hồ sơ nhập học.');
+    }
+
+    /**
+     * Cấp mật khẩu tạm cho tài khoản cổng học viên (màn Xác nhận chính thức): mật khẩu lúc chốt chỉ hiện một lần cho
+     * người chốt, còn Học vụ là người gửi tài khoản cho phụ huynh. Chỉ áp dụng tài khoản thuần học viên, không đụng
+     * tài khoản nhân sự.
+     */
+    public function resetStudentAccount(Request $request, ClassEnrollment $enrollment)
+    {
+        abort_unless($enrollment->customer_id && $this->scopeCustomerQuery()->whereKey($enrollment->customer_id)->exists(), 404);
+        $account = $enrollment->student?->user;
+        if (! $account || $account->getRoleNames()->all() !== ['student']) {
+            throw ValidationException::withMessages(['enrollment' => 'Học viên chưa có tài khoản cổng học viên riêng, liên hệ Admin để cấp tài khoản.']);
+        }
+
+        $temporaryPassword = Str::password(12);
+        $account->forceFill([
+            'password' => Hash::make($temporaryPassword),
+            'must_change_password' => true,
+            'is_active' => true,
+        ])->saveQuietly();
+
+        activity('Người dùng & Phân quyền')->causedBy($request->user())->performedOn($account)
+            ->event('updated')
+            ->log('Cấp mật khẩu tạm cho tài khoản học viên (bắt buộc đổi ở lần đăng nhập tới)');
+        CrmCustomerHistory::create([
+            'customer_id' => $enrollment->customer_id,
+            'user_id' => $request->user()->id,
+            'type' => 'system',
+            'content' => "Cấp mật khẩu tạm cho tài khoản học viên {$account->email}.",
+        ]);
+
+        return back()
+            ->with('status', 'Đã cấp mật khẩu tạm cho học viên '.($enrollment->student?->name ?? '').'. Gửi thông tin đăng nhập cho phụ huynh; học viên phải đổi mật khẩu ở lần đăng nhập đầu.')
+            ->with('student_account_email', $account->email)
+            ->with('temporary_password', $temporaryPassword);
     }
 
     public function addNote(Request $request, $id)
@@ -1880,9 +1915,9 @@ class CrmController extends Controller
     }
 
     /** Ghi danh học viên vào lớp + cập nhật lớp hiện tại (lớp đã được lock & kiểm tra sĩ số). */
-    protected function enrollStudent(Student $student, ClassModel $class, CrmCustomer $customer): void
+    protected function enrollStudent(Student $student, ClassModel $class, CrmCustomer $customer): ClassEnrollment
     {
-        ClassEnrollment::create([
+        $enrollment = ClassEnrollment::create([
             'student_id' => $student->id,
             'class_id' => $class->id,
             'customer_id' => $customer->id,
@@ -1892,6 +1927,8 @@ class CrmController extends Controller
             'status' => 'pending',
         ]);
         $student->forceFill(['current_class_id' => $class->id])->save();
+
+        return $enrollment;
     }
 
     /** Chốt khi chưa đóng học phí → task "Nhắc thu học phí" cho người phụ trách lead. */
@@ -1917,11 +1954,11 @@ class CrmController extends Controller
      * Học vụ gán lớp cho học viên đang Chờ xếp lớp: lock lớp, kiểm tra sĩ số / chi nhánh / khóa,
      * ghi danh, cập nhật lớp hiện tại + lớp của học phí, lead Chờ xếp lớp → Đã chốt.
      */
-    public function assignClass(Request $request, CrmStageService $stages, $id)
+    public function assignClass(Request $request, WaitingLeadPlacement $placement, $id)
     {
         $validated = $request->validate(['class_id' => 'required|exists:classes,id']);
 
-        DB::transaction(function () use ($request, $stages, $validated, $id) {
+        DB::transaction(function () use ($request, $placement, $validated, $id) {
             $customer = $this->scopeCustomerQuery()
                 ->where(fn (Builder $query) => $query->where('id', $id)->orWhere('code', $id))
                 ->lockForUpdate()
@@ -1932,24 +1969,22 @@ class CrmController extends Controller
             }
 
             $class = ClassModel::with('course')->lockForUpdate()->findOrFail($validated['class_id']);
-            if (! in_array($class->status, ['active', 'upcoming'], true) || ! $class->course?->is_active) {
+            // Cùng điều kiện với Chốt & Xếp lớp: lớp "Sắp khai giảng" đã quá ngày khai giảng thì không nhận.
+            if (! $this->isEnrollableClass($class) || ! $class->course?->is_active) {
                 throw ValidationException::withMessages(['class_id' => 'Lớp hoặc khóa học không còn hoạt động.']);
             }
             $branchId = $student->branch_id ?? $customer->branch_id;
             if ($branchId && $class->branch_id !== $branchId) {
                 throw ValidationException::withMessages(['class_id' => 'Lớp phải thuộc chi nhánh của học viên.']);
             }
-            if ($customer->waiting_course_id && $class->course_id !== $customer->waiting_course_id) {
-                throw ValidationException::withMessages(['class_id' => 'Lớp phải thuộc khóa học đã chốt ('.($customer->waitingCourse?->name ?? 'khóa đã chọn').').']);
-            }
+            $placement->assertMatchesClosedCourse($customer, $class);
+            $placement->assertNotInClass($student, $class);
             if (! $class->hasSeatsFor()) {
                 throw ValidationException::withMessages(['class_id' => 'Lớp đã đủ sĩ số, vui lòng chọn lớp khác.']);
             }
 
-            $this->enrollStudent($student, $class, $customer);
-            StudentTuition::where('student_id', $student->id)->whereNull('class_id')->update(['class_id' => $class->id]);
-            $customer->update(['waiting_since' => null]);
-            $stages->advanceTo($customer, 'won', $request->user(), "Học vụ gán lớp {$class->name} cho học viên {$student->code}.");
+            $enrollment = $this->enrollStudent($student, $class, $customer);
+            $placement->complete($customer, $student, $class, $enrollment, $request->user());
         }, 3);
 
         return redirect()->back()->with('status', 'Đã gán lớp cho học viên và chuyển Lead sang Đã chốt.');

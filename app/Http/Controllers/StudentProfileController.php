@@ -10,6 +10,8 @@ use App\Models\ClassSession;
 use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\User;
+use App\Services\Crm\WaitingLeadPlacement;
+use App\Services\Students\ClassStartActivation;
 use App\Services\DocumentCodeGenerator;
 use App\Services\FirstMonthCareService;
 use App\Services\SessionLessonService;
@@ -156,7 +158,7 @@ class StudentProfileController extends Controller
         return view('students.enrollments', compact('enrollments', 'classes', 'students'));
     }
 
-    public function storeEnrollment(Request $request)
+    public function storeEnrollment(Request $request, WaitingLeadPlacement $placement)
     {
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
@@ -167,10 +169,14 @@ class StudentProfileController extends Controller
         $class = $this->visibleClasses($request->user())->findOrFail($validated['class_id']);
         $this->assertCanJoinClass($student, $class);
 
-        DB::transaction(function () use ($student, $class) {
+        DB::transaction(function () use ($student, $class, $placement, $request) {
+            $waitingLead = $placement->waitingLeadFor($student);
+            if ($waitingLead) {
+                $placement->assertMatchesClosedCourse($waitingLead, $class);
+            }
             $this->assertClassHasSeat($class);
 
-            ClassEnrollment::create([
+            $enrollment = ClassEnrollment::create([
                 'student_id' => $student->id,
                 'class_id' => $class->id,
                 'enrolled_at' => now(),
@@ -181,6 +187,10 @@ class StudentProfileController extends Controller
 
             // Cập nhật lớp hiện tại của học sinh
             $student->update(['current_class_id' => $class->id]);
+            // Học viên chốt từ CRM đang Chờ xếp lớp: đi chung đường với nút Gán lớp (lead → Đã chốt, học phí gắn lớp).
+            if ($waitingLead) {
+                $placement->complete($waitingLead, $student, $class, $enrollment, $request->user());
+            }
         });
 
         return redirect()->route('students.enrollments')
@@ -191,7 +201,7 @@ class StudentProfileController extends Controller
      * "Liên kết lớp khác": thêm học viên vào một lớp nữa (học song song) mà không đổi lớp chính.
      * Kiểm tra cùng chi nhánh, chưa có trong lớp và lớp còn chỗ.
      */
-    public function linkClass(Request $request, $id)
+    public function linkClass(Request $request, WaitingLeadPlacement $placement, $id)
     {
         $student = $this->findVisibleStudent($request->user(), $id);
         $validated = $request->validate([
@@ -204,10 +214,14 @@ class StudentProfileController extends Controller
         }
         $this->assertCanJoinClass($student, $class);
 
-        DB::transaction(function () use ($student, $class) {
+        DB::transaction(function () use ($student, $class, $placement, $request) {
+            $waitingLead = $placement->waitingLeadFor($student);
+            if ($waitingLead) {
+                $placement->assertMatchesClosedCourse($waitingLead, $class);
+            }
             $this->assertClassHasSeat($class);
 
-            ClassEnrollment::create([
+            $enrollment = ClassEnrollment::create([
                 'student_id' => $student->id,
                 'class_id' => $class->id,
                 'enrolled_at' => now(),
@@ -219,6 +233,10 @@ class StudentProfileController extends Controller
             // Học viên chưa có lớp chính (vd. đang "Chờ xếp lớp") => lớp vừa liên kết thành lớp chính.
             if (! $student->current_class_id) {
                 $student->update(['current_class_id' => $class->id]);
+            }
+            // Học viên chốt từ CRM đang Chờ xếp lớp: đi chung đường với nút Gán lớp (lead → Đã chốt, học phí gắn lớp).
+            if ($waitingLead) {
+                $placement->complete($waitingLead, $student, $class, $enrollment, $request->user());
             }
         });
 
@@ -243,6 +261,8 @@ class StudentProfileController extends Controller
             'zalo_group_added' => $zaloGroupAdded,
             'status' => $curriculumDelivered && $zaloGroupAdded ? 'completed' : 'pending',
         ]);
+        // Bàn giao xong vào lớp đã khai giảng → Đang học (lớp chưa khai giảng: lệnh hằng ngày students:start-studying).
+        app(ClassStartActivation::class)->forEnrollment($enrollment);
 
         return redirect()->route('students.enrollments')
             ->with('status', $enrollment->status === 'completed'

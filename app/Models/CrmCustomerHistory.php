@@ -39,6 +39,9 @@ class CrmCustomerHistory extends Model
         'system' => 'Hệ thống',
     ];
 
+    /** Nhật ký cho thấy đã liên hệ khách (gọi / nhắn / gặp) — lead Mới có các nhật ký này không còn là "chưa liên hệ". */
+    public const CONTACT_TYPES = ['call', 'message', 'meet'];
+
     protected $casts = [
         'changes' => 'array',
     ];
