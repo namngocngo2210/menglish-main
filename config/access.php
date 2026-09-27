@@ -98,6 +98,8 @@ return [
             'tuition.view', 'tuition.create', 'tuition.mark_contacted', 'tuition.report_overdue',
             'work_task.*', 'support_ticket.create', 'support_ticket.view', 'notification.view', 'survey.manage', 'course.view',
             'staff_report.submit', 'portal.staff',
+            // Nhân sự full-time có phiếu lương: xem "Lương của tôi".
+            'payroll.view_own', 'payroll.scope_own',
             'lead.scope_branch', 'student.scope_branch', 'class.scope_all', 'big_test.scope_all', 'tuition.scope_branch',
             'attendance_staff.scope_all', 'kpi.scope_all', 'work_task.scope_all', 'user.scope_own', 'support_ticket.scope_own',
         ],
@@ -114,6 +116,7 @@ return [
             'violation.view', 'violation.create', 'violation.confirm_error', 'violation.confirm_fine', 'violation.decide_academic',
             'work_task.*', 'support_ticket.create', 'support_ticket.view', 'notification.view', 'survey.manage', 'course.view',
             'staff_report.submit', 'dashboard.academic', 'portal.staff',
+            'payroll.view_own', 'payroll.scope_own',
             'lead.scope_branch', 'student.scope_branch', 'class.scope_all', 'big_test.scope_all', 'kpi.scope_all',
             'work_task.scope_all', 'user.scope_own', 'support_ticket.scope_own',
         ],

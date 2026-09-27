@@ -16,14 +16,9 @@
     $dashboardActive = request()->routeIs('dashboard');
     // Badge mục "Cần duyệt" (khu Phê duyệt) = tổng chờ duyệt (cache 60s, 1 lần đọc cache); null khi không duyệt được nguồn nào.
     $approvalBadge = Auth::user() ? app(\App\Support\Approvals\ApprovalInboxService::class)->badge(Auth::user()) : null;
-    $roleLabels = [
-        'admin' => 'Quản trị hệ thống', 'manager' => 'Quản lý', 'accountant' => 'Kế toán',
-        'academic_staff' => 'Nhân viên học vụ', 'academic_lead' => 'Trưởng học vụ', 'sales_consultant' => 'Tư vấn tuyển sinh',
-        'teacher' => 'Giáo viên', 'teacher_fulltime' => 'Giáo viên full-time', 'teacher_parttime' => 'Giáo viên part-time',
-        'assistant' => 'Trợ giảng', 'student' => 'Học viên',
-    ];
+    // Cùng nhãn vai trò với trang cá nhân / danh sách nhân sự (AclHelper, theo tên Admin đặt ở màn Vai trò).
     $primaryRole = Auth::user()?->getRoleNames()->first();
-    $roleName = $roleLabels[$primaryRole] ?? ($primaryRole ? \Illuminate\Support\Str::headline($primaryRole) : 'Người dùng');
+    $roleName = $primaryRole ? \App\Helpers\AclHelper::shortRoleLabel($primaryRole) : 'Người dùng';
 @endphp
 
 <script>
