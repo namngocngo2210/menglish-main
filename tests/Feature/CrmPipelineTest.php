@@ -94,10 +94,12 @@ class CrmPipelineTest extends TestCase
             ->assertForbidden();
         $this->actingAs($this->sales)->postJson(route('crm.customers.next-stage', $lead))
             ->assertForbidden();
-        $this->actingAs($this->sales)->postJson(route('crm.customers.stage', $lead), ['stage' => 'lost', 'lost_reason' => 'x'])
-            ->assertForbidden();
-
         $this->assertSame('new', $lead->fresh()->stage);
+
+        // Sales được đánh dấu Thất bại (quyền lead.mark_lost, chủ dự án chốt 27/09/2026).
+        $this->actingAs($this->sales)->postJson(route('crm.customers.stage', $lead), ['stage' => 'lost', 'lost_reason' => 'Không còn nhu cầu'])
+            ->assertOk();
+        $this->assertSame('lost', $lead->fresh()->stage);
     }
 
     public function test_closed_stages_can_only_be_reached_through_closing_flow(): void

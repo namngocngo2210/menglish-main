@@ -1860,10 +1860,15 @@ class TuitionController extends Controller
         $stats = $tuition->sessionStats();
         $resumeOn = $refund->defer_to->copy()->addDay();
 
+        // Bảo lưu bắt đầu ở tương lai: học viên vẫn học bình thường tới ngày bắt đầu, lệnh hằng ngày
+        // students:start-deferrals mới đóng băng số buổi / công nợ và chuyển "Bảo lưu" (chủ dự án chốt 27/09/2026).
+        $startsNow = $refund->defer_from->copy()->startOfDay()->lte(today());
         $tuition->deferred_from = $refund->defer_from;
         $tuition->deferred_until = $refund->defer_to;
-        $tuition->frozen_remaining_sessions = $stats['remaining'] ?? null;
-        $tuition->frozen_debt_amount = $tuition->debt_amount;
+        if ($startsNow) {
+            $tuition->frozen_remaining_sessions = $stats['remaining'] ?? null;
+            $tuition->frozen_debt_amount = $tuition->debt_amount;
+        }
         $tuition->reminder_paused_until = ($tuition->reminder_paused_until && $tuition->reminder_paused_until->gt($resumeOn))
             ? $tuition->reminder_paused_until
             : $resumeOn;
@@ -1872,23 +1877,26 @@ class TuitionController extends Controller
             $tuition->due_date = $resumeOn;
         }
         $tuition->notes = trim(($tuition->notes ? $tuition->notes."\n" : '').$stamp
-            ."Bảo lưu #{$refund->id}: {$refund->defer_from->format('d/m/Y')} – {$refund->defer_to->format('d/m/Y')}, đóng băng "
-            .($stats ? $stats['remaining'].' buổi còn lại' : 'số buổi còn lại').' và công nợ '
-            .number_format((float) $tuition->debt_amount, 0, ',', '.')." VNĐ. Duyệt bởi {$approver}.");
+            ."Bảo lưu #{$refund->id}: {$refund->defer_from->format('d/m/Y')} – {$refund->defer_to->format('d/m/Y')}, "
+            .($startsNow
+                ? 'đóng băng '.($stats ? $stats['remaining'].' buổi còn lại' : 'số buổi còn lại').' và công nợ '.number_format((float) $tuition->debt_amount, 0, ',', '.').' VNĐ'
+                : 'đóng băng số buổi và công nợ vào ngày bắt đầu')
+            .". Duyệt bởi {$approver}.");
         $tuition->recalculateDebt();
 
         $student = $refund->student;
         if ($student) {
-            $student->update([
-                'status' => 'deferred',
-                'notes' => trim(($student->notes ? $student->notes."\n" : '').$stamp
-                    ."Bảo lưu {$refund->defer_from->format('d/m/Y')} – {$refund->defer_to->format('d/m/Y')} (hồ sơ #{$refund->id}). Lý do: {$refund->reason}"),
+            $note = "Bảo lưu {$refund->defer_from->format('d/m/Y')} – {$refund->defer_to->format('d/m/Y')} (hồ sơ #{$refund->id}). Lý do: {$refund->reason}";
+            $student->update(($startsNow ? ['status' => 'deferred'] : []) + [
+                'notes' => trim(($student->notes ? $student->notes."\n" : '').$stamp.$note
+                    .($startsNow ? '' : ' Học viên vẫn học tới ngày bắt đầu bảo lưu.')),
             ]);
         }
 
         $refund->update(['status' => 'approved', 'approver_id' => Auth::id()]);
 
-        return ['status' => "Đã duyệt bảo lưu cho học viên {$student?->name} từ {$refund->defer_from->format('d/m/Y')} đến {$refund->defer_to->format('d/m/Y')}; đã đóng băng số buổi còn lại và công nợ."];
+        return ['status' => "Đã duyệt bảo lưu cho học viên {$student?->name} từ {$refund->defer_from->format('d/m/Y')} đến {$refund->defer_to->format('d/m/Y')}; "
+            .($startsNow ? 'đã đóng băng số buổi còn lại và công nợ.' : 'học viên vẫn học bình thường tới ngày bắt đầu, hệ thống tự chuyển Bảo lưu vào ngày đó.')];
     }
 
     public function rejectRefundRequest(Request $request, $id)

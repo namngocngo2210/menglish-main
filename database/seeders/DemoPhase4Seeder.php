@@ -250,7 +250,7 @@ class DemoPhase4Seeder extends Seeder
         // G: đóng 1 phần → bảo lưu 30 ngày (học viên sang "Bảo lưu", đóng băng công nợ).
         $this->event($this->at(28, 10), fn () => $this->receipt('G', 'academic_bd', 4750000, 'cash', null, note: 'Đóng 50% học phí.'));
         $this->event($this->at(28, 15), fn () => $this->approveLast('G', 'accountant_bd'));
-        $this->event($this->at(3, 9), fn () => $this->refundRequest('G', 'accountant_bd', ['type' => 'deferral', 'defer_from' => $this->realNow->copy()->subDay()->toDateString(),
+        $this->event($this->at(3, 9), fn () => $this->refundRequest('G', 'accountant_bd', ['type' => 'deferral', 'defer_from' => $this->realNow->copy()->subDays(3)->toDateString(),
             'defer_to' => $this->realNow->copy()->addDays(30)->toDateString(), 'reason' => 'Học viên đi du học hè 1 tháng.'], approveBy: 'manager_bd'));
 
         // H: sắp đến hạn — 1 phiếu nháp, 1 phiếu CK bị trả về (chưa sửa).

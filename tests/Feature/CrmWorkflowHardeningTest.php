@@ -96,8 +96,8 @@ class CrmWorkflowHardeningTest extends TestCase
             ->assertUnprocessable();
         $this->actingAs($academic)->post(route('crm.customers.stage', $lead), ['stage' => 'lost'])
             ->assertSessionHasErrors('lost_reason');
-        // Sales không được đổi giai đoạn (kể cả thất bại) theo luật BA mới.
-        $this->actingAs($this->salesA)->postJson(route('crm.customers.stage', $lead), ['stage' => 'lost', 'lost_reason' => 'x'])
+        // Sales không được chuyển bước pipeline (Thất bại thì được — quyền lead.mark_lost, xem CrmPipelineTest).
+        $this->actingAs($this->salesA)->postJson(route('crm.customers.stage', $lead), ['stage' => 'tested', 'reason' => 'x'])
             ->assertForbidden();
 
         $lead->refresh();

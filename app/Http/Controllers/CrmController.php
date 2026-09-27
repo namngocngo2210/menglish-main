@@ -472,7 +472,7 @@ class CrmController extends Controller
         $stageControls = [
             'next' => $stages->manualNextStage($customer, $user),
             'backward' => $stages->backwardTargets($customer, $user),
-            'canLose' => $stages->canMoveForward($user) && ! $customer->isClosed() && $customer->stage !== CrmCustomer::STAGE_LOST,
+            'canLose' => $user->can('lead.mark_lost') && ! $customer->isClosed() && $customer->stage !== CrmCustomer::STAGE_LOST,
             // Hủy buổi học thử đang chờ được ở mọi giai đoạn (kể cả sau khi chốt / thất bại).
             'canCancelTrial' => $stages->canMoveForward($user),
         ];

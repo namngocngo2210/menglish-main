@@ -84,6 +84,31 @@ class ReviewRoundFinalTest extends TestCase
             ->assertDontSee('Cập nhật Phân công')->assertDontSee('aria-label="Trạng thái ticket"', false);
     }
 
+    public function test_future_deferral_keeps_student_in_class_until_start_date(): void
+    {
+        $student = $this->student('HV-F4');
+        $tuition = $this->tuition($student, 5000000, now()->addDays(20));
+        $from = now()->addDays(7)->toDateString();
+
+        $this->actingAs($this->accountant)->post(route('tuition.refunds.store'), [
+            'student_id' => $student->id, 'type' => 'deferral', 'defer_from' => $from, 'defer_to' => now()->addMonth()->toDateString(),
+            'reason' => 'Đi du lịch',
+        ])->assertSessionHasNoErrors();
+        $request = \App\Models\TuitionRefundRequest::where('type', 'deferral')->firstOrFail();
+        $this->actingAs($this->userWithRole('admin'))->post(route('tuition.refunds.approve', $request->id))->assertSessionHasNoErrors();
+
+        $this->assertSame('studying', $student->fresh()->status);
+        $this->assertNull($tuition->fresh()->frozen_debt_amount);
+
+        $this->artisan('students:start-deferrals')->assertSuccessful();
+        $this->assertSame('studying', $student->fresh()->status);
+
+        $this->travelTo(now()->addDays(7)->setTime(7, 0));
+        $this->artisan('students:start-deferrals')->assertSuccessful();
+        $this->assertSame('deferred', $student->fresh()->status);
+        $this->assertEquals(5000000, (float) $tuition->fresh()->frozen_debt_amount);
+    }
+
     private function student(string $code): Student
     {
         return Student::create(['code' => $code, 'name' => 'HV '.$code, 'phone' => '0900000000', 'branch_id' => $this->branch->id, 'status' => 'studying']);
