@@ -136,4 +136,32 @@ class AdminNotificationTest extends TestCase
 
         $this->assertSame(1, AdminNotification::where('type', 'stale_lead_24h')->count());
     }
+
+    public function test_branch_manager_only_sees_stale_lead_alerts_of_own_branch(): void
+    {
+        // Quản lý cơ sở không mở được khách chi nhánh khác (404) → không nhận cảnh báo lead tồn đọng của chi nhánh đó.
+        $otherBranch = Branch::create(['name' => 'Cơ sở Hà Đông', 'code' => 'HD', 'address' => 'Hà Nội', 'phone' => '0900000001', 'is_active' => true]);
+        $manager = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
+        $manager->assignRole('manager');
+
+        $own = CrmCustomer::create(['code' => 'KH-OWN', 'name' => 'Khách cùng cơ sở', 'phone' => '0911000001', 'stage' => 'new', 'branch_id' => $this->branch->id]);
+        $other = CrmCustomer::create(['code' => 'KH-OTHER', 'name' => 'Khách cơ sở khác', 'phone' => '0911000002', 'stage' => 'new', 'branch_id' => $otherBranch->id]);
+        CrmCustomer::whereIn('id', [$own->id, $other->id])->update(['created_at' => Carbon::now()->subHours(30)]);
+
+        $service = app(NotificationService::class);
+        $service->scanAndSyncStaleLeads();
+
+        $seen = $service->getUserNotifications($manager, 50)->pluck('data.customer_id')->filter()->all();
+        $this->assertContains($own->id, $seen);
+        $this->assertNotContains($other->id, $seen);
+
+        $this->actingAs($manager)->get(route('notifications.index'))
+            ->assertOk()
+            ->assertSee('KH-OWN')
+            ->assertDontSee('KH-OTHER');
+
+        // Admin (phạm vi toàn hệ thống) vẫn thấy cả hai.
+        $adminSeen = $service->getUserNotifications($this->admin, 50)->pluck('data.customer_id')->all();
+        $this->assertContains($other->id, $adminSeen);
+    }
 }

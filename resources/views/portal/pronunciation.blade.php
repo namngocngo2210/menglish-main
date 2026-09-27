@@ -1,9 +1,11 @@
 <x-app-layout>
-    <x-ui.page-header title="Luyện phát âm" icon="mic" :back="route('portal.student.homework', ['studentId' => $student?->id])">
+    {{-- Trên điện thoại: thanh điều hướng đáy là điều hướng chính, ẩn tiêu đề/nút quay lại và dải tab. --}}
+    <x-ui.page-header class="hidden md:flex" title="Luyện phát âm" icon="mic" :back="route('portal.student.homework', ['studentId' => $student?->id])">
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="assignment" :href="route('portal.student.homework', ['studentId' => $student?->id])">Xem bài tập viết</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
+    <x-ui.workspace-tabs class="hidden md:block" />
 
     
 
@@ -238,6 +240,6 @@
         </main>
 
         {{-- Bottom Navigation Bar Component --}}
-        @include('portal.partials.bottom-nav', ['activeTab' => 'learning', 'student' => $student])
+        @include('portal.partials.bottom-nav', ['activeTab' => 'pronunciation', 'student' => $student])
     </div>
 </x-app-layout>

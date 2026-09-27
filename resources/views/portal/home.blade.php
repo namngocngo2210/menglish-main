@@ -1,9 +1,8 @@
 <x-app-layout>
-    <x-ui.page-header title="Trang chủ" icon="cottage" :back="route('portal.app-shell', ['student_id' => $student?->id])">
-        <x-slot:actions>
-            <x-ui.button icon="upload_file" :href="route('portal.student.homework', ['studentId' => $student?->id])">Nộp bài tập</x-ui.button>
-        </x-slot:actions>
-    </x-ui.page-header>
+    {{-- Trên điện thoại: thanh điều hướng đáy là điều hướng chính, ẩn tiêu đề/nút quay lại và dải tab.
+         Lối vào "Nộp bài tập" chỉ giữ ở ô truy cập nhanh trong trang. --}}
+    <x-ui.page-header class="hidden md:flex" title="Trang chủ" icon="cottage" :back="route('portal.app-shell', ['student_id' => $student?->id])" />
+    <x-ui.workspace-tabs class="hidden md:block" />
 
     {{-- Outer Mobile Mockup Frame --}}
     <div class="max-w-[430px] mx-auto bg-background min-h-[844px] shadow-2xl rounded-3xl border border-surface-container-highest overflow-hidden flex flex-col relative pb-20 my-4" x-data>

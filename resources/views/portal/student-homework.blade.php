@@ -1,9 +1,13 @@
 <x-app-layout>
-    <x-ui.page-header title="Học tập & Nộp bài tập" icon="upload_file" :back="route('students.index')">
-        <x-slot:actions>
-            <x-ui.button variant="secondary" icon="video_library" :href="route('portal.teacher.submissions')">Cổng GV: Xem bài nộp của lớp</x-ui.button>
-        </x-slot:actions>
+    {{-- Nhân sự xem hộ thì quay về danh sách học viên; học viên quay về trang chủ cổng. Trên điện thoại dùng thanh điều hướng đáy. --}}
+    <x-ui.page-header class="hidden md:flex" title="Học tập & Nộp bài tập" icon="upload_file" :back="auth()->user()->can('student.view') ? route('students.index') : route('portal.student.home', ['studentId' => $student?->id])">
+        @can('homework.grade')
+            <x-slot:actions>
+                <x-ui.button variant="secondary" icon="video_library" :href="route('portal.teacher.submissions')">Cổng GV: Xem bài nộp của lớp</x-ui.button>
+            </x-slot:actions>
+        @endcan
     </x-ui.page-header>
+    <x-ui.workspace-tabs class="hidden md:block" />
 
     
 
@@ -73,85 +77,7 @@
             </div>
 
             <div class="px-4 flex flex-col gap-6 mt-4 pb-20">
-                {{-- 1. BÁO CÁO BUỔI HỌC --}}
-                <section class="flex flex-col gap-2.5">
-                    <div class="flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-primary text-xl">insights</span>
-                        <h2 class="text-base font-bold text-on-surface">Nhận xét buổi học</h2>
-                    </div>
-
-                    @forelse($remarks as $item)
-                        @php $r = $item['remark']; @endphp
-                        <div class="bg-surface-container-lowest rounded-2xl p-4 border border-surface-container-highest shadow-2xs flex flex-col gap-3">
-                            <div class="flex justify-between items-start">
-                                <p class="text-[11px] text-on-surface-variant/70 font-medium">Ngày {{ $item['date']?->format('d/m/Y') }}</p>
-                                <x-ui.badge color="success" :pill="true">Đã nhận xét</x-ui.badge>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2">
-                                @foreach(['monsters' => ['Monsters', 'hotel_class', 'text-warning'], 'grammar' => ['Ngữ pháp', 'psychology', 'text-secondary'], 'attitude' => ['Tinh thần', 'mood', 'text-tertiary'], 'result' => ['Kết quả', 'checklist', 'text-purple-500']] as $key => [$label, $icon, $tone])
-                                    @if(filled($r[$key] ?? null))
-                                        <div class="bg-surface-container-low rounded-xl p-2.5 flex items-center gap-2 border border-surface-container-highest">
-                                            <span class="material-symbols-outlined {{ $tone }} text-lg">{{ $icon }}</span>
-                                            <div>
-                                                <p class="text-[10px] text-on-surface-variant/70 font-medium">{{ $label }}</p>
-                                                <p class="text-xs font-bold text-on-surface">{{ $r[$key] }}</p>
-                                            </div>
-                                        </div>
-                                    @endif
-                                @endforeach
-                            </div>
-                            @if(filled($r['comment'] ?? null))
-                                <div class="border-t border-surface-container-highest pt-3">
-                                    <p class="text-[11px] text-on-surface-variant mb-1 flex items-center gap-1 font-bold">
-                                        <span class="material-symbols-outlined text-[15px] text-primary">edit_note</span>
-                                        Nhận xét chi tiết từ giáo viên
-                                    </p>
-                                    <p class="text-xs text-on-surface-variant leading-relaxed bg-primary-container/10 p-2.5 rounded-xl border border-primary-container/30">{{ $r['comment'] }}</p>
-                                </div>
-                            @endif
-                        </div>
-                    @empty
-                        <x-ui.empty-state class="bg-surface-container-low rounded-2xl border border-dashed border-surface-container-highest" icon="insights" title="Chưa có nhận xét buổi học nào." />
-                    @endforelse
-                </section>
-
-                {{-- 2. BẢNG ĐIỂM --}}
-                <section class="flex flex-col gap-2.5">
-                    <div class="flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-primary text-xl">school</span>
-                        <h2 class="text-base font-bold text-on-surface">Bảng điểm</h2>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        @forelse($miniTests as $mt)
-                            <div class="bg-surface-container-lowest rounded-xl p-3.5 border border-surface-container-highest shadow-2xs flex items-center justify-between">
-                                <div>
-                                    <h4 class="text-xs font-bold text-on-surface">{{ $mt->name }}</h4>
-                                    <p class="text-[10px] text-on-surface-variant/70 font-mono">Ngày thi: {{ $mt->test_date?->format('d/m/Y') }}</p>
-                                </div>
-                                <div class="text-lg font-black text-primary font-mono">{{ rtrim(rtrim(number_format((float) $mt->score, 2, '.', ''), '0'), '.') }}<span class="text-xs text-on-surface-variant/70">/{{ rtrim(rtrim(number_format((float) $mt->max_score, 2, '.', ''), '0'), '.') }}</span></div>
-                            </div>
-                        @empty
-                        @endforelse
-                        @foreach($bigTestResults as $bt)
-                            <div class="bg-surface-container-lowest rounded-xl p-3.5 border border-surface-container-highest shadow-2xs flex items-center justify-between">
-                                <div>
-                                    <h4 class="text-xs font-bold text-on-surface">{{ $bt->bigTest?->title ?? 'Big Test' }}</h4>
-                                    <p class="text-[10px] text-on-surface-variant/70 font-mono">Ngày thi: {{ $bt->bigTest?->scheduled_at?->format('d/m/Y') ?? '—' }}</p>
-                                </div>
-                                @if($bt->is_absent)
-                                    <x-ui.badge color="neutral" :pill="true">Vắng thi</x-ui.badge>
-                                @else
-                                    <div class="text-lg font-black text-primary font-mono">{{ $bt->overall_score }}</div>
-                                @endif
-                            </div>
-                        @endforeach
-                        @if($miniTests->isEmpty() && $bigTestResults->isEmpty())
-                            <x-ui.empty-state class="bg-surface-container-low rounded-xl border border-dashed border-surface-container-highest" icon="school" title="Chưa có điểm kiểm tra nào." />
-                        @endif
-                    </div>
-                </section>
-
-                {{-- 3. BÀI TẬP VỀ NHÀ (INTERACTIVE SUBMISSION) --}}
+                {{-- 1. BÀI TẬP VỀ NHÀ — học viên vào trang để nộp bài nên đặt lên đầu --}}
                 <section class="flex flex-col gap-2.5">
                     <div class="flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-primary text-xl">assignment</span>
@@ -169,6 +95,9 @@
                     @endif
 
                     @php
+                        // Chỉ tô cam mục chưa nộp đầu tiên khi bài GV giao sắp/đã tới hạn (≤ 2 ngày); còn lại là nút phụ.
+                        $homeworkUrgent = $latestHomework?->due_date && $latestHomework->due_date->lte(now()->addDays(2)->endOfDay());
+                        $urgentKeyAssigned = false;
                         $homeworkCategories = [
                             'video' => [
                                 'title' => 'Quay video bài học',
@@ -228,6 +157,10 @@
                         @foreach($homeworkCategories as $key => $cat)
                             @php
                                 $sub = $submissionsByType[$key] ?? null;
+                                $isUrgent = ! $sub && $homeworkUrgent && ! $urgentKeyAssigned;
+                                if ($isUrgent) {
+                                    $urgentKeyAssigned = true;
+                                }
                             @endphp
                             <div class="bg-surface-container-lowest rounded-2xl p-3.5 border border-surface-container-highest shadow-2xs flex flex-col gap-2">
                                 <div class="flex justify-between items-center">
@@ -291,7 +224,7 @@
                                     </div>
                                 @else
                                     <div class="flex flex-col gap-1.5 pt-1">
-                                        <x-ui.button icon="upload" class="w-full"
+                                        <x-ui.button :variant="$isUrgent ? 'primary' : 'secondary'" icon="upload" class="w-full"
                                                      x-on:click="openUpload('{{ $key }}', '{{ $cat['title'] }}')">
                                             {{ $cat['btn_text'] }}
                                         </x-ui.button>
@@ -305,6 +238,84 @@
                                 @endif
                             </div>
                         @endforeach
+                    </div>
+                </section>
+
+                {{-- 2. BÁO CÁO BUỔI HỌC --}}
+                <section class="flex flex-col gap-2.5">
+                    <div class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-primary text-xl">insights</span>
+                        <h2 class="text-base font-bold text-on-surface">Nhận xét buổi học</h2>
+                    </div>
+
+                    @forelse($remarks as $item)
+                        @php $r = $item['remark']; @endphp
+                        <div class="bg-surface-container-lowest rounded-2xl p-4 border border-surface-container-highest shadow-2xs flex flex-col gap-3">
+                            <div class="flex justify-between items-start">
+                                <p class="text-[11px] text-on-surface-variant/70 font-medium">Ngày {{ $item['date']?->format('d/m/Y') }}</p>
+                                <x-ui.badge color="success" :pill="true">Đã nhận xét</x-ui.badge>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                @foreach(['monsters' => ['Monsters', 'hotel_class', 'text-warning'], 'grammar' => ['Ngữ pháp', 'psychology', 'text-secondary'], 'attitude' => ['Tinh thần', 'mood', 'text-tertiary'], 'result' => ['Kết quả', 'checklist', 'text-purple-500']] as $key => [$label, $icon, $tone])
+                                    @if(filled($r[$key] ?? null))
+                                        <div class="bg-surface-container-low rounded-xl p-2.5 flex items-center gap-2 border border-surface-container-highest">
+                                            <span class="material-symbols-outlined {{ $tone }} text-lg">{{ $icon }}</span>
+                                            <div>
+                                                <p class="text-[10px] text-on-surface-variant/70 font-medium">{{ $label }}</p>
+                                                <p class="text-xs font-bold text-on-surface">{{ $r[$key] }}</p>
+                                            </div>
+                                        </div>
+                                    @endif
+                                @endforeach
+                            </div>
+                            @if(filled($r['comment'] ?? null))
+                                <div class="border-t border-surface-container-highest pt-3">
+                                    <p class="text-[11px] text-on-surface-variant mb-1 flex items-center gap-1 font-bold">
+                                        <span class="material-symbols-outlined text-[15px] text-primary">edit_note</span>
+                                        Nhận xét chi tiết từ giáo viên
+                                    </p>
+                                    <p class="text-xs text-on-surface-variant leading-relaxed bg-primary-container/10 p-2.5 rounded-xl border border-primary-container/30">{{ $r['comment'] }}</p>
+                                </div>
+                            @endif
+                        </div>
+                    @empty
+                        <x-ui.empty-state class="bg-surface-container-low rounded-2xl border border-dashed border-surface-container-highest" icon="insights" title="Chưa có nhận xét buổi học nào." />
+                    @endforelse
+                </section>
+
+                {{-- 3. BẢNG ĐIỂM --}}
+                <section class="flex flex-col gap-2.5">
+                    <div class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-primary text-xl">school</span>
+                        <h2 class="text-base font-bold text-on-surface">Bảng điểm</h2>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        @forelse($miniTests as $mt)
+                            <div class="bg-surface-container-lowest rounded-xl p-3.5 border border-surface-container-highest shadow-2xs flex items-center justify-between">
+                                <div>
+                                    <h4 class="text-xs font-bold text-on-surface">{{ $mt->name }}</h4>
+                                    <p class="text-[10px] text-on-surface-variant/70 font-mono">Ngày thi: {{ $mt->test_date?->format('d/m/Y') }}</p>
+                                </div>
+                                <div class="text-lg font-black text-primary font-mono">{{ rtrim(rtrim(number_format((float) $mt->score, 2, '.', ''), '0'), '.') }}<span class="text-xs text-on-surface-variant/70">/{{ rtrim(rtrim(number_format((float) $mt->max_score, 2, '.', ''), '0'), '.') }}</span></div>
+                            </div>
+                        @empty
+                        @endforelse
+                        @foreach($bigTestResults as $bt)
+                            <div class="bg-surface-container-lowest rounded-xl p-3.5 border border-surface-container-highest shadow-2xs flex items-center justify-between">
+                                <div>
+                                    <h4 class="text-xs font-bold text-on-surface">{{ $bt->bigTest?->title ?? 'Big Test' }}</h4>
+                                    <p class="text-[10px] text-on-surface-variant/70 font-mono">Ngày thi: {{ $bt->bigTest?->scheduled_at?->format('d/m/Y') ?? '—' }}</p>
+                                </div>
+                                @if($bt->is_absent)
+                                    <x-ui.badge color="neutral" :pill="true">Vắng thi</x-ui.badge>
+                                @else
+                                    <div class="text-lg font-black text-primary font-mono">{{ $bt->overall_score }}</div>
+                                @endif
+                            </div>
+                        @endforeach
+                        @if($miniTests->isEmpty() && $bigTestResults->isEmpty())
+                            <x-ui.empty-state class="bg-surface-container-low rounded-xl border border-dashed border-surface-container-highest" icon="school" title="Chưa có điểm kiểm tra nào." />
+                        @endif
                     </div>
                 </section>
 
