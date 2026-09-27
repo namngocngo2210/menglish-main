@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-ui.page-header title="Chỉnh sửa lớp học" icon="edit" :back="route('classes.profile', $class->id)">
+    <x-ui.page-header title="Chỉnh sửa lớp học" icon="edit" :back="route('classes.show', $class->id)">
         <x-slot:badges>
             <span class="font-mono text-xs font-bold text-primary bg-primary-container/10 px-2 py-0.5 rounded border border-primary-container/30">{{ $class->code }}</span>
         </x-slot:badges>
@@ -167,7 +167,7 @@
                     Cập nhật lần cuối: <strong class="text-on-surface">{{ $class->updated_at->format('d/m/Y H:i') }}</strong>
                 </div>
                 <div class="flex items-center gap-3">
-                    <x-ui.button variant="secondary" :href="route('classes.profile', $class->id)">Hủy</x-ui.button>
+                    <x-ui.button variant="secondary" :href="route('classes.show', $class->id)">Hủy</x-ui.button>
                     <x-ui.button type="submit" variant="info" icon="save">Lưu thay đổi</x-ui.button>
                 </div>
             </div>

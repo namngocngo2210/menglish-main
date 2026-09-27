@@ -349,8 +349,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
             route('syllabus.versions'),
             route('syllabus.big-tests.distribution'),
             route('syllabus.big-tests.results'),
-            route('classes.academic-overview'),
-            route('classes.academic-list'),
+            route('classes.index'),
             route('academic-system.show', ['category' => '01_Web_Admin', 'screen' => '02_soan_syllabus_theo_chang']),
             route('academic-system.show', ['category' => '01_Web_Admin', 'screen' => '03_giao_chang_cho_giao_vien']),
             route('academic-system.show', ['category' => '01_Web_Admin', 'screen' => '05_chi_tiet_de_xuat_sua_giao_trinh']),
@@ -632,7 +631,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
         $resBigTestProto->assertOk();
 
         // 5. Sơ đồ khối lớp
-        $resOverviewNative = $this->actingAs($this->academicLead)->get(route('classes.academic-overview'));
+        $resOverviewNative = $this->actingAs($this->academicLead)->get(route('classes.index'));
         $resOverviewNative->assertOk();
         $resOverviewProto = $this->actingAs($this->academicLead)->followingRedirects()->get(route('academic-system.show', [
             'category' => '02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu',

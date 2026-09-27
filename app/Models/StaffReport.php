@@ -13,6 +13,7 @@ class StaffReport extends Model
 
     protected $fillable = [
         'user_id',
+        'class_id',
         'type',
         'title',
         'content',
@@ -35,6 +36,12 @@ class StaffReport extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** Lớp mà sự vụ thuộc về (null = sự vụ chung của cơ sở). */
+    public function classModel(): BelongsTo
+    {
+        return $this->belongsTo(ClassModel::class, 'class_id')->withTrashed();
     }
 
     public function followups(): HasMany

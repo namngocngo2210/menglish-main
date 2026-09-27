@@ -302,7 +302,7 @@ class Round2LeftoversTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('classes.edit', $class->id))->assertOk()->assertSee('Ngưỡng khai giảng')->assertSee('name="min_students"', false);
         $this->actingAs($this->admin)->get(route('classes.index'))->assertOk()->assertSee('Còn 7 chỗ')->assertSee('Thiếu 2/3 để KG');
-        $this->actingAs($this->admin)->get(route('classes.profile', $class->id))->assertOk()
+        $this->actingAs($this->admin)->get(route('classes.show', $class->id))->assertOk()
             ->assertSee('Còn 7 chỗ')->assertSee('Ngưỡng khai giảng 3')->assertSee('Cần thêm 2 học viên để khai giảng');
     }
 

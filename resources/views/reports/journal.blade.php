@@ -18,6 +18,9 @@
                 <x-ui.select name="severity" :options="['normal' => 'Bình thường', 'important' => 'Quan trọng', 'urgent' => 'Khẩn cấp']" aria-label="Mức độ" />
             </div>
             <x-ui.textarea name="content" rows="2" placeholder="Mô tả chi tiết..." aria-label="Mô tả chi tiết" />
+            {{-- Gắn lớp để sự vụ hiện ở tab "Sự vụ" của Trang lớp --}}
+            <x-ui.select id="journal_class_id" name="class_id" placeholder="Không gắn lớp (sự vụ chung)" aria-label="Lớp liên quan"
+                         :options="$classes->mapWithKeys(fn ($c) => [$c->id => $c->code.' · '.$c->name])" />
             <div class="flex items-center justify-between">
                 <x-ui.date name="report_date" :value="now()->toDateString()" aria-label="Ngày sự vụ" />
                 <x-ui.button type="submit" icon="add">Ghi sự vụ</x-ui.button>
@@ -52,6 +55,7 @@
                             </div>
                             <div class="text-[11px] text-on-surface-variant/70 mt-1">
                                 {{ $j->report_date->format('d/m/Y') }}
+                                @if ($j->classModel) · <a href="{{ route('classes.show', ['id' => $j->class_id, 'tab' => 'incidents']) }}" class="font-semibold text-primary hover:underline">Lớp {{ $j->classModel->code }}</a> @endif
                                 @if ($isPriv) · <span class="font-semibold text-on-surface-variant">{{ $j->user?->name }}</span> @endif
                             </div>
                             @if ($j->content)

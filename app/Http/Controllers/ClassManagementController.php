@@ -11,7 +11,10 @@ use App\Models\ClassSession;
 use App\Models\Course;
 use App\Models\CourseLevel;
 use App\Models\User;
+use App\Services\ClassDashboardService;
 use App\Services\SessionScheduleService;
+use App\Support\ClassLifecycle;
+use App\Models\StaffReport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -277,9 +280,10 @@ class ClassManagementController extends Controller
 
         $message = $scheduleSessions
             ? "Tạo lớp học '{$class->name}' ({$class->code}) thành công với ".count($scheduleSessions).' buổi học đã lên lịch; lớp đã được kích hoạt.'
-            : "Tạo lớp học '{$class->name}' ({$class->code}) thành công! Chuyển tiếp tới Hồ sơ lớp học.";
+            : "Tạo lớp học '{$class->name}' ({$class->code}) thành công! Bước tiếp theo: cấu hình lịch học.";
 
-        return redirect()->route('classes.profile', ['id' => $class->id])
+        // Lớp chưa có lịch → mở thẳng tab Lịch & buổi học (bước tiếp theo của vòng đời).
+        return redirect()->route('classes.show', ['id' => $class->id] + ($scheduleSessions ? [] : ['tab' => 'schedule']))
             ->with('success', $message);
     }
 
@@ -442,157 +446,181 @@ class ClassManagementController extends Controller
     }
 
     /**
-     * Flow 1 - Bước #3: Hồ sơ lớp học
-     * Khớp 100% UI: 01_Web_Admin/14_ho_so_lop_hoc
-     */
-    public function profile(Request $request, $id = null)
-    {
-        $this->ensureCanBrowseClasses();
-        $classes = ClassModel::with(['course', 'branch', 'teacher', 'assistant', 'foreignTeacher'])->visibleTo(auth()->user())->get();
-
-        $class = $id ? $classes->firstWhere('id', $id) : $classes->first();
-        if (! $class && $classes->isNotEmpty()) {
-            $class = $classes->first();
-        }
-
-        // Danh sách lớp thật: học viên có lớp chính là lớp này + học viên liên kết lớp khác,
-        // bỏ Thôi học / Hoàn thành / Bảo lưu (audit A4 #7).
-        $students = $class ? $class->rosterStudents() : collect();
-
-        return view('classes.profile', compact('class', 'classes', 'students'));
-    }
-
-    /**
-     * Flow 1 - Bước #4: Tổng quan Danh sách lớp học thuật
-     * Khớp 100% UI: 02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu/13_tong_quan_danh_sach_lop_hoc_thuat
-     */
-    public function academicOverview(Request $request)
-    {
-        $branches = Branch::where('is_active', true)->get();
-        $selectedBranch = $request->query('branch', 'all');
-
-        $this->ensureCanBrowseClasses();
-        $classesQuery = ClassModel::query()->visibleTo(auth()->user());
-        if ($selectedBranch !== 'all' && is_numeric($selectedBranch)) {
-            $classesQuery->where('branch_id', $selectedBranch);
-        }
-        $classesQuery->where('status', '!=', 'cancelled');
-        $totalActive = (clone $classesQuery)->count();
-
-        // Số lớp thật theo chương trình và theo trình độ / khối (cột classes.program / classes.level).
-        $programCounts = (clone $classesQuery)->selectRaw("COALESCE(NULLIF(program, ''), '') as label, COUNT(*) as total")
-            ->groupBy('label')->orderByDesc('total')->pluck('total', 'label');
-        $levelCounts = (clone $classesQuery)->selectRaw("COALESCE(NULLIF(level, ''), '') as label, COUNT(*) as total")
-            ->groupBy('label')->orderByDesc('total')->pluck('total', 'label');
-
-        return view('classes.academic-overview', compact('branches', 'selectedBranch', 'totalActive', 'programCounts', 'levelCounts'));
-    }
-
-    /**
-     * Flow 1 - Bước #5: Danh sách lớp chi tiết học thuật
-     * Khớp 100% UI: 02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu/14_danh_sach_lop_chi_tiet_hoc_thuat
-     */
-    public function academicList(Request $request)
-    {
-        $branches = Branch::where('is_active', true)->get();
-        $search = $request->query('search');
-        $branchFilter = $request->query('branch_id');
-        $programFilter = $request->query('program');
-        $levelFilter = $request->query('level');
-
-        $this->ensureCanBrowseClasses();
-        $classesQuery = ClassModel::with(['branch', 'teacher', 'assistant'])->visibleTo(auth()->user())->where('status', '!=', 'cancelled');
-        if ($search) {
-            // Phải bọc closure: orWhere viết thẳng sẽ thoát cả filter status lẫn chi nhánh.
-            $classesQuery->where(function ($query) use ($search) {
-                $query->where('name', 'LIKE', "%{$search}%")->orWhere('code', 'LIKE', "%{$search}%");
-            });
-        }
-        if ($branchFilter) {
-            $classesQuery->where('branch_id', $branchFilter);
-        }
-        if ($programFilter) {
-            $classesQuery->where('program', $programFilter);
-        }
-        if ($levelFilter) {
-            $classesQuery->where('level', $levelFilter);
-        }
-
-        // Tiến độ thật: số buổi (không tính buổi hủy) và số buổi đã diễn ra.
-        $classesQuery->withCount([
-            'sessions as total_sessions_count' => fn ($q) => $q->where('status', '!=', 'cancelled'),
-            'sessions as done_sessions_count' => fn ($q) => $q->where('status', '!=', 'cancelled')->whereDate('date', '<=', today()),
-        ]);
-        $classes = $classesQuery->orderBy('code')->paginate(20)->withQueryString();
-        ClassModel::loadRosterCounts($classes->getCollection());
-
-        // Big Test của các lớp đang hiển thị (thật, theo thứ tự lịch thi)
-        $bigTests = \App\Models\BigTest::whereIn('class_id', $classes->pluck('id'))
-            ->orderBy('scheduled_at')
-            ->get(['id', 'class_id', 'title', 'scheduled_at', 'status'])
-            ->groupBy('class_id');
-
-        $programs = ClassModel::visibleTo(auth()->user())->whereNotNull('program')->where('program', '!=', '')
-            ->distinct()->orderBy('program')->pluck('program');
-
-        return view('classes.academic-list', compact('classes', 'branches', 'search', 'branchFilter', 'programFilter', 'levelFilter', 'programs', 'bigTests'));
-    }
-
-    /**
-     * Flow 1 - Bước #6: Chi tiết lớp học học thuật
-     * Khớp 100% UI: 02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu/15_chi_tiet_lop_hoc_hoc_thuat
-     */
-    public function academicDetail(Request $request, $id = null)
-    {
-        $this->ensureCanBrowseClasses();
-        $classes = ClassModel::with(['branch', 'teacher', 'assistant', 'course'])->visibleTo(auth()->user())->get();
-        $class = $id ? $classes->firstWhere('id', $id) : $classes->first();
-        if (! $class && $classes->isNotEmpty()) {
-            $class = $classes->first();
-        }
-
-        // Dữ liệu học thuật thật của lớp: chặng đang áp dụng, tiến độ buổi học, Big Test.
-        $currentStage = $class
-            ? \App\Models\SyllabusAssignment::where('class_id', $class->id)->where('status', 'in_progress')->latest()->first()
-            : null;
-        $sessionProgress = null;
-        $bigTests = collect();
-        if ($class) {
-            $sessions = $class->sessions()->where('status', '!=', 'cancelled');
-            $sessionProgress = [
-                'total' => (clone $sessions)->count(),
-                'done' => (clone $sessions)->whereDate('date', '<=', today())->count(),
-            ];
-            $bigTests = \App\Models\BigTest::where('class_id', $class->id)->orderBy('scheduled_at')->get();
-        }
-
-        return view('classes.academic-detail', compact('class', 'classes', 'currentStage', 'sessionProgress', 'bigTests'));
-    }
-
-    /**
-     * List all classes with pagination, search, branch filter
+     * Danh sách lớp — màn chính của menu Lớp học (gộp "Sơ đồ khối" + "Danh sách lớp chi tiết" + danh sách cũ).
+     * Sơ đồ khối trở thành hàng chip đếm lớp theo chương trình / cấp độ; trạng thái lớp là chip lọc nhanh.
+     * Mặc định ẩn lớp đã hủy (chỉ hiện khi chọn chip "Đã hủy").
      */
     public function index(Request $request)
     {
-        $branches = Branch::where('is_active', true)->get();
-        $search = $request->query('search');
-        $branchFilter = $request->query('branch_id');
-        $statusFilter = $request->query('status');
-
         $this->ensureCanBrowseClasses();
-        $query = ClassModel::with(['branch', 'teacher'])
-            ->visibleTo(auth()->user())
-            ->when($search, fn ($q) => $q->where(fn ($q) => $q->where('name', 'LIKE', "%{$search}%")->orWhere('code', 'LIKE', "%{$search}%")))
+        $viewer = auth()->user();
+        $branches = Branch::where('is_active', true)->get();
+        $search = trim((string) $request->query('search', ''));
+        $branchFilter = $request->query('branch_id');
+        $statusFilter = array_key_exists((string) $request->query('status'), ClassLifecycle::STATUSES) ? $request->query('status') : null;
+        $programFilter = $request->query('program');
+        $levelFilter = $request->query('level');
+
+        // Phạm vi gốc (người xem + chi nhánh + tìm kiếm) — chip đếm tính trên phạm vi này.
+        $scope = ClassModel::query()->visibleTo($viewer)
             ->when($branchFilter, fn ($q) => $q->where('branch_id', $branchFilter))
-            ->when($statusFilter && $statusFilter !== 'all', fn ($q) => $q->where('status', $statusFilter))
-            ->latest();
+            // Phải bọc closure: orWhere viết thẳng sẽ thoát cả filter status lẫn chi nhánh.
+            ->when($search !== '', fn ($q) => $q->where(fn ($q) => $q->where('name', 'LIKE', "%{$search}%")->orWhere('code', 'LIKE', "%{$search}%")));
 
-        $classes = $query->paginate(15)->withQueryString();
-        ClassModel::loadRosterCounts($classes);
-        $totalCount = ClassModel::visibleTo(auth()->user())->count();
-        $activeCount = ClassModel::visibleTo(auth()->user())->where('status', 'active')->count();
+        $statusCounts = (clone $scope)->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
 
-        return view('classes.index', compact('classes', 'branches', 'search', 'branchFilter', 'statusFilter', 'totalCount', 'activeCount'));
+        $filtered = (clone $scope)
+            ->when($statusFilter, fn ($q) => $q->where('status', $statusFilter), fn ($q) => $q->where('status', '!=', 'cancelled'));
+
+        // Sơ đồ khối: số lớp thật theo chương trình và theo cấp độ (trong trạng thái đang lọc).
+        $programCounts = (clone $filtered)->whereNotNull('program')->where('program', '!=', '')
+            ->selectRaw('program as label, COUNT(*) as total')->groupBy('program')->orderByDesc('total')->pluck('total', 'label');
+        $levelCounts = (clone $filtered)->whereNotNull('level')->where('level', '!=', '')
+            ->when($programFilter, fn ($q) => $q->where('program', $programFilter))
+            ->selectRaw('level as label, COUNT(*) as total')->groupBy('level')->orderByDesc('total')->pluck('total', 'label');
+
+        $classes = (clone $filtered)
+            ->with(['branch', 'teacher', 'assistant'])
+            ->when($programFilter, fn ($q) => $q->where('program', $programFilter))
+            ->when($levelFilter, fn ($q) => $q->where('level', $levelFilter))
+            // Tiến độ thật: số buổi (không tính buổi hủy) và số buổi đã diễn ra.
+            ->withCount([
+                'sessions as total_sessions_count' => fn ($q) => $q->where('status', '!=', 'cancelled'),
+                'sessions as done_sessions_count' => fn ($q) => $q->where('status', '!=', 'cancelled')->whereDate('date', '<=', today()),
+            ])
+            ->orderByRaw("CASE status WHEN 'pending_schedule' THEN 0 WHEN 'upcoming' THEN 1 WHEN 'active' THEN 2 WHEN 'completed' THEN 3 ELSE 4 END")
+            ->orderBy('code')
+            ->paginate(20)->withQueryString();
+        ClassModel::loadRosterCounts($classes->getCollection());
+
+        $classIds = $classes->pluck('id');
+        $bigTests = \App\Models\BigTest::whereIn('class_id', $classIds)->orderBy('scheduled_at')
+            ->get(['id', 'class_id', 'title', 'scheduled_at', 'status'])->groupBy('class_id');
+        $nextSessions = ClassSession::whereIn('class_id', $classIds)->where('status', '!=', 'cancelled')
+            ->whereDate('date', '>=', today())->orderBy('date')->orderBy('start_time')
+            ->get(['id', 'class_id', 'date', 'start_time'])->unique('class_id')->keyBy('class_id');
+
+        $rows = $classes->getCollection()->mapWithKeys(function (ClassModel $c) use ($bigTests, $nextSessions) {
+            $seat = $c->seatSummary();
+            $nextBigTest = $bigTests->get($c->id, collect())->first(fn ($bt) => $bt->scheduled_at && $bt->scheduled_at->isFuture());
+
+            return [$c->id => [
+                'seat' => $seat,
+                'next' => ClassLifecycle::nextAction($c, $seat, $nextSessions->get($c->id), $nextBigTest),
+            ]];
+        });
+
+        $stats = [
+            'active' => (int) ($statusCounts['active'] ?? 0),
+            'pending_schedule' => (int) ($statusCounts['pending_schedule'] ?? 0),
+            'short' => (clone $scope)->whereIn('status', ['pending_schedule', 'upcoming'])->get()
+                ->filter(fn (ClassModel $c) => $c->seatSummary()['needed'] > 0)->count(),
+            // Cùng định nghĩa với bộ lọc "Chưa điểm danh" của màn Lịch học & điểm danh (link từ thẻ này).
+            'missing_attendance' => (function () use ($viewer, $branchFilter) {
+                $dashboard = app(ClassDashboardService::class);
+                $today = \Carbon\CarbonImmutable::today();
+
+                return $dashboard->sessionsQuery($viewer, $branchFilter ? (int) $branchFilter : null)
+                    ->whereDate('date', $today->toDateString())->get()
+                    ->filter(fn (ClassSession $s) => $dashboard->attendanceState($s, $today)['key'] === 'missing')
+                    ->count();
+            })(),
+        ];
+
+        return view('classes.index', compact(
+            'classes', 'rows', 'branches', 'search', 'branchFilter', 'statusFilter', 'programFilter', 'levelFilter',
+            'statusCounts', 'programCounts', 'levelCounts', 'bigTests', 'stats'
+        ));
+    }
+
+    /**
+     * Trang lớp — một trang cho một lớp, tab con theo việc (gộp Hồ sơ lớp + Chi tiết lớp học thuật và các việc
+     * trước nằm rải ở menu khác: cấu hình lịch, điểm danh, báo cáo buổi, Big Test, sự vụ).
+     */
+    public function show(Request $request, int $id)
+    {
+        $this->ensureCanBrowseClasses();
+        $viewer = auth()->user();
+        $class = ClassModel::with(['course', 'branch', 'teacher', 'assistant', 'foreignTeacher', 'scheduleConfig'])
+            ->visibleTo($viewer)->findOrFail($id);
+        $tab = array_key_exists((string) $request->query('tab'), ClassLifecycle::TABS) ? $request->query('tab') : 'overview';
+
+        $seat = $class->seatSummary();
+        $steps = ClassLifecycle::steps($class, $seat);
+        $canManage = $viewer->can('class.update') && $class->userCan($viewer, 'update');
+
+        $activeSessions = $class->sessions()->where('status', '!=', 'cancelled');
+        $sessionProgress = [
+            'total' => (clone $activeSessions)->count(),
+            'done' => (clone $activeSessions)->whereDate('date', '<=', today())->count(),
+        ];
+        $nextSession = (clone $activeSessions)->with(['teacher:id,name', 'foreignTeacher:id,name'])
+            ->whereDate('date', '>=', today())->orderBy('date')->orderBy('start_time')->first();
+        $bigTests = \App\Models\BigTest::where('class_id', $class->id)->orderBy('scheduled_at')->get();
+        $nextBigTest = $bigTests->first(fn ($bt) => $bt->scheduled_at && $bt->scheduled_at->isFuture());
+        $nextAction = ClassLifecycle::nextAction($class, $seat, $nextSession, $nextBigTest);
+        $currentStage = \App\Models\SyllabusAssignment::where('class_id', $class->id)->where('status', 'in_progress')->latest()->first();
+        $openIncidents = StaffReport::where('type', 'journal')->where('class_id', $class->id)->where('status', '!=', 'resolved')->count();
+
+        $data = compact('class', 'tab', 'seat', 'steps', 'canManage', 'sessionProgress', 'nextSession', 'bigTests',
+            'nextBigTest', 'nextAction', 'currentStage', 'openIncidents');
+
+        // Dữ liệu riêng của từng tab chỉ nạp khi mở tab đó.
+        if (in_array($tab, ['overview', 'students'], true)) {
+            // Danh sách lớp thật: học viên có lớp chính là lớp này + học viên liên kết lớp khác,
+            // bỏ Thôi học / Hoàn thành / Bảo lưu (audit A4 #7).
+            $data['students'] = $class->rosterStudents();
+        }
+        if (in_array($tab, ['schedule', 'attendance'], true)) {
+            $dashboard = app(ClassDashboardService::class);
+            $sessions = $class->sessions()
+                ->with(['teacher:id,name', 'foreignTeacher:id,name', 'assistant:id,name', 'holiday:id,name'])
+                ->withCount('attendances')
+                ->orderBy('date')->orderBy('start_time')->get();
+            $today = \Carbon\CarbonImmutable::today();
+            $data['sessions'] = $sessions;
+            $data['attendanceStates'] = $sessions->mapWithKeys(fn (ClassSession $s) => [$s->id => $dashboard->attendanceState($s, $today)]);
+            $data['classReports'] = \App\Models\ClassReport::with('reporter:id,name')->where('class_id', $class->id)
+                ->latest('session_date')->latest('id')->get()->keyBy('class_session_id');
+            $data['canRecordAttendance'] = $viewer->can('attendance_student.record') || $viewer->can('attendance_student.record_any');
+        }
+        if ($tab === 'incidents') {
+            $data['incidents'] = StaffReport::with(['user:id,name', 'followups.user:id,name'])
+                ->where('type', 'journal')->where('class_id', $class->id)
+                ->latest('report_date')->latest('id')->get();
+        }
+
+        return view('classes.show', $data);
+    }
+
+    /** Link cũ "Hồ sơ lớp" → Trang lớp (không có id → Danh sách lớp). */
+    public function profile(Request $request, $id = null)
+    {
+        return $id
+            ? redirect()->route('classes.show', ['id' => $id] + $request->query())
+            : redirect()->route('classes.index');
+    }
+
+    /** Link cũ "Sơ đồ khối" → Danh sách lớp (chip chương trình / cấp độ). */
+    public function academicOverview(Request $request)
+    {
+        $branch = $request->query('branch');
+
+        return redirect()->route('classes.index', is_numeric($branch) ? ['branch_id' => $branch] : []);
+    }
+
+    /** Link cũ "Danh sách lớp chi tiết" → Danh sách lớp, giữ nguyên bộ lọc. */
+    public function academicList(Request $request)
+    {
+        return redirect()->route('classes.index', $request->only(['search', 'branch_id', 'program', 'level', 'page']));
+    }
+
+    /** Link cũ "Chi tiết lớp học thuật" → tab Học thuật của Trang lớp. */
+    public function academicDetail(Request $request, $id = null)
+    {
+        return $id
+            ? redirect()->route('classes.show', ['id' => $id, 'tab' => 'academic'])
+            : redirect()->route('classes.index');
     }
 
     /**
@@ -732,7 +760,7 @@ class ClassManagementController extends Controller
             }
         });
 
-        return redirect()->route('classes.profile', ['id' => $class->id])
+        return redirect()->route('classes.show', ['id' => $class->id])
             ->with('success', "Đã cập nhật lớp học '{$class->name}' ({$class->code}) thành công!");
     }
 

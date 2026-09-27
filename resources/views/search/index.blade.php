@@ -97,7 +97,7 @@
                             @foreach ($results['classes'] as $class)
                                 <tr>
                                     <td>
-                                        <a href="{{ route('classes.profile', ['id' => $class->id]) }}" class="font-semibold text-primary hover:underline">{{ $class->name }}</a>
+                                        <a href="{{ route('classes.show', $class->id) }}" class="font-semibold text-primary hover:underline">{{ $class->name }}</a>
                                         <span class="block font-code text-caption text-on-surface-variant">{{ $class->code }}</span>
                                     </td>
                                     <td>{{ $class->branch?->name ?? 'Chưa gán chi nhánh' }}</td>

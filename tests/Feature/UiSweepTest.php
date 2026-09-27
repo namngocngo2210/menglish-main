@@ -106,10 +106,8 @@ class UiSweepTest extends TestCase
             route('academic.dashboards.reports', ['tab' => 'weekly']),
             route('academic.dashboards.reports', ['tab' => 'monthly']),
             route('academic.dashboards.incidents'),
-            route('classes.academic-list'),
-            route('classes.academic-overview'),
-            route('classes.academic-detail', ['id' => $class->id]),
-            route('classes.profile', ['id' => $class->id]),
+            route('classes.index'),
+            ...collect(array_keys(\App\Support\ClassLifecycle::TABS))->map(fn ($tab) => route('classes.show', ['id' => $class->id, 'tab' => $tab]))->all(),
             route('classes.trial-booking'),
             route('classes.qa-observation'),
             route('classes.checklist'),
@@ -178,7 +176,7 @@ class UiSweepTest extends TestCase
         $this->makeClass($this->branch, ['program' => 'IELTS', 'name' => 'Lớp IELTS Thật']);
         $this->makeClass($this->branch, ['program' => 'Giao tiếp', 'name' => 'Lớp Giao tiếp Thật']);
 
-        $this->actingAs($this->admin)->get(route('classes.academic-list', ['program' => 'IELTS']))
+        $this->actingAs($this->admin)->get(route('classes.index', ['program' => 'IELTS']))
             ->assertOk()
             ->assertSee('Lớp IELTS Thật')
             ->assertDontSee('Lớp Giao tiếp Thật');
@@ -189,14 +187,14 @@ class UiSweepTest extends TestCase
         $this->makeClass($this->branch, ['program' => 'Chương trình Thật', 'level' => 'Khối Thật']);
         $this->makeClass($this->branch, ['program' => 'Chương trình Thật', 'level' => 'Khối Thật']);
 
-        $this->actingAs($this->admin)->get(route('classes.academic-overview'))
+        $this->actingAs($this->admin)->get(route('classes.index'))
             ->assertOk()
             ->assertSee('Chương trình Thật')
             ->assertSee('Khối Thật')
             ->assertDontSee('Super Safari')
             ->assertDontSee('Band 6.5+');
 
-        $this->actingAs($this->admin)->get(route('classes.academic-list', ['level' => 'Khối Thật']))
+        $this->actingAs($this->admin)->get(route('classes.index', ['level' => 'Khối Thật']))
             ->assertOk()->assertSee('Chương trình Thật');
     }
 
@@ -206,7 +204,7 @@ class UiSweepTest extends TestCase
         Student::create(['code' => 'HV-HS-1', 'name' => 'Học viên Hồ Sơ', 'phone' => '0933444555', 'branch_id' => $this->branch->id, 'current_class_id' => $class->id, 'status' => 'studying']);
         BigTest::create(['code' => 'BT-UI-1', 'title' => 'Big Test Giữa Kỳ Thật', 'class_id' => $class->id, 'test_type' => 'midterm', 'scheduled_at' => now()->addWeek(), 'status' => 'draft']);
 
-        $this->actingAs($this->admin)->get(route('classes.academic-detail', ['id' => $class->id]))
+        $this->actingAs($this->admin)->get(route('classes.show', ['id' => $class->id, 'tab' => 'academic']))
             ->assertOk()
             ->assertSee('Big Test Giữa Kỳ Thật')
             ->assertSee('Chưa giao chặng')
@@ -214,12 +212,12 @@ class UiSweepTest extends TestCase
             ->assertDontSee('Unit 5 - Buổi 12')
             ->assertDontSee('2023');
 
-        $this->actingAs($this->admin)->get(route('classes.profile', ['id' => $class->id]))
+        $this->actingAs($this->admin)->get(route('classes.show', ['id' => $class->id, 'tab' => 'students']))
             ->assertOk()->assertSee('0933444555')->assertDontSee('Góc nhìn');
 
         $teacher = $this->makeUser('teacher', $this->branch);
         $class->update(['teacher_id' => $teacher->id]);
-        $this->actingAs($teacher)->get(route('classes.profile', ['id' => $class->id]))
+        $this->actingAs($teacher)->get(route('classes.show', ['id' => $class->id, 'tab' => 'students']))
             ->assertOk()->assertSee('Học viên Hồ Sơ')->assertDontSee('0933444555');
     }
 

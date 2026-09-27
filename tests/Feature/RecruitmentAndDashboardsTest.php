@@ -33,7 +33,8 @@ class RecruitmentAndDashboardsTest extends TestCase
 
         $response = $this->actingAs($user)->get(route('academic.dashboards.reports'));
         $response->assertStatus(200);
-        $response->assertSee('Dashboard Báo cáo Đào tạo');
+        $response->assertSee('Báo cáo &amp; sự vụ', false);
+        $response->assertSee('Báo cáo ngày Học vụ');
     }
 
     public function test_can_access_academic_incidents_dashboard(): void
@@ -43,7 +44,8 @@ class RecruitmentAndDashboardsTest extends TestCase
 
         $response = $this->actingAs($user)->get(route('academic.dashboards.incidents'));
         $response->assertStatus(200);
-        $response->assertSee('Dashboard Nhật ký Sự vụ');
+        $response->assertSee('Báo cáo &amp; sự vụ', false);
+        $response->assertSee('Nhật ký sự vụ các lớp và cơ sở');
     }
 
     public function test_can_access_recruitment_index_and_create_job(): void

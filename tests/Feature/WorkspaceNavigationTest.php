@@ -26,8 +26,10 @@ class WorkspaceNavigationTest extends TestCase
     private const OLD_MENU_ROUTES = [
         'crm.pipeline', 'crm.customers.index', 'notifications.index', 'crm.waiting-list', 'classes.trial-booking', 'crm.closing-wizard',
         'crm.customers.won', 'crm.lost-deals', 'placement-tests.index', 'placement-tests.rubric-guide', 'crm.reports',
-        'students.index', 'students.enrollments', 'classes.profile', 'classes.academic-overview', 'classes.academic-list',
-        'tasks.classes-dashboard', 'academic.dashboards.reports', 'academic.dashboards.incidents', 'surveys.index',
+        // Hồ sơ lớp / Sơ đồ khối / Danh sách lớp chi tiết gộp vào Danh sách lớp + Trang lớp (route cũ chuyển hướng).
+        'students.index', 'students.enrollments', 'classes.index',
+        // Nhật ký sự vụ lớp là tab thứ hai của "Báo cáo & sự vụ" (tab trong trang, không còn mục menu riêng).
+        'tasks.classes-dashboard', 'academic.dashboards.reports', 'surveys.index',
         'syllabus.documents', 'syllabus.builder', 'syllabus.assignments', 'syllabus.versions', 'syllabus.adjustment-requests',
         'syllabus.big-tests.distribution', 'syllabus.big-tests.schedules', 'syllabus.big-tests.results', 'syllabus.teaching-stages',
         'syllabus.teacher-view', 'syllabus.teacher-propose', 'syllabus.teacher-adjust',

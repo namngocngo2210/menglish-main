@@ -4,7 +4,7 @@
             <x-ui.badge color="secondary" :dot="false" :pill="true">Học vụ / Quản trị</x-ui.badge>
         </x-slot:badges>
         <x-slot:actions>
-            <x-ui.button variant="secondary" icon="list" :href="route('classes.academic-list')">Quay lại danh sách lớp</x-ui.button>
+            <x-ui.button variant="secondary" icon="list" :href="route('classes.index')">Quay lại danh sách lớp</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -263,12 +263,12 @@
             {{-- Action Footer (Buttons) --}}
             <div class="p-6 bg-surface-container-low border-t border-surface-container-highest flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div class="text-xs text-on-surface-variant text-center sm:text-left">
-                    Sau khi bấm <strong class="text-on-surface">"Lưu lớp học"</strong>, hệ thống sẽ tạo bản ghi lớp và tự động chuyển hướng đến <strong class="text-on-surface">Hồ sơ lớp học</strong>.
+                    Sau khi bấm <strong class="text-on-surface">"Lưu lớp học"</strong>, hệ thống sẽ tạo bản ghi lớp và tự động mở <strong class="text-on-surface">Trang lớp</strong> ở bước tiếp theo (cấu hình lịch nếu chưa có lịch).
                 </div>
 
                 <div class="flex items-center gap-3 w-full sm:w-auto">
-                    <x-ui.button variant="secondary" :href="route('classes.academic-list')" class="w-full sm:w-auto">Hủy bỏ</x-ui.button>
-                    <x-ui.button type="submit" icon="save" class="w-full sm:w-auto">Lưu &amp; Chuyển sang Hồ sơ lớp</x-ui.button>
+                    <x-ui.button variant="secondary" :href="route('classes.index')" class="w-full sm:w-auto">Hủy bỏ</x-ui.button>
+                    <x-ui.button type="submit" icon="save" class="w-full sm:w-auto">Lưu &amp; mở Trang lớp</x-ui.button>
                 </div>
             </div>
         </form>

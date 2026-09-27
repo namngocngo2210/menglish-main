@@ -262,17 +262,15 @@ class P0SecurityFixesTest extends TestCase
             'current_class_id' => $other->id, 'branch_id' => $this->branch->id, 'status' => 'studying',
         ]);
 
-        foreach (['classes.index', 'classes.academic-list'] as $route) {
-            $this->actingAs($teacher)->get(route($route))->assertOk()
-                ->assertSee('MINE-01')->assertDontSee('OTHER-01');
-        }
+        $this->actingAs($teacher)->get(route('classes.index'))->assertOk()
+            ->assertSee('MINE-01')->assertDontSee('OTHER-01');
 
-        $this->actingAs($teacher)->get(route('classes.profile', $other->id))->assertOk()
-            ->assertDontSee('Học viên lớp khác');
+        // Trang lớp chỉ mở được lớp trong phạm vi người xem.
+        $this->actingAs($teacher)->get(route('classes.show', ['id' => $other->id, 'tab' => 'students']))->assertNotFound();
 
         $student = $this->userWithRole('student');
         $this->actingAs($student)->get(route('classes.index'))->assertForbidden();
-        $this->actingAs($student)->get(route('classes.academic-list'))->assertForbidden();
+        $this->actingAs($student)->get(route('classes.show', $other->id))->assertForbidden();
 
         $manager = $this->userWithRole('manager');
         $this->actingAs($manager)->get(route('classes.index'))->assertOk()->assertSee('MINE-01')->assertSee('OTHER-01');

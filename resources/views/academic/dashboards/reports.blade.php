@@ -1,9 +1,6 @@
 <x-app-layout>
-    <x-ui.page-header title="Dashboard Báo cáo Đào tạo & Học vụ">
-        <x-slot:actions>
-            <x-ui.button variant="secondary" icon="warning" :href="route('academic.dashboards.incidents')">Nhật ký Sự vụ cơ sở</x-ui.button>
-        </x-slot:actions>
-    </x-ui.page-header>
+    <x-ui.page-header title="Báo cáo & sự vụ" icon="monitoring" description="Báo cáo đào tạo ngày / tuần / tháng và sự vụ của các lớp, các cơ sở." />
+    @include('academic.dashboards.partials.section-tabs')
 
 
     <div class="space-y-6">

@@ -8,6 +8,7 @@ use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\ClassReport;
 use App\Models\StudentAttendance;
+use App\Models\StaffReport;
 use App\Models\SupportTicket;
 use App\Models\SyllabusAdjustmentRequest;
 use Illuminate\Http\Request;
@@ -126,6 +127,23 @@ class AcademicDashboardController extends Controller
         }
         $incidents = $severity === 'all' ? $incidentsQuery->take(20)->get() : collect();
 
+        // Nhật ký sự vụ thật (staff_reports, type = journal) — có thể gắn lớp; lọc cơ sở theo lớp, không có lớp thì theo người ghi.
+        $classId = $request->integer('class_id') ?: null;
+        $journalSeverity = ['urgent' => 'urgent', 'high' => 'important', 'medium' => 'normal'][$severity] ?? null;
+        $journals = ($severity === 'all' || $journalSeverity)
+            ? StaffReport::with(['user.branch', 'classModel.branch', 'followups'])
+                ->where('type', 'journal')
+                ->when($journalSeverity, fn ($q) => $q->where('severity', $journalSeverity))
+                ->when($classId, fn ($q) => $q->where('class_id', $classId))
+                ->when($branchId, fn ($q) => $q->where(fn ($q) => $q
+                    ->whereHas('classModel', fn ($c) => $c->where('branch_id', $branchId))
+                    ->orWhere(fn ($q) => $q->whereNull('class_id')->whereHas('user', fn ($u) => $u->where('branch_id', $branchId)))))
+                ->when($status === 'resolved', fn ($q) => $q->where('status', 'resolved'))
+                ->when($status === 'open', fn ($q) => $q->where('status', '!=', 'resolved'))
+                ->latest('report_date')->latest('id')->take(30)->get()
+            : collect();
+        $classes = ClassModel::visibleTo($request->user())->where('status', '!=', 'cancelled')->orderBy('code')->get(['id', 'code', 'name']);
+
         // Support tickets nổi cộm (model có creator/assignee, không có relation user)
         $ticketsQuery = SupportTicket::with(['creator.branch', 'assignee'])
             ->whereIn('priority', $severity === 'all' ? ['urgent', 'high'] : [$severity])
@@ -140,12 +158,20 @@ class AcademicDashboardController extends Controller
         }
         $urgentTickets = $ticketsQuery->take(20)->get();
 
+        // Ticket hỗ trợ không gắn lớp: khi lọc theo lớp thì chỉ còn sự vụ của lớp đó.
+        if ($classId) {
+            $urgentTickets = collect();
+            $incidents = collect();
+        }
+
         // Thống kê sự vụ
-        $totalIncidents = $incidents->count() + $urgentTickets->count();
+        $totalIncidents = $incidents->count() + $urgentTickets->count() + $journals->count();
         $resolvedCount = $incidents->whereIn('status', ['resolved', 'completed', 'closed'])->count()
-            + $urgentTickets->whereIn('status', ['resolved', 'closed'])->count();
+            + $urgentTickets->whereIn('status', ['resolved', 'closed'])->count()
+            + $journals->where('status', 'resolved')->count();
         $openCount = max(0, $totalIncidents - $resolvedCount);
-        $urgentCount = $urgentTickets->where('priority', 'urgent')->whereIn('status', ['open', 'in_progress'])->count();
+        $urgentCount = $urgentTickets->where('priority', 'urgent')->whereIn('status', ['open', 'in_progress'])->count()
+            + $journals->where('severity', 'urgent')->where('status', '!=', 'resolved')->count();
 
         return view('academic.dashboards.incidents', compact(
             'branches',
@@ -157,7 +183,10 @@ class AcademicDashboardController extends Controller
             'resolvedCount',
             'openCount',
             'urgentCount',
-            'branchId'
+            'branchId',
+            'journals',
+            'classes',
+            'classId'
         ));
     }
 }

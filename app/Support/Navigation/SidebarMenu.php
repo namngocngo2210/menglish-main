@@ -120,12 +120,11 @@ final class SidebarMenu
                 'label' => 'Lớp học',
                 'icon' => 'co_present',
                 'items' => self::anchored(self::CLASS_MANAGER, [
-                    ['label' => 'Hồ sơ lớp', 'route' => 'classes.profile', 'active' => ['classes.profile*']],
-                    ['label' => 'Sơ đồ khối', 'route' => 'classes.academic-overview', 'active' => ['classes.academic-overview*']],
-                    ['label' => 'Danh sách lớp chi tiết', 'route' => 'classes.academic-list', 'active' => ['classes.academic-list*']],
-                    ['label' => 'Lớp theo ngày', 'route' => 'tasks.classes-dashboard'],
-                    ['label' => 'Báo cáo đào tạo', 'route' => 'academic.dashboards.reports'],
-                    ['label' => 'Nhật ký sự vụ lớp', 'route' => 'academic.dashboards.incidents'],
+                    // Danh sách lớp → Trang lớp (tab con). Hồ sơ lớp / Sơ đồ khối / Danh sách chi tiết / Chi tiết học thuật
+                    // cũ chuyển hướng về đây (chip lọc + tab con thay cho màn riêng).
+                    ['label' => 'Danh sách lớp', 'route' => 'classes.index', 'active' => ['classes.index', 'classes.show', 'classes.edit', 'classes.profile', 'classes.academic-*']],
+                    ['label' => 'Lịch học & điểm danh', 'route' => 'tasks.classes-dashboard'],
+                    ['label' => 'Báo cáo & sự vụ', 'route' => 'academic.dashboards.reports', 'active' => ['academic.dashboards.*']],
                 ]),
                 // Nút chung mọi tab Lớp học (trước nằm ở menu "Tạo mới" trên topbar); quyền theo middleware can:class.create.
                 'actions' => [
