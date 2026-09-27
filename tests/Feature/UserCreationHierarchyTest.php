@@ -163,4 +163,38 @@ class UserCreationHierarchyTest extends TestCase
         $resForbidden->assertSessionHasErrors(['role']);
         $this->assertDatabaseMissing('users', ['email' => 'lead.forbidden@menglish.edu.vn']);
     }
+
+    private function roleOptionValues(string $html): array
+    {
+        preg_match('/<select[^>]*name="role"[^>]*>(.*?)<\/select>/s', $html, $m);
+        $this->assertNotEmpty($m, 'Không thấy ô chọn vai trò');
+        preg_match_all('/<option value="([^"]+)"/', $m[1], $values);
+
+        return [$values[1], $m[1]];
+    }
+
+    public function test_role_dropdown_only_shows_accountant_manager_and_teacher(): void
+    {
+        [$values, $block] = $this->roleOptionValues($this->actingAs($this->admin)->get(route('users.create'))->assertOk()->getContent());
+
+        $this->assertSame(['accountant', 'manager', 'teacher'], $values);
+        $this->assertStringContainsString('Kế toán &amp; Thu ngân', $block);
+        $this->assertStringContainsString('Quản lý cơ sở', $block);
+        $this->assertStringContainsString('Giáo viên giảng dạy', $block);
+        $this->assertStringNotContainsString('Giám đốc', $block);
+    }
+
+    public function test_role_dropdown_keeps_current_hidden_role_when_editing(): void
+    {
+        [$values] = $this->roleOptionValues($this->actingAs($this->admin)->get(route('users.edit', $this->academicStaff))->assertOk()->getContent());
+
+        $this->assertSame(['accountant', 'manager', 'teacher', 'academic_staff'], $values);
+    }
+
+    public function test_role_dropdown_falls_back_when_actor_cannot_assign_listed_roles(): void
+    {
+        [$values] = $this->roleOptionValues($this->actingAs($this->academicStaff)->get(route('users.create'))->assertOk()->getContent());
+
+        $this->assertContains('assistant', $values);
+    }
 }
