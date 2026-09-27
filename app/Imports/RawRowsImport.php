@@ -28,17 +28,40 @@ class RawRowsImport extends StringValueBinder implements SkipsEmptyRows, WithCal
     public static function firstSheet(UploadedFile $file): array
     {
         try {
-            return Excel::toArray(new self, $file)[0] ?? [];
+            return self::ignoringOpenBasedirWarnings(fn () => Excel::toArray(new self, $file)[0] ?? []);
         } catch (\Throwable $e) {
             Log::warning('Laravel Excel không đọc được file nhập, thử đọc trực tiếp.', self::logContext($file, $e));
         }
 
         try {
-            return self::readDirect($file);
+            return self::ignoringOpenBasedirWarnings(fn () => self::readDirect($file));
         } catch (\Throwable $e) {
             Log::error('Không đọc được file nhập Excel/CSV.', self::logContext($file, $e));
 
             throw $e;
+        }
+    }
+
+    /**
+     * File xlsx do openpyxl / Google Sheets... xuất có đường dẫn sheet tuyệt đối ("/xl/worksheets/sheet1.xml");
+     * PhpSpreadsheet gọi file_exists() trên đường dẫn đó → hosting bật open_basedir phát warning, Laravel đổi thành
+     * ErrorException và cả file bị từ chối. Warning này vô hại (file_exists vẫn trả false, PhpSpreadsheet đọc tiếp
+     * trong zip) nên bỏ qua riêng nó khi đọc; lỗi khác vẫn đi qua handler cũ.
+     */
+    public static function ignoringOpenBasedirWarnings(callable $read): mixed
+    {
+        $previous = null;
+        $previous = set_error_handler(function (int $level, string $message, string $file = '', int $line = 0) use (&$previous) {
+            if (in_array($level, [E_WARNING, E_USER_WARNING], true) && str_contains($message, 'open_basedir restriction')) {
+                return true;
+            }
+
+            return $previous ? $previous($level, $message, $file, $line) : false;
+        });
+        try {
+            return $read();
+        } finally {
+            restore_error_handler();
         }
     }
 
