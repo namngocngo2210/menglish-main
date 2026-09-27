@@ -15,6 +15,7 @@ use App\Models\Survey;
 use App\Models\SyllabusAssignment;
 use App\Models\TuitionReceipt;
 use App\Services\SafeUploadService;
+use App\Services\Tuition\PaymentReportService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,6 +27,9 @@ class StudentPortalController extends Controller
     private const HOMEWORK_EXTENSIONS = [
         ...SafeUploadService::IMAGES, ...SafeUploadService::DOCUMENTS, ...SafeUploadService::VIDEO, ...SafeUploadService::AUDIO,
     ];
+
+    /** Đuôi file bản ghi phát âm (theo nội dung file): audio + mp4 vì Safari ghi âm ra MP4. */
+    private const PRONUNCIATION_EXTENSIONS = [...SafeUploadService::AUDIO, 'mp4'];
 
     /** Số hạng mục bài tập cố định trên màn "Học tập của tôi" (video, từ vựng, workbook...). */
     private const HOMEWORK_CATEGORY_COUNT = 6;
@@ -284,11 +288,11 @@ class StudentPortalController extends Controller
         $studentName = $student->name;
 
         AcademicRecord::create([
-            'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/02_trang_chu_phu_huynh_hoc_sinh',
+            'screen_key' => PaymentReportService::SCREEN_KEY,
             'module' => 'student_portal',
             'record_code' => 'YCHOCPHI-'.strtoupper(Str::random(6)),
             'title' => 'Báo đóng học phí: '.number_format($validated['amount']).'đ - '.$studentName,
-            'status' => 'pending',
+            'status' => PaymentReportService::STATUS_PENDING,
             'data' => [
                 'student_id' => (string) $validated['student_id'],
                 'student_name' => $studentName,
@@ -502,7 +506,22 @@ class StudentPortalController extends Controller
             ->latest()
             ->get();
 
-        return view('portal.pronunciation', compact('student', 'students', 'history'));
+        // Bài nghe mẫu: file nghe giáo viên đính kèm bài tập của các lớp học viên đang học.
+        $practiceItems = $student
+            ? Homework::with('classModel:id,name')
+                ->whereIn('class_id', $student->activeClassIds())
+                ->whereNotNull('audio_path')
+                ->latest()
+                ->limit(20)
+                ->get()
+                ->map(fn (Homework $homework) => [
+                    'title' => $homework->title,
+                    'class_name' => $homework->classModel?->name,
+                    'audio_url' => asset('storage/'.$homework->audio_path),
+                ])
+            : collect();
+
+        return view('portal.pronunciation', compact('student', 'students', 'history', 'practiceItems'));
     }
 
     /**
@@ -512,20 +531,19 @@ class StudentPortalController extends Controller
     {
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
-            'unit_title' => 'required|string',
-            'duration' => 'nullable|string',
-            'audio_file' => 'nullable|file|max:51200|mimes:'.implode(',', SafeUploadService::AUDIO), // 50MB
+            'unit_title' => 'required|string|max:255',
+            'duration' => 'nullable|string|max:20',
+            // Bản ghi từ micro (MediaRecorder): Chrome/Edge ra webm, Safari ra mp4 (m4a).
+            'audio_file' => 'required|file|max:51200|mimes:'.implode(',', self::PRONUNCIATION_EXTENSIONS), // 50MB
+        ], [
+            'audio_file.required' => 'Chưa có bản ghi âm. Hãy chạm micro để thu âm trước khi nộp.',
         ]);
 
         $student = Student::findOrFail($validated['student_id']);
         $this->authorizeStudent($student);
         $studentName = $student->name;
 
-        $audioPath = null;
-        if ($request->hasFile('audio_file')) {
-            $file = $request->file('audio_file');
-            $audioPath = SafeUploadService::store($file, 'pronunciation_records', SafeUploadService::AUDIO, 'audio_file');
-        }
+        $audioPath = SafeUploadService::store($request->file('audio_file'), 'pronunciation_records', self::PRONUNCIATION_EXTENSIONS, 'audio_file');
 
         // Chưa có dịch vụ chấm phát âm tự động: bài nộp chờ giáo viên chấm
         // (màn "Chấm bài nộp" của giáo viên, tab Phát âm). Không sinh điểm ngẫu nhiên.
@@ -540,7 +558,7 @@ class StudentPortalController extends Controller
                 'student_name' => $studentName,
                 'unit_title' => $validated['unit_title'],
                 'duration' => $validated['duration'] ?? null,
-                'audio_path' => $audioPath ? '/storage/'.$audioPath : null,
+                'audio_path' => '/storage/'.$audioPath,
                 'score' => null,
                 'submitted_at' => now()->format('d/m/Y H:i'),
             ],

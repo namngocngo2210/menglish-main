@@ -36,11 +36,12 @@ class NavigationMenuPermissionTest extends TestCase
         foreach (array_keys(config('access.roles')) as $role) {
             $user = $this->makeUser($role);
 
-            $dashboard = $this->actingAs($user)->get(route('dashboard'));
+            // Học viên: Tổng quan chuyển sang Trang chủ cổng học viên.
+            $dashboard = $this->actingAs($user)->followingRedirects()->get(route('dashboard'));
             $dashboard->assertOk();
 
             $links = $this->sidebarLinks($dashboard->getContent());
-            $this->assertNotEmpty($links, "Sidebar của role {$role} phải có ít nhất link Tổng quan.");
+            $this->assertNotEmpty($links, "Sidebar của role {$role} phải có ít nhất 1 link.");
             // Cộng thêm mọi tab / nút hành động của workspace và menu con Cài đặt mà role được thấy.
             $links = array_values(array_unique([...$links, ...$this->workspaceAndSettingsLinks($user)]));
 

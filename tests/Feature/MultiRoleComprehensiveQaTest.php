@@ -525,8 +525,9 @@ class MultiRoleComprehensiveQaTest extends TestCase
         ]));
         $prototypeRes->assertOk();
 
-        // Xác minh học sinh KHÔNG nhìn thấy các menu nội bộ của quản lý
-        $dashboardRes = $this->actingAs($this->studentUser)->get(route('dashboard'));
+        // Học sinh không có Tổng quan của nhân sự: vào thẳng cổng học viên, không thấy menu nội bộ của quản lý
+        $this->actingAs($this->studentUser)->get(route('dashboard'))->assertRedirect(route('portal.student.home'));
+        $dashboardRes = $this->actingAs($this->studentUser)->followingRedirects()->get(route('dashboard'));
         $dashboardRes->assertOk();
         $dashboardRes->assertDontSee('CRM & Tuyển sinh');
         $dashboardRes->assertDontSee('Nhân sự & Vận hành');

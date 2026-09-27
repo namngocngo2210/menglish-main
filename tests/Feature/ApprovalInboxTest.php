@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademicRecord;
 use App\Models\Branch;
 use App\Models\Student;
 use App\Models\StudentTuition;
@@ -11,6 +12,7 @@ use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\Tuition\PaymentReportService;
 use App\Support\Approvals\ApprovalInboxService;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
@@ -51,9 +53,9 @@ class ApprovalInboxTest extends TestCase
     public static function roleSources(): array
     {
         return [
-            'admin' => ['admin', ['receipt', 'invoice_cancellation', 'refund', 'enrollment', 'crm_confirmation', 'syllabus_proposal', 'syllabus_adjustment', 'big_test_order', 'work_task', 'class_report']],
-            'kế toán' => ['accountant', ['receipt', 'refund']],
-            'quản lý cơ sở' => ['manager', ['receipt', 'refund', 'enrollment', 'crm_confirmation', 'work_task', 'class_report']],
+            'admin' => ['admin', ['receipt', 'invoice_cancellation', 'refund', 'payment_report', 'enrollment', 'crm_confirmation', 'syllabus_proposal', 'syllabus_adjustment', 'big_test_order', 'work_task', 'class_report']],
+            'kế toán' => ['accountant', ['receipt', 'refund', 'payment_report']],
+            'quản lý cơ sở' => ['manager', ['receipt', 'refund', 'payment_report', 'enrollment', 'crm_confirmation', 'work_task', 'class_report']],
             'trưởng học thuật' => ['academic_lead', ['syllabus_proposal', 'syllabus_adjustment', 'big_test_order', 'work_task', 'class_report']],
             'học vụ' => ['academic_staff', ['enrollment', 'crm_confirmation', 'work_task', 'class_report']],
             'giáo viên' => ['teacher', ['work_task', 'class_report']],
@@ -126,7 +128,7 @@ class ApprovalInboxTest extends TestCase
         $this->pendingProposal(); // nguồn Đào tạo, kế toán không thấy
 
         $inbox = app(ApprovalInboxService::class);
-        $this->assertSame(['receipt' => 2, 'refund' => 1], $inbox->counts($accountant));
+        $this->assertSame(['receipt' => 2, 'refund' => 1, 'payment_report' => 0], $inbox->counts($accountant));
         $this->assertSame(3, $inbox->badge($accountant));
 
         $response = $this->actingAs($accountant)->get(route('dashboard'))->assertOk();
@@ -314,6 +316,59 @@ class ApprovalInboxTest extends TestCase
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────
+
+    // ── Học viên báo đã đóng học phí (cổng học viên) ──────────────────
+
+    public function test_student_payment_report_reaches_accountant_and_student_gets_the_result(): void
+    {
+        $accountant = $this->makeUser('accountant');
+        $student = $this->makeStudent($this->branchA);
+        $studentUser = $this->makeUser('student');
+        $student->update(['user_id' => $studentUser->id]);
+        $this->makeTuition($student);
+        $outScope = $this->makeStudent($this->branchB);
+
+        $this->actingAs($studentUser)->post(route('portal.student.tuition.request'), [
+            'student_id' => $student->id, 'amount' => 2500000, 'content' => 'CK Vietcombank 25/09',
+        ])->assertSessionHas('success');
+        AcademicRecord::create([
+            'screen_key' => PaymentReportService::SCREEN_KEY, 'module' => 'student_portal', 'record_code' => 'YCHOCPHI-OUT',
+            'title' => 'Báo đóng', 'status' => 'pending', 'data' => ['student_id' => (string) $outScope->id, 'amount' => 1000000],
+        ]);
+        $report = AcademicRecord::where('screen_key', PaymentReportService::SCREEN_KEY)->where('data->student_id', (string) $student->id)->firstOrFail();
+
+        // Kế toán chi nhánh A thấy đúng 1 mục (mục của chi nhánh B ngoài phạm vi).
+        $this->assertSame(1, app(ApprovalInboxService::class)->counts($accountant)['payment_report']);
+        $this->actingAs($accountant)->get(route('approvals.index'))->assertOk()
+            ->assertSee('data-approval-item="payment_report:'.$report->id.'"', false)
+            ->assertSee('CK Vietcombank 25/09');
+
+        $this->htmx($accountant)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ["payment_report:{$report->id}"]])->assertOk();
+        $this->assertSame(PaymentReportService::STATUS_CONFIRMED, $report->fresh()->status);
+
+        // Học viên nhận thông báo kết quả trong hộp thư cổng học viên.
+        $this->flushHeaders()->actingAs($studentUser)->get(route('portal.student.notifications'))->assertOk()
+            ->assertSee('Kế toán đã xác nhận khoản đóng 2.500.000đ');
+    }
+
+    public function test_rejecting_a_payment_report_tells_the_student_why(): void
+    {
+        $accountant = $this->makeUser('accountant');
+        $student = $this->makeStudent($this->branchA);
+        $report = AcademicRecord::create([
+            'screen_key' => PaymentReportService::SCREEN_KEY, 'module' => 'student_portal', 'record_code' => 'YCHOCPHI-R',
+            'title' => 'Báo đóng', 'status' => 'pending', 'data' => ['student_id' => (string) $student->id, 'amount' => 500000],
+        ]);
+
+        $this->htmx($accountant)->post(route('approvals.bulk'), [
+            'action' => 'reject', 'items' => ["payment_report:{$report->id}"], 'reason' => 'Chưa thấy tiền về',
+        ])->assertOk();
+
+        $this->assertSame(PaymentReportService::STATUS_REJECTED, $report->fresh()->status);
+        $notification = AcademicRecord::where('record_code', 'YCHOCPHI-KQ-'.$report->id)->firstOrFail();
+        $this->assertStringContainsString('Chưa thấy tiền về', $notification->data['content']);
+        $this->assertSame((string) $student->id, (string) $notification->data['student_id']);
+    }
 
     private function htmx(User $user): static
     {

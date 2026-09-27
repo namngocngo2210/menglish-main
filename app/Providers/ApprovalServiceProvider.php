@@ -9,6 +9,7 @@ use App\Services\Syllabus\Approvals\AdjustmentApprovalSource;
 use App\Services\Syllabus\Approvals\BigTestOrderApprovalSource;
 use App\Services\Syllabus\Approvals\ProposalApprovalSource;
 use App\Services\Tuition\Approvals\InvoiceCancellationApprovalSource;
+use App\Services\Tuition\Approvals\PaymentReportApprovalSource;
 use App\Services\Tuition\Approvals\ReceiptApprovalSource;
 use App\Services\Tuition\Approvals\RefundApprovalSource;
 use App\Services\WorkTasks\Approvals\ClassReportApprovalSource;
@@ -34,6 +35,7 @@ class ApprovalServiceProvider extends ServiceProvider
         ReceiptApprovalSource::class,
         InvoiceCancellationApprovalSource::class,
         RefundApprovalSource::class,
+        PaymentReportApprovalSource::class,
         EnrollmentApprovalSource::class,
         EnrollmentConfirmationApprovalSource::class,
         ProposalApprovalSource::class,

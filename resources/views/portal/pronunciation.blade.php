@@ -7,44 +7,76 @@
 
     
 
-    {{-- Mobile Frame for Pronunciation --}}
-    <div class="max-w-[430px] mx-auto bg-surface-container-low min-h-[844px] shadow-2xl rounded-3xl border border-surface-container-highest overflow-hidden flex flex-col relative pb-24 my-4"
-         x-data="{
-            selectedUnit: 'Unit 1: Greetings - Bài 2',
-            isRecording: true,
-            timerSeconds: 14,
-            timerText: '00:14',
-            intervalId: null,
-            audioPlaying: false,
-            toastVisible: false,
-            startRecording() {
-                this.isRecording = true;
-                this.intervalId = setInterval(() => {
-                    this.timerSeconds++;
-                    let m = String(Math.floor(this.timerSeconds / 60)).padStart(2, '0');
-                    let s = String(this.timerSeconds % 60).padStart(2, '0');
+    {{-- Mobile Frame for Pronunciation: ghi âm thật bằng micro (MediaRecorder), file gửi kèm form nộp bài. --}}
+    <script>
+        function pronunciationRecorder() {
+            return {
+                selectedUnit: '',
+                recorder: null,
+                chunks: [],
+                isRecording: false,
+                hasRecording: false,
+                previewUrl: null,
+                timerSeconds: 0,
+                timerText: '00:00',
+                intervalId: null,
+                error: '',
+                pickUnit(title) {
+                    this.selectedUnit = title;
+                },
+                async toggleRecording() {
+                    if (this.isRecording) {
+                        this.recorder?.stop();
+                        return;
+                    }
+                    this.error = '';
+                    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+                        this.error = 'Trình duyệt không hỗ trợ ghi âm. Hãy dùng Chrome, Edge hoặc Safari bản mới.';
+                        return;
+                    }
+                    let stream;
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    } catch (e) {
+                        this.error = 'Chưa được cấp quyền dùng micro. Hãy cho phép micro rồi thử lại.';
+                        return;
+                    }
+                    this.chunks = [];
+                    this.recorder = new MediaRecorder(stream);
+                    this.recorder.ondataavailable = (event) => { if (event.data.size > 0) this.chunks.push(event.data); };
+                    this.recorder.onstop = () => {
+                        stream.getTracks().forEach((track) => track.stop());
+                        clearInterval(this.intervalId);
+                        this.isRecording = false;
+                        this.attachRecording();
+                    };
+                    this.timerSeconds = 0;
+                    this.updateTimer();
+                    this.recorder.start();
+                    this.isRecording = true;
+                    this.intervalId = setInterval(() => { this.timerSeconds++; this.updateTimer(); }, 1000);
+                },
+                updateTimer() {
+                    const m = String(Math.floor(this.timerSeconds / 60)).padStart(2, '0');
+                    const s = String(this.timerSeconds % 60).padStart(2, '0');
                     this.timerText = `${m}:${s}`;
-                }, 1000);
-            },
-            toggleRecording() {
-                if (this.isRecording) {
-                    this.isRecording = false;
-                    clearInterval(this.intervalId);
-                } else {
-                    this.startRecording();
-                }
-            }
-         }"
-         x-init="
-            intervalId = setInterval(() => {
-                if (isRecording) {
-                    timerSeconds++;
-                    let m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
-                    let s = String(timerSeconds % 60).padStart(2, '0');
-                    timerText = `${m}:${s}`;
-                }
-            }, 1000);
-         ">
+                },
+                attachRecording() {
+                    const type = this.recorder?.mimeType || 'audio/webm';
+                    const blob = new Blob(this.chunks, { type });
+                    const extension = type.includes('mp4') ? 'm4a' : (type.includes('ogg') ? 'ogg' : 'webm');
+                    const transfer = new DataTransfer();
+                    transfer.items.add(new File([blob], `ghi-am.${extension}`, { type }));
+                    this.$refs.audioFile.files = transfer.files;
+                    if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
+                    this.previewUrl = URL.createObjectURL(blob);
+                    this.hasRecording = blob.size > 0;
+                },
+            };
+        }
+    </script>
+    <div class="max-w-[430px] mx-auto bg-surface-container-low min-h-[844px] shadow-2xl rounded-3xl border border-surface-container-highest overflow-hidden flex flex-col relative pb-24 my-4"
+         x-data="pronunciationRecorder()">
 
         {{-- Top Header Partial --}}
         @include('portal.partials.top-header', [
@@ -72,86 +104,47 @@
         {{-- Main Content --}}
         <main class="w-full p-4 space-y-4 flex-1 overflow-y-auto">
 
-            {{-- Section 1: Audio Mẫu từ Giáo trình --}}
+            {{-- Section 1: Bài nghe mẫu = file nghe giáo viên đính kèm bài tập của lớp --}}
             <section class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest p-4 space-y-3 shadow-2xs">
                 <div>
-                    <h2 class="text-sm font-bold text-on-surface">Audio Mẫu từ Giáo trình</h2>
-                    <p class="text-[11px] text-on-surface-variant mt-0.5">Chọn một bài để nghe và luyện tập theo giọng chuẩn bản xứ.</p>
+                    <h2 class="text-sm font-bold text-on-surface">Bài nghe của lớp</h2>
+                    <p class="text-[11px] text-on-surface-variant mt-0.5">File nghe giáo viên gửi kèm bài tập. Nghe, chọn bài rồi thu âm theo.</p>
                 </div>
 
                 <div class="space-y-2">
-                    {{-- Audio Item 1 --}}
-                    <div class="flex items-center justify-between p-2.5 rounded-xl hover:bg-surface-container-low transition border border-transparent hover:border-surface-container-highest cursor-pointer"
-                         @click="selectedUnit = 'Unit 1: Greetings - Bài 1'; isRecording = false; timerSeconds = 0; timerText = '00:00'">
-                        <div class="flex items-center gap-3">
-                            <div class="w-9 h-9 rounded-full bg-primary-container/10 flex items-center justify-center text-primary">
-                                <span class="material-symbols-outlined text-[20px]">play_arrow</span>
+                    @forelse ($practiceItems as $item)
+                        <div class="rounded-xl border p-2.5 transition"
+                             :class="selectedUnit === @js($item['title']) ? 'bg-primary-container/10 border-primary-container/40' : 'border-surface-container-highest'">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="min-w-0">
+                                    <p class="truncate text-xs font-semibold text-on-surface">{{ $item['title'] }}</p>
+                                    <p class="text-[10px] text-on-surface-variant/70">{{ $item['class_name'] }}</p>
+                                </div>
+                                <x-ui.button variant="ghost" size="sm" class="text-primary" x-on:click="pickUnit(@js($item['title']))">Chọn</x-ui.button>
                             </div>
-                            <div>
-                                <p class="text-xs font-semibold text-on-surface">Unit 1: Greetings - Bài 1</p>
-                                <p class="text-[10px] text-on-surface-variant/70">00:45</p>
-                            </div>
+                            <audio controls preload="none" class="mt-2 h-8 w-full" src="{{ $item['audio_url'] }}"></audio>
                         </div>
-                        <x-ui.button variant="ghost" size="sm" class="text-primary">
-                            Chọn
-                        </x-ui.button>
-                    </div>
-
-                    {{-- Audio Item 2 (Active state simulation) --}}
-                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-primary-container/10 border border-primary-container/40 shadow-2xs"
-                         :class="{ 'bg-primary-container/10 border-primary-container/40': selectedUnit === 'Unit 1: Greetings - Bài 2' }">
-                        <div class="flex items-center gap-3">
-                            <div class="w-9 h-9 rounded-full bg-primary-container flex items-center justify-center text-white shadow-xs">
-                                <span class="material-symbols-outlined text-[20px]">pause</span>
-                            </div>
-                            <div>
-                                <p class="text-xs font-bold text-primary">Unit 1: Greetings - Bài 2</p>
-                                <p class="text-[10px] text-on-surface-variant">01:12 • Đang chọn</p>
-                            </div>
-                        </div>
-
-                        {{-- Waveform inside active audio item --}}
-                        <div class="flex items-center gap-0.5 h-4 mr-1">
-                            <div class="w-0.5 bg-primary-container rounded-full animate-pulse h-2"></div>
-                            <div class="w-0.5 bg-primary-container rounded-full animate-pulse h-4" style="animation-delay: 0.2s"></div>
-                            <div class="w-0.5 bg-primary-container rounded-full animate-pulse h-3" style="animation-delay: 0.4s"></div>
-                            <div class="w-0.5 bg-primary-container rounded-full animate-pulse h-2" style="animation-delay: 0.1s"></div>
-                        </div>
-                    </div>
-
-                    {{-- Audio Item 3 --}}
-                    <div class="flex items-center justify-between p-2.5 rounded-xl hover:bg-surface-container-low transition border border-transparent hover:border-surface-container-highest cursor-pointer"
-                         @click="selectedUnit = 'Unit 2: Family - Bài 1'; isRecording = false; timerSeconds = 0; timerText = '00:00'">
-                        <div class="flex items-center gap-3">
-                            <div class="w-9 h-9 rounded-full bg-primary-container/10 flex items-center justify-center text-primary">
-                                <span class="material-symbols-outlined text-[20px]">play_arrow</span>
-                            </div>
-                            <div>
-                                <p class="text-xs font-semibold text-on-surface">Unit 2: Family - Bài 1</p>
-                                <p class="text-[10px] text-on-surface-variant/70">00:58</p>
-                            </div>
-                        </div>
-                        <x-ui.button variant="ghost" size="sm" class="text-primary">
-                            Chọn
-                        </x-ui.button>
-                    </div>
+                    @empty
+                        <x-ui.empty-state icon="headphones" title="Lớp chưa có file nghe" description="Khi giáo viên gửi bài tập kèm file nghe, bài sẽ hiện ở đây. Bạn vẫn có thể tự đặt tên bài và thu âm." />
+                    @endforelse
                 </div>
             </section>
 
-            {{-- Section 2: Khối Ghi Âm (Active Recording State) --}}
+            {{-- Section 2: Ghi âm (micro thật) + nộp bài --}}
             <section class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest p-5 flex flex-col items-center justify-center text-center space-y-4 relative overflow-hidden shadow-2xs">
-                <div class="absolute inset-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-container via-transparent to-transparent"></div>
+                <form action="{{ route('portal.student.pronunciation.store') }}" method="POST" enctype="multipart/form-data" class="relative z-10 w-full space-y-3 text-left">
+                    @csrf
+                    <input type="hidden" name="student_id" value="{{ $student?->id }}">
+                    <input type="hidden" name="duration" :value="timerText">
+                    <input type="file" name="audio_file" x-ref="audioFile" class="hidden" accept="audio/*">
 
-                <div class="relative z-10 w-full space-y-3">
-                    <p class="text-xs text-on-surface-variant">
-                        Đang luyện tập: <span class="font-bold text-primary" x-text="selectedUnit"></span>
-                    </p>
+                    <x-ui.input name="unit_title" label="Bài đang luyện" x-model="selectedUnit" required maxlength="255" placeholder="Ví dụ: Unit 1 - Greetings" />
 
-                    {{-- Timer Display --}}
-                    <div class="font-mono text-3xl font-bold text-on-surface tracking-wider" x-text="timerText">00:14</div>
+                    {{-- Đồng hồ --}}
+                    <div class="text-center font-mono text-3xl font-bold text-on-surface tracking-wider" x-text="timerText">00:00</div>
 
-                    {{-- Animated Waveform Display (visible when recording) --}}
-                    <div class="flex items-center justify-center gap-1.5 h-12 w-full max-w-[200px] mx-auto py-1" x-show="isRecording">
+                    {{-- Sóng âm khi đang ghi --}}
+                    <div class="flex items-center justify-center gap-1.5 h-12 w-full max-w-[200px] mx-auto py-1" x-show="isRecording" x-cloak>
                         <div class="w-1 bg-primary-container rounded-full animate-pulse h-4" style="animation-delay: 0.1s"></div>
                         <div class="w-1 bg-primary-container rounded-full animate-pulse h-8" style="animation-delay: 0.3s"></div>
                         <div class="w-1 bg-primary-container rounded-full animate-pulse h-11" style="animation-delay: 0.2s"></div>
@@ -164,30 +157,27 @@
                         <div class="w-1 bg-primary-container rounded-full animate-pulse h-6" style="animation-delay: 0.4s"></div>
                     </div>
 
-                    {{-- Record Button --}}
+                    {{-- Nút ghi âm --}}
                     <div class="flex justify-center py-2">
-                        <button type="button"
-                                @click="toggleRecording()"
+                        <button type="button" @click="toggleRecording()" :aria-label="isRecording ? 'Dừng ghi âm' : 'Bắt đầu ghi âm'"
                                 class="relative w-20 h-20 bg-primary-container hover:bg-primary rounded-full flex items-center justify-center text-white shadow-xl transition-all transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-primary-container/30">
-                            {{-- Pulsing ring effect when recording --}}
-                            <div x-show="isRecording" class="absolute inset-0 rounded-full border-2 border-primary-container animate-ping opacity-75"></div>
-                            <span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;" x-text="isRecording ? 'stop' : 'mic'"></span>
+                            <div x-show="isRecording" x-cloak class="absolute inset-0 rounded-full border-2 border-primary-container animate-ping opacity-75"></div>
+                            <span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;" x-text="isRecording ? 'stop' : 'mic'">mic</span>
                         </button>
                     </div>
-                    <p class="text-[11px] text-on-surface-variant" x-text="isRecording ? 'Chạm để dừng ghi âm' : 'Chạm micro để tiếp tục ghi âm'"></p>
+                    <p class="text-center text-[11px] text-on-surface-variant"
+                       x-text="isRecording ? 'Chạm để dừng ghi âm' : (hasRecording ? 'Nghe lại bên dưới, hoặc chạm micro để ghi lại' : 'Chạm micro để bắt đầu ghi âm')"></p>
+                    <p class="text-[11px] font-semibold text-error" x-show="error" x-text="error" x-cloak></p>
+                    @error('audio_file')<p class="text-[11px] font-semibold text-error">{{ $message }}</p>@enderror
 
-                    {{-- Real Form Submission Action --}}
-                    <form action="{{ route('portal.student.pronunciation.store') }}" method="POST" class="pt-2 w-full flex justify-center">
-                        @csrf
-                        <input type="hidden" name="student_id" value="{{ $student?->id ?? 1 }}">
-                        <input type="hidden" name="unit_title" :value="selectedUnit">
-                        <input type="hidden" name="duration" :value="timerText">
+                    <audio controls class="h-8 w-full" x-show="hasRecording && !isRecording" x-cloak :src="previewUrl"></audio>
 
-                        <x-ui.button type="submit" icon="send" class="w-full max-w-[240px]">
+                    <div class="flex justify-center pt-2">
+                        <x-ui.button type="submit" icon="send" class="w-full max-w-[240px]" x-bind:disabled="!hasRecording || isRecording">
                             <span>Nộp bài ghi âm</span>
                         </x-ui.button>
-                    </form>
-                </div>
+                    </div>
+                </form>
             </section>
 
             {{-- Section 3: Lịch sử luyện tập --}}
@@ -227,7 +217,12 @@
                                 @endif
                             </div>
                             <div class="flex items-center gap-1.5">
-                                <x-ui.button variant="ghost" size="sm" icon="play_arrow" title="Nghe lại" aria-label="Nghe lại" />
+                                @if (! empty($rec->data['audio_path']))
+                                    <a href="{{ $rec->data['audio_path'] }}" target="_blank" rel="noopener" title="Nghe lại" aria-label="Nghe lại"
+                                       class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-primary hover:bg-primary-container/10">
+                                        <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+                                    </a>
+                                @endif
                                 <form action="{{ route('portal.student.pronunciation.destroy', $rec->id) }}" method="POST" onsubmit="return confirm('Bạn có chắc muốn xóa bản ghi âm này?');">
                                     @csrf
                                     @method('DELETE')

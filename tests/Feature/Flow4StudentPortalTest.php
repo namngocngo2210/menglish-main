@@ -5,11 +5,16 @@ namespace Tests\Feature;
 use App\Models\AcademicRecord;
 use App\Models\Branch;
 use App\Models\ClassModel;
+use App\Models\Homework;
 use App\Models\Student;
 use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use Database\Seeders\PermissionSeeder;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class Flow4StudentPortalTest extends TestCase
@@ -146,9 +151,11 @@ class Flow4StudentPortalTest extends TestCase
         $response = $this->actingAs($this->user)->get(route('portal.student.pronunciation', ['studentId' => $this->student->id]));
         $response->assertStatus(200);
         $response->assertSee('Luyện phát âm');
-        $response->assertSee('Audio Mẫu từ Giáo trình');
-        $response->assertSee('Unit 1: Greetings - Bài 2');
-        $response->assertSee('Đang luyện tập:');
+        // Không còn danh sách bài mẫu viết cứng: bài nghe lấy từ file nghe giáo viên gửi kèm bài tập của lớp.
+        $response->assertSee('Bài nghe của lớp');
+        $response->assertDontSee('Unit 1: Greetings');
+        $response->assertSee('Lớp chưa có file nghe');
+        $response->assertSee('Bài đang luyện');
         $response->assertSee('Nộp bài ghi âm');
         $response->assertSee('Lịch sử của bạn');
         // Phase 4: không còn lịch sử/điểm "AI" giả khi chưa có bài nộp.
@@ -161,10 +168,12 @@ class Flow4StudentPortalTest extends TestCase
      */
     public function test_flow_4_step_4_submit_pronunciation_creates_record()
     {
+        Storage::fake('public');
         $response = $this->actingAs($this->user)->post(route('portal.student.pronunciation.store'), [
             'student_id' => $this->student->id,
             'unit_title' => 'Unit 1: Greetings - Bài 2',
             'duration' => '00:45',
+            'audio_file' => $this->fakeRecording(),
         ]);
 
         $response->assertSessionHasNoErrors();
@@ -175,6 +184,7 @@ class Flow4StudentPortalTest extends TestCase
         ]);
         $record = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/04_luyen_phat_am')->first();
         $this->assertNull($record->data['score']);
+        Storage::disk('public')->assertExists(str_replace('/storage/', '', $record->data['audio_path']));
         $this->actingAs($this->user)->get(route('portal.student.pronunciation', ['studentId' => $this->student->id]))
             ->assertSee('Chờ giáo viên chấm');
     }
@@ -365,10 +375,12 @@ class Flow4StudentPortalTest extends TestCase
      */
     public function test_flow_4_step_4_delete_pronunciation()
     {
+        Storage::fake('public');
         $this->actingAs($this->user)->post(route('portal.student.pronunciation.store'), [
             'student_id' => $this->student->id,
             'unit_title' => 'Unit 2: Pronunciation Test',
             'duration' => '00:30',
+            'audio_file' => $this->fakeRecording(),
         ]);
 
         $record = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/04_luyen_phat_am')->first();
@@ -480,5 +492,61 @@ class Flow4StudentPortalTest extends TestCase
             ]));
             $response->assertRedirect($nativeUrl);
         }
+    }
+
+    public function test_pronunciation_submission_requires_a_real_recording()
+    {
+        $this->actingAs($this->user)->post(route('portal.student.pronunciation.store'), [
+            'student_id' => $this->student->id,
+            'unit_title' => 'Unit 1',
+            'duration' => '00:00',
+        ])->assertSessionHasErrors('audio_file');
+
+        $this->assertDatabaseMissing('academic_records', ['screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/04_luyen_phat_am']);
+    }
+
+    public function test_pronunciation_lists_listening_files_of_the_students_classes()
+    {
+        Homework::create(['class_id' => $this->class->id, 'title' => 'Listening Unit 3', 'audio_path' => 'homework_audio/u3.mp3']);
+        Homework::create(['class_id' => ClassModel::create(['name' => 'Lớp khác', 'code' => 'OTHER', 'max_capacity' => 10, 'status' => 'active'])->id,
+            'title' => 'Listening lớp khác', 'audio_path' => 'homework_audio/x.mp3']);
+
+        $this->actingAs($this->user)->get(route('portal.student.pronunciation', ['studentId' => $this->student->id]))
+            ->assertOk()
+            ->assertSee('Listening Unit 3')
+            ->assertSee('storage/homework_audio/u3.mp3', false)
+            ->assertDontSee('Listening lớp khác');
+    }
+
+    public function test_student_only_account_opens_the_portal_instead_of_the_staff_dashboard()
+    {
+        $this->seed(PermissionSeeder::class);
+        $this->seed(RoleSeeder::class);
+        $this->user->assignRole('student');
+
+        $this->actingAs($this->user)->get(route('dashboard'))->assertRedirect(route('portal.student.home'));
+        $this->actingAs($this->user)->get(route('portal.student.home'))
+            ->assertOk()
+            ->assertDontSee('data-menu-item="dashboard"', false);
+    }
+
+    public function test_feedback_page_does_not_show_sample_content()
+    {
+        $this->actingAs($this->user)->post(route('portal.student.feedback.store'), [
+            'student_id' => $this->student->id,
+            'stage_name' => 'Chặng 1',
+            'muc_do_hai_long' => 5,
+        ]);
+
+        $this->actingAs($this->user)->get(route('portal.student.feedback', ['studentId' => $this->student->id]))
+            ->assertOk()
+            ->assertDontSee('Giáo viên giảng dạy nhiệt tình')
+            ->assertSee('Không có nội dung chi tiết.');
+    }
+
+    /** File MP3 tối thiểu (header ID3) để đuôi file suy ra từ nội dung là mp3. */
+    private function fakeRecording(): UploadedFile
+    {
+        return UploadedFile::fake()->createWithContent('ghi-am.mp3', "ID3\x03\x00\x00\x00\x00\x00\x00".str_repeat("\xFF\xFB\x90\x64".str_repeat("\x00", 413), 3));
     }
 }

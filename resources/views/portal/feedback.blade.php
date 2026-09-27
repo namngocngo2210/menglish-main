@@ -24,7 +24,7 @@
             fbHocThuat: {{ $savedHocThuat ? 'true' : 'false' }},
             fbGiaoVien: {{ $savedGiaoVien ? 'true' : 'false' }},
             fbKhac: {{ $savedKhac ? 'true' : 'false' }},
-            noiDung: '{{ addslashes($savedContent) }}',
+            noiDung: @js($savedContent),
             showValidationError: false,
             serverError: null,
             setRating(stars) {
@@ -282,11 +282,13 @@
                         <div class="flex items-center gap-2">
                             <div class="flex text-warning/70">
                                 @for($star = 1; $star <= 5; $star++)
-                                    <span class="material-symbols-outlined text-[20px] {{ $star <= ($savedRating > 0 ? $savedRating : 4) ? 'text-warning/70' : 'text-surface-container-highest' }}" {!! $star <= ($savedRating > 0 ? $savedRating : 4) ? 'style="font-variation-settings: \'FILL\' 1;"' : '' !!}>star</span>
+                                    <span class="material-symbols-outlined text-[20px] {{ $star <= $savedRating ? 'text-warning/70' : 'text-surface-container-highest' }}" {!! $star <= $savedRating ? 'style="font-variation-settings: \'FILL\' 1;"' : '' !!}>star</span>
                                 @endfor
                             </div>
-                            <span class="text-xs font-bold text-on-surface">{{ $savedRating > 0 ? $savedRating : 4 }} / 5</span>
-                            <span class="text-[11px] text-on-surface-variant font-medium">({{ ['Chưa chọn', 'Rất không hài lòng', 'Không hài lòng', 'Bình thường', 'Hài lòng', 'Rất hài lòng'][$savedRating > 0 ? $savedRating : 4] ?? 'Hài lòng' }})</span>
+                            @if ($savedRating > 0)
+                                <span class="text-xs font-bold text-on-surface">{{ $savedRating }} / 5</span>
+                            @endif
+                            <span class="text-[11px] text-on-surface-variant font-medium">({{ ['Chưa chọn', 'Rất không hài lòng', 'Không hài lòng', 'Bình thường', 'Hài lòng', 'Rất hài lòng'][$savedRating] ?? 'Chưa chọn' }})</span>
                         </div>
                     </div>
 
@@ -294,12 +296,12 @@
                     <div class="border-b border-surface-container-highest pb-3">
                         <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1.5">Lĩnh vực đã chọn</span>
                         <div class="flex flex-wrap gap-2">
-                            @if($savedHocThuat || (!$savedHocThuat && !$savedGiaoVien && !$savedKhac))
+                            @if($savedHocThuat)
                                 <x-ui.badge color="secondary" :dot="false">
                                     ✓ Học thuật
                                 </x-ui.badge>
                             @endif
-                            @if($savedGiaoVien || (!$savedHocThuat && !$savedGiaoVien && !$savedKhac))
+                            @if($savedGiaoVien)
                                 <x-ui.badge color="secondary" :dot="false">
                                     ✓ Giáo viên
                                 </x-ui.badge>
@@ -309,6 +311,9 @@
                                     ✓ Khác
                                 </x-ui.badge>
                             @endif
+                            @if(! $savedHocThuat && ! $savedGiaoVien && ! $savedKhac)
+                                <span class="text-xs text-on-surface-variant">Không chọn lĩnh vực</span>
+                            @endif
                         </div>
                     </div>
 
@@ -316,7 +321,7 @@
                     <div>
                         <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Nội dung đã gửi</span>
                         <p class="text-xs text-on-surface bg-surface-container-low rounded-xl p-3 border border-surface-container-highest leading-relaxed font-normal">
-                            {{ !empty($savedContent) ? $savedContent : 'Giáo viên giảng dạy nhiệt tình, bài tập ngữ pháp sát thực tế. Tuy nhiên phần bài tập nghe về nhà đôi khi file audio hơi nhanh với sức học của con, mong thầy cô có thêm phiên bản phát âm chậm.' }}
+                            {{ filled($savedContent) ? $savedContent : 'Không có nội dung chi tiết.' }}
                         </p>
                     </div>
                 </div>
