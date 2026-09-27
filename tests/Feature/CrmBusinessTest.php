@@ -104,7 +104,7 @@ class CrmBusinessTest extends TestCase
         $this->actingAs($lead)->get(route('crm.customers.show', $customer->id))
             ->assertOk()
             ->assertDontSee('Chưa có đề test đầu vào nào đang mở')
-            ->assertSee('Khối 1 - 2')
+            ->assertSeeInOrder(['Mẫu giáo', 'Lớp 1', 'Lớp 2', 'Lớp 3', 'Lớp 4', 'Lớp 5', 'Lớp 6', 'Lớp 7', 'Lớp 8', 'Lớp 9'])
             ->assertSee('TEST-G1-G2');
     }
 

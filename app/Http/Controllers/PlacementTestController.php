@@ -11,11 +11,15 @@ use App\Services\CrmStageService;
 use App\Services\NotificationService;
 use App\Services\PlacementPortalLinkService;
 use App\Services\PlacementRubricService;
+use App\Services\SafeUploadService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class PlacementTestController extends Controller
 {
@@ -38,7 +42,7 @@ class PlacementTestController extends Controller
             ->values();
         $perPage = $request->perPage(20);
         $page = max(1, $request->integer('page', 1));
-        $tests = new \Illuminate\Pagination\LengthAwarePaginator(
+        $tests = new LengthAwarePaginator(
             $filtered->forPage($page, $perPage)->values(), $filtered->count(), $perPage, $page,
             ['path' => $request->url(), 'query' => $request->query()]
         );
@@ -79,6 +83,8 @@ class PlacementTestController extends Controller
         return view('placement-tests.create', [
             'gradeGroups' => PlacementRubricService::gradeGroups(),
             'gradeCodeTokens' => self::GRADE_CODE_TOKENS,
+            'gradeLevels' => PlacementTest::GRADE_LEVELS,
+            'levelRubricGroups' => collect(PlacementTest::GRADE_LEVELS)->map(fn ($label, $level) => PlacementTest::rubricGroupForLevel($level)),
         ]);
     }
 
@@ -97,22 +103,27 @@ class PlacementTestController extends Controller
             'code' => 'required|string|unique:placement_tests,code|max:50',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
+            'grade_level' => 'nullable|string|in:'.implode(',', array_keys(PlacementTest::GRADE_LEVELS)),
             'grade_group' => 'nullable|string|in:'.implode(',', array_keys(PlacementRubricService::gradeGroups())),
-            'target_level' => 'required_without:grade_group|nullable|string|max:255',
+            'target_level' => 'required_without_all:grade_group,grade_level|nullable|string|max:255',
             'duration_minutes' => 'required|integer|min:10',
             'questions_count' => 'nullable|integer|min:1',
             'questions' => 'nullable',
             'save_mode' => 'nullable|in:draft,publish',
         ]);
         // Mockup Tạo đề — "Cấp độ" = khối lớp (A6 Q2); mã đề phải khớp khối để chấm đúng thang điểm.
-        $gradeGroup = $validated['grade_group'] ?? null;
+        $gradeLevel = ($validated['grade_level'] ?? null) ?: PlacementTest::detectGradeLevel($validated['code']);
+        $gradeGroup = ($validated['grade_level'] ?? null)
+            ? PlacementTest::rubricGroupForLevel($gradeLevel)
+            : ($validated['grade_group'] ?? null);
         if ($gradeGroup && PlacementRubricService::hasRubric($gradeGroup)
             && PlacementRubricService::detectGradeGroup($validated['code']) !== $gradeGroup) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'code' => 'Mã đề phải chứa "'.self::GRADE_CODE_TOKENS[$gradeGroup].'" để hệ thống chấm theo thang điểm '.PlacementRubricService::groupLabel($gradeGroup).'.',
             ]);
         }
-        $validated['target_level'] = ($validated['target_level'] ?? null) ?: PlacementRubricService::groupLabel($gradeGroup);
+        $validated['target_level'] = ($validated['target_level'] ?? null)
+            ?: (PlacementTest::gradeLevelLabel($gradeLevel) ?? PlacementRubricService::groupLabel($gradeGroup));
 
         $questions = $request->input('questions');
         if (is_string($questions)) {
@@ -126,6 +137,7 @@ class PlacementTestController extends Controller
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'target_level' => $validated['target_level'],
+            'grade_level' => $gradeLevel,
             'duration_minutes' => $validated['duration_minutes'],
             'questions_count' => max(1, $questionsCount),
             'questions' => $questions,
@@ -150,10 +162,10 @@ class PlacementTestController extends Controller
             'kind' => 'required|in:audio,image',
             'file' => 'required|file|max:'.($request->input('kind') === 'audio' ? 20480 : 5120),
         ], ['file.max' => 'File quá lớn (âm thanh tối đa 20 MB, ảnh tối đa 5 MB).']);
-        $allowed = $validated['kind'] === 'audio' ? \App\Services\SafeUploadService::AUDIO : \App\Services\SafeUploadService::IMAGES;
-        $path = \App\Services\SafeUploadService::store($request->file('file'), 'placement_tests/'.now()->format('Y/m'), $allowed, 'file');
+        $allowed = $validated['kind'] === 'audio' ? SafeUploadService::AUDIO : SafeUploadService::IMAGES;
+        $path = SafeUploadService::store($request->file('file'), 'placement_tests/'.now()->format('Y/m'), $allowed, 'file');
 
-        return response()->json(['url' => \Illuminate\Support\Facades\Storage::disk('public')->url($path), 'path' => $path]);
+        return response()->json(['url' => Storage::disk('public')->url($path), 'path' => $path]);
     }
 
     public function showTest($id)
@@ -178,7 +190,7 @@ class PlacementTestController extends Controller
                 ->with('error', "Đề thi mẫu hệ thống [{$test->code}] đã khóa chỉnh sửa để bảo đảm tính toàn vẹn. Vui lòng bấm 'Nhân bản đề' để tạo bản sao và tùy biến!");
         }
 
-        return view('placement-tests.edit', compact('test'));
+        return view('placement-tests.edit', ['test' => $test, 'gradeLevels' => PlacementTest::GRADE_LEVELS]);
     }
 
     public function updateTest(Request $request, $id)
@@ -194,6 +206,7 @@ class PlacementTestController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'target_level' => 'required|string|max:255',
+            'grade_level' => 'nullable|string|in:'.implode(',', array_keys(PlacementTest::GRADE_LEVELS)),
             'duration_minutes' => 'required|integer|min:10',
             'questions_count' => 'nullable|integer|min:1',
             'questions' => 'nullable',
@@ -211,6 +224,7 @@ class PlacementTestController extends Controller
             'title' => $validated['title'],
             'description' => $validated['description'] ?? $test->description,
             'target_level' => $validated['target_level'],
+            'grade_level' => $request->has('grade_level') ? ($validated['grade_level'] ?? null) : $test->grade_level,
             'duration_minutes' => $validated['duration_minutes'],
             'questions_count' => max(1, $questionsCount),
             'questions' => $questions ?? $test->questions,
@@ -231,6 +245,7 @@ class PlacementTestController extends Controller
             'title' => $test->title.' (Bản sao tùy biến)',
             'description' => $test->description,
             'target_level' => $test->target_level,
+            'grade_level' => $test->grade_level,
             'duration_minutes' => $test->duration_minutes,
             'questions_count' => $test->questions_count,
             'questions' => $test->questions,

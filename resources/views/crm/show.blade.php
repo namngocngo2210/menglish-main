@@ -408,8 +408,8 @@
                                     @csrf
                                     <input type="hidden" name="appointment_type" value="online" />
                                     @php
-                                        $testGroups = $placementTests->mapWithKeys(fn ($t) => [$t->id => \App\Services\PlacementRubricService::detectGradeGroup($t->code)]);
-                                        $levelOptions = \App\Services\PlacementRubricService::gradeGroups();
+                                        $testGroups = $placementTests->mapWithKeys(fn ($t) => [$t->id => $t->grade_level ?? \App\Models\PlacementTest::detectGradeLevel($t->code)]);
+                                        $levelOptions = \App\Models\PlacementTest::GRADE_LEVELS;
                                     @endphp
                                     @if ($placementTests->isEmpty())
                                         <x-ui.alert type="warning">
@@ -470,7 +470,7 @@
                                     <x-ui.button variant="secondary" size="sm" icon="edit" onclick="window.dispatchEvent(new CustomEvent('open-modal', { detail: 'crm-edit-test-score' }))">Nhập điểm ngay</x-ui.button>
                                 @endcan
                             </div>
-                            <p class="font-body-small text-body-small text-on-surface-variant">Cấp độ: <strong class="text-on-surface">{{ \App\Services\PlacementRubricService::groupLabel(\App\Services\PlacementRubricService::detectGradeGroup($customer->assignedTest?->code)) }}</strong></p>
+                            <p class="font-body-small text-body-small text-on-surface-variant">Cấp độ: <strong class="text-on-surface">{{ \App\Models\PlacementTest::gradeLevelLabel($customer->assignedTest?->grade_level ?? \App\Models\PlacementTest::detectGradeLevel($customer->assignedTest?->code)) ?? 'Chưa chọn cấp độ' }}</strong></p>
                             @if ($portalTestLink)
                                 <div class="flex flex-wrap gap-sm" x-data="{ testLink: @js($portalTestLink) }">
                                     <x-ui.button variant="secondary" size="sm" icon="refresh" x-on:click="navigator.clipboard.writeText(testLink); $dispatch('toast', { message: 'Đã tạo và sao chép link mới (hiệu lực {{ \App\Services\PlacementPortalLinkService::LINK_TTL_DAYS }} ngày) — gửi lại cho khách qua Zalo/SMS.', type: 'success' })">Gửi lại link</x-ui.button>

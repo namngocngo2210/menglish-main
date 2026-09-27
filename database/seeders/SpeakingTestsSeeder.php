@@ -198,6 +198,7 @@ JSON;
                 [
                     'title' => $t['title'],
                     'target_level' => $t['target_level'],
+                    'grade_level' => PlacementTest::detectGradeLevel($t['code']),
                     'duration_minutes' => $t['duration_minutes'],
                     'questions_count' => count($t['questions']),
                     'questions' => $t['questions'],
