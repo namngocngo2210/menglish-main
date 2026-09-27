@@ -588,6 +588,9 @@
                                     Chuyển khoản VietQR
                                 @elseif($receipt->payment_method === 'cash')
                                     Tiền mặt tại quầy
+                                    @if($receipt->paper_invoice_number)
+                                        <div style="font-size: 11px; color: #64748b;">HĐ giấy: {{ $receipt->paper_invoice_number }}</div>
+                                    @endif
                                 @elseif($receipt->payment_method === 'pos')
                                     Quẹt thẻ POS
                                 @elseif($receipt->payment_method === 'split')

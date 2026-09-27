@@ -515,6 +515,7 @@ class Phase4AcceptanceTest extends TestCase
     private function receiptInput(StudentTuition $tuition, float $amount, string $method, ?string $code = null, string $action = 'submit', bool $withProof = false): array
     {
         return array_filter([
+            'paper_invoice_number' => $method === 'cash' ? 'HDG-0001' : null,
             'student_tuition_id' => $tuition->id, 'amount' => $amount, 'tuition_amount' => $amount, 'payment_method' => $method,
             'transaction_code' => $code, 'payer_name' => 'Phụ huynh', 'submit_action' => $action,
             'proof_image' => $withProof ? UploadedFile::fake()->image('ck.png', 40, 40) : null,

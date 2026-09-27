@@ -42,7 +42,7 @@
             <ul class="mt-xs list-disc space-y-0.5 pl-md">
                 <li>Học viên chưa có hồ sơ học phí: bắt buộc "Học phí niêm yết" và "Hạn đóng" (dd/mm/yyyy).</li>
                 <li>Học viên đã có hồ sơ: chỉ nhập "Số tiền đã đóng" — không ghi đè giá trị hợp đồng.</li>
-                <li>Hình thức: <code>tien_mat</code>, <code>chuyen_khoan</code> (bắt buộc mã giao dịch, không trùng), <code>pos</code>.</li>
+                <li>Hình thức: <code>tien_mat</code>, <code>chuyen_khoan</code> (bắt buộc mã giao dịch, không trùng).</li>
             </ul>
         </x-ui.alert>
 

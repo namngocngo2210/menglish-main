@@ -15,7 +15,7 @@
         @endif
         @if ($bankAccounts->isEmpty())
             <x-ui.alert type="warning" class="font-semibold">
-                Chưa có tài khoản ngân hàng hoạt động. Bạn vẫn có thể thu tiền mặt/POS; chuyển khoản sẽ cần cấu hình tài khoản trước.
+                Chưa có tài khoản ngân hàng hoạt động. Bạn vẫn có thể thu tiền mặt; chuyển khoản sẽ cần cấu hình tài khoản trước.
             </x-ui.alert>
         @endif
         @if ($customers->isEmpty())
@@ -82,9 +82,6 @@
             <input type="hidden" name="prepaid_amount" :value="prepaidAmount" />
             <input type="hidden" name="paid_amount" :value="feePaid ? paidAmount : 0" />
             <input type="hidden" name="payment_method" :value="paymentMethod" />
-            <input type="hidden" name="split_cash_amount" :value="splitCash" />
-            <input type="hidden" name="split_transfer_amount" :value="splitTransfer" />
-            <input type="hidden" name="split_pos_amount" :value="splitPos" />
             <input type="hidden" name="bank_account_id" :value="selectedBankAccountId" />
             {{-- transfer_memo được server sinh từ mã học viên thật sau khi tạo hồ sơ, không lấy từ client --}}
 
@@ -340,7 +337,7 @@
                     <x-ui.button variant="secondary" x-on:click="step = 1">
                         Quay lại
                     </x-ui.button>
-                    <x-ui.button x-on:click="paidAmount = amountDue; syncSplitAmounts(); step = 3">
+                    <x-ui.button x-on:click="paidAmount = amountDue; step = 3">
                         <span>Tiếp tục: Xếp lớp</span>
                         <span class="material-symbols-outlined text-base">arrow_forward</span>
                     </x-ui.button>
@@ -449,7 +446,7 @@
                     <x-ui.button variant="secondary" x-on:click="step = 2">
                         Quay lại
                     </x-ui.button>
-                    <x-ui.button x-on:click="step = 4; syncSplitAmounts()" x-bind:disabled="!assignLater && !classId">
+                    <x-ui.button x-on:click="step = 4" x-bind:disabled="!assignLater && !classId">
                         <span>Tiếp tục: Xác nhận &amp; Thu tiền</span>
                         <span class="material-symbols-outlined text-base">arrow_forward</span>
                     </x-ui.button>
@@ -531,7 +528,7 @@
                             <label class="block text-xs font-bold text-on-surface mb-1">
                                 Số tiền thu thực tế đợt 1 (VNĐ) <span class="text-error">*</span>
                             </label>
-                            <x-ui.input type="number" id="closing_paid_amount" x-model.number="paidAmount" x-on:input="syncSplitAmounts()" aria-label="Số tiền thu thực tế đợt 1"
+                            <x-ui.input type="number" id="closing_paid_amount" x-model.number="paidAmount" aria-label="Số tiền thu thực tế đợt 1"
                                         class="font-mono font-black !text-tertiary" />
                         </div>
 
@@ -550,7 +547,7 @@
                             </x-ui.select>
                         </div>
 
-                        {{-- CHỌN PHƯƠNG THỨC THANH TOÁN (HỖ TRỢ KẾT HỢP NHIỀU PHƯƠNG THỨC) --}}
+                        {{-- CHỌN PHƯƠNG THỨC THANH TOÁN: trung tâm chỉ thu chuyển khoản hoặc tiền mặt (không POS, không kết hợp) --}}
                         <div class="space-y-3 pt-2 border-t border-surface-container-highest">
                             <div>
                                 <label class="block text-xs font-bold text-on-surface mb-1.5">Phương thức thanh toán giao dịch</label>
@@ -564,37 +561,13 @@
                                         <input type="radio" name="pay_mode" value="cash" x-model="paymentMethod" class="text-primary-container focus:ring-primary-container" />
                                         <span>Tiền mặt tại quầy</span>
                                     </label>
-
-                                    <label class="flex items-center gap-2 p-2.5 rounded-xl border bg-surface-container-lowest cursor-pointer transition text-xs font-semibold" :class="paymentMethod === 'pos' ? 'border-primary-container text-primary-container bg-primary-container/10' : 'border-surface-container-highest text-on-surface-variant'">
-                                        <input type="radio" name="pay_mode" value="pos" x-model="paymentMethod" class="text-primary-container focus:ring-primary-container" />
-                                        <span>Quẹt thẻ máy POS</span>
-                                    </label>
-
-                                    <label class="flex items-center gap-2 p-2.5 rounded-xl border bg-surface-container-lowest cursor-pointer transition text-xs font-semibold" :class="paymentMethod === 'split' ? 'border-secondary text-secondary bg-secondary/10 ring-1 ring-secondary' : 'border-surface-container-highest text-on-surface-variant'">
-                                        <input type="radio" name="pay_mode" value="split" x-model="paymentMethod" class="text-secondary focus:ring-secondary" />
-                                        <span>Kết hợp (Cash + Bank + POS)</span>
-                                    </label>
                                 </div>
                             </div>
 
-                            {{-- Form chia nhỏ tiền khi chọn phương thức kết hợp --}}
-                            <div x-show="paymentMethod === 'split'" x-cloak class="p-4 bg-secondary/10 border border-secondary/30 rounded-xl space-y-3">
-                                <div class="flex items-center justify-between text-xs">
-                                    <span class="font-bold text-secondary flex items-center gap-1">
-                                        <span class="material-symbols-outlined text-sm">call_split</span>
-                                        Phân bổ số tiền thanh toán kết hợp
-                                    </span>
-                                    <span class="text-[10px] font-bold" :class="splitDiff === 0 ? 'text-tertiary' : 'text-error'" x-text="splitDiff === 0 ? '✓ Đã khớp 100%' : 'Chênh lệch: ' + formatVND(splitDiff)"></span>
-                                </div>
-
-                                <div class="grid grid-cols-3 gap-2">
-                                    <x-ui.input type="number" id="closing_splitCash" label="Tiền mặt (Cash)" x-model.number="splitCash" placeholder="0" class="font-mono font-bold" />
-
-                                    <x-ui.input type="number" id="closing_splitTransfer" label="Chuyển khoản (QR)" x-model.number="splitTransfer" placeholder="0" class="font-mono font-bold !text-primary-container" />
-
-                                    <x-ui.input type="number" id="closing_splitPos" label="Quẹt thẻ POS" x-model.number="splitPos" placeholder="0" class="font-mono font-bold !text-secondary" />
-                                </div>
-                                <p class="text-[10px] text-on-surface-variant">Mã VietQR bên cạnh sẽ tự động sinh theo đúng số tiền chuyển khoản (<strong x-text="formatVND(effectiveTransferAmount)"></strong>).</p>
+                            {{-- Tiền mặt: thu theo hóa đơn giấy — ghi số hóa đơn giấy vào phiếu thu để Kế toán đối soát khi duyệt --}}
+                            <div x-show="feePaid && paymentMethod === 'cash'" x-cloak class="p-3.5 rounded-xl border border-surface-container-highest bg-surface-container-low space-y-1">
+                                <x-ui.input name="paper_invoice_number" id="closing_paper_invoice_number" label="Số hóa đơn giấy thu tiền mặt (bắt buộc)" x-model="paperInvoiceNumber" placeholder="Ví dụ: HĐG-0824/PTM-042..." class="font-code font-bold" />
+                                <p class="text-[10px] text-on-surface-variant">Xuất hóa đơn giấy cho khách rồi ghi số vào đây. Phiếu thu tiền mặt được gửi Kế toán/Admin duyệt kèm số hóa đơn này.</p>
                             </div>
                         </div>
 
@@ -656,7 +629,7 @@
                                 <span class="font-mono font-black text-primary-container text-xs" x-text="formatVND(effectiveTransferAmount)"></span>
                             </div>
 
-                            {{-- NỘI DUNG CHUYỂN KHOẢN THEO CẤU TRÚC: Mã hs + ten học sinh + tenlop + CN + xxx --}}
+                            {{-- NỘI DUNG CHUYỂN KHOẢN THEO CẤU TRÚC: tên học sinh + mã học sinh + lớp --}}
                             <div class="pt-1.5 border-t border-surface-container-highest space-y-1">
                                 <div class="flex justify-between items-center">
                                     <span class="text-on-surface-variant font-bold">Nội dung CK (Cấu trúc chuẩn):</span>
@@ -698,7 +671,7 @@
                     <x-ui.button variant="secondary" x-on:click="step = 3">
                         Quay lại
                     </x-ui.button>
-                    <x-ui.button type="submit" variant="success" icon="check_circle" x-bind:disabled="!customerId || (!assignLater && !classId) || (assignLater && !courseId) || (feePaid && paidAmount <= 0 && prepaidAmount <= 0) || (needsBankAccount && !selectedBankAccountId) || (paymentMethod === 'split' && splitDiff !== 0)">
+                    <x-ui.button type="submit" variant="success" icon="check_circle" x-bind:disabled="!customerId || (!assignLater && !classId) || (assignLater && !courseId) || (feePaid && paidAmount <= 0 && prepaidAmount <= 0) || (needsBankAccount && !selectedBankAccountId) || (feePaid && paidAmount > 0 && paymentMethod === 'cash' && !paperInvoiceNumber.trim())">
                         <span>Hoàn tất Chốt Deal, Xếp Lớp &amp; Xuất Phiếu Thu</span>
                     </x-ui.button>
                 </div>
@@ -839,7 +812,7 @@
                         </table>
 
                         {{-- PAYMENT NOTE --}}
-                        <div style="margin: 10px 0 8px 0; font-size: 13px; font-style: italic; color: #333;" x-text="needsBankAccount ? 'Thông tin chuyển khoản của giao dịch:' : 'Giao dịch được ghi nhận theo phương thức tiền mặt/POS, không phát sinh VietQR.'">
+                        <div style="margin: 10px 0 8px 0; font-size: 13px; font-style: italic; color: #333;" x-text="needsBankAccount ? 'Thông tin chuyển khoản của giao dịch:' : 'Thu tiền mặt tại quầy theo hóa đơn giấy' + (paperInvoiceNumber ? ' số ' + paperInvoiceNumber : '') + ', không phát sinh VietQR.'">
                         </div>
 
                         <div x-show="needsBankAccount">
@@ -938,9 +911,7 @@
 
                 // Payment methods
                 paymentMethod: 'transfer',
-                splitCash: 0,
-                splitTransfer: 0,
-                splitPos: 0,
+                paperInvoiceNumber: @js((string) old('paper_invoice_number', '')),
                 billNotes: '',
 
                 // Banks & VietQR
@@ -961,9 +932,6 @@
 
                 // Computed: Số tiền chuyển khoản thực tế dùng để sinh VietQR
                 get effectiveTransferAmount() {
-                    if (this.paymentMethod === 'split') {
-                        return Math.max(0, parseInt(this.splitTransfer || 0));
-                    }
                     if (this.paymentMethod === 'transfer') {
                         return Math.max(0, parseInt(this.paidAmount || 0));
                     }
@@ -971,8 +939,7 @@
                 },
 
                 get needsBankAccount() {
-                    return this.feePaid && this.paymentMethod === 'transfer'
-                        || (this.paymentMethod === 'split' && Number(this.splitTransfer || 0) > 0);
+                    return this.feePaid && this.paymentMethod === 'transfer';
                 },
 
                 get availablePromotions() {
@@ -980,12 +947,6 @@
                         (!promotion.branch_id || String(promotion.branch_id) === String(this.assignLater ? this.customerBranchId : this.classBranchId))
                         && (!promotion.course_id || String(promotion.course_id) === String(this.courseId))
                     );
-                },
-
-                // Computed: Chênh lệch chia tiền split
-                get splitDiff() {
-                    const totalSplit = (this.splitCash || 0) + (this.splitTransfer || 0) + (this.splitPos || 0);
-                    return totalSplit - (this.paidAmount || 0);
                 },
 
                 // Selected Bank Object
@@ -999,26 +960,14 @@
                     return (this.selectedBank.account_number || '').replace(/\s+/g, '');
                 },
 
-                // Cấu trúc nội dung CK: Mã hs + ten học sinh + tenlop + CN + xxx
+                // Nội dung CK: tên học sinh + mã học sinh + lớp (không dấu). Xếp lớp sau thì bỏ phần lớp.
                 get transferMemo() {
-                    const code = (this.studentCodePreview || 'HS000001').toUpperCase().replace(/[^A-Z0-9]/g, '');
-                    
-                    // Chuyển tên học sinh sang không dấu, viết liền
-                    let name = this.removeVietnameseTones(this.customerName || 'HOCVIEN').toUpperCase().replace(/[^A-Z0-9]/g, '');
-                    
-                    // Lớp: lấy tên ngắn không dấu
-                    let cls = this.removeVietnameseTones(this.className || 'LOP').toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 7);
-                    
-                    // Mã chi nhánh
-                    let cn = (this.classBranch || this.customerBranch || 'BD').toUpperCase().replace(/[^A-Z0-9]/g, '');
-                    if (!cn.startsWith('CN')) {
-                        cn = 'CN' + cn;
-                    }
-
-                    // Đuôi 3 số nhận diện
-                    const tail = (this.customerPhone ? this.customerPhone.slice(-3) : '888').replace(/[^0-9]/g, '');
-
-                    return `${code} ${name} ${cls} ${cn} ${tail}`;
+                    const clean = (v) => this.removeVietnameseTones(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    return [
+                        clean(this.customerName || 'HOCVIEN'),
+                        clean(this.studentCodePreview || 'HS000001'),
+                        this.assignLater ? '' : clean(this.className),
+                    ].filter(Boolean).join(' ');
                 },
 
                 get vietQrUrl() {
@@ -1051,18 +1000,6 @@
                     str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
                     str = str.replace(/Đ/g, "D");
                     return str;
-                },
-
-                syncSplitAmounts() {
-                    if (this.paymentMethod === 'split') {
-                        // Nếu chưa chia, mặc định chia 50% tiền mặt, 50% chuyển khoản
-                        if (this.splitCash === 0 && this.splitTransfer === 0 && this.splitPos === 0) {
-                            const half = Math.floor(this.paidAmount / 2);
-                            this.splitCash = half;
-                            this.splitTransfer = this.paidAmount - half;
-                            this.splitPos = 0;
-                        }
-                    }
                 },
 
                 addPresetItem(id, name, amount) {
@@ -1248,7 +1185,6 @@
 
                 onFeePaidChange() {
                     this.paidAmount = this.feePaid ? this.amountDue : 0;
-                    this.syncSplitAmounts();
                 },
 
                 updateCustomer(e) {

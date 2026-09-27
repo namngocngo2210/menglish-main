@@ -101,6 +101,7 @@ class Phase4FinanceTest extends TestCase
             'amount' => $amount,
             'tuition_amount' => $amount,
             'payment_method' => 'cash',
+            'paper_invoice_number' => 'HDG-0001',
             'payment_date' => now(),
             'creator_id' => $this->staff->id,
             'status' => 'pending',
@@ -275,12 +276,15 @@ class Phase4FinanceTest extends TestCase
         $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $base + ['payment_method' => 'transfer'])
             ->assertSessionHasErrors('proof_image');
         $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $base + ['payment_method' => 'pos', 'submit_action' => 'submit'])
-            ->assertSessionHasErrors('proof_image');
+            ->assertSessionHasErrors('payment_method');
+        // Tiền mặt thu theo hóa đơn giấy: gửi duyệt phải có số hóa đơn giấy.
+        $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $base + ['payment_method' => 'cash', 'submit_action' => 'submit'])
+            ->assertSessionHasErrors('paper_invoice_number');
         $this->assertSame(0, TuitionReceipt::count());
 
         $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $base + ['payment_method' => 'transfer', 'submit_action' => 'draft'])
             ->assertSessionHasNoErrors();
-        $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $base + ['payment_method' => 'cash', 'submit_action' => 'submit'])
+        $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $base + ['payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001', 'submit_action' => 'submit'])
             ->assertSessionHasNoErrors();
 
         $this->assertSame(['cash' => 'pending', 'transfer' => 'draft'], TuitionReceipt::pluck('status', 'payment_method')->sortKeys()->all());
@@ -392,7 +396,7 @@ class Phase4FinanceTest extends TestCase
         $unscopedAccountant->assignRole('accountant');
 
         $this->actingAs($this->staff)->post(route('tuition.receipts.store'), [
-            'student_tuition_id' => $this->tuition->id, 'amount' => 1000000, 'payment_method' => 'cash',
+            'student_tuition_id' => $this->tuition->id, 'amount' => 1000000, 'payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001',
         ])->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('admin_notifications', ['user_id' => null, 'type' => 'receipt_pending']);

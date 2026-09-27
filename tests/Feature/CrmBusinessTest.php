@@ -470,6 +470,7 @@ class CrmBusinessTest extends TestCase
             'promotion_id' => $promotion->id,
             'paid_amount' => 5000000,
             'payment_method' => 'cash',
+            'paper_invoice_number' => 'HDG-0001',
             'bank_account_id' => $this->bankAccount->id,
         ];
 
@@ -598,6 +599,7 @@ class CrmBusinessTest extends TestCase
             'class_id' => $this->classModel->id,
             'paid_amount' => 5000000,
             'payment_method' => 'cash',
+            'paper_invoice_number' => 'HDG-0001',
         ])->assertRedirect(route('crm.customers.won'));
 
         // Tắt toàn bộ tài khoản ngân hàng: bill vẫn phải hiển thị kèm cảnh báo, không lỗi.

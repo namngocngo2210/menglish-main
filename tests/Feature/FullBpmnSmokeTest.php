@@ -90,7 +90,7 @@ class FullBpmnSmokeTest extends TestCase
 
         // BPMN 15 — Phiếu thu: CM lập, Kế toán duyệt → HĐ dải chi nhánh, công nợ giảm.
         $this->actingAs($academic)->post(route('tuition.receipts.store'), [
-            'student_tuition_id' => $tuition->id, 'amount' => 2000000, 'tuition_amount' => 2000000, 'payment_method' => 'cash', 'submit_action' => 'submit',
+            'student_tuition_id' => $tuition->id, 'amount' => 2000000, 'tuition_amount' => 2000000, 'payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001', 'submit_action' => 'submit',
         ])->assertSessionHasNoErrors()->assertRedirect();
         $receipt = TuitionReceipt::where('student_tuition_id', $tuition->id)->firstOrFail();
         $this->actingAs($accountant)->get(route('tuition.receipts.approve', ['selected_id' => $receipt->id]))->assertOk();

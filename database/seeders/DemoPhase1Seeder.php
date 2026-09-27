@@ -529,6 +529,7 @@ class DemoPhase1Seeder extends Seeder
             'fee_paid_at_closing' => $paid ? 1 : 0,
             'paid_amount' => $paid ? (float) $course->tuition_fee : null,
             'payment_method' => $paid ? 'cash' : null,
+            'paper_invoice_number' => $paid ? 'HDG-DEMO-'.$customer->id : null,
             'bill_notes' => 'Chốt demo Phase 1.',
         ], fn ($value) => $value !== null));
 
