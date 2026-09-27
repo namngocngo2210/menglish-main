@@ -1,9 +1,5 @@
 <x-app-layout>
-    <x-ui.page-header title="Đặt lịch khách học thử vào buổi" icon="event_available">
-        <x-slot:actions>
-            <x-ui.button icon="group_add" :href="route('classes.create')">Tạo lớp mới</x-ui.button>
-        </x-slot:actions>
-    </x-ui.page-header>
+    <x-ui.page-header title="Đặt lịch khách học thử vào buổi" icon="event_available" />
 
 
     
@@ -134,7 +130,13 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="4"><x-ui.empty-state icon="school" title="Chưa có dữ liệu lớp học phù hợp. Vui lòng tạo lớp mới." /></td>
+                                            <td colspan="4">
+                                                <x-ui.empty-state icon="school" title="Chưa có lớp học phù hợp để xếp học thử.">
+                                                    @can('class.create')
+                                                        <x-ui.button variant="secondary" icon="add" :href="route('classes.create')">Tạo lớp ở mục Lớp học</x-ui.button>
+                                                    @endcan
+                                                </x-ui.empty-state>
+                                            </td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -213,7 +215,6 @@
                     {{-- Step 1 Buttons --}}
                     <template x-if="step === 1">
                         <div class="flex gap-2">
-                            <x-ui.button variant="secondary" :href="route('classes.create')">Bỏ qua</x-ui.button>
                             <x-ui.button x-on:click="step = 2" x-bind:disabled="!selectedClassId">Tiếp theo →</x-ui.button>
                         </div>
                     </template>

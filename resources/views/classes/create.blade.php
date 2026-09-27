@@ -1,12 +1,5 @@
 <x-app-layout>
-    <x-ui.page-header title="Tạo lớp mới (Flow 1 — Bước #2)" icon="group_add" :back="route('classes.trial-booking')">
-        <x-slot:badges>
-            <x-ui.badge color="secondary" :dot="false" :pill="true">Học vụ / Quản trị</x-ui.badge>
-        </x-slot:badges>
-        <x-slot:actions>
-            <x-ui.button variant="secondary" icon="list" :href="route('classes.index')">Quay lại danh sách lớp</x-ui.button>
-        </x-slot:actions>
-    </x-ui.page-header>
+    <x-ui.page-header title="Tạo lớp mới" icon="group_add" :back="route('classes.index')" back-label="Danh sách lớp" />
 
 
     <div class="max-w-4xl mx-auto space-y-6">
