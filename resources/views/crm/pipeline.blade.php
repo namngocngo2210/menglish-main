@@ -69,6 +69,12 @@
                                         default => 'border-l-outline-variant',
                                     };
                                     $canEditStage = ($stagePermissions['canForward'] || $stagePermissions['canBackward']) && ! in_array($stage['id'], $stagePermissions['closed'], true);
+                                    // Chỉ vẽ phần chân thẻ khi có nội dung (tránh đường kẻ + khoảng trống thừa).
+                                    $hasFooter = $stage['id'] === 'won'
+                                        || $lead['follow_up_state']
+                                        || ($stage['id'] === 'waiting_class' && auth()->user()->can('student.assign_class'))
+                                        || ($stage['id'] !== 'waiting_class' && $stagePermissions['canForward'] && $stage['next'] && ! in_array($stage['next'], $stagePermissions['closed'], true))
+                                        || (in_array($stage['id'], \App\Models\CrmCustomer::CLOSABLE_STAGES, true) && $stagePermissions['canConvert']);
                                 @endphp
                                 <div
                                     class="kanban-card group relative space-y-md rounded-lg border border-l-4 border-outline-variant/30 bg-surface-container-lowest p-md shadow-level-2 transition-all hover:shadow-level-3 {{ $accent }} {{ $draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer' }}"
@@ -121,6 +127,7 @@
                                         @endif
                                     </div>
 
+                                    @if ($hasFooter)
                                     <div class="space-y-md border-t border-surface-container-highest pt-sm">
                                         @if ($stage['id'] === 'won')
                                             <div class="flex items-center gap-xs font-body-small text-body-small font-medium text-tertiary">
@@ -167,6 +174,7 @@
                                             @endif
                                         @endif
                                     </div>
+                                    @endif
                                 </div>
                             @empty
                                 <p class="px-xs py-md text-center font-caption text-caption text-on-surface-variant/70">Chưa có khách</p>

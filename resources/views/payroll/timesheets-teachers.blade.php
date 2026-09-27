@@ -237,11 +237,11 @@
                                                 <x-ui.button type="submit" name="decision" value="valid" variant="ghost" size="sm" icon="check">Duyệt</x-ui.button>
                                             </form>
                                             <x-ui.button variant="danger-text" size="sm" icon="close"
-                                                         x-on:click="reject = { action: '{{ route('payroll.timesheets.review', $ts->id) }}', label: @js(($ts->teacher?->name ?? '').' — '.$ts->teaching_date->format('d/m/Y')) }; $dispatch('open-modal', 'ts-reject')">Từ chối</x-ui.button>
+                                                         x-on:click="reject = { action: '{{ route('payroll.timesheets.review', $ts->id) }}', label: {{ \Illuminate\Support\Js::from(($ts->teacher?->name ?? '').' — '.$ts->teaching_date->format('d/m/Y')) }} }; $dispatch('open-modal', 'ts-reject')">Từ chối</x-ui.button>
                                         @endif
                                         @if ($canAdjust)
                                             <x-ui.button variant="ghost" size="sm" icon="edit" aria-label="Chỉnh tay bổ sung"
-                                                         x-on:click="edit = { action: '{{ route('payroll.timesheets.adjust', $ts->id) }}', timeIn: @js($ts->checkin_time ?? ''), timeOut: @js($ts->display_checkout ?? ''), label: @js(($ts->teacher?->name ?? '').' — '.($ts->classModel?->code ?? '').' — '.$ts->teaching_date->format('d/m/Y')) }; $dispatch('open-modal', 'ts-adjust')" />
+                                                         x-on:click="edit = { action: '{{ route('payroll.timesheets.adjust', $ts->id) }}', timeIn: {{ \Illuminate\Support\Js::from($ts->checkin_time ?? '') }}, timeOut: {{ \Illuminate\Support\Js::from($ts->display_checkout ?? '') }}, label: {{ \Illuminate\Support\Js::from(($ts->teacher?->name ?? '').' — '.($ts->classModel?->code ?? '').' — '.$ts->teaching_date->format('d/m/Y')) }} }; $dispatch('open-modal', 'ts-adjust')" />
                                         @endif
                                     @endif
                                 </div>

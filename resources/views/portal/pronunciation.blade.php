@@ -120,7 +120,7 @@
                                     <p class="truncate text-xs font-semibold text-on-surface">{{ $item['title'] }}</p>
                                     <p class="text-[10px] text-on-surface-variant/70">{{ $item['class_name'] }}</p>
                                 </div>
-                                <x-ui.button variant="ghost" size="sm" class="text-primary" x-on:click="pickUnit(@js($item['title']))">Chọn</x-ui.button>
+                                <x-ui.button variant="ghost" size="sm" class="text-primary" x-on:click="pickUnit({{ \Illuminate\Support\Js::from($item['title']) }})">Chọn</x-ui.button>
                             </div>
                             <audio controls preload="none" class="mt-2 h-8 w-full" src="{{ $item['audio_url'] }}"></audio>
                         </div>

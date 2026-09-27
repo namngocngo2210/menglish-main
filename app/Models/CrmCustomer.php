@@ -239,6 +239,16 @@ class CrmCustomer extends Model
         return $this->hasMany(CrmTrialBooking::class, 'customer_id');
     }
 
+    /** Hủy các buổi học thử đang chờ (khách thất bại / bị xóa) để giáo viên không còn thấy khách trong lịch học thử. */
+    public function cancelPendingTrialBookings(string $reason): int
+    {
+        return $this->trialBookings()->where('status', 'scheduled')->get()
+            ->each(fn (CrmTrialBooking $booking) => $booking->update([
+                'status' => 'cancelled',
+                'notes' => trim(($booking->notes ? $booking->notes."\n" : '').'Hủy: '.$reason),
+            ]))->count();
+    }
+
     public function waitingCourse(): BelongsTo
     {
         return $this->belongsTo(Course::class, 'waiting_course_id');

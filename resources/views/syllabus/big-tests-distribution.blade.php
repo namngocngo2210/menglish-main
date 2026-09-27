@@ -233,7 +233,7 @@
                                 <div class="flex justify-end items-center gap-2">
                                     @if ($canReview && $bt->class_id)
                                         <x-ui.button variant="ghost" size="sm" icon="flag" title="Gắn chặng cho đợt thi"
-                                                     @click="stageUrl = @js(route('syllabus.big-tests.stage', $bt->id)); stageTest = @js($bt->code.' · '.$bt->classModel?->name); stageOptions = @js($stageOptions[$bt->class_id] ?? []); stageValue = @js((string) ($bt->syllabus_stage_id ?? '')); $dispatch('open-modal', 'big-test-stage')">Gắn chặng</x-ui.button>
+                                                     @click="stageUrl = {{ \Illuminate\Support\Js::from(route('syllabus.big-tests.stage', $bt->id)) }}; stageTest = {{ \Illuminate\Support\Js::from($bt->code.' · '.$bt->classModel?->name) }}; stageOptions = {{ \Illuminate\Support\Js::from($stageOptions[$bt->class_id] ?? []) }}; stageValue = {{ \Illuminate\Support\Js::from((string) ($bt->syllabus_stage_id ?? '')) }}; $dispatch('open-modal', 'big-test-stage')">Gắn chặng</x-ui.button>
                                     @endif
                                     @if (! $bt->is_distributed)
                                         @if ($canReview)

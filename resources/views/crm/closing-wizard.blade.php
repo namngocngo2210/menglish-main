@@ -225,7 +225,13 @@
                             <span>Thu trước (VNĐ)</span>
                             <span class="text-[10px] text-on-surface-variant/70">Đã đóng trước</span>
                         </label>
-                        <x-ui.input type="number" x-model.number="prepaidAmount" placeholder="0" class="font-mono font-bold !text-warning" />
+                        @can('tuition.approve')
+                            <x-ui.input type="number" x-model.number="prepaidAmount" placeholder="0" class="font-mono font-bold !text-warning" />
+                        @else
+                            {{-- Khoản thu trước cần người duyệt phiếu thu xác nhận (server từ chối nếu không có quyền). --}}
+                            <x-ui.input type="number" value="0" disabled class="font-mono" />
+                            <p class="mt-1 text-[10px] text-on-surface-variant">Chỉ Kế toán / Quản lý nhập được khoản thu trước.</p>
+                        @endcan
                     </div>
                 </div>
 
@@ -1238,6 +1244,13 @@
                     this.customerName = opt.getAttribute('data-name');
                     this.customerPhone = opt.getAttribute('data-phone');
                     this.customerBranch = opt.getAttribute('data-branch') || 'BD';
+                    // Lớp và tài khoản nhận tiền được lọc theo chi nhánh của khách → đổi sang khách chi nhánh khác thì tải lại.
+                    if ((opt.getAttribute('data-branch-id') || '') !== this.customerBranchId) {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('customer_id', opt.value);
+                        window.location.href = url.toString();
+                        return;
+                    }
                     this.customerBranchId = opt.getAttribute('data-branch-id') || '';
                     this.customerStage = opt.getAttribute('data-stage') || '';
                     this.customerLevel = opt.getAttribute('data-level') || '';

@@ -144,26 +144,22 @@
         <form id="schedule-test-form" action="{{ route('crm.customers.schedule-test', $customer->id) }}" method="POST" class="space-y-3 text-xs">
             @csrf
             <div class="grid grid-cols-2 gap-3">
-                <x-ui.date name="appointment_date" id="modal_appointment_date" label="Ngày hẹn test" :value="date('Y-m-d')" required />
-                <x-ui.input type="time" name="appointment_time" id="modal_appointment_time" label="Giờ hẹn" value="14:00" required />
+                @php
+                    // Hẹn lại: giữ lịch / đề / người chấm đang có; lịch mới mặc định sáng mai 09:00 (giờ trong quá khứ bị từ chối).
+                    $prefillAt = $customer->appointment_at?->isFuture() ? $customer->appointment_at : today()->addDay()->setTime(9, 0);
+                @endphp
+                <x-ui.date name="appointment_date" id="modal_appointment_date" label="Ngày hẹn test" :value="$prefillAt->format('Y-m-d')" required />
+                <x-ui.input type="time" name="appointment_time" id="modal_appointment_time" label="Giờ hẹn" :value="$prefillAt->format('H:i')" required />
             </div>
 
-            <x-ui.select name="appointment_type" id="modal_appointment_type" label="Hình thức làm bài" value="" required class="font-bold !text-primary">
-                <option value="online">Trực tuyến (Online qua link Portal)</option>
-                <option value="offline">Tại cơ sở (Offline tại trung tâm)</option>
-            </x-ui.select>
+            <x-ui.select name="appointment_type" id="modal_appointment_type" label="Hình thức làm bài" :value="$customer->appointment_type ?? 'online'" required class="font-bold !text-primary"
+                         :options="['online' => 'Trực tuyến (Online qua link Portal)', 'offline' => 'Tại cơ sở (Offline tại trung tâm)']" />
 
-            <x-ui.select name="assigned_test_id" id="modal_assigned_test_id" label="Đề test gán cho khách" value="">
-                @foreach ($placementTests ?? [] as $test)
-                    <option value="{{ $test->id }}">{{ $test->title }} ({{ $test->code }})</option>
-                @endforeach
-            </x-ui.select>
+            <x-ui.select name="assigned_test_id" id="modal_assigned_test_id" label="Đề test gán cho khách" :value="(string) ($customer->assigned_test_id ?? '')"
+                         :options="collect($placementTests ?? [])->mapWithKeys(fn ($test) => [$test->id => $test->title.' ('.$test->code.')'])" />
 
-            <x-ui.select name="examiner_id" id="modal_examiner_id" label="Giáo viên / Giám thị phụ trách chấm" value="" placeholder="-- Tự động chấm AI / Chưa gán --">
-                @foreach ($examiners ?? [] as $examiner)
-                    <option value="{{ $examiner->id }}">{{ $examiner->name }}</option>
-                @endforeach
-            </x-ui.select>
+            <x-ui.select name="examiner_id" id="modal_examiner_id" label="Giáo viên / Giám thị phụ trách chấm" :value="(string) ($customer->examiner_id ?? '')" placeholder="-- Tự động chấm AI / Chưa gán --"
+                         :options="collect($examiners ?? [])->pluck('name', 'id')" />
 
             <x-ui.textarea name="notes" id="modal_test_notes" label="Ghi chú nhắc hẹn" rows="2" placeholder="Nhắc học viên mang theo tai nghe, CMND..." />
         </form>
@@ -383,7 +379,11 @@
                             @endif
                         </div>
 
-                        @if (! $hasResult && ! $hasScheduled)
+                        @if (! $hasResult && ! $hasScheduled && ! in_array($customer->stage, ['consulting', 'test_scheduled', 'testing', 'tested'], true))
+                            <p class="font-body-small text-body-small text-on-surface-variant">
+                                {{ $customer->stage === 'new' ? 'Khách đang ở bước Mới: Học vụ / Quản lý cơ sở chuyển sang Đang tư vấn rồi mới hẹn test.' : 'Không hẹn test ở giai đoạn '.$customer->stage_label.'.' }}
+                            </p>
+                        @elseif (! $hasResult && ! $hasScheduled)
                             @can('entrance_test.send')
                                 <form action="{{ route('crm.customers.schedule-test', $customer->id) }}" method="POST" class="space-y-md">
                                     @csrf
@@ -510,7 +510,7 @@
                                         @endcan
                                     @endif
                                     @can('entrance_test.grade')
-                                        @if (! in_array($customer->stage, ['won', 'lost'], true))
+                                        @if (in_array($customer->stage, ['consulting', 'test_scheduled', 'testing', 'tested', 'result_sent'], true))
                                             <x-ui.button variant="secondary" size="sm" icon="edit_note" onclick="window.dispatchEvent(new CustomEvent('open-modal', { detail: 'crm-edit-test-score' }))">{{ $customer->stage === 'test_scheduled' ? 'Nhập điểm lần test lại' : 'Sửa điểm' }}</x-ui.button>
                                         @endif
                                     @endcan
@@ -542,7 +542,7 @@
                                 @else
                                     <p class="italic text-on-surface-variant">Chưa có nhận xét từ buổi học thử.</p>
                                 @endif
-                                @if ($booking->status === 'scheduled' && $canBookTrial)
+                                @if ($booking->status === 'scheduled' && $stageControls['canCancelTrial'])
                                     <form action="{{ route('crm.customers.trial-bookings.cancel', [$customer->id, $booking->id]) }}" method="POST" class="mt-sm flex gap-xs">
                                         @csrf
                                         <div class="flex-1"><x-ui.input name="reason" id="cancel_reason_{{ $booking->id }}" required placeholder="Lý do hủy" aria-label="Lý do hủy" class="py-1 font-body-small text-body-small" /></div>

@@ -178,11 +178,11 @@
                                         <div class="flex items-center justify-end gap-1">
                                             @if ($canManage)
                                                 <x-ui.button variant="ghost" size="sm" icon="edit" title="Chỉnh sửa"
-                                                             @click="editUrl = @js(route('syllabus.assignments.update', $as->id)); edit = { label: @js(($as->stage?->label ?? $as->stage_name).' — lớp '.$as->classModel?->name), user_id: @js((string) $as->user_id), start_date: @js(($as->opened_at ?? $as->created_at)?->toDateString()), deadline: @js($as->deadline?->toDateString() ?? '') }; $dispatch('open-modal', 'edit-stage')" />
+                                                             @click="editUrl = {{ \Illuminate\Support\Js::from(route('syllabus.assignments.update', $as->id)) }}; edit = { label: {{ \Illuminate\Support\Js::from(($as->stage?->label ?? $as->stage_name).' — lớp '.$as->classModel?->name) }}, user_id: {{ \Illuminate\Support\Js::from((string) $as->user_id) }}, start_date: {{ \Illuminate\Support\Js::from(($as->opened_at ?? $as->created_at)?->toDateString()) }}, deadline: {{ \Illuminate\Support\Js::from($as->deadline?->toDateString() ?? '') }} }; $dispatch('open-modal', 'edit-stage')" />
                                             @endif
                                             @if ($canOverride)
                                                 <x-ui.button variant="secondary" size="sm" icon="lock"
-                                                             @click="closeUrl = @js(route('syllabus.assignments.close', $as->id)); closeLabel = @js(($as->stage?->label ?? $as->stage_name).' — lớp '.$as->classModel?->name); $dispatch('open-modal', 'close-stage')">Đóng tay</x-ui.button>
+                                                             @click="closeUrl = {{ \Illuminate\Support\Js::from(route('syllabus.assignments.close', $as->id)) }}; closeLabel = {{ \Illuminate\Support\Js::from(($as->stage?->label ?? $as->stage_name).' — lớp '.$as->classModel?->name) }}; $dispatch('open-modal', 'close-stage')">Đóng tay</x-ui.button>
                                             @endif
                                         </div>
                                     @else

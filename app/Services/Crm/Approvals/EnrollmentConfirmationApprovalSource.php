@@ -45,6 +45,7 @@ class EnrollmentConfirmationApprovalSource extends QueryApprovalSource
     {
         return ClassEnrollment::query()
             ->whereIn('customer_id', CrmCustomer::query()->visibleTo($user)->select('id'))
+            ->whereHas('student') // học viên đã xóa (xóa mềm) không còn chờ xác nhận
             ->whereIn('status', ['pending', 'completed'])
             ->whereNull('confirmed_at');
     }

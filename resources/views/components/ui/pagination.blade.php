@@ -13,6 +13,14 @@
     @php
         $isLengthAware = $paginator instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator;
         $currentPerPage = (string) request('per_page', $paginator->perPage());
+        // Số dòng mặc định của màn (vd 15, 25) không có trong danh sách → thêm vào để ô chọn hiện đúng số đang dùng.
+        if (! empty($options) && $currentPerPage !== 'all' && $paginator->perPage() < 9999 && ! in_array($paginator->perPage(), $options, true)) {
+            $currentPerPage = (string) $paginator->perPage();
+            $numeric = array_values(array_filter($options, 'is_int'));
+            $numeric[] = $paginator->perPage();
+            sort($numeric);
+            $options = in_array('all', $options, true) ? [...$numeric, 'all'] : $numeric;
+        }
     @endphp
     <div {{ $attributes->merge(['class' => 'flex flex-col gap-sm px-md py-md md:flex-row md:items-center md:justify-between']) }}>
         <div class="flex flex-wrap items-center gap-sm font-body-small text-body-small text-on-surface-variant">

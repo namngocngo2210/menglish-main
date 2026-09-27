@@ -39,6 +39,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -311,9 +312,9 @@ class CrmController extends Controller
             ->orderBy('converted_at')
             ->get();
 
-        $classes = $waitingLeads->isEmpty() ? collect() : $this->withRosterSeats(ClassModel::query()
+        // Cùng điều kiện "lớp nhận ghi danh" với Gán lớp (loại lớp Sắp khai giảng đã quá ngày khai giảng).
+        $classes = $waitingLeads->isEmpty() ? collect() : $this->withRosterSeats($this->enrollableClassesQuery()
             ->with(['course', 'branch'])
-            ->whereIn('status', ['active', 'upcoming'])
             ->whereIn('branch_id', $waitingLeads->map(fn (CrmCustomer $lead) => $lead->convertedStudent?->branch_id ?? $lead->branch_id)->filter()->unique())
             ->get());
 
@@ -330,12 +331,28 @@ class CrmController extends Controller
         return compact('waitingLeads', 'matchingClassesByLead');
     }
 
+    /**
+     * Chi nhánh được chọn khi thêm / sửa khách: người xem toàn hệ thống → mọi chi nhánh đang hoạt động;
+     * người bị giới hạn chi nhánh → chỉ chi nhánh của mình (tránh tạo khách sang chi nhánh khác rồi "mất" khách).
+     */
+    protected function leadBranchOptions(User $user, ?int $keepBranchId = null): \Illuminate\Support\Collection
+    {
+        $branches = DataScope::isAll($user, 'lead')
+            ? Branch::where('is_active', true)->orderBy('name')->get()
+            : Branch::whereIn('id', $user->branchIds())->orderBy('name')->get();
+        if ($branches->isEmpty()) {
+            $branches = DataScope::isAll($user, 'lead') ? Branch::orderBy('name')->get() : $branches;
+        }
+        if ($keepBranchId && ! $branches->contains('id', $keepBranchId) && ($keep = Branch::find($keepBranchId))) {
+            $branches->push($keep);
+        }
+
+        return $branches;
+    }
+
     public function createCustomer()
     {
-        $branches = Branch::where('is_active', true)->get();
-        if ($branches->isEmpty()) {
-            $branches = Branch::all();
-        }
+        $branches = $this->leadBranchOptions(Auth::user());
         $salesUsers = Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), 'lead.be_assigned')->orderBy('name')->get();
         if ($salesUsers->isEmpty()) {
             $salesUsers = User::where('is_active', true)->get();
@@ -358,7 +375,7 @@ class CrmController extends Controller
             'parent_phone' => 'nullable|string|max:20',
             'next_follow_up_at' => 'nullable|date',
             'source' => 'required|string|max:255',
-            'branch_id' => 'required|exists:branches,id',
+            'branch_id' => ['required', Rule::in($this->leadBranchOptions($request->user())->pluck('id')->all())],
             'assigned_user_id' => 'nullable|exists:users,id',
             'email' => 'nullable|email|max:255',
             'dob' => 'nullable|date',
@@ -456,6 +473,8 @@ class CrmController extends Controller
             'next' => $stages->manualNextStage($customer, $user),
             'backward' => $stages->backwardTargets($customer, $user),
             'canLose' => $stages->canMoveForward($user) && ! $customer->isClosed() && $customer->stage !== CrmCustomer::STAGE_LOST,
+            // Hủy buổi học thử đang chờ được ở mọi giai đoạn (kể cả sau khi chốt / thất bại).
+            'canCancelTrial' => $stages->canMoveForward($user),
         ];
 
         // Link test riêng của lead: có chữ ký + hạn 7 ngày, chỉ khi đã gán đề đang hoạt động.
@@ -476,7 +495,7 @@ class CrmController extends Controller
         $canReassign = $user->can('lead.assign');
         $reassignUsers = $canReassign ? $this->assignableUsers($customer->branch_id) : collect();
 
-        $editForm = $user->can('lead.update') ? $this->customerFormOptions() : null;
+        $editForm = $user->can('lead.update') ? $this->customerFormOptions($customer) : null;
 
         return $this->modalView('crm.show', compact('customer', 'placementTests', 'examiners', 'latestSubmission', 'courses', 'branches', 'portalTestLink', 'canBookTrial', 'trialSessions', 'stageControls',
             'histories', 'logType', 'rubric', 'statusCard', 'canReassign', 'reassignUsers', 'trialRemaining', 'editForm'));
@@ -885,13 +904,19 @@ class CrmController extends Controller
      *
      * @return array{branches: \Illuminate\Support\Collection, salesUsers: \Illuminate\Support\Collection, leadSources: \Illuminate\Support\Collection, courseNames: \Illuminate\Support\Collection}
      */
-    protected function customerFormOptions(): array
+    protected function customerFormOptions(CrmCustomer $customer): array
     {
         $leadSources = SystemCategory::where('type', 'lead_source')->orderBy('sort_order')->pluck('name');
+        $salesUsers = Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), 'lead.be_assigned')->orderBy('name')->get();
+        // Người phụ trách hiện tại (vd Học vụ tự tạo khách, hoặc tài khoản đã khóa) luôn có trong danh sách,
+        // nếu không trình duyệt sẽ gửi lựa chọn đầu tiên → âm thầm đổi người phụ trách khi chỉ sửa SĐT.
+        if ($customer->assigned_user_id && ! $salesUsers->contains('id', $customer->assigned_user_id) && ($current = User::withTrashed()->find($customer->assigned_user_id))) {
+            $salesUsers->prepend($current);
+        }
 
         return [
-            'branches' => Branch::all(),
-            'salesUsers' => Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), 'lead.be_assigned')->orderBy('name')->get(),
+            'branches' => $this->leadBranchOptions(Auth::user(), (int) $customer->branch_id),
+            'salesUsers' => $salesUsers,
             'leadSources' => $leadSources->isEmpty() ? collect(CrmCustomer::DEFAULT_SOURCES) : $leadSources,
             'courseNames' => Course::where('is_active', true)->orderBy('name')->pluck('name'),
         ];
@@ -939,7 +964,7 @@ class CrmController extends Controller
             'dob' => 'nullable|date',
             'gender' => 'nullable|string|max:20',
             'address' => 'nullable|string|max:500',
-            'branch_id' => 'required|exists:branches,id',
+            'branch_id' => ['required', Rule::in($this->leadBranchOptions($request->user(), (int) $customer->branch_id)->pluck('id')->all())],
             'course_interest' => 'nullable|string|max:255',
             'source' => 'required|string|max:255',
             'assigned_user_id' => 'nullable|exists:users,id',
@@ -962,7 +987,7 @@ class CrmController extends Controller
 
         $validated['phone_normalized'] = $this->assertUniqueLead($validated['phone'], $validated['email'] ?? null, $customer->id);
         $this->assertValidParentPhone($validated['parent_phone'] ?? null);
-        if ($request->user()->can('lead.assign') && ! empty($validated['assigned_user_id'])) {
+        if ($request->user()->can('lead.assign') && ! empty($validated['assigned_user_id']) && (int) $validated['assigned_user_id'] !== (int) $customer->assigned_user_id) {
             $assignee = User::find($validated['assigned_user_id']);
             if (! $assignee?->is_active || ! $assignee->can('lead.be_assigned')) {
                 throw ValidationException::withMessages(['assigned_user_id' => 'Người phụ trách phải là Sales hoặc quản lý đang hoạt động.']);
@@ -1122,6 +1147,7 @@ class CrmController extends Controller
             ]);
         }
         $name = $customer->name;
+        $customer->cancelPendingTrialBookings('khách bị xóa khỏi CRM');
         $customer->delete();
 
         return redirect()->route('crm.customers.index')
@@ -1272,6 +1298,7 @@ class CrmController extends Controller
         $status = $request->input('status') === 'confirmed' ? 'confirmed' : 'pending';
         $scoped = fn () => ClassEnrollment::query()
             ->whereIn('customer_id', $this->scopeCustomerQuery()->select('id'))
+            ->whereHas('student')
             ->whereIn('status', ['pending', 'completed']);
         $query = $scoped()
             ->with(['student.user:id,email', 'classModel.branch', 'classModel.course', 'customer.assignedUser', 'confirmedBy'])
@@ -1499,6 +1526,8 @@ class CrmController extends Controller
                 $customer->setAttribute('level_label', $customer->latestSubmission?->finalClass() ?? $customer->course_interest);
                 $customer->setAttribute('level_keys', $this->trialLevelKeywords($customer, $customer->latestSubmission));
             });
+        // Mở từ menu (không có customer_id): lọc lớp / tài khoản nhận tiền theo chi nhánh của khách đang chọn sẵn (khách đầu).
+        $selectedCustomer ??= $customers->first();
         $branches = Branch::all();
         $courses = Course::where('is_active', true)->get();
         // Lớp đang học + lớp sắp khai giảng (chưa bắt đầu), còn chỗ.
@@ -2265,11 +2294,11 @@ class CrmController extends Controller
 
         $allCurrent = $periodQuery->get();
         $allPrev = $prevPeriodQuery->get();
-        $wonCurrent = (clone $query)->where('stage', 'won')
+        $wonCurrent = (clone $query)->whereIn('stage', CrmCustomer::CLOSED_STAGES)
             ->where(fn (Builder $q) => $q->whereBetween('converted_at', [$startDate, $endDate])
                 ->orWhere(fn (Builder $legacy) => $legacy->whereNull('converted_at')->whereBetween('created_at', [$startDate, $endDate])))
             ->get();
-        $wonPrev = (clone $query)->where('stage', 'won')
+        $wonPrev = (clone $query)->whereIn('stage', CrmCustomer::CLOSED_STAGES)
             ->where(fn (Builder $q) => $q->whereBetween('converted_at', [$prevStartDate, $prevEndDate])
                 ->orWhere(fn (Builder $legacy) => $legacy->whereNull('converted_at')->whereBetween('created_at', [$prevStartDate, $prevEndDate])))
             ->get();
@@ -2286,14 +2315,14 @@ class CrmController extends Controller
         $totalLeads = $allCurrent->count();
         $wonDeals = $wonCurrent->count();
         $lostDeals = $lostCurrent->count();
-        $cohortWonDeals = $allCurrent->where('stage', 'won')->count();
+        $cohortWonDeals = $allCurrent->whereIn('stage', CrmCustomer::CLOSED_STAGES)->count();
         $conversionRate = $totalLeads > 0 ? round(($cohortWonDeals / $totalLeads) * 100, 1) : 0;
 
         // Thống kê so sánh với kỳ trước (100% Thực tế)
         $prevTotalLeads = $allPrev->count();
         $prevWonDeals = $wonPrev->count();
         $prevLostDeals = $lostPrev->count();
-        $prevCohortWonDeals = $allPrev->where('stage', 'won')->count();
+        $prevCohortWonDeals = $allPrev->whereIn('stage', CrmCustomer::CLOSED_STAGES)->count();
         $prevConversionRate = $prevTotalLeads > 0 ? round(($prevCohortWonDeals / $prevTotalLeads) * 100, 1) : 0;
 
         $leadDiff = $totalLeads - $prevTotalLeads;
@@ -2372,13 +2401,14 @@ class CrmController extends Controller
             $userLeads = $allCurrent->where('assigned_user_id', $user->id);
             $userLeadsCount = $userLeads->count();
             $userWonCount = $wonCurrent->filter(fn (CrmCustomer $lead) => ($lead->commission_user_id ?? $lead->assigned_user_id) === $user->id)->count();
-            $userCohortWonCount = $userLeads->where('stage', 'won')->count();
+            $userCohortWonCount = $userLeads->whereIn('stage', CrmCustomer::CLOSED_STAGES)->count();
             $userRevenue = (float) ($collectedBySales->get($user->id) ?? 0);
             $userRate = $userLeadsCount > 0 ? round(($userCohortWonCount / $userLeadsCount) * 100, 1) : 0;
 
             // Tỷ lệ chốt kỳ trước của cùng rep để tính delta thực (không dùng baseline cứng)
             $prevUserLeadsCount = $allPrev->where('assigned_user_id', $user->id)->count();
-            $prevUserWonCount = $wonPrev->filter(fn (CrmCustomer $lead) => ($lead->commission_user_id ?? $lead->assigned_user_id) === $user->id)->count();
+            // Cùng công thức cohort với kỳ hiện tại (khách tạo trong kỳ đã chốt / khách tạo trong kỳ).
+            $prevUserWonCount = $allPrev->where('assigned_user_id', $user->id)->whereIn('stage', CrmCustomer::CLOSED_STAGES)->count();
             $prevUserRate = $prevUserLeadsCount > 0 ? round(($prevUserWonCount / $prevUserLeadsCount) * 100, 1) : 0;
 
             $commissionResult = $calculateCommission($userRevenue, (int) $user->id);

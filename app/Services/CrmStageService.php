@@ -84,6 +84,7 @@ class CrmStageService
                 throw new CrmStageTransitionException('Vui lòng nhập lý do thất bại.');
             }
             $this->apply($customer, $stage, $user, $reason, ['lost_reason' => $reason, 'lost_at' => now()]);
+            $customer->cancelPendingTrialBookings('khách chuyển Thất bại');
 
             return;
         }

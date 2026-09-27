@@ -28,6 +28,8 @@ class TrialGuestController extends Controller
                 fn (Builder $inner) => $this->teachingScope($inner, $user)
             ))
             ->where('crm_trial_bookings.status', '!=', 'cancelled')
+            // Khách đã xóa (xóa mềm) không còn hiện dòng trống tên.
+            ->whereHas('customer')
             ->join('class_sessions', 'class_sessions.id', '=', 'crm_trial_bookings.class_session_id')
             ->when($scope === 'past',
                 fn (Builder $query) => $query->whereDate('class_sessions.date', '<', today())->orderByDesc('class_sessions.date'),

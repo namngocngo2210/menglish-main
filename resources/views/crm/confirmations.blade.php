@@ -78,7 +78,7 @@
                 <x-ui.select name="class_id" label="Lớp học" :options="$filterClasses->pluck('name', 'id')" placeholder="Tất cả lớp" />
             </x-ui.filter-bar>
 
-            <x-ui.data-table min-width="1180px">
+            <x-ui.data-table min-width="960px">
                 <x-slot:header>
                     <h2 class="font-h3 text-h3 text-on-surface">Khách đã có lớp <span class="font-body-medium text-body-medium text-on-surface-variant">({{ $enrollments->total() }})</span></h2>
                 </x-slot:header>
@@ -86,10 +86,7 @@
                     <thead>
                         <tr>
                             <th>Họ tên</th>
-                            <th>Số điện thoại</th>
-                            <th>Chi nhánh</th>
                             <th>Lớp học</th>
-                            <th>Ngày chốt</th>
                             <th>Trạng thái</th>
                             <th>Hồ sơ nhập học</th>
                             <th class="text-right">Thao tác</th>
@@ -103,22 +100,22 @@
                                         <x-ui.avatar :name="$enrollment->student?->name ?? '?'" size="sm" />
                                         <div>
                                             <a href="{{ route('crm.customers.show', $enrollment->customer_id) }}" class="font-body-medium text-body-medium text-on-surface hover:text-primary">{{ $enrollment->student?->name }}</a>
-                                            <div class="font-code text-caption text-on-surface-variant">{{ $enrollment->student?->code }}</div>
+                                            <div class="font-code text-caption text-on-surface-variant">{{ $enrollment->student?->phone ?? $enrollment->customer?->phone }}</div>
+                                            <div class="font-code text-[10px] text-on-surface-variant/70">{{ $enrollment->student?->code }}</div>
                                         </div>
                                     </div>
                                 </td>
-                                <td class="whitespace-nowrap font-code text-code text-on-surface-variant">{{ $enrollment->student?->phone ?? $enrollment->customer?->phone }}</td>
-                                <td class="whitespace-nowrap text-on-surface-variant">{{ $enrollment->classModel?->branch?->name ?? '—' }}</td>
-                                <td class="whitespace-nowrap">
+                                <td class="min-w-[180px]">
                                     <div class="font-body-medium text-body-medium text-on-surface">{{ $enrollment->classModel?->name ?? '—' }}</div>
+                                    <div class="font-caption text-caption text-on-surface-variant">{{ $enrollment->classModel?->branch?->name ?? '—' }}</div>
                                     <div class="font-code text-caption text-on-surface-variant">Lớp ID: {{ $enrollment->classModel?->code ?? '—' }}
                                         · {{ \App\Services\Students\ClassStartActivation::classHasStarted($enrollment->classModel) || $enrollment->classModel?->status === 'completed' ? 'Đã khai giảng' : 'Sắp khai giảng'.($enrollment->classModel?->start_date ? ' '.$enrollment->classModel->start_date->format('d/m/Y') : '') }}</div>
                                 </td>
-                                <td class="whitespace-nowrap font-code text-code text-on-surface-variant">{{ ($enrollment->customer?->converted_at ?? $enrollment->enrolled_at)?->format('d/m/Y') ?? '—' }}</td>
                                 <td class="whitespace-nowrap">
                                     @if ($enrollment->student)
                                         <x-ui.badge :color="$enrollment->student->status === 'studying' ? 'success' : 'warning'" pill>{{ $enrollment->student->status_label }}</x-ui.badge>
                                     @endif
+                                    <div class="mt-xs font-caption text-caption text-on-surface-variant">Chốt: {{ ($enrollment->customer?->converted_at ?? $enrollment->enrolled_at)?->format('d/m/Y') ?? '—' }}</div>
                                 </td>
                                 @if ($enrollment->confirmed_at)
                                     <td>
@@ -130,7 +127,7 @@
                                     </td>
                                 @else
                                     <td>
-                                        <form id="confirm-{{ $enrollment->id }}" method="POST" action="{{ route('crm.enrollments.confirm', $enrollment) }}" class="flex flex-col gap-xs font-body-small text-body-small">
+                                        <form id="confirm-{{ $enrollment->id }}" method="POST" action="{{ route('crm.enrollments.confirm', $enrollment) }}" class="flex min-w-[190px] flex-col gap-xs font-body-small text-body-small">
                                             @csrf
                                             @foreach (\App\Models\ClassEnrollment::CONFIRMATION_CHECKLIST as $field => $label)
                                                 <label class="flex items-center gap-sm">
@@ -143,7 +140,7 @@
                                         @if ($enrollment->student?->user)
                                             <form method="POST" action="{{ route('crm.enrollments.reset-account', $enrollment) }}" class="mt-xs flex flex-wrap items-center gap-xs font-caption text-caption text-on-surface-variant">
                                                 @csrf
-                                                <span>Tài khoản: <span class="font-code">{{ $enrollment->student->user->email }}</span></span>
+                                                <span class="max-w-[240px] break-all">Tài khoản: <span class="font-code">{{ $enrollment->student->user->email }}</span></span>
                                                 <button type="submit" class="font-semibold text-primary hover:underline">Cấp mật khẩu tạm</button>
                                             </form>
                                         @endif
@@ -153,7 +150,7 @@
                                             {{-- Thẻ <button> thường: @js không biên dịch trong thuộc tính của Blade component. --}}
                                             <button type="button"
                                                     @click="confirmForm = @js('confirm-'.$enrollment->id); confirmName = @js($enrollment->student?->name ?? ''); $dispatch('open-modal', 'confirm-official')"
-                                                    class="inline-flex items-center gap-xs rounded-lg bg-primary-container px-sm py-xs font-body-medium text-body-small text-white shadow-sm hover:bg-primary">
+                                                    class="inline-flex items-center gap-xs whitespace-nowrap rounded-lg bg-primary-container px-sm py-xs font-body-medium text-body-small text-white shadow-sm hover:bg-primary">
                                                 <span class="material-symbols-outlined text-[16px]">verified_user</span>Xác nhận chính thức
                                             </button>
                                             <x-ui.button type="submit" form="confirm-{{ $enrollment->id }}" name="action" value="save" size="sm" variant="ghost">Lưu tiến độ</x-ui.button>
@@ -162,7 +159,7 @@
                                 @endif
                             </tr>
                         @empty
-                            <tr><td colspan="8"><x-ui.empty-state icon="verified_user" :title="$status === 'confirmed' ? 'Chưa có học viên được xác nhận' : 'Không có học viên chờ xác nhận'" /></td></tr>
+                            <tr><td colspan="5"><x-ui.empty-state icon="verified_user" :title="$status === 'confirmed' ? 'Chưa có học viên được xác nhận' : 'Không có học viên chờ xác nhận'" /></td></tr>
                         @endforelse
                     </tbody>
                 </table>
