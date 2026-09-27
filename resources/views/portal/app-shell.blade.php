@@ -190,6 +190,11 @@
                         <span class="font-mono text-on-surface">{{ $student?->phone ?? '—' }}</span>
                     </div>
                 </div>
+                {{-- Đổi mật khẩu / email đăng nhập: trang Tài khoản (bản rút gọn cho học viên) --}}
+                <a href="{{ route('profile.edit') }}" class="flex items-center justify-between rounded-xl border border-surface-container-highest px-3 py-2 text-xs font-bold text-primary hover:border-primary-container transition">
+                    <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[18px]">lock</span>Tài khoản &amp; đổi mật khẩu</span>
+                    <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+                </a>
             </div>
         </main>
 

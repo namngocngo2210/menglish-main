@@ -7,7 +7,8 @@
             </div>
         </div>
     @endif
-    <div x-data="{ activeTab: 'operations' }" class="space-y-6">
+    {{-- Tab mở đầu: đổi mật khẩu bắt buộc / học viên vào thẳng "Cài đặt tài khoản"; nhân sự vào tab công việc. --}}
+    <div x-data="{ activeTab: '{{ ($user->must_change_password || ! $showOperations) ? 'settings' : 'operations' }}' }" class="space-y-6">
         {{-- Top Profile Banner & User Identity --}}
         <div class="bg-surface-container-lowest rounded-3xl border border-surface-container-highest shadow-sm overflow-hidden">
             <div class="h-28 sm:h-32 bg-gradient-to-r from-[#0d1527] via-[#1a2c4e] to-secondary relative p-6">
@@ -29,10 +30,8 @@
                         <div class="space-y-1">
                             <div class="flex flex-wrap items-center gap-2">
                                 <h1 class="text-xl sm:text-2xl font-black text-on-surface">{{ $user->name }}</h1>
-                                @foreach ($user->getRoleNames() as $role)
-                                    <x-ui.badge color="secondary" :pill="true">
-                                        {{ ucfirst($role) }}
-                                    </x-ui.badge>
+                                @foreach ($roleLabels as $roleLabel)
+                                    <x-ui.badge color="secondary" :pill="true">{{ $roleLabel }}</x-ui.badge>
                                 @endforeach
                             </div>
                             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-on-surface-variant">
@@ -44,53 +43,58 @@
                                     <span class="material-symbols-outlined text-sm text-on-surface-variant/70">domain</span>
                                     <span>{{ $user->branch?->name ?? 'Toàn hệ thống ME Education' }}</span>
                                 </span>
+                                @if ($portal !== 'student')
                                 <span class="flex items-center gap-1 font-mono">
                                     <span class="material-symbols-outlined text-sm text-on-surface-variant/70">badge</span>
                                     <span>#NV-{{ str_pad($user->id, 4, '0', STR_PAD_LEFT) }}</span>
                                 </span>
+                                @endif
                             </div>
                         </div>
                     </div>
 
                     {{-- Fast Actions --}}
                     <div class="flex items-center gap-2 self-start sm:self-auto">
-                        <x-ui.button variant="secondary" icon="bug_report" :href="route('tickets.create')">Báo lỗi / Ticket</x-ui.button>
+                        @if ($portal === 'student')
+                            <x-ui.button variant="secondary" icon="cottage" :href="route('portal.student.home')">Về Cổng học viên</x-ui.button>
+                        @elseif ($showTickets)
+                            @can('support_ticket.create')
+                                <x-ui.button variant="secondary" icon="bug_report" :href="route('tickets.create')">Báo lỗi / Ticket</x-ui.button>
+                            @endcan
+                        @endif
                         <x-ui.button icon="manage_accounts" x-on:click="activeTab = 'settings'">Cài đặt tài khoản</x-ui.button>
                     </div>
                 </div>
 
-                {{-- 4 KPI Highlight Cards for Current User --}}
+                {{-- Thẻ số liệu theo công việc của vai trò (ProfileController::edit) --}}
+                @if (! empty($statCards))
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5 pt-5">
-                    {{-- Stat 1: Lương thực lĩnh --}}
-                    <x-ui.stat-card label="Lương kỳ gần nhất" icon="wallet" tone="success"
-                        :value="$latestPayroll ? number_format($latestPayroll->net_salary) . 'đ' : 'Chưa kết chuyển'"
-                        :hint="$latestPayroll && $latestPayroll->period ? 'Kỳ ' . $latestPayroll->period->name : 'Theo dõi tự động'" />
-
-                    {{-- Stat 2: Giờ dạy / Chấm công --}}
-                    <x-ui.stat-card label="Giờ dạy tháng này" icon="schedule" tone="secondary"
-                        :value="number_format($totalMonthlyHours, 1) . ' giờ'"
-                        :hint="'Tháng ' . now()->format('m/Y') . ' (' . count($monthlyTimesheets) . ' ca)'" />
-
-                    {{-- Stat 3: Nhiệm vụ đang phụ trách --}}
-                    <x-ui.stat-card label="Việc cần làm" icon="task_alt" tone="warning"
-                        :value="$pendingTasksCount . ' việc'" hint="Đang trong tiến độ" />
-
-                    {{-- Stat 4: Tickets hỗ trợ --}}
-                    <x-ui.stat-card label="Ticket cá nhân" icon="confirmation_number" tone="secondary"
-                        :value="count($myTickets) . ' yêu cầu'" hint="Đã tiếp nhận IT" />
+                    @foreach ($statCards as $card)
+                        @if (! empty($card['href']))
+                            <a href="{{ $card['href'] }}" class="block rounded-xl transition hover:shadow-md">
+                                <x-ui.stat-card class="h-full" :label="$card['label']" :icon="$card['icon']" :tone="$card['tone']" :value="$card['value']" :hint="$card['hint']" />
+                            </a>
+                        @else
+                            <x-ui.stat-card :label="$card['label']" :icon="$card['icon']" :tone="$card['tone']" :value="$card['value']" :hint="$card['hint']" />
+                        @endif
+                    @endforeach
                 </div>
+                @endif
 
                 {{-- Navigation Tabs --}}
                 <div class="flex items-center gap-2 sm:gap-4 overflow-x-auto border-b border-surface-container-highest mt-6 pt-2 scrollbar-none">
+                    @if ($showOperations)
                     <button 
                         @click="activeTab = 'operations'"
                         class="pb-3 px-2 text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 border-b-2"
                         :class="activeTab === 'operations' ? 'border-primary-container text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface'"
                     >
                         <span class="material-symbols-outlined text-[18px]">dashboard</span>
-                        <span>Vận hành &amp; Nhiệm vụ</span>
+                        <span>{{ in_array($portal, ['teacher', 'assistant'], true) ? 'Giảng dạy & Nhiệm vụ' : 'Công việc của tôi' }}</span>
                     </button>
+                    @endif
 
+                    @if ($showPayroll)
                     <button 
                         @click="activeTab = 'payroll'"
                         class="pb-3 px-2 text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 border-b-2"
@@ -99,7 +103,9 @@
                         <span class="material-symbols-outlined text-[18px]">payments</span>
                         <span>Lương &amp; Phiếu lương cá nhân</span>
                     </button>
+                    @endif
 
+                    @if ($showTickets)
                     <button 
                         @click="activeTab = 'tickets'"
                         class="pb-3 px-2 text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 border-b-2"
@@ -108,6 +114,7 @@
                         <span class="material-symbols-outlined text-[18px]">bug_report</span>
                         <span>Báo lỗi &amp; Ticket ({{ count($myTickets) }})</span>
                     </button>
+                    @endif
 
                     <button 
                         @click="activeTab = 'settings'"
@@ -121,10 +128,12 @@
             </div>
         </div>
 
-        {{-- TAB 1: VẬN HÀNH & NHIỆM VỤ CÁ NHÂN --}}
+        {{-- TAB 1: CÔNG VIỆC CỦA TÔI (nội dung theo vai trò) --}}
+        @if ($showOperations)
         <div x-show="activeTab === 'operations'" class="space-y-6" x-cloak>
+            @include('profile.partials.quick-links')
+
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {{-- Left 2 Cols: My Assigned Work Tasks --}}
                 <div class="lg:col-span-2 space-y-6">
                     <div class="bg-surface-container-lowest rounded-3xl border border-surface-container-highest p-6 shadow-sm space-y-4">
                         <div class="flex items-center justify-between">
@@ -133,7 +142,7 @@
                                 Nhiệm vụ &amp; Công việc được giao
                             </h2>
                             @can('work_task.view')
-                            <a href="{{ route('tasks.index') }}" class="text-xs font-bold text-primary hover:underline">
+                            <a href="{{ route($tasksRoute) }}" class="text-xs font-bold text-primary hover:underline">
                                 Xem tất cả việc &rarr;
                             </a>
                             @endcan
@@ -167,7 +176,7 @@
                                     </div>
 
                                     @can('work_task.view')
-                                    <x-ui.button variant="secondary" size="sm" :href="route('tasks.index')">
+                                    <x-ui.button variant="secondary" size="sm" :href="$tasksRoute === 'tasks.index' ? route('tasks.show', $task->id) : route($tasksRoute)">
                                         Chi tiết
                                     </x-ui.button>
                                     @endcan
@@ -178,16 +187,17 @@
                         </div>
                     </div>
 
-                    {{-- Classes taught or assisted --}}
+                    {{-- Lớp đang dạy / trợ giảng (chỉ người đứng lớp) --}}
+                    @if ($teaches)
                     <div class="bg-surface-container-lowest rounded-3xl border border-surface-container-highest p-6 shadow-sm space-y-4">
                         <div class="flex items-center justify-between">
                             <h2 class="text-sm font-black text-on-surface uppercase tracking-wider flex items-center gap-2">
                                 <span class="material-symbols-outlined text-secondary text-[20px]">school</span>
                                 Lớp học đang phụ trách
                             </h2>
-                            @can('work_task.view')
-                            <a href="{{ route('tasks.classes-dashboard') }}" class="text-xs font-bold text-primary hover:underline">
-                                Xem Dashboard Lớp &rarr;
+                            @can('attendance_student.record')
+                            <a href="{{ route('teacher.home') }}" class="text-xs font-bold text-primary hover:underline">
+                                Mở Cổng Giáo viên &rarr;
                             </a>
                             @endcan
                         </div>
@@ -212,11 +222,12 @@
                             @endforelse
                         </div>
                     </div>
+                    @endif
                 </div>
 
-                {{-- Right 1 Col: Recent Activities & Timesheet widget --}}
                 <div class="space-y-6">
-                    {{-- Quick Timesheet summary --}}
+                    {{-- Ca dạy gần nhất (chỉ người đứng lớp) --}}
+                    @if ($teaches)
                     <div class="bg-surface-container-lowest rounded-3xl border border-surface-container-highest p-6 shadow-sm space-y-4">
                         <h2 class="text-sm font-black text-on-surface uppercase tracking-wider flex items-center gap-2">
                             <span class="material-symbols-outlined text-tertiary text-[20px]">history_toggle_off</span>
@@ -240,6 +251,7 @@
                             @endforelse
                         </div>
                     </div>
+                    @endif
 
                     {{-- Personal Activity Log --}}
                     <div class="bg-surface-container-lowest rounded-3xl border border-surface-container-highest p-6 shadow-sm space-y-4">
@@ -262,8 +274,10 @@
                 </div>
             </div>
         </div>
+        @endif
 
         {{-- TAB 2: LƯƠNG & PHIẾU LƯƠNG CÁ NHÂN --}}
+        @if ($showPayroll)
         <div x-show="activeTab === 'payroll'" class="space-y-6" x-cloak>
             <div class="bg-surface-container-lowest rounded-3xl border border-surface-container-highest p-6 sm:p-8 shadow-sm space-y-6">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-6 border-b border-surface-container-highest gap-4">
@@ -275,7 +289,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="px-3 py-1 rounded-xl bg-secondary/10 text-secondary text-xs font-bold">
-                            Kỳ: {{ $latestPayroll?->period?->name ?? 'Tháng ' . now()->format('m/Y') }}
+                            Kỳ: {{ $latestPayroll?->period?->title ?? 'Tháng ' . now()->format('m/Y') }}
                         </span>
                         <x-ui.button size="sm" icon="visibility" :href="route('portal.my-salary')">Mở Cổng Lương</x-ui.button>
                     </div>
@@ -369,7 +383,7 @@
                             <tbody>
                                 @forelse ($recentPayrolls as $p)
                                     <tr>
-                                        <td class="font-bold text-on-surface">{{ $p->period?->name ?? 'Kỳ ' . $p->created_at->format('m/Y') }}</td>
+                                        <td class="font-bold text-on-surface">{{ $p->period?->title ?? 'Kỳ ' . $p->created_at->format('m/Y') }}</td>
                                         <td class="text-right"><x-ui.money :value="$p->base_salary" /></td>
                                         <td class="text-right font-mono text-tertiary">+{{ number_format($p->teaching_salary + $p->kpi_bonus + $p->renew_bonus) }}đ</td>
                                         <td class="text-right font-mono text-error">-{{ number_format($p->insurance_deduction + $p->tax_deduction + $p->penalty_deduction) }}đ</td>
@@ -392,7 +406,10 @@
             </div>
         </div>
 
+        @endif
+
         {{-- TAB 3: BÁO LỖI & TICKET CÁ NHÂN --}}
+        @if ($showTickets)
         <div x-show="activeTab === 'tickets'" class="space-y-6" x-cloak>
             <div class="bg-surface-container-lowest rounded-3xl border border-surface-container-highest p-6 sm:p-8 shadow-sm space-y-5">
                 <div class="flex items-center justify-between pb-4 border-b border-surface-container-highest">
@@ -442,8 +459,14 @@
             </div>
         </div>
 
+        @endif
+
         {{-- TAB 4: CÀI ĐẶT TÀI KHOẢN & ĐỔI MẬT KHẨU --}}
         <div x-show="activeTab === 'settings'" class="space-y-6" x-cloak>
+            {{-- Học viên: trang này chỉ có tài khoản; lối tắt đưa về các màn của cổng học viên --}}
+            @if ($portal === 'student')
+                @include('profile.partials.quick-links')
+            @endif
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {{-- Info form --}}
                 <div class="p-6 sm:p-8 bg-surface-container-lowest border border-surface-container-highest shadow-sm rounded-3xl">
