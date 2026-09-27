@@ -180,6 +180,56 @@ class TicketEmailConfigTest extends TestCase
         Mail::shouldHaveReceived('html')->once();
     }
 
+    public function test_saved_smtp_host_switches_mailer_to_smtp_even_when_env_uses_log(): void
+    {
+        config(['mail.default' => 'log']);
+        SystemSetting::set('mail_host', 'smtp.gmail.com');
+
+        $this->assertSame('smtp', SystemSetting::getSmtpConfig()['mailer']);
+
+        SystemSetting::applyDynamicMailConfig();
+        $this->assertSame('smtp', config('mail.default'));
+    }
+
+    public function test_failed_test_email_shows_real_smtp_error_on_page(): void
+    {
+        config(['mail.default' => 'log']);
+        SystemSetting::set('mail_host', '127.0.0.1');
+        SystemSetting::set('mail_port', '1');
+        SystemSetting::set('mail_encryption', '');
+
+        $response = $this->actingAs($this->admin)->post(route('system-config.ticket-emails.test'), [
+            'test_email' => 'tech.diagnostics@meducation.vn',
+        ]);
+
+        $response->assertRedirect(route('system-config.ticket-emails'));
+        $response->assertSessionHas('error');
+        $result = session('test_mail_result');
+        $this->assertFalse($result['ok']);
+        $this->assertNotEmpty($result['detail']);
+
+        $page = $this->actingAs($this->admin)->withSession(['test_mail_result' => $result])
+            ->get(route('system-config.ticket-emails'));
+        $page->assertSee('Kết quả gửi thử: thất bại');
+        $page->assertSee('Chi tiết:');
+    }
+
+    public function test_successful_test_email_warns_when_gmail_from_address_differs(): void
+    {
+        Mail::spy();
+        SystemSetting::set('mail_host', 'smtp.gmail.com');
+        SystemSetting::set('mail_username', 'sender@gmail.com');
+        SystemSetting::set('mail_from_address', 'meducation@no-reply.com');
+
+        $this->actingAs($this->admin)->post(route('system-config.ticket-emails.test'), [
+            'test_email' => 'tech.diagnostics@meducation.vn',
+        ]);
+
+        $result = session('test_mail_result');
+        $this->assertTrue($result['ok']);
+        $this->assertStringContainsString('Gmail sẽ tự đổi người gửi', implode(' ', $result['hints']));
+    }
+
     public function test_ticket_creation_dispatches_mail_to_configured_emails(): void
     {
         Mail::spy();

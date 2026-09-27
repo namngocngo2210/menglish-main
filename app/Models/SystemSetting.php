@@ -122,7 +122,8 @@ class SystemSetting extends Model
     public static function getSmtpConfig(): array
     {
         return [
-            'mailer' => static::get('mail_mailer') ?: config('mail.default', 'smtp'),
+            // Đã nhập máy chủ SMTP trên màn cấu hình thì gửi qua SMTP, kể cả khi .env để MAIL_MAILER=log
+            'mailer' => static::get('mail_mailer') ?: (static::get('mail_host') ? 'smtp' : config('mail.default', 'smtp')),
             'host' => static::get('mail_host') ?: config('mail.mailers.smtp.host', 'smtp.gmail.com'),
             'port' => (int)(static::get('mail_port') ?: config('mail.mailers.smtp.port', 587)),
             'encryption' => static::get('mail_encryption') !== null ? static::get('mail_encryption') : config('mail.mailers.smtp.encryption', 'tls'),

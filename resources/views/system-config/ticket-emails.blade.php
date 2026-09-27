@@ -493,6 +493,18 @@
 
                         <x-ui.button type="submit" icon="send" class="w-full">Bắn Thử Email Ngay</x-ui.button>
                     </form>
+
+                    @if (is_array($testResult = session('test_mail_result')))
+                        <x-ui.alert :type="$testResult['ok'] ? 'success' : 'error'" :title="$testResult['ok'] ? 'Kết quả gửi thử: thành công' : 'Kết quả gửi thử: thất bại'" class="text-[11px] leading-relaxed">
+                            <p>{{ $testResult['message'] }}</p>
+                            @if (! empty($testResult['detail']))
+                                <p class="mt-1 font-mono break-all">Chi tiết: {{ $testResult['detail'] }}</p>
+                            @endif
+                            @foreach ($testResult['hints'] ?? [] as $hint)
+                                <p class="mt-1">{{ $hint }}</p>
+                            @endforeach
+                        </x-ui.alert>
+                    @endif
                 </div>
 
                 {{-- SMTP Server Diagnostics (Live DB values) --}}
