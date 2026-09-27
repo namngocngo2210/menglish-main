@@ -85,6 +85,29 @@ class CrmBusinessTest extends TestCase
     // a. Lead creation with full input fields & business validation
     // =========================================================================
 
+    public function test_schedule_test_form_lists_levels_and_points_to_test_creation_when_empty(): void
+    {
+        $lead = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
+        $lead->assignRole('academic_lead');
+        $customer = CrmCustomer::create([
+            'code' => 'KH-00991', 'name' => 'Phạm Minh Khôi', 'phone' => '0911000991',
+            'stage' => 'consulting', 'branch_id' => $this->branch->id, 'assigned_user_id' => $this->salesUser->id,
+        ]);
+
+        $this->actingAs($lead)->get(route('crm.customers.show', $customer->id))
+            ->assertOk()
+            ->assertSee('Chưa có đề test đầu vào nào đang mở')
+            ->assertSee(route('placement-tests.create'), false);
+
+        PlacementTest::installMissingPresets();
+
+        $this->actingAs($lead)->get(route('crm.customers.show', $customer->id))
+            ->assertOk()
+            ->assertDontSee('Chưa có đề test đầu vào nào đang mở')
+            ->assertSee('Khối 1 - 2')
+            ->assertSee('TEST-G1-G2');
+    }
+
     public function test_can_create_lead_with_all_business_fields(): void
     {
         $payload = [

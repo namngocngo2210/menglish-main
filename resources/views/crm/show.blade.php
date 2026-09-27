@@ -409,12 +409,22 @@
                                     <input type="hidden" name="appointment_type" value="online" />
                                     @php
                                         $testGroups = $placementTests->mapWithKeys(fn ($t) => [$t->id => \App\Services\PlacementRubricService::detectGradeGroup($t->code)]);
-                                        $levelOptions = collect(\App\Services\PlacementRubricService::gradeGroups())->only($testGroups->unique()->values()->all());
+                                        $levelOptions = \App\Services\PlacementRubricService::gradeGroups();
                                     @endphp
+                                    @if ($placementTests->isEmpty())
+                                        <x-ui.alert type="warning">
+                                            Chưa có đề test đầu vào nào đang mở.
+                                            @can('placement_test.create')
+                                                <a href="{{ route('placement-tests.create') }}" class="font-body-semibold underline">Tạo đề test</a> (chọn cấp độ khi tạo đề) rồi quay lại hẹn test.
+                                            @else
+                                                Nhờ Quản lý cơ sở / Admin tạo đề ở mục Test đầu vào &amp; học thử → Đề test đầu vào.
+                                            @endcan
+                                        </x-ui.alert>
+                                    @endif
                                     {{-- Mockup: "Chọn cấp độ" → "Danh sách đề tương ứng" --}}
                                     <div class="grid grid-cols-1 gap-md sm:grid-cols-2" x-data="{ level: '', groups: @js($testGroups), testId: @js((string) old('assigned_test_id', $placementTests->first()?->id)) }">
                                         <x-ui.field label="Chọn cấp độ" for="test_level">
-                                            <x-ui.select id="test_level" x-model="level" x-on:change="const first = Object.keys(groups).find((id) => !level || groups[id] === level); if (first) testId = first">
+                                            <x-ui.select id="test_level" x-model="level" x-on:change="const first = Object.keys(groups).find((id) => !level || groups[id] === level); testId = first ?? ''">
                                                 <option value="">Tất cả cấp độ</option>
                                                 @foreach ($levelOptions as $groupKey => $groupLabel)
                                                     <option value="{{ $groupKey }}">{{ $groupLabel }}</option>
@@ -427,6 +437,12 @@
                                                     <option value="{{ $t->id }}" x-show="!level || groups[{{ $t->id }}] === level">[{{ $t->code }}] {{ $t->title }}{{ $t->duration_minutes ? ' ('.$t->duration_minutes.'\')' : '' }}</option>
                                                 @endforeach
                                             </x-ui.select>
+                                            <p x-cloak x-show="level && !Object.values(groups).includes(level)" class="mt-xs font-caption text-caption text-danger">
+                                                Chưa có đề cho cấp độ này.
+                                                @can('placement_test.create')
+                                                    <a href="{{ route('placement-tests.create') }}" class="underline">Tạo đề</a>
+                                                @endcan
+                                            </p>
                                         </x-ui.field>
                                         <x-ui.date name="appointment_date" label="Ngày hẹn làm test" required min="{{ now()->toDateString() }}" :value="old('appointment_date', now()->addDay()->toDateString())" />
                                         <x-ui.input type="time" name="appointment_time" label="Giờ hẹn" required :value="old('appointment_time', '09:00')" />

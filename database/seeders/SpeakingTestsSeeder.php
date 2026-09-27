@@ -7,7 +7,8 @@ use Illuminate\Database\Seeder;
 
 class SpeakingTestsSeeder extends Seeder
 {
-    public function run(): void
+    /** Bộ đề mẫu của trung tâm (dùng chung cho seeder demo và migration nạp đề cho môi trường thật). */
+    public static function tests(): array
     {
         $testsJson = <<<'JSON'
 [
@@ -186,9 +187,12 @@ class SpeakingTestsSeeder extends Seeder
 ]
 JSON;
 
-        $tests = json_decode($testsJson, true);
+        return json_decode($testsJson, true);
+    }
 
-        foreach ($tests as $t) {
+    public function run(): void
+    {
+        foreach (self::tests() as $t) {
             PlacementTest::updateOrCreate(
                 ['code' => $t['code']],
                 [

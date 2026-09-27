@@ -24,6 +24,25 @@ class PlacementTestModuleTest extends TestCase
         $this->seed(RoleSeeder::class);
     }
 
+    public function test_preset_tests_are_installed_by_migration_so_crm_has_levels(): void
+    {
+        // Migration nạp bộ đề mẫu cho môi trường thật: có đề cho từng khối lớp có thang điểm.
+        $this->assertGreaterThan(0, PlacementTest::installMissingPresets());
+        $groups = PlacementTest::where('is_active', true)->pluck('code')
+            ->map(fn ($code) => PlacementRubricService::detectGradeGroup($code))->unique();
+
+        foreach (['khoi_1_2', 'khoi_2_3', 'khoi_3_4', 'khoi_4_5'] as $group) {
+            $this->assertContains($group, $groups);
+        }
+
+        // Chạy lại không nhân đôi, không khôi phục đề đã xóa mềm.
+        PlacementTest::where('code', 'TEST-G1-G2')->first()->delete();
+        $count = PlacementTest::withTrashed()->count();
+        $this->assertSame(0, PlacementTest::installMissingPresets());
+        $this->assertSame($count, PlacementTest::withTrashed()->count());
+        $this->assertNull(PlacementTest::where('code', 'TEST-G1-G2')->first());
+    }
+
     public function test_can_create_test_and_grade_submission(): void
     {
         $user = User::factory()->create();
