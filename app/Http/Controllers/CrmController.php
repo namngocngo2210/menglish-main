@@ -1828,7 +1828,7 @@ class CrmController extends Controller
 
             // Memo phải sinh từ mã học viên thật sau khi tạo hồ sơ — giá trị preview phía client
             // chỉ mang tính minh hoạ (không biết trước mã HV) nên luôn bị ghi đè.
-            $transferMemo = self::buildTransferMemo($student->code, $student->name, $class?->name ?? $course->code ?? $course->name, $branch?->code);
+            $transferMemo = self::buildTransferMemo($student->code, $student->name, $class?->name);
             $tuition = StudentTuition::create([
                 'student_id' => $student->id,
                 'class_id' => $class?->id,
@@ -2066,22 +2066,16 @@ class CrmController extends Controller
     }
 
     /**
-     * Helper sinh nội dung chuyển khoản theo cấu trúc chuẩn:
-     * Mã hs + ten học sinh + tenlop + CN + xxx
+     * Nội dung chuyển khoản: tên học sinh + mã học sinh + lớp (không dấu, viết hoa).
+     * Chưa xếp lớp thì bỏ phần lớp. SePay đối soát theo nội dung đã lưu hoặc theo mã học sinh.
      */
-    public static function buildTransferMemo(string $studentCode, string $studentName, string $className, ?string $branchCode = 'BD', ?string $suffix = null): string
+    public static function buildTransferMemo(string $studentCode, string $studentName, ?string $className = null): string
     {
-        $code = strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', $studentCode));
-        $name = strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', Str::ascii($studentName)));
-        $class = strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', Str::ascii($className)));
-        $class = substr($class, 0, 8);
-        $branch = strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', Str::ascii($branchCode ?: 'BD')));
-        if (! str_starts_with($branch, 'CN')) {
-            $branch = 'CN'.$branch;
-        }
-        $tail = $suffix ? preg_replace('/[^a-zA-Z0-9]/', '', $suffix) : rand(100, 999);
+        $clean = fn (?string $value) => strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', Str::ascii((string) $value)));
 
-        return "{$code} {$name} {$class} {$branch} {$tail}";
+        return collect([$clean($studentName), $clean($studentCode), $clean($className)])
+            ->filter()
+            ->implode(' ');
     }
 
     /**
@@ -2142,10 +2136,10 @@ class CrmController extends Controller
             ->whereNull('branch_id')
             ->first();
 
-        $branchCode = $class?->branch?->code ?: 'BD';
-        $transferMemo = $tuition->transfer_memo;
-        if (! $transferMemo) {
-            $transferMemo = self::buildTransferMemo($student->code, $student->name, $class?->name ?? '4M2', $branchCode);
+        // Luôn sinh theo mẫu hiện hành (tên + mã + lớp) để nội dung cũ / lớp vừa xếp được cập nhật.
+        // Phụ huynh đã CK theo nội dung cũ vẫn được SePay khớp nhờ mã học sinh trong nội dung.
+        $transferMemo = self::buildTransferMemo($student->code, $student->name, ($class ?? $student->currentClass)?->name);
+        if ($tuition->transfer_memo !== $transferMemo) {
             $tuition->forceFill(['transfer_memo' => $transferMemo])->save();
         }
         $amountToPay = max(0, $remainingDebt - $pendingAmount);

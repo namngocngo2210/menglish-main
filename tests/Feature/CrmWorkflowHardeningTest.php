@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\CrmController;
 use App\Models\BankAccount;
 use App\Models\Branch;
 use App\Models\ClassModel;
@@ -19,6 +20,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class CrmWorkflowHardeningTest extends TestCase
@@ -145,6 +147,20 @@ class CrmWorkflowHardeningTest extends TestCase
 
         $this->assertDatabaseCount('students', 0);
         $this->assertSame('result_sent', $lead->fresh()->stage);
+    }
+
+    public function test_transfer_memo_is_student_name_code_and_class(): void
+    {
+        $this->assertSame('NGUYENVANAN HV00012 IELTS1', CrmController::buildTransferMemo('HV-00012', 'Nguyễn Văn An', 'IELTS 1'));
+        // Chưa xếp lớp: bỏ phần lớp.
+        $this->assertSame('TRANTHIDUNG HV00013', CrmController::buildTransferMemo('HV-00013', 'Trần Thị Dung', null));
+
+        $lead = $this->leadFor($this->salesA);
+        $this->actingAs($this->salesA)->post(route('crm.closing-wizard.store'), $this->closingPayload($lead))->assertSessionHasNoErrors();
+        $student = Student::findOrFail($lead->fresh()->converted_student_id);
+        $tuition = StudentTuition::where('student_id', $student->id)->firstOrFail();
+        $this->assertSame(CrmController::buildTransferMemo($student->code, $student->name, $this->classModel->name), $tuition->transfer_memo);
+        $this->assertStringStartsWith(strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', Str::ascii($student->name))).' ', $tuition->transfer_memo);
     }
 
     public function test_cash_payment_requires_paper_invoice_number_and_stores_it_on_receipt(): void

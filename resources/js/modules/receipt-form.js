@@ -137,17 +137,13 @@ export default function createReceiptManager(tuitions, students, initialTuitionI
                 .replace(/[^a-zA-Z0-9]/g, '');
         },
 
+        // Nội dung CK: tên học sinh + mã học sinh + lớp (không dấu). Chưa xếp lớp thì bỏ phần lớp.
         get transferMemo() {
-            const code = (this.currentStudent?.code || 'HS000001').toUpperCase().replace(/[^A-Z0-9]/g, '');
-            let name = this.removeVietnameseTones(this.currentStudent?.name || 'HOCVIEN').toUpperCase().replace(/[^A-Z0-9]/g, '');
-            let cls = this.removeVietnameseTones(this.currentTuition?.class_name || this.currentStudent?.class_name || 'LOP').toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 7);
-            let cn = this.removeVietnameseTones(this.currentStudent?.branch_name || 'BD').toUpperCase().replace(/[^A-Z0-9]/g, '');
-            if (!cn.startsWith('CN')) {
-                cn = 'CN' + cn;
-            }
-            const phone = (this.currentStudent?.phone || this.currentStudent?.parent_phone || '').replace(/[^0-9]/g, '');
-            const tail = phone ? phone.slice(-3) : '888';
-            return `${code} ${name} ${cls} ${cn} ${tail}`;
+            const clean = (v) => this.removeVietnameseTones(v || '').toUpperCase();
+            const className = [this.currentTuition?.class_name, this.currentTuition?.current_class_name, this.currentStudent?.class_name]
+                .find((n) => n && n !== 'Chưa xếp lớp');
+            return [clean(this.currentStudent?.name || 'HOCVIEN'), clean(this.currentStudent?.code || 'HS000001'), clean(className)]
+                .filter(Boolean).join(' ');
         },
 
         get vietQrUrl() {

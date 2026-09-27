@@ -629,7 +629,7 @@
                                 <span class="font-mono font-black text-primary-container text-xs" x-text="formatVND(effectiveTransferAmount)"></span>
                             </div>
 
-                            {{-- NỘI DUNG CHUYỂN KHOẢN THEO CẤU TRÚC: Mã hs + ten học sinh + tenlop + CN + xxx --}}
+                            {{-- NỘI DUNG CHUYỂN KHOẢN THEO CẤU TRÚC: tên học sinh + mã học sinh + lớp --}}
                             <div class="pt-1.5 border-t border-surface-container-highest space-y-1">
                                 <div class="flex justify-between items-center">
                                     <span class="text-on-surface-variant font-bold">Nội dung CK (Cấu trúc chuẩn):</span>
@@ -960,26 +960,14 @@
                     return (this.selectedBank.account_number || '').replace(/\s+/g, '');
                 },
 
-                // Cấu trúc nội dung CK: Mã hs + ten học sinh + tenlop + CN + xxx
+                // Nội dung CK: tên học sinh + mã học sinh + lớp (không dấu). Xếp lớp sau thì bỏ phần lớp.
                 get transferMemo() {
-                    const code = (this.studentCodePreview || 'HS000001').toUpperCase().replace(/[^A-Z0-9]/g, '');
-                    
-                    // Chuyển tên học sinh sang không dấu, viết liền
-                    let name = this.removeVietnameseTones(this.customerName || 'HOCVIEN').toUpperCase().replace(/[^A-Z0-9]/g, '');
-                    
-                    // Lớp: lấy tên ngắn không dấu
-                    let cls = this.removeVietnameseTones(this.className || 'LOP').toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 7);
-                    
-                    // Mã chi nhánh
-                    let cn = (this.classBranch || this.customerBranch || 'BD').toUpperCase().replace(/[^A-Z0-9]/g, '');
-                    if (!cn.startsWith('CN')) {
-                        cn = 'CN' + cn;
-                    }
-
-                    // Đuôi 3 số nhận diện
-                    const tail = (this.customerPhone ? this.customerPhone.slice(-3) : '888').replace(/[^0-9]/g, '');
-
-                    return `${code} ${name} ${cls} ${cn} ${tail}`;
+                    const clean = (v) => this.removeVietnameseTones(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    return [
+                        clean(this.customerName || 'HOCVIEN'),
+                        clean(this.studentCodePreview || 'HS000001'),
+                        this.assignLater ? '' : clean(this.className),
+                    ].filter(Boolean).join(' ');
                 },
 
                 get vietQrUrl() {
