@@ -32,6 +32,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -511,7 +512,10 @@ class SyllabusController extends Controller
     {
         $search = trim((string) $request->query('search', ''));
         $status = $request->query('status');
+        // Phạm vi lớp theo quyền (Quản lý cơ sở chỉ thấy lớp chi nhánh mình); lớp đã xóa không còn hiện.
+        $visibleClassIds = ClassModel::visibleTo($request->user())->select('id');
         $assignments = SyllabusAssignment::with(['teacher', 'curriculum', 'classModel.branch', 'stage', 'closer', 'opener', 'closingBigTest'])
+            ->whereIn('class_id', $visibleClassIds)
             ->when($request->filled('class_id'), fn ($q) => $q->where('class_id', $request->integer('class_id')))
             ->when(in_array($status, array_keys(SyllabusAssignment::STATUS_LABELS), true), fn ($q) => $q->where('status', $status))
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('stage_name', 'like', "%{$search}%")
@@ -524,9 +528,9 @@ class SyllabusController extends Controller
             ->withQueryString();
         $teachers = User::whereHas('roles', fn ($query) => $query->whereIn('name', ['teacher', 'teacher_fulltime', 'teacher_parttime', 'academic_lead']))->orderBy('name')->get();
         $curriculums = SyllabusCurriculum::with('stages')->orderBy('title')->get();
-        $classes = ClassModel::where('status', '!=', 'cancelled')->orderBy('name')->get();
+        $classes = ClassModel::visibleTo($request->user())->where('status', '!=', 'cancelled')->orderBy('name')->get();
         $levelCurriculum = CourseLevel::whereNotNull('syllabus_curriculum_id')->pluck('syllabus_curriculum_id', 'code');
-        $openByClass = SyllabusAssignment::open()->whereNotNull('class_id')->with('stage')->get()->keyBy('class_id');
+        $openByClass = SyllabusAssignment::open()->whereIn('class_id', $visibleClassIds)->with('stage')->get()->keyBy('class_id');
 
         return view('syllabus.assignments', compact('assignments', 'teachers', 'curriculums', 'classes', 'levelCurriculum', 'openByClass', 'status'));
     }
@@ -549,7 +553,7 @@ class SyllabusController extends Controller
             'replace_current' => ['nullable', 'boolean'],
             'reason' => ['nullable', 'string', 'max:2000'],
         ]);
-        $class = ClassModel::findOrFail($validated['class_id']);
+        $class = ClassModel::visibleTo($request->user())->findOrFail($validated['class_id']);
 
         $stage = ! empty($validated['stage_id']) ? SyllabusStage::findOrFail($validated['stage_id']) : null;
         // Giáo trình theo Trình độ của lớp: classes.level là mã trình độ (form tạo lớp); lớp tạo từ nơi khác
@@ -605,15 +609,20 @@ class SyllabusController extends Controller
      */
     public function updateAssignment(Request $request, int $id)
     {
-        $assignment = SyllabusAssignment::with('classModel')->findOrFail($id);
+        $assignment = SyllabusAssignment::with('classModel')->whereIn('class_id', ClassModel::visibleTo($request->user())->select('id'))->findOrFail($id);
         if (! $assignment->isOpen()) {
             throw ValidationException::withMessages(['status' => 'Chặng đã đóng, không chỉnh sửa được.']);
         }
-        $validated = $request->validate([
+        // Lỗi của hộp thoại sửa báo bằng thông báo chung: trường trùng tên với form "Mở chặng" nên lỗi theo trường sẽ hiện nhầm chỗ.
+        $validator = Validator::make($request->all(), [
             'user_id' => ['required', 'exists:users,id'],
             'start_date' => ['nullable', 'date', 'before_or_equal:'.today()->addDays(60)->toDateString()],
             'deadline' => ['nullable', 'date'],
-        ]);
+        ], [], ['user_id' => 'giáo viên phụ trách', 'start_date' => 'ngày bắt đầu', 'deadline' => 'dự kiến hoàn thành']);
+        if ($validator->fails()) {
+            return redirect()->back()->with('error', 'Chưa lưu chỉnh sửa chặng: '.implode(' ', $validator->errors()->all()));
+        }
+        $validated = $validator->validated();
 
         $previousTeacher = $assignment->user_id;
         $assignment->update([
@@ -632,10 +641,11 @@ class SyllabusController extends Controller
     /** Học thuật đóng tay chặng đang mở (bắt buộc lý do); mặc định tự mở chặng kế tiếp. */
     public function closeAssignment(Request $request, int $id, SyllabusProgressionService $progression)
     {
-        $assignment = SyllabusAssignment::findOrFail($id);
-        $validated = $request->validate(['reason' => ['required', 'string', 'max:2000']], [
-            'reason.required' => 'Vui lòng nhập lý do đóng chặng.',
-        ]);
+        $assignment = SyllabusAssignment::whereIn('class_id', ClassModel::visibleTo($request->user())->select('id'))->findOrFail($id);
+        if (trim((string) $request->input('reason')) === '' || mb_strlen((string) $request->input('reason')) > 2000) {
+            return redirect()->back()->with('error', 'Vui lòng nhập lý do đóng chặng (tối đa 2000 ký tự).');
+        }
+        $validated = ['reason' => trim((string) $request->input('reason'))];
 
         $outcome = $progression->close($assignment, $request->user(), 'Học thuật đóng tay: '.$validated['reason'], null, $request->boolean('open_next'));
 
@@ -909,7 +919,8 @@ class SyllabusController extends Controller
             'status' => 'pending',
         ]);
 
-        return redirect()->route('syllabus.adjustment-requests')
+        // Giáo viên quay lại màn gửi yêu cầu của mình; người duyệt về màn duyệt.
+        return redirect()->route($user->can('syllabus.approve_adjustment') ? 'syllabus.adjustment-requests' : 'syllabus.teacher-adjust')
             ->with('status', 'Đã gửi yêu cầu điều chỉnh tiến độ giáo trình!');
     }
 
@@ -925,9 +936,19 @@ class SyllabusController extends Controller
             'extra_sessions' => 'nullable|integer|min:0|max:'.SyllabusAdjustmentRequest::MAX_EXTRA_SESSIONS,
         ]);
         $count = (int) ($validated['extra_sessions'] ?? $req->extra_sessions ?? 0);
+        if ($count > 0 && ! $req->classModel) {
+            throw ValidationException::withMessages(['extra_sessions' => 'Lớp của yêu cầu đã bị xóa, chỉ có thể từ chối hoặc duyệt với 0 buổi.']);
+        }
+        // Buổi giãn cộng vào đúng chặng của yêu cầu; chặng đó đã đóng thì không cộng sang chặng khác.
+        $targetAssignment = $req->syllabus_assignment_id
+            ? SyllabusAssignment::find($req->syllabus_assignment_id)
+            : SyllabusAssignment::open()->where('class_id', $req->class_id)->first();
+        if ($count > 0 && $targetAssignment && ! $targetAssignment->isOpen()) {
+            throw ValidationException::withMessages(['extra_sessions' => "{$targetAssignment->stage_name} đã đóng. Nhập 0 buổi để chỉ ghi nhận, hoặc từ chối yêu cầu."]);
+        }
 
         $appliedNote = 'Không thay đổi lịch học (yêu cầu không kèm số buổi cần thêm).';
-        DB::transaction(function () use ($req, $count, $extension, &$appliedNote) {
+        DB::transaction(function () use ($req, $count, $extension, $targetAssignment, &$appliedNote) {
             if ($count > 0) {
                 $created = $extension->extend($req->classModel, $count, "Giãn tiến độ theo yêu cầu #{$req->id}");
                 $appliedNote = 'Đã thêm '.count($created).' buổi: '
@@ -935,7 +956,7 @@ class SyllabusController extends Controller
                     .'. Ngày kết thúc lớp: '.$req->classModel->fresh()->end_date?->format('d/m/Y').'.';
 
                 // Chặng đang mở được cộng thêm số buổi giãn (buổi thêm dùng để dạy chậm lại / ôn trước Big Test).
-                $assignment = SyllabusAssignment::open()->where('class_id', $req->class_id)->first();
+                $assignment = $targetAssignment;
                 if ($assignment) {
                     $assignment->increment('extra_sessions', count($created));
                     $req->syllabus_assignment_id ??= $assignment->id;
@@ -947,7 +968,7 @@ class SyllabusController extends Controller
                 'status' => 'approved',
                 'syllabus_assignment_id' => $req->syllabus_assignment_id,
                 'approver_id' => Auth::id(),
-                'extra_sessions' => $count ?: $req->extra_sessions,
+                'extra_sessions' => $count, // số buổi thực duyệt (0 = chỉ ghi nhận)
                 'reviewed_at' => now(),
                 'rejection_reason' => null,
                 'applied_note' => $appliedNote,
@@ -1087,6 +1108,7 @@ class SyllabusController extends Controller
         $orderSearch = trim((string) $request->query('order_search', ''));
         $orders = BigTestOrder::with(['classModel', 'teacher', 'reviewer', 'stage'])
             ->visibleTo($user)
+            ->whereHas('classModel') // lớp đã xóa không còn order chờ xử lý
             ->when(in_array($orderStatus, array_keys(BigTestOrder::STATUS_LABELS), true), fn ($q) => $q->where('status', $orderStatus))
             ->when($orderSearch !== '', fn ($q) => $q->whereHas('classModel', fn ($c) => $c->where('name', 'like', "%{$orderSearch}%")->orWhere('code', 'like', "%{$orderSearch}%")))
             ->orderByRaw('due_date IS NULL')
@@ -1258,8 +1280,8 @@ class SyllabusController extends Controller
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'class_id' => 'required|exists:classes,id',
-            'test_type' => 'required|string',
+            'class_id' => ['required', Rule::in(ClassModel::visibleTo($request->user())->pluck('id')->all())],
+            'test_type' => 'required|string|max:50',
             'scheduled_at' => 'required|date',
             'room' => 'required|string',
             'syllabus_stage_id' => 'nullable|exists:syllabus_stages,id,deleted_at,NULL',
@@ -1497,9 +1519,12 @@ class SyllabusController extends Controller
         }
 
         $status = $isDraft ? 'draft' : 'pending_review';
+        // "Lưu nháp" không kéo các dòng đã gửi duyệt về nháp (vẫn nằm trong hàng chờ duyệt của Học thuật).
+        $awaitingReview = BigTestResult::where('big_test_id', $test->id)->where('status', 'pending_review')->pluck('student_id')->map(fn ($id) => (int) $id);
         $promoted = 0;
-        DB::transaction(function () use ($rows, $test, $skills, $isAbsent, $status, $isDraft, $pendingDrafts, &$promoted) {
+        DB::transaction(function () use ($rows, $test, $skills, $isAbsent, $status, $isDraft, $pendingDrafts, $awaitingReview, &$promoted) {
             foreach ($rows as $row) {
+                $rowStatus = $isDraft && $awaitingReview->contains((int) $row['student_id']) ? 'pending_review' : $status;
                 $absent = $isAbsent($row);
                 // Vắng thi: không lưu điểm (null) thay vì 0 để không kéo điểm trung bình.
                 $scores = collect($skills)->mapWithKeys(fn ($s) => [$s => $absent || ! isset($row[$s]) || $row[$s] === '' ? null : $row[$s]]);
@@ -1511,7 +1536,7 @@ class SyllabusController extends Controller
                         'progress_note' => $row['progress_note'] ?? null,
                         'video_url' => $row['video_url'] ?? null,
                         'overall_score' => $absent || ! $complete ? null : round($scores->avg(), 1),
-                        'status' => $status,
+                        'status' => $rowStatus,
                         'graded_by' => Auth::id(),
                         'approved_by' => null,
                         'approved_at' => null,

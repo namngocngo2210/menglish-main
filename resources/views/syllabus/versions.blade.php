@@ -7,7 +7,9 @@
         </x-slot:breadcrumbs>
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="edit_attributes" :href="route('syllabus.teacher-propose')">Gửi đề xuất</x-ui.button>
-            <x-ui.button icon="rule" :href="route('syllabus.adjustment-requests')">Duyệt tiến độ</x-ui.button>
+            @can('syllabus.approve_adjustment')
+                <x-ui.button icon="rule" :href="route('syllabus.adjustment-requests')">Duyệt tiến độ</x-ui.button>
+            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 

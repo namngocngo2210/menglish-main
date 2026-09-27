@@ -431,7 +431,8 @@ class AcademicSystemTest extends TestCase
             'reason' => 'Học viên lớp tiếp thu phần essay hơi chậm so với dự kiến',
         ]);
 
-        $responseReq->assertRedirect(route('syllabus.adjustment-requests'));
+        // Giáo viên (không có quyền duyệt) quay về màn gửi yêu cầu của mình.
+        $responseReq->assertRedirect(route('syllabus.teacher-adjust'));
 
         $this->assertDatabaseHas('syllabus_adjustment_requests', [
             'class_id' => $this->classModel->id,

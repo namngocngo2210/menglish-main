@@ -10,7 +10,7 @@
     @php($canReview = auth()->user()->can('big_test.approve'))
 
     @can('syllabus.manage')
-        <x-ui.modal name="new-big-test" title="Tạo đợt thi Big Test (bản nháp)" max-width="md">
+        <x-ui.modal name="new-big-test" title="Tạo đợt thi Big Test (bản nháp)" max-width="md" :show="$errors->hasAny(['title', 'class_id', 'test_type', 'scheduled_at', 'room'])">
             <form id="new-big-test-form" action="{{ route('syllabus.big-tests.store') }}" method="POST" class="space-y-3 p-md">
                 @csrf
                 <x-ui.input name="title" label="Tên đợt thi" required placeholder="Final Big Test #09 (Cuối khóa)" />
@@ -18,7 +18,7 @@
                 <x-ui.select name="test_type" label="Loại kỳ thi" :options="['midterm' => 'Giữa kỳ (Mid-term)', 'final' => 'Cuối khóa (Final)']" />
                 <x-ui.input type="datetime-local" name="scheduled_at" label="Thời gian thi" required :value="now()->addDays(7)->format('Y-m-d\TH:i')" />
                 <x-ui.input name="room" label="Phòng thi" required placeholder="VD: Phòng Lab 201" />
-                <p class="font-caption text-caption text-on-surface-variant">Đợt thi tự gắn với <strong>chặng đang mở</strong> của lớp (Big Test cuối chặng). Khi kết quả được duyệt và gửi phụ huynh, chặng đóng và chặng kế tiếp tự mở.</p>
+                <p class="font-caption text-caption text-on-surface-variant">Đợt thi tự gắn với <strong>chặng đang mở</strong> của lớp (Big Test cuối chặng). Khi kết quả của cả lớp được duyệt và gửi phụ huynh, chặng đóng và chặng kế tiếp tự mở.</p>
             </form>
             <x-slot:footer>
                 <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'new-big-test')">Hủy</x-ui.button>
@@ -45,7 +45,7 @@
                 <div class="flex-1 space-y-sm overflow-y-auto p-md max-h-[640px]">
                     @forelse ($orders as $order)
                         @php($active = $selectedOrder?->id === $order->id)
-                        <a href="{{ route('syllabus.big-tests.distribution', array_filter(['order' => $order->id, 'order_status' => $orderStatus, 'order_search' => $orderSearch, 'orders_page' => request('orders_page')])) }}"
+                        <a href="{{ route('syllabus.big-tests.distribution', array_filter(['order' => $order->id, 'order_search' => $orderSearch, 'orders_page' => request('orders_page')]) + ['order_status' => (string) $orderStatus]) }}"
                            class="block rounded-lg border p-md transition-colors {{ $active ? 'bg-primary-container/10 border-primary ring-1 ring-primary/20' : 'bg-surface-container-lowest border-outline-variant hover:bg-surface-container-low' }}">
                             <div class="flex items-start justify-between gap-sm">
                                 <span class="font-body-medium text-body-medium font-semibold text-on-surface">{{ $order->classModel?->name }}{{ $order->classModel?->code ? ' - '.$order->classModel->code : '' }}</span>

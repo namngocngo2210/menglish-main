@@ -46,7 +46,7 @@ class BigTestOrderApprovalSource extends QueryApprovalSource
 
     protected function query(User $user): Builder
     {
-        return BigTestOrder::query()->visibleTo($user)->where('status', 'pending');
+        return BigTestOrder::query()->visibleTo($user)->where('status', 'pending')->whereHas('classModel'); // bỏ lớp đã xóa
     }
 
     protected function with(): array

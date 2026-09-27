@@ -47,7 +47,7 @@ class AdjustmentApprovalSource extends QueryApprovalSource
     protected function query(User $user): Builder
     {
         // Người duyệt thấy mọi yêu cầu (như màn gốc).
-        return SyllabusAdjustmentRequest::query()->where('status', 'pending');
+        return SyllabusAdjustmentRequest::query()->where('status', 'pending')->whereHas('classModel'); // bỏ lớp đã xóa
     }
 
     protected function with(): array

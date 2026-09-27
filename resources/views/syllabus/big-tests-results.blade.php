@@ -1,5 +1,8 @@
 <x-app-layout>
-    <x-ui.page-header title="Duyệt kết quả Big Test & gửi phụ huynh" description="Bảng điểm 4 kỹ năng, nhận xét, link video; Học thuật duyệt và gửi kết quả cho phụ huynh qua Zalo." :back="route('syllabus.big-tests.distribution')">
+    @php($isApprover = auth()->user()->can('big_test.approve'))
+    <x-ui.page-header :title="$isApprover ? 'Duyệt kết quả Big Test & gửi phụ huynh' : 'Nhập điểm Big Test'"
+                      :description="$isApprover ? 'Bảng điểm 4 kỹ năng, nhận xét, link video; Học thuật duyệt và gửi kết quả cho phụ huynh qua Zalo.' : 'Nhập điểm 4 kỹ năng, nhận xét, link video cho lớp mình dạy rồi gửi Học thuật duyệt.'"
+                      :back="auth()->user()->can('syllabus.manage') || $isApprover ? route('syllabus.big-tests.distribution') : null">
         <x-slot:breadcrumbs>
             <span>Học thuật</span>
             <span class="material-symbols-outlined text-[16px]">chevron_right</span>
@@ -141,6 +144,9 @@
             {{-- Test Selector Card --}}
             <div class="lg:col-span-2 bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-2xs p-4 space-y-3">
                 <x-ui.select label="Chọn Kỳ Thi Big Test:" id="big-test-selector" onchange="window.location.href='{{ route('syllabus.big-tests.results') }}/' + this.value" class="font-semibold">
+                    @if ($allTests->isEmpty())
+                        <option value="">Chưa có kỳ thi Big Test nào</option>
+                    @endif
                     @foreach ($allTests as $t)
                         <option value="{{ $t->id }}" {{ $test?->id === $t->id ? 'selected' : '' }}>
                             [{{ $t->code }}] {{ $t->title }} · {{ $t->classModel?->name }}
@@ -191,7 +197,11 @@
             </x-slot:header>
 
             @php($resultsByStudent = $results->keyBy('student_id'))
-            @php($canGrade = $test && auth()->user()->can('syllabus.update'))
+            {{-- Đề chưa duyệt & phân phối thì server từ chối nhập điểm → không hiện form nhập. --}}
+            @php($canGrade = $test && $test->is_distributed && auth()->user()->can('syllabus.update'))
+            @if ($test && ! $test->is_distributed && auth()->user()->can('syllabus.update'))
+                <div class="border-b border-surface-container bg-warning-container/40 px-md py-sm text-xs text-on-surface">Đề thi của đợt này chưa được duyệt và phân phối, chưa nhập điểm được.</div>
+            @endif
             @php($canSend = $test && auth()->user()->can('big_test.approve'))
             @if ($canSend)
                 {{-- Form gửi từng học viên nằm ngoài form nhập điểm (không lồng form); nút bấm tham chiếu qua thuộc tính form= --}}

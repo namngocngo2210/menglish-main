@@ -89,9 +89,13 @@ final class SidebarMenu
                     ...self::anchored(self::CRM, [
                         ['label' => 'Xác nhận chính thức', 'route' => 'crm.confirmations'],
                     ]),
-                    ...self::anchored(self::SYLLABUS_MANAGER, [
+                    // Chỉ người có quyền duyệt (Học thuật / Admin); Học vụ xem đề xuất của mình ở "Xin duyệt".
+                    ...self::anchored(['syllabus.approve_adjustment'], [
                         ['label' => 'Sửa giáo trình', 'route' => 'syllabus.versions'],
                         ['label' => 'Điều chỉnh tiến độ', 'route' => 'syllabus.adjustment-requests'],
+                    ]),
+                    // Học vụ tạo đợt thi ở đây; Học thuật duyệt & phân phối.
+                    ...self::anchored([...self::SYLLABUS_MANAGER, 'big_test.approve'], [
                         ['label' => 'Phân phối Big Test', 'route' => 'syllabus.big-tests.distribution'],
                     ]),
                     ...self::anchored(self::TASK_ASSIGNER, [
@@ -191,10 +195,13 @@ final class SidebarMenu
                 'section' => 'Đào tạo',
                 'label' => 'Big Test',
                 'icon' => 'assignment',
-                'items' => self::anchored(self::SYLLABUS_MANAGER, [
-                    ['label' => 'Nhắc lịch', 'route' => 'syllabus.big-tests.schedules'],
-                    ['label' => 'Bảng điểm & Kết quả', 'route' => 'syllabus.big-tests.results', 'active' => ['syllabus.big-tests.results*']],
-                ]),
+                'items' => [
+                    ...self::anchored(self::SYLLABUS_MANAGER, [
+                        ['label' => 'Nhắc lịch', 'route' => 'syllabus.big-tests.schedules'],
+                    ]),
+                    // Giáo viên (syllabus.update) nhập điểm Big Test lớp mình.
+                    ['label' => 'Bảng điểm & Kết quả', 'route' => 'syllabus.big-tests.results', 'active' => ['syllabus.big-tests.results*'], 'anchor' => ['syllabus.update', 'big_test.approve']],
+                ],
             ],
             [
                 'id' => 'surveys',
