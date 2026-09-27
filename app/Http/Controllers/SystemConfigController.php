@@ -543,7 +543,7 @@ class SystemConfigController extends Controller
             $senderEmail = auth()->user()?->email ?? 'admin';
             $smtpHost = $smtp['host'];
             $smtpPort = $smtp['port'];
-            $mailDriver = $smtp['mailer'];
+            $mailDriver = 'smtp';
 
             $htmlBody = view('emails.ticket-notification', [
                 'ticket' => (object) [
@@ -565,18 +565,81 @@ class SystemConfigController extends Controller
                 'actionText' => 'Quản lý Cấu hình Email',
             ])->render();
 
+            // Gửi thử luôn đi qua SMTP để kiểm tra đúng kết nối vừa cấu hình (không rơi vào driver log/array)
+            config(['mail.default' => 'smtp', 'mail.mailers.smtp.timeout' => 20]);
+            Mail::purge('smtp');
             foreach ($recipients as $recipient) {
                 Mail::html($htmlBody, function ($message) use ($recipient, $subject) {
                     $message->to($recipient)->subject($subject);
                 });
             }
 
+            $notes = ['Máy chủ SMTP đã nhận thư. Nếu chưa thấy trong Hộp thư đến, hãy xem thư mục Spam / Quảng cáo.'];
+            $fromNote = $this->smtpFromAddressNote($smtp);
+            if ($fromNote) {
+                $notes[] = $fromNote;
+            }
+
             return redirect()->route('system-config.ticket-emails')
-                ->with('status', 'Đã gửi email thử nghiệm thành công tới: '.implode(', ', $recipients));
+                ->with('status', 'Đã gửi email thử nghiệm thành công tới: '.implode(', ', $recipients))
+                ->with('test_mail_result', [
+                    'ok' => true,
+                    'message' => 'Đã gửi thành công tới: '.implode(', ', $recipients),
+                    'hints' => $notes,
+                ]);
         } catch (\Throwable $e) {
+            report($e);
+
             return redirect()->route('system-config.ticket-emails')
-                ->with('error', 'Gửi email thử nghiệm thất bại: '.$e->getMessage());
+                ->with('error', 'Gửi email thử nghiệm thất bại: '.$e->getMessage())
+                ->with('test_mail_result', [
+                    'ok' => false,
+                    'message' => 'Gửi thất bại.',
+                    'detail' => $e->getMessage(),
+                    'hints' => array_values(array_filter([$this->smtpErrorHint($e->getMessage())])),
+                ]);
         }
+    }
+
+    /**
+     * Gợi ý cách sửa theo lỗi SMTP thường gặp.
+     */
+    private function smtpErrorHint(string $error): ?string
+    {
+        $e = strtolower($error);
+
+        return match (true) {
+            str_contains($e, '535') || str_contains($e, 'username and password not accepted') || str_contains($e, 'authenticat')
+                => 'Máy chủ từ chối đăng nhập: kiểm tra lại Tài khoản và Mật khẩu ứng dụng. Với Gmail phải bật Xác minh 2 bước rồi tạo Mật khẩu ứng dụng 16 ký tự, không dùng mật khẩu đăng nhập thường.',
+            str_contains($e, 'timed out') || str_contains($e, 'connection refused') || str_contains($e, 'unable to connect') || str_contains($e, 'network is unreachable')
+                => 'Không kết nối được tới máy chủ SMTP: hosting có thể chặn cổng này. Thử đổi sang SSL cổng 465, hoặc nhờ nhà cung cấp hosting mở cổng gửi thư ra ngoài.',
+            str_contains($e, 'getaddrinfo') || str_contains($e, 'name or service not known') || str_contains($e, 'php_network_getaddresses')
+                => 'Không tìm thấy máy chủ SMTP: kiểm tra lại tên máy chủ (SMTP Host).',
+            str_contains($e, 'ssl') || str_contains($e, 'tls') || str_contains($e, 'certificate') || str_contains($e, 'crypto')
+                => 'Lỗi mã hóa: TLS đi với cổng 587, SSL đi với cổng 465. Kiểm tra lại cặp Cổng / Mã hóa.',
+            str_contains($e, 'sender') || str_contains($e, 'from address') || str_contains($e, '553') || str_contains($e, '550')
+                => 'Máy chủ từ chối địa chỉ người gửi: đặt Email người gửi hiển thị trùng với Tài khoản đăng nhập SMTP.',
+            default => null,
+        };
+    }
+
+    /**
+     * Cảnh báo khi địa chỉ người gửi khác tài khoản đăng nhập SMTP (Gmail sẽ tự thay bằng tài khoản đăng nhập).
+     */
+    private function smtpFromAddressNote(array $smtp): ?string
+    {
+        $from = strtolower(trim((string) ($smtp['from_address'] ?? '')));
+        $user = strtolower(trim((string) ($smtp['username'] ?? '')));
+
+        if ($from === '' || $user === '' || $from === $user || ! str_contains($user, '@')) {
+            return null;
+        }
+
+        if (str_contains(strtolower((string) ($smtp['host'] ?? '')), 'gmail')) {
+            return "Email người gửi hiển thị ({$from}) khác tài khoản đăng nhập ({$user}): Gmail sẽ tự đổi người gửi thành {$user}. Nên đặt hai ô này trùng nhau.";
+        }
+
+        return "Email người gửi hiển thị ({$from}) khác tài khoản đăng nhập ({$user}): một số máy chủ sẽ từ chối hoặc đưa thư vào Spam.";
     }
 
     /**
