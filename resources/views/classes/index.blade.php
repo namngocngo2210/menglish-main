@@ -77,17 +77,16 @@
             <x-ui.select name="branch_id" label="Chi nhánh" placeholder="Tất cả chi nhánh" :value="$branchFilter" :options="$branches->pluck('name', 'id')" />
         </x-ui.filter-bar>
 
-        <x-ui.data-table min-width="1080px">
+        {{-- Gộp trạng thái vào cột Lớp và Big Test vào cột Tiến độ để bảng vừa khung 1440; cột Lớp cố định khi cuộn ngang. --}}
+        <x-ui.data-table min-width="900px">
             <table class="whitespace-nowrap text-xs">
                 <thead>
                     <tr>
-                        <th>Lớp</th>
-                        <th>Trạng thái</th>
+                        <th class="sticky left-0 z-10 bg-surface-container-low">Lớp</th>
                         <th>Lịch học</th>
                         <th>GV / CM</th>
                         <th class="text-center">Sĩ số</th>
-                        <th>Tiến độ</th>
-                        <th class="text-center">Big Test</th>
+                        <th>Tiến độ · Big Test</th>
                         <th>Việc tiếp theo</th>
                         <th class="text-right" aria-label="Thao tác"></th>
                     </tr>
@@ -105,12 +104,16 @@
                             $showUrl = route('classes.show', $c->id);
                         @endphp
                         <tr>
-                            <td>
-                                <a href="{{ $showUrl }}" class="font-code font-bold text-primary hover:underline">{{ $c->code }}</a>
-                                <div class="max-w-[200px] truncate font-semibold text-on-surface">{{ $c->name }}</div>
-                                <div class="text-[11px] text-on-surface-variant/80">{{ collect([$c->program, $c->level, $c->branch?->name])->filter()->implode(' · ') }}</div>
+                            <td class="sticky left-0 z-10 border-r border-surface-container bg-surface-container-lowest">
+                                <div class="flex items-center gap-xs">
+                                    <a href="{{ $showUrl }}" class="font-code font-bold text-primary hover:underline">{{ $c->code }}</a>
+                                    <x-ui.badge :color="$status['color']" :pill="true">{{ $status['label'] }}</x-ui.badge>
+                                </div>
+                                {{-- Tên lớp cũng là link mở lớp (trước đây chỉ có nút ở cuối dòng, bị khuất khi bảng rộng). --}}
+                                <a href="{{ $showUrl }}" class="block max-w-[220px] truncate font-semibold text-on-surface hover:text-primary hover:underline" title="{{ $c->name }}">{{ $c->name }}</a>
+                                @php $meta = collect([$c->program, $c->level, $c->branch?->name])->filter()->implode(' · '); @endphp
+                                <div class="max-w-[220px] truncate text-[11px] text-on-surface-variant/80" title="{{ $meta }}">{{ $meta }}</div>
                             </td>
-                            <td><x-ui.badge :color="$status['color']" :pill="true">{{ $status['label'] }}</x-ui.badge></td>
                             <td class="min-w-[170px] max-w-[220px] whitespace-normal text-on-surface-variant">{{ $c->schedule_text ?: 'Chưa xếp lịch' }}</td>
                             <td>
                                 <div class="font-medium text-on-surface">{{ $c->teacher?->name ?? 'Chưa phân công' }}</div>
@@ -140,12 +143,10 @@
                                     </div>
                                     <span class="block font-code text-[10px] text-on-surface-variant">{{ $done }}/{{ $total }} buổi</span>
                                 @endif
-                            </td>
-                            <td class="text-center">
                                 @if ($classBigTests->isEmpty())
-                                    <span class="text-[11px] text-on-surface-variant/70">Chưa có</span>
+                                    <span class="mt-[2px] block text-[11px] text-on-surface-variant/70">Big Test: chưa có</span>
                                 @else
-                                    <div class="flex items-center justify-center gap-1">
+                                    <div class="mt-[2px] flex items-center gap-1" aria-label="Big Test">
                                         @foreach ($classBigTests as $bt)
                                             @php $btDone = $bt->scheduled_at && $bt->scheduled_at->isPast(); @endphp
                                             <span class="flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold {{ $btDone ? 'bg-tertiary/10 text-on-tertiary-container' : 'bg-surface-container text-on-surface-variant' }}"
@@ -154,7 +155,7 @@
                                     </div>
                                 @endif
                             </td>
-                            <td>
+                            <td class="max-w-[150px] whitespace-normal">
                                 @if ($next)
                                     <a href="{{ route('classes.show', ['id' => $c->id, 'tab' => $next['tab']]) }}" class="hover:opacity-80">
                                         <x-ui.badge :color="$tones[$next['tone']] ?? 'neutral'" :dot="false">{{ $next['label'] }}</x-ui.badge>
@@ -174,7 +175,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9">
+                            <td colspan="7">
                                 <x-ui.empty-state icon="search_off" title="Không tìm thấy lớp học nào thỏa mãn điều kiện tìm kiếm.">
                                     @can('class.create')
                                         <x-ui.button icon="add" :href="route('classes.create')">Tạo lớp mới</x-ui.button>

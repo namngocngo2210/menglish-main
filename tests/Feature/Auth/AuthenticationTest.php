@@ -30,6 +30,19 @@ class AuthenticationTest extends TestCase
         $response->assertRedirect(route('dashboard', absolute: false));
     }
 
+    public function test_teachers_and_assistants_land_on_their_daily_screen_after_login(): void
+    {
+        $this->seed(\Database\Seeders\PermissionSeeder::class);
+        $this->seed(\Database\Seeders\RoleSeeder::class);
+
+        foreach (['teacher_fulltime' => route('teacher.home', absolute: false), 'assistant' => route('portal.ta-tasks', absolute: false), 'manager' => route('dashboard', absolute: false)] as $role => $target) {
+            $user = User::factory()->create();
+            $user->assignRole($role);
+            $this->post('/login', ['email' => $user->email, 'password' => 'password'])->assertRedirect($target);
+            $this->post('/logout');
+        }
+    }
+
     public function test_users_can_not_authenticate_with_invalid_password(): void
     {
         $user = User::factory()->create();

@@ -31,7 +31,14 @@
         return {
             collapsed: document.documentElement.classList.contains('sidebar-collapsed'),
             tip: { show: false, text: '', top: 0, left: 0 },
+            // Còn mục menu khuất dưới mép → hiện vùng mờ + mũi tên để người dùng biết cuộn được.
+            moreBelow: false,
+            checkMore() {
+                const nav = this.$refs.navContainer;
+                this.moreBelow = !!nav && nav.scrollTop + nav.clientHeight < nav.scrollHeight - 8;
+            },
             init() {
+                window.addEventListener('resize', () => this.checkMore(), { passive: true });
                 // Giữ vị trí cuộn của menu giữa các lần chuyển trang; lần đầu cuộn tới mục đang mở.
                 this.$nextTick(() => {
                     const nav = this.$refs.navContainer;
@@ -43,6 +50,7 @@
                     } else {
                         nav.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'nearest' });
                     }
+                    this.checkMore();
                 });
             },
             saveScroll() {
@@ -96,7 +104,8 @@
     </div>
 
     {{-- Menu --}}
-    <nav x-ref="navContainer" @scroll.passive.debounce.100ms="saveScroll()" @scroll.passive="tip.show = false" class="sidebar-scrollbar flex-1 space-y-xs overflow-y-auto px-2 py-sm">
+    <div class="relative flex min-h-0 flex-1 flex-col">
+    <nav x-ref="navContainer" @scroll.passive.debounce.100ms="saveScroll()" @scroll.passive="tip.show = false; checkMore()" class="sidebar-scrollbar flex-1 space-y-xs overflow-y-auto px-2 py-sm">
         @unless (Auth::user()?->isPortalStudentOnly())
             @include('layouts.partials.sidebar-link', ['url' => route('dashboard'), 'label' => 'Tổng quan', 'icon' => 'dashboard', 'active' => $dashboardActive, 'id' => 'dashboard'])
         @endunless
@@ -115,6 +124,14 @@
             @include('layouts.partials.sidebar-link', ['url' => $settingsUrl, 'label' => 'Cài đặt', 'icon' => 'settings', 'active' => $settingsActive, 'id' => 'settings'])
         @endif
     </nav>
+    {{-- Dấu hiệu cuộn: vùng mờ mép dưới; bấm mũi tên để cuộn xuống. --}}
+    <div x-show="moreBelow" x-cloak x-transition.opacity class="pointer-events-none absolute inset-x-0 bottom-0 flex h-12 items-end justify-center bg-gradient-to-t from-sidebar to-transparent pb-1" data-sidebar-more>
+        <button type="button" class="pointer-events-auto rounded-full p-0.5 text-surface-variant/70 hover:bg-white/10 hover:text-white" aria-label="Cuộn xuống xem thêm mục menu"
+                @click="$refs.navContainer.scrollBy({ top: $refs.navContainer.clientHeight * 0.6, behavior: 'smooth' })">
+            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">keyboard_arrow_down</span>
+        </button>
+    </div>
+    </div>
 
     {{-- Vai trò + Đăng xuất --}}
     <div class="shrink-0 space-y-xs border-t border-white/10 px-2 py-sm">

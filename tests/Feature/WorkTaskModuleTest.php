@@ -205,7 +205,7 @@ class WorkTaskModuleTest extends TestCase
         ]);
         $resDashboard = $this->actingAs($this->admin)->get(route('tasks.classes-dashboard'));
         $resDashboard->assertOk();
-        $resDashboard->assertSee('Dashboard lớp học');
+        $resDashboard->assertSee('Lịch học các lớp');
         $resDashboard->assertSee($this->class->name);
 
         // 2. Phân công trợ giảng theo ca
@@ -221,7 +221,7 @@ class WorkTaskModuleTest extends TestCase
         // 4. Cấu hình TKB và nhu cầu nhân sự
         $resSchedule = $this->actingAs($this->admin)->get(route('tasks.schedule-config'));
         $resSchedule->assertOk();
-        $resSchedule->assertSee('TKB — Quản lý lớp học');
+        $resSchedule->assertSee('Lịch & TKB lớp');
 
         // 5. Bảng KPI tự động
         $resKpi = $this->actingAs($this->admin)->get(route('tasks.kpi-dashboard'));

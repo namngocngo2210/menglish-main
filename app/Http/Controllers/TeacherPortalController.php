@@ -367,7 +367,16 @@ class TeacherPortalController extends Controller
         $class = ClassModel::with(['branch', 'teacher'])->findOrFail($classId);
         $user = Auth::user();
 
-        $session = $this->resolveSession($request, $class, $user);
+        // Các buổi gần đây của lớp để chọn điểm danh bù / buổi học bù.
+        $recentSessions = ClassSession::where('class_id', $class->id)
+            ->whereDate('date', '>=', now()->subDays(self::MAKEUP_LOOKBACK_DAYS)->toDateString())
+            ->whereDate('date', '<=', now()->toDateString())
+            ->withCount('attendances')
+            ->orderByDesc('date')->orderByDesc('start_time')
+            ->get();
+
+        $session = $this->resolveSession($request, $class, $user)
+            ?? $this->fallbackSession($request, $recentSessions, onlyUnattended: true);
         $this->authorizeClass($class, $session);
 
         $existing = $session
@@ -380,13 +389,6 @@ class TeacherPortalController extends Controller
         $window = $session ? app(\App\Services\ClassDashboardService::class)->attendanceWindow($session) : null;
         $rosterSize = $class->occupiedSeats();
 
-        // Các buổi gần đây của lớp để chọn điểm danh bù / buổi học bù.
-        $recentSessions = ClassSession::where('class_id', $class->id)
-            ->whereDate('date', '>=', now()->subDays(self::MAKEUP_LOOKBACK_DAYS)->toDateString())
-            ->whereDate('date', '<=', now()->toDateString())
-            ->withCount('attendances')
-            ->orderByDesc('date')->orderByDesc('start_time')
-            ->get();
         // Buổi đang xem cũ hơn cửa sổ trên vẫn phải có trong ô chọn, nếu không ô chọn hiện nhầm buổi khác.
         if ($session && ! $recentSessions->contains('id', $session->id)) {
             $recentSessions->push($session->loadCount('attendances'));
@@ -500,6 +502,21 @@ class TeacherPortalController extends Controller
             && $s->type !== ClassSession::TYPE_SUPPORT)
             ?? $sessions->firstWhere('type', '!=', ClassSession::TYPE_SUPPORT)
             ?? $sessions->first();
+    }
+
+    /**
+     * Hôm nay lớp không có buổi và người dùng chưa chọn buổi/ngày: mở luôn buổi gần nhất trong danh sách
+     * chọn (ưu tiên buổi chưa điểm danh) để trang khớp với ô "Buổi" thay vì báo "không có buổi".
+     */
+    private function fallbackSession(Request $request, Collection $recentSessions, bool $onlyUnattended = false): ?ClassSession
+    {
+        if ($request->filled('date') || $request->filled('session') || $request->filled('class_session_id')) {
+            return null;
+        }
+        $usable = $recentSessions->filter(fn (ClassSession $s) => $s->status !== 'cancelled' && $s->type !== ClassSession::TYPE_SUPPORT);
+
+        return ($onlyUnattended ? $usable->first(fn (ClassSession $s) => (int) $s->attendances_count === 0) : null)
+            ?? $usable->first();
     }
 
     private function attendanceBlockReason(ClassSession $session): ?string
@@ -875,7 +892,13 @@ class TeacherPortalController extends Controller
         $this->guardTeacher();
         $class = ClassModel::with('branch')->findOrFail($classId);
         $user = Auth::user();
-        $session = $this->resolveSession($request, $class, $user);
+        $recentSessions = ClassSession::where('class_id', $class->id)
+            ->where('type', '!=', ClassSession::TYPE_SUPPORT)
+            ->whereDate('date', '>=', now()->subDays(self::MAKEUP_LOOKBACK_DAYS)->toDateString())
+            ->whereDate('date', '<=', now()->toDateString())
+            ->orderByDesc('date')->orderByDesc('start_time')
+            ->get();
+        $session = $this->resolveSession($request, $class, $user) ?? $this->fallbackSession($request, $recentSessions);
         $this->authorizeClass($class, $session);
 
         $students = collect();
@@ -903,13 +926,10 @@ class TeacherPortalController extends Controller
             });
             $sessionNo = app(\App\Services\SessionLessonService::class)->sessionNumbers([(int) $class->id])[$session->id] ?? null;
         }
-
-        $recentSessions = ClassSession::where('class_id', $class->id)
-            ->where('type', '!=', ClassSession::TYPE_SUPPORT)
-            ->whereDate('date', '>=', now()->subDays(self::MAKEUP_LOOKBACK_DAYS)->toDateString())
-            ->whereDate('date', '<=', now()->toDateString())
-            ->orderByDesc('date')->orderByDesc('start_time')
-            ->get();
+        // Buổi đang xem cũ hơn cửa sổ vẫn phải có trong ô chọn, nếu không ô chọn hiện nhầm buổi khác.
+        if ($session && ! $recentSessions->contains('id', $session->id)) {
+            $recentSessions->push($session);
+        }
 
         return view('teacher.remarks', compact('class', 'session', 'students', 'attendance', 'existing', 'record', 'sessionNo', 'recentSessions', 'blockReason'));
     }

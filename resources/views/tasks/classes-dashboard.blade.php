@@ -1,6 +1,6 @@
 {{-- Dashboard lớp học theo ngày / ma trận khung giờ tuần — dữ liệu lấy từ buổi học thật (class_sessions). --}}
-<x-app-layout title="Dashboard lớp học">
-    <x-ui.page-header title="Dashboard lớp học" description="Quản lý lịch học, điểm danh và chấm công giảng viên">
+<x-app-layout title="Lịch học các lớp">
+    <x-ui.page-header title="Lịch học các lớp" description="Buổi học của mọi lớp theo ngày / tuần: điểm danh và chấm công giảng viên">
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="download" :href="request()->fullUrlWithQuery(['export' => 1])" title="Xuất Excel đúng dữ liệu đang xem">Xuất báo cáo</x-ui.button>
         </x-slot:actions>
@@ -93,16 +93,16 @@
                                     </td>
                                     <td class="whitespace-nowrap text-right">
                                         @if ($session->status !== 'cancelled' && $class && $state['key'] !== 'done' && $window === 'before' && auth()->user()->can('attendance_student.record'))
-                                            {{-- Mockup: chưa tới giờ học → nút Chấm công khóa kèm quy định cửa sổ 24h. --}}
+                                            {{-- Chưa tới giờ học → nút Điểm danh khóa kèm quy định cửa sổ 24h (nút mở trang điểm danh nên gọi đúng tên). --}}
                                             <div class="inline-flex flex-col items-end gap-xs">
-                                                <x-ui.button size="sm" variant="secondary" icon="how_to_reg" disabled>Chấm công</x-ui.button>
-                                                <span class="max-w-[180px] whitespace-normal text-right font-caption text-caption text-on-surface-variant">Chỉ được chấm công trong vòng 24h sau giờ học</span>
+                                                <x-ui.button size="sm" variant="secondary" icon="how_to_reg" disabled>Điểm danh</x-ui.button>
+                                                <span class="max-w-[180px] whitespace-normal text-right font-caption text-caption text-on-surface-variant">Chỉ được điểm danh trong vòng 24h sau giờ học</span>
                                             </div>
                                         @elseif ($session->status !== 'cancelled' && $class && ! $session->date->gt($today) && auth()->user()->can('attendance_student.record'))
                                             <x-ui.button size="sm" :variant="$state['key'] === 'done' || $window === 'closed' ? 'secondary' : 'primary'" icon="how_to_reg"
                                                 :href="route('teacher.attendance', ['classId' => $class->id, 'session' => $session->id, 'date' => $session->date->toDateString()])"
                                                 :title="$window === 'closed' && $state['key'] !== 'done' ? 'Quá 24h sau giờ học — điểm danh bù, Học vụ sẽ rà soát' : null">
-                                                {{ $state['key'] === 'done' ? 'Xem điểm danh' : ($window === 'closed' ? 'Điểm danh bù' : 'Chấm công') }}
+                                                {{ $state['key'] === 'done' ? 'Xem điểm danh' : ($window === 'closed' ? 'Điểm danh bù' : 'Điểm danh') }}
                                             </x-ui.button>
                                         @elseif ($session->status === 'cancelled' && $session->makeupSession)
                                             <span class="font-caption text-caption text-on-surface-variant">Bù ngày {{ $session->makeupSession->date->format('d/m') }}</span>

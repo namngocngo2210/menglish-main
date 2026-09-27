@@ -16,7 +16,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Luồng Lớp học mới: menu 3 mục (Danh sách lớp · Lịch học & điểm danh · Báo cáo & sự vụ), Trang lớp với vòng đời +
+ * Luồng Lớp học mới: menu 3 mục (Danh sách lớp · Lịch học các lớp · Báo cáo & sự vụ), Trang lớp với vòng đời +
  * tab con, sự vụ gắn lớp. Các màn cũ (Hồ sơ lớp, Sơ đồ khối, Danh sách chi tiết, Chi tiết học thuật) chuyển hướng.
  */
 class ClassFlowRedesignTest extends TestCase
@@ -65,7 +65,7 @@ class ClassFlowRedesignTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->get(route('classes.index'))->assertOk();
 
-        foreach (['Danh sách lớp', 'Lịch học &amp; điểm danh', 'Báo cáo &amp; sự vụ'] as $label) {
+        foreach (['Danh sách lớp', 'Lịch học các lớp', 'Báo cáo &amp; sự vụ'] as $label) {
             $response->assertSee($label, false);
         }
         foreach (['Sơ đồ khối', 'Danh sách lớp chi tiết', 'Nhật ký sự vụ lớp'] as $old) {

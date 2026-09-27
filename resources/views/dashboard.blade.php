@@ -1,5 +1,6 @@
 <x-app-layout>
-    <x-ui.page-header title="Bảng Điều Khiển Trung Tâm — MEnglish Admin" icon="dashboard" />
+    {{-- Tiêu đề "…Admin" chỉ cho bảng điều hành; nhân sự khác (GV, TA…) thấy "Tổng quan" như tên menu. --}}
+    <x-ui.page-header :title="auth()->user()?->can('dashboard.operations') ? 'Bảng Điều Khiển Trung Tâm — MEnglish Admin' : 'Tổng quan'" icon="dashboard" />
 
     @php
         $user = Auth::user();
@@ -18,12 +19,12 @@
     <div class="space-y-6">
         @unless($isAdminOrManager)
             {{-- Welcome Banner for Staff / Teachers --}}
-            <div class="bg-surface-container-lowest rounded-2xl p-6 border border-surface-container-highest shadow-sm flex items-center justify-between">
+            <div class="bg-surface-container-lowest rounded-2xl p-6 border border-surface-container-highest shadow-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 class="text-lg font-bold text-on-surface">Xin chào, {{ $user->name }}!</h2>
-                    <p class="text-xs text-on-surface-variant mt-1">Vai trò: <span class="font-semibold text-primary">{{ ucfirst($user->getRoleNames()->first() ?? 'Nhân viên') }}</span> · Chi nhánh: {{ $user->branch?->name ?? 'Trung tâm' }}</p>
+                    <p class="text-xs text-on-surface-variant mt-1">Vai trò: <span class="font-semibold text-primary">{{ $user->getRoleNames()->map(fn ($r) => \App\Helpers\AclHelper::shortRoleLabel($r))->implode(', ') ?: 'Nhân viên' }}</span> · Chi nhánh: {{ $user->branch?->name ?? 'Trung tâm' }}</p>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
                     @if($canPayroll)
                         <x-ui.button variant="secondary" size="sm" icon="payments" :href="route('portal.my-salary')">Lương của tôi</x-ui.button>
                     @endif
@@ -168,8 +169,8 @@
                     $linkTo('Xác nhận nhập học', 'students.enrollments'),
                 ]],
                 [$canClass, 'Lớp học &amp; Lịch dạy', 'Lịch học, điểm danh &amp; TKB', 'meeting_room', 'bg-secondary/10 text-secondary', 'hover:border-secondary/50', 'hover:bg-secondary/10 hover:text-secondary', fn () => [
-                    $linkTo('Dashboard Lớp', 'tasks.classes-dashboard'),
-                    $linkTo('TKB Lớp học', 'tasks.schedule-config'),
+                    $linkTo('Lịch học các lớp', 'tasks.classes-dashboard'),
+                    $linkTo('Lịch &amp; TKB lớp', 'tasks.schedule-config'),
                     $linkTo('Lịch dạy GV', 'payroll.timesheets.teachers', [], ['attendance_staff.view', 'payroll.view_own']),
                 ]],
                 [$canTask, 'Phân công &amp; Trợ giảng', 'Công việc ca trực &amp; báo cáo', 'task_alt', 'bg-primary-container/10 text-primary', 'hover:border-primary-container/50', 'hover:bg-primary-container/10 hover:text-primary', fn () => [

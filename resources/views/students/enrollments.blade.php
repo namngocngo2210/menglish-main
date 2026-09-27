@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-ui.page-header title="Tiếp nhận Học viên & Bàn giao Lớp học" icon="how_to_reg" />
+    <x-ui.page-header title="Xác nhận nhập học" icon="how_to_reg" description="Tiếp nhận học viên và bàn giao lớp học." />
 
     @php
         // Khách chốt từ CRM đang chờ lớp: xếp ở một nơi duy nhất (màn Chờ xếp lớp của CRM) — ở đây chỉ nhắc số + link.

@@ -166,12 +166,14 @@ final class SidebarMenu
                     // Danh sách lớp → Trang lớp (tab con). Hồ sơ lớp / Sơ đồ khối / Danh sách chi tiết / Chi tiết học thuật
                     // cũ chuyển hướng về đây (chip lọc + tab con thay cho màn riêng).
                     ['label' => 'Danh sách lớp', 'route' => 'classes.index', 'active' => ['classes.index', 'classes.show', 'classes.create', 'classes.edit', 'classes.profile', 'classes.academic-*']],
-                    ['label' => 'Lịch học & điểm danh', 'route' => 'tasks.classes-dashboard'],
+                    // Tên tab = tiêu đề trang; tránh trùng với tab "Lịch & buổi học" / "Điểm danh" bên trong Trang lớp.
+                    ['label' => 'Lịch học các lớp', 'route' => 'tasks.classes-dashboard'],
                     ['label' => 'Báo cáo & sự vụ', 'route' => 'academic.dashboards.reports', 'active' => ['academic.dashboards.*']],
                 ]),
                 // Nút chung mọi tab Lớp học (trước nằm ở menu "Tạo mới" trên topbar); quyền theo middleware can:class.create.
                 'actions' => [
-                    ['label' => 'Tạo lớp mới', 'route' => 'classes.create', 'icon' => 'add'],
+                    // Ẩn trên trang một lớp cụ thể: ở đó nút chính là bước tiếp theo của lớp (`hide_on` = routeIs).
+                    ['label' => 'Tạo lớp mới', 'route' => 'classes.create', 'icon' => 'add', 'hide_on' => ['classes.show', 'classes.edit']],
                 ],
             ],
             [

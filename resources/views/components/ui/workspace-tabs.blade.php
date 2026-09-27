@@ -6,7 +6,7 @@
       <x-ui.workspace-tabs workspace="crm" class="!mb-0 !border-b-0" />
     Item `as` => 'chip' (kèm `chip_of` = route tab cha) KHÔNG hiện ở đây mà ở <x-ui.workspace-chips> (đặt trong khung bộ lọc
     của trang); tab cha sáng khi 1 chip của nó đang mở;
-    item `as` => 'menu' và action có `menu` được gom vào 1 nút thả xuống theo tên `menu`.
+    item `as` => 'menu' và action có `menu` được gom vào 1 nút thả xuống theo tên `menu`; action có `hide_on` (pattern route) bị ẩn trên các route đó.
     Props: workspace (id, mặc định = workspace chứa route hiện tại)
 --}}
 @props(['workspace' => null])
@@ -26,7 +26,8 @@
         ])->values();
 
         $menus = $items->where('as', 'menu')->concat(collect($ws['actions'])->whereNotNull('menu'))->groupBy('menu');
-        $buttons = collect($ws['actions'])->whereNull('menu')->values();
+        $buttons = collect($ws['actions'])->whereNull('menu')
+            ->reject(fn (array $action) => ! empty($action['hide_on']) && request()->routeIs(...$action['hide_on']))->values();
     }
 @endphp
 

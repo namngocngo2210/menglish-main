@@ -11,18 +11,29 @@
             @if ($canManage)
                 <x-ui.button variant="secondary" icon="edit" :href="route('classes.edit', $class->id)">Sửa thông tin</x-ui.button>
             @endif
-            @can('class.delete')
-                @if ($class->userCan(auth()->user(), 'delete'))
-                    <form method="POST" action="{{ route('classes.destroy', $class->id) }}" onsubmit="return confirm('Xóa lớp {{ $class->name }}?')" class="inline">
-                        @csrf
-                        @method('DELETE')
-                        <x-ui.button type="submit" variant="danger-text" icon="delete">Xóa lớp</x-ui.button>
-                    </form>
-                @endif
-            @endcan
             @if ($nextAction && $nextAction['tab'] !== $tab)
                 <x-ui.button icon="arrow_forward" :href="route('classes.show', ['id' => $class->id, 'tab' => $nextAction['tab']])">{{ $nextAction['label'] }}</x-ui.button>
             @endif
+            {{-- Xóa lớp là thao tác hiếm và nguy hiểm: để trong menu "⋯", có hộp xác nhận, không đặt cạnh nút chính. --}}
+            @can('class.delete')
+                @if ($class->userCan(auth()->user(), 'delete'))
+                    @include('partials.data-confirm')
+                    <x-ui.dropdown align="right" width="56">
+                        <x-slot name="trigger">
+                            <x-ui.button type="button" variant="ghost" icon="more_horiz" aria-label="Thao tác khác" aria-haspopup="menu" />
+                        </x-slot>
+                        <x-slot name="content">
+                            <form method="POST" action="{{ route('classes.destroy', $class->id) }}" data-confirm="Xóa lớp {{ $class->name }}? Lớp sẽ bị ẩn khỏi danh sách." role="menu">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" role="menuitem" class="flex w-full items-center gap-sm px-md py-sm text-left font-body-medium text-body-medium text-error transition-colors hover:bg-error/5">
+                                    <span class="material-symbols-outlined text-[20px]" aria-hidden="true">delete</span>Xóa lớp
+                                </button>
+                            </form>
+                        </x-slot>
+                    </x-ui.dropdown>
+                @endif
+            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 
