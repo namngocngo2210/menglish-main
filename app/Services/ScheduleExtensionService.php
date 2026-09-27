@@ -41,8 +41,9 @@ class ScheduleExtensionService
             ]);
         }
 
+        // Buổi học bù (nghỉ lễ) có thể nằm sau buổi chính khóa cuối → tính cả để buổi thêm không chen trước buổi bù.
         $lastDate = ClassSession::where('class_id', $class->id)
-            ->where('type', ClassSession::TYPE_REGULAR)
+            ->whereIn('type', [ClassSession::TYPE_REGULAR, ClassSession::TYPE_MAKEUP])
             ->where('status', '!=', 'cancelled')
             ->max('date');
         $anchor = $lastDate ? Carbon::parse($lastDate) : ($class->end_date ? $class->end_date->copy() : today()->subDay());
@@ -88,6 +89,7 @@ class ScheduleExtensionService
                     'end_time' => $session['end'],
                     'room' => $class->room,
                     'teacher_id' => $class->teacher_id ?? $class->foreign_teacher_id,
+                    'foreign_teacher_id' => $class->foreign_teacher_id,
                     'assistant_id' => $class->assistant_id,
                     'status' => 'scheduled',
                     'notes' => $note,

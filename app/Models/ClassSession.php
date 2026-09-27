@@ -134,6 +134,12 @@ class ClassSession extends Model
         return $this->hasMany(TeacherTimesheet::class, 'class_session_id');
     }
 
+    /** Khách CRM đặt học thử vào buổi này. */
+    public function trialBookings(): HasMany
+    {
+        return $this->hasMany(CrmTrialBooking::class, 'class_session_id');
+    }
+
     public function supportSession(): HasOne
     {
         return $this->hasOne(SupportSession::class, 'class_session_id');
@@ -151,7 +157,9 @@ class ClassSession extends Model
             ->whereDate('date', '>=', now()->toDateString())
             ->whereDoesntHave('attendances')
             ->whereDoesntHave('timesheets')
-            ->whereDoesntHave('supportSession');
+            ->whereDoesntHave('supportSession')
+            // Buổi đã có khách hẹn học thử: xóa đi thì lịch hẹn mồ côi, Sales không biết để báo khách.
+            ->whereDoesntHave('trialBookings', fn (Builder $q) => $q->where('status', 'scheduled'));
     }
 
     /**

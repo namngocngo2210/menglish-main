@@ -371,7 +371,7 @@ class BpmnWorkflowIntegrationTest extends TestCase
             'status' => 'scheduled',
         ]);
         $this->actingAs($this->manager)->delete(route('classes.destroy', $this->classModel->id))
-            ->assertStatus(422);
+            ->assertSessionHas('error');
         $this->assertNotNull(ClassModel::find($this->classModel->id));
 
         // Lớp còn học viên đang xếp lớp: bị chặn xóa
@@ -382,7 +382,7 @@ class BpmnWorkflowIntegrationTest extends TestCase
             'status' => 'pending',
         ]);
         $this->actingAs($this->manager)->delete(route('classes.destroy', $this->classModel->id))
-            ->assertStatus(422);
+            ->assertSessionHas('error');
 
         // Lớp trống: xóa được
         $enrollment->delete();

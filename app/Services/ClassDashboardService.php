@@ -51,7 +51,8 @@ class ClassDashboardService
             return ['key' => 'cancelled', 'color' => 'neutral',
                 'label' => $session->holiday ? 'Nghỉ lễ' : 'Đã hủy'];
         }
-        if ($session->attendances_count > 0) {
+        // Buổi phụ đạo 1-1 hoàn thành không có điểm danh lớp → coi như đã xong.
+        if ($session->attendances_count > 0 || ($session->type === ClassSession::TYPE_SUPPORT && $session->status === 'completed')) {
             return ['key' => 'done', 'color' => 'success', 'label' => 'Đã điểm danh'];
         }
         if ($session->date->gt($today)) {

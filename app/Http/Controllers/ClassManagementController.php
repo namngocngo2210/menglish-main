@@ -426,8 +426,9 @@ class ClassManagementController extends Controller
             ->when($levelFilter, fn ($q) => $q->where('level', $levelFilter))
             // Tiến độ thật: số buổi (không tính buổi hủy) và số buổi đã diễn ra.
             ->withCount([
-                'sessions as total_sessions_count' => fn ($q) => $q->where('status', '!=', 'cancelled'),
-                'sessions as done_sessions_count' => fn ($q) => $q->where('status', '!=', 'cancelled')->whereDate('date', '<=', today()),
+                // Buổi phụ đạo 1-1 không tính vào tiến độ lớp.
+                'sessions as total_sessions_count' => fn ($q) => $q->where('status', '!=', 'cancelled')->where('type', '!=', ClassSession::TYPE_SUPPORT),
+                'sessions as done_sessions_count' => fn ($q) => $q->where('status', '!=', 'cancelled')->where('type', '!=', ClassSession::TYPE_SUPPORT)->whereDate('date', '<=', today()),
             ])
             ->orderByRaw("CASE status WHEN 'pending_schedule' THEN 0 WHEN 'upcoming' THEN 1 WHEN 'active' THEN 2 WHEN 'completed' THEN 3 ELSE 4 END")
             ->orderBy('code')
@@ -437,7 +438,7 @@ class ClassManagementController extends Controller
         $classIds = $classes->pluck('id');
         $bigTests = \App\Models\BigTest::whereIn('class_id', $classIds)->orderBy('scheduled_at')
             ->get(['id', 'class_id', 'title', 'scheduled_at', 'status'])->groupBy('class_id');
-        $nextSessions = ClassSession::whereIn('class_id', $classIds)->where('status', '!=', 'cancelled')
+        $nextSessions = ClassSession::whereIn('class_id', $classIds)->where('status', '!=', 'cancelled')->where('type', '!=', ClassSession::TYPE_SUPPORT)
             ->whereDate('date', '>=', today())->orderBy('date')->orderBy('start_time')
             ->get(['id', 'class_id', 'date', 'start_time'])->unique('class_id')->keyBy('class_id');
 
@@ -490,7 +491,7 @@ class ClassManagementController extends Controller
         $steps = ClassLifecycle::steps($class, $seat);
         $canManage = $viewer->can('class.update') && $class->userCan($viewer, 'update');
 
-        $activeSessions = $class->sessions()->where('status', '!=', 'cancelled');
+        $activeSessions = $class->sessions()->where('status', '!=', 'cancelled')->where('type', '!=', ClassSession::TYPE_SUPPORT);
         $sessionProgress = [
             'total' => (clone $activeSessions)->count(),
             'done' => (clone $activeSessions)->whereDate('date', '<=', today())->count(),
@@ -522,7 +523,9 @@ class ClassManagementController extends Controller
             $data['sessions'] = $sessions;
             $data['attendanceStates'] = $sessions->mapWithKeys(fn (ClassSession $s) => [$s->id => $dashboard->attendanceState($s, $today)]);
             $data['classReports'] = \App\Models\ClassReport::with('reporter:id,name')->where('class_id', $class->id)
-                ->latest('session_date')->latest('id')->get()->keyBy('class_session_id');
+                // Báo cáo mới nhất của mỗi buổi (keyBy giữ bản cuối cùng = bản cũ nhất); báo cáo không gắn buổi giữ riêng.
+                ->latest('session_date')->latest('id')->get()
+                ->groupBy(fn ($report) => $report->class_session_id ?? 'none-'.$report->id)->map->first();
             $data['canRecordAttendance'] = $viewer->can('attendance_student.record') || $viewer->can('attendance_student.record_any');
         }
         if ($tab === 'incidents') {
@@ -693,6 +696,10 @@ class ClassManagementController extends Controller
             if ($class->wasChanged('assistant_id')) {
                 $futureQuery()->update(['assistant_id' => $class->assistant_id]);
             }
+            if ($class->wasChanged('branch_id')) {
+                // Buổi sắp tới theo chi nhánh mới: lịch/nghỉ lễ/chấm công lọc buổi theo branch_id của buổi.
+                $futureQuery()->update(['branch_id' => $class->branch_id]);
+            }
             if ($class->wasChanged('room')) {
                 // Chỉ đụng phòng của buổi chưa có phòng riêng hoặc đang dùng phòng cũ của lớp.
                 $futureQuery()
@@ -719,9 +726,13 @@ class ClassManagementController extends Controller
         $classCode = $class->code;
 
         $activeEnrollments = $class->enrollments()->whereIn('status', ['pending', 'completed'])->count();
-        $scheduledSessions = ClassSession::where('class_id', $class->id)->where('status', 'scheduled')->count();
-        abort_if($activeEnrollments > 0 || $scheduledSessions > 0, 422,
-            "Không thể xóa lớp '{$className}' ({$classCode}) vì còn {$activeEnrollments} học viên đang xếp lớp và {$scheduledSessions} buổi học chưa diễn ra. Hãy chuyển lớp sang trạng thái Đã hủy thay vì xóa.");
+        $scheduledSessions = ClassSession::where('class_id', $class->id)->where('status', 'scheduled')
+            ->whereDate('date', '>=', today()->toDateString())->count();
+        if ($activeEnrollments > 0 || $scheduledSessions > 0) {
+            // Báo lỗi ngay trên màn đang đứng thay vì trang lỗi 422 trắng.
+            return redirect()->back()->with('error',
+                "Không thể xóa lớp '{$className}' ({$classCode}) vì còn {$activeEnrollments} học viên đang xếp lớp và {$scheduledSessions} buổi học chưa diễn ra. Hãy chuyển lớp sang trạng thái Đã hủy thay vì xóa.");
+        }
 
         $class->delete(); // SoftDelete
 

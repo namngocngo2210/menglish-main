@@ -137,6 +137,8 @@ class TeacherPortalController extends Controller
             ->whereDate('date', '>=', now()->subDays(self::MAKEUP_LOOKBACK_DAYS)->toDateString())
             ->where('status', '!=', 'cancelled')
             ->whereDoesntHave('attendances')
+            // Buổi phụ đạo đã hoàn thành không cần điểm danh lớp.
+            ->whereNot(fn ($q) => $q->where('type', ClassSession::TYPE_SUPPORT)->where('status', 'completed'))
             ->orderByDesc('date')->orderBy('start_time')
             ->get();
 
@@ -385,6 +387,10 @@ class TeacherPortalController extends Controller
             ->withCount('attendances')
             ->orderByDesc('date')->orderByDesc('start_time')
             ->get();
+        // Buổi đang xem cũ hơn cửa sổ trên vẫn phải có trong ô chọn, nếu không ô chọn hiện nhầm buổi khác.
+        if ($session && ! $recentSessions->contains('id', $session->id)) {
+            $recentSessions->push($session->loadCount('attendances'));
+        }
 
         return view('teacher.attendance', compact(
             'class', 'session', 'students', 'existing', 'today', 'blockReason', 'onBehalf', 'recentSessions', 'window', 'rosterSize'

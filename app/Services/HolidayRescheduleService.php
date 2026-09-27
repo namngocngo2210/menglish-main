@@ -56,6 +56,10 @@ class HolidayRescheduleService
                     'notes' => trim(($session->notes ? $session->notes."\n" : '')."Hủy do nghỉ lễ: {$holiday->name}"),
                 ]);
                 $result['cancelled']++;
+                $session->trialBookings()->where('status', 'scheduled')->get()->each(fn ($booking) => $booking->update([
+                    'status' => 'cancelled',
+                    'notes' => trim(($booking->notes ? $booking->notes."\n" : '')."Hủy: buổi học thử trùng nghỉ lễ {$holiday->name}"),
+                ]));
 
                 if ($this->scheduleMakeup($session, $holiday)) {
                     $result['rescheduled']++;
@@ -104,6 +108,22 @@ class HolidayRescheduleService
         return $holiday->is_system_wide || in_array((int) $session->branch_id, array_map('intval', $holiday->branches->modelKeys()), true);
     }
 
+    /** Buổi bù cuối bị xóa → ngày kết thúc lớp lùi về buổi còn lại muộn nhất. */
+    private function pullBackEndDate(ClassSession $removed): void
+    {
+        $class = $removed->classModel;
+        if (! $class || ! $class->end_date || ! $class->end_date->isSameDay($removed->date)) {
+            return;
+        }
+        $last = ClassSession::where('class_id', $class->id)
+            ->whereIn('type', [ClassSession::TYPE_REGULAR, ClassSession::TYPE_MAKEUP])
+            ->where('status', '!=', 'cancelled')
+            ->max('date');
+        if ($last) {
+            $class->update(['end_date' => Carbon::parse($last)]);
+        }
+    }
+
     private function restoreUncovered(Holiday $holiday, bool $releaseAll = false): int
     {
         $restored = 0;
@@ -126,6 +146,8 @@ class HolidayRescheduleService
                     // Buổi bù đã diễn ra: giữ nguyên buổi gốc ở trạng thái hủy để không dạy trùng.
                     continue;
                 }
+                // Khách hẹn học thử vào buổi bù chuyển về buổi gốc được khôi phục (xóa buổi sẽ xóa luôn lịch hẹn).
+                $makeup->trialBookings()->update(['class_session_id' => $session->id]);
                 $makeup->delete();
             }
             $session->update([
@@ -133,6 +155,9 @@ class HolidayRescheduleService
                 'holiday_id' => null,
                 'notes' => trim(preg_replace('/\n?Hủy do nghỉ lễ: .*$/u', '', (string) $session->notes)) ?: null,
             ]);
+            if ($makeup) {
+                $this->pullBackEndDate($makeup);
+            }
             $restored++;
         }
 
