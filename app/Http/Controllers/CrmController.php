@@ -1662,10 +1662,9 @@ class CrmController extends Controller
             'fee_items' => 'nullable',
             'prepaid_amount' => 'nullable|numeric|min:0',
             'paid_amount' => 'nullable|numeric|min:0',
-            'payment_method' => 'nullable|in:cash,transfer,pos,split',
-            'split_cash_amount' => 'nullable|numeric|min:0',
-            'split_transfer_amount' => 'nullable|numeric|min:0',
-            'split_pos_amount' => 'nullable|numeric|min:0',
+            // Trung tâm chỉ thu chuyển khoản hoặc tiền mặt (không quẹt thẻ POS, không thanh toán kết hợp).
+            'payment_method' => 'nullable|in:cash,transfer',
+            'paper_invoice_number' => 'nullable|string|max:100',
             'transfer_memo' => 'nullable|string|max:255',
             'bank_account_id' => 'nullable|exists:bank_accounts,id,deleted_at,NULL',
             'bill_notes' => 'nullable|string|max:2000',
@@ -1689,8 +1688,13 @@ class CrmController extends Controller
             throw ValidationException::withMessages(['payment_method' => 'Vui lòng chọn phương thức thanh toán.']);
         }
         $paymentMethod = $validated['payment_method'] ?? 'cash';
+        // Tiền mặt thu theo hóa đơn giấy: phiếu thu phải mang số hóa đơn giấy để Kế toán đối soát khi duyệt.
+        $paperInvoiceNumber = trim((string) ($validated['paper_invoice_number'] ?? '')) ?: null;
+        if ($paidAmount > 0 && $paymentMethod === 'cash' && ! $paperInvoiceNumber) {
+            throw ValidationException::withMessages(['paper_invoice_number' => 'Thu tiền mặt cần nhập số hóa đơn giấy đã xuất cho khách.']);
+        }
 
-        $result = DB::transaction(function () use ($request, $validated, $paidAmount, $prepaidAmount, $feePaid, $paymentMethod): array {
+        $result = DB::transaction(function () use ($request, $validated, $paidAmount, $prepaidAmount, $feePaid, $paymentMethod, $paperInvoiceNumber): array {
             $customer = $this->scopeCustomerQuery()->lockForUpdate()->findOrFail($validated['customer_id']);
 
             if ($customer->converted_student_id) {
@@ -1730,8 +1734,7 @@ class CrmController extends Controller
             $branchId = $class?->branch_id ?? $customer->branch_id;
             $branch = $class?->branch ?? ($branchId ? Branch::find($branchId) : null);
 
-            $needsBankAccount = $paidAmount > 0 && ($paymentMethod === 'transfer'
-                || ($paymentMethod === 'split' && (float) ($validated['split_transfer_amount'] ?? 0) > 0));
+            $needsBankAccount = $paidAmount > 0 && $paymentMethod === 'transfer';
             $bankAccount = ! empty($validated['bank_account_id'])
                 ? BankAccount::whereKey($validated['bank_account_id'])->where('is_active', true)->first()
                 : null;
@@ -1766,18 +1769,6 @@ class CrmController extends Controller
             $netDue = $contractTotal - $prepaidAmount;
             if ($paidAmount > $netDue) {
                 throw ValidationException::withMessages(['paid_amount' => 'Số tiền thu vượt quá số tiền còn phải nộp.']);
-            }
-
-            $splitDetails = null;
-            if ($paymentMethod === 'split' && $paidAmount > 0) {
-                $splitDetails = [
-                    'cash' => (float) ($validated['split_cash_amount'] ?? 0),
-                    'transfer' => (float) ($validated['split_transfer_amount'] ?? 0),
-                    'pos' => (float) ($validated['split_pos_amount'] ?? 0),
-                ];
-                if (abs(array_sum($splitDetails) - $paidAmount) > 0.01) {
-                    throw ValidationException::withMessages(['payment_method' => 'Tổng các phương thức tách phải bằng số tiền thực thu.']);
-                }
             }
 
             $studentCode = 'HV-'.Str::upper((string) Str::ulid());
@@ -1884,7 +1875,7 @@ class CrmController extends Controller
                     'amount' => $paidAmount,
                     'tuition_amount' => min($paidAmount, max(0, $baseTuition - $discount)),
                     'payment_method' => $paymentMethod,
-                    'split_details' => $splitDetails,
+                    'paper_invoice_number' => $paymentMethod === 'cash' ? $paperInvoiceNumber : null,
                     'collected_items' => $feeItems ?: null,
                     'transaction_code' => 'CW-'.Str::upper((string) Str::ulid()),
                     'payment_date' => now(),

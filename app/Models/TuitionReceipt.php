@@ -39,6 +39,12 @@ class TuitionReceipt extends Model
         'pos' => 'Quẹt thẻ POS',
     ];
 
+    /**
+     * Hình thức được chọn khi lập phiếu thu mới. POS / kết hợp đã bỏ (trung tâm không dùng) —
+     * nhãn 'pos' vẫn giữ ở METHOD_LABELS để phiếu cũ hiển thị đúng.
+     */
+    public const INPUT_METHODS = ['transfer', 'vietqr', 'cash'];
+
     /** Hình thức thu bắt buộc minh chứng khi gửi duyệt (tiền mặt được miễn). */
     public const PROOF_REQUIRED_METHODS = ['transfer', 'vietqr', 'pos'];
 

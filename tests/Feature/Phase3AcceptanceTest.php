@@ -458,7 +458,7 @@ class Phase3AcceptanceTest extends TestCase
         $this->actingAs($this->academic)->post(route('crm.customers.next-stage', $customer->id))->assertSessionHasNoErrors();
         $this->actingAs($this->sale)->post(route('crm.closing-wizard.store'), [
             'customer_id' => $customer->id, 'class_id' => $this->classPt->id, 'fee_paid_at_closing' => 1,
-            'paid_amount' => 9000000, 'payment_method' => 'cash',
+            'paid_amount' => 9000000, 'payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001',
         ])->assertSessionHasNoErrors();
 
         return tap($customer->refresh(), fn (CrmCustomer $c) => $this->assertSame('won', $c->stage));

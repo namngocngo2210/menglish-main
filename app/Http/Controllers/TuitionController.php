@@ -311,7 +311,7 @@ class TuitionController extends Controller
             'surcharge_amount' => 'nullable|numeric|min:0',
             'surcharge_reason' => 'nullable|string|max:500',
             'amount' => 'required|numeric|min:1000',
-            'payment_method' => 'required|string|in:transfer,cash,vietqr,pos',
+            'payment_method' => 'required|string|in:'.implode(',', TuitionReceipt::INPUT_METHODS),
             'transaction_code' => 'nullable|string|max:100',
             'paper_invoice_number' => 'nullable|string|max:100',
             'payer_name' => 'nullable|string|max:255',
@@ -338,7 +338,7 @@ class TuitionController extends Controller
         $isDraft = ($request->input('submit_action') === 'draft');
         $hasProof = $request->hasFile('proof_image')
             || ($request->filled('proof_image_preview') && $this->isSafeProofReference((string) $request->input('proof_image_preview')));
-        if (! $isDraft && ($submitError = $this->receiptSubmitError($validated['payment_method'], $validated['transaction_code'] ?? null, $hasProof))) {
+        if (! $isDraft && ($submitError = $this->receiptSubmitError($validated['payment_method'], $validated['transaction_code'] ?? null, $hasProof, null, $validated['paper_invoice_number'] ?? null))) {
             return $this->modalBack($submitError)->withInput();
         }
 
@@ -434,7 +434,7 @@ class TuitionController extends Controller
             'surcharge_reason' => 'nullable|string|max:500',
             'tuition_amount' => 'nullable|numeric|min:0',
             'amount' => 'required|numeric|min:1000',
-            'payment_method' => 'required|string|in:transfer,cash,vietqr,pos',
+            'payment_method' => 'required|string|in:'.implode(',', TuitionReceipt::INPUT_METHODS),
             'transaction_code' => 'nullable|string|max:100',
             'paper_invoice_number' => 'nullable|string|max:100',
             'payer_name' => 'nullable|string|max:255',
@@ -464,7 +464,10 @@ class TuitionController extends Controller
         $keepsProof = $receipt->proof_image && ! $request->boolean('remove_proof');
         $hasProof = $keepsProof || $request->hasFile('proof_image')
             || ($request->filled('proof_image_preview') && $this->isSafeProofReference((string) $request->input('proof_image_preview')));
-        if (! $isDraft && ($submitError = $this->receiptSubmitError($validated['payment_method'], $transactionCode, $hasProof, $receipt->id))) {
+        $paperInvoiceNumber = $request->has('paper_invoice_number')
+            ? ($validated['paper_invoice_number'] ?? null)
+            : $receipt->paper_invoice_number;
+        if (! $isDraft && ($submitError = $this->receiptSubmitError($validated['payment_method'], $transactionCode, $hasProof, $receipt->id, $paperInvoiceNumber))) {
             return $this->modalBack($submitError)->withInput();
         }
 
@@ -524,16 +527,21 @@ class TuitionController extends Controller
 
     /**
      * Điều kiện gửi duyệt (không áp dụng khi lưu nháp):
-     * - Chuyển khoản / VietQR / POS bắt buộc có minh chứng (tiền mặt được miễn).
+     * - Chuyển khoản / VietQR bắt buộc có minh chứng (tiền mặt được miễn).
+     * - Tiền mặt thu theo hóa đơn giấy: bắt buộc số hóa đơn giấy.
      * - Mã giao dịch chuyển khoản không được trùng phiếu khác đang chờ duyệt / đã duyệt,
      *   hay giao dịch SePay đã tự động gạch nợ.
      *
      * @return array<string, string>|null
      */
-    private function receiptSubmitError(string $method, ?string $transactionCode, bool $hasProof, ?int $ignoreReceiptId = null): ?array
+    private function receiptSubmitError(string $method, ?string $transactionCode, bool $hasProof, ?int $ignoreReceiptId = null, ?string $paperInvoiceNumber = null): ?array
     {
+        if ($method === 'cash' && trim((string) $paperInvoiceNumber) === '') {
+            return ['paper_invoice_number' => 'Thu tiền mặt cần nhập số hóa đơn giấy đã xuất cho khách.'];
+        }
+
         if (in_array($method, TuitionReceipt::PROOF_REQUIRED_METHODS, true) && ! $hasProof) {
-            return ['proof_image' => 'Bắt buộc đính kèm minh chứng (ủy nhiệm chi / ảnh chuyển khoản / biên lai POS) khi gửi duyệt phiếu thu không dùng tiền mặt.'];
+            return ['proof_image' => 'Bắt buộc đính kèm minh chứng (ủy nhiệm chi / ảnh chuyển khoản) khi gửi duyệt phiếu thu chuyển khoản.'];
         }
 
         if (in_array($method, TuitionReceipt::TRANSFER_METHODS, true) && TuitionReceipt::normalizeReference($transactionCode) !== null) {

@@ -58,7 +58,7 @@ class TuitionImportService
     private const METHOD_ALIASES = [
         'tien_mat' => 'cash', 'tm' => 'cash', 'cash' => 'cash',
         'chuyen_khoan' => 'transfer', 'ck' => 'transfer', 'transfer' => 'transfer', 'vietqr' => 'vietqr',
-        'pos' => 'pos', 'quet_the' => 'pos', 'the' => 'pos',
+        // Không nhận quẹt thẻ POS: trung tâm chỉ thu tiền mặt / chuyển khoản.
     ];
 
     public const METHOD_LABELS = ['cash' => 'Tiền mặt', 'transfer' => 'Chuyển khoản', 'vietqr' => 'VietQR', 'pos' => 'Quẹt thẻ POS'];
@@ -161,7 +161,7 @@ class TuitionImportService
                 $methodKey = Str::slug(Str::ascii((string) ($data['payment_method'] ?? '')), '_');
                 $method = self::METHOD_ALIASES[$methodKey] ?? null;
                 if (! $method) {
-                    $errors[] = 'Hình thức thanh toán không hợp lệ (tien_mat / chuyen_khoan / pos).';
+                    $errors[] = 'Hình thức thanh toán không hợp lệ (tien_mat / chuyen_khoan).';
                 }
 
                 if (in_array($method, TuitionReceipt::TRANSFER_METHODS, true)) {

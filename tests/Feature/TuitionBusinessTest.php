@@ -189,6 +189,7 @@ class TuitionBusinessTest extends TestCase
             'student_tuition_id' => $this->tuition->id,
             'amount' => 5000000,
             'payment_method' => 'cash',
+            'paper_invoice_number' => 'HDG-0001',
             'transaction_code' => 'PAY-02',
         ]);
         $this->approveByCode('PAY-02');
@@ -246,6 +247,7 @@ class TuitionBusinessTest extends TestCase
             'student_tuition_id' => $this->tuition->id,
             'amount' => 2000000,
             'payment_method' => 'cash',
+            'paper_invoice_number' => 'HDG-0001',
             'transaction_code' => 'TR-REJECT',
             'payment_date' => now(),
             'creator_id' => $this->accountantUser->id,
@@ -638,6 +640,7 @@ class TuitionBusinessTest extends TestCase
             'student_tuition_id' => $newTuition->id,
             'amount' => 4750000,
             'payment_method' => 'cash',
+            'paper_invoice_number' => 'HDG-0001',
             'notes' => 'Thu học phí đợt 2 hoàn tất (Bao gồm tiền sách vở)',
         ]);
 

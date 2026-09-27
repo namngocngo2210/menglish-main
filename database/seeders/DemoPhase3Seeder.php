@@ -548,6 +548,7 @@ class DemoPhase3Seeder extends Seeder
             'fee_paid_at_closing' => $paid ? 1 : 0,
             'paid_amount' => $paid ? (float) $class->course->tuition_fee : null,
             'payment_method' => $paid ? 'cash' : null,
+            'paper_invoice_number' => $paid ? 'HDG-DEMO-'.$customer->id : null,
             'bill_notes' => 'Chốt demo Phase 3.',
         ], fn ($v) => $v !== null));
 
@@ -561,6 +562,7 @@ class DemoPhase3Seeder extends Seeder
         $amount = (float) $tuition->final_amount - (float) $tuition->paid_amount;
         $this->asUser($this->staff['accountant_cg'], TuitionController::class, 'storeReceipt', [
             'student_tuition_id' => $tuition->id, 'amount' => $amount, 'tuition_amount' => $amount, 'payment_method' => 'cash',
+            'paper_invoice_number' => 'HDG-DEMO-'.$tuition->id,
             'payer_name' => self::CUSTOMERS[$key][1], 'notes' => 'PH đóng học phí tại quầy (demo Phase 3).', 'submit_action' => 'submit',
         ]);
     }

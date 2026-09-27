@@ -337,6 +337,7 @@ class DemoPhase4Seeder extends Seeder
             'paid_amount' => $paid ? (float) $course->tuition_fee : null,
             'payment_method' => $paid ? 'cash' : null,
             'bill_notes' => 'Chốt demo Phase 4 — xếp lớp sau (khóa '.$course->code.').',
+            'paper_invoice_number' => $paid ? 'HDG-DEMO-'.$customer->id : null,
         ], fn ($v) => $v !== null));
 
         $this->customers[$key] = $customer->refresh();
@@ -370,6 +371,7 @@ class DemoPhase4Seeder extends Seeder
             'transaction_code' => $code, 'payer_name' => self::CUSTOMERS[$key][1], 'notes' => trim($note.' '.self::MARKER),
             'proof_image_preview' => $method === 'cash' ? null : self::PROOF,
             'submit_action' => $draft ? 'draft' : 'submit',
+            'paper_invoice_number' => $method === 'cash' ? 'HDG-DEMO-'.$tuition->id : null,
         ], fn ($v) => $v !== null));
     }
 

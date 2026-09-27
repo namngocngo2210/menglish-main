@@ -246,6 +246,7 @@ class Phase1AcceptanceTest extends TestCase
             'fee_paid_at_closing' => 1,
             'paid_amount' => 9000000,
             'payment_method' => 'cash',
+            'paper_invoice_number' => 'HDG-0001',
         ])->assertRedirect(route('crm.customers.won'))->assertSessionHasNoErrors();
 
         $lead->refresh();

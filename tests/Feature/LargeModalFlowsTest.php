@@ -393,7 +393,7 @@ class LargeModalFlowsTest extends TestCase
             ->assertSee('enctype="multipart/form-data"', false);
 
         $payload = ['student_tuition_id' => $tuition->id, 'student_id' => $tuition->student_id, 'amount' => 4500000, 'tuition_amount' => 4500000,
-            'payment_method' => 'cash', 'submit_action' => 'submit'];
+            'payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001', 'submit_action' => 'submit'];
 
         // Lỗi validate và lỗi nghiệp vụ (trước đây back()->withErrors) → 422 ngay trong modal, giữ khoản học phí đã chọn.
         $this->actingAs($this->admin)->post(route('tuition.receipts.store'), [...$payload, 'amount' => 500], self::HX)

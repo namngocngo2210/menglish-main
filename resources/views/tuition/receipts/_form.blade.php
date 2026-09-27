@@ -296,7 +296,7 @@
                 <span class="text-xs text-on-surface-variant/70 italic">CM chọn phương thức</span>
             </div>
 
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-2 gap-3">
                 <label :class="paymentMethod === 'transfer' ? 'border-primary-container bg-primary-container/10 ring-1 ring-primary-container' : 'border-surface-container-highest hover:bg-surface-container-low'" class="relative flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition">
                     <input type="radio" name="payment_method" value="transfer" x-model="paymentMethod" class="sr-only" />
                     <div class="flex flex-col items-center">
@@ -313,13 +313,6 @@
                     </div>
                 </label>
 
-                <label :class="paymentMethod === 'pos' ? 'border-primary-container bg-primary-container/10 ring-1 ring-primary-container' : 'border-surface-container-highest hover:bg-surface-container-low'" class="relative flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition">
-                    <input type="radio" name="payment_method" value="pos" x-model="paymentMethod" class="sr-only" />
-                    <div class="flex flex-col items-center">
-                        <span class="material-symbols-outlined mb-1" :class="paymentMethod === 'pos' ? 'text-primary' : 'text-on-surface-variant/70'">credit_card</span>
-                        <span class="text-xs font-bold" :class="paymentMethod === 'pos' ? 'text-primary' : 'text-on-surface-variant'">Quẹt thẻ POS</span>
-                    </div>
-                </label>
             </div>
 
             {{-- Giao diện Chuyển khoản --}}
@@ -380,7 +373,7 @@
             {{-- Giao diện Tiền mặt --}}
             <div x-show="paymentMethod === 'cash'" x-transition class="space-y-3 pt-2">
                 <div class="p-3.5 rounded-xl border border-surface-container-highest bg-surface-container-low">
-                    <x-ui.input name="paper_invoice_number" :id="$px.'paper_invoice_number'" label="Số phiếu / Số hóa đơn giấy thu tiền mặt (nếu có)" hint="Áp dụng khi viết biên lai tay." placeholder="Ví dụ: HĐG-0824/PTM-042..." class="font-code font-bold" />
+                    <x-ui.input name="paper_invoice_number" :id="$px.'paper_invoice_number'" label="Số hóa đơn giấy thu tiền mặt (bắt buộc khi gửi duyệt)" hint="Tiền mặt thu theo hóa đơn giấy: xuất hóa đơn giấy cho khách rồi ghi số vào đây." :value="$editingReceipt?->paper_invoice_number" placeholder="Ví dụ: HĐG-0824/PTM-042..." class="font-code font-bold" />
                 </div>
             </div>
         </div>
@@ -427,7 +420,7 @@
             </h3>
             <span class="text-xs font-medium flex items-center gap-1" :class="proofRequired ? 'text-warning' : 'text-on-surface-variant/70'">
                 <span class="material-symbols-outlined text-xs" x-text="proofRequired ? 'warning' : 'info'"></span>
-                <span x-text="proofRequired ? 'Bắt buộc khi gửi duyệt: ủy nhiệm chi / ảnh chuyển khoản / biên lai POS' : 'Tiền mặt: không bắt buộc minh chứng'"></span>
+                <span x-text="proofRequired ? 'Bắt buộc khi gửi duyệt: ủy nhiệm chi / ảnh chuyển khoản' : 'Tiền mặt: không cần ảnh minh chứng, chỉ cần số hóa đơn giấy'"></span>
             </span>
         </div>
 

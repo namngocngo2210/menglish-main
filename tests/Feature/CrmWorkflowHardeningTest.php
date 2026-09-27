@@ -133,20 +133,36 @@ class CrmWorkflowHardeningTest extends TestCase
         $this->assertDatabaseCount('tuition_receipts', 1);
     }
 
-    public function test_split_payment_must_match_and_rolls_back_everything(): void
+    public function test_pos_and_split_payment_methods_are_rejected(): void
     {
+        // Trung tâm không dùng POS và thanh toán kết hợp: chỉ chuyển khoản / tiền mặt.
         $lead = $this->leadFor($this->salesA);
-        $payload = array_merge($this->closingPayload($lead), [
-            'payment_method' => 'split',
-            'split_cash_amount' => 1000000,
-            'split_transfer_amount' => 1000000,
-        ]);
-
-        $this->actingAs($this->salesA)->post(route('crm.closing-wizard.store'), $payload)
-            ->assertSessionHasErrors('payment_method');
+        foreach (['pos', 'split'] as $method) {
+            $this->actingAs($this->salesA)->post(route('crm.closing-wizard.store'), array_merge($this->closingPayload($lead), [
+                'payment_method' => $method,
+            ]))->assertSessionHasErrors('payment_method');
+        }
 
         $this->assertDatabaseCount('students', 0);
         $this->assertSame('result_sent', $lead->fresh()->stage);
+    }
+
+    public function test_cash_payment_requires_paper_invoice_number_and_stores_it_on_receipt(): void
+    {
+        $lead = $this->leadFor($this->salesA);
+        $payload = array_merge($this->closingPayload($lead), ['payment_method' => 'cash', 'bank_account_id' => null]);
+
+        $this->actingAs($this->salesA)->post(route('crm.closing-wizard.store'), $payload)
+            ->assertSessionHasErrors('paper_invoice_number');
+        $this->assertDatabaseCount('students', 0);
+
+        $this->actingAs($this->salesA)->post(route('crm.closing-wizard.store'), $payload + ['paper_invoice_number' => 'HDG-0042'])
+            ->assertSessionHasNoErrors();
+
+        $receipt = TuitionReceipt::sole();
+        $this->assertSame('cash', $receipt->payment_method);
+        $this->assertSame('HDG-0042', $receipt->paper_invoice_number);
+        $this->assertSame('pending', $receipt->status);
     }
 
     public function test_duplicate_phone_is_detected_after_normalization(): void
@@ -186,6 +202,7 @@ class CrmWorkflowHardeningTest extends TestCase
         $lead = $this->leadFor($this->salesA);
         $payload = $this->closingPayload($lead);
         $payload['payment_method'] = 'cash';
+        $payload['paper_invoice_number'] = 'HDG-0007';
         unset($payload['bank_account_id']);
 
         $this->actingAs($this->salesA)->post(route('crm.closing-wizard.store'), $payload)
