@@ -52,7 +52,7 @@
                          :value="$user->branch_id" :options="$branches->pluck('name', 'id')" />
             <x-ui.select name="role" :id="$fid('role')" label="Vai trò & Chức vụ" required placeholder="-- Chọn vai trò --"
                          :value="$user->getRoleNames()->first()"
-                         :options="$roles->mapWithKeys(fn ($roleName) => [$roleName => \App\Helpers\AclHelper::roleLabel($roleName).' ('.$roleName.')'])" />
+                         :options="\App\Helpers\AclHelper::primaryRoleOptions($roles, $user->getRoleNames()->first())" />
         </div>
 
         {{-- Kiêm nhiệm: vai trò phụ ngoài vai trò chính (chỉ các vai trò người thao tác được phép gán). --}}
