@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\RequestMemo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -17,12 +18,19 @@ class SystemSetting extends Model
         'description',
     ];
 
+    protected static function booted(): void
+    {
+        static::saved(fn () => RequestMemo::forget('system_settings'));
+        static::deleted(fn () => RequestMemo::forget('system_settings'));
+    }
+
     /**
      * Get setting value by key with optional default.
      */
     public static function get(string $key, mixed $default = null): mixed
     {
-        $setting = static::where('key', $key)->first();
+        // Bảng cấu hình chỉ vài chục dòng: nạp hết 1 lần mỗi request thay vì 1 truy vấn cho mỗi lần đọc khoá.
+        $setting = RequestMemo::remember('system_settings', fn () => static::query()->get()->keyBy('key'))->get($key);
         if (!$setting || $setting->value === null) {
             return $default;
         }

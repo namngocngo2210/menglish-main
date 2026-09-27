@@ -38,46 +38,88 @@ class KpiBoardService
      */
     public function metricsFor(User $user, CarbonInterface $from, CarbonInterface $to): array
     {
-        $classIds = ClassModel::query()
-            ->where(fn (Builder $q) => $q->where('teacher_id', $user->id)
-                ->orWhere('assistant_id', $user->id)
-                ->orWhere('foreign_teacher_id', $user->id))
-            ->pluck('id');
+        return $this->metricsForMany(collect([$user]), $from, $to)[$user->id];
+    }
+
+    /**
+     * Chỉ số KPI của nhiều nhân sự cùng lúc: lớp, học viên, điểm danh, công việc gộp thành vài truy vấn cho cả trang
+     * (trước đây ~9 truy vấn cho mỗi nhân sự).
+     *
+     * @param  iterable<User>  $users
+     * @return array<int, array> theo id nhân sự, cùng cấu trúc với metricsFor()
+     */
+    public function metricsForMany(iterable $users, CarbonInterface $from, CarbonInterface $to): array
+    {
+        $users = collect($users)->values();
+        if ($users->isEmpty()) {
+            return [];
+        }
+        $userIds = $users->pluck('id')->all();
+
+        $classes = ClassModel::query()
+            ->where(fn (Builder $q) => $q->whereIn('teacher_id', $userIds)
+                ->orWhereIn('assistant_id', $userIds)
+                ->orWhereIn('foreign_teacher_id', $userIds))
+            ->get(['id', 'teacher_id', 'assistant_id', 'foreign_teacher_id']);
+        $classIdsOf = fn (int $userId) => $classes
+            ->filter(fn (ClassModel $c) => in_array($userId, [(int) $c->teacher_id, (int) $c->assistant_id, (int) $c->foreign_teacher_id], true))
+            ->pluck('id')->values();
+        $allClassIds = $classes->pluck('id')->all();
 
         // Giữ chân: học viên của các lớp phụ trách chưa "Thôi học" / tổng học viên đã vào lớp.
-        $students = Student::whereIn('current_class_id', $classIds)->where('status', '!=', 'waiting_start');
-        $totalStudents = (clone $students)->count();
-        $retained = (clone $students)->where('status', '!=', 'dropped')->count();
+        $studentsByClass = $allClassIds === [] ? collect() : Student::whereIn('current_class_id', $allClassIds)
+            ->where('status', '!=', 'waiting_start')
+            ->groupBy('current_class_id')
+            ->selectRaw("current_class_id, count(*) as total, sum(case when status != 'dropped' then 1 else 0 end) as retained")
+            ->get()->keyBy('current_class_id');
 
         // Chuyên cần: lượt có mặt/đi muộn trên tổng lượt điểm danh trong kỳ (bỏ bản ghi bị từ chối khi rà soát).
-        $attendance = StudentAttendance::whereIn('class_id', $classIds)
+        $attendanceByClass = $allClassIds === [] ? collect() : StudentAttendance::whereIn('class_id', $allClassIds)
             ->whereDate('session_date', '>=', $from->toDateString())
             ->whereDate('session_date', '<=', $to->toDateString())
-            ->where(fn (Builder $q) => $q->whereNull('review_status')->orWhere('review_status', '!=', 'rejected'));
-        $attendanceTotal = (clone $attendance)->count();
-        $attendancePresent = (clone $attendance)->whereIn('status', ['present', 'late'])->count();
-
-        // Bài tập: bài nộp của học viên trong kỳ / (số bài giao trong kỳ × sĩ số lớp).
-        [$homeworkExpected, $homeworkSubmitted] = $this->homework($classIds->all(), $from, $to);
+            ->where(fn (Builder $q) => $q->whereNull('review_status')->orWhere('review_status', '!=', 'rejected'))
+            ->groupBy('class_id')
+            ->selectRaw("class_id, count(*) as total, sum(case when status in ('present', 'late') then 1 else 0 end) as present")
+            ->get()->keyBy('class_id');
 
         // Công việc được giao có hạn trong kỳ đã hoàn thành.
-        $tasks = WorkTask::where('assignee_id', $user->id)
+        $tasksByUser = WorkTask::whereIn('assignee_id', $userIds)
             ->whereDate('due_date', '>=', $from->toDateString())
-            ->whereDate('due_date', '<=', $to->toDateString());
-        $tasksTotal = (clone $tasks)->count();
-        $tasksDone = (clone $tasks)->where('status', 'completed')->count();
+            ->whereDate('due_date', '<=', $to->toDateString())
+            ->groupBy('assignee_id')
+            ->selectRaw("assignee_id, count(*) as total, sum(case when status = 'completed' then 1 else 0 end) as done")
+            ->get()->keyBy('assignee_id');
 
-        return [
-            'classes' => $classIds->count(),
-            'retention' => self::rate($retained, $totalStudents),
-            'retention_detail' => "{$retained}/{$totalStudents} học viên",
-            'attendance' => self::rate($attendancePresent, $attendanceTotal),
-            'attendance_detail' => "{$attendancePresent}/{$attendanceTotal} lượt",
-            'homework' => $homeworkExpected ? min(100.0, self::rate($homeworkSubmitted, $homeworkExpected)) : null,
-            'homework_detail' => "{$homeworkSubmitted}/{$homeworkExpected} bài",
-            'tasks' => self::rate($tasksDone, $tasksTotal),
-            'tasks_detail' => "{$tasksDone}/{$tasksTotal} việc",
-        ];
+        $metrics = [];
+        foreach ($users as $user) {
+            $classIds = $classIdsOf((int) $user->id);
+            $sum = fn ($rows, string $column) => (int) $classIds->sum(fn ($id) => (int) ($rows->get($id)?->{$column} ?? 0));
+
+            $totalStudents = $sum($studentsByClass, 'total');
+            $retained = $sum($studentsByClass, 'retained');
+            $attendanceTotal = $sum($attendanceByClass, 'total');
+            $attendancePresent = $sum($attendanceByClass, 'present');
+
+            // Bài tập: bài nộp của học viên trong kỳ / (số bài giao trong kỳ × sĩ số lớp).
+            [$homeworkExpected, $homeworkSubmitted] = $this->homework($classIds->all(), $from, $to);
+
+            $tasksTotal = (int) ($tasksByUser->get($user->id)?->total ?? 0);
+            $tasksDone = (int) ($tasksByUser->get($user->id)?->done ?? 0);
+
+            $metrics[$user->id] = [
+                'classes' => $classIds->count(),
+                'retention' => self::rate($retained, $totalStudents),
+                'retention_detail' => "{$retained}/{$totalStudents} học viên",
+                'attendance' => self::rate($attendancePresent, $attendanceTotal),
+                'attendance_detail' => "{$attendancePresent}/{$attendanceTotal} lượt",
+                'homework' => $homeworkExpected ? min(100.0, self::rate($homeworkSubmitted, $homeworkExpected)) : null,
+                'homework_detail' => "{$homeworkSubmitted}/{$homeworkExpected} bài",
+                'tasks' => self::rate($tasksDone, $tasksTotal),
+                'tasks_detail' => "{$tasksDone}/{$tasksTotal} việc",
+            ];
+        }
+
+        return $metrics;
     }
 
     /**

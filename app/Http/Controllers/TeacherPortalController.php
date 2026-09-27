@@ -1093,7 +1093,7 @@ class TeacherPortalController extends Controller
         $start = Carbon::create($year, $month, 1)->startOfDay();
         $end = $start->copy()->endOfMonth();
 
-        $timesheets = TeacherTimesheet::where('user_id', $teacherId)
+        $timesheets = TeacherTimesheet::with('classModel')->where('user_id', $teacherId)
             ->whereBetween('teaching_date', [$start->toDateString(), $end->toDateString()])
             ->get();
         $attendanceMarked = StudentAttendance::where('user_id', $teacherId)

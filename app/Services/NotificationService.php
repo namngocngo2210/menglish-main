@@ -57,6 +57,11 @@ class NotificationService
             ->withMax('histories as last_activity_at', 'created_at')
             ->get();
 
+        // Cảnh báo đã gửi của các khách này: 1 truy vấn thay vì 1 truy vấn cho mỗi khách.
+        $sent = $this->existingLeadNotifications('stale_lead_care', $leads->pluck('id')->all())
+            ->map(fn (array $data) => $data['customer_id'].'|'.($data['last_activity_at'] ?? ''))
+            ->flip();
+
         $generated = 0;
         foreach ($leads as $lead) {
             $lastActivity = $lead->last_activity_at ? Carbon::parse($lead->last_activity_at) : $lead->created_at;
@@ -64,11 +69,7 @@ class NotificationService
                 continue;
             }
             $marker = $lastActivity->toDateTimeString();
-            $exists = AdminNotification::where('type', 'stale_lead_care')
-                ->where('data->customer_id', $lead->id)
-                ->where('data->last_activity_at', $marker)
-                ->exists();
-            if ($exists) {
+            if ($sent->has($lead->id.'|'.$marker)) {
                 continue;
             }
 
@@ -123,15 +124,17 @@ class NotificationService
 
         $generatedCount = 0;
 
+        // Mỗi lead chỉ cảnh báo một lần: lead không thể quay về stage 'new',
+        // nên đủ điều kiện kiểm tra tồn tại thông báo bất kể đã đọc hay chưa
+        // (check is_read sẽ tái tạo thông báo + gửi lại email sau khi admin đọc).
+        $notified = $this->existingLeadNotifications('stale_lead_24h', $staleLeads->pluck('id')->all())
+            ->map(fn (array $data) => (int) $data['customer_id'])
+            ->flip();
+
         foreach ($staleLeads as $lead) {
             $hoursElapsed = round(Carbon::parse($lead->created_at)->diffInHours(now()));
 
-            // Mỗi lead chỉ cảnh báo một lần: lead không thể quay về stage 'new',
-            // nên đủ điều kiện kiểm tra tồn tại thông báo bất kể đã đọc hay chưa
-            // (check is_read sẽ tái tạo thông báo + gửi lại email sau khi admin đọc).
-            $existingNotif = AdminNotification::where('type', 'stale_lead_24h')
-                ->where('data->customer_id', $lead->id)
-                ->exists();
+            $existingNotif = $notified->has($lead->id);
 
             if (! $existingNotif) {
                 $this->notifyNeglect(
@@ -174,6 +177,26 @@ class NotificationService
         }
 
         return $generatedCount;
+    }
+
+    /**
+     * Dữ liệu (cột data) của các thông báo loại $type đã gửi cho các khách $customerIds.
+     *
+     * @param  list<int>  $customerIds
+     * @return \Illuminate\Support\Collection<int, array>
+     */
+    protected function existingLeadNotifications(string $type, array $customerIds)
+    {
+        if ($customerIds === []) {
+            return collect();
+        }
+
+        return collect($customerIds)->chunk(500)->flatMap(fn ($ids) => AdminNotification::query()
+            ->where('type', $type)
+            ->whereIn('data->customer_id', $ids->values()->all())
+            ->pluck('data'))
+            ->filter(fn ($data) => is_array($data) && isset($data['customer_id']))
+            ->values();
     }
 
     /**

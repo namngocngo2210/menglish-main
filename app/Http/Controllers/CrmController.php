@@ -307,7 +307,7 @@ class CrmController extends Controller
     protected function waitingClassData(): array
     {
         $waitingLeads = $this->scopeCustomerQuery()
-            ->with(['assignedUser', 'branch', 'waitingCourse', 'convertedStudent'])
+            ->with(['assignedUser', 'branch', 'waitingBranch', 'waitingCourse', 'convertedStudent'])
             ->where('stage', 'waiting_class')
             ->orderBy('converted_at')
             ->get();

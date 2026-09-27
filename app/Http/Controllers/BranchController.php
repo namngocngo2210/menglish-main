@@ -31,12 +31,18 @@ class BranchController extends Controller
 
         $branches = $query->orderBy('id')->get();
 
-        // Load stats for each branch
+        // Số liệu từng chi nhánh: mỗi bảng 1 truy vấn đếm theo chi nhánh (thay vì 4 truy vấn cho mỗi chi nhánh).
+        $countBy = fn (string $model) => $model::query()->whereIn('branch_id', $branches->pluck('id'))
+            ->groupBy('branch_id')->selectRaw('branch_id, count(*) as aggregate')->pluck('aggregate', 'branch_id');
+        $users = $countBy(User::class);
+        $classes = $countBy(ClassModel::class);
+        $students = $countBy(Student::class);
+        $customers = $countBy(CrmCustomer::class);
         foreach ($branches as $branch) {
-            $branch->users_count = User::where('branch_id', $branch->id)->count();
-            $branch->classes_count = ClassModel::where('branch_id', $branch->id)->count();
-            $branch->students_count = Student::where('branch_id', $branch->id)->count();
-            $branch->customers_count = CrmCustomer::where('branch_id', $branch->id)->count();
+            $branch->users_count = (int) ($users[$branch->id] ?? 0);
+            $branch->classes_count = (int) ($classes[$branch->id] ?? 0);
+            $branch->students_count = (int) ($students[$branch->id] ?? 0);
+            $branch->customers_count = (int) ($customers[$branch->id] ?? 0);
         }
 
         $totalBranches = Branch::count();
