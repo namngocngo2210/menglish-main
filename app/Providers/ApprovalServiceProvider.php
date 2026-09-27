@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\User;
 use App\Services\Crm\Approvals\EnrollmentConfirmationApprovalSource;
 use App\Services\Students\Approvals\EnrollmentApprovalSource;
 use App\Services\Syllabus\Approvals\AdjustmentApprovalSource;
@@ -14,6 +15,7 @@ use App\Services\WorkTasks\Approvals\ClassReportApprovalSource;
 use App\Services\WorkTasks\Approvals\WorkTaskApprovalSource;
 use App\Support\Approvals\ApprovableSource;
 use App\Support\Approvals\ApprovalInboxService;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -23,6 +25,9 @@ use Illuminate\Support\ServiceProvider;
 class ApprovalServiceProvider extends ServiceProvider
 {
     public const TAG = 'approval.sources';
+
+    /** Ability "xem hộp Việc cần duyệt" (= duyệt được ít nhất 1 nguồn), dùng cho tab đầu khu Phê duyệt ở sidebar. */
+    public const INBOX_ABILITY = 'view-approval-inbox';
 
     /** @var list<class-string<ApprovableSource>> */
     public const SOURCES = [
@@ -46,6 +51,8 @@ class ApprovalServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Gate::define(self::INBOX_ABILITY, fn (User $user) => $this->app->make(ApprovalInboxService::class)->canView($user));
+
         $models = collect($this->app->make(ApprovalInboxService::class)->sources())
             ->flatMap(fn ($source) => $source->watchedModels())
             ->unique();

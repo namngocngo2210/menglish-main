@@ -166,8 +166,33 @@ class WorkspaceNavigationTest extends TestCase
     public function test_layout_injects_tabs_on_pages_without_own_header(): void
     {
         $this->actingAs($this->makeUser('admin'))->get(route('students.enrollments'))->assertOk()
-            ->assertSee('data-workspace-tabs="students"', false)
-            ->assertSee('href="'.route('students.index').'"', false);
+            ->assertSee('data-workspace-tabs="approvals"', false)
+            ->assertSee('href="'.route('tuition.receipts.approve').'"', false);
+    }
+
+    public function test_approval_screens_are_grouped_in_their_own_sidebar_section(): void
+    {
+        $menu = app(SidebarMenu::class);
+        $routesOf = fn (string $id) => collect(collect($menu->definition())->firstWhere('id', $id)['items'])->pluck('route')->all();
+
+        $approve = ['approvals.index', 'tuition.receipts.approve', 'tuition.invoices.cancellations', 'tuition.refunds', 'students.enrollments',
+            'crm.confirmations', 'syllabus.versions', 'syllabus.adjustment-requests', 'syllabus.big-tests.distribution', 'tasks.manual-approvals'];
+        $this->assertSame($approve, $routesOf('approvals'));
+        $this->assertSame(['syllabus.teacher-propose', 'syllabus.teacher-adjust'], $routesOf('approval_requests'));
+
+        // Không còn nằm ở workspace nghiệp vụ cũ.
+        foreach (['crm', 'students', 'syllabus', 'big_test', 'tuition', 'tasks'] as $id) {
+            $this->assertSame([], array_intersect($routesOf($id), [...$approve, 'syllabus.teacher-propose', 'syllabus.teacher-adjust']), $id);
+        }
+
+        $html = $this->actingAs($this->makeUser('admin'))->get(route('tuition.receipts.approve'))->assertOk()->getContent();
+        $this->assertStringContainsString('data-menu-section data-sidebar-text>Phê duyệt</div>', $html);
+        $this->assertMatchesRegularExpression('/data-menu-item="approvals"[^>]*>\s*<span[^>]*>fact_check/', $html);
+        $this->assertStringContainsString('data-workspace-tabs="approvals"', $html);
+
+        // Không duyệt được nguồn nào (sales): không có mục Cần duyệt, tab hộp chung ẩn.
+        $sales = $this->makeUser('sales_consultant');
+        $this->assertNotContains('approvals', collect($menu->groupsFor($sales))->pluck('id')->all());
     }
 
     public function test_settings_redirects_to_first_accessible_item(): void
@@ -272,7 +297,8 @@ class WorkspaceNavigationTest extends TestCase
         $this->assertStringContainsString(route('crm.customers.index', ['sla' => 1]), $bar);
         $this->assertStringContainsString(route('crm.waiting-list'), $bar);
         $this->assertStringContainsString('data-workspace-menu="Xếp lớp"', $bar);
-        $this->assertStringContainsString(route('crm.confirmations'), $bar);
+        // Xác nhận chính thức chuyển sang khu Phê duyệt.
+        $this->assertStringNotContainsString(route('crm.confirmations'), $bar);
         $this->assertStringContainsString(route('crm.closing-wizard'), $bar);
         $this->assertStringNotContainsString(route('crm.reports'), $bar);
 
