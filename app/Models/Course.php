@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\DocumentCodeGenerator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,6 +30,16 @@ class Course extends Model
         'total_lessons' => 'integer',
         'is_active' => 'boolean',
     ];
+
+    /** Mã khóa học do hệ thống sinh (CS0001) khi tạo mà không truyền mã. */
+    protected static function booted(): void
+    {
+        static::creating(function (Course $course) {
+            if (blank($course->code)) {
+                $course->code = app(DocumentCodeGenerator::class)->courseCode();
+            }
+        });
+    }
 
     public function level(): BelongsTo
     {
