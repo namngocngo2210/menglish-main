@@ -77,7 +77,13 @@
                             </div>
                         </div>
 
-                        {{-- Media Preview Box --}}
+                        {{-- Media Preview Box: bài phát âm nghe trực tiếp bản ghi của học viên --}}
+                        @if (! empty($sub->data['audio_path']))
+                        <div class="flex-1 text-xs">
+                            <span class="font-bold text-on-surface block truncate max-w-[220px]">{{ $sub->data['unit_title'] ?? 'Bản ghi âm' }}</span>
+                            <audio controls preload="none" class="mt-1 h-8 w-full max-w-[260px]" src="{{ $sub->data['audio_path'] }}"></audio>
+                        </div>
+                        @else
                         <div class="flex-1 flex items-center gap-3">
                             <div class="w-16 h-12 bg-inverse-surface rounded-lg flex items-center justify-center shrink-0 text-white relative shadow-2xs overflow-hidden">
                                 <span class="material-symbols-outlined text-[20px]">play_arrow</span>
@@ -89,6 +95,7 @@
                                 <span class="text-[10px] text-primary font-bold uppercase">{{ $sub->data['homework_label'] ?? 'Bài nộp' }}</span>
                             </div>
                         </div>
+                        @endif
 
                         {{-- Status & Action Buttons --}}
                         <div class="flex items-center gap-3">

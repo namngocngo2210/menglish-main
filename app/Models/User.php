@@ -154,6 +154,15 @@ class User extends Authenticatable
         return $this->belongsTo(TeacherRate::class, 'teacher_rate_id');
     }
 
+    /**
+     * Tài khoản chỉ dùng cổng học viên / phụ huynh (có portal.student, không có portal.staff): không có trang
+     * Tổng quan của nhân sự, vào thẳng cổng học viên.
+     */
+    public function isPortalStudentOnly(): bool
+    {
+        return $this->can('portal.student') && ! $this->can('portal.staff');
+    }
+
     public function isLocked(): bool
     {
         return ! $this->is_active || $this->locked_at !== null;

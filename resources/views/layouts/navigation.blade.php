@@ -97,7 +97,9 @@
 
     {{-- Menu --}}
     <nav x-ref="navContainer" @scroll.passive.debounce.100ms="saveScroll()" @scroll.passive="tip.show = false" class="sidebar-scrollbar flex-1 space-y-xs overflow-y-auto px-2 py-sm">
-        @include('layouts.partials.sidebar-link', ['url' => route('dashboard'), 'label' => 'Tổng quan', 'icon' => 'dashboard', 'active' => $dashboardActive, 'id' => 'dashboard'])
+        @unless (Auth::user()?->isPortalStudentOnly())
+            @include('layouts.partials.sidebar-link', ['url' => route('dashboard'), 'label' => 'Tổng quan', 'icon' => 'dashboard', 'active' => $dashboardActive, 'id' => 'dashboard'])
+        @endunless
 
         @foreach ($menuGroups as $group)
             @if ($loop->first || $group['section'] !== $menuGroups[$loop->index - 1]['section'])

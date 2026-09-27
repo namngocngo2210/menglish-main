@@ -17,6 +17,7 @@ use App\Models\TuitionReceipt;
 use App\Models\User;
 use App\Models\WorkTask;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -29,9 +30,14 @@ use Illuminate\View\View;
  */
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request): View
+    public function __invoke(Request $request): View|RedirectResponse
     {
         $user = $request->user();
+
+        // Học viên / phụ huynh: Tổng quan là trang của nhân sự → vào thẳng Trang chủ cổng học viên.
+        if ($user->isPortalStudentOnly()) {
+            return redirect()->route('portal.student.home');
+        }
         $roleDashboard = null;
 
         if ($user->can('dashboard.operations')) {

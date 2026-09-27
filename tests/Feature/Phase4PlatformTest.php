@@ -506,15 +506,18 @@ class Phase4PlatformTest extends TestCase
             'status' => 'studying', 'current_class_id' => $class->id, 'branch_id' => $this->branchA->id,
         ]);
 
+        Storage::fake('public');
+        $recording = UploadedFile::fake()->createWithContent('ghi-am.mp3', "ID3\x03\x00\x00\x00\x00\x00\x00".str_repeat("\xFF\xFB\x90\x64".str_repeat("\x00", 413), 3));
         $this->actingAs($studentUser)->post(route('portal.student.pronunciation.store'), [
-            'student_id' => $student->id, 'unit_title' => 'Unit 2',
+            'student_id' => $student->id, 'unit_title' => 'Unit 2', 'audio_file' => $recording,
         ])->assertSessionHasNoErrors();
 
         $record = \App\Models\AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/04_luyen_phat_am')->firstOrFail();
         $this->assertSame('pending_review', $record->status);
 
         $this->actingAs($teacher)->get(route('portal.teacher.submissions', ['classId' => $class->id, 'type' => 'pronunciation']))
-            ->assertOk()->assertSee('Học viên Phát âm');
+            ->assertOk()->assertSee('Học viên Phát âm')
+            ->assertSee('<audio controls preload="none"', false); // giáo viên nghe được bản ghi
         $this->actingAs($teacher)->post(route('portal.teacher.submissions.mark', ['id' => $record->id]), [])->assertSessionHasErrors('score');
         $this->actingAs($teacher)->post(route('portal.teacher.submissions.mark', ['id' => $record->id]), ['score' => '85/100', 'feedback' => 'Tốt'])->assertSessionHasNoErrors();
 
