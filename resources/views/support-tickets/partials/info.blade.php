@@ -30,6 +30,7 @@
         </div>
 
         {{-- Reassign Staff Form --}}
+        @can('support_ticket.assign')
         <div class="pt-3 border-t border-surface-container-highest space-y-2">
             <label class="block font-bold text-on-surface">Người phụ trách xử lý:</label>
             <form action="{{ route('tickets.assign', $ticket->id) }}" method="POST" class="space-y-2">
@@ -39,5 +40,11 @@
                 <x-ui.button type="submit" variant="secondary" size="sm" class="w-full">Cập nhật Phân công</x-ui.button>
             </form>
         </div>
+        @else
+        <div class="pt-3 border-t border-surface-container-highest flex justify-between">
+            <span class="text-on-surface-variant">Người phụ trách xử lý:</span>
+            <span class="font-bold text-on-surface">{{ $ticket->assignee?->name ?? 'Chưa phân công' }}</span>
+        </div>
+        @endcan
     </div>
 </div>

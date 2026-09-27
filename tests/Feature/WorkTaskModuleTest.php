@@ -221,7 +221,7 @@ class WorkTaskModuleTest extends TestCase
         // 4. Cấu hình TKB và nhu cầu nhân sự
         $resSchedule = $this->actingAs($this->admin)->get(route('tasks.schedule-config'));
         $resSchedule->assertOk();
-        $resSchedule->assertSee('Cấu hình Lịch &amp; TKB', false);
+        $resSchedule->assertSee('TKB — Quản lý lớp học');
 
         // 5. Bảng KPI tự động
         $resKpi = $this->actingAs($this->admin)->get(route('tasks.kpi-dashboard'));

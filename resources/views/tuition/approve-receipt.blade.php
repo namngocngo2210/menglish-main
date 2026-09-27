@@ -430,8 +430,15 @@
 
                             <div class="flex items-center gap-3">
                                 @if ($selectedReceipt->status === 'pending')
-                                    <x-ui.button variant="danger-text" icon="close" x-on:click="$dispatch('open-modal', 'reject-receipt')">Từ chối phiếu thu</x-ui.button>
-                                    <x-ui.button icon="check" x-on:click="$dispatch('open-modal', 'approve-receipt')">Duyệt phiếu thu ({{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} VNĐ)</x-ui.button>
+                                    @can('tuition.reject')
+                                        <x-ui.button variant="danger-text" icon="close" x-on:click="$dispatch('open-modal', 'reject-receipt')">Từ chối phiếu thu</x-ui.button>
+                                    @endcan
+                                    @can('tuition.approve')
+                                        <x-ui.button icon="check" x-on:click="$dispatch('open-modal', 'approve-receipt')">Duyệt phiếu thu ({{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} VNĐ)</x-ui.button>
+                                    @endcan
+                                    @cannot('tuition.approve')
+                                        <x-ui.badge color="warning" pill>Chờ Kế toán duyệt</x-ui.badge>
+                                    @endcannot
                                 @elseif ($selectedReceipt->status === 'approved')
                                     <x-ui.badge color="success" pill>Đã duyệt bởi {{ $selectedReceipt->approver?->name ?? 'Admin' }}</x-ui.badge>
                                 @elseif (in_array($selectedReceipt->status, \App\Models\TuitionReceipt::EDITABLE_STATUSES, true)

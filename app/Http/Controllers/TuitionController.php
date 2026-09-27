@@ -64,7 +64,8 @@ class TuitionController extends Controller
     public function students(Request $request)
     {
         $scope = $this->branchScope();
-        $query = TuitionBranchScope::tuitions(StudentTuition::with(['student', 'classModel', 'branch'])->latest(), $scope);
+        // Học viên đã xóa (xóa mềm) không còn tính công nợ.
+        $query = TuitionBranchScope::tuitions(StudentTuition::with(['student', 'classModel', 'branch'])->whereHas('student')->latest(), $scope);
 
         if ($search = $request->input('search')) {
             $query->whereHas('student', function ($q) use ($search) {
@@ -75,7 +76,7 @@ class TuitionController extends Controller
         }
 
         if ($status = $request->input('status')) {
-            $query->where('status', $status);
+            $status === 'overdue' ? $query->overdueNow() : $query->where('status', $status);
         }
 
         if ($branchId = $request->input('branch_id')) {
@@ -87,14 +88,14 @@ class TuitionController extends Controller
         }
 
         // Thẻ thống kê theo đúng phạm vi chi nhánh + bộ lọc chi nhánh / lớp (trước đây cộng toàn hệ thống).
-        $statsQuery = TuitionBranchScope::tuitions(StudentTuition::query(), $scope)
+        $statsQuery = TuitionBranchScope::tuitions(StudentTuition::query()->whereHas('student'), $scope)
             ->when($request->input('branch_id'), fn ($q, $b) => $q->where('branch_id', $b))
             ->when($request->input('class_id'), fn ($q, $c) => $q->where('class_id', $c));
         $stats = [
             'final' => (float) (clone $statsQuery)->sum('final_amount'),
             'paid' => (float) (clone $statsQuery)->sum('paid_amount'),
             'debt' => (float) (clone $statsQuery)->sum('debt_amount'),
-            'overdue' => (clone $statsQuery)->where('status', 'overdue')->count(),
+            'overdue' => (clone $statsQuery)->overdueNow()->count(),
         ];
 
         $tuitions = $query->paginate($request->perPage(15))->withQueryString();
@@ -1351,10 +1352,18 @@ class TuitionController extends Controller
         ]);
 
         // Luôn xác định phiếu thu từ số hóa đơn phía server (không tin tuition_receipt_id/amount từ form).
-        $receipt = TuitionReceipt::with('tuition')->where('invoice_number', trim($validated['invoice_number']))->first();
+        $receipt = TuitionReceipt::with(['tuition.student.currentClass', 'student.currentClass'])->where('invoice_number', trim($validated['invoice_number']))->first();
         if (! $receipt || $receipt->status !== TuitionReceipt::STATUS_APPROVED) {
             return redirect()->back()->withErrors([
                 'invoice_number' => 'Không tìm thấy hóa đơn đã duyệt với số '.$validated['invoice_number'].'.',
+            ])->withInput();
+        }
+        abort_unless(TuitionBranchScope::allowsReceipt($receipt, $this->branchScope()), 403, self::OUT_OF_SCOPE);
+        // Phiếu hệ thống sinh khi duyệt hoàn phí / chuyển phí đã điều chỉnh luôn học phí phải thu:
+        // hủy riêng phiếu này làm lệch công nợ, phải xử lý qua yêu cầu hoàn/chuyển phí.
+        if ((float) $receipt->amount < 0 || preg_match('/^(REFUND|XFER)-/', (string) $receipt->transaction_code)) {
+            return redirect()->back()->withErrors([
+                'invoice_number' => 'Hóa đơn '.$receipt->invoice_number.' là phiếu hoàn phí / chuyển phí do hệ thống tạo — không hủy riêng được.',
             ])->withInput();
         }
         if (abs((float) $validated['amount'] - (float) $receipt->amount) > 0.009) {
@@ -1918,7 +1927,7 @@ class TuitionController extends Controller
         $today = now()->startOfDay();
 
         // Thống kê công nợ quá hạn theo chi nhánh / lớp (toàn bộ khoản đang nợ, không theo bộ lọc tìm kiếm).
-        $allDebts = TuitionBranchScope::tuitions(StudentTuition::query(), $scope)->with(['branch', 'classModel'])->where('debt_amount', '>', 0)->get();
+        $allDebts = TuitionBranchScope::tuitions(StudentTuition::query()->whereHas('student'), $scope)->with(['branch', 'classModel'])->where('debt_amount', '>', 0)->get();
         $isOverdue = fn (StudentTuition $t) => $t->due_date && $t->due_date->lt($today) && ! $t->remindersPausedOn();
         $statsByBranch = $allDebts->groupBy('branch_id')->map(fn ($items) => [
             'branch_name' => $items->first()->branch?->name ?? 'Chưa gán chi nhánh',
@@ -1956,7 +1965,7 @@ class TuitionController extends Controller
         $upcomingDays = (int) config('tuition.upcoming_days', 14);
         $today = now()->startOfDay();
 
-        $query = TuitionBranchScope::tuitions(StudentTuition::query(), $scope)
+        $query = TuitionBranchScope::tuitions(StudentTuition::query()->whereHas('student'), $scope)
             ->with(['student', 'classModel.course', 'branch', 'contactLogs.user'])
             ->where('debt_amount', '>', 0)
             ->whereNotNull('due_date')

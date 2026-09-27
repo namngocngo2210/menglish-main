@@ -32,6 +32,7 @@
     <div class="grid grid-cols-12 gap-lg" x-data="refundTransferManager(@js($studentFinance), @js((string) (old('student_id') ?? $students->first()?->id ?? '')), @js((float) $adminFeePercent), @js($targetList), @js(in_array($oldType, ['transfer', 'refund', 'deferral'], true) ? $oldType : 'transfer'), @js((string) old('target_student_id', '')))">
         {{-- Cột trái: các khối nghiệp vụ --}}
         <div class="col-span-12 flex flex-col gap-lg lg:col-span-7">
+            @can('refund_transfer.request')
             {{-- Đánh dấu khất nợ: dời hạn đóng, vẫn giữ lịch học; duyệt xong tạm dừng nhắc nợ tới hạn mới. --}}
             <form action="{{ route('tuition.refunds.store') }}" method="POST" class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg shadow-sm">
                 @csrf
@@ -216,6 +217,9 @@
                     <x-ui.button type="submit" icon="send" x-bind:disabled="!basis.has_tuition">Gửi yêu cầu phê duyệt</x-ui.button>
                 </div>
             </form>
+            @else
+                <x-ui.alert type="info">Bạn chỉ xem được các yêu cầu. Tạo yêu cầu khất nợ / chuyển phí / hoàn phí / bảo lưu cần quyền của Kế toán hoặc Quản lý.</x-ui.alert>
+            @endcan
         </div>
 
         {{-- Cột phải: yêu cầu chờ phê duyệt --}}
