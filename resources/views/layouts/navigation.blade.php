@@ -14,7 +14,7 @@
     $settingsUrl = $sidebarMenu->settingsUrlFor(Auth::user(), request()) ? route('settings.index') : null;
     $settingsActive = $settingsUrl && ($sidebarMenu->isSettingsRoute(request()) || request()->routeIs('settings.*'));
     $dashboardActive = request()->routeIs('dashboard');
-    // "Việc cần duyệt": chỉ hiện khi duyệt được ít nhất 1 nguồn; badge = tổng chờ duyệt (cache 60s, 1 lần đọc cache).
+    // Badge mục "Cần duyệt" (khu Phê duyệt) = tổng chờ duyệt (cache 60s, 1 lần đọc cache); null khi không duyệt được nguồn nào.
     $approvalBadge = Auth::user() ? app(\App\Support\Approvals\ApprovalInboxService::class)->badge(Auth::user()) : null;
     $roleLabels = [
         'admin' => 'Quản trị hệ thống', 'manager' => 'Quản lý', 'accountant' => 'Kế toán',
@@ -98,9 +98,6 @@
     {{-- Menu --}}
     <nav x-ref="navContainer" @scroll.passive.debounce.100ms="saveScroll()" @scroll.passive="tip.show = false" class="sidebar-scrollbar flex-1 space-y-xs overflow-y-auto px-2 py-sm">
         @include('layouts.partials.sidebar-link', ['url' => route('dashboard'), 'label' => 'Tổng quan', 'icon' => 'dashboard', 'active' => $dashboardActive, 'id' => 'dashboard'])
-        @if ($approvalBadge !== null)
-            @include('layouts.partials.sidebar-link', ['url' => route('approvals.index'), 'label' => 'Việc cần duyệt', 'icon' => 'fact_check', 'active' => request()->routeIs('approvals.*'), 'id' => 'approvals', 'badge' => $approvalBadge])
-        @endif
 
         @foreach ($menuGroups as $group)
             @if ($loop->first || $group['section'] !== $menuGroups[$loop->index - 1]['section'])
@@ -108,7 +105,7 @@
                 <div class="px-md pb-1 pt-md font-caption text-[10px] font-semibold uppercase tracking-widest text-surface-variant/50 md:hidden desktop:block" data-menu-section data-sidebar-text>{{ $group['section'] }}</div>
                 <div class="mx-auto my-sm hidden h-px w-8 bg-white/10 md:block desktop:hidden" aria-hidden="true" data-sidebar-divider></div>
             @endif
-            @include('layouts.partials.sidebar-link', ['url' => $group['url'], 'label' => $group['label'], 'icon' => $group['icon'], 'active' => $group['is_active'], 'id' => $group['id']])
+            @include('layouts.partials.sidebar-link', ['url' => $group['url'], 'label' => $group['label'], 'icon' => $group['icon'], 'active' => $group['is_active'], 'id' => $group['id'], 'badge' => $group['id'] === 'approvals' ? $approvalBadge : null])
         @endforeach
 
         @if ($settingsUrl)

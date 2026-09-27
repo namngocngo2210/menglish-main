@@ -3,6 +3,7 @@
 namespace App\Support\Navigation;
 
 use App\Models\User;
+use App\Providers\ApprovalServiceProvider;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Str;
@@ -70,6 +71,46 @@ final class SidebarMenu
     {
         return [
             [
+                // Khu "Phê duyệt": mọi màn duyệt / xin duyệt gom về đây (trước nằm rải rác trong từng workspace nghiệp vụ).
+                // URL giữ nguyên, quyền của từng tab giữ như ở workspace cũ (quyền neo của khu nghiệp vụ gốc).
+                'id' => 'approvals',
+                'section' => 'Phê duyệt',
+                'label' => 'Cần duyệt',
+                'icon' => 'fact_check',
+                'items' => [
+                    // Hộp chung: chỉ hiện khi duyệt được ít nhất 1 nguồn (Gate ApprovalServiceProvider::INBOX_ABILITY).
+                    ['label' => 'Việc cần duyệt', 'route' => 'approvals.index', 'active' => ['approvals.*'], 'can' => [ApprovalServiceProvider::INBOX_ABILITY]],
+                    ...self::anchored(self::TUITION, [
+                        ['label' => 'Phiếu thu', 'route' => 'tuition.receipts.approve', 'active' => ['tuition.receipts.approve*']],
+                        ['label' => 'Hủy hóa đơn', 'route' => 'tuition.invoices.cancellations', 'active' => ['tuition.invoices.cancellations*']],
+                        ['label' => 'Hoàn tiền & Khất nợ', 'route' => 'tuition.refunds', 'active' => ['tuition.refunds*']],
+                    ]),
+                    ['label' => 'Xác nhận nhập học', 'route' => 'students.enrollments'],
+                    ...self::anchored(self::CRM, [
+                        ['label' => 'Xác nhận chính thức', 'route' => 'crm.confirmations'],
+                    ]),
+                    ...self::anchored(self::SYLLABUS_MANAGER, [
+                        ['label' => 'Sửa giáo trình', 'route' => 'syllabus.versions'],
+                        ['label' => 'Điều chỉnh tiến độ', 'route' => 'syllabus.adjustment-requests'],
+                        ['label' => 'Phân phối Big Test', 'route' => 'syllabus.big-tests.distribution'],
+                    ]),
+                    ...self::anchored(self::TASK_ASSIGNER, [
+                        ['label' => 'Hoàn thành công việc', 'route' => 'tasks.manual-approvals'],
+                    ]),
+                ],
+            ],
+            [
+                'id' => 'approval_requests',
+                'section' => 'Phê duyệt',
+                'label' => 'Xin duyệt',
+                'icon' => 'outgoing_mail',
+                // Phía giáo viên gửi yêu cầu lên Học vụ (ai xem được giáo trình đều thấy, như trước).
+                'items' => [
+                    ['label' => 'Đề xuất sửa giáo trình', 'route' => 'syllabus.teacher-propose'],
+                    ['label' => 'Xin điều chỉnh tiến độ', 'route' => 'syllabus.teacher-adjust'],
+                ],
+            ],
+            [
                 'id' => 'crm',
                 'section' => 'Tuyển sinh',
                 'label' => 'Khách hàng (CRM)',
@@ -85,7 +126,6 @@ final class SidebarMenu
                     ['label' => 'Đã nhập học', 'route' => 'crm.customers.won', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'won'],
                     ['label' => 'Thất bại', 'route' => 'crm.lost-deals', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'lost'],
                     ['label' => 'Đã xóa', 'route' => 'crm.customers.deleted', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'deleted'],
-                    ['label' => 'Xác nhận chính thức', 'route' => 'crm.confirmations', 'as' => 'menu', 'menu' => 'Xếp lớp', 'icon' => 'verified'],
                 ]),
                 'actions' => self::anchored(self::CLASS_MANAGER, [
                     ['label' => 'Chốt học phí & Xếp lớp', 'route' => 'crm.closing-wizard', 'icon' => 'how_to_reg', 'variant' => 'secondary', 'menu' => 'Xếp lớp'],
@@ -111,7 +151,6 @@ final class SidebarMenu
                 'icon' => 'school',
                 'items' => [
                     ['label' => 'Danh sách học viên', 'route' => 'students.index', 'active' => ['students.index', 'students.show', 'students.edit', 'students.create']],
-                    ['label' => 'Xác nhận nhập học', 'route' => 'students.enrollments'],
                 ],
             ],
             [
@@ -141,14 +180,10 @@ final class SidebarMenu
                         ['label' => 'Tài liệu', 'route' => 'syllabus.documents'],
                         ['label' => 'Soạn syllabus', 'route' => 'syllabus.builder'],
                         ['label' => 'Giao chặng', 'route' => 'syllabus.assignments'],
-                        ['label' => 'Duyệt đề xuất sửa', 'route' => 'syllabus.versions'],
-                        ['label' => 'Duyệt điều chỉnh tiến độ', 'route' => 'syllabus.adjustment-requests'],
                     ]),
                     // Phía giáo viên (mockup 03_Cong_Giao_Vien/07–11, 14): ai xem được giáo trình đều thấy.
                     ['label' => 'Chặng đang dạy & Order Test', 'route' => 'syllabus.teaching-stages', 'active' => ['syllabus.teaching-stages', 'teacher.order-test*']],
                     ['label' => 'Xem bài giảng', 'route' => 'syllabus.teacher-view'],
-                    ['label' => 'Đề xuất sửa giáo trình', 'route' => 'syllabus.teacher-propose'],
-                    ['label' => 'Xin điều chỉnh tiến độ', 'route' => 'syllabus.teacher-adjust'],
                 ],
             ],
             [
@@ -157,7 +192,6 @@ final class SidebarMenu
                 'label' => 'Big Test',
                 'icon' => 'assignment',
                 'items' => self::anchored(self::SYLLABUS_MANAGER, [
-                    ['label' => 'Duyệt phân phối', 'route' => 'syllabus.big-tests.distribution'],
                     ['label' => 'Nhắc lịch', 'route' => 'syllabus.big-tests.schedules'],
                     ['label' => 'Bảng điểm & Kết quả', 'route' => 'syllabus.big-tests.results', 'active' => ['syllabus.big-tests.results*']],
                 ]),
@@ -179,10 +213,7 @@ final class SidebarMenu
                 // Người xử lý nghiệp vụ kế toán (duyệt / trả về phiếu, hủy hóa đơn, hoàn / chuyển phí).
                 'items' => self::anchored(self::TUITION, [
                     ['label' => 'Công nợ học viên', 'route' => 'tuition.students', 'active' => ['tuition.students', 'tuition.receipts.create', 'tuition.receipts.edit', 'tuition.import*']],
-                    ['label' => 'Duyệt phiếu thu', 'route' => 'tuition.receipts.approve', 'active' => ['tuition.receipts.approve*']],
                     ['label' => 'Lịch sử thu', 'route' => 'tuition.history', 'active' => ['tuition.history*']],
-                    ['label' => 'Hóa đơn', 'route' => 'tuition.invoices.cancellations', 'active' => ['tuition.invoices.cancellations*']],
-                    ['label' => 'Hoàn tiền & Khất nợ', 'route' => 'tuition.refunds', 'active' => ['tuition.refunds*']],
                     ['label' => 'Quá hạn & Nhắc phí', 'route' => 'tuition.overdue', 'active' => ['tuition.overdue*']],
                 ]),
                 // Như nút cũ ở header trang Học phí: chỉ cần tuition.create (không neo kế toán).
@@ -238,7 +269,6 @@ final class SidebarMenu
                 'icon' => 'task_alt',
                 'items' => self::anchored(self::TASK_ASSIGNER, [
                     ['label' => 'Danh sách công việc', 'route' => 'tasks.index', 'active' => ['tasks.index', 'tasks.show', 'tasks.create', 'tasks.edit', 'tasks.ta-assign', 'tasks.class-reports.*']],
-                    ['label' => 'Xác nhận hoàn thành', 'route' => 'tasks.manual-approvals'],
                 ]),
                 'actions' => self::anchored(self::TASK_ASSIGNER, [
                     ['label' => 'Giao việc cho Trợ giảng', 'route' => 'tasks.ta-assign', 'icon' => 'support_agent', 'variant' => 'secondary', 'modal' => '4xl'],
