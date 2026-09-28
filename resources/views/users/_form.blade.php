@@ -27,7 +27,7 @@
     @csrf
     @if ($user->exists) @method('PUT') @endif
 
-    <div role="tablist" aria-label="Nhóm thông tin nhân sự" class="no-scrollbar flex items-center gap-lg overflow-x-auto border-b border-surface-container-highest">
+    <div role="tablist" aria-label="Nhóm thông tin người dùng" class="no-scrollbar flex items-center gap-lg overflow-x-auto border-b border-surface-container-highest">
         @foreach ($tabs as $key => [$label, $icon, $fields])
             <button type="button" role="tab" id="{{ $fid('tab-'.$key) }}" aria-controls="{{ $fid('panel-'.$key) }}"
                     data-tab="{{ $key }}" aria-selected="{{ $initialTab === $key ? 'true' : 'false' }}"
@@ -66,7 +66,7 @@
             <fieldset class="rounded-lg border border-outline-variant p-md">
                 <input type="hidden" name="concurrent_roles_present" value="1">
                 <legend class="px-xs font-label text-label uppercase text-on-surface-variant">Vai trò kiêm nhiệm</legend>
-                <p class="mb-sm font-caption text-caption text-on-surface-variant">Nhân sự giữ thêm các vai trò này ngoài vai trò chính (ví dụ Học vụ kiêm Trợ giảng). Quyền được cộng dồn.</p>
+                <p class="mb-sm font-caption text-caption text-on-surface-variant">Người dùng giữ thêm các vai trò này ngoài vai trò chính (ví dụ Học vụ kiêm Trợ giảng). Quyền được cộng dồn.</p>
                 <div class="grid grid-cols-1 gap-xs sm:grid-cols-2">
                     @foreach ($roles as $roleName)
                         <label class="flex items-center gap-sm font-body-small text-body-small">

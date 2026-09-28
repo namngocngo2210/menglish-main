@@ -8,9 +8,9 @@
     </x-ui.modal-frame>
 @else
     <x-app-layout :title="'Gán vai trò — '.$user->name">
-        <x-ui.page-header :title="'Gán vai trò & Chức vụ — '.$user->name" description="Chọn một hoặc nhiều vai trò để gán quyền tương ứng cho nhân sự này.">
+        <x-ui.page-header :title="'Gán vai trò & Chức vụ — '.$user->name" description="Chọn một hoặc nhiều vai trò để gán quyền tương ứng cho người dùng này.">
             <x-slot:breadcrumbs>
-                <a href="{{ route('users.index') }}" class="inline-flex items-center gap-xs hover:text-primary"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">group</span>Nhân sự</a>
+                <a href="{{ route('users.index') }}" class="inline-flex items-center gap-xs hover:text-primary"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">group</span>Người dùng</a>
                 <span class="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
                 <span>Gán vai trò chức vụ</span>
             </x-slot:breadcrumbs>

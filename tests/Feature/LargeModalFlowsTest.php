@@ -56,8 +56,8 @@ class LargeModalFlowsTest extends TestCase
             'giao việc trợ giảng' => [fn (self $t) => route('tasks.ta-assign'), 'modal-ta-assign-form', 'Tạo lượt giao việc cho Trợ giảng'],
             'báo cáo trực lớp' => [fn (self $t) => route('tasks.class-reports.create', ['class_id' => $t->classModel()->id]), 'modal-class-report-form', 'Nộp báo cáo trực lớp'],
             'ticket – tạo' => [fn (self $t) => route('tickets.create'), 'modal-ticket-form', 'Tạo yêu cầu hỗ trợ (Ticket)'],
-            'nhân sự – thêm' => [fn (self $t) => route('users.create'), 'modal-user-form', 'Thêm nhân viên mới'],
-            'nhân sự – sửa' => [fn (self $t) => route('users.edit', $t->staff()), 'modal-user-form', 'Sửa thông tin nhân sự'],
+            'nhân sự – thêm' => [fn (self $t) => route('users.create'), 'modal-user-form', 'Thêm người dùng mới'],
+            'nhân sự – sửa' => [fn (self $t) => route('users.edit', $t->staff()), 'modal-user-form', 'Sửa thông tin người dùng'],
             'phân quyền cá nhân' => [fn (self $t) => route('users.permissions.edit', $t->staff()), 'modal-permission-override-form', 'Phân quyền chi tiết — Giáo viên Modal'],
             'phiếu thu từ dòng học viên' => [fn (self $t) => route('tuition.receipts.create', ['tuition_id' => $t->tuition()->id]), 'modal-receipt-form', 'Lập phiếu thu học phí'],
         ];

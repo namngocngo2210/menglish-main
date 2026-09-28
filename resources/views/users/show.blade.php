@@ -33,7 +33,7 @@
                 <x-ui.badge color="success">Đang hoạt động</x-ui.badge>
             @endif
         </x-slot:badges>
-        <x-slot:meta><span class="font-code">{{ $employeeCode }} · {{ $user->email }} · {{ $user->branch?->name ?? 'Chưa gán chi nhánh' }}</span></x-slot:meta>
+        <x-slot:meta><span class="break-all font-code">{{ $employeeCode }} · {{ $user->email }} · {{ $user->branch?->name ?? 'Chưa gán chi nhánh' }}</span></x-slot:meta>
         <x-slot:actions>
             @can('user.update')
                 <x-ui.button variant="secondary" icon="edit" :href="route('users.edit', $user)" modal="3xl">Sửa thông tin</x-ui.button>
@@ -54,21 +54,21 @@
             <div class="flex min-w-0 items-center gap-md">
                 <x-ui.avatar :name="$user->name" size="lg" />
                 <div class="min-w-0 space-y-xs">
-                    <p class="font-body-medium text-body-medium font-semibold text-on-surface">{{ $primaryRole ? \App\Helpers\AclHelper::roleLabel($primaryRole) : 'Nhân sự' }}</p>
+                    <p class="font-body-medium text-body-medium font-semibold text-on-surface">{{ $primaryRole ? \App\Helpers\AclHelper::roleLabel($primaryRole) : 'Người dùng' }}</p>
                     <div class="flex flex-wrap items-center gap-x-md gap-y-xs font-body-small text-body-small text-on-surface-variant">
-                        <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">mail</span>{{ $user->email }}</span>
+                        <span class="inline-flex min-w-0 items-center gap-xs"><span class="material-symbols-outlined shrink-0 text-[16px]" aria-hidden="true">mail</span><span class="break-all">{{ $user->email }}</span></span>
                         <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">call</span><span class="{{ $user->phone ? 'font-code' : 'italic' }}">{{ $user->phone ?? $empty }}</span></span>
                         <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">apartment</span>{{ $user->branch?->name ?? 'Chưa gán chi nhánh' }}</span>
                     </div>
                 </div>
             </div>
-            <dl class="flex shrink-0 items-center gap-lg border-t border-surface-container pt-md md:border-l md:border-t-0 md:pl-lg md:pt-0">
-                <div>
+            <dl class="flex min-w-0 items-start gap-lg md:shrink-0 border-t border-surface-container pt-md md:border-l md:border-t-0 md:pl-lg md:pt-0">
+                <div class="min-w-0">
                     <dt class="font-label text-label uppercase text-on-surface-variant">Mã NV</dt>
-                    <dd class="font-code font-semibold text-on-surface">{{ $employeeCode }}</dd>
+                    <dd class="break-all font-code font-semibold text-on-surface">{{ $employeeCode }}</dd>
                 </div>
                 <div>
-                    <dt class="font-label text-label uppercase text-on-surface-variant">Lương cơ bản</dt>
+                    <dt class="whitespace-nowrap font-label text-label uppercase text-on-surface-variant">Lương cơ bản</dt>
                     <dd>
                         @if (! $canViewSensitive)
                             <span class="italic text-on-surface-variant">Ẩn</span>
@@ -87,7 +87,7 @@
                 {{-- Hồ sơ nhân sự --}}
                 <section class="rounded-xl border border-outline-variant bg-surface-container-lowest">
                     <header class="flex items-center justify-between gap-sm border-b border-surface-container px-lg py-md">
-                        <h2 class="flex items-center gap-xs font-h3 text-h3 text-on-surface"><span class="material-symbols-outlined text-primary-container" aria-hidden="true">badge</span>Hồ sơ nhân sự</h2>
+                        <h2 class="flex items-center gap-xs font-h3 text-h3 text-on-surface"><span class="material-symbols-outlined text-primary-container" aria-hidden="true">badge</span>Hồ sơ người dùng</h2>
                         @can('user.update')
                             <x-ui.button variant="ghost" size="sm" icon="edit" :href="route('users.edit', ['user' => $user, 'tab' => 'profile'])" modal="3xl">Cập nhật hồ sơ</x-ui.button>
                         @endcan
@@ -190,7 +190,7 @@
                     </header>
                     <div class="space-y-md p-lg">
                         <div class="flex flex-wrap gap-xs">
-                            <x-ui.badge color="primary" :dot="false" title="Vai trò chính">{{ $primaryRole ? \App\Helpers\AclHelper::shortRoleLabel($primaryRole) : 'Nhân sự' }}</x-ui.badge>
+                            <x-ui.badge color="primary" :dot="false" title="Vai trò chính">{{ $primaryRole ? \App\Helpers\AclHelper::shortRoleLabel($primaryRole) : 'Người dùng' }}</x-ui.badge>
                             @forelse ($user->roles->slice(1) as $extraRole)
                                 <x-ui.badge color="secondary" :dot="false">Kiêm nhiệm: {{ \App\Helpers\AclHelper::shortRoleLabel($extraRole->name) }}</x-ui.badge>
                             @empty

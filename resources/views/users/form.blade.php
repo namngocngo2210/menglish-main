@@ -1,6 +1,6 @@
 {{-- Thêm / Sửa nhân sự: mở từ danh sách → modal 3xl (htmx), 3 tab Tài khoản / Hồ sơ / Hợp đồng & Lương trong 1 form;
      mở thẳng URL → trang đầy đủ (cùng form). Lưu xong "users-changed" làm mới danh sách nhân sự. --}}
-@php $title = $user->exists ? 'Sửa thông tin nhân sự' : 'Thêm nhân viên mới'; @endphp
+@php $title = $user->exists ? 'Sửa thông tin người dùng' : 'Thêm người dùng mới'; @endphp
 @if ($asModal)
     <x-ui.modal-frame :title="$title" :description="$user->exists ? $user->name.' · '.$user->email : 'Tài khoản mới phải đổi mật khẩu ở lần đăng nhập đầu tiên.'">
         @include('users._form')
@@ -12,7 +12,7 @@
     <x-app-layout :title="$title">
         <x-ui.page-header :title="$title">
             <x-slot:breadcrumbs>
-                <a href="{{ route('users.index') }}" class="inline-flex items-center gap-xs hover:text-primary"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">group</span>Nhân sự</a>
+                <a href="{{ route('users.index') }}" class="inline-flex items-center gap-xs hover:text-primary"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">group</span>Người dùng</a>
                 <span class="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
                 <span>{{ $user->exists ? 'Sửa thông tin' : 'Thêm mới' }}</span>
             </x-slot:breadcrumbs>
