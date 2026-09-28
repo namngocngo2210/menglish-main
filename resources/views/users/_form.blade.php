@@ -14,7 +14,9 @@
         'salary' => ['Hợp đồng & Lương', 'payments', ['contract_type', 'base_salary', 'hourly_rate', 'contract_start_date', 'contract_end_date', 'contract_file']],
     ];
     $tabHasError = fn (array $fields) => collect($fields)->contains(fn ($f) => $errors->has($f) || $errors->has($f.'.*'));
-    $initialTab = collect($tabs)->search(fn ($tab) => $tabHasError($tab[2])) ?: 'account';
+    // Tab mở sẵn: tab đầu tiên có lỗi validate; nếu không có lỗi thì theo ?tab= (vd. "Tải lên HĐ mới" → salary), mặc định Tài khoản.
+    $initialTab = collect($tabs)->search(fn ($tab) => $tabHasError($tab[2]))
+        ?: (array_key_exists((string) request('tab'), $tabs) ? (string) request('tab') : 'account');
     $contractTypes = ['Toàn thời gian' => 'Toàn thời gian (Fulltime)', 'Bán thời gian' => 'Bán thời gian (Parttime)', 'Thử việc' => 'Thử việc', 'Cộng tác viên' => 'Cộng tác viên / Trợ giảng'];
 @endphp
 <form id="{{ $asModal ? 'modal-user-form' : 'user-form' }}" method="POST" action="{{ $user->exists ? route('users.update', $user) : route('users.store') }}" enctype="multipart/form-data"

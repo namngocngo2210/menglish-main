@@ -5,6 +5,7 @@
     $filtered = request()->hasAny(['search', 'branch_id', 'role', 'status']);
 @endphp
 <x-app-layout title="Quản lý Tài khoản & Vai trò">
+    @include('partials.data-confirm')
     <div x-data="{ drawerOpen: false, activeUser: null, del: { url: '', name: '' }, openProfile(u) { this.activeUser = u; this.drawerOpen = true; } }">
         <x-ui.page-header title="Quản lý Tài khoản & Vai trò" description="Danh sách nhân sự, vai trò chính và kiêm nhiệm, hợp đồng lao động.">
             <x-slot:actions>
@@ -100,7 +101,8 @@
                                         <x-ui.button variant="ghost" size="sm" icon="admin_panel_settings" :href="route('users.permissions.edit', $user)" modal="4xl" title="Phân quyền cá nhân" aria-label="Phân quyền cá nhân" />
                                     @endcan
                                     @can('user.lock')
-                                        <form action="{{ $user->isLocked() ? route('users.unlock', $user) : route('users.lock', $user) }}" method="POST" class="inline">
+                                        <form action="{{ $user->isLocked() ? route('users.unlock', $user) : route('users.lock', $user) }}" method="POST" class="inline"
+                                              data-confirm="{{ $user->isLocked() ? 'Kích hoạt lại' : 'Vô hiệu hóa' }} tài khoản {{ $user->name }}?">
                                             @csrf
                                             <x-ui.button type="submit" variant="ghost" size="sm" :icon="$user->isLocked() ? 'check_circle' : 'block'"
                                                          :title="$user->isLocked() ? 'Kích hoạt lại' : 'Vô hiệu hóa'" :aria-label="$user->isLocked() ? 'Kích hoạt lại' : 'Vô hiệu hóa'" />
@@ -120,7 +122,7 @@
                                                    class="flex items-center gap-sm px-md py-xs font-body-small text-body-small hover:bg-surface-container-low"><span class="material-symbols-outlined text-[16px]">badge</span>Vai trò & kiêm nhiệm</a>
                                             @endcan
                                             @can('user.reset_password')
-                                                <form action="{{ route('users.reset-password', $user) }}" method="POST" onsubmit="return confirm('Đặt lại mật khẩu cho nhân viên này?');">
+                                                <form action="{{ route('users.reset-password', $user) }}" method="POST" data-confirm="Đặt lại mật khẩu cho {{ $user->name }}?">
                                                     @csrf
                                                     <button type="submit" class="flex w-full items-center gap-sm px-md py-xs font-body-small text-body-small hover:bg-surface-container-low"><span class="material-symbols-outlined text-[16px]">key</span>Đặt lại mật khẩu</button>
                                                 </form>
@@ -225,10 +227,20 @@
                         </section>
                     </div>
                 </template>
-                <footer class="flex gap-sm border-t border-surface-container bg-surface-container-low p-md">
-                    <template x-if="activeUser"><x-ui.button variant="secondary" class="flex-1" x-bind:href="activeUser.show_url" href="#">Xem chi tiết</x-ui.button></template>
+                {{-- Nút mở modal: form GET boost (htmx đọc action lúc gửi) vì URL đổi theo nhân sự đang xem; mở modal thì đóng drawer. --}}
+                <footer class="flex flex-wrap gap-sm border-t border-surface-container bg-surface-container-low p-md">
+                    <x-ui.button variant="secondary" class="flex-1" x-bind:href="activeUser?.show_url" href="#">Xem chi tiết</x-ui.button>
+                    @can('user.update')
+                        <form method="GET" class="flex flex-1" x-bind:action="activeUser ? '{{ url('/users') }}/' + activeUser.id + '/edit' : ''"
+                              hx-boost="true" hx-target="#remote-modal-body" hx-swap="innerHTML" hx-push-url="false" data-modal-size="3xl" x-on:submit="drawerOpen = false">
+                            <x-ui.button type="submit" variant="secondary" icon="edit" class="flex-1">Sửa thông tin</x-ui.button>
+                        </form>
+                    @endcan
                     @can('permission.override')
-                        <template x-if="activeUser"><x-ui.button class="flex-1" x-bind:href="'{{ url('/users') }}/' + activeUser.id + '/permissions'" href="#">Phân quyền</x-ui.button></template>
+                        <form method="GET" class="flex flex-1" x-bind:action="activeUser ? '{{ url('/users') }}/' + activeUser.id + '/permissions' : ''"
+                              hx-boost="true" hx-target="#remote-modal-body" hx-swap="innerHTML" hx-push-url="false" data-modal-size="4xl" x-on:submit="drawerOpen = false">
+                            <x-ui.button type="submit" icon="admin_panel_settings" class="flex-1">Phân quyền</x-ui.button>
+                        </form>
                     @endcan
                 </footer>
             </aside>

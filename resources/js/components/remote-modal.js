@@ -75,7 +75,12 @@ document.addEventListener('htmx:beforeSwap', (e) => {
     if (/^\s*<!doctype html/i.test(e.detail.serverResponse)) {
         e.detail.shouldSwap = false;
         window.location.href = e.detail.xhr.responseURL || e.detail.requestConfig.path;
+        return;
     }
+    // Swap lại cùng form (vd. 422 kèm lỗi) → phần tử mới trùng id với phần tử cũ: htmx "settle" chép thuộc tính cũ sang rồi
+    // khôi phục thuộc tính gốc sau khi Alpine đã chạy → mất style/class do x-show / :class gắn (mọi tab hiện cùng lúc).
+    // Dọn nội dung cũ trước khi swap để không có id trùng.
+    e.detail.target.replaceChildren();
 });
 
 document.addEventListener('htmx:afterSwap', (e) => {

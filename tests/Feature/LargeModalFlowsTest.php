@@ -372,6 +372,25 @@ class LargeModalFlowsTest extends TestCase
             ->assertSee('x-on:users-changed.window', false);
     }
 
+    public function test_user_detail_page_opens_edit_forms_in_modal(): void
+    {
+        $staff = $this->staff();
+
+        // Trang chi tiết: Sửa thông tin / Tải HĐ / Phân quyền mở modal (hx-get), cả trang tự tải lại khi lưu xong.
+        $this->actingAs($this->admin)->get(route('users.show', $staff))->assertOk()
+            ->assertSee('hx-get="'.route('users.edit', $staff).'"', false)
+            ->assertSee('hx-get="'.e(route('users.edit', ['user' => $staff, 'tab' => 'salary'])).'"', false)
+            ->assertSee('hx-get="'.route('users.permissions.edit', $staff).'"', false)
+            ->assertSee('id="user-detail"', false)
+            ->assertSee('hx-trigger="users-changed from:body"', false);
+
+        // ?tab=salary mở sẵn tab Hợp đồng & Lương; lỗi validate vẫn ưu tiên tab có lỗi.
+        $this->actingAs($this->admin)->get(route('users.edit', ['user' => $staff, 'tab' => 'salary']), self::HX)->assertOk()
+            ->assertSee('data-tab="salary" aria-selected="true"', false);
+        $this->actingAs($this->admin)->get(route('users.edit', ['user' => $staff, 'tab' => 'bogus']), self::HX)->assertOk()
+            ->assertSee('data-tab="account" aria-selected="true"', false);
+    }
+
     // ── Phiếu thu học phí ────────────────────────────────────────────────────────────────────
 
     public function test_receipt_modal_from_student_row(): void
