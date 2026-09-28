@@ -41,7 +41,7 @@
             </x-slot:actions>
         </x-ui.page-header>
 
-        <div class="mx-auto max-w-5xl space-y-lg">
+        <div class="space-y-lg">
             @include('tuition.import._steps')
         </div>
     </x-app-layout>

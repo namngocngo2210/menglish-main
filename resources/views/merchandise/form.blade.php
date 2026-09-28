@@ -17,7 +17,7 @@
             </x-slot:breadcrumbs>
         </x-ui.page-header>
 
-        <div class="mx-auto max-w-3xl rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
+        <div class="max-w-3xl rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
             @include('merchandise._form')
         </div>
     </x-app-layout>

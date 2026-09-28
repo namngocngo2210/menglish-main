@@ -29,7 +29,7 @@
         </x-ui.modal>
     @endcan
 
-    <div class="max-w-5xl mx-auto space-y-6 pb-10">
+    <div class="space-y-6 pb-10">
         {{-- Chọn giáo trình đang soạn --}}
         <section class="bg-surface-container-lowest border border-surface-container-highest rounded-2xl p-4 shadow-sm">
             <form method="GET" action="{{ route('syllabus.builder') }}" class="flex flex-col sm:flex-row sm:items-end gap-3">

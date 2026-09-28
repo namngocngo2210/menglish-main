@@ -7,7 +7,7 @@
         </x-slot:actions>
     </x-ui.page-header>
 
-    <div class="max-w-4xl mx-auto space-y-6" x-data="closingWizard()">
+    <div class="max-w-4xl space-y-6" x-data="closingWizard()">
         @if ($errors->any())
             <x-ui.alert type="error" title="Không thể hoàn tất chốt khách:">
                 <ul class="list-disc pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>

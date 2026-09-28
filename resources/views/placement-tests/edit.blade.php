@@ -17,7 +17,7 @@
         }
     @endphp
 
-    <div class="max-w-5xl mx-auto space-y-6" x-data="testBuilder({
+    <div class="space-y-6" x-data="testBuilder({
         questions: @json($currentQuestions)
     })" x-on:modal-closed.window="$event.detail === 'placement-question' && (showModal = false, editIndex = null)">
         <form action="{{ route('placement-tests.update', $test->id) }}" method="POST" @submit="syncBeforeSubmit($event)" class="space-y-6">

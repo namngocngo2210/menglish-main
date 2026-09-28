@@ -26,7 +26,7 @@
         </x-slot:breadcrumbs>
     </x-ui.page-header>
 
-    <div class="mx-auto max-w-2xl rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
+    <div class="max-w-2xl rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
         @if ($canTaAssign)
             @include('tasks.partials.assign-mode-switch', ['current' => 'staff'])
         @endif

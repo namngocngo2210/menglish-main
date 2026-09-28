@@ -7,7 +7,7 @@
         </x-slot:actions>
     </x-ui.page-header>
 
-    <div class="max-w-7xl mx-auto space-y-6" x-data="{ del: { url: '', name: '' } }">
+    <div class="space-y-6" x-data="{ del: { url: '', name: '' } }">
 
         {{-- Metrics Overview Cards --}}
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">

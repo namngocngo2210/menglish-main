@@ -2,7 +2,7 @@
     <x-ui.page-header title="Tạo lớp mới" icon="group_add" :back="route('classes.index')" back-label="Danh sách lớp" />
 
 
-    <div class="max-w-4xl mx-auto space-y-6">
+    <div class="space-y-6">
 
         {{-- Main Form Card --}}
         <form action="{{ route('classes.store') }}" method="POST" class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm overflow-hidden divide-y divide-surface-container-highest">

@@ -9,7 +9,7 @@
     </x-ui.page-header>
 
     @if($errors->any())
-        <x-ui.alert type="error" class="max-w-4xl mx-auto mb-4 text-xs">
+        <x-ui.alert type="error" class="mb-4 text-xs">
             <ul class="list-disc list-inside space-y-1">
                 @foreach($errors->all() as $error)
                     <li>{{ $error }}</li>
@@ -18,7 +18,7 @@
         </x-ui.alert>
     @endif
 
-    <div class="max-w-4xl mx-auto space-y-6">
+    <div class="space-y-6">
         <form action="{{ route('classes.update', $class->id) }}" method="POST" class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm overflow-hidden divide-y divide-surface-container-highest">
             @csrf
             @method('PUT')

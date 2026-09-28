@@ -10,7 +10,7 @@
         $defaultBranch = old('branch_id', request('branch_id') ?: ($branches->count() === 1 ? $branches->first()->id : (auth()->user()->branch_id && $branches->contains('id', auth()->user()->branch_id) ? auth()->user()->branch_id : '')));
     @endphp
 
-    <div class="mx-auto max-w-3xl"
+    <div class="max-w-3xl"
          x-data="{
             teachers: @js($teacherOptions),
             classes: @js($classOptions),

@@ -33,7 +33,7 @@
      }"
      x-init="(@js($flashes)).forEach(f => add(f.message, f.type))"
      @toast.window="add($event.detail?.message, $event.detail?.type || 'success')"
-     class="pointer-events-none fixed bottom-lg right-lg z-[70] flex w-full max-w-sm flex-col gap-sm"
+     class="pointer-events-none fixed bottom-lg left-md right-md z-[70] flex flex-col gap-sm sm:left-auto sm:right-lg sm:w-full sm:max-w-sm"
      aria-live="polite">
     <template x-for="toast in toasts" :key="toast.id">
         <div x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0"
