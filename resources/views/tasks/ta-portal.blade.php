@@ -8,7 +8,7 @@
     $firstOpen = collect($groups)->first(fn ($g) => $g['tasks']->isNotEmpty())['key'] ?? 'before';
 @endphp
 <x-app-layout title="Nhiệm vụ hôm nay">
-    <div class="mx-auto max-w-md pb-24 md:max-w-2xl md:pb-0"
+    <div class="mx-auto max-w-md pb-24 md:max-w-6xl md:pb-0"
          x-data="{
             selectedTask: null,
             proofName: '',
@@ -62,7 +62,7 @@
         @endif
 
         {{-- Nhiệm vụ theo ca — nộp báo cáo trực lớp trong modal xong → "tasks-changed" tải lại khối này (giữ ngày / TA đang xem) --}}
-        <section id="nhiem-vu" class="space-y-md" aria-label="Nhiệm vụ"
+        <section id="nhiem-vu" class="space-y-md lg:grid lg:grid-cols-3 lg:items-start lg:gap-md lg:space-y-0" aria-label="Nhiệm vụ"
                  hx-get="{{ route('portal.ta-tasks', request()->query()) }}" hx-trigger="tasks-changed from:body" hx-select="#nhiem-vu" hx-swap="outerHTML" hx-disinherit="*">
             @foreach ($groups as $group)
                 <div class="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest" x-data="{ open: @js($group['key'] === $firstOpen || $group['tasks']->isNotEmpty()) }">

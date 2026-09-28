@@ -18,7 +18,7 @@
     @endphp
 
     {{-- Mobile Frame for Feedback --}}
-    <div class="max-w-[430px] mx-auto bg-surface-container-lowest min-h-[844px] shadow-2xl rounded-3xl border border-surface-container-highest overflow-hidden flex flex-col relative pb-24 my-4"
+    <div class="max-w-[430px] md:max-w-4xl mx-auto bg-surface-container-lowest min-h-[844px] md:min-h-0 shadow-2xl md:shadow-sm rounded-3xl border border-surface-container-highest overflow-hidden flex flex-col relative pb-24 md:pb-6 my-4"
          x-data="{
             viewState: '{{ $hasSaved ? 'form-updated' : 'form-new' }}', // 'form-new', 'form-updated', 'state-closed', 'state-empty'
             rating: {{ $savedRating }},

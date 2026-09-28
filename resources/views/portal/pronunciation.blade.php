@@ -77,7 +77,7 @@
             };
         }
     </script>
-    <div class="max-w-[430px] mx-auto bg-surface-container-low min-h-[844px] shadow-2xl rounded-3xl border border-surface-container-highest overflow-hidden flex flex-col relative pb-24 my-4"
+    <div class="max-w-[430px] md:max-w-4xl mx-auto bg-surface-container-low min-h-[844px] md:min-h-0 shadow-2xl md:shadow-sm rounded-3xl border border-surface-container-highest overflow-hidden flex flex-col relative pb-24 md:pb-6 my-4"
          x-data="pronunciationRecorder()">
 
         {{-- Top Header Partial --}}

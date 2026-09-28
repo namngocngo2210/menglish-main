@@ -52,7 +52,7 @@
         </div>
 
         {{-- Student Mobile Frame --}}
-        <div class="max-w-[420px] mx-auto bg-surface-container-lowest rounded-3xl border border-surface-container-highest shadow-xl overflow-hidden pb-8">
+        <div class="max-w-[420px] md:max-w-none mx-auto bg-surface-container-lowest rounded-3xl border border-surface-container-highest shadow-xl md:shadow-sm overflow-hidden pb-8">
             {{-- Decorative Header Area --}}
             <div class="w-full h-[140px] bg-gradient-to-br from-primary-container to-primary-container/60 p-6 flex flex-col justify-end text-white relative">
                 <div class="absolute top-3 right-3 bg-surface-container-lowest/20 backdrop-blur-xs px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase">
@@ -76,7 +76,7 @@
                 </a>
             </div>
 
-            <div class="px-4 flex flex-col gap-6 mt-4 pb-20">
+            <div class="px-4 md:px-6 flex flex-col gap-6 mt-4 pb-20 md:pb-4">
                 {{-- 1. BÀI TẬP VỀ NHÀ — học viên vào trang để nộp bài nên đặt lên đầu --}}
                 <section class="flex flex-col gap-2.5">
                     <div class="flex items-center gap-1.5">
