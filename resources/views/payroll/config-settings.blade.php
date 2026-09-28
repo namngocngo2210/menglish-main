@@ -6,7 +6,7 @@
         $fmt = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.');
     @endphp
 
-    <div class="max-w-3xl mx-auto space-y-5">
+    <div class="max-w-3xl space-y-5">
 
         <x-ui.alert type="info">
             <div class="space-y-1 text-xs leading-relaxed text-on-surface-variant">

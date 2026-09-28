@@ -56,8 +56,8 @@ class LargeModalFlowsTest extends TestCase
             'giao việc trợ giảng' => [fn (self $t) => route('tasks.ta-assign'), 'modal-ta-assign-form', 'Tạo lượt giao việc cho Trợ giảng'],
             'báo cáo trực lớp' => [fn (self $t) => route('tasks.class-reports.create', ['class_id' => $t->classModel()->id]), 'modal-class-report-form', 'Nộp báo cáo trực lớp'],
             'ticket – tạo' => [fn (self $t) => route('tickets.create'), 'modal-ticket-form', 'Tạo yêu cầu hỗ trợ (Ticket)'],
-            'nhân sự – thêm' => [fn (self $t) => route('users.create'), 'modal-user-form', 'Thêm nhân viên mới'],
-            'nhân sự – sửa' => [fn (self $t) => route('users.edit', $t->staff()), 'modal-user-form', 'Sửa thông tin nhân sự'],
+            'nhân sự – thêm' => [fn (self $t) => route('users.create'), 'modal-user-form', 'Thêm người dùng mới'],
+            'nhân sự – sửa' => [fn (self $t) => route('users.edit', $t->staff()), 'modal-user-form', 'Sửa thông tin người dùng'],
             'phân quyền cá nhân' => [fn (self $t) => route('users.permissions.edit', $t->staff()), 'modal-permission-override-form', 'Phân quyền chi tiết — Giáo viên Modal'],
             'phiếu thu từ dòng học viên' => [fn (self $t) => route('tuition.receipts.create', ['tuition_id' => $t->tuition()->id]), 'modal-receipt-form', 'Lập phiếu thu học phí'],
         ];
@@ -370,6 +370,25 @@ class LargeModalFlowsTest extends TestCase
         $this->actingAs($this->admin)->get(route('users.permissions.edit', $staff))->assertOk()
             ->assertSee('hx-get="'.route('users.roles.edit', $staff).'"', false)
             ->assertSee('x-on:users-changed.window', false);
+    }
+
+    public function test_user_detail_page_opens_edit_forms_in_modal(): void
+    {
+        $staff = $this->staff();
+
+        // Trang chi tiết: Sửa thông tin / Tải HĐ / Phân quyền mở modal (hx-get), cả trang tự tải lại khi lưu xong.
+        $this->actingAs($this->admin)->get(route('users.show', $staff))->assertOk()
+            ->assertSee('hx-get="'.route('users.edit', $staff).'"', false)
+            ->assertSee('hx-get="'.e(route('users.edit', ['user' => $staff, 'tab' => 'salary'])).'"', false)
+            ->assertSee('hx-get="'.route('users.permissions.edit', $staff).'"', false)
+            ->assertSee('id="user-detail"', false)
+            ->assertSee('hx-trigger="users-changed from:body"', false);
+
+        // ?tab=salary mở sẵn tab Hợp đồng & Lương; lỗi validate vẫn ưu tiên tab có lỗi.
+        $this->actingAs($this->admin)->get(route('users.edit', ['user' => $staff, 'tab' => 'salary']), self::HX)->assertOk()
+            ->assertSee('data-tab="salary" aria-selected="true"', false);
+        $this->actingAs($this->admin)->get(route('users.edit', ['user' => $staff, 'tab' => 'bogus']), self::HX)->assertOk()
+            ->assertSee('data-tab="account" aria-selected="true"', false);
     }
 
     // ── Phiếu thu học phí ────────────────────────────────────────────────────────────────────

@@ -20,7 +20,7 @@
     </x-ui.page-header>
 
 
-    <div class="max-w-6xl mx-auto space-y-6" x-data="placementResultEngine({
+    <div class="space-y-6" x-data="placementResultEngine({
         questions: {{ Js::from($questions) }},
         answers: {{ Js::from($submission->answers ?? []) }},
         writingContent: {{ Js::from($submission->writing_content ?? '') }}

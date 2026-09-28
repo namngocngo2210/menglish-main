@@ -14,7 +14,9 @@
         'salary' => ['Hợp đồng & Lương', 'payments', ['contract_type', 'base_salary', 'hourly_rate', 'contract_start_date', 'contract_end_date', 'contract_file']],
     ];
     $tabHasError = fn (array $fields) => collect($fields)->contains(fn ($f) => $errors->has($f) || $errors->has($f.'.*'));
-    $initialTab = collect($tabs)->search(fn ($tab) => $tabHasError($tab[2])) ?: 'account';
+    // Tab mở sẵn: tab đầu tiên có lỗi validate; nếu không có lỗi thì theo ?tab= (vd. "Tải lên HĐ mới" → salary), mặc định Tài khoản.
+    $initialTab = collect($tabs)->search(fn ($tab) => $tabHasError($tab[2]))
+        ?: (array_key_exists((string) request('tab'), $tabs) ? (string) request('tab') : 'account');
     $contractTypes = ['Toàn thời gian' => 'Toàn thời gian (Fulltime)', 'Bán thời gian' => 'Bán thời gian (Parttime)', 'Thử việc' => 'Thử việc', 'Cộng tác viên' => 'Cộng tác viên / Trợ giảng'];
 @endphp
 <form id="{{ $asModal ? 'modal-user-form' : 'user-form' }}" method="POST" action="{{ $user->exists ? route('users.update', $user) : route('users.store') }}" enctype="multipart/form-data"
@@ -25,7 +27,7 @@
     @csrf
     @if ($user->exists) @method('PUT') @endif
 
-    <div role="tablist" aria-label="Nhóm thông tin nhân sự" class="no-scrollbar flex items-center gap-lg overflow-x-auto border-b border-surface-container-highest">
+    <div role="tablist" aria-label="Nhóm thông tin người dùng" class="no-scrollbar flex items-center gap-lg overflow-x-auto border-b border-surface-container-highest">
         @foreach ($tabs as $key => [$label, $icon, $fields])
             <button type="button" role="tab" id="{{ $fid('tab-'.$key) }}" aria-controls="{{ $fid('panel-'.$key) }}"
                     data-tab="{{ $key }}" aria-selected="{{ $initialTab === $key ? 'true' : 'false' }}"
@@ -64,7 +66,7 @@
             <fieldset class="rounded-lg border border-outline-variant p-md">
                 <input type="hidden" name="concurrent_roles_present" value="1">
                 <legend class="px-xs font-label text-label uppercase text-on-surface-variant">Vai trò kiêm nhiệm</legend>
-                <p class="mb-sm font-caption text-caption text-on-surface-variant">Nhân sự giữ thêm các vai trò này ngoài vai trò chính (ví dụ Học vụ kiêm Trợ giảng). Quyền được cộng dồn.</p>
+                <p class="mb-sm font-caption text-caption text-on-surface-variant">Người dùng giữ thêm các vai trò này ngoài vai trò chính (ví dụ Học vụ kiêm Trợ giảng). Quyền được cộng dồn.</p>
                 <div class="grid grid-cols-1 gap-xs sm:grid-cols-2">
                     @foreach ($roles as $roleName)
                         <label class="flex items-center gap-sm font-body-small text-body-small">

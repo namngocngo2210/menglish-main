@@ -4,7 +4,7 @@
      Lớp học còn "Phạm vi áp dụng" theo chi nhánh / lớp cụ thể. --}}
 @php $targetIsSuperAdmin = $user->isSuperAdmin(); @endphp
 @if ($asModal)
-    <x-ui.modal-frame :title="'Phân quyền chi tiết — '.$user->name" description="Phân quyền cá nhân thắng quyền theo vai trò: &quot;Thu hồi&quot; chặn quyền vai trò đang cấp, &quot;Cấp thêm&quot; mở quyền vai trò không có. Mọi thay đổi được ghi nhật ký.">
+    <x-ui.modal-frame :title="'Phân quyền chi tiết — '.$user->name" description="Phân quyền cá nhân thắng quyền theo vai trò: “Thu hồi” chặn quyền vai trò đang cấp, “Cấp thêm” mở quyền vai trò không có. Mọi thay đổi được ghi nhật ký.">
         @if ($targetIsSuperAdmin)
             <x-ui.alert type="warning" class="mb-md">Tài khoản Super Admin luôn có toàn quyền thao tác (phân quyền cá nhân không thu hẹp được) — chỉ các quyền "đối tượng" có tác dụng.</x-ui.alert>
         @endif
@@ -24,7 +24,7 @@
     <div x-data x-on:users-changed.window="window.location.reload()" hidden></div>
     <x-ui.page-header :title="'Cấu hình quyền chi tiết — '.$user->name">
         <x-slot:breadcrumbs>
-            <a href="{{ route('users.index') }}" class="inline-flex items-center gap-xs hover:text-primary"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">home</span>Nhân sự</a>
+            <a href="{{ route('users.index') }}" class="inline-flex items-center gap-xs hover:text-primary"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">home</span>Người dùng</a>
             <span class="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
             <span>Phân quyền cá nhân</span>
         </x-slot:breadcrumbs>

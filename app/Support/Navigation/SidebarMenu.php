@@ -253,12 +253,12 @@ final class SidebarMenu
             ],
             [
                 'id' => 'hr',
-                'section' => 'Nhân sự',
-                'label' => 'Nhân sự',
+                'section' => 'Người dùng',
+                'label' => 'Người dùng',
                 'icon' => 'badge',
                 'items' => [
                     ...self::anchored(self::HR, [
-                        ['label' => 'Nhân sự & Tài khoản', 'route' => 'users.index', 'active' => ['users.*']],
+                        ['label' => 'Người dùng & Tài khoản', 'route' => 'users.index', 'active' => ['users.*']],
                         ['label' => 'KPI tháng', 'route' => 'kpi.monthly', 'active' => ['kpi.monthly', 'kpi.evaluate']],
                         ['label' => 'Rà soát điểm danh', 'route' => 'kpi.attendance-review'],
                         ['label' => 'Nhật ký sự vụ học vụ', 'route' => 'reports.journal'],
@@ -273,7 +273,7 @@ final class SidebarMenu
             ],
             [
                 'id' => 'tasks',
-                'section' => 'Nhân sự',
+                'section' => 'Người dùng',
                 'label' => 'Công việc',
                 'icon' => 'task_alt',
                 'items' => self::anchored(self::TASK_ASSIGNER, [
@@ -286,7 +286,7 @@ final class SidebarMenu
             ],
             [
                 'id' => 'tickets',
-                'section' => 'Nhân sự',
+                'section' => 'Người dùng',
                 'label' => 'Ticket hỗ trợ',
                 'icon' => 'confirmation_number',
                 'items' => self::anchored(self::STAFF, [
@@ -295,7 +295,7 @@ final class SidebarMenu
             ],
             [
                 'id' => 'timesheets',
-                'section' => 'Nhân sự',
+                'section' => 'Người dùng',
                 'label' => 'Chấm công',
                 'icon' => 'schedule',
                 // Kế toán chỉ thấy tab chấm công nào Admin cấp quyền (attendance_staff.*).
@@ -308,7 +308,7 @@ final class SidebarMenu
             ],
             [
                 'id' => 'payroll',
-                'section' => 'Nhân sự',
+                'section' => 'Người dùng',
                 'label' => 'Lương & Phạt',
                 'icon' => 'payments',
                 'items' => self::anchored(self::PAYROLL, [

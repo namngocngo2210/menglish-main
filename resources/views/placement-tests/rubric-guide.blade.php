@@ -11,7 +11,7 @@
         </x-slot:actions>
     </x-ui.page-header>
 
-    <div class="max-w-6xl mx-auto space-y-6" x-data="rubricApp({{ Js::from(\App\Services\PlacementRubricService::clientConfig()) }})">
+    <div class="space-y-6" x-data="rubricApp({{ Js::from(\App\Services\PlacementRubricService::clientConfig()) }})">
         
         {{-- Header Banner --}}
         <div class="bg-gradient-to-r from-inverse-surface via-inverse-surface to-on-secondary-fixed text-white rounded-2xl p-6 shadow-md border border-inverse-surface flex flex-col md:flex-row items-start md:items-center justify-between gap-4">

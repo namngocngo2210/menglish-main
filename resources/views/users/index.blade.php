@@ -5,11 +5,12 @@
     $filtered = request()->hasAny(['search', 'branch_id', 'role', 'status']);
 @endphp
 <x-app-layout title="Quản lý Tài khoản & Vai trò">
+    @include('partials.data-confirm')
     <div x-data="{ drawerOpen: false, activeUser: null, del: { url: '', name: '' }, openProfile(u) { this.activeUser = u; this.drawerOpen = true; } }">
-        <x-ui.page-header title="Quản lý Tài khoản & Vai trò" description="Danh sách nhân sự, vai trò chính và kiêm nhiệm, hợp đồng lao động.">
+        <x-ui.page-header title="Quản lý Tài khoản & Vai trò" description="Danh sách người dùng, vai trò chính và kiêm nhiệm, hợp đồng lao động.">
             <x-slot:actions>
                 @can('user.create')
-                    <x-ui.button icon="person_add" :href="route('users.create')" modal="3xl">Thêm nhân viên mới</x-ui.button>
+                    <x-ui.button icon="person_add" :href="route('users.create')" modal="3xl">Thêm người dùng mới</x-ui.button>
                 @endcan
             </x-slot:actions>
         </x-ui.page-header>
@@ -19,7 +20,7 @@
         @endif
 
         <div class="mb-md grid grid-cols-2 gap-md md:grid-cols-4">
-            <x-ui.stat-card label="Tổng nhân sự" :value="$totalStaff" icon="group" />
+            <x-ui.stat-card label="Tổng người dùng" :value="$totalStaff" icon="group" />
             <x-ui.stat-card label="Đang hoạt động" :value="$activeStaff" icon="check_circle" tone="success" />
             <x-ui.stat-card label="Khối học thuật" :value="$academicStaff" icon="school" tone="secondary" />
             <x-ui.stat-card label="Vô hiệu hóa" :value="$lockedStaff" icon="block" tone="error" />
@@ -27,7 +28,7 @@
 
         @if ($expiringContracts > 0)
             <x-ui.alert type="warning" class="mb-md">
-                {{ $expiringContracts }} nhân sự có hợp đồng đã hết hạn hoặc hết hạn trong {{ \App\Models\User::CONTRACT_WARNING_DAYS }} ngày tới —
+                {{ $expiringContracts }} người dùng có hợp đồng đã hết hạn hoặc hết hạn trong {{ \App\Models\User::CONTRACT_WARNING_DAYS }} ngày tới —
                 <a class="font-semibold underline" href="{{ route('users.index', ['status' => 'contract_expiring']) }}">lọc danh sách</a>.
             </x-ui.alert>
         @endif
@@ -36,7 +37,7 @@
         <x-ui.data-table min-width="860px">
             <x-slot:header>
                 <form method="GET" action="{{ route('users.index') }}" class="flex w-full flex-col gap-sm md:flex-row md:items-center">
-                    <div class="flex-1"><x-ui.input name="search" icon="search" :value="request('search')" placeholder="Tìm kiếm nhân viên (họ tên, email, SĐT, mã NV)..." aria-label="Tìm kiếm" /></div>
+                    <div class="flex-1"><x-ui.input name="search" icon="search" :value="request('search')" placeholder="Tìm kiếm người dùng (họ tên, email, SĐT, mã NV)..." aria-label="Tìm kiếm" /></div>
                     <x-ui.select name="branch_id" :options="$branches->pluck('name', 'id')" placeholder="Tất cả cơ sở" aria-label="Cơ sở" />
                     <x-ui.select name="role" :options="$roles->mapWithKeys(fn ($r) => [$r => \App\Helpers\AclHelper::shortRoleLabel($r)])" placeholder="Tất cả vai trò" aria-label="Vai trò" />
                     <x-ui.select name="status" :options="['active' => 'Đang hoạt động', 'locked' => 'Vô hiệu hóa', 'contract_expiring' => 'HĐ sắp/đã hết hạn']" placeholder="Mọi trạng thái" aria-label="Trạng thái" />
@@ -68,7 +69,8 @@
                                     <x-ui.avatar :name="$user->name" />
                                     <div class="min-w-0">
                                         <a href="{{ route('users.show', $user) }}" class="font-semibold text-on-surface hover:text-primary">{{ $user->name }}</a>
-                                        <div class="font-code text-caption text-on-surface-variant">{{ $user->email }} · {{ $payload['employee_code'] }}</div>
+                                        <div class="max-w-[280px] break-all font-code text-caption text-on-surface-variant">{{ $user->email }}</div>
+                                        <div class="max-w-[280px] truncate font-code text-caption text-on-surface-variant" title="{{ $payload['employee_code'] }}">{{ $payload['employee_code'] }}</div>
                                     </div>
                                 </div>
                             </td>
@@ -100,7 +102,8 @@
                                         <x-ui.button variant="ghost" size="sm" icon="admin_panel_settings" :href="route('users.permissions.edit', $user)" modal="4xl" title="Phân quyền cá nhân" aria-label="Phân quyền cá nhân" />
                                     @endcan
                                     @can('user.lock')
-                                        <form action="{{ $user->isLocked() ? route('users.unlock', $user) : route('users.lock', $user) }}" method="POST" class="inline">
+                                        <form action="{{ $user->isLocked() ? route('users.unlock', $user) : route('users.lock', $user) }}" method="POST" class="inline"
+                                              data-confirm="{{ $user->isLocked() ? 'Kích hoạt lại' : 'Vô hiệu hóa' }} tài khoản {{ $user->name }}?">
                                             @csrf
                                             <x-ui.button type="submit" variant="ghost" size="sm" :icon="$user->isLocked() ? 'check_circle' : 'block'"
                                                          :title="$user->isLocked() ? 'Kích hoạt lại' : 'Vô hiệu hóa'" :aria-label="$user->isLocked() ? 'Kích hoạt lại' : 'Vô hiệu hóa'" />
@@ -120,7 +123,7 @@
                                                    class="flex items-center gap-sm px-md py-xs font-body-small text-body-small hover:bg-surface-container-low"><span class="material-symbols-outlined text-[16px]">badge</span>Vai trò & kiêm nhiệm</a>
                                             @endcan
                                             @can('user.reset_password')
-                                                <form action="{{ route('users.reset-password', $user) }}" method="POST" onsubmit="return confirm('Đặt lại mật khẩu cho nhân viên này?');">
+                                                <form action="{{ route('users.reset-password', $user) }}" method="POST" data-confirm="Đặt lại mật khẩu cho {{ $user->name }}?">
                                                     @csrf
                                                     <button type="submit" class="flex w-full items-center gap-sm px-md py-xs font-body-small text-body-small hover:bg-surface-container-low"><span class="material-symbols-outlined text-[16px]">key</span>Đặt lại mật khẩu</button>
                                                 </form>
@@ -136,19 +139,19 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5"><x-ui.empty-state icon="person_search" title="Không tìm thấy nhân viên nào phù hợp với bộ lọc" /></td></tr>
+                        <tr><td colspan="5"><x-ui.empty-state icon="person_search" title="Không tìm thấy người dùng nào phù hợp với bộ lọc" /></td></tr>
                     @endforelse
                 </tbody>
             </table>
             <x-slot:footer>
-                <x-ui.pagination :paginator="$users" unit="nhân viên" />
+                <x-ui.pagination :paginator="$users" unit="người dùng" />
             </x-slot:footer>
         </x-ui.data-table>
         </div>
 
         {{-- Xác nhận xóa tài khoản (form thường: controller giữ redirect + flash như cũ) --}}
         @can('user.delete')
-            <x-ui.modal name="delete-user" title="Xóa tài khoản nhân viên?" max-width="md">
+            <x-ui.modal name="delete-user" title="Xóa tài khoản người dùng?" max-width="md">
                 <p>Xóa tài khoản <strong class="font-semibold" x-text="del.name"></strong>?</p>
                 <form id="delete-user-form" method="POST" :action="del.url">
                     @csrf @method('DELETE')
@@ -161,11 +164,11 @@
         @endcan
 
         {{-- Hồ sơ nhanh (drawer) --}}
-        <div x-show="drawerOpen" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Hồ sơ nhân sự">
+        <div x-show="drawerOpen" x-cloak class="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Hồ sơ người dùng">
             <div class="absolute inset-0 bg-on-surface/40" x-on:click="drawerOpen = false"></div>
             <aside class="absolute inset-y-0 right-0 flex w-full max-w-md flex-col bg-surface-container-lowest shadow-xl" x-show="drawerOpen" x-transition>
                 <header class="flex items-center justify-between border-b border-surface-container px-md py-sm">
-                    <h2 class="font-h3 text-h3 text-on-surface">Hồ sơ nhân sự</h2>
+                    <h2 class="font-h3 text-h3 text-on-surface">Hồ sơ người dùng</h2>
                     <x-ui.button variant="ghost" icon="close" aria-label="Đóng" x-on:click="drawerOpen = false" />
                 </header>
                 <template x-if="activeUser">
@@ -174,13 +177,13 @@
                             <span class="flex h-14 w-14 items-center justify-center rounded-full bg-primary-container font-h2 text-h2 text-white" x-text="activeUser.name.charAt(0)"></span>
                             <div class="min-w-0">
                                 <p class="font-h3 text-h3 text-on-surface" x-text="activeUser.name"></p>
-                                <p class="text-on-surface-variant" x-text="(activeUser.primary_role || 'Nhân viên') + ' · ' + (activeUser.branch ? activeUser.branch.name : 'Chưa gán chi nhánh')"></p>
+                                <p class="text-on-surface-variant" x-text="(activeUser.primary_role || 'Người dùng') + ' · ' + (activeUser.branch ? activeUser.branch.name : 'Chưa gán chi nhánh')"></p>
                                 <p class="font-code text-caption text-on-surface-variant" x-text="activeUser.email + ' · ' + activeUser.employee_code"></p>
                             </div>
                         </div>
 
                         <section class="space-y-sm rounded-lg border border-outline-variant p-md">
-                            <h3 class="flex items-center gap-xs font-label text-label uppercase text-on-surface"><span class="material-symbols-outlined text-[16px] text-primary-container">badge</span>Thông tin nhân sự</h3>
+                            <h3 class="flex items-center gap-xs font-label text-label uppercase text-on-surface"><span class="material-symbols-outlined text-[16px] text-primary-container">badge</span>Thông tin người dùng</h3>
                             <dl class="grid grid-cols-2 gap-sm">
                                 <div><dt class="text-on-surface-variant">Số điện thoại</dt><dd class="font-code" x-text="activeUser.phone || 'Chưa cập nhật'"></dd></div>
                                 <div><dt class="text-on-surface-variant">Số CCCD</dt><dd class="font-code" x-text="'id_card_number' in activeUser ? (activeUser.id_card_number || 'Chưa cập nhật') : 'Không có quyền xem'"></dd></div>
@@ -225,10 +228,20 @@
                         </section>
                     </div>
                 </template>
-                <footer class="flex gap-sm border-t border-surface-container bg-surface-container-low p-md">
-                    <template x-if="activeUser"><x-ui.button variant="secondary" class="flex-1" x-bind:href="activeUser.show_url" href="#">Xem chi tiết</x-ui.button></template>
+                {{-- Nút mở modal: form GET boost (htmx đọc action lúc gửi) vì URL đổi theo nhân sự đang xem; mở modal thì đóng drawer. --}}
+                <footer class="flex flex-wrap gap-sm border-t border-surface-container bg-surface-container-low p-md">
+                    <x-ui.button variant="secondary" class="flex-1" x-bind:href="activeUser?.show_url" href="#">Xem chi tiết</x-ui.button>
+                    @can('user.update')
+                        <form method="GET" class="flex flex-1" x-bind:action="activeUser ? '{{ url('/users') }}/' + activeUser.id + '/edit' : ''"
+                              hx-boost="true" hx-target="#remote-modal-body" hx-swap="innerHTML" hx-push-url="false" data-modal-size="3xl" x-on:submit="drawerOpen = false">
+                            <x-ui.button type="submit" variant="secondary" icon="edit" class="flex-1">Sửa thông tin</x-ui.button>
+                        </form>
+                    @endcan
                     @can('permission.override')
-                        <template x-if="activeUser"><x-ui.button class="flex-1" x-bind:href="'{{ url('/users') }}/' + activeUser.id + '/permissions'" href="#">Phân quyền</x-ui.button></template>
+                        <form method="GET" class="flex flex-1" x-bind:action="activeUser ? '{{ url('/users') }}/' + activeUser.id + '/permissions' : ''"
+                              hx-boost="true" hx-target="#remote-modal-body" hx-swap="innerHTML" hx-push-url="false" data-modal-size="4xl" x-on:submit="drawerOpen = false">
+                            <x-ui.button type="submit" icon="admin_panel_settings" class="flex-1">Phân quyền</x-ui.button>
+                        </form>
                     @endcan
                 </footer>
             </aside>

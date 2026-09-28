@@ -45,7 +45,7 @@
 
     <div class="grid grid-cols-1 items-start gap-lg">
         {{-- ─── Cấu hình lịch lớp ─── --}}
-        <section class="mx-auto w-full max-w-5xl space-y-lg" x-show="view === 'config'" @if ($initialView !== 'config') x-cloak @endif>
+        <section class="w-full space-y-lg" x-show="view === 'config'" @if ($initialView !== 'config') x-cloak @endif>
             @php $conflictError = $errors->first('class_id') ?: $errors->first('slot2_start') ?: $errors->first('slot1_day') ?: $errors->first('start_date') ?: $errors->first('end_date'); @endphp
             @if ($conflictError)
                 <x-ui.alert type="error" :title="str_contains($conflictError, 'Xung đột') || str_contains($conflictError, 'trùng') ? 'Cảnh báo xung đột lịch' : 'Không lưu được lịch lớp'" data-testid="schedule-conflict">
@@ -230,7 +230,7 @@
         </section>
 
         {{-- ─── Báo cáo phòng / nhân sự ─── --}}
-        <section class="mx-auto w-full max-w-3xl" x-show="view === 'report'" @if ($initialView !== 'report') x-cloak @endif>
+        <section class="w-full max-w-3xl" x-show="view === 'report'" @if ($initialView !== 'report') x-cloak @endif>
             <div class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
                 <div class="flex items-center gap-sm border-b border-surface-container pb-sm">
                     <span class="material-symbols-outlined text-primary-container" aria-hidden="true">groups</span>
