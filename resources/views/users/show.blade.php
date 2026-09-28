@@ -44,7 +44,7 @@
         </x-slot:actions>
     </x-ui.page-header>
 
-    <div class="mx-auto max-w-6xl space-y-lg">
+    <div class="space-y-lg">
         @if ($errors->any())
             <x-ui.alert type="error">{{ $errors->first() }}</x-ui.alert>
         @endif

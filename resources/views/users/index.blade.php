@@ -69,7 +69,8 @@
                                     <x-ui.avatar :name="$user->name" />
                                     <div class="min-w-0">
                                         <a href="{{ route('users.show', $user) }}" class="font-semibold text-on-surface hover:text-primary">{{ $user->name }}</a>
-                                        <div class="font-code text-caption text-on-surface-variant">{{ $user->email }} · {{ $payload['employee_code'] }}</div>
+                                        <div class="max-w-[280px] break-all font-code text-caption text-on-surface-variant">{{ $user->email }}</div>
+                                        <div class="max-w-[280px] truncate font-code text-caption text-on-surface-variant" title="{{ $payload['employee_code'] }}">{{ $payload['employee_code'] }}</div>
                                     </div>
                                 </div>
                             </td>

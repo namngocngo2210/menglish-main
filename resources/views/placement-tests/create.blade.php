@@ -7,7 +7,7 @@
     </x-ui.page-header>
 
     @if ($errors->any())
-        <x-ui.alert type="error" title="Vui lòng kiểm tra lại các thông tin:" class="max-w-7xl mx-auto mb-4">
+        <x-ui.alert type="error" title="Vui lòng kiểm tra lại các thông tin:" class="mb-4">
             <ul class="list-disc list-inside space-y-0.5 pl-2">
                 @foreach ($errors->all() as $err)
                     <li>{{ $err }}</li>

@@ -11,7 +11,7 @@
     <x-app-layout title="Thêm danh mục mới">
         <x-ui.page-header title="Thêm danh mục mới" description="Cấu hình các tham số nền tảng của hệ thống MENGLISH." />
 
-        <div class="mx-auto max-w-md rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
+        <div class="max-w-md rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
             @include('system-categories._form')
         </div>
     </x-app-layout>

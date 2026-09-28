@@ -21,7 +21,7 @@
             </x-slot:actions>
         </x-ui.page-header>
 
-        <div class="mx-auto grid max-w-5xl grid-cols-1 items-start gap-lg lg:grid-cols-12">
+        <div class="grid grid-cols-1 items-start gap-lg lg:grid-cols-12">
             <section class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-lg text-center lg:col-span-4">
                 <div class="flex flex-col items-center gap-xs">
                     <x-ui.avatar :name="$user->name" />

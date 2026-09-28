@@ -10,7 +10,7 @@
 <x-app-layout>
     <x-ui.page-header title="Tạo Yêu Cầu Hỗ Trợ (Ticket)" icon="add_task" :back="route('tickets.index')" />
 
-    <div class="max-w-3xl mx-auto">
+    <div class="max-w-3xl">
         @include('support-tickets._form')
     </div>
 </x-app-layout>
