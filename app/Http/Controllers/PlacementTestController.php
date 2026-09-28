@@ -401,6 +401,9 @@ class PlacementTestController extends Controller
             'writing_content' => 'nullable|string|max:5000',
             'speaking_self_rate' => 'nullable|string|in:beginner,intermediate,advanced',
             'lead_token' => 'nullable|string|max:2000',
+            'violation_count' => 'nullable|integer|min:0|max:1000',
+            'violation_log' => 'nullable|string|max:10000',
+            'auto_submitted' => 'nullable|boolean',
         ]);
 
         $questions = is_array($test->questions) ? $test->questions : [];
@@ -439,6 +442,9 @@ class PlacementTestController extends Controller
             'cefr_level' => null,
             'writing_content' => $validated['writing_content'] ?? null,
             'answers' => $storedAnswers,
+            'violation_count' => (int) ($validated['violation_count'] ?? 0),
+            'violation_log' => $this->sanitizeViolationLog($validated['violation_log'] ?? null),
+            'auto_submitted' => (bool) ($validated['auto_submitted'] ?? false),
             'grader_id' => null,
             'status' => PlacementTestSubmission::STATUS_PENDING,
         ]);
@@ -464,6 +470,31 @@ class PlacementTestController extends Controller
         $submission = PlacementTestSubmission::with('test')->findOrFail($id);
 
         return view('placement-tests.portal-scorecard', compact('submission'));
+    }
+
+    /**
+     * Nhật ký vi phạm do trình duyệt gửi lên: chỉ giữ loại vi phạm đã biết và thời điểm, tối đa 50 dòng.
+     *
+     * @return array<int, array{type: string, at: string}>|null
+     */
+    private function sanitizeViolationLog(?string $raw): ?array
+    {
+        $entries = $raw ? json_decode($raw, true) : null;
+        if (! is_array($entries)) {
+            return null;
+        }
+
+        $log = [];
+        foreach (array_slice($entries, 0, 50) as $entry) {
+            $type = is_array($entry) ? ($entry['type'] ?? null) : null;
+            if (! is_string($type) || ! array_key_exists($type, PlacementTestSubmission::VIOLATION_TYPES)) {
+                continue;
+            }
+            $at = is_string($entry['at'] ?? null) ? substr($entry['at'], 0, 40) : '';
+            $log[] = ['type' => $type, 'at' => $at];
+        }
+
+        return $log ?: null;
     }
 
     private function findActiveTestByCode(string $code): PlacementTest

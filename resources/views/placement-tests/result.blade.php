@@ -50,6 +50,21 @@
                 </x-ui.alert>
             @endif
 
+            @if ($submission->violation_count > 0 || $submission->auto_submitted)
+                <x-ui.alert type="warning" title="Thí sinh rời khỏi bài thi {{ $submission->violation_count }} lần{{ $submission->auto_submitted ? ' · bài bị tự động nộp' : '' }}">
+                    @if (! empty($submission->violation_log))
+                        <ul class="list-inside list-disc space-y-0.5">
+                            @foreach ($submission->violation_log as $entry)
+                                @php
+                                    $at = rescue(fn () => \Illuminate\Support\Carbon::parse($entry['at'] ?? '')->timezone(config('app.timezone'))->format('H:i:s d/m/Y'), $entry['at'] ?? '', false);
+                                @endphp
+                                <li>{{ $at }}: {{ \App\Models\PlacementTestSubmission::VIOLATION_TYPES[$entry['type']] ?? $entry['type'] }}</li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </x-ui.alert>
+            @endif
+
             <div class="max-w-3xl">
                 @include('placement-tests.partials.rubric-score-fields', [
                     'submission' => $submission,

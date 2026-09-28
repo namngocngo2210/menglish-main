@@ -16,6 +16,16 @@ class PlacementTestSubmission extends Model
 
     public const STATUS_GRADED = 'graded';
 
+    /** Chế độ khoá màn hình: rời bài thi tới lần thứ này thì bài tự nộp. */
+    public const MAX_VIOLATIONS = 3;
+
+    /** Các loại vi phạm trang làm bài ghi nhận được (khoá => nhãn hiển thị cho người chấm). */
+    public const VIOLATION_TYPES = [
+        'hidden' => 'Chuyển sang tab / ứng dụng khác',
+        'blur' => 'Rời khỏi cửa sổ bài thi',
+        'fullscreen_exit' => 'Thoát chế độ toàn màn hình',
+    ];
+
     protected $table = 'placement_test_submissions';
 
     protected $fillable = [
@@ -46,6 +56,9 @@ class PlacementTestSubmission extends Model
         'speaking_comment',
         'grader_id',
         'status',
+        'violation_count',
+        'violation_log',
+        'auto_submitted',
     ];
 
     protected $casts = [
@@ -57,6 +70,9 @@ class PlacementTestSubmission extends Model
         'reading_writing_score' => 'decimal:1',
         'total_score' => 'decimal:1',
         'answers' => 'array',
+        'violation_count' => 'integer',
+        'violation_log' => 'array',
+        'auto_submitted' => 'boolean',
     ];
 
     public function test(): BelongsTo

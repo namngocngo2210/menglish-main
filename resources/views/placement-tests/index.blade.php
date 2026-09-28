@@ -164,6 +164,9 @@
                                     @if ($sub->customer)
                                         <a href="{{ route('crm.customers.show', $sub->customer->id) }}" class="rounded bg-secondary/10 px-1.5 font-caption text-caption text-secondary hover:underline" title="Mở hồ sơ khách">Khách CRM</a>
                                     @endif
+                                    @if ($sub->violation_count > 0 || $sub->auto_submitted)
+                                        <span class="rounded bg-error/10 px-1.5 font-caption text-caption text-error" title="Số lần thí sinh rời khỏi bài thi">Rời bài {{ $sub->violation_count }} lần{{ $sub->auto_submitted ? ' · tự nộp' : '' }}</span>
+                                    @endif
                                 </div>
                                 <div class="font-code text-caption text-on-surface-variant">{{ $sub->created_at?->format('H:i d/m/Y') }}</div>
                             </td>
