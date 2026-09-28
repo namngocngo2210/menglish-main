@@ -23,6 +23,10 @@
                 </div>
             </div>
             <div class="flex items-center gap-3">
+                <div id="exam-violation-badge" class="hidden px-3 py-1.5 rounded-xl bg-error/10 text-error border border-error/30 text-xs font-bold flex items-center gap-1.5" title="Số lần rời khỏi bài thi">
+                    <span class="material-symbols-outlined text-[16px]">shield</span>
+                    <span>Rời bài: <span id="exam-violation-count">0</span>/{{ \App\Models\PlacementTestSubmission::MAX_VIOLATIONS }}</span>
+                </div>
                 <div class="px-3.5 py-1.5 rounded-xl bg-primary-container/10 text-primary border border-primary-container/30 text-xs font-mono font-bold flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-[16px] text-primary">timer</span>
                     <span>Thời gian: {{ $test->duration_minutes }} phút</span>
@@ -45,7 +49,7 @@
         </div>
 
         {{-- Form Submission --}}
-        <form action="{{ route('portal.test.submit', $test->code) }}" method="POST" class="space-y-6">
+        <form id="exam-form" action="{{ route('portal.test.submit', $test->code) }}" method="POST" class="space-y-6">
             @csrf
             @if ($errors->any())
                 <x-ui.alert type="error" title="Vui lòng kiểm tra lại thông tin:">
@@ -59,6 +63,9 @@
             @if ($leadToken)
                 <input type="hidden" name="lead_token" value="{{ $leadToken }}">
             @endif
+            <input type="hidden" name="violation_count" id="exam-violation-input" value="0">
+            <input type="hidden" name="violation_log" id="exam-violation-log" value="[]">
+            <input type="hidden" name="auto_submitted" id="exam-auto-submitted" value="0">
 
             {{-- 1. Candidate Info --}}
             <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-6 space-y-4">
@@ -73,6 +80,25 @@
                 </div>
             </div>
 
+
+            {{-- Quy chế & nút bắt đầu: phần câu hỏi chỉ hiện sau khi vào chế độ thi --}}
+            <div id="exam-start-card" class="bg-surface-container-lowest rounded-2xl border border-primary-container/40 shadow-sm p-6 space-y-4">
+                <h2 class="text-sm font-bold text-on-surface uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-surface-container-highest">
+                    <span class="material-symbols-outlined text-primary">shield_lock</span>
+                    Quy chế làm bài
+                </h2>
+                <ul class="list-disc list-inside space-y-1.5 text-xs text-on-surface-variant leading-relaxed">
+                    <li>Khi bấm <strong>Bắt đầu làm bài</strong>, bài thi mở ở chế độ <strong>toàn màn hình</strong>. Không thoát toàn màn hình, không chuyển sang tab, trang web hay ứng dụng khác cho tới khi nộp bài.</li>
+                    <li>Bài thi không cho sao chép, dán, bấm chuột phải hay tải lại trang.</li>
+                    <li>Mỗi lần rời khỏi bài thi đều được ghi lại và gửi kèm bài làm cho người chấm. Rời bài tới lần thứ <strong>{{ \App\Models\PlacementTestSubmission::MAX_VIOLATIONS }}</strong>, bài sẽ <strong>tự động nộp</strong> với các câu đã làm.</li>
+                </ul>
+                <div class="flex items-center justify-between gap-3 flex-wrap pt-2">
+                    <span class="text-xs text-on-surface-variant">Điền họ tên và số điện thoại ở trên trước khi bắt đầu.</span>
+                    <x-ui.button type="button" id="exam-start-btn" icon="play_circle">Bắt đầu làm bài</x-ui.button>
+                </div>
+            </div>
+
+            <div id="exam-body" class="hidden space-y-6">
             @php
                 $questions = is_array($test->questions) ? $test->questions : [];
                 $listeningQuestions = array_filter($questions, fn($q) => ($q['skill'] ?? '') === 'listening');
@@ -283,7 +309,139 @@
                 </div>
                 <x-ui.button type="submit" icon="check_circle" class="shadow-lg hover:shadow-xl">Nộp Bài Thi &amp; Xem Báo Cáo Điểm Tự Động</x-ui.button>
             </div>
+            </div>
         </form>
     </main>
+    {{-- Cảnh báo khi thí sinh rời bài thi --}}
+    <div id="exam-warning" class="hidden fixed inset-0 z-[100] bg-inverse-surface/90 flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-surface-container-lowest rounded-2xl shadow-xl p-6 space-y-4 text-center">
+            <span class="material-symbols-outlined text-5xl text-error">warning</span>
+            <h2 class="text-lg font-extrabold text-on-surface">Bạn vừa rời khỏi bài thi</h2>
+            <p class="text-sm text-on-surface-variant leading-relaxed">
+                Đây là lần thứ <strong id="exam-warning-count">1</strong>/{{ \App\Models\PlacementTestSubmission::MAX_VIOLATIONS }}. Lần rời bài đã được ghi lại cho người chấm.
+                Tới lần thứ {{ \App\Models\PlacementTestSubmission::MAX_VIOLATIONS }}, bài sẽ tự động nộp.
+            </p>
+            <x-ui.button type="button" id="exam-resume-btn" icon="fullscreen" class="w-full justify-center">Quay lại làm bài</x-ui.button>
+        </div>
+    </div>
+
+    <div id="exam-submitting" class="hidden fixed inset-0 z-[110] bg-inverse-surface/90 flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-surface-container-lowest rounded-2xl shadow-xl p-6 space-y-3 text-center">
+            <span class="material-symbols-outlined text-5xl text-error">block</span>
+            <h2 class="text-lg font-extrabold text-on-surface">Bài thi đã tự động nộp</h2>
+            <p class="text-sm text-on-surface-variant">Bạn đã rời khỏi bài thi quá số lần cho phép. Đang gửi bài làm...</p>
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            const MAX_VIOLATIONS = {{ \App\Models\PlacementTestSubmission::MAX_VIOLATIONS }};
+            const form = document.getElementById('exam-form');
+            const body = document.getElementById('exam-body');
+            const startCard = document.getElementById('exam-start-card');
+            const warning = document.getElementById('exam-warning');
+            const root = document.documentElement;
+            const canFullscreen = !!(root.requestFullscreen || root.webkitRequestFullscreen);
+            const log = [];
+            let started = false;
+            let submitting = false;
+            let lastViolationAt = 0;
+
+            const isFullscreen = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+            const enterFullscreen = () => {
+                if (!canFullscreen || isFullscreen()) return;
+                const req = root.requestFullscreen || root.webkitRequestFullscreen;
+                try { const p = req.call(root); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+            };
+
+            const autoSubmit = () => {
+                submitting = true;
+                document.getElementById('exam-auto-submitted').value = '1';
+                warning.classList.add('hidden');
+                document.getElementById('exam-submitting').classList.remove('hidden');
+                form.submit();
+            };
+
+            const recordViolation = (type) => {
+                if (!started || submitting) return;
+                // Chuyển tab thường bắn cùng lúc blur + visibilitychange + thoát toàn màn hình: tính là 1 lần.
+                const now = Date.now();
+                if (now - lastViolationAt < 1500) return;
+                lastViolationAt = now;
+
+                log.push({ type, at: new Date().toISOString() });
+                document.getElementById('exam-violation-input').value = String(log.length);
+                document.getElementById('exam-violation-log').value = JSON.stringify(log);
+                document.getElementById('exam-violation-count').textContent = String(log.length);
+
+                if (log.length >= MAX_VIOLATIONS) {
+                    autoSubmit();
+                    return;
+                }
+                document.getElementById('exam-warning-count').textContent = String(log.length);
+                warning.classList.remove('hidden');
+            };
+
+            document.getElementById('exam-start-btn').addEventListener('click', () => {
+                for (const name of ['candidate_name', 'candidate_phone']) {
+                    const input = form.elements[name];
+                    if (input && !input.reportValidity()) return;
+                }
+                enterFullscreen();
+                started = true;
+                startCard.classList.add('hidden');
+                body.classList.remove('hidden');
+                document.getElementById('exam-violation-badge').classList.remove('hidden');
+                history.pushState({ exam: true }, '', location.href);
+                window.scrollTo({ top: 0 });
+            });
+
+            document.getElementById('exam-resume-btn').addEventListener('click', () => {
+                warning.classList.add('hidden');
+                enterFullscreen();
+            });
+
+            form.addEventListener('submit', () => { submitting = true; });
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') recordViolation('hidden');
+            });
+            window.addEventListener('blur', () => recordViolation('blur'));
+            const onFullscreenChange = () => {
+                if (canFullscreen && !isFullscreen()) recordViolation('fullscreen_exit');
+            };
+            document.addEventListener('fullscreenchange', onFullscreenChange);
+            document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+
+            // Không cho quay lại trang trước / tải lại trang khi đang làm bài.
+            window.addEventListener('popstate', () => {
+                if (started && !submitting) history.pushState({ exam: true }, '', location.href);
+            });
+            window.addEventListener('beforeunload', (e) => {
+                if (started && !submitting) { e.preventDefault(); e.returnValue = ''; }
+            });
+
+            // Chặn chuột phải, sao chép / dán, kéo thả.
+            for (const evt of ['contextmenu', 'copy', 'cut', 'paste', 'drop', 'dragstart']) {
+                document.addEventListener(evt, (e) => { if (started) e.preventDefault(); });
+            }
+            document.addEventListener('selectstart', (e) => {
+                if (started && !e.target.closest?.('input, textarea')) e.preventDefault();
+            });
+
+            // Chặn phím tắt phổ biến: DevTools, xem nguồn, lưu, in, tải lại, sao chép / dán.
+            document.addEventListener('keydown', (e) => {
+                if (!started || submitting) return;
+                const key = (e.key || '').toLowerCase();
+                const mod = e.ctrlKey || e.metaKey;
+                const blocked =
+                    key === 'f12' || key === 'f5' ||
+                    (mod && e.shiftKey && ['i', 'j', 'c', 'k'].includes(key)) ||
+                    (mod && ['u', 's', 'p', 'r', 'c', 'x', 'v', 'o', 'f', 'g'].includes(key)) ||
+                    (e.altKey && ['arrowleft', 'arrowright'].includes(key));
+                if (blocked) { e.preventDefault(); e.stopPropagation(); }
+            }, true);
+        })();
+    </script>
 </body>
 </html>
