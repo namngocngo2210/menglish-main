@@ -8,7 +8,7 @@
     $fmt = fn ($v) => $v === null ? '—' : rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.');
 @endphp
 <x-app-layout title="Nhập điểm mini test — {{ $class->name }}">
-    <div class="mx-auto max-w-3xl space-y-lg pb-24 md:pb-0">
+    <div class="mx-auto max-w-6xl space-y-lg pb-24 md:pb-0">
         <x-ui.page-header title="Nhập điểm mini test" :back="route('teacher.home')" back-label="Về lịch dạy">
             <x-slot:meta>
                 Vui lòng chọn thông tin và nhập điểm cho học sinh · Lớp {{ $class->name }} <span class="font-code">({{ $class->code }})</span>

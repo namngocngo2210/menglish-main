@@ -7,7 +7,7 @@
     $studentId = $student?->id ?? null;
 @endphp
 
-<nav class="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto w-full flex justify-around items-center py-2 bg-surface-container-lowest dark:bg-inverse-surface border-t border-surface-container-highest dark:border-inverse-surface shadow-lg z-50 rounded-t-2xl">
+<nav class="md:hidden fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto w-full flex justify-around items-center py-2 bg-surface-container-lowest dark:bg-inverse-surface border-t border-surface-container-highest dark:border-inverse-surface shadow-lg z-50 rounded-t-2xl">
     {{-- Tab 1: Trang chủ --}}
     <a href="{{ route('portal.student.home', ['studentId' => $studentId]) }}"
        class="flex flex-col items-center justify-center py-1 px-2 transition-transform duration-150 active:scale-90 {{ $activeTab === 'home' ? 'text-primary font-bold' : 'text-on-surface-variant hover:text-on-surface' }}">

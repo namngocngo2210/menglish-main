@@ -10,7 +10,7 @@
     $dueDefault = $editing?->due_at?->format('Y-m-d\TH:i') ?? ($editing?->due_date ? $editing->due_date->format('Y-m-d').'T23:59' : now()->addDays(3)->format('Y-m-d').'T20:00');
 @endphp
 <x-app-layout title="Giao bài tập về nhà — {{ $class->name }}">
-    <div class="mx-auto max-w-4xl space-y-lg pb-24 md:pb-0">
+    <div class="mx-auto max-w-6xl space-y-lg pb-24 md:pb-0">
         <x-ui.page-header :title="$editing ? 'Sửa bài tập về nhà' : 'Giao bài tập về nhà'" :back="route('teacher.home')" back-label="Về lịch dạy">
             <x-slot:meta>
                 <span class="inline-flex items-center gap-xs rounded-full bg-secondary-fixed/50 px-md py-[2px] font-body-small text-body-small text-on-secondary-fixed">

@@ -5,15 +5,15 @@
     <x-ui.workspace-tabs class="hidden md:block" />
 
     {{-- Outer Mobile Mockup Frame --}}
-    <div class="max-w-[430px] mx-auto bg-background min-h-[844px] shadow-2xl rounded-3xl border border-surface-container-highest overflow-hidden flex flex-col relative pb-20 my-4" x-data>
+    <div class="max-w-[430px] md:max-w-6xl mx-auto bg-background min-h-[844px] md:min-h-0 shadow-2xl md:shadow-sm rounded-3xl border border-surface-container-highest overflow-hidden flex flex-col relative pb-20 md:pb-6 my-4" x-data>
 
         {{-- Portal Header --}}
         @include('portal.partials.top-header', ['student' => $student, 'students' => $students, 'title' => 'MENGLISH'])
 
         {{-- Main Content Area --}}
-        <main class="flex-1 w-full p-4 flex flex-col gap-5 overflow-y-auto">
+        <main class="flex-1 w-full p-4 md:p-6 flex flex-col gap-5 md:grid md:grid-cols-2 md:items-start md:gap-6 overflow-y-auto">
             {{-- Header Welcome --}}
-            <div class="flex flex-col gap-1 pt-1">
+            <div class="flex flex-col gap-1 pt-1 md:col-span-2">
                 <span class="text-sm font-normal text-on-surface-variant">Xin chào,</span>
                 <h1 class="text-2xl font-bold text-primary">{{ $student?->name ?? 'Học viên' }}</h1>
             </div>
@@ -192,7 +192,7 @@
             </div>
 
             {{-- Quick Action Cards to Other Steps --}}
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-2 gap-3 md:col-span-2">
                 <a href="{{ route('portal.student.homework', ['studentId' => $student?->id]) }}" class="bg-surface-container-lowest p-3 rounded-xl border border-surface-container-highest hover:border-primary-container transition shadow-2xs flex items-center gap-2.5">
                     <div class="w-8 h-8 rounded-lg bg-primary-container/10 text-primary flex items-center justify-center shrink-0">
                         <span class="material-symbols-outlined text-[20px]">upload_file</span>

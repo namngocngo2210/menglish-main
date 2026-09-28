@@ -8,7 +8,7 @@
     <x-ui.workspace-tabs class="hidden md:block" />
 
     {{-- Outer Mobile Shell Container --}}
-    <div class="max-w-[430px] mx-auto bg-surface-container-lowest min-h-[844px] shadow-2xl rounded-3xl border border-surface-container-highest overflow-hidden flex flex-col relative pb-20 my-4">
+    <div class="max-w-[430px] md:max-w-4xl mx-auto bg-surface-container-lowest min-h-[844px] md:min-h-0 shadow-2xl md:shadow-sm rounded-3xl border border-surface-container-highest overflow-hidden flex flex-col relative pb-20 md:pb-6 my-4">
         {{-- Top App Bar --}}
         <header class="w-full top-0 sticky bg-background dark:bg-inverse-surface border-b border-surface-container-highest dark:border-inverse-surface flex items-center justify-between px-4 h-16 z-40">
             <h1 class="font-bold text-2xl text-primary tracking-tight">MENGLISH</h1>
