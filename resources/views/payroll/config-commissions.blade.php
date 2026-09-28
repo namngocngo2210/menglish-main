@@ -16,7 +16,7 @@
                 </x-ui.select>
             </label>
             @if ($tab === 'commission')
-                <x-ui.button icon="add" x-on:click="document.getElementById('new-tier-form')?.scrollIntoView({ behavior: 'smooth' }); document.getElementById('f_min_students')?.focus()">Thêm mốc mới</x-ui.button>
+                <x-ui.button icon="add" x-on:click="$dispatch('open-modal', 'new-tier')">Thêm mốc mới</x-ui.button>
             @endif
             <x-ui.button variant="secondary" icon="price_change" :href="route('payroll.config.teacher-rates')">Đơn giá GV</x-ui.button>
         </x-slot:actions>
@@ -46,7 +46,7 @@
             </x-ui.alert>
 
             <div class="grid grid-cols-1 items-start gap-lg lg:grid-cols-12">
-                <div class="space-y-lg lg:col-span-8">
+                <div class="space-y-lg lg:col-span-12">
                     <x-ui.data-table min-width="640px">
                         <x-slot:header>
                             <h3 class="font-h3 text-h3 text-on-surface">Mốc đang hiệu lực ngày {{ $asOf->format('d/m/Y') }}</h3>
@@ -138,24 +138,27 @@
                     </x-ui.data-table>
                 </div>
 
-                <div class="lg:col-span-4">
-                    <form id="new-tier-form" action="{{ route('payroll.config.commission-tiers.store') }}" method="POST"
-                          class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-lg shadow-sm">
-                        @csrf
-                        <h3 class="font-h3 text-h3 text-on-surface">Thêm mốc cấu hình mới</h3>
-                        <div class="grid grid-cols-2 gap-md">
-                            <x-ui.input type="number" name="min_students" label="Từ (số học viên)" required min="0" step="1" placeholder="VD: 11" />
-                            <x-ui.input type="number" name="max_students" label="Đến (số học viên)" min="0" step="1" placeholder="Để trống = Max" />
-                        </div>
-                        <x-ui.input type="number" id="f_new_sale_percent" name="new_sale_percent" label="Tỷ lệ (%)" required suffix="%"
-                                    min="0" max="100" step="0.1" placeholder="0.0" class="text-right font-mono" />
-                        <x-ui.date name="effective_from" label="Hiệu lực từ ngày" required :value="old('effective_from', now()->toDateString())" />
-                        <x-ui.input name="tier_name" label="Tên bậc (tuỳ chọn)" placeholder="Bỏ trống = tự đặt theo ngưỡng" />
-                        <x-ui.button type="submit" icon="save" class="w-full">Lưu cấu hình</x-ui.button>
-                        <p class="font-caption text-caption text-on-surface-variant">Không có hoa hồng tái tục cho sale (A6). Thưởng tái tục của GV phụ trách lớp ở tab "Thưởng tái tục".</p>
-                    </form>
-                </div>
             </div>
+
+            <x-ui.modal name="new-tier" title="Thêm mốc cấu hình mới" :show="old('_modal') === 'new-tier'">
+                <form id="new-tier-form" action="{{ route('payroll.config.commission-tiers.store') }}" method="POST" class="space-y-md">
+                    @csrf
+                    <input type="hidden" name="_modal" value="new-tier">
+                    <div class="grid grid-cols-2 gap-md">
+                        <x-ui.input type="number" name="min_students" label="Từ (số học viên)" required min="0" step="1" placeholder="VD: 11" />
+                        <x-ui.input type="number" name="max_students" label="Đến (số học viên)" min="0" step="1" placeholder="Để trống = Max" />
+                    </div>
+                    <x-ui.input type="number" id="f_new_sale_percent" name="new_sale_percent" label="Tỷ lệ (%)" required suffix="%"
+                                min="0" max="100" step="0.1" placeholder="0.0" class="text-right font-mono" />
+                    <x-ui.date name="effective_from" label="Hiệu lực từ ngày" required :value="old('effective_from', now()->toDateString())" />
+                    <x-ui.input name="tier_name" label="Tên bậc (tuỳ chọn)" placeholder="Bỏ trống = tự đặt theo ngưỡng" />
+                    <p class="font-caption text-caption text-on-surface-variant">Không có hoa hồng tái tục cho sale (A6). Thưởng tái tục của GV phụ trách lớp ở tab "Thưởng tái tục".</p>
+                </form>
+                <x-slot:footer>
+                    <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'new-tier')">Hủy</x-ui.button>
+                    <x-ui.button type="submit" form="new-tier-form" icon="save">Lưu cấu hình</x-ui.button>
+                </x-slot:footer>
+            </x-ui.modal>
 
             <x-ui.modal name="edit-tier" title="Tạo phiên bản mới của mốc hoa hồng">
                 <form id="edit-tier-form" method="POST" :action="editing ? '{{ url('payroll/config/commission-tiers') }}/' + editing.id : '#'" class="space-y-md">

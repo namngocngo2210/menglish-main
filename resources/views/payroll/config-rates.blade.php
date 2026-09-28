@@ -13,6 +13,7 @@
                       description="Quản lý và cập nhật định mức lương theo buổi / giờ cho từng giáo viên. Đổi giá = thêm phiên bản mới có ngày hiệu lực, buổi dạy cũ vẫn tính theo giá cũ.">
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="percent" :href="route('payroll.config.commission-tiers')">Cấu hình hoa hồng</x-ui.button>
+            <x-ui.button icon="price_change" x-on:click="$dispatch('open-modal', 'new-rate')">Cập nhật đơn giá{{ $selectedTeacher ? ' — '.$selectedTeacher->name : '' }}</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -83,52 +84,7 @@
         </div>
 
         <div class="space-y-lg lg:col-span-8">
-            {{-- 2. Cập nhật đơn giá mới --}}
-            <form action="{{ route('payroll.config.teacher-rates.personal.store') }}" method="POST"
-                  class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-lg shadow-sm"
-                  x-data="{ unit: @js(old('rate_unit', 'session')), type: @js(old('teacher_type', $selectedType ?? 'parttime')) }">
-                @csrf
-                <h3 class="font-h3 text-h3 text-on-surface">2. Cập nhật đơn giá mới{{ $selectedTeacher ? ' — '.$selectedTeacher->name : '' }}</h3>
-
-                @if ($selectedTeacher)
-                    <input type="hidden" name="user_id" value="{{ $selectedTeacher->id }}">
-                @else
-                    <x-ui.select name="user_id" label="Giáo viên" required placeholder="-- Chọn giáo viên ở khung bên trái hoặc tại đây --"
-                                 :value="old('user_id')"
-                                 :options="$teachers->mapWithKeys(fn ($t) => [$t->id => $t->name.($t->employee_code ? ' — '.$t->employee_code : '')])" />
-                @endif
-
-                <div class="grid grid-cols-1 gap-md md:grid-cols-2">
-                    <x-ui.select name="teacher_type" label="Loại giáo viên" required x-model="type" :options="\App\Models\TeacherHourlyRate::TEACHER_TYPES" />
-                    <x-ui.date name="effective_from" label="Ngày hiệu lực từ" required :value="old('effective_from', now()->toDateString())"
-                               hint="Áp dụng cho các ca dạy từ ngày này tới khi có đơn giá mới hơn." />
-                    <x-ui.select name="rate_unit" label="Đơn vị tính" required x-model="unit"
-                                 :options="['session' => 'Theo buổi dạy (VNĐ / buổi)', 'hour' => 'Theo giờ (VNĐ / giờ)']" />
-                    <x-ui.field label="Mức đơn giá mới" name="hourly_rate" for="f_hourly_rate" required
-                                hint="* Đơn vị tính theo loại giáo viên: Part-time tính theo buổi.">
-                        <div class="flex items-center gap-sm">
-                            <input type="number" id="f_hourly_rate" name="hourly_rate" required min="1000" step="1000" value="{{ old('hourly_rate') }}" placeholder="Nhập số tiền..."
-                                   class="w-full rounded-lg border {{ $errors->has('hourly_rate') ? 'border-error' : 'border-outline-variant' }} bg-surface-container-lowest px-md py-sm text-right font-mono text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
-                            <span class="whitespace-nowrap font-body-medium text-body-medium text-on-surface-variant" x-text="unit === 'session' ? 'VNĐ / buổi' : 'VNĐ / giờ'">VNĐ / buổi</span>
-                        </div>
-                    </x-ui.field>
-                </div>
-                <x-ui.textarea name="note" label="Ghi chú / Lý do thay đổi" rows="2" placeholder="Nhập ghi chú nếu có..." />
-
-                <p x-show="type === 'fulltime'" x-cloak class="rounded-lg bg-warning-container px-md py-sm font-body-small text-body-small text-on-warning-container">
-                    GV Full-time hưởng lương cơ bản — đơn giá buổi chỉ dùng để đối soát, không cộng vào lương.
-                </p>
-                <p x-show="type === 'foreign'" x-cloak class="rounded-lg bg-warning-container px-md py-sm font-body-small text-body-small text-on-warning-container">
-                    Lương buổi có GVNN đang chờ BA chốt cách tính — Kế toán nhập tay trên phiếu lương.
-                </p>
-
-                <div class="flex justify-end gap-sm border-t border-surface-container pt-md">
-                    <x-ui.button variant="secondary" :href="route('payroll.config.teacher-rates', array_filter(['teacher_id' => $selectedTeacher?->id]))">Hủy bỏ</x-ui.button>
-                    <x-ui.button type="submit" icon="save">Cập nhật đơn giá mới</x-ui.button>
-                </div>
-            </form>
-
-            {{-- 3. Lịch sử thay đổi đơn giá --}}
+            {{-- 2. Lịch sử thay đổi đơn giá (đơn giá mới nhập bằng nút "Cập nhật đơn giá" → modal) --}}
             <x-ui.data-table min-width="760px">
                 <x-slot:header>
                     <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
@@ -219,7 +175,7 @@
             @endunless
 
             {{-- Khung đơn giá theo cấp bậc (tham khảo khi đặt giá cho GV) --}}
-            <details class="rounded-xl border border-outline-variant bg-surface-container-lowest">
+            <details class="rounded-xl border border-outline-variant bg-surface-container-lowest" @if (old('_modal') === 'new-rank') open @endif>
                 <summary class="cursor-pointer px-lg py-md font-body-medium text-body-medium text-on-surface">
                     Khung đơn giá tham khảo theo cấp bậc ({{ $rates->count() }} bậc)
                 </summary>
@@ -242,18 +198,70 @@
                         </table>
                     </x-ui.data-table>
 
-                    <form action="{{ route('payroll.config.teacher-rates.store') }}" method="POST" class="grid grid-cols-1 gap-md sm:grid-cols-2">
-                        @csrf
-                        <x-ui.input name="rank_title" label="Cấp bậc" required placeholder="VD: Senior IELTS Trainer" />
-                        <x-ui.input name="criteria" label="Yêu cầu chứng chỉ & kinh nghiệm" placeholder="IELTS 8.0+, 3 năm KN" />
-                        <x-ui.input type="number" name="communication_rate" label="Lớp Giao tiếp (VNĐ/giờ)" required step="10000" />
-                        <x-ui.input type="number" name="ielts_rate" label="Lớp IELTS / Cambridge (VNĐ/giờ)" required step="10000" />
-                        <div class="flex justify-end sm:col-span-2">
-                            <x-ui.button type="submit" variant="secondary" icon="add">Thêm cấp bậc tham khảo</x-ui.button>
-                        </div>
-                    </form>
+                    <div class="flex justify-end">
+                        <x-ui.button variant="secondary" icon="add" x-on:click="$dispatch('open-modal', 'new-rank')">Thêm cấp bậc tham khảo</x-ui.button>
+                    </div>
                 </div>
             </details>
         </div>
     </div>
+
+    <x-ui.modal name="new-rate" :title="'Cập nhật đơn giá mới'.($selectedTeacher ? ' — '.$selectedTeacher->name : '')" max-width="2xl" :show="old('_modal') === 'new-rate'">
+        <form id="new-rate-form" action="{{ route('payroll.config.teacher-rates.personal.store') }}" method="POST" class="space-y-md"
+              x-data="{ unit: @js(old('rate_unit', 'session')), type: @js(old('teacher_type', $selectedType ?? 'parttime')) }">
+            @csrf
+            <input type="hidden" name="_modal" value="new-rate">
+
+            @if ($selectedTeacher)
+                <input type="hidden" name="user_id" value="{{ $selectedTeacher->id }}">
+            @else
+                <x-ui.select name="user_id" label="Giáo viên" required placeholder="-- Chọn giáo viên ở khung bên trái hoặc tại đây --"
+                             :value="old('user_id')"
+                             :options="$teachers->mapWithKeys(fn ($t) => [$t->id => $t->name.($t->employee_code ? ' — '.$t->employee_code : '')])" />
+            @endif
+
+            <div class="grid grid-cols-1 gap-md md:grid-cols-2">
+                <x-ui.select name="teacher_type" label="Loại giáo viên" required x-model="type" :options="\App\Models\TeacherHourlyRate::TEACHER_TYPES" />
+                <x-ui.date name="effective_from" label="Ngày hiệu lực từ" required :value="old('effective_from', now()->toDateString())"
+                           hint="Áp dụng cho các ca dạy từ ngày này tới khi có đơn giá mới hơn." />
+                <x-ui.select name="rate_unit" label="Đơn vị tính" required x-model="unit"
+                             :options="['session' => 'Theo buổi dạy (VNĐ / buổi)', 'hour' => 'Theo giờ (VNĐ / giờ)']" />
+                <x-ui.field label="Mức đơn giá mới" name="hourly_rate" for="f_hourly_rate" required
+                            hint="* Đơn vị tính theo loại giáo viên: Part-time tính theo buổi.">
+                    <div class="flex items-center gap-sm">
+                        <input type="number" id="f_hourly_rate" name="hourly_rate" required min="1000" step="1000" value="{{ old('hourly_rate') }}" placeholder="Nhập số tiền..."
+                               class="w-full rounded-lg border {{ $errors->has('hourly_rate') ? 'border-error' : 'border-outline-variant' }} bg-surface-container-lowest px-md py-sm text-right font-mono text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
+                        <span class="whitespace-nowrap font-body-medium text-body-medium text-on-surface-variant" x-text="unit === 'session' ? 'VNĐ / buổi' : 'VNĐ / giờ'">VNĐ / buổi</span>
+                    </div>
+                </x-ui.field>
+            </div>
+            <x-ui.textarea name="note" label="Ghi chú / Lý do thay đổi" rows="2" placeholder="Nhập ghi chú nếu có..." />
+
+            <p x-show="type === 'fulltime'" x-cloak class="rounded-lg bg-warning-container px-md py-sm font-body-small text-body-small text-on-warning-container">
+                GV Full-time hưởng lương cơ bản — đơn giá buổi chỉ dùng để đối soát, không cộng vào lương.
+            </p>
+            <p x-show="type === 'foreign'" x-cloak class="rounded-lg bg-warning-container px-md py-sm font-body-small text-body-small text-on-warning-container">
+                Lương buổi có GVNN đang chờ BA chốt cách tính — Kế toán nhập tay trên phiếu lương.
+            </p>
+        </form>
+        <x-slot:footer>
+            <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'new-rate')">Hủy bỏ</x-ui.button>
+            <x-ui.button type="submit" form="new-rate-form" icon="save">Cập nhật đơn giá mới</x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal>
+
+    <x-ui.modal name="new-rank" title="Thêm cấp bậc tham khảo" max-width="xl" :show="old('_modal') === 'new-rank'">
+        <form id="new-rank-form" action="{{ route('payroll.config.teacher-rates.store') }}" method="POST" class="grid grid-cols-1 gap-md sm:grid-cols-2">
+            @csrf
+            <input type="hidden" name="_modal" value="new-rank">
+            <x-ui.input name="rank_title" label="Cấp bậc" required placeholder="VD: Senior IELTS Trainer" />
+            <x-ui.input name="criteria" label="Yêu cầu chứng chỉ & kinh nghiệm" placeholder="IELTS 8.0+, 3 năm KN" />
+            <x-ui.input type="number" name="communication_rate" label="Lớp Giao tiếp (VNĐ/giờ)" required step="10000" />
+            <x-ui.input type="number" name="ielts_rate" label="Lớp IELTS / Cambridge (VNĐ/giờ)" required step="10000" />
+        </form>
+        <x-slot:footer>
+            <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'new-rank')">Hủy</x-ui.button>
+            <x-ui.button type="submit" form="new-rank-form" icon="add">Thêm cấp bậc</x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal>
 </x-app-layout>
