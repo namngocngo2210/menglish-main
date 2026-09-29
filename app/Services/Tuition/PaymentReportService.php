@@ -5,6 +5,7 @@ namespace App\Services\Tuition;
 use App\Models\AcademicRecord;
 use App\Models\Student;
 use App\Models\User;
+use App\Support\Money;
 
 /**
  * "Báo đóng học phí" do học viên / phụ huynh gửi từ cổng học viên (lưu ở academic_records). Kế toán xác nhận
@@ -49,7 +50,7 @@ class PaymentReportService
             return;
         }
 
-        $amount = number_format((float) data_get($data, 'amount', 0), 0, ',', '.').'đ';
+        $amount = Money::format((float) data_get($data, 'amount', 0));
         $confirmed = $status === self::STATUS_CONFIRMED;
 
         AcademicRecord::create([
@@ -66,8 +67,8 @@ class PaymentReportService
                     : 'Kế toán chưa xác nhận khoản đóng '.$amount.' của học viên '.$student->name.'. Lý do: '.$reason.'. Vui lòng liên hệ trung tâm để được hỗ trợ.',
                 'unread' => true,
                 'icon' => $confirmed ? 'task_alt' : 'error',
-                'bg_color' => $confirmed ? 'bg-green-100' : 'bg-red-100',
-                'text_color' => $confirmed ? 'text-green-600' : 'text-red-600',
+                'bg_color' => $confirmed ? 'bg-tertiary/10' : 'bg-error-container',
+                'text_color' => $confirmed ? 'text-tertiary' : 'text-error',
                 'student_id' => (string) $student->id,
                 'created_at' => now()->toDateTimeString(),
             ],

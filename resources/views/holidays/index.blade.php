@@ -34,7 +34,7 @@
                         <form method="GET" action="{{ route('holidays.index') }}" role="search" class="relative">
                             <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant" aria-hidden="true">search</span>
                             <input type="search" name="search" value="{{ request('search') }}" placeholder="Tìm kiếm ngày nghỉ..." aria-label="Tìm kiếm ngày nghỉ"
-                                   class="w-60 rounded-lg border border-outline-variant bg-surface-container-lowest py-xs pl-9 pr-md font-body-small text-body-small focus:border-primary-container focus:ring-2 focus:ring-primary-container/20">
+                                   class="w-60 rounded-lg border border-outline-variant bg-surface-container-lowest py-xs pl-9 pr-md font-body-small text-body-small focus:border-primary-container focus:ring-2 focus:ring-primary-container/50">
                         </form>
                     </x-slot:header>
                     <table>

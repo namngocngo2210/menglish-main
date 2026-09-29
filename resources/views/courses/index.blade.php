@@ -10,37 +10,23 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5">
             <x-ui.stat-card label="Tổng số khóa học" :value="number_format($stats['total_courses'])" tone="primary" icon="school" />
             <x-ui.stat-card label="Đang mở tuyển sinh" :value="number_format($stats['active_courses'])" tone="success" icon="check_circle" />
-            <x-ui.stat-card label="Học phí trung bình" :value="number_format($stats['avg_tuition']) . 'đ'" tone="secondary" icon="payments" />
-            <x-ui.stat-card label="Mức giá cao nhất" :value="number_format($stats['max_tuition']) . 'đ'" tone="secondary" icon="workspace_premium" />
+            <x-ui.stat-card label="Học phí trung bình" :value="\App\Support\Money::format($stats['avg_tuition'])" tone="secondary" icon="payments" />
+            <x-ui.stat-card label="Mức giá cao nhất" :value="\App\Support\Money::format($stats['max_tuition'])" tone="secondary" icon="workspace_premium" />
         </div>
 
         {{-- 2. Filter Bar --}}
-        <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest/90 shadow-sm p-4">
-            <form method="GET" action="{{ route('courses.index') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                {{-- Search --}}
-                <div class="lg:col-span-2">
-                    <x-ui.input name="search" label="Tìm kiếm khóa học" icon="search" :value="request('search')" class="text-xs"
-                                placeholder="Nhập tên khóa học, mã code (IE-65, GT-B1)..." />
-                </div>
+        <x-ui.filter-bar :action="route('courses.index')" placeholder="Nhập tên khóa học, mã code (IE-65, GT-B1)..." class="!mb-0">
+            {{-- Level --}}
+            <x-ui.select name="course_level_id" label="Khung trình độ" placeholder="Tất cả trình độ"
+                         :options="$levels->mapWithKeys(fn ($lv) => [$lv->id => $lv->name . ' (' . $lv->code . ')'])" />
 
-                {{-- Level --}}
-                <x-ui.select name="course_level_id" label="Khung trình độ" class="text-xs" placeholder="-- Tất cả trình độ --"
-                             :options="$levels->mapWithKeys(fn ($lv) => [$lv->id => $lv->name . ' (' . $lv->code . ')'])" />
-
-                {{-- Status --}}
-                <x-ui.select name="status" label="Trạng thái mở bán" class="text-xs" placeholder="-- Tất cả trạng thái --"
-                             :options="['active' => '🟢 Đang mở bán', 'inactive' => '⚪ Tạm ngưng']" />
-
-                {{-- Actions --}}
-                <div class="flex items-end gap-2">
-                    <x-ui.button variant="secondary" :href="route('courses.index')">Đặt lại</x-ui.button>
-                    <x-ui.button type="submit" icon="filter_alt" class="flex-1">Lọc</x-ui.button>
-                </div>
-            </form>
-        </div>
+            {{-- Status --}}
+            <x-ui.select name="status" label="Trạng thái mở bán" placeholder="Tất cả trạng thái"
+                         :options="['active' => 'Đang mở bán', 'inactive' => 'Tạm ngưng']" />
+        </x-ui.filter-bar>
 
         {{-- 3. Courses Table / Price List --}}
-        <x-ui.data-table min-width="1040px">
+        <x-ui.data-table min-width="1040px" sticky="both">
                 <table class="text-xs">
                     <thead>
                         <tr>
@@ -68,7 +54,7 @@
                                 <td>
                                     <div class="font-bold text-on-surface text-xs">{{ $c->name }}</div>
                                     @if ($c->description)
-                                        <div class="text-[11px] text-on-surface-variant line-clamp-1 mt-0.5 max-w-sm">{{ $c->description }}</div>
+                                        <div class="text-xs text-on-surface-variant line-clamp-1 mt-0.5 max-w-sm">{{ $c->description }}</div>
                                     @endif
                                 </td>
 
@@ -77,7 +63,7 @@
                                     @if ($c->level)
                                         <div class="whitespace-nowrap">
                                             <div class="flex items-center gap-1.5 whitespace-nowrap">
-                                                <span class="px-2 py-0.5 rounded-md bg-secondary/10 text-secondary font-mono font-bold text-[11px] border border-secondary/20 shrink-0">
+                                                <span class="px-2 py-0.5 rounded-md bg-secondary/10 text-secondary font-mono font-bold text-xs border border-secondary/20 shrink-0">
                                                     {{ $c->level->code }}
                                                 </span>
                                                 <span class="font-semibold text-on-surface text-xs whitespace-nowrap">
@@ -85,29 +71,29 @@
                                                 </span>
                                             </div>
                                             @if ($c->level->target)
-                                                <div class="text-[10px] text-on-surface-variant/70 font-medium mt-0.5 whitespace-nowrap flex items-center gap-1">
-                                                    <span class="material-symbols-outlined text-[13px] text-on-surface-variant/70">flag</span>
+                                                <div class="text-xs text-on-surface-subtle font-medium mt-0.5 whitespace-nowrap flex items-center gap-1">
+                                                    <span class="material-symbols-outlined text-[13px] text-on-surface-subtle">flag</span>
                                                     <span>{{ $c->level->target }}</span>
                                                 </div>
                                             @endif
                                         </div>
                                     @else
-                                        <span class="text-on-surface-variant/70 italic text-[11px] whitespace-nowrap">Chưa gắn level</span>
+                                        <span class="text-on-surface-subtle italic text-xs whitespace-nowrap">Chưa gắn level</span>
                                     @endif
                                 </td>
 
                                 {{-- Tuition Fee (Giá khóa học) --}}
                                 <td class="text-right whitespace-nowrap">
                                     <div class="font-mono font-extrabold text-sm text-primary">
-                                        {{ number_format($c->tuition_fee) }} đ
+                                        {{ \App\Support\Money::format($c->tuition_fee) }}
                                     </div>
-                                    <span class="text-[10px] text-on-surface-variant/70 block">Giá trọn gói</span>
+                                    <span class="text-xs text-on-surface-subtle block">Giá trọn gói</span>
                                 </td>
 
                                 {{-- Lessons --}}
                                 <td class="text-center whitespace-nowrap">
                                     <span class="font-mono font-bold text-on-surface">{{ $c->total_lessons }}</span>
-                                    <span class="text-[10px] text-on-surface-variant/70 block">buổi học</span>
+                                    <span class="text-xs text-on-surface-subtle block">buổi học</span>
                                 </td>
 
                                 {{-- Classes Count --}}
@@ -122,10 +108,10 @@
                                         @method('PATCH')
                                         <button 
                                             type="submit" 
-                                            class="px-2.5 py-1 rounded-full text-[10px] font-bold transition cursor-pointer {{ $c->is_active ? 'bg-tertiary/10 text-tertiary border border-tertiary/30 hover:bg-tertiary/20' : 'bg-surface-container text-on-surface-variant border border-surface-container-highest hover:bg-surface-container-high' }}"
+                                            class="px-2.5 py-1 rounded-full text-xs font-bold transition cursor-pointer {{ $c->is_active ? 'bg-tertiary/10 text-tertiary border border-tertiary/30 hover:bg-tertiary/20' : 'bg-surface-container text-on-surface-variant border border-surface-container-highest hover:bg-surface-container-high' }}"
                                             title="Bấm để chuyển trạng thái mở bán"
                                         >
-                                            {{ $c->is_active ? '🟢 Đang mở bán' : '⚪ Tạm ngưng' }}
+                                            <span class="inline-flex items-center gap-xs"><span class="h-2 w-2 rounded-full {{ $c->is_active ? 'bg-tertiary' : 'bg-outline' }}" aria-hidden="true"></span>{{ $c->is_active ? 'Đang mở bán' : 'Tạm ngưng' }}</span>
                                         </button>
                                     </form>
                                 </td>
@@ -139,7 +125,7 @@
 
                                         {{-- Delete Button --}}
                                         @if ($c->classes_count === 0)
-                                            <form action="{{ route('courses.destroy', $c->id) }}" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn xóa khóa học {{ $c->name }} không?');">
+                                            <form action="{{ route('courses.destroy', $c->id) }}" method="POST" data-confirm="Xóa khóa học {{ $c->name }}?" data-confirm-label="Xóa" data-confirm-danger>
                                                 @csrf
                                                 @method('DELETE')
                                                 <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete" title="Xóa" />
@@ -176,7 +162,7 @@
                     <div class="bg-primary-container/5 p-3.5 rounded-2xl border border-primary-container/25">
                         <label for="create_tuition_fee" class="block font-bold text-primary mb-1 flex items-center justify-between">
                             <span>Giá học phí niêm yết (VNĐ) <span class="text-error">*</span></span>
-                            <span class="text-[10px] text-primary font-normal">Học phí trọn gói</span>
+                            <span class="text-xs text-primary font-normal">Học phí trọn gói</span>
                         </label>
                         <x-ui.input type="number" name="tuition_fee" id="create_tuition_fee" placeholder="12500000" min="0" step="10000" required suffix="VNĐ"
                                     class="text-sm font-mono font-black text-primary" />
@@ -215,7 +201,7 @@
                     <div class="bg-primary-container/10 p-3.5 rounded-2xl border border-primary-container/30">
                         <label for="edit_tuition_fee" class="block font-bold text-primary mb-1 flex items-center justify-between">
                             <span>Giá học phí niêm yết (VNĐ) <span class="text-error">*</span></span>
-                            <span class="text-[10px] text-primary font-normal">Chỉnh sửa giá mới</span>
+                            <span class="text-xs text-primary font-normal">Chỉnh sửa giá mới</span>
                         </label>
                         <x-ui.input type="number" name="tuition_fee" id="edit_tuition_fee" min="0" step="10000" required suffix="VNĐ"
                                     class="text-base font-mono font-black text-primary" />

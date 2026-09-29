@@ -74,7 +74,7 @@
                                         @endif
                                         <x-ui.button variant="ghost" size="sm" icon="visibility" :href="route('syllabus.teacher-view', ['document' => $doc->id])" title="Xem chi tiết" />
                                         @if ($canUpload)
-                                            <form method="POST" action="{{ route('syllabus.documents.destroy', $doc->id) }}" data-confirm="Xóa tài liệu {{ $doc->title }}? File sẽ bị xóa khỏi máy chủ.">
+                                            <form method="POST" action="{{ route('syllabus.documents.destroy', $doc->id) }}" data-confirm="Xóa tài liệu {{ $doc->title }}? File sẽ bị xóa khỏi máy chủ." data-confirm-label="Xóa" data-confirm-danger>
                                                 @csrf @method('DELETE')
                                                 <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete" title="Xóa" />
                                             </form>

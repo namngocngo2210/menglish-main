@@ -180,8 +180,8 @@ class Phase1CrmTest extends TestCase
 
         $history = CrmCustomerHistory::where('customer_id', $lead->id)->where('type', 'update')->firstOrFail();
         $this->assertSame(['old' => 'Tên cũ', 'new' => 'Tên mới'], array_intersect_key($history->changes['name'], ['old' => 1, 'new' => 1]));
-        $this->assertSame('1.000.000đ', $history->changes['deal_value']['old']);
-        $this->assertSame('2.000.000đ', $history->changes['deal_value']['new']);
+        $this->assertSame('1.000.000 đ', $history->changes['deal_value']['old']);
+        $this->assertSame('2.000.000 đ', $history->changes['deal_value']['new']);
         $this->assertArrayHasKey('next_follow_up_at', $history->changes);
         $this->assertArrayNotHasKey('source', $history->changes);
         $this->assertStringContainsString('Họ tên: Tên cũ → Tên mới', $history->content);
@@ -226,7 +226,7 @@ class Phase1CrmTest extends TestCase
         $this->actingAs($this->sales)->get(route('notifications.index'))->assertOk()->assertSee($neglected->name);
         // Trang thông báo có tiêu đề riêng, không kèm header/tab của Quản lý tuyển sinh.
         $this->actingAs($this->admin)->get(route('notifications.index'))
-            ->assertSee('Trung Tâm Cảnh Báo')->assertDontSee('Quản lý tuyển sinh')->assertDontSee('Thêm khách mới')
+            ->assertSee('Thông báo')->assertDontSee('Quản lý tuyển sinh')->assertDontSee('Thêm khách mới')
             ->assertDontSee('data-workspace-tabs', false);
 
         // Quét lại không cảnh báo trùng; có hoạt động mới rồi lại bị bỏ quên → cảnh báo lại.

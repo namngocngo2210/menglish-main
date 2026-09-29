@@ -192,10 +192,10 @@
             @if (! $assignment)
                 <x-ui.empty-state icon="school" title="Chưa có lớp nào đang học chặng" description="Học thuật mở chặng cho lớp ở màn Giao chặng; nội dung buổi học sẽ hiện ở đây." />
             @else
-                <ol class="flex flex-wrap gap-2 text-[11px]">
+                <ol class="flex flex-wrap gap-2 text-xs">
                     @foreach ($stages as $s)
                         @php($state = $s->id === $assignment->stage_id ? 'open' : ($closedStageIds->contains($s->id) ? 'done' : 'todo'))
-                        <li class="px-2.5 py-1 rounded-lg border {{ ['open' => 'border-primary-container bg-primary-container/10 text-primary font-bold', 'done' => 'border-tertiary/30 bg-tertiary/10 text-tertiary', 'todo' => 'border-surface-container-highest text-on-surface-variant/70'][$state] }}">
+                        <li class="px-2.5 py-1 rounded-lg border {{ ['open' => 'border-primary-container bg-primary-container/10 text-primary font-bold', 'done' => 'border-tertiary/30 bg-tertiary/10 text-tertiary', 'todo' => 'border-surface-container-highest text-on-surface-subtle'][$state] }}">
                             <span class="material-symbols-outlined text-[13px] align-middle">{{ ['open' => 'play_circle', 'done' => 'check_circle', 'todo' => 'lock'][$state] }}</span>
                             {{ $s->label }}
                         </li>
@@ -205,19 +205,19 @@
                 @php($current = $position['current'])
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                     <div class="rounded-xl border border-surface-container-highest p-3">
-                        <p class="text-[10px] uppercase font-bold text-on-surface-variant/70">Chặng đang học</p>
+                        <p class="text-xs uppercase font-bold text-on-surface-subtle">Chặng đang học</p>
                         <p class="font-bold text-on-surface">{{ $assignment->stage?->label ?? $assignment->stage_name }}</p>
                         <p class="text-on-surface-variant">{{ $assignment->curriculum?->title }} · mở {{ ($assignment->opened_at ?? $assignment->created_at)?->format('d/m/Y') }}</p>
                     </div>
                     <div class="rounded-xl border border-surface-container-highest p-3">
-                        <p class="text-[10px] uppercase font-bold text-on-surface-variant/70">Tiến độ</p>
+                        <p class="text-xs uppercase font-bold text-on-surface-subtle">Tiến độ</p>
                         <p class="font-bold text-on-surface">Đã dạy {{ $position['taught'] }} / {{ $position['lessons']->count() }} buổi của chặng</p>
                         @if ($assignment->extra_sessions)
                             <p class="text-warning">+{{ $assignment->extra_sessions }} buổi giãn tiến độ đã duyệt</p>
                         @endif
                     </div>
                     <div class="rounded-xl border border-surface-container-highest p-3">
-                        <p class="text-[10px] uppercase font-bold text-on-surface-variant/70">Big Test cuối chặng</p>
+                        <p class="text-xs uppercase font-bold text-on-surface-subtle">Big Test cuối chặng</p>
                         <p class="font-bold text-secondary">{{ $assignment->stage?->big_test_title ?: 'Big Test cuối chặng' }}</p>
                         <p class="text-on-surface-variant">Chặng đóng khi kết quả được duyệt và gửi phụ huynh.</p>
                     </div>
@@ -240,7 +240,7 @@
                                             <span>Buổi {{ $lesson->session_no }}: {{ $lesson->title }}
                                                 @if ($current?->id === $lesson->id)<x-ui.badge color="primary">Buổi tiếp theo</x-ui.badge>@endif
                                             </span>
-                                            <span class="material-symbols-outlined text-[18px] text-on-surface-variant/70 group-open:rotate-180 transition">expand_more</span>
+                                            <span class="material-symbols-outlined text-[18px] text-on-surface-subtle group-open:rotate-180 transition">expand_more</span>
                                         </summary>
                                         <div class="space-y-1.5 mt-3 text-on-surface-variant">
                                             <p class="whitespace-pre-line"><strong>Mục tiêu:</strong> {{ $lesson->objectives ?: '—' }}</p>
@@ -251,7 +251,7 @@
                                         </div>
                                     </details>
                                 @empty
-                                    <p class="px-4 py-2.5 text-[11px] text-on-surface-variant/70">Unit chưa có buổi học.</p>
+                                    <p class="px-4 py-2.5 text-xs text-on-surface-subtle">Unit chưa có buổi học.</p>
                                 @endforelse
                             </div>
                         </div>

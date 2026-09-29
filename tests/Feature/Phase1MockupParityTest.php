@@ -86,7 +86,7 @@ class Phase1MockupParityTest extends TestCase
         $this->lead('new', ['name' => 'Phạm Hoàng Nam', 'source' => 'Facebook']);
 
         $this->actingAs($this->manager)->get(route('crm.customers.index'))->assertOk()
-            ->assertSee('Từ khóa (Tên/SĐT)')->assertSee('Nguồn')->assertSee('Người phụ trách')
+            ->assertSee('Tìm tên hoặc SĐT...')->assertSee('Nguồn')->assertSee('Người phụ trách')
             ->assertSee('Giai đoạn')->assertSee('Chi nhánh')->assertSee('Lọc')->assertDontSee('Lọc dữ liệu')
             ->assertSee('Tên phụ huynh')->assertSee('Cập nhật gần nhất')
             ->assertSee('Trần Thu Hà')->assertSee('trong tổng số', false);
@@ -274,7 +274,7 @@ class Phase1MockupParityTest extends TestCase
 
         $this->actingAs($academicLead)->get(route('placement-tests.index'))->assertOk()
             ->assertSee('Quản lý đề test đầu vào')->assertSee('Tạo đề mới')
-            ->assertSee('Cấp độ')->assertSee('Trạng thái')->assertSee('Tìm kiếm tên đề')->assertSee('Làm mới')
+            ->assertSee('Cấp độ')->assertSee('Trạng thái')->assertSee('Nhập tên đề cần tìm...')->assertSee('role="search"', false)
             ->assertSee('Loại đề')->assertSee('placement_test')->assertSee('Thời gian')->assertSee('35 phút')
             ->assertSee('Hoạt động')->assertSee('Ẩn')->assertSee('ID: TEST-G1-G2-01')
             ->assertSee('trong tổng số', false)
@@ -391,7 +391,7 @@ class Phase1MockupParityTest extends TestCase
 
         // Trang thang điểm: theo khối lớp, không "4 kỹ năng".
         $this->actingAs($this->academic)->get(route('placement-tests.rubric-guide'))->assertOk()
-            ->assertSee('Thang Điểm &amp; Hướng Dẫn Nhận Xét Tự Động', false)->assertSee('KHỐI 2 LÊN 3')
+            ->assertSee('Thang điểm &amp; nhận xét tự động', false)->assertSee('KHỐI 2 LÊN 3')
             ->assertDontSee('band điểm 4 kỹ năng');
     }
 

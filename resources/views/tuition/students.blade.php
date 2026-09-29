@@ -10,32 +10,19 @@
         </x-slot:actions>
     </x-ui.page-header>
 
-    <form method="GET" action="{{ route('tuition.students') }}" class="mb-lg grid grid-cols-1 gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md md:grid-cols-12 md:items-end">
-        <div class="md:col-span-3">
-            <x-ui.select name="branch_id" label="Chi nhánh" placeholder="Tất cả chi nhánh" onchange="this.form.submit()" :options="$branches->pluck('name', 'id')" />
-        </div>
-        <div class="md:col-span-3">
-            <x-ui.select name="class_id" label="Lớp học" placeholder="Tất cả lớp học" onchange="this.form.submit()">
-                @foreach ($classes as $cl)
-                    <option value="{{ $cl->id }}" @selected((string) request('class_id') === (string) $cl->id)>{{ $cl->name }} ({{ $cl->code }})</option>
-                @endforeach
-            </x-ui.select>
-        </div>
-        <div class="md:col-span-4">
-            <x-ui.input type="search" name="search" label="Tìm kiếm học sinh" icon="search" :value="request('search')" placeholder="Họ tên hoặc mã học sinh..." />
-        </div>
-        <div class="flex gap-sm md:col-span-2">
-            <x-ui.button type="submit" variant="secondary" icon="filter_list" class="flex-1">Lọc</x-ui.button>
-            @if (request()->hasAny(['branch_id', 'class_id', 'search', 'status', 'type']))
-                <x-ui.button variant="secondary" icon="restart_alt" :href="route('tuition.students')" aria-label="Xóa bộ lọc" />
-            @endif
-        </div>
-    </form>
+    <x-ui.filter-bar :action="route('tuition.students')" search="search" placeholder="Họ tên hoặc mã học sinh...">
+        <x-ui.select name="branch_id" label="Chi nhánh" placeholder="Tất cả chi nhánh" onchange="this.form.submit()" :options="$branches->pluck('name', 'id')" />
+        <x-ui.select name="class_id" label="Lớp học" placeholder="Tất cả lớp học" onchange="this.form.submit()">
+            @foreach ($classes as $cl)
+                <option value="{{ $cl->id }}" @selected((string) request('class_id') === (string) $cl->id)>{{ $cl->name }} ({{ $cl->code }})</option>
+            @endforeach
+        </x-ui.select>
+    </x-ui.filter-bar>
 
-    <div class="mb-xl grid grid-cols-2 gap-md lg:grid-cols-4">
-        <x-ui.stat-card label="Tổng học phí phải thu" :value="number_format($stats['final'], 0, ',', '.').'đ'" icon="request_quote" />
-        <x-ui.stat-card label="Đã thực thu" :value="number_format($stats['paid'], 0, ',', '.').'đ'" tone="success" icon="savings" />
-        <x-ui.stat-card label="Công nợ còn lại" :value="number_format($stats['debt'], 0, ',', '.').'đ'" tone="warning" icon="account_balance_wallet" />
+    <div class="mb-xl grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-4">
+        <x-ui.stat-card label="Tổng học phí phải thu" :value="\App\Support\Money::format($stats['final'])" icon="request_quote" />
+        <x-ui.stat-card label="Đã thực thu" :value="\App\Support\Money::format($stats['paid'])" tone="success" icon="savings" />
+        <x-ui.stat-card label="Công nợ còn lại" :value="\App\Support\Money::format($stats['debt'])" tone="warning" icon="account_balance_wallet" />
         <x-ui.stat-card label="Học viên quá hạn" :value="$stats['overdue'].' học viên'" tone="error" icon="report" />
     </div>
 
@@ -44,7 +31,7 @@
         {{-- Toàn bộ khoản học phí (sổ công nợ) --}}
         <section id="all-tuitions" class="space-y-md">
             <div class="flex flex-wrap items-center gap-sm border-l-4 border-outline pl-sm">
-                <h2 class="font-h2 text-h2 uppercase text-on-surface">Toàn bộ khoản học phí</h2>
+                <h2 class="font-h2 text-h2 text-on-surface">Toàn bộ khoản học phí</h2>
                 <form method="GET" action="{{ route('tuition.students') }}#all-tuitions" class="ml-auto flex items-center gap-sm">
                     @foreach (['branch_id', 'class_id', 'search'] as $keep)
                         @if (request($keep))<input type="hidden" name="{{ $keep }}" value="{{ request($keep) }}">@endif
@@ -80,9 +67,9 @@
                                     <div class="font-caption text-caption text-on-surface-variant">{{ $t->branch?->name ?? '—' }}</div>
                                 </td>
                                 <td>{{ $t->fee_label }}</td>
-                                <td class="whitespace-nowrap text-right font-code">{{ number_format((float) $t->final_amount, 0, ',', '.') }}đ</td>
-                                <td class="whitespace-nowrap text-right font-code text-tertiary">{{ number_format((float) $t->paid_amount, 0, ',', '.') }}đ</td>
-                                <td class="whitespace-nowrap text-right font-code {{ $t->debt_amount > 0 ? 'text-error' : 'text-on-surface-variant' }}">{{ number_format((float) $t->debt_amount, 0, ',', '.') }}đ</td>
+                                <td class="whitespace-nowrap text-right font-code">{{ \App\Support\Money::format((float) $t->final_amount) }}</td>
+                                <td class="whitespace-nowrap text-right font-code text-tertiary">{{ \App\Support\Money::format((float) $t->paid_amount) }}</td>
+                                <td class="whitespace-nowrap text-right font-code {{ $t->debt_amount > 0 ? 'text-error' : 'text-on-surface-variant' }}">{{ \App\Support\Money::format((float) $t->debt_amount) }}</td>
                                 <td class="whitespace-nowrap font-code text-code">{{ $t->due_date?->format('d/m/Y') ?? '—' }}</td>
                                 <td><x-ui.badge :color="$t->status_color">{{ $t->status_label }}</x-ui.badge></td>
                                 <td class="whitespace-nowrap text-right">
@@ -108,14 +95,14 @@
             </x-ui.data-table>
         </section>
 
-        {{-- Nhóm quá hạn / sắp đến hạn: thu gọn, việc đôn đốc chính nằm ở màn "Quá hạn & Nhắc phí". --}}
+        {{-- Nhóm quá hạn / sắp đến hạn: thu gọn, việc đôn đốc chính nằm ở màn "Quá hạn & Nhắc phí" (nút ở đầu trang).
+             Không đặt link trong <summary> (phần tử tương tác lồng nhau). --}}
         <details class="group rounded-xl border border-outline-variant bg-surface-container-lowest">
             <summary class="flex cursor-pointer list-none flex-wrap items-center gap-sm p-md">
                 <span class="material-symbols-outlined text-[20px] text-on-surface-variant transition group-open:rotate-90" aria-hidden="true">chevron_right</span>
                 <span class="font-body-medium text-body-medium text-on-surface">Khoản quá hạn &amp; sắp đến hạn</span>
                 <x-ui.badge color="error" pill :dot="false">{{ $overdueTuitions->count() }} quá hạn</x-ui.badge>
                 <x-ui.badge color="warning" pill :dot="false">{{ $upcoming->total() }} sắp đến hạn</x-ui.badge>
-                <a href="{{ route('tuition.overdue') }}" class="ml-auto font-body-small text-body-small text-primary hover:underline">Mở màn Quá hạn &amp; Nhắc phí →</a>
             </summary>
             <div class="space-y-xl border-t border-outline-variant p-md">
                 @include('tuition.partials.due-groups')

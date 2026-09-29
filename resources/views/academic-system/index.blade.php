@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi" class="h-full bg-slate-50">
+<html lang="vi" class="h-full bg-surface-container-low">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -21,53 +21,53 @@
 </head>
 <body class="min-h-full flex flex-col" x-data="screenGallery()">
     {{-- Header --}}
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <header class="bg-white border-b border-surface-container-highest sticky top-0 z-30 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div class="flex items-center space-x-3">
-                    <a href="{{ route('dashboard') }}" class="w-10 h-10 rounded-xl bg-orange-600 flex items-center justify-center text-white font-bold text-xl shadow-md shadow-orange-200 hover:bg-orange-700 transition">
+                    <a href="{{ route('dashboard') }}" class="w-10 h-10 rounded-xl bg-warning flex items-center justify-center text-white font-bold text-xl shadow-md shadow-warning-container hover:bg-warning transition">
                         M
                     </a>
                     <div>
-                        <h1 class="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                        <h1 class="text-xl font-bold text-on-surface tracking-tight flex items-center gap-2">
                             MENGLISH System Screens
-                            <span class="bg-orange-100 text-orange-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-orange-200">58 Giao diện Mới</span>
+                            <span class="bg-warning-container text-warning text-xs font-semibold px-2.5 py-0.5 rounded-full border border-warning/30">58 Giao diện Mới</span>
                         </h1>
-                        <p class="text-xs text-slate-500">Hệ thống Quản trị Đào tạo, Học vụ KPI, Cổng Giáo viên & Phụ huynh/Học sinh</p>
+                        <p class="text-xs text-on-surface-subtle">Hệ thống Quản trị Đào tạo, Học vụ KPI, Cổng Giáo viên & Phụ huynh/Học sinh</p>
                     </div>
                 </div>
 
                 {{-- Action links & Search --}}
                 <div class="flex items-center gap-3 w-full md:w-auto">
-                    <a href="{{ route('dashboard') }}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition shrink-0">
+                    <a href="{{ route('dashboard') }}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant text-xs font-semibold transition shrink-0">
                         <span class="material-symbols-outlined text-sm">arrow_back</span>
                         <span>Về Admin</span>
                     </a>
 
-                    <a href="{{ route('mockup-hub.index') }}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition shrink-0">
+                    <a href="{{ route('mockup-hub.index') }}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-info-container hover:bg-info-container text-info text-xs font-semibold transition shrink-0">
                         <span class="material-symbols-outlined text-sm">hub</span>
                         <span>Mockup Hub</span>
                     </a>
                     
                     {{-- Search Box --}}
                     <div class="relative flex-1 md:w-72">
-                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-subtle text-sm">search</span>
                         <input type="text" x-model="search" @input="filterScreens()" placeholder="Tìm kiếm màn hình..." 
-                            class="w-full pl-9 pr-4 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all">
+                            class="w-full pl-9 pr-4 py-2 bg-surface-container border border-surface-container-highest rounded-lg text-sm text-on-surface placeholder-on-surface-subtle focus:outline-none focus:ring-2 focus:ring-warning focus:bg-white transition-all">
                     </div>
                 </div>
             </div>
 
             {{-- Category Filter Tabs --}}
-            <div class="flex items-center gap-2 mt-4 overflow-x-auto pb-1 no-scrollbar border-t border-slate-100 pt-3">
+            <div class="flex items-center gap-2 mt-4 overflow-x-auto pb-1 no-scrollbar border-t border-surface-container-highest pt-3">
                 <template x-for="cat in categories" :key="cat.id">
                     <button 
                         @click="setCategory(cat.id)" 
-                        :class="currentCat === cat.id ? 'bg-orange-600 text-white shadow-sm font-semibold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium'"
+                        :class="currentCat === cat.id ? 'bg-warning text-white shadow-sm font-semibold' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high font-medium'"
                         class="px-3.5 py-1.5 rounded-lg text-xs whitespace-nowrap transition-all flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-sm" x-text="cat.icon"></span>
                         <span x-text="cat.name"></span>
-                        <span class="text-[10px] px-1.5 py-0.2 rounded-full" :class="currentCat === cat.id ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'" x-text="cat.count"></span>
+                        <span class="text-xs px-1.5 py-0.2 rounded-full" :class="currentCat === cat.id ? 'bg-white/20 text-white' : 'bg-surface-container-high text-on-surface-variant'" x-text="cat.count"></span>
                     </button>
                 </template>
             </div>
@@ -77,17 +77,17 @@
     {{-- Main Container --}}
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
         {{-- Results Counter --}}
-        <div class="mb-4 flex items-center justify-between text-xs text-slate-500">
+        <div class="mb-4 flex items-center justify-between text-xs text-on-surface-subtle">
             <div>
-                Hiển thị <span class="font-bold text-slate-800" x-text="filteredScreens.length"></span> / 58 màn hình
+                Hiển thị <span class="font-bold text-on-surface" x-text="filteredScreens.length"></span> / 58 màn hình
             </div>
             <div class="flex items-center gap-3">
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 text-[11px] font-semibold border border-amber-200">
-                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-warning-container text-on-warning-container text-xs font-semibold border border-warning/30">
+                    <span class="w-1.5 h-1.5 rounded-full bg-warning"></span>
                     290 Dữ liệu mẫu SEED (5 bản ghi / màn)
                 </span>
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold border border-emerald-200">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-tertiary/10 text-tertiary text-xs font-semibold border border-tertiary/30">
+                    <span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
                     100% UI nguyên bản theo thiết kế
                 </span>
             </div>
@@ -96,23 +96,23 @@
         {{-- Screens Grid --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             <template x-for="(s, idx) in filteredScreens" :key="s.folder_name">
-                <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-orange-300 transition-all flex flex-col overflow-hidden group">
+                <div class="bg-white rounded-xl border border-surface-container-highest/80 shadow-sm hover:shadow-md hover:border-warning/30 transition-all flex flex-col overflow-hidden group">
                     {{-- Thumbnail with overlay --}}
-                    <div class="h-44 bg-slate-100 relative overflow-hidden border-b border-slate-100 flex items-center justify-center cursor-pointer" @click="openModal(s)">
+                    <div class="h-44 bg-surface-container relative overflow-hidden border-b border-surface-container-highest flex items-center justify-center cursor-pointer" @click="openModal(s)">
                         <template x-if="s.has_png">
                             <img :src="'/roundcuoi-kieulien/' + s.category_id + '/' + s.folder_name + '/screen.png'" :alt="s.title_vn" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300">
                         </template>
                         <template x-if="!s.has_png">
                             <div class="text-center p-4">
-                                <span class="material-symbols-outlined text-4xl text-slate-400">web</span>
-                                <p class="text-xs text-slate-400 mt-1 font-medium">Giao diện HTML</p>
+                                <span class="material-symbols-outlined text-4xl text-on-surface-subtle">web</span>
+                                <p class="text-xs text-on-surface-subtle mt-1 font-medium">Giao diện HTML</p>
                             </div>
                         </template>
-                        <div class="absolute top-2 left-2 bg-slate-900/80 backdrop-blur-sm text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded-md">
+                        <div class="absolute top-2 left-2 bg-inverse-surface/80 backdrop-blur-sm text-white text-xs font-mono font-bold px-2 py-0.5 rounded-md">
                             #<span x-text="s.num"></span>
                         </div>
-                        <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                            <span class="px-3 py-1.5 bg-white/95 rounded-lg text-xs font-semibold text-slate-900 shadow-md flex items-center gap-1">
+                        <div class="absolute inset-0 bg-inverse-surface/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <span class="px-3 py-1.5 bg-white/95 rounded-lg text-xs font-semibold text-on-surface shadow-md flex items-center gap-1">
                                 <span class="material-symbols-outlined text-sm">visibility</span> Xem nhanh
                             </span>
                         </div>
@@ -122,33 +122,33 @@
                     <div class="p-4 flex-1 flex flex-col justify-between">
                         <div>
                             <div class="flex items-center justify-between gap-1 mb-1">
-                                <div class="text-[10px] font-semibold uppercase tracking-wider text-orange-600 flex items-center gap-1">
+                                <div class="text-xs font-semibold uppercase tracking-wider text-warning flex items-center gap-1">
                                     <span class="material-symbols-outlined text-xs" x-text="s.icon"></span>
                                     <span x-text="s.category_name.split('(')[0]"></span>
                                 </div>
                                 <template x-if="nativeMap[s.category_id + '/' + s.folder_name]">
-                                    <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-0.5">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>Native
+                                    <span class="text-xs font-bold px-1.5 py-0.2 rounded bg-tertiary/10 text-on-tertiary-container border border-tertiary/30 flex items-center gap-0.5">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>Native
                                     </span>
                                 </template>
                             </div>
-                            <h3 class="text-sm font-bold text-slate-800 line-clamp-2 mb-1 group-hover:text-orange-600 transition-colors" x-text="s.title_vn"></h3>
-                            <p class="text-xs text-slate-500 line-clamp-2 mb-3" x-text="s.desc"></p>
+                            <h3 class="text-sm font-bold text-on-surface line-clamp-2 mb-1 group-hover:text-warning transition-colors" x-text="s.title_vn"></h3>
+                            <p class="text-xs text-on-surface-subtle line-clamp-2 mb-3" x-text="s.desc"></p>
                         </div>
 
                         {{-- Card Actions --}}
-                        <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                        <div class="pt-2 border-t border-surface-container-highest flex items-center justify-between gap-2">
                             <template x-if="nativeMap[s.category_id + '/' + s.folder_name]">
-                                <a :href="nativeMap[s.category_id + '/' + s.folder_name]" target="_blank" class="flex-1 inline-flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 px-3 rounded-lg text-xs font-bold transition-colors shadow-sm">
+                                <a :href="nativeMap[s.category_id + '/' + s.folder_name]" target="_blank" class="flex-1 inline-flex items-center justify-center gap-1 bg-tertiary hover:bg-tertiary text-white py-1.5 px-3 rounded-lg text-xs font-bold transition-colors shadow-sm">
                                     <span class="material-symbols-outlined text-sm">rocket_launch</span> Mở Native
                                 </a>
                             </template>
                             <template x-if="!nativeMap[s.category_id + '/' + s.folder_name]">
-                                <a :href="'/academic-system/' + s.category_id + '/' + s.folder_name" target="_blank" class="flex-1 inline-flex items-center justify-center gap-1 bg-orange-50 hover:bg-orange-600 text-orange-700 hover:text-white py-1.5 px-3 rounded-lg text-xs font-semibold transition-colors shadow-sm">
+                                <a :href="'/academic-system/' + s.category_id + '/' + s.folder_name" target="_blank" class="flex-1 inline-flex items-center justify-center gap-1 bg-warning-container hover:bg-warning text-warning hover:text-white py-1.5 px-3 rounded-lg text-xs font-semibold transition-colors shadow-sm">
                                     <span class="material-symbols-outlined text-sm">open_in_new</span> Mở màn hình
                                 </a>
                             </template>
-                            <button @click="openModal(s)" title="Xem preview" class="p-1.5 text-slate-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors border border-slate-200">
+                            <button @click="openModal(s)" title="Xem preview" class="p-1.5 text-on-surface-subtle hover:text-warning hover:bg-warning-container rounded-lg transition-colors border border-surface-container-highest">
                                 <span class="material-symbols-outlined text-sm">preview</span>
                             </button>
                         </div>
@@ -158,55 +158,55 @@
         </div>
 
         {{-- Empty State --}}
-        <div x-show="filteredScreens.length === 0" x-cloak class="py-16 text-center text-slate-400">
-            <span class="material-symbols-outlined text-5xl mb-2 text-slate-300">search_off</span>
-            <p class="text-base font-semibold text-slate-600">Không tìm thấy màn hình phù hợp</p>
-            <p class="text-xs text-slate-400 mt-1">Thử tìm kiếm với từ khóa khác hoặc chuyển danh mục.</p>
+        <div x-show="filteredScreens.length === 0" x-cloak class="py-16 text-center text-on-surface-subtle">
+            <span class="material-symbols-outlined text-5xl mb-2 text-outline">search_off</span>
+            <p class="text-base font-semibold text-on-surface-variant">Không tìm thấy màn hình phù hợp</p>
+            <p class="text-xs text-on-surface-subtle mt-1">Thử tìm kiếm với từ khóa khác hoặc chuyển danh mục.</p>
         </div>
     </main>
 
     {{-- Interactive Fullscreen Modal Preview --}}
     <div x-show="modalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm" @keydown.escape.window="modalOpen = false">
-        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-6xl h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200" @click.outside="modalOpen = false">
+        <div class="bg-white rounded-2xl shadow-2xl border border-surface-container-highest w-full max-w-6xl h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200" @click.outside="modalOpen = false">
             {{-- Modal Header --}}
-            <div class="h-14 px-5 bg-slate-900 text-white flex items-center justify-between shrink-0">
+            <div class="h-14 px-5 bg-inverse-surface text-white flex items-center justify-between shrink-0">
                 <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-orange-600 text-white font-bold flex items-center justify-center text-sm">
+                    <div class="w-8 h-8 rounded-lg bg-warning text-white font-bold flex items-center justify-center text-sm">
                         M
                     </div>
                     <div>
                         <h3 class="text-sm font-bold text-white flex items-center gap-2">
                             <span x-text="activeScreen?.title_vn"></span>
-                            <span class="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded" x-text="'#' + activeScreen?.num"></span>
+                            <span class="text-xs bg-white/20 text-white px-2 py-0.5 rounded" x-text="'#' + activeScreen?.num"></span>
                         </h3>
-                        <p class="text-[11px] text-slate-400 font-mono" x-text="activeScreen?.category_id + '/' + activeScreen?.folder_name"></p>
+                        <p class="text-xs text-inverse-on-surface/70 font-mono" x-text="activeScreen?.category_id + '/' + activeScreen?.folder_name"></p>
                     </div>
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <a :href="'/academic-system/' + activeScreen?.category_id + '/' + activeScreen?.folder_name" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold shadow-sm transition">
+                    <a :href="'/academic-system/' + activeScreen?.category_id + '/' + activeScreen?.folder_name" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-warning hover:bg-warning text-white text-xs font-semibold shadow-sm transition">
                         <span class="material-symbols-outlined text-sm">open_in_new</span>
                         <span>Mở toàn màn hình</span>
                     </a>
-                    <button @click="modalOpen = false" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition">
+                    <button @click="modalOpen = false" class="p-1.5 rounded-lg text-inverse-on-surface/70 hover:text-white hover:bg-white/10 transition">
                         <span class="material-symbols-outlined text-xl">close</span>
                     </button>
                 </div>
             </div>
 
             {{-- Modal Body (Iframe) --}}
-            <div class="flex-1 bg-slate-100 p-2 overflow-hidden">
+            <div class="flex-1 bg-surface-container p-2 overflow-hidden">
                 <template x-if="modalOpen">
-                    <iframe :src="'/academic-system/' + activeScreen?.category_id + '/' + activeScreen?.folder_name" class="w-full h-full rounded-xl border border-slate-300 bg-white shadow-inner" frameborder="0"></iframe>
+                    <iframe :src="'/academic-system/' + activeScreen?.category_id + '/' + activeScreen?.folder_name" class="w-full h-full rounded-xl border border-outline-variant bg-white shadow-inner" frameborder="0"></iframe>
                 </template>
             </div>
         </div>
     </div>
 
     {{-- Footer --}}
-    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 flex items-center justify-center gap-2 flex-wrap px-4">
+    <footer class="bg-white border-t border-surface-container-highest py-4 text-center text-xs text-on-surface-subtle flex items-center justify-center gap-2 flex-wrap px-4">
         <span>MENGLISH Education System &bull; 2026</span>
-        <span class="text-slate-300">&bull;</span>
+        <span class="text-outline">&bull;</span>
         <span>Phát triển bởi <a href="https://vmst.vn" target="_blank" rel="noopener noreferrer" class="font-bold text-[#ea580c] hover:underline">VMST Media</a></span>
     </footer>
 

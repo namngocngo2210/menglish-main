@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Course;
 use App\Models\CourseLevel;
+use App\Support\Money;
 use Illuminate\Http\Request;
 
 class CourseController extends Controller
@@ -73,7 +74,7 @@ class CourseController extends Controller
         $course = Course::create($validated);
 
         return redirect()->route('courses.index')
-            ->with('status', "Đã thêm khóa học '{$course->name}' ({$course->code}) với học phí " . number_format($course->tuition_fee) . "đ thành công!");
+            ->with('status', "Đã thêm khóa học '{$course->name}' ({$course->code}) với học phí " . Money::format($course->tuition_fee) . " thành công!");
     }
 
     /**
@@ -103,7 +104,7 @@ class CourseController extends Controller
         $course->update($validated);
 
         $feeMsg = ($oldFee != $course->tuition_fee)
-            ? " (Đã cập nhật giá từ " . number_format($oldFee) . "đ thành " . number_format($course->tuition_fee) . "đ)"
+            ? " (Đã cập nhật giá từ " . Money::format($oldFee) . " thành " . Money::format($course->tuition_fee) . ")"
             : "";
 
         return redirect()->route('courses.index')

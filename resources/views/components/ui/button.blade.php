@@ -31,7 +31,9 @@
     $sizes = $iconOnly
         ? ['md' => 'p-sm', 'sm' => 'p-xs']
         : ['md' => 'px-md py-sm font-body-medium text-body-medium', 'sm' => 'px-sm py-xs font-body-medium text-body-small'];
-    $classes = 'inline-flex shrink-0 items-center justify-center gap-xs whitespace-nowrap rounded-lg transition-colors duration-150 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container/40 disabled:pointer-events-none disabled:opacity-50 '
+    // Điện thoại: vùng bấm tối thiểu 44×44px (max-md:min-h-11, nút chỉ-icon thêm min-w-11).
+    $touch = 'max-md:min-h-11' . ($iconOnly ? ' max-md:min-w-11' : '');
+    $classes = $touch . ' inline-flex shrink-0 items-center justify-center gap-xs whitespace-nowrap rounded-lg transition-colors duration-150 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container/40 disabled:pointer-events-none disabled:opacity-50 '
         . ($variants[$variant] ?? $variants['primary']) . ' ' . ($sizes[$size] ?? $sizes['md']);
     $iconSize = $size === 'sm' ? 'text-[16px]' : 'text-[18px]';
     // Mở trong modal chung: htmx tải fragment vào #remote-modal-body, remote-modal.js mở modal + đặt cỡ.

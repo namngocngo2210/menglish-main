@@ -165,16 +165,16 @@ class ClassDashboardService
             return 'border-outline-variant bg-surface-container-low text-on-surface-variant line-through';
         }
         if ($session->type === ClassSession::TYPE_MAKEUP) {
-            return 'border-amber-300 bg-amber-50 text-amber-900';
+            return 'border-warning/30 bg-warning-container text-on-warning-container';
         }
         if ($session->type === ClassSession::TYPE_SUPPORT) {
-            return 'border-purple-300 bg-purple-50 text-purple-900';
+            return 'border-accent/30 bg-accent-container text-on-accent-container';
         }
         $tones = [
-            'border-orange-200 bg-orange-50 text-orange-900',
-            'border-blue-200 bg-blue-50 text-blue-900',
-            'border-emerald-200 bg-emerald-50 text-emerald-900',
-            'border-sky-200 bg-sky-50 text-sky-900',
+            'border-warning/30 bg-warning-container text-on-warning-container',
+            'border-info/30 bg-info-container text-on-info-container',
+            'border-tertiary/30 bg-tertiary/10 text-on-tertiary-container',
+            'border-info/30 bg-info-container text-on-info-container',
         ];
         $key = $session->classModel?->course_id ?? $session->classModel?->program ?? $session->class_id;
 

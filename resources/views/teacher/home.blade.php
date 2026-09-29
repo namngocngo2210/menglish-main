@@ -73,7 +73,7 @@
                                             @if ($typeLabels[$session->type] ?? null)<x-ui.badge color="info">{{ $typeLabels[$session->type] }}</x-ui.badge>@endif
                                         </p>
                                         <p class="font-body-small text-body-small text-on-surface-variant">
-                                            {{ $shift['scheduled_time'] }} • {{ $session->room ? (str_starts_with(mb_strtolower($session->room), 'phòng') ? $session->room : 'Phòng '.$session->room) : 'Chưa có phòng' }}, {{ $class?->branch?->name ?? 'Chưa gán chi nhánh' }}
+                                            {{ $shift['scheduled_time'] }} • {{ $session->roomLabel() ?? 'Chưa có phòng' }}, {{ $class?->branch?->name ?? 'Chưa gán chi nhánh' }}
                                         </p>
                                         <p class="font-caption text-caption text-on-surface-variant">
                                             {{ $class?->code }} · {{ $shift['student_count'] }} HV
@@ -84,7 +84,7 @@
                                     </div>
                                 </div>
                                 <div class="mt-md flex flex-wrap gap-xs border-t border-outline-variant/60 pt-sm">
-                                    <x-ui.button size="sm" :variant="$shift['attendance_done'] ? 'secondary' : 'primary'" icon="fact_check"
+                                    <x-ui.button size="sm" :variant="$shift['attendance_done'] ? 'ghost' : 'secondary'" icon="fact_check"
                                         :href="route('teacher.attendance', ['classId' => $class->id, 'session' => $session->id])">{{ $shift['attendance_done'] ? 'Đã điểm danh' : 'Điểm danh' }}</x-ui.button>
                                     @if ($session->type !== \App\Models\ClassSession::TYPE_SUPPORT)
                                         <x-ui.button size="sm" variant="secondary" icon="rate_review" :href="route('teacher.remarks', ['classId' => $class->id, 'session' => $session->id])">Nhận xét</x-ui.button>
@@ -102,7 +102,7 @@
                     @endif
                 </form>
             @else
-                <x-ui.empty-state icon="event_busy" title="Không có ca dạy hôm nay" description="Lịch dạy được sinh từ TKB của các lớp bạn phụ trách." />
+                <x-ui.empty-state compact icon="event_busy" title="Không có ca dạy hôm nay" description="Lịch dạy được sinh từ TKB của các lớp bạn phụ trách." />
             @endif
         </section>
 
@@ -161,7 +161,7 @@
                                     $done = $attendanceDone->has($s->id);
                                     $canTake = ! $cancelled && ! $s->date->isFuture();
                                 @endphp
-                                <div class="rounded-lg border px-sm py-xs text-[11px] {{ $cancelled ? 'border-outline-variant bg-surface-container-low text-on-surface-variant line-through' : ($done ? 'border-tertiary/30 bg-tertiary-fixed/20' : 'border-outline-variant') }}">
+                                <div class="rounded-lg border px-sm py-xs text-xs {{ $cancelled ? 'border-outline-variant bg-surface-container-low text-on-surface-variant line-through' : ($done ? 'border-tertiary/30 bg-tertiary-fixed/20' : 'border-outline-variant') }}">
                                     <div class="font-semibold text-on-surface">{{ $s->start_time?->format('H:i') }}-{{ $s->end_time?->format('H:i') }}</div>
                                     <div class="truncate">{{ $s->classModel?->name }}</div>
                                     <div class="text-on-surface-variant">
@@ -176,7 +176,7 @@
                                     @endif
                                 </div>
                             @empty
-                                <div class="text-[11px] text-outline-variant">—</div>
+                                <div class="text-xs text-outline-variant">—</div>
                             @endforelse
                         </div>
                     </div>
@@ -213,7 +213,7 @@
                 </div>
                 <div class="flex flex-1 flex-col justify-center">
                     @if ($widgets['estimate'] !== null)
-                        <p class="text-[28px] font-bold leading-9 text-primary">{{ number_format($widgets['estimate'], 0, ',', '.') }}đ</p>
+                        <p class="text-[28px] font-bold leading-9 text-primary">{{ \App\Support\Money::format($widgets['estimate']) }}</p>
                         <p class="font-caption text-caption text-on-surface-variant">Tính đến ngày {{ now()->format('d/m') }} · {{ rtrim(rtrim(number_format($widgets['hours'], 1, ',', '.'), '0'), ',') }} giờ dạy × đơn giá (chưa gồm phụ cấp, KPI, khấu trừ)</p>
                     @else
                         <p class="text-[28px] font-bold leading-9 text-primary">{{ rtrim(rtrim(number_format($widgets['hours'], 1, ',', '.'), '0'), ',') }} giờ</p>

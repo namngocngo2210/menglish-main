@@ -1,5 +1,5 @@
 <x-app-layout>
-    @include('crm.partials.header-tabs')
+    @include('crm.partials.header-tabs', ['title' => 'Khách thất bại'])
 
     {{-- Mockup crm-ui-mockup/khach-khong-chot-lost-deals. A6: khách Thất bại không mở lại, chỉ xem để đối soát. --}}
     <div class="flex flex-col gap-lg">

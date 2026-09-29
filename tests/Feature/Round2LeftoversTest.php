@@ -345,7 +345,7 @@ class Round2LeftoversTest extends TestCase
         // Phiếu tháng 9 (kỳ đã duyệt, đã chi 5%) → thu hồi 200.000đ ở kỳ kế tiếp.
         $this->actingAs($this->admin)->post(route('tuition.invoices.cancellations.approve', $cancel($septReceipt)->id))
             ->assertSessionHasNoErrors()
-            ->assertSessionHas('status', fn ($msg) => str_contains($msg, 'thu hồi 200.000 VNĐ'));
+            ->assertSessionHas('status', fn ($msg) => str_contains($msg, 'thu hồi 200.000 đ'));
         $adjustment = CommissionAdjustment::where('user_id', $sales->id)->sole();
         $this->assertEquals(-200000, (float) $adjustment->amount);
         $this->assertNull($adjustment->settled_at);

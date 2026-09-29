@@ -42,7 +42,7 @@
                     <div>
                         <div class="font-black text-on-surface text-xl tracking-tight leading-tight">MEnglish</div>
                         <div class="text-xs font-bold text-primary italic tracking-wider">We change - We lead</div>
-                        <div class="text-[11px] text-on-surface-variant font-semibold mt-0.5">Hệ thống Anh ngữ MEnglish</div>
+                        <div class="text-xs text-on-surface-variant font-semibold mt-0.5">Hệ thống Anh ngữ MEnglish</div>
                     </div>
                 </div>
 
@@ -55,12 +55,12 @@
                         <span class="material-symbols-outlined text-sm text-primary">call</span>
                         <span>Hotline: <strong class="text-primary font-black">{{ \App\Support\CenterInfo::phone() }}</strong></span>
                     </div>
-                    <div class="text-[10px] text-on-surface-variant/70 font-mono">Mã bài thi: {{ $submission->test?->code }} · Ngày thi: {{ $submission->created_at->format('d/m/Y') }}</div>
+                    <div class="text-xs text-on-surface-subtle font-mono">Mã bài thi: {{ $submission->test?->code }} · Ngày thi: {{ $submission->created_at->format('d/m/Y') }}</div>
                 </div>
             </div>
 
             {{-- Campus Locations Footer Line --}}
-            <div class="mt-3 pt-2.5 border-t border-surface-container-highest flex flex-wrap items-center justify-between text-[11px] text-on-surface-variant gap-2">
+            <div class="mt-3 pt-2.5 border-t border-surface-container-highest flex flex-wrap items-center justify-between text-xs text-on-surface-variant gap-2">
                 @foreach (\App\Support\CenterInfo::branches() as $centerBranch)
                     <span><strong>{{ $centerBranch->name }}:</strong> {{ $centerBranch->address }}</span>
                 @endforeach
@@ -104,27 +104,27 @@
             </div>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
                 <div class="flex items-center gap-2 p-2 rounded-xl bg-primary-container/5 border border-primary-container/20 font-semibold text-on-surface">
-                    <span class="w-4 h-4 rounded-md bg-primary-container text-white flex items-center justify-center text-[11px] font-bold">✓</span>
+                    <span class="w-4 h-4 rounded-md bg-primary-container text-white flex items-center justify-center text-xs font-bold">✓</span>
                     <span>Tự tin</span>
                 </div>
                 <div class="flex items-center gap-2 p-2 rounded-xl bg-primary-container/5 border border-primary-container/20 font-semibold text-on-surface">
-                    <span class="w-4 h-4 rounded-md bg-primary-container text-white flex items-center justify-center text-[11px] font-bold">✓</span>
+                    <span class="w-4 h-4 rounded-md bg-primary-container text-white flex items-center justify-center text-xs font-bold">✓</span>
                     <span>Chắc ngữ pháp</span>
                 </div>
                 <div class="flex items-center gap-2 p-2 rounded-xl bg-primary-container/5 border border-primary-container/20 font-semibold text-on-surface">
-                    <span class="w-4 h-4 rounded-md bg-primary-container text-white flex items-center justify-center text-[11px] font-bold">✓</span>
+                    <span class="w-4 h-4 rounded-md bg-primary-container text-white flex items-center justify-center text-xs font-bold">✓</span>
                     <span>Cải thiện điểm số trên trường</span>
                 </div>
                 <div class="flex items-center gap-2 p-2 rounded-xl bg-primary-container/5 border border-primary-container/20 font-semibold text-on-surface">
-                    <span class="w-4 h-4 rounded-md bg-primary-container text-white flex items-center justify-center text-[11px] font-bold">✓</span>
+                    <span class="w-4 h-4 rounded-md bg-primary-container text-white flex items-center justify-center text-xs font-bold">✓</span>
                     <span>Thi lấy chứng chỉ quốc tế</span>
                 </div>
                 <div class="flex items-center gap-2 p-2 rounded-xl bg-primary-container/5 border border-primary-container/20 font-semibold text-on-surface">
-                    <span class="w-4 h-4 rounded-md bg-primary-container text-white flex items-center justify-center text-[11px] font-bold">✓</span>
+                    <span class="w-4 h-4 rounded-md bg-primary-container text-white flex items-center justify-center text-xs font-bold">✓</span>
                     <span>Cải thiện giao tiếp</span>
                 </div>
                 <div class="flex items-center gap-2 p-2 rounded-xl bg-primary-container/5 border border-primary-container/20 font-semibold text-on-surface">
-                    <span class="w-4 h-4 rounded-md bg-primary-container text-white flex items-center justify-center text-[11px] font-bold">✓</span>
+                    <span class="w-4 h-4 rounded-md bg-primary-container text-white flex items-center justify-center text-xs font-bold">✓</span>
                     <span>Xây dựng kĩ năng tư duy</span>
                 </div>
             </div>
@@ -137,7 +137,7 @@
                     <span class="material-symbols-outlined text-xl text-warning">emoji_events</span>
                     <span>KẾT QUẢ ĐÁNH GIÁ NĂNG LỰC</span>
                 </div>
-                <div class="text-[11px] font-mono font-medium text-on-surface-variant">
+                <div class="text-xs font-mono font-medium text-on-surface-variant">
                     Hệ thống thang chuẩn Quốc tế Cambridge / CEFR
                 </div>
             </div>
@@ -177,10 +177,10 @@
                     @php
                         $isActive = ($lvl === $activeLevelName);
                     @endphp
-                    <div class="p-2 rounded-xl border text-[10px] font-bold uppercase transition {{ $isActive ? 'bg-gradient-to-r from-primary-container to-warning border-primary-container text-white shadow-md ring-2 ring-primary-container/30 scale-105' : 'bg-surface-container-low border-surface-container-highest/80 text-on-surface-variant' }}">
+                    <div class="p-2 rounded-xl border text-xs font-bold uppercase transition {{ $isActive ? 'bg-gradient-to-r from-primary-container to-warning border-primary-container text-white shadow-md ring-2 ring-primary-container/30 scale-105' : 'bg-surface-container-low border-surface-container-highest/80 text-on-surface-variant' }}">
                         {{ $lvl }}
                         @if ($isActive)
-                            <div class="text-[9px] font-black text-warning-container mt-0.5">★ ĐẠT ★</div>
+                            <div class="text-xs font-black text-warning-container mt-0.5">★ ĐẠT ★</div>
                         @endif
                     </div>
                 @endforeach
@@ -191,7 +191,7 @@
                 <table class="w-full text-center border-collapse">
                     @if ($rubricGraded)
                         <thead>
-                            <tr class="text-[11px] font-black uppercase text-on-surface-variant border-b border-surface-container-highest">
+                            <tr class="text-xs font-black uppercase text-on-surface-variant border-b border-surface-container-highest">
                                 <th class="py-2.5 px-2">LISTENING /{{ $maxScores['listening'] }}</th>
                                 <th class="py-2.5 px-2">READING &amp; WRITING /{{ $maxScores['reading_writing'] }}</th>
                                 <th class="py-2.5 px-2">SPEAKING /{{ $maxScores['speaking'] }}</th>
@@ -208,7 +208,7 @@
                         </tbody>
                     @else
                         <thead>
-                            <tr class="text-[11px] font-black uppercase text-on-surface-variant border-b border-surface-container-highest">
+                            <tr class="text-xs font-black uppercase text-on-surface-variant border-b border-surface-container-highest">
                                 <th class="py-2.5 px-2">LISTENING</th>
                                 <th class="py-2.5 px-2">SPEAKING</th>
                                 <th class="py-2.5 px-2">READING</th>
@@ -221,7 +221,7 @@
                                 <td class="py-3 px-2 text-secondary">{{ $submission->listening_score ?? '—' }}</td>
                                 <td class="py-3 px-2 text-error">{{ $submission->speaking_score ?? '—' }}</td>
                                 <td class="py-3 px-2 text-tertiary">{{ $submission->reading_score ?? '—' }}</td>
-                                <td class="py-3 px-2 text-purple-700">{{ $submission->writing_score ?? '—' }}</td>
+                                <td class="py-3 px-2 text-accent">{{ $submission->writing_score ?? '—' }}</td>
                                 <td class="py-3 px-2 bg-gradient-to-br from-primary-container to-warning text-white rounded-b-xl text-3xl font-black shadow-inner">{{ $submission->overall_score ?? '—' }}</td>
                             </tr>
                         </tbody>
@@ -235,7 +235,7 @@
             {{-- Level & Recommendations --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="p-4 rounded-2xl bg-secondary/10 border border-secondary/30 space-y-1">
-                    <div class="text-[11px] font-bold text-secondary uppercase tracking-wider flex items-center gap-1">
+                    <div class="text-xs font-bold text-secondary uppercase tracking-wider flex items-center gap-1">
                         <span class="material-symbols-outlined text-base">verified</span>
                         <span>Khối lớp / thang điểm:</span>
                     </div>
@@ -243,7 +243,7 @@
                 </div>
 
                 <div class="p-4 rounded-2xl bg-primary-container/10 border border-primary-container/30 space-y-1">
-                    <div class="text-[11px] font-bold text-on-primary-container uppercase tracking-wider flex items-center gap-1">
+                    <div class="text-xs font-bold text-on-primary-container uppercase tracking-wider flex items-center gap-1">
                         <span class="material-symbols-outlined text-base">school</span>
                         <span>Kết quả xếp lớp:</span>
                     </div>
@@ -312,7 +312,7 @@
                             <div class="p-3.5 rounded-xl border {{ $theme['box'] }} space-y-1.5">
                                 <div class="flex items-center gap-1.5">
                                     <span class="material-symbols-outlined text-base {{ $theme['icon_color'] }}">{{ $theme['icon'] }}</span>
-                                    <span class="px-2 py-0.5 rounded-md border text-[11px] font-bold {{ $theme['badge'] }}">{{ $sec['title'] }}</span>
+                                    <span class="px-2 py-0.5 rounded-md border text-xs font-bold {{ $theme['badge'] }}">{{ $sec['title'] }}</span>
                                 </div>
                                 <p class="text-on-surface-variant leading-relaxed text-[11.5px] pl-0.5">
                                     {{ $sec['content'] }}
@@ -332,13 +332,13 @@
         <div class="pt-4 border-t border-surface-container-highest flex items-center justify-between text-xs text-on-surface-variant">
             <div class="space-y-0.5">
                 <div class="font-bold text-on-surface">MEnglish Education Vietnam</div>
-                <div class="text-[11px] text-on-surface-variant/70">Cam kết chất lượng đào tạo &amp; tiến bộ vượt bậc</div>
+                <div class="text-xs text-on-surface-subtle">Cam kết chất lượng đào tạo &amp; tiến bộ vượt bậc</div>
             </div>
             <div class="text-center font-semibold">
-                <div class="text-on-surface-variant/70 text-[10px]">Hà Nội, ngày {{ $submission->created_at->format('d') }} tháng {{ $submission->created_at->format('m') }} năm {{ $submission->created_at->format('Y') }}</div>
+                <div class="text-on-surface-subtle text-xs">Hà Nội, ngày {{ $submission->created_at->format('d') }} tháng {{ $submission->created_at->format('m') }} năm {{ $submission->created_at->format('Y') }}</div>
                 <div class="font-bold text-on-surface mt-1">Ban Đào Tạo &amp; Khảo Thí MEnglish</div>
                 @unless ($submission->isPending())
-                    <div class="text-[10px] text-tertiary font-mono font-bold flex items-center justify-center gap-0.5 mt-0.5">
+                    <div class="text-xs text-tertiary font-mono font-bold flex items-center justify-center gap-0.5 mt-0.5">
                         <span class="material-symbols-outlined text-[13px]">verified_user</span>
                         <span>Hệ thống đã phê duyệt điện tử</span>
                     </div>

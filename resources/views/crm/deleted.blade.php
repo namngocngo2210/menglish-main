@@ -1,5 +1,5 @@
 <x-app-layout>
-    @include('crm.partials.header-tabs')
+    @include('crm.partials.header-tabs', ['title' => 'Khách đã xóa'])
 
     <div class="space-y-4">
         <x-ui.alert type="info">

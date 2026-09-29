@@ -2,7 +2,7 @@
      nhóm trình độ, mô tả, gắn giáo trình — form thêm/sửa là panel trượt bên phải như mockup. --}}
 @php
     $blank = ['id' => null, 'code' => '', 'name' => '', 'description' => '', 'level_group' => '', 'target' => '', 'lessons_count' => 24, 'syllabus_curriculum_id' => '', 'is_active' => true];
-    $inputClass = 'w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20';
+    $inputClass = 'w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50';
     $syllabusOptions = $curriculums->mapWithKeys(fn ($c) => [$c->id => [
         'label' => $c->code.($c->version ? '.'.$c->version : '').' - '.$c->title,
         'updated' => $c->updated_at?->format('d/m/Y'),
@@ -128,7 +128,7 @@
                                         @if ($inUse)
                                             {{-- Cảnh báo theo mockup: hover nút xóa → "Không thể xóa" + số lớp / học sinh tham chiếu. --}}
                                             <div class="group relative" data-delete-blocked>
-                                                <span class="inline-flex cursor-not-allowed p-sm text-on-surface-variant/40" tabindex="0" aria-label="Không thể xóa {{ $lv->name }}">
+                                                <span class="inline-flex cursor-not-allowed p-sm text-on-surface-variant/40" tabindex="0" role="img" aria-label="Không thể xóa {{ $lv->name }}">
                                                     <span class="material-symbols-outlined" aria-hidden="true">delete</span>
                                                 </span>
                                                 <div class="pointer-events-none absolute bottom-full right-0 z-20 mb-xs hidden w-64 rounded-lg bg-inverse-surface p-sm text-left text-inverse-on-surface shadow-level-3 group-hover:block group-focus-within:block">
@@ -141,7 +141,7 @@
                                                 </div>
                                             </div>
                                         @else
-                                            <form method="POST" action="{{ route('course-levels.destroy', $lv->id) }}" class="inline" onsubmit="return confirm('Xóa trình độ {{ $lv->code }}?');">
+                                            <form method="POST" action="{{ route('course-levels.destroy', $lv->id) }}" class="inline" data-confirm="Xóa trình độ {{ $lv->code }}?" data-confirm-label="Xóa" data-confirm-danger>
                                                 @csrf @method('DELETE')
                                                 <x-ui.button type="submit" variant="danger-text" icon="delete" title="Xóa" aria-label="Xóa {{ $lv->name }}" />
                                             </form>

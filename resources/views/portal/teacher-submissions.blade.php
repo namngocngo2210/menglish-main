@@ -70,12 +70,12 @@
                             </div>
                             <div>
                                 <h4 class="text-xs font-bold text-on-surface">{{ $sub->data['student_name'] ?? 'Học viên' }}</h4>
-                                <p class="text-[11px] text-on-surface-variant/70 flex items-center gap-1 mt-0.5 font-mono">
+                                <p class="text-xs text-on-surface-subtle flex items-center gap-1 mt-0.5 font-mono">
                                     <span class="material-symbols-outlined text-[14px]">schedule</span>
                                     nộp lúc {{ $sub->data['submitted_at'] ?? $sub->created_at->format('H:i, d/m/Y') }}
                                 </p>
                                 @if(!empty($sub->data['notes']))
-                                    <p class="text-[11px] text-on-surface-variant italic mt-1">"{{ $sub->data['notes'] }}"</p>
+                                    <p class="text-xs text-on-surface-variant italic mt-1">"{{ $sub->data['notes'] }}"</p>
                                 @endif
                             </div>
                         </div>
@@ -95,7 +95,7 @@
                                 <span class="font-bold text-on-surface block truncate max-w-[180px]">
                                     @if(!empty($sub->data['attachment_path']))<a href="{{ $sub->data['attachment_path'] }}" target="_blank" rel="noopener" class="hover:underline">{{ $sub->data['attachment_name'] ?? 'Tệp đính kèm' }}</a>@else Không có tệp đính kèm @endif
                                 </span>
-                                <span class="text-[10px] text-primary font-bold uppercase">{{ $sub->data['homework_label'] ?? 'Bài nộp' }}</span>
+                                <span class="text-xs text-primary font-bold uppercase">{{ $sub->data['homework_label'] ?? 'Bài nộp' }}</span>
                             </div>
                         </div>
                         @endif
@@ -110,8 +110,8 @@
                             @elseif($activeTab === 'pronunciation')
                                 <form action="{{ route('portal.teacher.submissions.mark', ['id' => $sub->id]) }}" method="POST" class="flex items-center gap-2">
                                     @csrf
-                                    <input type="text" name="score" required maxlength="20" placeholder="Điểm /100" class="w-24 rounded-lg border-outline-variant bg-surface-container-lowest text-xs py-1.5 text-on-surface focus:border-primary-container focus:ring-primary-container/20">
-                                    <input type="text" name="feedback" maxlength="1000" placeholder="Nhận xét" class="w-40 rounded-lg border-outline-variant bg-surface-container-lowest text-xs py-1.5 text-on-surface focus:border-primary-container focus:ring-primary-container/20">
+                                    <input type="text" name="score" required maxlength="20" placeholder="Điểm /100" class="w-24 rounded-lg border-outline-variant bg-surface-container-lowest text-xs py-1.5 text-on-surface focus:border-primary-container focus:ring-primary-container/50">
+                                    <input type="text" name="feedback" maxlength="1000" placeholder="Nhận xét" class="w-40 rounded-lg border-outline-variant bg-surface-container-lowest text-xs py-1.5 text-on-surface focus:border-primary-container focus:ring-primary-container/50">
                                     <x-ui.button type="submit" size="sm">Chấm</x-ui.button>
                                 </form>
                             @else
@@ -120,8 +120,8 @@
                                 </x-ui.badge>
                                 <form action="{{ route('portal.teacher.submissions.mark', ['id' => $sub->id]) }}" method="POST" class="flex items-center gap-2">
                                     @csrf
-                                    <input type="text" name="score" maxlength="20" placeholder="Điểm (tùy chọn)" class="w-24 rounded-lg border-outline-variant bg-surface-container-lowest text-xs py-1.5 text-on-surface focus:border-primary-container focus:ring-primary-container/20">
-                                    <input type="text" name="feedback" maxlength="1000" placeholder="Nhận xét" class="w-36 rounded-lg border-outline-variant bg-surface-container-lowest text-xs py-1.5 text-on-surface focus:border-primary-container focus:ring-primary-container/20">
+                                    <input type="text" name="score" maxlength="20" placeholder="Điểm (tùy chọn)" class="w-24 rounded-lg border-outline-variant bg-surface-container-lowest text-xs py-1.5 text-on-surface focus:border-primary-container focus:ring-primary-container/50">
+                                    <input type="text" name="feedback" maxlength="1000" placeholder="Nhận xét" class="w-36 rounded-lg border-outline-variant bg-surface-container-lowest text-xs py-1.5 text-on-surface focus:border-primary-container focus:ring-primary-container/50">
                                     <x-ui.button type="submit" variant="secondary" size="sm" icon="visibility">
                                         <span>Đánh dấu đã xem</span>
                                     </x-ui.button>

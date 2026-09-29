@@ -3,6 +3,8 @@
  * Chuyển từ <script> inline sang module để chạy được khi form được htmx đổ vào modal (script inline trong
  * nội dung swap không ổn định). Tham số: danh sách khoản học phí, học viên, id chọn sẵn, TK ngân hàng mặc định, phiếu đang sửa.
  */
+import { formatMoney } from './money';
+
 export default function createReceiptManager(tuitions, students, initialTuitionId, initialStudentId, defaultBank, editing) {
     return {
         tuitions: tuitions || [],
@@ -182,7 +184,7 @@ export default function createReceiptManager(tuitions, students, initialTuitionI
         },
 
         formatVND(val) {
-            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
+            return formatMoney(val || 0);
         }
     };
 }

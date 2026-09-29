@@ -208,7 +208,7 @@
                             <td class="font-mono">
                                 {{ $ts->display_checkout ?: '--:--' }}@if ($ts->adjusted_at)<span class="text-primary" title="Chỉnh tay">*</span>@endif
                                 @if (! $ts->checkout_time && $ts->display_checkout)
-                                    <span class="block font-sans text-[11px] text-on-surface-variant">theo lịch</span>
+                                    <span class="block font-sans text-xs text-on-surface-variant">theo lịch</span>
                                 @endif
                             </td>
                             <td class="text-center font-mono font-semibold">{{ rtrim(rtrim(number_format((float) $ts->hours, 2, '.', ''), '0'), '.') }}h</td>

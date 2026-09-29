@@ -6,7 +6,7 @@
             <span>{{ $safeCategory }}</span>
         </x-slot:breadcrumbs>
         <x-slot:actions>
-            <a href="{{ $rawUrl }}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold shadow-2xs transition" title="Mở trang gốc không có menu">
+            <a href="{{ $rawUrl }}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-surface-container-highest bg-white hover:bg-surface-container-low text-on-surface-variant text-xs font-semibold shadow-2xs transition" title="Mở trang gốc không có menu">
                 <span class="material-symbols-outlined text-[16px]">open_in_new</span>
                 <span>Toàn màn hình (Không Menu)</span>
             </a>
@@ -18,7 +18,7 @@
     </x-ui.page-header>
 
     {{-- Embedded Screen within Admin Layout (Keeps Sidebar Menu Permanent) --}}
-    <div class="w-full h-[calc(100vh-140px)] min-h-[700px] bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+    <div class="w-full h-[calc(100vh-140px)] min-h-[700px] bg-white rounded-2xl border border-surface-container-highest shadow-sm overflow-hidden flex flex-col">
         <iframe 
             src="{{ $rawUrl }}" 
             class="w-full flex-1 border-0" 

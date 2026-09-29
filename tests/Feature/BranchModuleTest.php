@@ -34,7 +34,7 @@ class BranchModuleTest extends TestCase
 
         $response = $this->actingAs($user)->get(route('branches.index'));
         $response->assertOk();
-        $response->assertSee('Quản Lý Cơ Sở &amp; Chi Nhánh Trung Tâm', false);
+        $response->assertSee('Cơ sở &amp; chi nhánh', false);
         $response->assertSee('TEST-HN');
         $response->assertSee('Chi nhánh Thử Nghiệm Hà Nội');
     }

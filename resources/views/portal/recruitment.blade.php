@@ -20,7 +20,7 @@
                 <img src="{{ asset('images/menglish-logo.png') }}" alt="MENGLISH Logo" class="h-10 w-auto object-contain">
                 <div class="border-l border-outline-variant pl-3">
                     <span class="text-xs font-extrabold uppercase tracking-wider text-primary block">Tuyển Dụng & Nhân Sự</span>
-                    <span class="text-[11px] text-on-surface-variant font-medium">Hệ thống Anh ngữ MENGLISH</span>
+                    <span class="text-xs text-on-surface-variant font-medium">Hệ thống Anh ngữ MENGLISH</span>
                 </div>
             </div>
             <div class="flex items-center gap-3">
@@ -89,7 +89,7 @@
                                 </div>
                             @endif
 
-                            <div class="flex items-center justify-between pt-2 text-xs text-on-surface-variant/70">
+                            <div class="flex items-center justify-between pt-2 text-xs text-on-surface-subtle">
                                 <span>Hạn nộp: {{ $job->deadline ? $job->deadline->format('d/m/Y') : 'Tuyển liên tục' }}</span>
                                 <a href="#apply-form" onclick="selectPosition('{{ $job->id }}', '{{ $job->title }}', '{{ $job->branch_id }}')" class="font-bold text-primary hover:underline">
                                     Ứng tuyển vị trí này &rarr;

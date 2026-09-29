@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-ui.page-header title="Chi Tiết Bảng Lương Giáo Viên Full-Time" icon="badge" :back="route('payroll.periods.show', $period->id)">
+    <x-ui.page-header title="Bảng lương giáo viên full-time" icon="badge" :back="route('payroll.periods.show', $period->id)">
         <x-slot:badges>
             <span class="text-xs px-2.5 py-0.5 rounded-full border font-bold {{ $period->status_badge }}">
                 {{ $period->status_label }}
@@ -46,15 +46,15 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div class="p-3 bg-surface-container-low rounded-xl border border-surface-container-highest space-y-1">
                             <span class="font-bold text-on-surface">1. Lương cơ bản &amp; khấu trừ</span>
-                            <p class="text-on-surface-variant text-[11px]">BHXH, Công đoàn tự động trên lương cơ bản (tỉ lệ ở Tham số tính lương); thuế TNCN Admin nhập tay. Không trả thêm theo giờ dạy — buổi dạy chỉ để đối soát.</p>
+                            <p class="text-on-surface-variant text-xs">BHXH, Công đoàn tự động trên lương cơ bản (tỉ lệ ở Tham số tính lương); thuế TNCN Admin nhập tay. Không trả thêm theo giờ dạy — buổi dạy chỉ để đối soát.</p>
                         </div>
                         <div class="p-3 bg-surface-container-low rounded-xl border border-surface-container-highest space-y-1">
                             <span class="font-bold text-on-surface">2. KPI (nhập tự do)</span>
-                            <p class="text-on-surface-variant text-[11px]">GV Full-time: Admin / Kế toán nhập số tiền KPI trên phiếu lương, giữ khi tính lại.</p>
+                            <p class="text-on-surface-variant text-xs">GV Full-time: Admin / Kế toán nhập số tiền KPI trên phiếu lương, giữ khi tính lại.</p>
                         </div>
                         <div class="p-3 bg-surface-container-low rounded-xl border border-surface-container-highest space-y-1">
                             <span class="font-bold text-on-surface">3. Thưởng tái tục</span>
-                            <p class="text-on-surface-variant text-[11px]">% theo số HS nghỉ trong lớp phụ trách (giữ đủ → 1%, nghỉ 1 → 0,7%, các mốc khác chờ BA) × doanh thu lớp trong kỳ.</p>
+                            <p class="text-on-surface-variant text-xs">% theo số HS nghỉ trong lớp phụ trách (giữ đủ → 1%, nghỉ 1 → 0,7%, các mốc khác chờ BA) × doanh thu lớp trong kỳ.</p>
                         </div>
                     </div>
                 </div>
@@ -62,25 +62,25 @@
 
             {{-- Right Column: Summary Card (Col 4) --}}
             <div class="xl:col-span-4 space-y-4">
-                <div class="bg-gradient-to-br from-orange-600 to-amber-600 text-white rounded-2xl p-6 shadow-md space-y-4">
+                <div class="bg-gradient-to-br from-warning to-warning text-white rounded-2xl p-6 shadow-md space-y-4">
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-bold uppercase tracking-wider text-orange-100">Tổng chi GV Full-Time</span>
-                        <span class="material-symbols-outlined text-2xl text-amber-200">account_balance</span>
+                        <span class="text-xs font-bold uppercase tracking-wider text-warning-container">Tổng chi GV Full-Time</span>
+                        <span class="material-symbols-outlined text-2xl text-warning-container">account_balance</span>
                     </div>
                     <div>
                         <div class="text-3xl font-black font-mono tracking-tight">
-                            {{ number_format($records->sum('net_salary'), 0, ',', '.') }}đ
+                            {{ \App\Support\Money::format($records->sum('net_salary')) }}
                         </div>
-                        <p class="text-xs text-orange-100 mt-1">{{ $records->count() }} giáo viên cơ hữu trong kỳ</p>
+                        <p class="text-xs text-warning-container mt-1">{{ $records->count() }} giáo viên cơ hữu trong kỳ</p>
                     </div>
                     <div class="pt-3 border-t border-white/20 grid grid-cols-2 gap-2 text-xs">
                         <div>
-                            <span class="text-orange-200 block text-[10px] uppercase font-bold">Thưởng tái tục:</span>
-                            <span class="font-bold font-mono text-sm">{{ number_format($records->sum('renew_bonus'), 0, ',', '.') }}đ</span>
+                            <span class="text-warning-container block text-xs uppercase font-bold">Thưởng tái tục:</span>
+                            <span class="font-bold font-mono text-sm">{{ \App\Support\Money::format($records->sum('renew_bonus')) }}</span>
                         </div>
                         <div>
-                            <span class="text-orange-200 block text-[10px] uppercase font-bold">Tổng KPI thưởng:</span>
-                            <span class="font-bold font-mono text-sm">{{ number_format($records->sum('kpi_bonus'), 0, ',', '.') }}đ</span>
+                            <span class="text-warning-container block text-xs uppercase font-bold">Tổng KPI thưởng:</span>
+                            <span class="font-bold font-mono text-sm">{{ \App\Support\Money::format($records->sum('kpi_bonus')) }}</span>
                         </div>
                     </div>
                 </div>

@@ -4,7 +4,7 @@
     $skills = \App\Models\MiniTestScore::SKILLS;
     $selected = old('student_id', $selectedStudentId);
     $current = $selected ? $existing->get((int) $selected) : null;
-    $input = 'w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20';
+    $input = 'w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50';
     $fmt = fn ($v) => $v === null ? '—' : rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.');
 @endphp
 <x-app-layout title="Nhập điểm mini test — {{ $class->name }}">

@@ -14,9 +14,9 @@
             </a>
         @endif
         <div>
-            <h1 class="font-black text-xl tracking-tight text-primary">{{ $title }}</h1>
+            <div class="font-black text-xl tracking-tight text-primary">{{ $title }}</div>
             @if($student)
-                <p class="text-[10px] text-on-surface-variant font-medium line-clamp-1">{{ $student->name }} • {{ $student->currentClass?->name ?? 'Chưa xếp lớp' }}</p>
+                <p class="text-xs text-on-surface-variant font-medium line-clamp-1">{{ $student->name }} • {{ $student->currentClass?->name ?? 'Chưa xếp lớp' }}</p>
             @endif
         </div>
     </div>
@@ -24,7 +24,7 @@
     <div class="flex items-center gap-2">
         @if($students && $students->count() > 1)
             {{-- Quick Student Switcher Dropdown --}}
-            <x-ui.select class="!min-w-0 py-1 text-[11px] font-semibold" aria-label="Chọn học viên"
+            <x-ui.select class="!min-w-0 py-1 text-xs font-semibold" aria-label="Chọn học viên"
                     onchange="window.location.href = window.location.pathname.replace(/\/home(\/\d+)?$/, '/home/' + this.value).replace(/\/student-homework(\/\d+)?$/, '/student-homework/' + this.value).replace(/\/pronunciation(\/\d+)?$/, '/pronunciation/' + this.value).replace(/\/notifications(\/\d+)?$/, '/notifications/' + this.value).replace(/\/survey(\/\d+)?$/, '/survey/' + this.value).replace(/\/feedback(\/\d+)?$/, '/feedback/' + this.value)"
                     :options="$students->pluck('name', 'id')" :value="$student?->id" />
         @endif

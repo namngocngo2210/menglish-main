@@ -18,7 +18,7 @@
                                 <x-ui.badge color="warning">Ghi chú nội bộ</x-ui.badge>
                             @endif
                         </div>
-                        <div class="text-[10px] text-on-surface-variant/70 font-mono">{{ $msg->created_at->format('d/m/Y H:i') }}</div>
+                        <div class="text-xs text-on-surface-subtle font-mono">{{ $msg->created_at->format('d/m/Y H:i') }}</div>
                     </div>
                 </div>
             </div>
@@ -30,7 +30,7 @@
             {{-- Attachments Display --}}
             @if (!empty($msg->attachment_list))
                 <div class="pl-10 pt-2">
-                    <div class="text-[11px] font-bold text-on-surface-variant mb-2 flex items-center gap-1">
+                    <div class="text-xs font-bold text-on-surface-variant mb-2 flex items-center gap-1">
                         <span class="material-symbols-outlined text-[15px] text-primary">attach_file</span>
                         <span>Tệp / Hình ảnh đính kèm ({{ count($msg->attachment_list) }}):</span>
                     </div>
@@ -50,20 +50,20 @@
                                         <img src="{{ $fileUrl }}" alt="Attachment" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
                                     </div>
                                     <div class="p-1.5 bg-surface-container-lowest flex items-center justify-between">
-                                        <span class="text-[10px] font-medium text-on-surface-variant truncate max-w-[120px]">{{ basename($file) }}</span>
-                                        <span class="material-symbols-outlined text-xs text-on-surface-variant/70 group-hover:text-primary">zoom_in</span>
+                                        <span class="text-xs font-medium text-on-surface-variant truncate max-w-[120px]">{{ basename($file) }}</span>
+                                        <span class="material-symbols-outlined text-xs text-on-surface-subtle group-hover:text-primary">zoom_in</span>
                                     </div>
                                 </a>
                             @else
                                 <a href="{{ $fileUrl }}" target="_blank" hx-boost="false" class="flex items-center gap-2 p-2.5 rounded-xl border border-surface-container-highest bg-surface-container-lowest hover:bg-surface-container-low transition shadow-sm group">
-                                    <div class="w-8 h-8 rounded-lg bg-primary-container/10 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">
+                                    <div class="w-8 h-8 rounded-lg bg-primary-container/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
                                         {{ strtoupper($ext) }}
                                     </div>
                                     <div class="min-w-0 flex-1">
-                                        <div class="text-[11px] font-bold text-on-surface truncate group-hover:text-primary">{{ basename($file) }}</div>
-                                        <div class="text-[9px] text-on-surface-variant/70">Nhấn để tải về</div>
+                                        <div class="text-xs font-bold text-on-surface truncate group-hover:text-primary">{{ basename($file) }}</div>
+                                        <div class="text-xs text-on-surface-subtle">Nhấn để tải về</div>
                                     </div>
-                                    <span class="material-symbols-outlined text-sm text-on-surface-variant/70 group-hover:text-primary">download</span>
+                                    <span class="material-symbols-outlined text-sm text-on-surface-subtle group-hover:text-primary">download</span>
                                 </a>
                             @endif
                         @endforeach

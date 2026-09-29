@@ -19,7 +19,7 @@
         // Chip "Tất cả" = tab cha, không kèm bộ lọc của chip nào.
         $allActive = $activeTab && ! $tabChips->contains('active', true);
     }
-    $chipClass = fn (bool $active, ?string $tone) => 'inline-flex items-center gap-xs rounded-full border px-sm py-1 font-body-small text-body-small font-semibold transition-colors '.match (true) {
+    $chipClass = fn (bool $active, ?string $tone) => 'inline-flex items-center gap-xs rounded-full border px-sm py-1 max-md:min-h-11 max-md:px-md font-body-small text-body-small font-semibold transition-colors '.match (true) {
         $active && $tone === 'danger' => 'border-error bg-error text-white',
         $active => 'border-primary-container bg-primary-container text-white',
         $tone === 'danger' => 'border-error/30 bg-error/5 text-error hover:bg-error/10',
@@ -38,7 +38,7 @@
                 @if (($chip['tone'] ?? null) === 'danger')<span class="material-symbols-outlined text-[16px]" aria-hidden="true">warning</span>@endif
                 {{ $chip['label'] }}
                 @if ($count !== null)
-                    <span class="rounded-full px-1.5 font-code text-[11px] leading-4 {{ $chip['active'] ? 'bg-white/25' : 'bg-surface-container-high' }}">{{ number_format($count, 0, ',', '.') }}</span>
+                    <span class="rounded-full px-1.5 font-code text-xs leading-4 {{ $chip['active'] ? 'bg-white/25' : 'bg-surface-container-high' }}">{{ number_format($count, 0, ',', '.') }}</span>
                 @endif
             </a>
         @endforeach

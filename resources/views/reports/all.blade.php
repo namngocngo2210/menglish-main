@@ -31,7 +31,7 @@
                             @endif
                             <span class="font-bold text-sm text-on-surface">{{ $r->title }}</span>
                         </div>
-                        <div class="text-[11px] text-on-surface-variant/70 mt-1">
+                        <div class="text-xs text-on-surface-subtle mt-1">
                             {{ $r->report_date->format('d/m/Y') }} · <span class="font-semibold text-on-surface-variant">{{ $r->user?->name }}</span>
                             @if ($r->followups->isNotEmpty()) · {{ $r->followups->count() }} follow-up @endif
                         </div>

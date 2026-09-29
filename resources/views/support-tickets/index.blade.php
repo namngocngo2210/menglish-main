@@ -1,7 +1,7 @@
 {{-- Danh sách ticket: Tạo mở modal 2xl, "Trao đổi" mở modal 3xl (hội thoại + trả lời, đẩy URL /tickets/{id});
      thao tác xong server phát "tickets-changed" → #ticket-list tự tải lại (giữ bộ lọc, trang hiện tại). --}}
 <x-app-layout>
-    <x-ui.page-header title="Trung Tâm Hỗ Trợ & Xử Lý Yêu Cầu (Tickets)" icon="confirmation_number">
+    <x-ui.page-header title="Yêu cầu hỗ trợ" icon="confirmation_number">
         <x-slot:actions>
             @can('support_ticket.update')
                 <x-ui.button variant="secondary" icon="settings" :href="route('system-config.ticket-emails')">Cấu hình Email nhận</x-ui.button>
@@ -21,14 +21,10 @@
         </div>
 
         {{-- Filter & Search Bar --}}
-        <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-4">
-            <form action="{{ route('tickets.index') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-                <div class="sm:col-span-2"><x-ui.input name="search" :value="request('search')" placeholder="Tìm theo mã TK, tiêu đề, nội dung..." class="text-xs" /></div>
-                <x-ui.select name="status" class="text-xs" placeholder="-- Tất cả trạng thái --"
-                             :options="['open' => 'Mới tiếp nhận (Open)', 'in_progress' => 'Đang xử lý (In Progress)', 'resolved' => 'Đã giải quyết (Resolved)', 'closed' => 'Đã đóng (Closed)']" />
-                <x-ui.button type="submit" variant="secondary">Lọc Tickets</x-ui.button>
-            </form>
-        </div>
+        <x-ui.filter-bar :action="route('tickets.index')" search="search" placeholder="Tìm theo mã TK, tiêu đề, nội dung..." class="!mb-0">
+            <x-ui.select name="status" label="Trạng thái" placeholder="Tất cả trạng thái"
+                         :options="['open' => 'Mới tiếp nhận (Open)', 'in_progress' => 'Đang xử lý (In Progress)', 'resolved' => 'Đã giải quyết (Resolved)', 'closed' => 'Đã đóng (Closed)']" />
+        </x-ui.filter-bar>
 
         {{-- Tickets Table --}}
         <x-ui.data-table>
@@ -54,10 +50,10 @@
                             </td>
                             <td>
                                 <div class="font-bold text-on-surface">{{ $ticket->title }}</div>
-                                <div class="text-[11px] text-on-surface-variant/70">{{ $ticket->category_label }} · {{ $ticket->created_at->format('d/m/Y H:i') }}</div>
+                                <div class="text-xs text-on-surface-subtle">{{ $ticket->category_label }} · {{ $ticket->created_at->format('d/m/Y H:i') }}</div>
                             </td>
                             <td>
-                                <span class="px-2.5 py-0.5 rounded-full border text-[10px] {{ $ticket->priority_badge }}">
+                                <span class="px-2.5 py-0.5 rounded-full border text-xs {{ $ticket->priority_badge }}">
                                     {{ strtoupper($ticket->priority) }}
                                 </span>
                             </td>
@@ -66,11 +62,11 @@
                                 @if ($ticket->assignee)
                                     <span class="text-primary font-bold">{{ $ticket->assignee->name }}</span>
                                 @else
-                                    <span class="text-on-surface-variant/70 italic">Chưa phân công</span>
+                                    <span class="text-on-surface-subtle italic">Chưa phân công</span>
                                 @endif
                             </td>
                             <td>
-                                <span class="px-2.5 py-1 rounded-full border font-bold text-[10px] {{ $ticket->status_badge }}">
+                                <span class="px-2.5 py-1 rounded-full border font-bold text-xs {{ $ticket->status_badge }}">
                                     {{ $ticket->status_label }}
                                 </span>
                             </td>

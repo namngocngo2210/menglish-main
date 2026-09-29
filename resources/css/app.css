@@ -8,6 +8,8 @@
 @import '@fontsource/be-vietnam-pro/700.css';
 @import '@fontsource/jetbrains-mono/400.css';
 @import '@fontsource/jetbrains-mono/500.css';
+/* Tom Select: dropdown lọc có ô tìm kiếm (resources/js/modules/searchable-select.js); giao diện chỉnh ở cuối file. */
+@import 'tom-select/dist/css/tom-select.css';
 /* Material Symbols: file tĩnh public/fonts (được preload trong <head>, xem layouts/partials/assets).
    font-display: block => khi font chưa tải xong icon ẩn (không hiện chữ tên icon như "dashboard"). */
 @font-face {
@@ -31,6 +33,37 @@
         @apply bg-background font-body-base text-body-base text-on-surface antialiased;
         text-rendering: optimizeLegibility;
     }
+
+    /* Điện thoại: ô nhập 16px (dưới 16px Safari iOS tự phóng to trang khi chạm) và cao tối thiểu 44px để dễ chạm.
+       Selector có :not(...) nên thắng các lớp cỡ chữ của Tailwind mà không cần !important. */
+    @media (max-width: 767.98px) {
+        input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file'], [type='hidden']),
+        select,
+        textarea {
+            font-size: 16px;
+            min-height: 44px;
+        }
+    }
+
+    /* Người dùng bật "giảm chuyển động" trong hệ điều hành: tắt animation / transition. */
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+        }
+    }
+}
+
+/* Liên kết "Bỏ qua menu" cho người dùng bàn phím: ẩn tới khi được focus. */
+.skip-link {
+    @apply sr-only;
+}
+.skip-link:focus {
+    @apply not-sr-only fixed left-md top-md z-[100] rounded-lg bg-surface-container-lowest px-md py-sm font-body-semibold text-body-semibold text-primary shadow-level-3 ring-2 ring-primary-container;
 }
 
 .material-symbols-outlined {
@@ -92,6 +125,11 @@ div:has(> table:not(.info-table):not(.bank-table)) {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
     max-width: 100%;
+}
+/* Khung cuộn của bảng phải là containing block: phần tử absolute bên trong (vd. .sr-only trong ô)
+   nếu không sẽ thoát khỏi vùng cắt và kéo giãn cả trang theo chiều ngang trên điện thoại. */
+div:has(> table:not(.info-table):not(.bank-table)) {
+    position: relative;
 }
 
 .overflow-x-auto::-webkit-scrollbar,
@@ -262,4 +300,124 @@ td[class*="text-center"] {
 /* 10. CSS Grid Safety: Prevent flex/grid items from blowing out tracks */
 [class*="grid-cols-"] > * {
     min-width: 0;
+}
+
+/* ==========================================================================
+   Tom Select — dropdown lọc có tìm kiếm, cùng kích thước / màu với <x-ui.select>
+   ========================================================================== */
+@layer components {
+    .ts-wrapper {
+        @apply min-w-[150px];
+    }
+    .ts-wrapper .ts-control {
+        @apply flex min-h-10 cursor-pointer flex-nowrap items-center rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md font-body-base text-body-base text-on-surface shadow-none transition-colors;
+        padding-right: 2.25rem !important;
+    }
+    /* Mũi tên xổ xuống (vẽ trên khung bao để không mất khi ô đang mở). */
+    .ts-wrapper.single::after {
+        content: '';
+        @apply pointer-events-none absolute right-2 top-1/2 z-[2] h-5 w-5 -translate-y-1/2 transition-transform;
+        background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23594137' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") center / contain no-repeat;
+    }
+    .ts-wrapper.single.dropdown-active::after {
+        @apply rotate-180;
+    }
+    .ts-wrapper .ts-control {
+        @apply overflow-hidden;
+    }
+    .ts-wrapper .ts-control > .item {
+        @apply min-w-0 truncate;
+    }
+    .ts-wrapper.single .ts-control input {
+        @apply cursor-pointer;
+    }
+    .ts-wrapper.focus .ts-control {
+        @apply border-primary-container ring-2 ring-primary-container/50;
+    }
+    .ts-wrapper.disabled .ts-control {
+        @apply cursor-not-allowed bg-surface-container-low opacity-100;
+    }
+    .ts-dropdown {
+        @apply z-[60] mt-xs overflow-hidden rounded-lg border border-outline-variant bg-surface-container-lowest font-body-base text-body-base text-on-surface shadow-level-3;
+    }
+    .ts-dropdown .ts-dropdown-content {
+        @apply max-h-72 py-xs;
+    }
+    .ts-dropdown .option,
+    .ts-dropdown .no-results {
+        @apply px-md py-sm;
+    }
+    .ts-dropdown .no-results {
+        @apply text-on-surface-subtle;
+    }
+    .ts-dropdown .active {
+        @apply bg-surface-container-low text-on-surface;
+    }
+    .ts-dropdown .selected {
+        @apply font-semibold text-primary;
+    }
+    .ts-dropdown .dropdown-input-wrap {
+        @apply border-b border-surface-container-highest p-xs;
+    }
+    .ts-dropdown .dropdown-input {
+        @apply w-full rounded-md border border-outline-variant px-sm py-xs font-body-base text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50;
+    }
+    @media (max-width: 767.98px) {
+        .ts-wrapper .ts-control,
+        .ts-dropdown .dropdown-input {
+            font-size: 16px;
+        }
+        .ts-wrapper .ts-control {
+            @apply min-h-11;
+        }
+        .ts-dropdown .option {
+            @apply py-md;
+        }
+    }
+}
+
+/* ==========================================================================
+   <x-ui.filter-bar> — một hàng từ md trở lên
+   ========================================================================== */
+@layer components {
+    /* Khung cha đã có khoảng cách (gap / space-y) → bỏ mb-lg mặc định để không cách đôi. */
+    :is(.flex-col, .grid, [class*="space-y-"], [class*="gap-"]) > [data-filter-bar] {
+        @apply mb-0;
+    }
+
+    /* Nhãn của control chỉ cho trình đọc màn hình (lựa chọn "Tất cả …" đã mô tả bộ lọc); khoảng ngày giữ nhãn cùng hàng. */
+    [data-filter-row] [data-field-label] {
+        @apply sr-only;
+    }
+    [data-filter-row] [data-date-range] {
+        @apply flex-row items-center gap-sm;
+    }
+    [data-filter-row] [data-date-range] > [data-field-label] {
+        @apply not-sr-only whitespace-nowrap;
+    }
+    @media (min-width: 768px) {
+        [data-filter-row] {
+            flex-wrap: wrap;
+        }
+        /* Cỡ gốc nhỏ để 3–4 bộ lọc + khoảng ngày vừa một hàng ở màn laptop; dư chỗ thì giãn đều, thiếu chỗ mới xuống dòng. */
+        [data-filter-row] > [data-filter-search] {
+            flex: 2 1 10rem;
+        }
+        [data-filter-row] > [data-filter-controls] > * {
+            flex: 1 1 8.5rem;
+            min-width: 0;
+            max-width: 16rem;
+        }
+        [data-filter-row] > [data-filter-controls] > [data-date-range] {
+            flex: 0 0 auto;
+            max-width: none;
+        }
+        [data-filter-row] [data-date-range] input {
+            @apply w-[8.5rem] px-sm;
+        }
+        [data-filter-row] .ts-wrapper,
+        [data-filter-row] select {
+            min-width: 8rem;
+        }
+    }
 }

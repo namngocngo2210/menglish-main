@@ -6,29 +6,18 @@
         ->merge(collect($pendingTasks)->map(fn ($t) => ['kind' => 'task', 'model' => $t, 'sort' => $t->updated_at]))
         ->sortByDesc('sort')->values();
     $filterQuery = array_filter(['kind' => $kind, 'q' => $search ?: null, 'assignee_id' => $assigneeFilter]);
-    $isFiltered = ! empty($filterQuery);
 @endphp
 <x-app-layout title="Xác nhận hoàn thành thủ công">
-    <x-ui.page-header title="Xác nhận hoàn thành thủ công" description="Danh sách các đầu việc chờ xác nhận từ Trợ giảng: báo cáo không đính kèm ảnh minh chứng cần người giao việc (báo cáo trực lớp: GV chính của lớp) xác nhận.">
-        <x-slot:actions>
-            <x-ui.button variant="secondary" icon="filter_list" x-data x-on:click="document.getElementById('approval-filters').classList.toggle('hidden')">Bộ lọc</x-ui.button>
-        </x-slot:actions>
-    </x-ui.page-header>
+    <x-ui.page-header title="Xác nhận hoàn thành thủ công" description="Danh sách các đầu việc chờ xác nhận từ Trợ giảng: báo cáo không đính kèm ảnh minh chứng cần người giao việc (báo cáo trực lớp: GV chính của lớp) xác nhận." />
 
     @if (session('info'))
         <x-ui.alert type="warning" class="mb-md" dismissible>{{ session('info') }}</x-ui.alert>
     @endif
 
-    <form id="approval-filters" method="GET" action="{{ route('tasks.manual-approvals') }}"
-          class="{{ $isFiltered ? '' : 'hidden' }} mb-md flex flex-wrap items-end gap-sm rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
-        <x-ui.input name="q" inline-label="Tìm:" :value="$search" placeholder="Đầu việc, lớp, trợ giảng..." />
-        <x-ui.select name="kind" inline-label="Loại:" :options="['task' => 'Đầu việc', 'report' => 'Báo cáo trực lớp']" :value="$kind" placeholder="Tất cả" />
-        <x-ui.select name="assignee_id" inline-label="Người thực hiện:" :options="$assigneeOptions" :value="$assigneeFilter" placeholder="Tất cả" />
-        <x-ui.button type="submit" size="sm" icon="search">Lọc</x-ui.button>
-        @if ($isFiltered)
-            <x-ui.button size="sm" variant="ghost" icon="close" :href="route('tasks.manual-approvals')">Xóa lọc</x-ui.button>
-        @endif
-    </form>
+    <x-ui.filter-bar :action="route('tasks.manual-approvals')" search="q" placeholder="Đầu việc, lớp, trợ giảng...">
+        <x-ui.select name="kind" label="Loại" :options="['task' => 'Đầu việc', 'report' => 'Báo cáo trực lớp']" :value="$kind" placeholder="Tất cả loại" />
+        <x-ui.select name="assignee_id" label="Người thực hiện" :options="$assigneeOptions" :value="$assigneeFilter" placeholder="Tất cả người thực hiện" />
+    </x-ui.filter-bar>
 
     <div class="grid grid-cols-1 items-start gap-lg lg:grid-cols-3">
         {{-- Danh sách chờ xác nhận --}}
@@ -79,7 +68,7 @@
                             <td class="text-right" onclick="event.stopPropagation()">
                                 <form method="POST" action="{{ $isReport ? route('tasks.class-reports.approve', $m->id) : route('tasks.approve', $m->id) }}">
                                     @csrf
-                                    <x-ui.button type="submit" size="sm">Xác nhận</x-ui.button>
+                                    <x-ui.button type="submit" size="sm" variant="secondary">Xác nhận</x-ui.button>
                                 </form>
                             </td>
                         </tr>

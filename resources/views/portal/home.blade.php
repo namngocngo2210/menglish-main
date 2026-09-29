@@ -1,7 +1,7 @@
-<x-app-layout>
-    {{-- Trên điện thoại: thanh điều hướng đáy là điều hướng chính, ẩn tiêu đề/nút quay lại và dải tab.
-         Lối vào "Nộp bài tập" chỉ giữ ở ô truy cập nhanh trong trang. --}}
-    <x-ui.page-header class="hidden md:flex" title="Trang chủ" icon="cottage" :back="route('portal.app-shell', ['student_id' => $student?->id])" />
+<x-app-layout title="Trang chủ">
+    {{-- Trang chủ cổng học viên: không có nút quay lại; tiêu đề trang là lời chào (h1) trong nội dung.
+         Trên điện thoại: thanh điều hướng đáy là điều hướng chính, ẩn dải tab.
+         Thứ tự khối: Lịch học → Bài tập (truy cập nhanh) → Tiến độ → Điểm danh / Big Test → Học phí → Thông tin học sinh. --}}
     <x-ui.workspace-tabs class="hidden md:block" />
 
     {{-- Outer Mobile Mockup Frame --}}
@@ -11,69 +11,11 @@
         @include('portal.partials.top-header', ['student' => $student, 'students' => $students, 'title' => 'MENGLISH'])
 
         {{-- Main Content Area --}}
-        <main class="flex-1 w-full p-4 md:p-6 flex flex-col gap-5 md:grid md:grid-cols-2 md:items-start md:gap-6 overflow-y-auto">
+        <div class="flex-1 w-full p-4 md:p-6 flex flex-col gap-5 md:grid md:grid-cols-2 md:items-start md:gap-6 overflow-y-auto">
             {{-- Header Welcome --}}
             <div class="flex flex-col gap-1 pt-1 md:col-span-2">
                 <span class="text-sm font-normal text-on-surface-variant">Xin chào,</span>
                 <h1 class="text-2xl font-bold text-primary">{{ $student?->name ?? 'Học viên' }}</h1>
-            </div>
-
-            {{-- Student Info Card (Bento style) --}}
-            <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest/80 p-4 flex flex-col gap-4 shadow-sm relative overflow-hidden">
-                <div class="absolute top-0 right-0 w-24 h-24 bg-primary-container/5 rounded-bl-full pointer-events-none"></div>
-
-                <div class="flex items-center justify-between border-b border-surface-container-highest pb-3">
-                    <h2 class="text-base font-bold text-on-surface flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">person</span>
-                        Thông tin học sinh
-                    </h2>
-                    <div class="flex items-center gap-1.5">
-                        <x-ui.button variant="secondary" size="sm" icon="edit" x-on:click="$dispatch('open-modal', 'portal-edit-profile')">Sửa</x-ui.button>
-                        <x-ui.badge color="success" :pill="true">
-                            {{ $student?->status_label ?? '—' }}
-                        </x-ui.badge>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-y-3 gap-x-3 text-xs">
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] text-on-surface-variant/70 uppercase tracking-wider font-bold">Ngày sinh</span>
-                        <span class="font-medium text-on-surface">{{ $student?->dob ? $student->dob->format('d/m/Y') : '—' }}</span>
-                    </div>
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] text-on-surface-variant/70 uppercase tracking-wider font-bold">Lớp đang học</span>
-                        <span class="font-bold text-secondary">{{ $studentClasses->isNotEmpty() ? $studentClasses->pluck('name')->implode(', ') : 'Chưa xếp lớp' }}</span>
-                    </div>
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] text-on-surface-variant/70 uppercase tracking-wider font-bold">Giáo viên chính</span>
-                        <span class="font-medium text-on-surface flex items-center gap-1">
-                            {{ $student?->currentClass?->teacher?->name ?? '—' }}
-                        </span>
-                    </div>
-                    <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] text-on-surface-variant/70 uppercase tracking-wider font-bold">Số điện thoại</span>
-                        <span class="font-mono font-medium text-on-surface">{{ $student?->phone ?? '—' }}</span>
-                    </div>
-                    <div class="col-span-2 flex flex-col gap-0.5 border-t border-surface-container-highest pt-2">
-                        <span class="text-[10px] text-on-surface-variant/70 uppercase tracking-wider font-bold">Địa chỉ</span>
-                        <span class="text-on-surface-variant text-[12px]">{{ $student?->address ?? '—' }}</span>
-                    </div>
-                    @if($student?->notes)
-                    <div class="col-span-2 flex flex-col gap-0.5 bg-warning-container p-2 rounded-lg border border-warning/30">
-                        <span class="text-[10px] text-warning uppercase tracking-wider font-bold">Ghi chú</span>
-                        <span class="text-on-surface-variant text-[11px]">{{ $student->notes }}</span>
-                    </div>
-                    @endif
-                </div>
-            </div>
-
-            <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest p-4 shadow-sm">
-                <h2 class="text-sm font-bold text-on-surface mb-3">Tiến độ học tập đã duyệt</h2>
-                <div class="grid grid-cols-3 gap-2 text-center">
-                    <div class="bg-tertiary/10 rounded-xl p-2"><div class="text-lg font-black text-tertiary">{{ $learningProgress['attendance_present'] }}/{{ $learningProgress['attendance_total'] }}</div><div class="text-[10px] text-on-surface-variant">Chuyên cần</div></div>
-                    <div class="bg-secondary/10 rounded-xl p-2"><div class="text-lg font-black text-secondary">{{ $learningProgress['homework_submitted'] }}/{{ $learningProgress['homework_total'] }}</div><div class="text-[10px] text-on-surface-variant">Bài tập</div></div>
-                    <div class="bg-primary-container/10 rounded-xl p-2"><div class="text-lg font-black text-primary">{{ $learningProgress['latest_big_test']?->overall_score ?? '—' }}</div><div class="text-[10px] text-on-surface-variant">Big Test mới nhất</div></div>
-                </div>
             </div>
 
             {{-- Lịch học sắp tới (buổi học thật của các lớp + buổi phụ đạo) --}}
@@ -85,10 +27,10 @@
                 <div class="flex flex-col gap-2">
                     @forelse($upcomingSessions as $s)
                         @php $cancelled = $s->status === 'cancelled'; @endphp
-                        <div class="flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs {{ $cancelled ? 'border-surface-container-highest bg-surface-container-low text-on-surface-variant/70' : 'border-surface-container-highest' }}">
+                        <div class="flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs {{ $cancelled ? 'border-surface-container-highest bg-surface-container-low text-on-surface-subtle' : 'border-surface-container-highest' }}">
                             <div>
                                 <div class="font-bold {{ $cancelled ? 'line-through' : 'text-on-surface' }}">{{ ['', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][$s->date->isoWeekday()] }}, {{ $s->date->format('d/m') }} · {{ $s->start_time?->format('H:i') }}-{{ $s->end_time?->format('H:i') }}</div>
-                                <div class="text-[11px] text-on-surface-variant">{{ $s->classModel?->name }}@if($s->room) · Phòng {{ $s->room }}@endif</div>
+                                <div class="text-xs text-on-surface-variant">{{ $s->classModel?->name }}@if ($s->roomLabel()) · {{ $s->roomLabel() }}@endif</div>
                             </div>
                             <x-ui.badge :color="$cancelled ? 'neutral' : ($s->type === 'regular' ? 'success' : 'secondary')" :pill="true">
                                 {{ $cancelled ? 'Nghỉ' : ($s->type === 'makeup' ? 'Học bù' : ($s->type === 'support' ? 'Phụ đạo' : 'Buổi học')) }}
@@ -97,6 +39,38 @@
                     @empty
                         <p class="text-xs text-on-surface-variant">Chưa có buổi học nào trong {{ 14 }} ngày tới.</p>
                     @endforelse
+                </div>
+            </div>
+
+            {{-- Bài tập: lối vào nhanh Nộp bài tập / Luyện phát âm --}}
+            <div class="grid grid-cols-2 gap-3 md:col-span-2">
+                <a href="{{ route('portal.student.homework', ['studentId' => $student?->id]) }}" class="bg-surface-container-lowest p-3 rounded-xl border border-surface-container-highest hover:border-primary-container transition shadow-2xs flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-primary-container/10 text-primary flex items-center justify-center shrink-0">
+                        <span class="material-symbols-outlined text-[20px]">upload_file</span>
+                    </div>
+                    <div class="overflow-hidden">
+                        <span class="text-xs font-bold text-on-surface block truncate">Nộp bài tập</span>
+                        <span class="text-xs text-on-surface-subtle block">Video & bài viết</span>
+                    </div>
+                </a>
+
+                <a href="{{ route('portal.student.pronunciation', ['studentId' => $student?->id]) }}" class="bg-surface-container-lowest p-3 rounded-xl border border-surface-container-highest hover:border-primary-container transition shadow-2xs flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-error/10 text-error flex items-center justify-center shrink-0">
+                        <span class="material-symbols-outlined text-[20px]">mic</span>
+                    </div>
+                    <div class="overflow-hidden">
+                        <span class="text-xs font-bold text-on-surface block truncate">Luyện phát âm</span>
+                        <span class="text-xs text-on-surface-subtle block">Thu âm AI</span>
+                    </div>
+                </a>
+            </div>
+            {{-- Tiến độ học tập --}}
+            <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest p-4 shadow-sm">
+                <h2 class="text-sm font-bold text-on-surface mb-3">Tiến độ học tập đã duyệt</h2>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-tertiary/10 rounded-xl p-2"><div class="text-lg font-black text-tertiary">{{ $learningProgress['attendance_present'] }}/{{ $learningProgress['attendance_total'] }}</div><div class="text-xs text-on-surface-variant">Chuyên cần</div></div>
+                    <div class="bg-secondary/10 rounded-xl p-2"><div class="text-lg font-black text-secondary">{{ $learningProgress['homework_submitted'] }}/{{ $learningProgress['homework_total'] }}</div><div class="text-xs text-on-surface-variant">Bài tập</div></div>
+                    <div class="bg-primary-container/10 rounded-xl p-2"><div class="text-lg font-black text-primary">{{ $learningProgress['latest_big_test']?->overall_score ?? '—' }}</div><div class="text-xs text-on-surface-variant">Big Test mới nhất</div></div>
                 </div>
             </div>
 
@@ -111,7 +85,7 @@
                         <div class="flex items-center justify-between py-2 text-xs">
                             <div>
                                 <div class="font-semibold text-on-surface">{{ ($a->classSession?->date ?? $a->session_date)?->format('d/m/Y') }}</div>
-                                <div class="text-[11px] text-on-surface-variant">{{ $a->classModel?->name }}@if($a->note) · {{ $a->note }}@endif</div>
+                                <div class="text-xs text-on-surface-variant">{{ $a->classModel?->name }}@if($a->note) · {{ $a->note }}@endif</div>
                             </div>
                             <x-ui.badge :color="in_array($a->status, ['present', 'late'], true) ? 'success' : 'error'" :pill="true">{{ $a->status_label }}</x-ui.badge>
                         </div>
@@ -135,12 +109,12 @@
                                 <span class="font-black font-mono text-primary">{{ $r->is_absent ? 'Vắng thi' : $r->overall_score }}</span>
                             </div>
                             @unless($r->is_absent)
-                                <div class="mt-1 grid grid-cols-4 gap-1 text-[10px] text-on-surface-variant text-center">
+                                <div class="mt-1 grid grid-cols-4 gap-1 text-xs text-on-surface-variant text-center">
                                     <span>Nghe {{ $r->listening_score ?? '—' }}</span><span>Đọc {{ $r->reading_score ?? '—' }}</span><span>Viết {{ $r->writing_score ?? '—' }}</span><span>Nói {{ $r->speaking_score ?? '—' }}</span>
                                 </div>
                             @endunless
                             @if($r->progress_note)
-                                <p class="mt-1 text-[11px] text-on-surface-variant">{{ $r->progress_note }}</p>
+                                <p class="mt-1 text-xs text-on-surface-variant">{{ $r->progress_note }}</p>
                             @endif
                         </div>
                     @empty
@@ -163,12 +137,12 @@
                     <div class="flex items-center gap-1.5">
                         <button type="button"
                                 @click="$dispatch('open-modal', 'portal-tuition-request')"
-                                class="text-white bg-surface-container-lowest/20 hover:bg-surface-container-lowest/30 transition-colors px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1 backdrop-blur-xs active:scale-95">
+                                class="text-white bg-surface-container-lowest/20 hover:bg-surface-container-lowest/30 transition-colors px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1 backdrop-blur-xs active:scale-95">
                             <span class="material-symbols-outlined text-[13px]">send</span> Báo đóng
                         </button>
                         <button type="button"
                                 @click="$dispatch('open-modal', 'portal-tuition-history')"
-                                class="text-white bg-surface-container-lowest/20 hover:bg-surface-container-lowest/30 transition-colors px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1 backdrop-blur-xs active:scale-95">
+                                class="text-white bg-surface-container-lowest/20 hover:bg-surface-container-lowest/30 transition-colors px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1 backdrop-blur-xs active:scale-95">
                             Lịch sử <span class="material-symbols-outlined text-[14px]">chevron_right</span>
                         </button>
                     </div>
@@ -176,50 +150,76 @@
 
                 <div class="grid grid-cols-2 gap-3 relative z-10 bg-black/15 p-3 rounded-xl backdrop-blur-xs border border-white/10">
                     <div class="flex flex-col gap-0.5">
-                        <span class="text-[10px] text-white/80 uppercase tracking-wider font-semibold">Tổng đã đóng</span>
-                        <span class="text-xl font-bold font-mono">{{ number_format($totalPaid, 0, ',', '.') }}đ</span>
+                        <span class="text-xs text-white/80 uppercase tracking-wider font-semibold">Tổng đã đóng</span>
+                        <span class="text-xl font-bold font-mono">{{ \App\Support\Money::format($totalPaid) }}</span>
                     </div>
                     <div class="flex flex-col gap-0.5 pl-3 border-l border-white/20">
-                        <span class="text-[10px] text-white/80 uppercase tracking-wider font-semibold">Còn nợ</span>
-                        <span class="text-lg font-bold font-mono text-error-container">{{ number_format($debtAmount, 0, ',', '.') }}đ</span>
+                        <span class="text-xs text-white/80 uppercase tracking-wider font-semibold">Còn nợ</span>
+                        <span class="text-lg font-bold font-mono text-error-container">{{ \App\Support\Money::format($debtAmount) }}</span>
                     </div>
                 </div>
 
                 <div class="flex items-center justify-between relative z-10 bg-surface-container-lowest/10 px-3 py-2 rounded-xl text-xs">
                     <span class="text-white/90 font-medium">Dự kiến khóa tới:</span>
-                    <span class="font-bold font-mono text-white">{{ number_format($nextTermFee, 0, ',', '.') }}đ</span>
+                    <span class="font-bold font-mono text-white">{{ \App\Support\Money::format($nextTermFee) }}</span>
                 </div>
             </div>
 
-            {{-- Quick Action Cards to Other Steps --}}
-            <div class="grid grid-cols-2 gap-3 md:col-span-2">
-                <a href="{{ route('portal.student.homework', ['studentId' => $student?->id]) }}" class="bg-surface-container-lowest p-3 rounded-xl border border-surface-container-highest hover:border-primary-container transition shadow-2xs flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-primary-container/10 text-primary flex items-center justify-center shrink-0">
-                        <span class="material-symbols-outlined text-[20px]">upload_file</span>
-                    </div>
-                    <div class="overflow-hidden">
-                        <span class="text-xs font-bold text-on-surface block truncate">Nộp bài tập</span>
-                        <span class="text-[10px] text-on-surface-variant/70 block">Video & bài viết</span>
-                    </div>
-                </a>
+            {{-- Student Info Card (Bento style) --}}
+            <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest/80 p-4 flex flex-col gap-4 shadow-sm relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-primary-container/5 rounded-bl-full pointer-events-none"></div>
 
-                <a href="{{ route('portal.student.pronunciation', ['studentId' => $student?->id]) }}" class="bg-surface-container-lowest p-3 rounded-xl border border-surface-container-highest hover:border-primary-container transition shadow-2xs flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-error/10 text-error flex items-center justify-center shrink-0">
-                        <span class="material-symbols-outlined text-[20px]">mic</span>
+                <div class="flex items-center justify-between border-b border-surface-container-highest pb-3">
+                    <h2 class="text-base font-bold text-on-surface flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">person</span>
+                        Thông tin học sinh
+                    </h2>
+                    <div class="flex items-center gap-1.5">
+                        <x-ui.button variant="secondary" size="sm" icon="edit" x-on:click="$dispatch('open-modal', 'portal-edit-profile')">Sửa</x-ui.button>
+                        <x-ui.badge color="success" :pill="true">
+                            {{ $student?->status_label ?? '—' }}
+                        </x-ui.badge>
                     </div>
-                    <div class="overflow-hidden">
-                        <span class="text-xs font-bold text-on-surface block truncate">Luyện phát âm</span>
-                        <span class="text-[10px] text-on-surface-variant/70 block">Thu âm AI</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-y-3 gap-x-3 text-xs">
+                    <div class="flex flex-col gap-0.5">
+                        <span class="text-xs text-on-surface-subtle uppercase tracking-wider font-bold">Ngày sinh</span>
+                        <span class="font-medium text-on-surface">{{ $student?->dob ? $student->dob->format('d/m/Y') : '—' }}</span>
                     </div>
-                </a>
+                    <div class="flex flex-col gap-0.5">
+                        <span class="text-xs text-on-surface-subtle uppercase tracking-wider font-bold">Lớp đang học</span>
+                        <span class="font-bold text-secondary">{{ $studentClasses->isNotEmpty() ? $studentClasses->pluck('name')->implode(', ') : 'Chưa xếp lớp' }}</span>
+                    </div>
+                    <div class="flex flex-col gap-0.5">
+                        <span class="text-xs text-on-surface-subtle uppercase tracking-wider font-bold">Giáo viên chính</span>
+                        <span class="font-medium text-on-surface flex items-center gap-1">
+                            {{ $student?->currentClass?->teacher?->name ?? '—' }}
+                        </span>
+                    </div>
+                    <div class="flex flex-col gap-0.5">
+                        <span class="text-xs text-on-surface-subtle uppercase tracking-wider font-bold">Số điện thoại</span>
+                        <span class="font-mono font-medium text-on-surface">{{ $student?->phone ?? '—' }}</span>
+                    </div>
+                    <div class="col-span-2 flex flex-col gap-0.5 border-t border-surface-container-highest pt-2">
+                        <span class="text-xs text-on-surface-subtle uppercase tracking-wider font-bold">Địa chỉ</span>
+                        <span class="text-on-surface-variant text-[12px]">{{ $student?->address ?? '—' }}</span>
+                    </div>
+                    @if($student?->notes)
+                    <div class="col-span-2 flex flex-col gap-0.5 bg-warning-container p-2 rounded-lg border border-warning/30">
+                        <span class="text-xs text-warning uppercase tracking-wider font-bold">Ghi chú</span>
+                        <span class="text-on-surface-variant text-xs">{{ $student->notes }}</span>
+                    </div>
+                    @endif
+                </div>
             </div>
-        </main>
+        </div>
 
         {{-- Bottom Sheet: Lịch sử thu học phí --}}
         <x-ui.modal name="portal-tuition-history" title="Lịch sử thu học phí" max-width="md">
             {{-- List Content --}}
             <div class="flex flex-col gap-3">
-                <div class="text-[11px] font-semibold text-on-surface-variant mb-1 flex items-center gap-1">
+                <div class="text-xs font-semibold text-on-surface-variant mb-1 flex items-center gap-1">
                     <span class="material-symbols-outlined text-[14px]">filter_list</span> Chỉ hiển thị phiếu "Đã duyệt"
                 </div>
 
@@ -227,7 +227,7 @@
                     <div class="bg-surface-container-low border border-surface-container-highest/80 rounded-xl p-3 flex flex-col gap-2 shadow-2xs">
                         <div class="flex justify-between items-start">
                             <div class="flex flex-col">
-                                <span class="text-[11px] font-bold text-primary font-mono">{{ $rc->receipt_number ?? ('PT-' . $rc->id) }}</span>
+                                <span class="text-xs font-bold text-primary font-mono">{{ $rc->receipt_number ?? ('PT-' . $rc->id) }}</span>
                                 @php
                                     $rcCode = (string) $rc->transaction_code;
                                     $rcTitle = match (true) {
@@ -244,7 +244,7 @@
                             </x-ui.badge>
                         </div>
                         <div class="flex justify-between items-end border-t border-surface-container-highest pt-2 mt-1 text-xs">
-                            <div class="flex flex-col gap-0.5 text-on-surface-variant text-[11px]">
+                            <div class="flex flex-col gap-0.5 text-on-surface-variant text-xs">
                                 <span class="flex items-center gap-1">
                                     <span class="material-symbols-outlined text-[13px]">calendar_today</span> {{ is_string($rc->payment_date) ? $rc->payment_date : ($rc->payment_date?->format('d/m/Y') ?? '—') }}
                                 </span>

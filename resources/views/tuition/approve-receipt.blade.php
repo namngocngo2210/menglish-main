@@ -41,7 +41,7 @@
                 {{-- 3 Thẻ chỉ số Counter --}}
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <x-ui.stat-card label="Chờ duyệt" :value="$pendingCount.' phiếu'" tone="warning" icon="schedule"
-                                    :hint="'('.number_format((float) $pendingTotal, 0, ',', '.').' VNĐ)'" />
+                                    :hint="'('.\App\Support\Money::format((float) $pendingTotal).')'" />
                     <x-ui.stat-card label="Đã duyệt hôm nay" :value="$approvedTodayCount.' phiếu'" tone="success" icon="check_circle" />
                     <x-ui.stat-card label="Đã từ chối hôm nay" :value="$rejectedTodayCount.' phiếu'" tone="error" icon="cancel" />
                 </div>
@@ -83,7 +83,7 @@
                 <div class="relative w-full lg:w-80">
                     <x-ui.input name="q" icon="search" :value="request('q')" placeholder="Tìm theo tên học viên, mã phiếu..." class="pr-8" />
                     @if (request('q'))
-                        <a href="{{ route('tuition.receipts.approve', request()->except('q')) }}" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant/70 hover:text-on-surface-variant" aria-label="Xóa từ khóa">
+                        <a href="{{ route('tuition.receipts.approve', request()->except('q')) }}" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-subtle hover:text-on-surface-variant" aria-label="Xóa từ khóa">
                             <span class="material-symbols-outlined text-base">close</span>
                         </a>
                     @endif
@@ -100,7 +100,7 @@
                         <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface">Hàng đợi phiếu thu</h3>
                         <x-ui.badge color="warning" pill :dot="false" class="font-code">{{ $pendingReceipts->count() }} phiếu</x-ui.badge>
                     </div>
-                    <span class="flex items-center gap-1 text-[11px] text-on-surface-variant/70">
+                    <span class="flex items-center gap-1 text-xs text-on-surface-subtle">
                         <span class="material-symbols-outlined text-xs">autorenew</span>
                         Tự động làm mới (90 giây)
                     </span>
@@ -126,16 +126,16 @@
                                         <x-ui.badge color="secondary" :dot="false"><span class="material-symbols-outlined text-xs">account_balance</span>Chuyển khoản</x-ui.badge>
                                     @endif
                                 </div>
-                                <span class="text-[11px] font-medium text-on-surface-variant/70">{{ $rc->created_at->diffForHumans() }}</span>
+                                <span class="text-xs font-medium text-on-surface-subtle">{{ $rc->created_at->diffForHumans() }}</span>
                             </div>
 
                             <div class="flex items-center justify-between">
                                 <div>
                                     <h4 class="flex items-center gap-1 text-xs font-bold text-on-surface">
                                         <span>{{ $student?->name ?? 'Học viên' }}</span>
-                                        <span class="font-code text-[11px] font-normal text-on-surface-variant/70">(<x-ui.code :value="$student?->code" />)</span>
+                                        <span class="font-code text-xs font-normal text-on-surface-subtle">(<x-ui.code :value="$student?->code" />)</span>
                                     </h4>
-                                    <p class="mt-0.5 flex items-center gap-1.5 text-[11px] text-on-surface-variant">
+                                    <p class="mt-0.5 flex items-center gap-1.5 text-xs text-on-surface-variant">
                                         <span>{{ $className }}</span>
                                         @if ($rc->surcharge_amount > 0)
                                             <x-ui.badge color="warning" :dot="false">+ Phụ thu</x-ui.badge>
@@ -143,24 +143,24 @@
                                     </p>
                                 </div>
                                 <div class="text-right">
-                                    <div class="font-code text-sm font-bold {{ $isSelected ? 'text-primary' : 'text-on-surface' }}">{{ number_format((float) $rc->amount, 0, ',', '.') }} đ</div>
-                                    <div class="text-[10px] text-on-surface-variant/70">{{ $branch?->name ?? 'Trụ sở chính' }}</div>
+                                    <div class="font-code text-sm font-bold {{ $isSelected ? 'text-primary' : 'text-on-surface' }}">{{ \App\Support\Money::format((float) $rc->amount) }}</div>
+                                    <div class="text-xs text-on-surface-subtle">{{ $branch?->name ?? 'Trụ sở chính' }}</div>
                                 </div>
                             </div>
 
-                            <div class="mt-2.5 flex items-center justify-between border-t border-surface-container-highest pt-2 text-[11px] text-on-surface-variant">
+                            <div class="mt-2.5 flex items-center justify-between border-t border-surface-container-highest pt-2 text-xs text-on-surface-variant">
                                 <span class="flex max-w-[240px] items-center gap-1 truncate">
-                                    <span class="material-symbols-outlined text-xs text-on-surface-variant/70">person</span>
+                                    <span class="material-symbols-outlined text-xs text-on-surface-subtle">person</span>
                                     Người tạo: <strong class="text-on-surface-variant">{{ $rc->creator?->name ?? 'CM' }}</strong>
                                 </span>
 
                                 @if ($rc->proof_image)
-                                    <span class="flex items-center gap-0.5 text-[10px] text-on-surface-variant"><span class="material-symbols-outlined text-xs">attach_file</span>Có minh chứng</span>
+                                    <span class="flex items-center gap-0.5 text-xs text-on-surface-variant"><span class="material-symbols-outlined text-xs">attach_file</span>Có minh chứng</span>
                                 @elseif ($rc->paper_invoice_number)
-                                    <span class="text-[10px] text-on-surface-variant">Biên lai số {{ $rc->paper_invoice_number }}</span>
+                                    <span class="text-xs text-on-surface-variant">Biên lai số {{ $rc->paper_invoice_number }}</span>
                                 @endif
                                 @if ($isSelected)
-                                    <span class="flex items-center gap-0.5 text-[11px] font-bold text-primary">
+                                    <span class="flex items-center gap-0.5 text-xs font-bold text-primary">
                                         Đang xem
                                         <span class="material-symbols-outlined text-xs">chevron_right</span>
                                     </span>
@@ -189,7 +189,7 @@
                             <ul class="list-disc space-y-0.5 pl-md">
                                 @foreach ($sepayWarnings as $tx)
                                     <li>
-                                        SePay #{{ $tx->sepay_id }} — {{ number_format((float) $tx->transfer_amount, 0, ',', '.') }} đ
+                                        SePay #{{ $tx->sepay_id }} — {{ \App\Support\Money::format((float) $tx->transfer_amount) }}
                                         ngày {{ $tx->transaction_date?->format('d/m/Y H:i') }}
                                         @if ($tx->receipt) (phiếu <x-ui.code :value="$tx->receipt->receipt_number" />) @endif
                                     </li>
@@ -237,17 +237,17 @@
 
                                 <div class="grid grid-cols-1 gap-4 text-xs md:grid-cols-3">
                                     <div class="space-y-0.5 rounded-lg border border-surface-container-highest bg-surface-container-lowest p-3.5">
-                                        <span class="mb-0.5 block text-xs uppercase text-on-surface-variant/70">Học viên</span>
+                                        <span class="mb-0.5 block text-xs uppercase text-on-surface-subtle">Học viên</span>
                                         <div class="text-sm font-bold text-on-surface">{{ $st?->name ?? 'Học viên' }}</div>
                                         <x-ui.code :value="$st?->code" class="font-code text-xs font-semibold text-primary" />
                                     </div>
                                     <div class="space-y-0.5 rounded-lg border border-surface-container-highest bg-surface-container-lowest p-3.5">
-                                        <span class="mb-0.5 block text-xs uppercase text-on-surface-variant/70">Lớp học hiện tại</span>
+                                        <span class="mb-0.5 block text-xs uppercase text-on-surface-subtle">Lớp học hiện tại</span>
                                         <div class="text-sm font-bold text-on-surface">{{ $tClass }}</div>
                                         <span class="text-xs text-on-surface-variant">{{ $branchName }}</span>
                                     </div>
                                     <div class="space-y-0.5 rounded-lg border border-surface-container-highest bg-surface-container-lowest p-3.5">
-                                        <span class="mb-0.5 block text-xs uppercase text-on-surface-variant/70">Người nộp tiền (Phụ huynh)</span>
+                                        <span class="mb-0.5 block text-xs uppercase text-on-surface-subtle">Người nộp tiền (Phụ huynh)</span>
                                         <div class="text-sm font-bold text-on-surface">{{ $selectedReceipt->payer_name ?: ($st?->parent_name ?: $st?->name) }}</div>
                                         <span class="font-code text-xs font-semibold text-on-surface-variant">{{ $selectedReceipt->payer_phone ?: ($st?->parent_phone ?: $st?->phone) }}</span>
                                     </div>
@@ -282,12 +282,12 @@
                                                 <td class="font-semibold">
                                                     Học phí
                                                     @if ($selectedReceipt->tuition?->due_date)
-                                                        <span class="block text-[11px] font-normal text-on-surface-variant">(Hạn {{ $selectedReceipt->tuition->due_date->format('d/m/Y') }})</span>
+                                                        <span class="block text-xs font-normal text-on-surface-variant">(Hạn {{ $selectedReceipt->tuition->due_date->format('d/m/Y') }})</span>
                                                     @endif
                                                 </td>
                                                 <td class="text-on-surface-variant">
                                                     {{ $selectedReceipt->tuition?->fee_label ?? 'Không gắn khoản học phí (chỉ phụ thu)' }}
-                                                    (Đã miễn giảm {{ number_format((float) ($selectedReceipt->discount_amount ?? 0), 0, ',', '.') }} đ)
+                                                    (Đã miễn giảm {{ \App\Support\Money::format((float) ($selectedReceipt->discount_amount ?? 0)) }})
                                                 </td>
                                                 <td><x-ui.money :value="$selectedReceipt->tuitionPortion()" suffix="đ" class="font-bold" /></td>
                                             </tr>
@@ -302,7 +302,7 @@
                                                         {{ $selectedReceipt->surcharge_reason ?: '—' }}
                                                     </td>
                                                     <td class="text-right font-code font-bold text-on-warning-container">
-                                                        + {{ number_format((float) $selectedReceipt->surcharge_amount, 0, ',', '.') }} đ
+                                                        + {{ \App\Support\Money::format((float) $selectedReceipt->surcharge_amount) }}
                                                     </td>
                                                 </tr>
                                             @endif
@@ -313,7 +313,7 @@
                                                     TỔNG SỐ TIỀN THỰC THU
                                                 </td>
                                                 <td class="text-right">
-                                                    <span class="font-code text-base font-bold text-primary">{{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} VNĐ</span>
+                                                    <span class="font-code text-base font-bold text-primary">{{ \App\Support\Money::format((float) $selectedReceipt->amount) }}</span>
                                                 </td>
                                             </tr>
                                         </tfoot>
@@ -323,7 +323,7 @@
                                 {{-- Metadata & Notes --}}
                                 <div class="mt-4 grid grid-cols-1 gap-3 text-xs md:grid-cols-2">
                                     <div class="space-y-1 rounded-lg border border-surface-container-highest bg-surface-container-low p-3.5">
-                                        <span class="block text-[10px] font-bold uppercase text-on-surface-variant">Trạng thái đối soát &amp; Hóa đơn VAT</span>
+                                        <span class="block text-xs font-bold uppercase text-on-surface-variant">Trạng thái đối soát &amp; Hóa đơn VAT</span>
                                         <div class="flex flex-wrap items-center gap-2">
                                             <x-ui.badge :color="$reconciliation['tone'] ?? 'neutral'">{{ $reconciliation['label'] ?? '—' }}</x-ui.badge>
                                             @if ($selectedReceipt->is_vat_invoice)
@@ -335,7 +335,7 @@
                                     </div>
 
                                     <div class="space-y-1 rounded-lg border border-surface-container-highest bg-surface-container-low p-3.5">
-                                        <span class="block text-[10px] font-bold uppercase text-on-surface-variant">Ghi chú từ nhân viên tạo phiếu (CM)</span>
+                                        <span class="block text-xs font-bold uppercase text-on-surface-variant">Ghi chú từ nhân viên tạo phiếu (CM)</span>
                                         <p class="text-xs italic leading-relaxed text-on-surface-variant">
                                             {{ $selectedReceipt->notes ? '"'.$selectedReceipt->notes.'"' : 'Không có ghi chú.' }}
                                         </p>
@@ -352,7 +352,7 @@
                                         </div>
                                         <div>
                                             <h3 class="text-sm font-bold uppercase tracking-wide text-on-surface">3. Minh chứng chuyển khoản (UNC) / Biên lai</h3>
-                                            <p class="text-xs text-on-surface-variant/70">Đối chiếu mã giao dịch và số tài khoản nhận</p>
+                                            <p class="text-xs text-on-surface-subtle">Đối chiếu mã giao dịch và số tài khoản nhận</p>
                                         </div>
                                     </div>
 
@@ -373,7 +373,7 @@
                                             <div class="flex h-full w-full flex-col items-center justify-center gap-2 text-xs text-inverse-on-surface/70">
                                                 <span class="material-symbols-outlined text-3xl text-inverse-on-surface/60">image_not_supported</span>
                                                 <span class="font-bold text-inverse-on-surface">Chưa có minh chứng</span>
-                                                <span class="px-3 text-center text-[11px] text-inverse-on-surface/60">Người lập chưa đính kèm ảnh chuyển khoản / biên lai.</span>
+                                                <span class="px-3 text-center text-xs text-inverse-on-surface/60">Người lập chưa đính kèm ảnh chuyển khoản / biên lai.</span>
                                             </div>
                                         @endif
                                         <div class="absolute inset-0 flex items-center justify-center gap-1 bg-black/40 text-xs font-bold text-white opacity-0 transition group-hover/img:opacity-100">
@@ -386,7 +386,7 @@
                                         <div class="space-y-2 rounded-lg border border-white/10 bg-white/5 p-3.5">
                                             <div class="flex items-center justify-between">
                                                 <span class="text-inverse-on-surface/70">Mã tham chiếu:</span>
-                                                <span class="font-code font-bold text-warning-container">{{ $selectedReceipt->transaction_code ?: ($selectedReceipt->paper_invoice_number ?: '—') }}</span>
+                                                <x-ui.code :value="$selectedReceipt->transaction_code ?: ($selectedReceipt->paper_invoice_number ?: '—')" class="font-code font-bold text-warning-container" />
                                             </div>
                                             <div class="flex items-center justify-between">
                                                 <span class="text-inverse-on-surface/70">Tài khoản thụ hưởng:</span>
@@ -410,9 +410,9 @@
                                             <span>
                                                 {{ $reconciliation['detail'] ?? '' }}
                                                 @if ($selectedReceipt->proof_image)
-                                                    Vui lòng đối chiếu minh chứng với sao kê ngân hàng / quỹ tiền mặt: số tiền <strong>{{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} đ</strong> trước khi duyệt.
+                                                    Vui lòng đối chiếu minh chứng với sao kê ngân hàng / quỹ tiền mặt: số tiền <strong>{{ \App\Support\Money::format((float) $selectedReceipt->amount) }}</strong> trước khi duyệt.
                                                 @else
-                                                    Chưa có minh chứng. Chỉ duyệt khi đã xác nhận nhận đủ <strong>{{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} đ</strong> trên sao kê / quỹ tiền mặt.
+                                                    Chưa có minh chứng. Chỉ duyệt khi đã xác nhận nhận đủ <strong>{{ \App\Support\Money::format((float) $selectedReceipt->amount) }}</strong> trên sao kê / quỹ tiền mặt.
                                                 @endif
                                             </span>
                                         </div>
@@ -424,7 +424,7 @@
                         {{-- KHỐI 4: Thanh tác vụ phê duyệt --}}
                         <footer class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-container-highest bg-surface-container-low p-4 lg:p-5">
                             <div class="flex items-center gap-1.5 text-xs text-on-surface-variant">
-                                <span class="material-symbols-outlined text-base text-on-surface-variant/70">info</span>
+                                <span class="material-symbols-outlined text-base text-on-surface-subtle">info</span>
                                 <span>Thao tác duyệt sẽ lập tức hạch toán số dư công nợ của học viên và cấp số hóa đơn.</span>
                             </div>
 
@@ -434,7 +434,7 @@
                                         <x-ui.button variant="danger-text" icon="close" x-on:click="$dispatch('open-modal', 'reject-receipt')">Từ chối phiếu thu</x-ui.button>
                                     @endcan
                                     @can('tuition.approve')
-                                        <x-ui.button icon="check" x-on:click="$dispatch('open-modal', 'approve-receipt')">Duyệt phiếu thu ({{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} VNĐ)</x-ui.button>
+                                        <x-ui.button icon="check" x-on:click="$dispatch('open-modal', 'approve-receipt')">Duyệt phiếu thu ({{ \App\Support\Money::format((float) $selectedReceipt->amount) }})</x-ui.button>
                                     @endcan
                                     @cannot('tuition.approve')
                                         <x-ui.badge color="warning" pill>Chờ Kế toán duyệt</x-ui.badge>
@@ -471,10 +471,10 @@
                         <form id="approve-receipt-form" action="{{ route('tuition.receipts.approve.action', $selectedReceipt->id) }}" method="POST" class="space-y-3 text-xs leading-relaxed text-on-surface-variant">
                             @csrf
                             <p>
-                                Bạn có chắc chắn muốn duyệt phiếu thu <strong class="font-code text-on-surface">{{ $selectedReceipt->receipt_number }}</strong> với tổng số tiền <strong class="font-code text-sm font-bold text-primary">{{ number_format((float) $selectedReceipt->amount, 0, ',', '.') }} VNĐ</strong> cho học viên <strong class="text-on-surface">{{ $st?->name }}</strong>?
+                                Bạn có chắc chắn muốn duyệt phiếu thu <strong class="font-code text-on-surface">{{ $selectedReceipt->receipt_number }}</strong> với tổng số tiền <strong class="font-code text-sm font-bold text-primary">{{ \App\Support\Money::format((float) $selectedReceipt->amount) }}</strong> cho học viên <strong class="text-on-surface">{{ $st?->name }}</strong>?
                             </p>
                             @if (($sepayWarnings ?? collect())->isNotEmpty())
-                                <label class="flex w-full items-start gap-2 rounded-xl border border-warning/30 bg-warning-container p-2.5 text-[11px] text-on-warning-container">
+                                <label class="flex w-full items-start gap-2 rounded-xl border border-warning/30 bg-warning-container p-2.5 text-xs text-on-warning-container">
                                     <input type="checkbox" name="confirm_not_duplicate" value="1" class="mt-0.5 rounded text-primary focus:ring-primary-container">
                                     <span>Xác nhận không trùng giao dịch SePay: tôi đã đối chiếu sao kê, đây là một khoản chuyển khác.</span>
                                 </label>
@@ -494,7 +494,7 @@
                             <x-ui.textarea name="rejection_reason" label="Lý do từ chối duyệt (Bắt buộc)" required rows="3" placeholder="Ví dụ: Ảnh chụp ủy nhiệm chi bị mất góc mã tham chiếu, số tiền chuyển khoản không khớp với phiếu..." />
 
                             <x-ui.alert type="error">
-                                <span class="text-[11px] leading-relaxed"><strong>Thông báo hệ thống:</strong> Phiếu thu này sẽ chuyển về trạng thái <strong>"Bị từ chối"</strong> kèm thông báo lý do từ chối gửi trả lại nhân viên phụ trách <strong>{{ $selectedReceipt->creator?->name ?? 'CM' }}</strong> để bổ sung minh chứng.</span>
+                                <span class="text-xs leading-relaxed"><strong>Thông báo hệ thống:</strong> Phiếu thu này sẽ chuyển về trạng thái <strong>"Bị từ chối"</strong> kèm thông báo lý do từ chối gửi trả lại nhân viên phụ trách <strong>{{ $selectedReceipt->creator?->name ?? 'CM' }}</strong> để bổ sung minh chứng.</span>
                             </x-ui.alert>
                         </form>
                         <x-slot:footer>

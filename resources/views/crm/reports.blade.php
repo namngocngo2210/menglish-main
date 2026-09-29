@@ -1,5 +1,5 @@
 <x-app-layout>
-    @include('crm.partials.header-tabs')
+    @include('crm.partials.header-tabs', ['title' => 'Báo cáo tuyển sinh', 'description' => 'Cập nhật: '.now()->format('H:i d/m/Y')])
 
     @php
         $trend = function (float|int $delta, bool $upIsGood = true) {
@@ -20,31 +20,21 @@
 
     {{-- Mockup crm-ui-mockup/bao-cao-doanh-so: bộ lọc (khoảng thời gian, chi nhánh), giai đoạn chuyển đổi, lý do không chốt, ghi chú nguồn dữ liệu --}}
     <div class="flex flex-col gap-lg">
-        <header class="flex flex-col gap-xs sm:flex-row sm:items-baseline sm:justify-between">
-            <h2 class="font-h2 text-h2 text-on-surface">Báo cáo doanh số</h2>
-            <span class="font-body-small text-body-small italic text-on-surface-variant">Cập nhật: {{ now()->format('H:i d/m/Y') }}</span>
-        </header>
-
-        <form method="GET" action="{{ route('crm.reports') }}" class="space-y-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
-            <div class="flex flex-wrap items-center gap-sm">
-                <span class="font-label text-label uppercase text-on-surface-variant">Chọn nhanh:</span>
-                @foreach (['today' => 'Hôm nay', 'yesterday' => 'Hôm qua', 'last_7_days' => '7 ngày', 'last_week' => 'Tuần trước', 'last_30_days' => '30 ngày', 'last_60_days' => '60 ngày', 'last_90_days' => '90 ngày', 'last_6_months' => '6 tháng', 'last_year' => '1 năm'] as $key => $label)
-                    <button type="submit" name="preset" value="{{ $key }}"
-                            class="rounded-full px-md py-xs font-body-small text-body-small transition-colors {{ $preset === $key ? 'bg-primary-container font-semibold text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high' }}">{{ $label }}</button>
-                @endforeach
-            </div>
-            <div class="flex flex-col gap-md border-t border-surface-container pt-md lg:flex-row lg:items-end">
-                <x-ui.field label="Khoảng thời gian">
-                    <div class="flex items-center gap-sm">
-                        <x-ui.date name="start_date" :value="$startDate->format('Y-m-d')" aria-label="Từ ngày" />
-                        <span class="font-body-small text-body-small text-on-surface-variant">đến</span>
-                        <x-ui.date name="end_date" :value="$endDate->format('Y-m-d')" aria-label="Đến ngày" />
-                    </div>
-                </x-ui.field>
-                <x-ui.select id="report_branch" name="branch_id" label="Chi nhánh" :options="$branches->pluck('name', 'id')" :value="(string) $branchId" placeholder="Tất cả" class="min-w-[220px]" />
-                <x-ui.button type="submit" name="preset" value="custom" variant="secondary" icon="filter_list">Lọc</x-ui.button>
-            </div>
-        </form>
+        <x-ui.filter-bar :action="route('crm.reports')" :reset-url="route('crm.reports')" :search="false" class="!mb-0">
+            <x-slot:quick>
+                {{-- Input ẩn đứng trước các nút chọn nhanh: nút Lọc gửi preset=custom, còn bấm nút chọn nhanh thì giá trị của nút đó (đứng sau) thắng --}}
+                <input type="hidden" name="preset" value="custom">
+                <div class="flex flex-wrap items-center gap-sm">
+                    <span class="font-label text-label uppercase text-on-surface-variant">Chọn nhanh:</span>
+                    @foreach (['today' => 'Hôm nay', 'yesterday' => 'Hôm qua', 'last_7_days' => '7 ngày', 'last_week' => 'Tuần trước', 'last_30_days' => '30 ngày', 'last_60_days' => '60 ngày', 'last_90_days' => '90 ngày', 'last_6_months' => '6 tháng', 'last_year' => '1 năm'] as $key => $label)
+                        <button type="submit" name="preset" value="{{ $key }}"
+                                class="rounded-full px-md py-xs font-body-small text-body-small transition-colors {{ $preset === $key ? 'bg-primary-container font-semibold text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high' }}">{{ $label }}</button>
+                    @endforeach
+                </div>
+            </x-slot:quick>
+            <x-ui.date-range label="Khoảng thời gian" from="start_date" to="end_date" :from-value="$startDate->format('Y-m-d')" :to-value="$endDate->format('Y-m-d')" />
+            <x-ui.select name="branch_id" label="Chi nhánh" :options="$branches->pluck('name', 'id')" :value="(string) $branchId" placeholder="Tất cả chi nhánh" />
+        </x-ui.filter-bar>
 
         <div class="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-4">
             @foreach ($cards as [$label, $value, $icon, $tone, $delta, $t, $hint])
@@ -174,7 +164,7 @@
                                         </span>
                                         <div>
                                             <div class="font-bold text-on-surface">{{ $rep['name'] }}</div>
-                                            <div class="text-[10px] text-on-surface-variant/70 font-normal">{{ $rep['role'] }}</div>
+                                            <div class="text-xs text-on-surface-subtle font-normal">{{ $rep['role'] }}</div>
                                         </div>
                                     </div>
                                 </td>
@@ -196,16 +186,16 @@
 
                                 {{-- Doanh thu (giữ định dạng number_format mặc định — test đối chiếu "350,000") --}}
                                 <td class="text-right font-mono font-bold whitespace-nowrap">
-                                    {{ number_format($rep['revenue']) }} đ
+                                    {{ \App\Support\Money::format($rep['revenue']) }}
                                 </td>
 
                                 {{-- Hoa hồng --}}
                                 <td class="text-right bg-brand-surface">
                                     <div class="font-mono font-bold text-primary-container whitespace-nowrap">
-                                        {{ number_format($rep['commission_amount']) }} đ
+                                        {{ \App\Support\Money::format($rep['commission_amount']) }}
                                     </div>
-                                    <div class="text-[10px] text-on-surface-variant font-sans">
-                                        {{ $rep['tier_name'] }} ({{ $rep['commission_percent'] }}%{{ $rep['commission_bonus'] > 0 ? ' + ' . number_format($rep['commission_bonus']) . 'đ' : '' }})
+                                    <div class="text-xs text-on-surface-variant font-sans">
+                                        {{ $rep['tier_name'] }} ({{ $rep['commission_percent'] }}%{{ $rep['commission_bonus'] > 0 ? ' + ' . \App\Support\Money::format($rep['commission_bonus']) : '' }})
                                     </div>
                                 </td>
 
@@ -216,7 +206,7 @@
 
                                 {{-- Đánh giá --}}
                                 <td class="text-center">
-                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border {{ $rep['rating_badge'] }}">
+                                    <span class="px-2.5 py-0.5 rounded-full text-xs font-bold border {{ $rep['rating_badge'] }}">
                                         {{ $rep['rating'] }}
                                     </span>
                                 </td>

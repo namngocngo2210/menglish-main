@@ -27,7 +27,7 @@
             @if (! empty($options))
                 <label class="flex items-center gap-xs">
                     <span>Hiển thị:</span>
-                    <select class="rounded-lg border border-outline-variant bg-surface-container-lowest py-1 pl-sm pr-lg font-body-small text-body-small text-on-surface focus:border-primary-container focus:ring-primary-container/20"
+                    <select class="rounded-lg border border-outline-variant bg-surface-container-lowest py-1 pl-sm pr-lg font-body-small text-body-small text-on-surface focus:border-primary-container focus:ring-primary-container/50"
                             aria-label="Số dòng mỗi trang"
                             onchange="const u = new URL(window.location.href); u.searchParams.set('per_page', this.value); u.searchParams.set('page', '1'); window.location.href = u.toString();">
                         @foreach ($options as $opt)

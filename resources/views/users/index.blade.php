@@ -2,10 +2,8 @@
      Thêm / Sửa nhân sự (modal 3xl, 3 tab), Phân quyền cá nhân (modal 4xl), "Vai trò & kiêm nhiệm" (modal md) mở bằng htmx; lưu xong server phát "users-changed" → #user-list tự tải lại. Xóa tài khoản qua modal xác nhận. --}}
 @php
     $viewer = auth()->user();
-    $filtered = request()->hasAny(['search', 'branch_id', 'role', 'status']);
 @endphp
 <x-app-layout title="Quản lý Tài khoản & Vai trò">
-    @include('partials.data-confirm')
     <div x-data="{ drawerOpen: false, activeUser: null, del: { url: '', name: '' }, openProfile(u) { this.activeUser = u; this.drawerOpen = true; } }">
         <x-ui.page-header title="Quản lý Tài khoản & Vai trò" description="Danh sách người dùng, vai trò chính và kiêm nhiệm, hợp đồng lao động.">
             <x-slot:actions>
@@ -33,20 +31,14 @@
             </x-ui.alert>
         @endif
 
+        <x-ui.filter-bar placeholder="Tìm họ tên, email, SĐT, mã NV...">
+            <x-ui.select name="branch_id" label="Cơ sở" :options="$branches->pluck('name', 'id')" placeholder="Tất cả cơ sở" />
+            <x-ui.select name="role" label="Vai trò" :options="$roles->mapWithKeys(fn ($r) => [$r => \App\Helpers\AclHelper::shortRoleLabel($r)])" placeholder="Tất cả vai trò" />
+            <x-ui.select name="status" label="Trạng thái" :options="['active' => 'Đang hoạt động', 'locked' => 'Vô hiệu hóa', 'contract_expiring' => 'HĐ sắp/đã hết hạn']" placeholder="Mọi trạng thái" />
+        </x-ui.filter-bar>
+
         <div id="user-list" hx-get="{{ route('users.index', request()->query()) }}" hx-trigger="users-changed from:body" hx-select="#user-list" hx-swap="outerHTML" hx-disinherit="*">
         <x-ui.data-table min-width="860px">
-            <x-slot:header>
-                <form method="GET" action="{{ route('users.index') }}" class="flex w-full flex-col gap-sm md:flex-row md:items-center">
-                    <div class="flex-1"><x-ui.input name="search" icon="search" :value="request('search')" placeholder="Tìm kiếm người dùng (họ tên, email, SĐT, mã NV)..." aria-label="Tìm kiếm" /></div>
-                    <x-ui.select name="branch_id" :options="$branches->pluck('name', 'id')" placeholder="Tất cả cơ sở" aria-label="Cơ sở" />
-                    <x-ui.select name="role" :options="$roles->mapWithKeys(fn ($r) => [$r => \App\Helpers\AclHelper::shortRoleLabel($r)])" placeholder="Tất cả vai trò" aria-label="Vai trò" />
-                    <x-ui.select name="status" :options="['active' => 'Đang hoạt động', 'locked' => 'Vô hiệu hóa', 'contract_expiring' => 'HĐ sắp/đã hết hạn']" placeholder="Mọi trạng thái" aria-label="Trạng thái" />
-                    <x-ui.button type="submit" variant="secondary" icon="filter_list">Bộ lọc</x-ui.button>
-                    @if ($filtered)
-                        <x-ui.button variant="ghost" icon="close" :href="route('users.index')" aria-label="Xóa bộ lọc" />
-                    @endif
-                </form>
-            </x-slot:header>
             <table>
                 <thead>
                     <tr>
@@ -69,8 +61,10 @@
                                     <x-ui.avatar :name="$user->name" />
                                     <div class="min-w-0">
                                         <a href="{{ route('users.show', $user) }}" class="font-semibold text-on-surface hover:text-primary">{{ $user->name }}</a>
-                                        <div class="max-w-[280px] break-all font-code text-caption text-on-surface-variant">{{ $user->email }}</div>
-                                        <div class="max-w-[280px] truncate font-code text-caption text-on-surface-variant" title="{{ $payload['employee_code'] }}">{{ $payload['employee_code'] }}</div>
+                                        @unless (\App\Models\User::isGeneratedStudentEmail($user->email))
+                                            <div class="max-w-[280px] break-all font-code text-caption text-on-surface-variant">{{ $user->email }}</div>
+                                        @endunless
+                                        <x-ui.code :value="$payload['employee_code']" class="block max-w-[280px] truncate font-code text-caption text-on-surface-variant" />
                                     </div>
                                 </div>
                             </td>

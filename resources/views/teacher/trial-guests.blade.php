@@ -32,7 +32,7 @@
                             <td>
                                 <div class="font-bold text-on-surface">{{ $booking->classModel?->name }}</div>
                                 <div class="text-on-surface-variant">{{ $booking->session?->date?->format('d/m/Y') }} · {{ $booking->session?->start_time?->format('H:i') }}–{{ $booking->session?->end_time?->format('H:i') }}</div>
-                                <div class="text-on-surface-variant/70">{{ $booking->classModel?->course?->name }}</div>
+                                <div class="text-on-surface-subtle">{{ $booking->classModel?->course?->name }}</div>
                             </td>
                             <td>
                                 <div class="font-bold text-on-surface">{{ $booking->customer?->name }}</div>
@@ -52,7 +52,7 @@
                                     <div class="text-on-surface-variant space-y-0.5 mb-2">
                                         @if ($booking->rating)<div><span class="font-bold">{{ $booking->rating }}/5</span>@if ($booking->remarksSummary() !== '') · {{ $booking->remarksSummary() }}@endif</div>@endif
                                         <div>{{ $booking->feedback ?: '—' }}</div>
-                                        <div class="text-[11px] text-on-surface-variant/70">{{ $booking->feedbackBy?->name }} · {{ $booking->feedback_at->format('d/m/Y H:i') }}</div>
+                                        <div class="text-xs text-on-surface-subtle">{{ $booking->feedbackBy?->name }} · {{ $booking->feedback_at->format('d/m/Y H:i') }}</div>
                                     </div>
                                 @endif
                                 @if ($started)
@@ -72,16 +72,16 @@
                                         <div class="grid grid-cols-3 gap-2">
                                             @foreach (\App\Models\CrmTrialBooking::REMARK_FIELDS as $key => $label)
                                                 <label class="block">
-                                                    <span class="text-[10px] font-semibold uppercase text-on-surface-variant">{{ $label }}</span>
-                                                    <input type="text" name="remarks[{{ $key }}]" value="{{ $booking->remarks[$key] ?? '' }}" maxlength="255" class="w-full rounded-lg border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:border-primary-container focus:ring-primary-container/20" placeholder="{{ ['grammar' => 'Khá', 'attitude' => 'Hăng hái', 'result' => 'Đạt mục tiêu'][$key] }}">
+                                                    <span class="text-xs font-semibold uppercase text-on-surface-variant">{{ $label }}</span>
+                                                    <input type="text" name="remarks[{{ $key }}]" value="{{ $booking->remarks[$key] ?? '' }}" maxlength="255" class="w-full rounded-lg border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:border-primary-container focus:ring-primary-container/50" placeholder="{{ ['grammar' => 'Khá', 'attitude' => 'Hăng hái', 'result' => 'Đạt mục tiêu'][$key] }}">
                                                 </label>
                                             @endforeach
                                         </div>
-                                        <textarea name="feedback" rows="2" maxlength="3000" placeholder="Nhận xét chi tiết: mức độ phù hợp với lớp, tương tác, đề xuất..." class="w-full rounded-lg border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:border-primary-container focus:ring-primary-container/20">{{ $booking->feedback }}</textarea>
+                                        <textarea name="feedback" rows="2" maxlength="3000" placeholder="Nhận xét chi tiết: mức độ phù hợp với lớp, tương tác, đề xuất..." class="w-full rounded-lg border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:border-primary-container focus:ring-primary-container/50">{{ $booking->feedback }}</textarea>
                                         <x-ui.button type="submit" size="sm" icon="rate_review">Lưu nhận xét</x-ui.button>
                                     </form>
                                 @else
-                                    <p class="text-on-surface-variant/70 italic">Nhận xét được mở từ ngày học thử.</p>
+                                    <p class="text-on-surface-subtle italic">Nhận xét được mở từ ngày học thử.</p>
                                 @endif
                             </td>
                         </tr>

@@ -270,8 +270,8 @@ class CrmWorkflowHardeningTest extends TestCase
 
         $this->actingAs($this->salesA)->get(route('crm.customers.won'))
             ->assertOk()
-            ->assertSee('Chờ đối soát 5,000,000đ')
-            ->assertSee('Còn 10,000,000đ')
+            ->assertSee('Chờ đối soát 5.000.000 đ')
+            ->assertSee('Còn 10.000.000 đ')
             ->assertDontSee('Đã đóng 100%');
     }
 

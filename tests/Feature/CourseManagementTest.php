@@ -57,7 +57,7 @@ class CourseManagementTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('courses.index'));
         $response->assertStatus(200);
         $response->assertSee('IELTS 6.5 Intensive');
-        $response->assertSee('12,500,000');
+        $response->assertSee('12.500.000 đ');
         $response->assertSee('IE-65');
     }
 

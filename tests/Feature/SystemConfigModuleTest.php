@@ -59,7 +59,7 @@ class SystemConfigModuleTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->get(route('system-config.hosting'));
         $response->assertOk();
-        $response->assertSee('Thông Số Hosting & Máy Chủ');
+        $response->assertSee('Thông số hosting & máy chủ');
         $response->assertSee('PHP');
         $response->assertSee('Dung Lượng Lưu Trữ Website Đang Sử Dụng');
         $response->assertSee('Đã sử dụng:');

@@ -82,7 +82,7 @@
                                 <span class="material-symbols-outlined text-primary-container text-[18px]">info</span>
                                 <span>Thông tin chung</span>
                             </h3>
-                            <span class="text-[10px] text-error font-medium">* Bắt buộc</span>
+                            <span class="text-xs text-error font-medium">* Bắt buộc</span>
                         </div>
 
                         <div class="space-y-2.5 text-xs">
@@ -96,7 +96,7 @@
                             <div>
                                 <x-ui.select name="grade_level" label="Cấp độ" x-model="gradeLevel" x-on:change="gradeGroup = levelGroups[gradeLevel] || 'khac'; syncCode()" required :options="$gradeLevels" class="font-semibold" />
                                 <input type="hidden" name="grade_group" :value="gradeGroup" />
-                                <p class="mt-1 text-[11px] text-on-surface-variant">Lớp hiện tại của khách làm đề này (ô "Chọn cấp độ" khi hẹn test ở CRM). Lớp 1–4 chấm theo thang điểm khối (mã đề chứa khối, vd. <span class="font-mono">G3-G4</span>); các lớp khác Học thuật chọn lớp thủ công.</p>
+                                <p class="mt-1 text-xs text-on-surface-variant">Lớp hiện tại của khách làm đề này (ô "Chọn cấp độ" khi hẹn test ở CRM). Lớp 1–4 chấm theo thang điểm khối (mã đề chứa khối, vd. <span class="font-mono">G3-G4</span>); các lớp khác Học thuật chọn lớp thủ công.</p>
                             </div>
 
                             <x-ui.textarea name="description" label="Mô tả / Hướng dẫn làm bài" rows="2" placeholder="Ghi chú hướng dẫn..." />
@@ -115,19 +115,19 @@
 
                         {{-- Action Toolbar: Quick Add Types --}}
                         <div class="grid grid-cols-2 gap-1.5 text-xs">
-                            <button type="button" @click="addNewQuestion('multiple_choice', 'listening')" class="px-2.5 py-1.5 bg-secondary/10 hover:bg-secondary/20 text-secondary rounded-lg font-bold transition flex items-center justify-center gap-1 text-[11px] cursor-pointer">
+                            <button type="button" @click="addNewQuestion('multiple_choice', 'listening')" class="px-2.5 py-1.5 bg-secondary/10 hover:bg-secondary/20 text-secondary rounded-lg font-bold transition flex items-center justify-center gap-1 text-xs cursor-pointer">
                                 <span class="material-symbols-outlined text-[14px]">headphones</span>
                                 <span>+ Trắc nghiệm</span>
                             </button>
-                            <button type="button" @click="addNewQuestion('fill_blank', 'grammar')" class="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg font-bold transition flex items-center justify-center gap-1 text-[11px] cursor-pointer">
+                            <button type="button" @click="addNewQuestion('fill_blank', 'grammar')" class="px-2.5 py-1.5 bg-accent-container hover:bg-accent-container text-accent rounded-lg font-bold transition flex items-center justify-center gap-1 text-xs cursor-pointer">
                                 <span class="material-symbols-outlined text-[14px]">edit_square</span>
                                 <span>+ Điền từ</span>
                             </button>
-                            <button type="button" @click="addNewQuestion('essay', 'writing')" class="px-2.5 py-1.5 bg-warning-container hover:bg-warning/20 text-on-warning-container rounded-lg font-bold transition flex items-center justify-center gap-1 text-[11px] cursor-pointer">
+                            <button type="button" @click="addNewQuestion('essay', 'writing')" class="px-2.5 py-1.5 bg-warning-container hover:bg-warning/20 text-on-warning-container rounded-lg font-bold transition flex items-center justify-center gap-1 text-xs cursor-pointer">
                                 <span class="material-symbols-outlined text-[14px]">edit_document</span>
                                 <span>+ Tự luận Writing</span>
                             </button>
-                            <button type="button" @click="addNewQuestion('speaking_prompt', 'speaking')" class="px-2.5 py-1.5 bg-error/10 hover:bg-error/20 text-error rounded-lg font-bold transition flex items-center justify-center gap-1 text-[11px] cursor-pointer">
+                            <button type="button" @click="addNewQuestion('speaking_prompt', 'speaking')" class="px-2.5 py-1.5 bg-error/10 hover:bg-error/20 text-error rounded-lg font-bold transition flex items-center justify-center gap-1 text-xs cursor-pointer">
                                 <span class="material-symbols-outlined text-[14px]">mic</span>
                                 <span>+ Speaking</span>
                             </button>
@@ -144,7 +144,7 @@
                                     <div class="flex justify-between items-center">
                                         <div class="flex items-center gap-1.5">
                                             <span class="font-black text-xs font-mono" :class="currentIndex === idx ? 'text-white' : 'text-on-surface'" x-text="'Câu ' + String(idx + 1).padStart(2, '0')"></span>
-                                            <span class="text-[9px] uppercase font-extrabold px-1.5 py-0.5 rounded" :class="currentIndex === idx ? 'bg-white/20 text-white' : 'bg-surface-container text-on-surface-variant'" x-text="getTypeBadge(q.type)"></span>
+                                            <span class="text-xs uppercase font-extrabold px-1.5 py-0.5 rounded" :class="currentIndex === idx ? 'bg-white/20 text-white' : 'bg-surface-container text-on-surface-variant'" x-text="getTypeBadge(q.type)"></span>
                                         </div>
                                         <div class="flex items-center gap-1" @click.stop>
                                             <button type="button" @click="moveQuestion(idx, -1)" :disabled="idx === 0" class="p-0.5 rounded hover:bg-black/10 disabled:opacity-30" title="Lên">
@@ -158,8 +158,8 @@
                                             </button>
                                         </div>
                                     </div>
-                                    <p class="text-[11px] line-clamp-1 leading-snug" :class="currentIndex === idx ? 'text-white/90' : 'text-on-surface-variant'" x-text="q.title || '(Chưa nhập nội dung đề bài...)'"></p>
-                                    <div class="flex justify-between items-center pt-1 border-t text-[10px]" :class="currentIndex === idx ? 'border-white/20 text-white/90' : 'border-surface-container-highest text-on-surface-variant'">
+                                    <p class="text-xs line-clamp-1 leading-snug" :class="currentIndex === idx ? 'text-white/90' : 'text-on-surface-variant'" x-text="q.title || '(Chưa nhập nội dung đề bài...)'"></p>
+                                    <div class="flex justify-between items-center pt-1 border-t text-xs" :class="currentIndex === idx ? 'border-white/20 text-white/90' : 'border-surface-container-highest text-on-surface-variant'">
                                         <span class="font-bold uppercase tracking-wider" x-text="q.skill"></span>
                                         <span class="font-mono font-bold" :class="currentIndex === idx ? 'text-white' : 'text-primary'" x-text="(q.points || 1) + 'đ'"></span>
                                     </div>
@@ -183,7 +183,7 @@
                 {{-- ────────────────────────────────────────────── --}}
                 {{-- RIGHT MAIN PANEL: QUESTION DETAIL EDITOR --}}
                 {{-- ────────────────────────────────────────────── --}}
-                <main class="flex-1 bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-6 space-y-6">
+                <div class="flex-1 bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-6 space-y-6">
                     <template x-if="currentQ">
                         <div class="space-y-5">
                             
@@ -197,7 +197,7 @@
                                         <h2 class="text-sm font-black text-on-surface">
                                             Soạn Thảo Chi Tiết Câu Hỏi Số <span class="text-primary-container font-mono" x-text="currentIndex + 1"></span>
                                         </h2>
-                                        <span class="text-[11px] text-on-surface-variant">Thiết lập nội dung đề, phương án, đoạn văn, file nghe &amp; đáp án chấm tự động</span>
+                                        <span class="text-xs text-on-surface-variant">Thiết lập nội dung đề, phương án, đoạn văn, file nghe &amp; đáp án chấm tự động</span>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
@@ -213,11 +213,11 @@
                                 </div>
                                 <x-ui.field label="Kỹ năng (Skill)" required class="md:col-span-3">
                                     <x-ui.select x-model="currentQ.skill" class="min-w-0 font-bold">
-                                        <option value="listening">🎧 Listening (Nghe)</option>
-                                        <option value="reading">📖 Reading (Đọc hiểu)</option>
-                                        <option value="grammar">🔤 Grammar / Vocab</option>
-                                        <option value="writing">✍️ Writing (Viết)</option>
-                                        <option value="speaking">🗣️ Speaking (Nói)</option>
+                                        <option value="listening">Listening (Nghe)</option>
+                                        <option value="reading">Reading (Đọc hiểu)</option>
+                                        <option value="grammar">Grammar / Vocab</option>
+                                        <option value="writing">Writing (Viết)</option>
+                                        <option value="speaking">Speaking (Nói)</option>
                                     </x-ui.select>
                                 </x-ui.field>
                                 <div class="md:col-span-3">
@@ -227,7 +227,7 @@
 
                             {{-- Question Type Selector Buttons --}}
                             <div class="space-y-2 text-xs">
-                                <label class="block font-bold text-on-surface uppercase tracking-wider text-[10px]">Định dạng loại câu hỏi</label>
+                                <label class="block font-bold text-on-surface uppercase tracking-wider text-xs">Định dạng loại câu hỏi</label>
                                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                     <button 
                                         type="button" 
@@ -278,7 +278,7 @@
                                         <span class="material-symbols-outlined text-secondary text-base">headphones</span>
                                         <span>Đường dẫn tệp Audio Nghe (.mp3)</span>
                                     </span>
-                                    <span class="text-[10px] text-secondary font-mono italic">Phát trực tiếp trên giao diện thi</span>
+                                    <span class="text-xs text-secondary font-mono italic">Phát trực tiếp trên giao diện thi</span>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2">
                                     <label class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-secondary/30 bg-surface-container-lowest px-3 py-2 font-bold text-secondary hover:bg-secondary/10">
@@ -307,7 +307,7 @@
                             <template x-if="currentQ.type === 'multiple_choice'">
                                 <div class="space-y-3 text-xs bg-surface-container-low/70 p-4 rounded-2xl border border-surface-container-highest">
                                     <div class="flex items-center justify-between pb-2 border-b border-surface-container-highest">
-                                        <h4 class="font-bold text-on-surface uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                                        <h4 class="font-bold text-on-surface uppercase tracking-wider text-xs flex items-center gap-1.5">
                                             <span class="material-symbols-outlined text-primary-container text-base">tune</span>
                                             <span>Các phương án trả lời (Tích chọn radio vào đáp án đúng)</span>
                                         </h4>
@@ -330,7 +330,7 @@
                                                     <x-ui.button variant="ghost" size="sm" icon="close" x-on:click="removeOption(oIdx)" x-bind:disabled="currentQ.options.length <= 2" title="Xóa phương án" aria-label="Xóa phương án" />
                                                 </div>
                                                 <div class="flex items-center gap-2 pl-6">
-                                                    <label class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-dashed border-outline-variant px-2 py-1 text-[11px] font-semibold text-on-surface-variant hover:bg-surface-container-low">
+                                                    <label class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-dashed border-outline-variant px-2 py-1 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low">
                                                         <span class="material-symbols-outlined text-[14px]">add_photo_alternate</span>Tải ảnh lên
                                                         <input type="file" accept="image/*" class="sr-only" @change="uploadMedia($event, 'image', (url) => opt.image_url = url)" />
                                                     </label>
@@ -344,7 +344,7 @@
                                             </div>
                                         </template>
                                     </div>
-                                    <div class="p-2.5 bg-tertiary/10 border border-tertiary/30 rounded-xl text-on-tertiary-container text-[11px] flex items-center gap-2">
+                                    <div class="p-2.5 bg-tertiary/10 border border-tertiary/30 rounded-xl text-on-tertiary-container text-xs flex items-center gap-2">
                                         <span class="material-symbols-outlined text-tertiary text-base">check_circle</span>
                                         <span>Đáp án đúng hiện tại: <strong class="font-mono text-sm" x-text="currentQ.correct_answer || 'Chưa chọn'"></strong></span>
                                     </div>
@@ -357,7 +357,7 @@
                                     <x-ui.field label="Từ / Cụm từ đáp án chính xác" required>
                                         <x-ui.input x-model="currentQ.correct_answer" placeholder="VD: had studied, will go, beautiful..." class="font-mono font-bold text-tertiary" />
                                     </x-ui.field>
-                                    <p class="text-[11px] text-on-surface-variant italic">* Hệ thống tự động đối soát đáp án này (không phân biệt hoa thường, bỏ dấu chấm cuối). Nhiều cách viết được chấp nhận thì ngăn cách bằng dấu |, VD: 7 | seven.</p>
+                                    <p class="text-xs text-on-surface-variant italic">* Hệ thống tự động đối soát đáp án này (không phân biệt hoa thường, bỏ dấu chấm cuối). Nhiều cách viết được chấp nhận thì ngăn cách bằng dấu |, VD: 7 | seven.</p>
                                 </div>
                             </template>
 
@@ -368,7 +368,7 @@
                                         <x-ui.input type="number" label="Số từ tối thiểu (Minimum Words)" x-model.number="currentQ.min_words" placeholder="120" min="10" class="font-bold" />
                                         <x-ui.input label="Tiêu chuẩn Rubric áp dụng" x-model="currentQ.rubric_note" placeholder="IELTS Writing Task 1 / Task 2 Rubric" class="font-medium" />
                                     </div>
-                                    <p class="text-[11px] text-on-warning-container italic">* Bài làm tự luận sẽ được giáo viên chấm trực tiếp tại cổng kết quả.</p>
+                                    <p class="text-xs text-on-warning-container italic">* Bài làm tự luận sẽ được giáo viên chấm trực tiếp tại cổng kết quả.</p>
                                 </div>
                             </template>
 
@@ -381,7 +381,7 @@
 
                             {{-- Explanation Box --}}
                             <div class="p-4 bg-warning/5 border border-warning/30 rounded-2xl space-y-1.5 text-xs">
-                                <label class="block font-bold text-on-warning-container uppercase text-[11px] flex items-center gap-1.5">
+                                <label class="block font-bold text-on-warning-container uppercase text-xs flex items-center gap-1.5">
                                     <span class="material-symbols-outlined text-primary-container text-base">lightbulb</span>
                                     <span>Lời giải thích chi tiết &amp; Dẫn chứng bài làm (Explanation)</span>
                                 </label>
@@ -390,7 +390,7 @@
 
                             {{-- Teacher Note Box --}}
                             <div class="p-4 bg-surface-container-low border border-surface-container-highest rounded-2xl space-y-1.5 text-xs">
-                                <label class="block font-bold text-on-surface uppercase text-[11px] flex items-center gap-1.5">
+                                <label class="block font-bold text-on-surface uppercase text-xs flex items-center gap-1.5">
                                     <span class="material-symbols-outlined text-primary text-base">settings_suggest</span>
                                     <span>Ghi chú chuyên môn cho Giáo viên khi chấm (Teacher's Note)</span>
                                 </label>
@@ -407,7 +407,7 @@
 
                         </div>
                     </template>
-                </main>
+                </div>
 
             </div>
         </form>
@@ -571,12 +571,12 @@
                     this.currentIndex = idx + 1;
                 },
 
-                deleteQuestion(idx) {
+                async deleteQuestion(idx) {
                     if (this.questions.length <= 1) {
                         window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Đề thi phải có ít nhất 1 câu hỏi!', type: 'error' } }));
                         return;
                     }
-                    if (confirm('Bạn có chắc chắn muốn xóa câu hỏi này?')) {
+                    if (await window.confirmDialog({ message: 'Xóa câu hỏi này?', confirmLabel: 'Xóa', danger: true })) {
                         this.questions.splice(idx, 1);
                         if (this.currentIndex >= this.questions.length) {
                             this.currentIndex = this.questions.length - 1;

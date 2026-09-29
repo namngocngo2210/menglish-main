@@ -773,7 +773,7 @@ class AcademicSystemController extends Controller
         $nativeButtonHtml = isset($nativeRouteMap[$screenKey])
             ? '<span style="opacity: 0.3;">|</span>
     <a href="'.$nativeRouteMap[$screenKey].'" style="background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; padding: 3px 11px; border-radius: 9999px; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4); border: 1px solid rgba(255,255,255,0.25);">
-        <span style="font-size: 13px;">🚀</span> Mở Laravel Native
+        Mở Laravel Native
     </a>'
             : '';
 

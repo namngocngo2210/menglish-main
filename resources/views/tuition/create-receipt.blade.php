@@ -8,6 +8,7 @@
             'student_id' => $t->student_id,
             'student_name' => $t->student?->name ?? 'Học viên',
             'student_code' => $t->student?->code ?? 'HV',
+            'student_code_short' => \App\Support\DisplayCode::short($t->student?->code ?? 'HV'),
             'student_phone' => $t->student?->phone ?? '',
             'student_parent_name' => $t->student?->parent_name ?? $t->student?->name ?? '',
             'student_parent_phone' => $t->student?->parent_phone ?? $t->student?->phone ?? '',
@@ -40,6 +41,7 @@
             'id' => $s->id,
             'name' => $s->name,
             'code' => $s->code,
+            'code_short' => \App\Support\DisplayCode::short($s->code),
             'phone' => $s->phone ?? '',
             'parent_name' => $s->parent_name ?? $s->name,
             'parent_phone' => $s->parent_phone ?? $s->phone ?? '',
@@ -110,14 +112,14 @@
             @endif
             <span class="rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-body-small text-body-small">
                 <span class="font-label text-label uppercase text-on-surface-variant">Mã phiếu:</span>
-                <span class="ml-xs font-code text-code text-primary">{{ $nextReceiptNumber }}</span>
+                <x-ui.code :value="$nextReceiptNumber" class="ml-xs font-code text-code text-primary" />
             </span>
         </x-slot:actions>
     </x-ui.page-header>
 
     @include('tuition.partials.errors')
 
-    <div class="max-w-5xl mx-auto pb-28" x-data="{{ $receiptState }}">
+    <div class="mx-auto max-w-5xl" x-data="{{ $receiptState }}">
         @include('tuition.receipts._form')
     </div>
 </x-app-layout>

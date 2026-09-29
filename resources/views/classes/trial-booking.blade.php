@@ -34,7 +34,7 @@
                             <td>
                                 <div class="font-bold text-on-surface">{{ $booking->classModel?->name }}</div>
                                 <div class="text-on-surface-variant">{{ $booking->session?->date?->format('d/m/Y') }} · {{ $booking->session?->start_time?->format('H:i') }}–{{ $booking->session?->end_time?->format('H:i') }}</div>
-                                <div class="text-on-surface-variant/70">{{ $booking->classModel?->course?->name }} · {{ $booking->classModel?->branch?->name }}</div>
+                                <div class="text-on-surface-subtle">{{ $booking->classModel?->course?->name }} · {{ $booking->classModel?->branch?->name }}</div>
                             </td>
                             <td>
                                 <div class="font-bold text-on-surface">{{ $booking->customer?->name }}</div>
@@ -42,7 +42,7 @@
                                     <div class="text-on-surface-variant">PH: {{ $booking->customer->parent_name }}</div>
                                 @endif
                                 <div class="text-on-surface-variant">{{ $booking->customer?->stage_label }} · Test: {{ $booking->customer?->test_score ?? 'Chưa test' }}</div>
-                                <div class="text-on-surface-variant/70">Phụ trách: {{ $booking->customer?->assignedUser?->name ?? '—' }} · Đặt bởi: {{ $booking->bookedBy?->name ?? '—' }}</div>
+                                <div class="text-on-surface-subtle">Phụ trách: {{ $booking->customer?->assignedUser?->name ?? '—' }} · Đặt bởi: {{ $booking->bookedBy?->name ?? '—' }}</div>
                             </td>
                             <td>
                                 <x-ui.badge :color="$booking->status === 'attended' ? 'success' : ($booking->status === 'no_show' ? 'error' : ($booking->status === 'cancelled' ? 'neutral' : 'info'))" :pill="true">{{ $booking->status_label }}</x-ui.badge>
@@ -51,9 +51,9 @@
                                 @if ($booking->feedback_at)
                                     @if ($booking->rating)<div><span class="font-bold">{{ $booking->rating }}/5</span>@if ($booking->remarksSummary() !== '') · {{ $booking->remarksSummary() }}@endif</div>@endif
                                     <div class="text-on-surface-variant">{{ $booking->feedback ?: '—' }}</div>
-                                    <div class="text-[11px] text-on-surface-variant/70">{{ $booking->feedbackBy?->name }} · {{ $booking->feedback_at->format('d/m/Y H:i') }}</div>
+                                    <div class="text-xs text-on-surface-subtle">{{ $booking->feedbackBy?->name }} · {{ $booking->feedback_at->format('d/m/Y H:i') }}</div>
                                 @else
-                                    <span class="text-on-surface-variant/70 italic">Chưa có nhận xét</span>
+                                    <span class="text-on-surface-subtle italic">Chưa có nhận xét</span>
                                 @endif
                             </td>
                             <td class="text-right">

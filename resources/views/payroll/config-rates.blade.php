@@ -68,10 +68,10 @@
                                 @if ($selectedCurrent)
                                     {{ number_format((float) $selectedCurrent->hourly_rate, 0, ',', '.') }} {{ $unitSuffix[$selectedCurrent->rate_unit] ?? 'VNĐ / giờ' }}
                                 @elseif ((float) $selectedTeacher->hourly_rate > 0)
-                                    {{ number_format((float) $selectedTeacher->hourly_rate, 0, ',', '.') }} VNĐ / giờ
+                                    {{ \App\Support\Money::format((float) $selectedTeacher->hourly_rate) }} / giờ
                                     <span class="block font-caption text-caption text-on-surface-variant">theo hồ sơ nhân sự</span>
                                 @else
-                                    <span class="font-body-medium text-body-medium text-on-surface-variant">Chưa có đơn giá riêng (mặc định {{ number_format(\App\Models\TeacherTimesheet::DEFAULT_HOURLY_RATE, 0, ',', '.') }} VNĐ / giờ)</span>
+                                    <span class="font-body-medium text-body-medium text-on-surface-variant">Chưa có đơn giá riêng (mặc định {{ \App\Support\Money::format(\App\Models\TeacherTimesheet::DEFAULT_HOURLY_RATE) }} / giờ)</span>
                                 @endif
                             </dd>
                             @if ($selectedCurrent)
@@ -85,7 +85,7 @@
 
         <div class="space-y-lg lg:col-span-8">
             {{-- 2. Lịch sử thay đổi đơn giá (đơn giá mới nhập bằng nút "Cập nhật đơn giá" → modal) --}}
-            <x-ui.data-table min-width="760px">
+            <x-ui.data-table min-width="760px" sticky="first">
                 <x-slot:header>
                     <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
                         <span class="material-symbols-outlined text-primary-container" aria-hidden="true">history</span>
@@ -230,7 +230,7 @@
                             hint="* Đơn vị tính theo loại giáo viên: Part-time tính theo buổi.">
                     <div class="flex items-center gap-sm">
                         <input type="number" id="f_hourly_rate" name="hourly_rate" required min="1000" step="1000" value="{{ old('hourly_rate') }}" placeholder="Nhập số tiền..."
-                               class="w-full rounded-lg border {{ $errors->has('hourly_rate') ? 'border-error' : 'border-outline-variant' }} bg-surface-container-lowest px-md py-sm text-right font-mono text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
+                               class="w-full rounded-lg border {{ $errors->has('hourly_rate') ? 'border-error' : 'border-outline-variant' }} bg-surface-container-lowest px-md py-sm text-right font-mono text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50">
                         <span class="whitespace-nowrap font-body-medium text-body-medium text-on-surface-variant" x-text="unit === 'session' ? 'VNĐ / buổi' : 'VNĐ / giờ'">VNĐ / buổi</span>
                     </div>
                 </x-ui.field>

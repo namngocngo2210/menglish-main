@@ -55,10 +55,10 @@
         <div class="max-w-[420px] md:max-w-none mx-auto bg-surface-container-lowest rounded-3xl border border-surface-container-highest shadow-xl md:shadow-sm overflow-hidden pb-8">
             {{-- Decorative Header Area --}}
             <div class="w-full h-[140px] bg-gradient-to-br from-primary-container to-primary-container/60 p-6 flex flex-col justify-end text-white relative">
-                <div class="absolute top-3 right-3 bg-surface-container-lowest/20 backdrop-blur-xs px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase">
+                <div class="absolute top-3 right-3 bg-surface-container-lowest/20 backdrop-blur-xs px-2.5 py-1 rounded-full text-xs font-bold tracking-wider uppercase">
                     MENGLISH LMS
                 </div>
-                <h1 class="text-2xl font-bold tracking-tight text-white drop-shadow-sm">Học tập của tôi</h1>
+                <h2 class="text-2xl font-bold tracking-tight text-white drop-shadow-sm">Học tập của tôi</h2>
                 <p class="text-xs text-white/80 mt-0.5">Lớp: {{ $student?->currentClass?->name ?? 'Chưa xếp lớp' }}</p>
             </div>
 
@@ -88,9 +88,9 @@
                     @if($latestHomework)
                         <x-ui.alert type="error" :title="$latestHomework->title">
                             @if($latestHomework->description)
-                                <p class="text-[11px] leading-normal">{{ $latestHomework->description }}</p>
+                                <p class="text-xs leading-normal">{{ $latestHomework->description }}</p>
                             @endif
-                            <p class="text-[10px] mt-1">{{ $latestHomework->classModel?->name }} · Hạn nộp: {{ $latestHomework->due_date?->format('d/m/Y') ?? 'Không giới hạn' }}</p>
+                            <p class="text-xs mt-1">{{ $latestHomework->classModel?->name }} · Hạn nộp: {{ $latestHomework->due_date?->format('d/m/Y') ?? 'Không giới hạn' }}</p>
                         </x-ui.alert>
                     @endif
 
@@ -130,7 +130,7 @@
                             'bgd_book' => [
                                 'title' => 'Sách Bộ Giáo dục',
                                 'icon' => 'import_contacts',
-                                'color' => 'text-purple-600',
+                                'color' => 'text-accent',
                                 'btn_text' => 'Tải lên bài làm',
                                 'is_quiz' => false,
                             ],
@@ -181,7 +181,7 @@
 
                                 @if($sub)
                                     <div class="space-y-1 bg-surface-container-low p-2.5 rounded-xl text-xs border border-surface-container-highest">
-                                        <div class="flex items-center justify-between text-[10px] text-on-surface-variant">
+                                        <div class="flex items-center justify-between text-xs text-on-surface-variant">
                                             <span>Nộp lúc: <strong class="font-mono text-on-surface-variant">{{ $sub->data['submitted_at'] ?? $sub->created_at->format('d/m/Y H:i') }}</strong></span>
                                             @if($sub->status === 'reviewed')
                                                 <x-ui.badge color="success" :dot="false">{{ filled($sub->data['score'] ?? null) ? 'Đã chấm: '.$sub->data['score'] : 'Giáo viên đã xem' }}</x-ui.badge>
@@ -192,7 +192,7 @@
 
                                         @if(!empty($sub->data['attachment_path']))
                                             <div class="pt-1">
-                                                <a href="{{ $sub->data['attachment_path'] }}" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-primary font-bold hover:underline">
+                                                <a href="{{ $sub->data['attachment_path'] }}" target="_blank" class="inline-flex items-center gap-1 text-xs text-primary font-bold hover:underline">
                                                     <span class="material-symbols-outlined text-[14px]">attachment</span>
                                                     <span>{{ $sub->data['attachment_name'] ?? 'Xem tệp đính kèm' }}</span>
                                                 </a>
@@ -200,11 +200,11 @@
                                         @endif
 
                                         @if(!empty($sub->data['notes']))
-                                            <p class="text-[11px] text-on-surface-variant italic">"{{ $sub->data['notes'] }}"</p>
+                                            <p class="text-xs text-on-surface-variant italic">"{{ $sub->data['notes'] }}"</p>
                                         @endif
 
                                         @if(!empty($sub->data['feedback']))
-                                            <div class="bg-secondary/10 text-secondary p-2 rounded-lg text-[11px] mt-1 border border-secondary/30">
+                                            <div class="bg-secondary/10 text-secondary p-2 rounded-lg text-xs mt-1 border border-secondary/30">
                                                 <strong>Nhận xét của GV:</strong> {{ $sub->data['feedback'] }}
                                             </div>
                                         @endif
@@ -216,7 +216,7 @@
                                                      x-on:click="openEdit({{ $sub->id }}, '{{ addslashes($sub->data['notes'] ?? '') }}')">
                                             Sửa / Nộp lại
                                         </x-ui.button>
-                                        <form action="{{ route('portal.student.homework.destroy', $sub->id) }}" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn hủy bài nộp này không?');">
+                                        <form action="{{ route('portal.student.homework.destroy', $sub->id) }}" method="POST" data-confirm="Hủy bài nộp này?" data-confirm-label="Hủy bài nộp" data-confirm-danger>
                                             @csrf
                                             @method('DELETE')
                                             <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete" title="Hủy nộp" aria-label="Hủy nộp" />
@@ -252,16 +252,16 @@
                         @php $r = $item['remark']; @endphp
                         <div class="bg-surface-container-lowest rounded-2xl p-4 border border-surface-container-highest shadow-2xs flex flex-col gap-3">
                             <div class="flex justify-between items-start">
-                                <p class="text-[11px] text-on-surface-variant/70 font-medium">Ngày {{ $item['date']?->format('d/m/Y') }}</p>
+                                <p class="text-xs text-on-surface-subtle font-medium">Ngày {{ $item['date']?->format('d/m/Y') }}</p>
                                 <x-ui.badge color="success" :pill="true">Đã nhận xét</x-ui.badge>
                             </div>
                             <div class="grid grid-cols-2 gap-2">
-                                @foreach(['monsters' => ['Monsters', 'hotel_class', 'text-warning'], 'grammar' => ['Ngữ pháp', 'psychology', 'text-secondary'], 'attitude' => ['Tinh thần', 'mood', 'text-tertiary'], 'result' => ['Kết quả', 'checklist', 'text-purple-500']] as $key => [$label, $icon, $tone])
+                                @foreach(['monsters' => ['Monsters', 'hotel_class', 'text-warning'], 'grammar' => ['Ngữ pháp', 'psychology', 'text-secondary'], 'attitude' => ['Tinh thần', 'mood', 'text-tertiary'], 'result' => ['Kết quả', 'checklist', 'text-accent']] as $key => [$label, $icon, $tone])
                                     @if(filled($r[$key] ?? null))
                                         <div class="bg-surface-container-low rounded-xl p-2.5 flex items-center gap-2 border border-surface-container-highest">
                                             <span class="material-symbols-outlined {{ $tone }} text-lg">{{ $icon }}</span>
                                             <div>
-                                                <p class="text-[10px] text-on-surface-variant/70 font-medium">{{ $label }}</p>
+                                                <p class="text-xs text-on-surface-subtle font-medium">{{ $label }}</p>
                                                 <p class="text-xs font-bold text-on-surface">{{ $r[$key] }}</p>
                                             </div>
                                         </div>
@@ -270,7 +270,7 @@
                             </div>
                             @if(filled($r['comment'] ?? null))
                                 <div class="border-t border-surface-container-highest pt-3">
-                                    <p class="text-[11px] text-on-surface-variant mb-1 flex items-center gap-1 font-bold">
+                                    <p class="text-xs text-on-surface-variant mb-1 flex items-center gap-1 font-bold">
                                         <span class="material-symbols-outlined text-[15px] text-primary">edit_note</span>
                                         Nhận xét chi tiết từ giáo viên
                                     </p>
@@ -294,9 +294,9 @@
                             <div class="bg-surface-container-lowest rounded-xl p-3.5 border border-surface-container-highest shadow-2xs flex items-center justify-between">
                                 <div>
                                     <h4 class="text-xs font-bold text-on-surface">{{ $mt->name }}</h4>
-                                    <p class="text-[10px] text-on-surface-variant/70 font-mono">Ngày thi: {{ $mt->test_date?->format('d/m/Y') }}</p>
+                                    <p class="text-xs text-on-surface-subtle font-mono">Ngày thi: {{ $mt->test_date?->format('d/m/Y') }}</p>
                                 </div>
-                                <div class="text-lg font-black text-primary font-mono">{{ rtrim(rtrim(number_format((float) $mt->score, 2, '.', ''), '0'), '.') }}<span class="text-xs text-on-surface-variant/70">/{{ rtrim(rtrim(number_format((float) $mt->max_score, 2, '.', ''), '0'), '.') }}</span></div>
+                                <div class="text-lg font-black text-primary font-mono">{{ rtrim(rtrim(number_format((float) $mt->score, 2, '.', ''), '0'), '.') }}<span class="text-xs text-on-surface-subtle">/{{ rtrim(rtrim(number_format((float) $mt->max_score, 2, '.', ''), '0'), '.') }}</span></div>
                             </div>
                         @empty
                         @endforelse
@@ -304,7 +304,7 @@
                             <div class="bg-surface-container-lowest rounded-xl p-3.5 border border-surface-container-highest shadow-2xs flex items-center justify-between">
                                 <div>
                                     <h4 class="text-xs font-bold text-on-surface">{{ $bt->bigTest?->title ?? 'Big Test' }}</h4>
-                                    <p class="text-[10px] text-on-surface-variant/70 font-mono">Ngày thi: {{ $bt->bigTest?->scheduled_at?->format('d/m/Y') ?? '—' }}</p>
+                                    <p class="text-xs text-on-surface-subtle font-mono">Ngày thi: {{ $bt->bigTest?->scheduled_at?->format('d/m/Y') ?? '—' }}</p>
                                 </div>
                                 @if($bt->is_absent)
                                     <x-ui.badge color="neutral" :pill="true">Vắng thi</x-ui.badge>
@@ -331,7 +331,7 @@
                                 <span class="material-symbols-outlined text-[28px]">trending_up</span>
                             </div>
                             <h3 class="text-xs font-bold text-on-surface">Lộ trình mục tiêu: IELTS 6.5</h3>
-                            <p class="text-[11px] text-on-surface-variant max-w-[280px]">Đang học Chặng 2 (Intermediate). Đạt 65% thời lượng chương trình.</p>
+                            <p class="text-xs text-on-surface-variant max-w-[280px]">Đang học Chặng 2 (Intermediate). Đạt 65% thời lượng chương trình.</p>
                             <div class="w-full bg-surface-container-high rounded-full h-2 overflow-hidden mt-2">
                                 <div class="bg-primary-container h-full rounded-full" style="width: 65%"></div>
                             </div>
@@ -358,9 +358,9 @@
 
                 <x-ui.field label="Chọn tệp tin bài làm (Video / Ảnh / PDF)" name="attachment" for="homework-upload-attachment">
                     <div class="border-2 border-dashed border-outline-variant hover:border-primary-container rounded-xl p-6 text-center cursor-pointer bg-surface-container-low transition">
-                        <span class="material-symbols-outlined text-[36px] text-on-surface-variant/70 block mb-1">attach_file</span>
+                        <span class="material-symbols-outlined text-[36px] text-on-surface-subtle block mb-1">attach_file</span>
                         <span class="text-xs text-on-surface-variant block">Kéo thả hoặc bấm để chọn tệp tải lên</span>
-                        <span class="text-[10px] text-on-surface-variant/70 block mt-1">Hỗ trợ MP4, MOV, PNG, JPG, PDF (tối đa 50MB)</span>
+                        <span class="text-xs text-on-surface-subtle block mt-1">Hỗ trợ MP4, MOV, PNG, JPG, PDF (tối đa 50MB)</span>
                         <input type="file" id="homework-upload-attachment" name="attachment" class="mt-3 text-xs w-full text-center">
                     </div>
                 </x-ui.field>

@@ -38,7 +38,7 @@
                                 <x-ui.badge :color="$statusColor" :pill="true" :dot="false">{{ $statusLabel }}</x-ui.badge>
                                 <span class="font-bold text-sm text-on-surface">{{ $j->title }}</span>
                             </div>
-                            <div class="text-[11px] text-on-surface-variant/70 mt-1">
+                            <div class="text-xs text-on-surface-subtle mt-1">
                                 {{ $j->report_date->format('d/m/Y') }}
                                 @if ($j->classModel) · <a href="{{ route('classes.show', ['id' => $j->class_id, 'tab' => 'incidents']) }}" class="font-semibold text-primary hover:underline">Lớp {{ $j->classModel->code }}</a> @endif
                                 @if ($isPriv) · <span class="font-semibold text-on-surface-variant">{{ $j->user?->name }}</span> @endif
@@ -49,7 +49,7 @@
                         </div>
                         <form method="POST" action="{{ route('reports.journal.status', $j->id) }}" class="shrink-0">
                             @csrf
-                            <x-ui.select name="status" id="journal-status-{{ $j->id }}" onchange="this.form.submit()" aria-label="Trạng thái sự vụ" class="text-[11px]">
+                            <x-ui.select name="status" id="journal-status-{{ $j->id }}" onchange="this.form.submit()" aria-label="Trạng thái sự vụ" class="text-xs">
                                 <option value="open" @selected($j->status==='open')>Mới</option>
                                 <option value="following" @selected($j->status==='following')>Đang theo dõi</option>
                                 <option value="resolved" @selected($j->status==='resolved')>Đã xử lý</option>
@@ -63,7 +63,7 @@
                             @foreach ($j->followups as $f)
                                 <div class="text-xs text-on-surface-variant">
                                     <span class="font-semibold text-on-surface">{{ $f->user?->name ?? 'N/A' }}:</span> {{ $f->content }}
-                                    <span class="text-on-surface-variant/70">· {{ $f->created_at->format('d/m H:i') }}</span>
+                                    <span class="text-on-surface-subtle">· {{ $f->created_at->format('d/m H:i') }}</span>
                                 </div>
                             @endforeach
                         </div>
@@ -72,7 +72,7 @@
                     {{-- Thêm follow-up (tạo tác vụ) --}}
                     <form method="POST" action="{{ route('reports.journal.followup', $j->id) }}" class="flex items-center gap-2">
                         @csrf
-                        <input type="text" name="content" required placeholder="Nhập nội dung tác vụ / follow-up..." aria-label="Nội dung tác vụ" class="flex-1 text-xs rounded-lg border-outline-variant bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary-container focus:ring-primary-container/20">
+                        <input type="text" name="content" required placeholder="Nhập nội dung tác vụ / follow-up..." aria-label="Nội dung tác vụ" class="flex-1 text-xs rounded-lg border-outline-variant bg-surface-container-lowest text-on-surface placeholder:text-on-surface-subtle focus:border-primary-container focus:ring-primary-container/50">
                         <x-ui.button type="submit" variant="secondary" size="sm" icon="add_task">Tạo tác vụ</x-ui.button>
                     </form>
                 </div>

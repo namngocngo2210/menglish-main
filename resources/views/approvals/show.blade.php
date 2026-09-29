@@ -7,7 +7,7 @@
     $bulkUrl = route('approvals.bulk');
 @endphp
 @if ($asModal)
-    <x-ui.modal-frame :title="$item->title" :description="$source->label().' · '.$source->group()" cancel="Đóng" x-data="{ rejecting: false }">
+    <x-ui.modal-frame :title="\App\Support\DisplayCode::shortenIn($item->title)" :description="$source->label().' · '.$source->group()" cancel="Đóng" x-data="{ rejecting: false }">
         @include('approvals._detail')
         <x-slot:footer>
             <x-ui.button variant="secondary" icon="open_in_new" :href="$item->url" hx-boost="false" class="mr-auto">Mở màn gốc</x-ui.button>
@@ -21,8 +21,8 @@
         </x-slot:footer>
     </x-ui.modal-frame>
 @else
-    <x-app-layout :title="$item->title">
-        <x-ui.page-header :title="$item->title" :description="$source->label().' · '.$source->group()">
+    <x-app-layout :title="\App\Support\DisplayCode::shortenIn($item->title)">
+        <x-ui.page-header :title="\App\Support\DisplayCode::shortenIn($item->title)" :description="$source->label().' · '.$source->group()">
             <x-slot:actions>
                 <x-ui.button variant="secondary" icon="arrow_back" :href="route('approvals.index')">Việc cần duyệt</x-ui.button>
                 <x-ui.button icon="open_in_new" :href="$item->url">Mở màn gốc</x-ui.button>

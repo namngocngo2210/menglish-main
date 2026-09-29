@@ -165,7 +165,7 @@
                             @endforeach
                             <span class="material-symbols-outlined pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant" aria-hidden="true">search</span>
                             <input type="search" name="class_q" value="{{ $classSearch }}" placeholder="Tìm lớp..." aria-label="Tìm lớp"
-                                   class="w-52 rounded-lg border border-outline-variant py-xs pl-8 pr-md font-body-small text-body-small focus:border-primary-container focus:ring-2 focus:ring-primary-container/20">
+                                   class="w-52 rounded-lg border border-outline-variant py-xs pl-8 pr-md font-body-small text-body-small focus:border-primary-container focus:ring-2 focus:ring-primary-container/50">
                         </form>
                     </x-slot:header>
                     <table>
@@ -296,7 +296,6 @@
         @endif
     </div>
 
-    @include('partials.data-confirm')
 
     @push('scripts')
         <script>

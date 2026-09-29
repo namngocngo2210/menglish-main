@@ -1,7 +1,7 @@
 {{-- Trang lớp · Tổng quan: thông tin chung + sĩ số + buổi kế tiếp + học thuật + sự vụ (gộp Hồ sơ lớp & Chi tiết học thuật). --}}
 @php
     $card = 'rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm';
-    $label = 'mb-1 block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant/70';
+    $label = 'mb-1 block text-xs font-bold uppercase tracking-wider text-on-surface-subtle';
     $tabUrl = fn (string $t) => route('classes.show', ['id' => $class->id, 'tab' => $t]);
 @endphp
 
@@ -44,12 +44,12 @@
             <a href="{{ $tabUrl('students') }}" class="text-xs font-semibold text-primary hover:underline">Xem học viên</a>
         </div>
         <p class="text-xl font-bold text-primary" data-seats="{{ $class->id }}">{{ $seat['occupied'] }} / {{ $seat['capacity'] ?: '∞' }} <span class="text-xs font-semibold text-on-surface-variant">học viên</span></p>
-        <p class="mt-1 text-[11px] {{ $seat['left'] === 0 ? 'font-bold text-error' : 'text-on-surface-variant' }}">
+        <p class="mt-1 text-xs {{ $seat['left'] === 0 ? 'font-bold text-error' : 'text-on-surface-variant' }}">
             {{ $seat['left'] === null ? 'Không giới hạn sĩ số' : ($seat['left'] === 0 ? 'Đã đủ sĩ số' : 'Còn '.$seat['left'].' chỗ') }}
             · Ngưỡng khai giảng {{ $seat['min'] }}
         </p>
         @if ($seat['needed'] > 0)
-            <p class="mt-1 text-[11px] font-semibold text-warning">Cần thêm {{ $seat['needed'] }} học viên để khai giảng</p>
+            <p class="mt-1 text-xs font-semibold text-warning">Cần thêm {{ $seat['needed'] }} học viên để khai giảng</p>
         @endif
     </section>
 

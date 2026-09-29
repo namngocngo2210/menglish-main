@@ -58,7 +58,7 @@
             @endcan
             <x-ui.field label="Khóa học quan tâm" name="course_interest" :for="$id('course_interest')">
                 <input type="text" id="{{ $id('course_interest') }}" name="course_interest" @readonly($locked) value="{{ old('course_interest', $customer->course_interest) }}" placeholder="Chọn hoặc nhập khóa học" list="{{ $datalistId }}"
-                       class="w-full rounded-lg border border-outline-variant px-md py-sm font-body-base text-body-base focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 {{ $locked ? 'bg-surface-container-low text-on-surface-variant' : 'bg-surface-container-lowest' }}" />
+                       class="w-full rounded-lg border border-outline-variant px-md py-sm font-body-base text-body-base focus:border-primary-container focus:ring-2 focus:ring-primary-container/50 {{ $locked ? 'bg-surface-container-low text-on-surface-variant' : 'bg-surface-container-lowest' }}" />
                 <datalist id="{{ $datalistId }}">
                     @foreach ($courseNames as $courseName)
                         <option value="{{ $courseName }}"></option>
@@ -68,7 +68,7 @@
             <x-ui.field label="Giá trị hợp đồng (VNĐ)" name="deal_value" :for="$id('deal_value')">
                 <div class="relative">
                     <input type="number" id="{{ $id('deal_value') }}" name="deal_value" @readonly($locked) value="{{ old('deal_value', $customer->deal_value) }}"
-                           class="w-full rounded-lg border border-outline-variant px-md py-sm font-code text-code focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 {{ $locked ? 'bg-surface-container-low text-on-surface-variant' : 'bg-surface-container-lowest' }}" />
+                           class="w-full rounded-lg border border-outline-variant px-md py-sm font-code text-code focus:border-primary-container focus:ring-2 focus:ring-primary-container/50 {{ $locked ? 'bg-surface-container-low text-on-surface-variant' : 'bg-surface-container-lowest' }}" />
                     @if ($locked)<span class="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[18px] text-warning" title="Đã khóa">lock</span>@endif
                 </div>
             </x-ui.field>

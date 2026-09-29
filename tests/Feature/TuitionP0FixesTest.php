@@ -598,7 +598,7 @@ class TuitionP0FixesTest extends TestCase
         $content = $record->data['content'];
         $this->assertStringNotContainsString('{', $content);
         $this->assertStringContainsString('HV Nguyễn P Không', $content);
-        $this->assertStringContainsString('5.000.000 VNĐ', $content);
+        $this->assertStringContainsString('5.000.000 đ', $content);
         $this->assertStringContainsString(now()->format('d/m/Y'), $content);
     }
 

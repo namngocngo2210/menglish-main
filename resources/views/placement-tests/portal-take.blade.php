@@ -19,7 +19,7 @@
                 </div>
                 <div>
                     <div class="font-black text-on-surface text-base leading-tight tracking-tight">MEnglish Academy</div>
-                    <div class="text-[11px] text-on-surface-variant font-medium">Hệ Thống Đánh Giá Trình Độ &amp; Xếp Lớp Chuẩn CEFR</div>
+                    <div class="text-xs text-on-surface-variant font-medium">Hệ Thống Đánh Giá Trình Độ &amp; Xếp Lớp Chuẩn CEFR</div>
                 </div>
             </div>
             <div class="flex items-center gap-3">
@@ -122,7 +122,7 @@
                         @foreach ($listeningQuestions as $idx => $q)
                             <div class="p-4 rounded-xl border border-surface-container-highest/80 bg-surface-container-low/50 space-y-3">
                                 <div class="font-bold text-on-surface text-xs flex items-start gap-2">
-                                    <span class="px-2 py-0.5 rounded-md bg-secondary/10 text-on-secondary-fixed font-mono text-[11px] shrink-0">Câu {{ $idx + 1 }}</span>
+                                    <span class="px-2 py-0.5 rounded-md bg-secondary/10 text-on-secondary-fixed font-mono text-xs shrink-0">Câu {{ $idx + 1 }}</span>
                                     <span>{{ $q['title'] ?? '' }}</span>
                                 </div>
 
@@ -131,12 +131,12 @@
                                         $audioSrc = str_starts_with($q['audio_url'], 'http') || str_starts_with($q['audio_url'], '/') ? $q['audio_url'] : ('/' . $q['audio_url']);
                                     @endphp
                                     <div class="p-3.5 bg-secondary/10 border border-secondary/30 rounded-xl space-y-2 shadow-2xs">
-                                        <div class="flex items-center justify-between text-[11px] font-bold text-on-secondary-fixed">
+                                        <div class="flex items-center justify-between text-xs font-bold text-on-secondary-fixed">
                                             <div class="flex items-center gap-1.5">
                                                 <span class="material-symbols-outlined text-base text-secondary animate-pulse">volume_up</span>
                                                 <span>Băng nghe Audio (Listening Track)</span>
                                             </div>
-                                            <span class="text-[10px] text-secondary font-semibold italic">Bấm nút Play ▶ để nghe</span>
+                                            <span class="text-xs text-secondary font-semibold italic">Bấm nút Play ▶ để nghe</span>
                                         </div>
                                         <audio controls class="w-full h-9 rounded-lg" preload="metadata" src="{{ $audioSrc }}">
                                             <source src="{{ $audioSrc }}" type="audio/mpeg">
@@ -192,7 +192,7 @@
                         @foreach ($readingGrammarQuestions as $idx => $q)
                             <div class="p-4 rounded-xl border border-surface-container-highest/80 bg-surface-container-low/50 space-y-3">
                                 <div class="font-bold text-on-surface text-xs flex items-start gap-2">
-                                    <span class="px-2 py-0.5 rounded-md bg-tertiary/10 text-on-tertiary-container font-mono text-[11px] shrink-0">Câu {{ $idx + 1 }}</span>
+                                    <span class="px-2 py-0.5 rounded-md bg-tertiary/10 text-on-tertiary-container font-mono text-xs shrink-0">Câu {{ $idx + 1 }}</span>
                                     <span>{{ $q['title'] ?? '' }}</span>
                                 </div>
 
@@ -233,10 +233,10 @@
             <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-6 space-y-4">
                 <div class="flex items-center justify-between pb-2 border-b border-surface-container-highest">
                     <h2 class="text-sm font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
-                        <span class="material-symbols-outlined text-purple-600">edit_note</span>
+                        <span class="material-symbols-outlined text-accent">edit_note</span>
                         4. Section 3: Writing Task (Viết tự luận)
                     </h2>
-                    <span class="text-xs text-purple-600 font-bold bg-purple-50 px-2.5 py-0.5 rounded-full">Kỹ năng Viết</span>
+                    <span class="text-xs text-accent font-bold bg-accent-container px-2.5 py-0.5 rounded-full">Kỹ năng Viết</span>
                 </div>
 
                 @php
@@ -244,7 +244,7 @@
                     $writingPrompt = $writingQ['title'] ?? 'Hãy viết một đoạn văn ngắn giới thiệu về bản thân, sở thích hoặc một chuyến đi đáng nhớ của bạn.';
                 @endphp
 
-                <div class="p-3.5 bg-purple-50 text-purple-900 rounded-xl text-xs space-y-1.5 border border-purple-200">
+                <div class="p-3.5 bg-accent-container text-on-accent-container rounded-xl text-xs space-y-1.5 border border-accent/30">
                     <div class="font-bold flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-base">help</span>
                         <span>Đề bài Writing:</span>
@@ -274,7 +274,7 @@
                             <span class="material-symbols-outlined text-base">record_voice_over</span>
                             <span>Gợi ý chủ đề Speaking: {{ $speakingQ['title'] ?? '' }}</span>
                         </div>
-                        <div class="text-[11px] text-on-error-container whitespace-pre-line leading-relaxed font-mono">
+                        <div class="text-xs text-on-error-container whitespace-pre-line leading-relaxed font-mono">
                             {{ $speakingQ['cue_points'] }}
                         </div>
                     </div>
@@ -286,17 +286,17 @@
                         <label class="p-3.5 rounded-xl border border-surface-container-highest hover:border-primary-container cursor-pointer block space-y-1 bg-surface-container-lowest transition">
                             <input type="radio" name="speaking_self_rate" value="beginner" class="text-primary">
                             <div class="font-bold text-on-surface">Mới bắt đầu / Mất gốc (A1)</div>
-                            <p class="text-[11px] text-on-surface-variant">Chưa tự tin phát âm, hay ấp úng khi giao tiếp câu cơ bản.</p>
+                            <p class="text-xs text-on-surface-variant">Chưa tự tin phát âm, hay ấp úng khi giao tiếp câu cơ bản.</p>
                         </label>
                         <label class="p-3.5 rounded-xl border border-surface-container-highest hover:border-primary-container cursor-pointer block space-y-1 bg-surface-container-lowest transition">
                             <input type="radio" name="speaking_self_rate" value="intermediate" checked class="text-primary">
                             <div class="font-bold text-on-surface">Trung bình (A2 - B1)</div>
-                            <p class="text-[11px] text-on-surface-variant">Giao tiếp được câu hoàn chỉnh hàng ngày, phản xạ tương đối ổn.</p>
+                            <p class="text-xs text-on-surface-variant">Giao tiếp được câu hoàn chỉnh hàng ngày, phản xạ tương đối ổn.</p>
                         </label>
                         <label class="p-3.5 rounded-xl border border-surface-container-highest hover:border-primary-container cursor-pointer block space-y-1 bg-surface-container-lowest transition">
                             <input type="radio" name="speaking_self_rate" value="advanced" class="text-primary">
                             <div class="font-bold text-on-surface">Nâng cao (B2 - C1)</div>
-                            <p class="text-[11px] text-on-surface-variant">Tự tin thuyết trình, tranh luận học thuật và phản xạ nhanh.</p>
+                            <p class="text-xs text-on-surface-variant">Tự tin thuyết trình, tranh luận học thuật và phản xạ nhanh.</p>
                         </label>
                     </div>
                 </div>

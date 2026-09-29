@@ -112,7 +112,7 @@
                     </template>
                     <label class="flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-xs rounded-lg border-2 border-dashed border-outline-variant text-on-surface-variant hover:border-primary-container hover:text-primary">
                         <span class="material-symbols-outlined" aria-hidden="true">add_a_photo</span>
-                        <span class="text-[11px] font-semibold">Thêm ảnh</span>
+                        <span class="text-xs font-semibold">Thêm ảnh</span>
                         <input x-ref="photos" type="file" name="board_images[]" accept="image/*" multiple class="sr-only" x-on:change="syncPreviews($event.target)">
                     </label>
                 </div>

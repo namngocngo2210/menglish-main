@@ -67,7 +67,7 @@
 
             <x-ui.alert type="info">
                 @if ($isAcademicStaff)
-                    KPI Học vụ tính lương tự động: <strong>quỹ {{ $money($fund) }}đ × điểm KPI tổng</strong> (mục chưa chấm tính 0%). Chỉ phiếu <strong>đã chốt</strong> được dùng khi tính lương.
+                    KPI Học vụ tính lương tự động: <strong>quỹ {{ $money($fund) }} đ × điểm KPI tổng</strong> (mục chưa chấm tính 0%). Chỉ phiếu <strong>đã chốt</strong> được dùng khi tính lương.
                 @else
                     Điểm KPI tổng = Σ(% đạt × trọng số) / Σ trọng số các mục đang áp dụng.
                 @endif
@@ -127,7 +127,7 @@
                         @endforeach
                         <tr class="bg-primary-fixed/30">
                             <td colspan="7" class="text-right font-body-semibold text-body-semibold">Tổng tiền KPI dự tính:</td>
-                            <td class="text-right font-mono font-bold text-primary"><span x-text="fmt(totalMoney)">{{ $money($fund * $total / 100) }}</span> ₫</td>
+                            <td class="text-right font-mono font-bold text-primary"><span x-text="fmt(totalMoney)">{{ $money($fund * $total / 100) }}</span> đ</td>
                         </tr>
                     </tbody>
                 </table>

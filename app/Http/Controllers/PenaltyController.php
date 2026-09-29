@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ClassModel;
 use App\Models\Penalty;
 use App\Models\User;
+use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -176,7 +177,7 @@ class PenaltyController extends Controller
         $penalty->update($attributes);
 
         $message = $decision === 'fine'
-            ? "Đã quyết phạt {$penalty->code}: ".number_format((float) $penalty->amount, 0, ',', '.').'đ — hạn nộp '
+            ? "Đã quyết phạt {$penalty->code}: ".Money::format((float) $penalty->amount).' — hạn nộp '
                 .$penalty->due_date->format('d/m/Y').', quá hạn chưa nộp sẽ trừ vào kỳ lương.'
             : "Đã xác nhận lỗi của biên bản {$penalty->code}!";
 

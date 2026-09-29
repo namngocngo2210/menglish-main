@@ -16,6 +16,8 @@ use App\Models\SyllabusAssignment;
 use App\Models\TuitionReceipt;
 use App\Services\SafeUploadService;
 use App\Services\Tuition\PaymentReportService;
+use App\Support\Money;
+use App\Support\Portal\PortalNotifications;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -134,10 +136,7 @@ class StudentPortalController extends Controller
                 ->unique()
                 ->count();
 
-            $unreadNotifsCount = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao')
-                ->where('data->student_id', (string) $student->id)
-                ->where('data->unread', true)
-                ->count();
+            $unreadNotifsCount = PortalNotifications::unreadCount($student);
 
             $pronunciationCount = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/04_luyen_phat_am')
                 ->where('data->student_id', (string) $student->id)
@@ -291,7 +290,7 @@ class StudentPortalController extends Controller
             'screen_key' => PaymentReportService::SCREEN_KEY,
             'module' => 'student_portal',
             'record_code' => 'YCHOCPHI-'.strtoupper(Str::random(6)),
-            'title' => 'Báo đóng học phí: '.number_format($validated['amount']).'đ - '.$studentName,
+            'title' => 'Báo đóng học phí: '.Money::format($validated['amount']).' - '.$studentName,
             'status' => PaymentReportService::STATUS_PENDING,
             'data' => [
                 'student_id' => (string) $validated['student_id'],
@@ -589,7 +588,7 @@ class StudentPortalController extends Controller
         [$students, $student] = $this->getActiveStudent($studentId);
 
         // Lấy danh sách thông báo thật từ CSDL (không tự tạo thông báo mẫu).
-        $notifications = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao')
+        $notifications = AcademicRecord::where('screen_key', PortalNotifications::SCREEN_KEY)
             ->when($student, function ($q) use ($student) {
                 $q->where('data->student_id', (string) $student->id);
             })
@@ -608,7 +607,7 @@ class StudentPortalController extends Controller
         $student = Student::findOrFail($studentId);
         $this->authorizeStudent($student);
 
-        $query = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao');
+        $query = AcademicRecord::where('screen_key', PortalNotifications::SCREEN_KEY);
         if ($studentId) {
             $query->where('data->student_id', (string) $studentId);
         }
@@ -630,7 +629,7 @@ class StudentPortalController extends Controller
     public function markSingleNotificationRead($id)
     {
         $record = AcademicRecord::findOrFail($id);
-        $this->authorizeStudentRecord($record, '04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao');
+        $this->authorizeStudentRecord($record, PortalNotifications::SCREEN_KEY);
         $data = $record->data;
         $data['unread'] = false;
         $record->data = $data;
@@ -645,7 +644,7 @@ class StudentPortalController extends Controller
     public function deleteNotification($id)
     {
         $record = AcademicRecord::findOrFail($id);
-        $this->authorizeStudentRecord($record, '04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao');
+        $this->authorizeStudentRecord($record, PortalNotifications::SCREEN_KEY);
         $record->delete();
 
         return back()->with('success', 'Đã xóa thông báo thành công.');

@@ -17,7 +17,7 @@
                 <a href="{{ route($item['route']) }}" @if ($item['active']) aria-current="page" @endif
                    class="flex flex-col items-center gap-[2px] rounded-xl px-xs py-xs {{ $item['active'] ? 'bg-primary-container text-white' : 'text-on-surface-variant active:bg-surface-variant' }}">
                     <span class="material-symbols-outlined text-[22px]" aria-hidden="true">{{ $item['icon'] }}</span>
-                    <span class="text-[11px] font-semibold">{{ $item['label'] }}</span>
+                    <span class="text-xs font-semibold">{{ $item['label'] }}</span>
                 </a>
             </li>
         @endforeach

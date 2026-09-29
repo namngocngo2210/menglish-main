@@ -30,7 +30,7 @@
                         <div class="w-2.5 h-2.5 rounded-full bg-primary-container"></div>
                         <h2 class="text-base font-bold text-on-surface uppercase tracking-wide">1. Thông tin cơ bản &amp; Phân loại</h2>
                     </div>
-                    <span class="text-xs text-on-surface-variant/70 font-medium italic">(<span class="text-error font-bold">*</span>) Trường bắt buộc</span>
+                    <span class="text-xs text-on-surface-subtle font-medium italic">(<span class="text-error font-bold">*</span>) Trường bắt buộc</span>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">

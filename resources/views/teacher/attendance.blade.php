@@ -8,7 +8,7 @@
         'absent' => ['label' => 'Nghỉ không phép', 'tone' => 'border-error/30 bg-error/10'],
     ];
     $initialStatuses = $students->mapWithKeys(fn ($st) => [$st->id => old('status.'.$st->id, $existing->get($st->id)?->status ?? 'present')]);
-    $roomLabel = $session?->room ? (str_starts_with(mb_strtolower($session->room), 'phòng') ? $session->room : 'Phòng '.$session->room) : 'Chưa có phòng';
+    $roomLabel = $session?->roomLabel() ?? 'Chưa có phòng';
 @endphp
 <x-app-layout title="Điểm danh — {{ $class->name }}">
     <div class="mx-auto max-w-6xl space-y-lg pb-24 md:pb-0"
@@ -72,8 +72,13 @@
 
         @if (! $session)
             <div class="rounded-xl border border-outline-variant bg-surface-container-lowest">
-                <x-ui.empty-state icon="event_busy" title="Lớp không có buổi học trong ngày này"
-                    description="Chọn một buổi ở danh sách phía trên để điểm danh bù, hoặc kiểm tra thời khóa biểu của lớp." />
+                @if ($recentSessions->isNotEmpty())
+                    <x-ui.empty-state icon="event_busy" title="Lớp không có buổi học trong ngày này"
+                        description="Chọn buổi cần điểm danh bù ở ô “Chọn buổi” phía trên." />
+                @else
+                    <x-ui.empty-state icon="event_busy" title="Lớp chưa có buổi học nào"
+                        description="Lớp chưa được xếp thời khóa biểu. Liên hệ Học vụ để kiểm tra TKB của lớp." />
+                @endif
             </div>
         @elseif ($blockReason)
             <x-ui.alert type="warning">{{ $blockReason }}</x-ui.alert>
@@ -143,7 +148,7 @@
                                 </div>
                             </div>
                             <select name="status[{{ $student->id }}]" x-model="statuses[{{ $student->id }}]" aria-label="Trạng thái điểm danh {{ $student->name }}"
-                                    class="w-full rounded-lg border py-sm pl-md pr-xl font-body-small text-body-small focus:border-primary-container focus:ring-primary-container/20 {{ $options[$initialStatuses[$student->id]]['tone'] ?? 'border-outline-variant' }}">
+                                    class="w-full rounded-lg border py-sm pl-md pr-xl font-body-small text-body-small focus:border-primary-container focus:ring-primary-container/50 {{ $options[$initialStatuses[$student->id]]['tone'] ?? 'border-outline-variant' }}">
                                 @foreach ($options as $value => $opt)
                                     <option value="{{ $value }}" @selected($initialStatuses[$student->id] === $value)>{{ $opt['label'] }}</option>
                                 @endforeach
@@ -153,7 +158,7 @@
                                        :placeholder="['absent', 'excused'].includes(statuses[{{ $student->id }}]) ? 'Nhập lý do nghỉ học... *' : 'Ghi chú thêm (tùy chọn)...'"
                                        :required="['absent', 'excused'].includes(statuses[{{ $student->id }}])"
                                        placeholder="Ghi chú thêm (tùy chọn)..." aria-label="Ghi chú {{ $student->name }}"
-                                       class="w-full rounded-lg border px-md py-sm font-body-small text-body-small focus:border-primary-container focus:ring-primary-container/20 {{ $noteError ? 'border-error' : 'border-outline-variant' }}">
+                                       class="w-full rounded-lg border px-md py-sm font-body-small text-body-small focus:border-primary-container focus:ring-primary-container/50 {{ $noteError ? 'border-error' : 'border-outline-variant' }}">
                                 @if ($noteError)
                                     <p class="mt-xs font-caption text-caption text-error">{{ $noteError }}</p>
                                 @else

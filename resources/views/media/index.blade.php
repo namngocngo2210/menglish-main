@@ -33,23 +33,23 @@
                     </span>
                     <div>
                         <h3 class="text-xs font-bold text-on-surface uppercase tracking-wider">Kéo thả &amp; Tải lên tệp tin mới</h3>
-                        <p class="text-[11px] text-on-surface-variant">Tự động tối ưu hóa và phân loại tệp tin trên cây thư mục hệ thống</p>
+                        <p class="text-xs text-on-surface-variant">Tự động tối ưu hóa và phân loại tệp tin trên cây thư mục hệ thống</p>
                     </div>
                 </div>
 
                 {{-- Target Folder Selector --}}
                 <x-ui.select x-model="targetFolder" inline-label="Lưu vào thư mục:" aria-label="Lưu vào thư mục" class="py-xs font-bold">
                     <option value="{{ $currentFolder ?: 'auto_date' }}">
-                        📁 {{ $currentFolder ? 'Thư mục hiện tại (uploads/media/' . $currentFolder . ')' : 'uploads/media/' . date('Y') . '/' . date('m') . ' (Theo ngày tháng năm)' }}
+                        {{ $currentFolder ? 'Thư mục hiện tại (uploads/media/' . $currentFolder . ')' : 'uploads/media/' . date('Y') . '/' . date('m') . ' (Theo ngày tháng năm)' }}
                     </option>
-                    <option value="auto_date">📁 uploads/media/{{ date('Y') }}/{{ date('m') }} (Theo ngày tháng năm)</option>
-                    <option value="tickets">📁 uploads/media/tickets/ (Ảnh ticket báo lỗi &amp; hỗ trợ)</option>
-                    <option value="avatars">📁 uploads/media/avatars/ (Ảnh đại diện người dùng)</option>
-                    <option value="courses">📁 uploads/media/courses/ (Tài liệu khóa học &amp; giáo trình)</option>
-                    <option value="documents">📁 uploads/media/documents/ (Tài liệu chung &amp; hợp đồng)</option>
-                    <option value="marketing">📁 uploads/media/marketing/ (Banner &amp; truyền thông)</option>
+                    <option value="auto_date">uploads/media/{{ date('Y') }}/{{ date('m') }} (Theo ngày tháng năm)</option>
+                    <option value="tickets">uploads/media/tickets/ (Ảnh ticket báo lỗi &amp; hỗ trợ)</option>
+                    <option value="avatars">uploads/media/avatars/ (Ảnh đại diện người dùng)</option>
+                    <option value="courses">uploads/media/courses/ (Tài liệu khóa học &amp; giáo trình)</option>
+                    <option value="documents">uploads/media/documents/ (Tài liệu chung &amp; hợp đồng)</option>
+                    <option value="marketing">uploads/media/marketing/ (Banner &amp; truyền thông)</option>
                     @foreach ($subFolders as $sf)
-                        <option value="{{ $sf['path'] }}">📁 uploads/media/{{ $sf['path'] }}/</option>
+                        <option value="{{ $sf['path'] }}">uploads/media/{{ $sf['path'] }}/</option>
                     @endforeach
                 </x-ui.select>
             </div>
@@ -81,7 +81,7 @@
                             chọn tệp từ máy tính
                         </button>
                     </p>
-                    <p class="text-[11px] text-on-surface-variant">
+                    <p class="text-xs text-on-surface-variant">
                         Hỗ trợ đa dạng: <span class="font-semibold text-on-surface-variant">Audio (MP3/WAV), Word (DOCX), PDF, Excel, Hình ảnh, Video, ZIP</span> (Tối đa 100MB/tệp)
                     </p>
                 </div>
@@ -105,7 +105,7 @@
             <div class="flex items-center gap-1.5 text-xs font-bold overflow-x-auto py-1">
                 @foreach ($breadcrumbs as $index => $bc)
                     @if ($index > 0)
-                        <span class="text-on-surface-variant/70 material-symbols-outlined text-sm">chevron_right</span>
+                        <span class="text-on-surface-subtle material-symbols-outlined text-sm">chevron_right</span>
                     @endif
 
                     @if ($loop->last && $currentFolder !== '')
@@ -118,7 +118,7 @@
                             href="{{ route('media.index', $bc['path'] ? ['folder' => $bc['path']] : []) }}" 
                             class="px-2.5 py-1 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition flex items-center gap-1"
                         >
-                            <span class="material-symbols-outlined text-sm text-on-surface-variant/70">{{ $index === 0 ? 'home' : 'folder' }}</span>
+                            <span class="material-symbols-outlined text-sm text-on-surface-subtle">{{ $index === 0 ? 'home' : 'folder' }}</span>
                             <span>{{ $bc['name'] }}</span>
                         </a>
                     @endif
@@ -132,7 +132,7 @@
         {{-- 2. Folder Explorer Grid (Google Drive Folders) --}}
         @if ($subFolders->isNotEmpty())
             <div class="space-y-2.5">
-                <div class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-1.5">
+                <div class="text-xs font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-sm">folder</span>
                     <span>Thư mục ({{ $subFolders->count() }})</span>
                 </div>
@@ -156,7 +156,7 @@
                                     <h4 class="text-xs font-bold text-on-surface group-hover:text-primary-container transition truncate" title="{{ $sf['name'] }}">
                                         {{ $sf['name'] }}
                                     </h4>
-                                    <p class="text-[10px] text-on-surface-variant/70 font-code mt-0.5">
+                                    <p class="text-xs text-on-surface-subtle font-code mt-0.5">
                                         {{ $sf['files_count'] }} tệp · {{ $sf['total_size_human'] }}
                                     </p>
                                 </div>
@@ -176,49 +176,35 @@
         </div>
 
         {{-- 4. Filter & Search Bar --}}
-        <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest/90 shadow-sm p-4">
-            <form method="GET" action="{{ route('media.index') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
-                @if ($currentFolder)
-                    <input type="hidden" name="folder" value="{{ $currentFolder }}">
-                @endif
-
-                {{-- Search --}}
-                <div class="lg:col-span-2">
-                    <x-ui.input name="search" label="Tìm kiếm tên tệp" icon="search" :value="$filters['search']" placeholder="Nhập tên tệp tin hoặc đường dẫn..." />
+        <x-ui.filter-bar :action="route('media.index')" :reset-url="route('media.index', $currentFolder ? ['folder' => $currentFolder] : [])" placeholder="Nhập tên tệp tin hoặc đường dẫn..." class="!mb-0">
+            <x-slot:quick>
+                <div class="text-xs text-on-surface-variant">
+                    Kết quả lọc: <strong class="text-on-surface">{{ number_format($totalFilteredCount) }}</strong> tệp
+                    (<strong class="text-primary-container font-code">{{ $totalFilteredSize }}</strong>)
                 </div>
+            </x-slot:quick>
+            @if ($currentFolder)
+                <input type="hidden" name="folder" value="{{ $currentFolder }}">
+            @endif
 
-                {{-- File Type --}}
-                <x-ui.select name="type" label="Loại tệp" :value="$filters['type']" :options="[
-                    'all' => 'Tất cả loại tệp', 'image' => '🖼️ Hình ảnh', 'document' => '📄 Tài liệu (PDF/Doc)', 'spreadsheet' => '📊 Bảng tính (Excel)',
-                    'audio' => '🎧 Âm thanh (Audio/MP3)', 'video' => '🎬 Video', 'other' => '📁 Khác',
-                ]" />
+            {{-- File Type --}}
+            <x-ui.select name="type" label="Loại tệp" :value="$filters['type']" :options="[
+                'all' => 'Tất cả loại tệp', 'image' => 'Hình ảnh', 'document' => 'Tài liệu (PDF/Doc)', 'spreadsheet' => 'Bảng tính (Excel)',
+                'audio' => 'Âm thanh (Audio/MP3)', 'video' => 'Video', 'other' => 'Khác',
+            ]" />
 
-                {{-- Directory / Folder --}}
-                <x-ui.select name="directory" label="Thư mục lưu trữ" :value="$filters['directory']"
-                             :options="['all' => 'Tất cả thư mục'] + collect($directories)->mapWithKeys(fn ($dir) => [$dir => '📁 '.$dir.'/'])->all()" />
+            {{-- Directory / Folder --}}
+            <x-ui.select name="directory" label="Thư mục lưu trữ" :value="$filters['directory']"
+                         :options="['all' => 'Tất cả thư mục'] + collect($directories)->mapWithKeys(fn ($dir) => [$dir => $dir.'/'])->all()" />
 
-                {{-- Size Range --}}
-                <x-ui.select name="size_range" label="Kích thước" :value="$filters['size_range']"
-                             :options="['all' => 'Mọi kích thước', 'lt_1mb' => 'Dưới 1 MB', '1mb_10mb' => '1 MB — 10 MB', 'gt_10mb' => 'Trên 10 MB']" />
+            {{-- Size Range --}}
+            <x-ui.select name="size_range" label="Kích thước" :value="$filters['size_range']"
+                         :options="['all' => 'Mọi kích thước', 'lt_1mb' => 'Dưới 1 MB', '1mb_10mb' => '1 MB — 10 MB', 'gt_10mb' => 'Trên 10 MB']" />
 
-                {{-- Date Range --}}
-                <x-ui.select name="date_range" label="Thời gian tải lên" :value="$filters['date_range']"
-                             :options="['all' => 'Tất cả thời gian', 'today' => 'Hôm nay', 'last_7_days' => '7 ngày trước', 'last_30_days' => '30 ngày trước', 'this_month' => 'Tháng này']" />
-
-                {{-- Submit buttons --}}
-                <div class="lg:col-span-6 flex items-center justify-between pt-2 border-t border-surface-container-highest mt-1">
-                    <div class="text-xs text-on-surface-variant">
-                        Kết quả lọc: <strong class="text-on-surface">{{ number_format($totalFilteredCount) }}</strong> tệp 
-                        (<strong class="text-primary-container font-code">{{ $totalFilteredSize }}</strong>)
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        <x-ui.button variant="secondary" size="sm" :href="route('media.index', $currentFolder ? ['folder' => $currentFolder] : [])">Đặt lại</x-ui.button>
-                        <x-ui.button type="submit" size="sm" icon="filter_alt">Lọc tệp</x-ui.button>
-                    </div>
-                </div>
-            </form>
-        </div>
+            {{-- Date Range --}}
+            <x-ui.select name="date_range" label="Thời gian tải lên" :value="$filters['date_range']"
+                         :options="['all' => 'Tất cả thời gian', 'today' => 'Hôm nay', 'last_7_days' => '7 ngày trước', 'last_30_days' => '30 ngày trước', 'this_month' => 'Tháng này']" />
+        </x-ui.filter-bar>
 
         {{-- 5. Actions Toolbar & Bulk Operations --}}
         <div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest/90 shadow-sm p-3.5 flex flex-wrap items-center justify-between gap-3">
@@ -234,7 +220,7 @@
                     <span>Chọn tất cả trang này</span>
                 </label>
 
-                <span class="text-on-surface-variant/70">|</span>
+                <span class="text-on-surface-subtle">|</span>
 
                 {{-- Bulk Delete Selected Files --}}
                 <form 
@@ -318,7 +304,7 @@
                                 />
                             </label>
 
-                            <span class="text-[10px] font-code uppercase font-extrabold px-1.5 py-0.5 rounded bg-surface-container-high/70 text-on-surface-variant">
+                            <span class="text-xs font-code uppercase font-extrabold px-1.5 py-0.5 rounded bg-surface-container-high/70 text-on-surface-variant">
                                 {{ $file['extension'] }}
                             </span>
                         </div>
@@ -340,13 +326,13 @@
                                     title="Bấm để nghe tệp âm thanh"
                                 >
                                     <span class="material-symbols-outlined text-2xl">headphones</span>
-                                    <span class="text-[9px] font-bold uppercase tracking-wider mt-0.5">MP3</span>
+                                    <span class="text-xs font-bold uppercase tracking-wider mt-0.5">MP3</span>
                                 </div>
                             @else
                                 <div class="w-12 h-12 rounded-xl flex items-center justify-center 
                                     {{ $file['type'] === 'document' ? 'bg-secondary/10 text-secondary' : '' }}
                                     {{ $file['type'] === 'spreadsheet' ? 'bg-tertiary/10 text-tertiary' : '' }}
-                                    {{ $file['type'] === 'video' ? 'bg-purple-50 text-purple-600' : '' }}
+                                    {{ $file['type'] === 'video' ? 'bg-accent-container text-accent' : '' }}
                                     {{ $file['type'] === 'other' ? 'bg-surface-container text-on-surface-variant' : '' }}
                                 ">
                                     @if ($file['type'] === 'document')
@@ -368,12 +354,12 @@
                                 {{ $file['filename'] }}
                             </h4>
 
-                            <div class="flex items-center justify-between text-[10px] text-on-surface-variant/70 font-code">
+                            <div class="flex items-center justify-between text-xs text-on-surface-subtle font-code">
                                 <span class="text-on-surface-variant font-bold">{{ $file['size_human'] }}</span>
-                                <span class="truncate max-w-[75px]" title="{{ $file['directory'] }}">📁 {{ $file['directory'] }}</span>
+                                <span class="inline-flex max-w-[75px] items-center gap-0.5" title="{{ $file['directory'] }}"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">folder</span><span class="truncate">{{ $file['directory'] }}</span></span>
                             </div>
 
-                            <div class="text-[9px] text-on-surface-variant/70 pt-0.5">
+                            <div class="text-xs text-on-surface-subtle pt-0.5">
                                 {{ $file['created_at_human'] }}
                             </div>
 
@@ -428,19 +414,19 @@
                                         @elseif ($file['type'] === 'audio')
                                             <span class="material-symbols-outlined text-warning text-lg cursor-pointer hover:scale-110 transition" @click="openPreview('{{ $file['url'] }}', '{{ $file['filename'] }}', '{{ $file['size_human'] }}', 'audio')" title="Nghe audio">headphones</span>
                                         @else
-                                            <span class="material-symbols-outlined text-on-surface-variant/70 text-base">draft</span>
+                                            <span class="material-symbols-outlined text-on-surface-subtle text-base">draft</span>
                                         @endif
                                         <span class="font-bold text-on-surface truncate max-w-xs" title="{{ $file['filename'] }}">{{ $file['filename'] }}</span>
                                     </div>
                                 </td>
-                                <td class="font-code text-on-surface-variant text-[11px]">📁 {{ $file['directory'] }}</td>
+                                <td class="font-code text-on-surface-variant text-xs"><span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">folder</span>{{ $file['directory'] }}</span></td>
                                 <td>
                                     <x-ui.badge :pill="true" :dot="false" class="uppercase" :color="['image' => 'success', 'document' => 'info', 'spreadsheet' => 'success', 'audio' => 'warning', 'video' => 'secondary'][$file['type']] ?? 'neutral'">
                                         {{ $file['type'] }} ({{ $file['extension'] }})
                                     </x-ui.badge>
                                 </td>
                                 <td class="text-right font-code font-bold">{{ $file['size_human'] }}</td>
-                                <td class="text-on-surface-variant/70 text-[11px]">{{ $file['created_at_human'] }}</td>
+                                <td class="text-on-surface-subtle text-xs">{{ $file['created_at_human'] }}</td>
                                 <td class="text-center">
                                     <div class="flex items-center justify-center gap-1.5">
                                         <x-ui.button variant="ghost" size="sm" icon="link" x-on:click="copyUrl('{{ $file['url'] }}')" title="Copy URL" aria-label="Copy URL" />
@@ -483,7 +469,7 @@
 
                 <div class="space-y-1">
                     <x-ui.input name="folder_name" label="Tên thư mục" required placeholder="Ví dụ: hop_dong_2026, anh_su_kien..." class="font-semibold" autofocus />
-                    <p class="text-[10px] text-on-surface-variant/70">
+                    <p class="text-xs text-on-surface-subtle">
                         Vị trí tạo: <strong class="font-code text-on-surface-variant">/uploads/media/{{ $currentFolder ? $currentFolder . '/' : '' }}</strong>
                     </p>
                 </div>
@@ -504,15 +490,15 @@
 
                 <p class="font-semibold text-on-surface">Di chuyển <span x-text="selectedFiles.length"></span> tệp tin</p>
 
-                <x-ui.select name="target_folder" label="Chọn thư mục đích" required placeholder="📁 /uploads/media (Thư mục gốc)" class="font-semibold">
-                    <option value="{{ date('Y') }}/{{ date('m') }}">📁 /uploads/{{ date('Y') }}/{{ date('m') }}</option>
-                    <option value="tickets">📁 /uploads/tickets</option>
-                    <option value="avatars">📁 /uploads/avatars</option>
-                    <option value="courses">📁 /uploads/courses</option>
-                    <option value="documents">📁 /uploads/documents</option>
-                    <option value="marketing">📁 /uploads/marketing</option>
+                <x-ui.select name="target_folder" label="Chọn thư mục đích" required placeholder="/uploads/media (Thư mục gốc)" class="font-semibold">
+                    <option value="{{ date('Y') }}/{{ date('m') }}">/uploads/{{ date('Y') }}/{{ date('m') }}</option>
+                    <option value="tickets">/uploads/tickets</option>
+                    <option value="avatars">/uploads/avatars</option>
+                    <option value="courses">/uploads/courses</option>
+                    <option value="documents">/uploads/documents</option>
+                    <option value="marketing">/uploads/marketing</option>
                     @foreach ($subFolders as $sf)
-                        <option value="{{ $sf['path'] }}">📁 /uploads/{{ $sf['path'] }}</option>
+                        <option value="{{ $sf['path'] }}">/uploads/{{ $sf['path'] }}</option>
                     @endforeach
                 </x-ui.select>
             </form>
@@ -533,9 +519,9 @@
                 <div class="px-5 py-3 border-b border-surface-container-highest flex items-center justify-between bg-surface-container-low">
                     <div>
                         <h4 class="text-xs font-bold text-on-surface truncate max-w-md" x-text="preview.name"></h4>
-                        <span class="text-[10px] text-on-surface-variant/70 font-code" x-text="preview.size"></span>
+                        <span class="text-xs text-on-surface-subtle font-code" x-text="preview.size"></span>
                     </div>
-                    <button type="button" @click="preview.open = false" class="text-on-surface-variant/70 hover:text-on-surface-variant p-1">
+                    <button type="button" @click="preview.open = false" class="text-on-surface-subtle hover:text-on-surface-variant p-1">
                         <span class="material-symbols-outlined text-xl">close</span>
                     </button>
                 </div>
@@ -716,35 +702,35 @@
                     setTimeout(() => { this.toast.show = false; }, 2500);
                 },
 
-                confirmDeleteFolder(path, name, count) {
-                    if (confirm(`CẢNH BÁO: Bạn có chắc muốn XÓA THƯ MỤC '${name}' (${count} tệp bên trong) khỏi đĩa cứng vật lý không?\n\nToàn bộ tệp tin bên trong thư mục này sẽ bị xóa sạch!`)) {
+                async confirmDeleteFolder(path, name, count) {
+                    if (await window.confirmDialog({ title: 'Xóa thư mục?', message: `Thư mục “${name}” và ${count} tệp bên trong sẽ bị xóa khỏi máy chủ.\nKhông thể khôi phục.`, confirmLabel: 'Xóa thư mục', danger: true })) {
                         document.getElementById('deleteFolderPath').value = path;
                         document.getElementById('deleteFolderForm').submit();
                     }
                 },
 
-                confirmSingleDelete(id, name, size) {
-                    if (confirm(`CẢNH BÁO: Bạn có chắc chắn muốn XÓA VĨNH VIỄN tệp tin '${name}' (${size}) khỏi đĩa cứng vật lý không?\n\nHành động này không thể hoàn tác!`)) {
+                async confirmSingleDelete(id, name, size) {
+                    if (await window.confirmDialog({ title: 'Xóa vĩnh viễn tệp?', message: `Tệp “${name}” (${size}) sẽ bị xóa khỏi máy chủ.\nKhông thể khôi phục.`, confirmLabel: 'Xóa tệp', danger: true })) {
                         const form = document.getElementById('singleDeleteForm');
                         form.action = `/media/${id}`;
                         form.submit();
                     }
                 },
 
-                confirmBulkDelete() {
+                async confirmBulkDelete() {
                     const count = this.selectedFiles.length;
                     if (count === 0) return;
 
-                    if (confirm(`CẢNH BÁO NGUY HIỂM:\nBạn đang yêu cầu XÓA VĨNH VIỄN ${count} tệp tin đã chọn khỏi ĐĨA CỨNG VẬT LÝ của máy chủ.\n\nBạn có chắc chắn muốn thực hiện?`)) {
+                    if (await window.confirmDialog({ title: `Xóa vĩnh viễn ${count} tệp đã chọn?`, message: 'Các tệp sẽ bị xóa khỏi máy chủ.\nKhông thể khôi phục.', confirmLabel: 'Xóa tệp', danger: true })) {
                         document.getElementById('bulkDeleteForm').submit();
                     }
                 },
 
-                confirmCleanFiltered() {
+                async confirmCleanFiltered() {
                     const count = {{ $totalFilteredCount }};
                     const size = "{{ $totalFilteredSize }}";
 
-                    if (confirm(`CẢNH BÁO DỌN DẸP DUNG LƯỢNG:\nBạn có chắc muốn XÓA VĨNH VIỄN TẤT CẢ ${count} tệp tin (${size}) khớp với bộ lọc hiện tại khỏi đĩa cứng không?\n\nToàn bộ các file này sẽ bị xóa sạch trên máy chủ và không thể khôi phục!`)) {
+                    if (await window.confirmDialog({ title: 'Dọn dung lượng?', message: `Toàn bộ ${count} tệp (${size}) khớp bộ lọc hiện tại sẽ bị xóa khỏi máy chủ.\nKhông thể khôi phục.`, confirmLabel: 'Xóa tất cả', danger: true })) {
                         document.getElementById('cleanFilteredForm').submit();
                     }
                 }

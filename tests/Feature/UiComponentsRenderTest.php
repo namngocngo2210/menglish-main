@@ -27,7 +27,7 @@ class UiComponentsRenderTest extends TestCase
         $this->assertStringContainsString('bg-primary-container', $html);
         $this->assertStringContainsString('type="submit"', $html);
         $this->assertStringContainsString('bg-stage-won/10', $html);
-        $this->assertStringContainsString('-1.500.000 ₫', $html);
+        $this->assertStringContainsString('-1.500.000 đ', $html);
         $this->assertStringContainsString('text-error', $html);
         $this->assertStringContainsString('—', $html);
         $this->assertStringContainsString('>NA</span>', $html);
@@ -86,8 +86,8 @@ class UiComponentsRenderTest extends TestCase
             <x-ui.input name="plain" />
         BLADE);
 
-        $this->assertMatchesRegularExpression('/text-tertiary[^>]*>\+2\.500\.000 ₫</u', $html);
-        $this->assertMatchesRegularExpression('/text-error[^>]*>-100 ₫</u', $html);
+        $this->assertMatchesRegularExpression('/text-tertiary[^>]*>\+2\.500\.000 đ</u', $html);
+        $this->assertMatchesRegularExpression('/text-error[^>]*>-100 đ</u', $html);
         $this->assertStringContainsString('pr-16', $html);
         $this->assertStringContainsString('>học viên</span>', $html);
         // Không label / icon / suffix: chỉ thẻ input, không bọc <label>.

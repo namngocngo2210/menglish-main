@@ -6,6 +6,7 @@
                 <span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
                 Quyền thao tác: <span class="font-semibold text-on-surface">Quản trị nhân sự &amp; Tài chính</span>
             </div>
+            <x-ui.button variant="secondary" icon="download" :href="route('finance.expenses.export', ['month' => $month, 'branch_id' => $branchId, 'search' => $search])" title="Xuất dữ liệu Excel (CSV)">Xuất Excel</x-ui.button>
             <x-ui.button icon="add_circle" onclick="openCreateModal()">Thêm khoản chi mới</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
@@ -18,12 +19,12 @@
             {{-- Thẻ 1: Tổng chi kỳ này --}}
             <div class="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container-highest/80 shadow-xs relative overflow-hidden">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-on-surface-variant/70">Tổng chi kỳ này</span>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-on-surface-subtle">Tổng chi kỳ này</span>
                     <span class="p-2 rounded-lg bg-primary-container/10 text-primary-container material-symbols-outlined text-[20px]">account_balance_wallet</span>
                 </div>
                 <div class="mt-3">
                     <div class="text-2xl font-extrabold text-on-surface tracking-tight">
-                        {{ number_format($grandTotalExpense, 0, ',', '.') }} <span class="text-sm font-semibold text-on-surface-variant/70">VNĐ</span>
+                        {{ number_format($grandTotalExpense, 0, ',', '.') }} <span class="text-sm font-semibold text-on-surface-subtle">VNĐ</span>
                     </div>
                     <div class="flex items-center gap-1.5 mt-1 text-xs text-on-surface-variant">
                         @if ($percentDiff != 0)
@@ -33,7 +34,7 @@
                             </span>
                             <span>so với tháng {{ \Carbon\Carbon::createFromFormat('Y-m', $prevMonth)->format('m/Y') }}</span>
                         @else
-                            <span class="text-on-surface-variant/70">Tương đương tháng trước</span>
+                            <span class="text-on-surface-subtle">Tương đương tháng trước</span>
                         @endif
                     </div>
                 </div>
@@ -42,12 +43,12 @@
             {{-- Thẻ 2: Chi lương tự động (bảng lương) --}}
             <div class="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container-highest/80 shadow-xs">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-on-surface-variant/70">Chi lương tự động (bảng lương)</span>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-on-surface-subtle">Chi lương tự động (bảng lương)</span>
                     <span class="p-2 rounded-lg bg-secondary/10 text-secondary material-symbols-outlined text-[20px]">badge</span>
                 </div>
                 <div class="mt-3">
                     <div class="text-2xl font-extrabold text-secondary tracking-tight">
-                        {{ number_format($autoSalaryAmount, 0, ',', '.') }} <span class="text-sm font-semibold text-on-surface-variant/70">VNĐ</span>
+                        {{ number_format($autoSalaryAmount, 0, ',', '.') }} <span class="text-sm font-semibold text-on-surface-subtle">VNĐ</span>
                     </div>
                     <div class="flex items-center gap-1.5 mt-1 text-xs text-on-surface-variant">
                         @if ($autoSalaryAmount > 0)
@@ -55,7 +56,7 @@
                                 <span class="material-symbols-outlined text-[14px]">sync_alt</span> Đã chốt &amp; Đã trả ({{ $autoSalaryStaffCount }} nhân sự)
                             </span>
                         @else
-                            <span class="text-on-surface-variant/70 italic">Chưa có bảng lương chốt</span>
+                            <span class="text-on-surface-subtle italic">Chưa có bảng lương chốt</span>
                         @endif
                     </div>
                 </div>
@@ -64,12 +65,12 @@
             {{-- Thẻ 3: Chi phí vận hành tự nhập --}}
             <div class="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container-highest/80 shadow-xs">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-on-surface-variant/70">Chi phí vận hành tự nhập</span>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-on-surface-subtle">Chi phí vận hành tự nhập</span>
                     <span class="p-2 rounded-lg bg-tertiary/10 text-tertiary material-symbols-outlined text-[20px]">shopping_bag</span>
                 </div>
                 <div class="mt-3">
                     <div class="text-2xl font-extrabold text-on-surface tracking-tight">
-                        {{ number_format($totalManualExpense, 0, ',', '.') }} <span class="text-sm font-semibold text-on-surface-variant/70">VNĐ</span>
+                        {{ number_format($totalManualExpense, 0, ',', '.') }} <span class="text-sm font-semibold text-on-surface-subtle">VNĐ</span>
                     </div>
                     <div class="flex items-center gap-1.5 mt-1 text-xs text-on-surface-variant">
                         <span>Tổng số <strong>{{ $manualExpensesCount }}</strong> phiếu chi tự nhập</span>
@@ -80,56 +81,44 @@
             {{-- Thẻ 4: Cơ cấu hình thức --}}
             <div class="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container-highest/80 shadow-xs">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-on-surface-variant/70">Cơ cấu hình thức</span>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-on-surface-subtle">Cơ cấu hình thức</span>
                     <span class="p-2 rounded-lg bg-info-container text-info material-symbols-outlined text-[20px]">credit_card</span>
                 </div>
                 <div class="mt-3">
                     <div class="flex items-center justify-between text-xs font-medium text-on-surface-variant">
                         <span>Chuyển khoản ({{ $transferPercent }}%)</span>
-                        <span class="font-bold text-on-surface">{{ number_format($totalTransfer, 0, ',', '.') }}đ</span>
+                        <span class="font-bold text-on-surface">{{ \App\Support\Money::format($totalTransfer) }}</span>
                     </div>
                     <div class="w-full bg-surface-container rounded-full h-2 mt-1.5 overflow-hidden flex">
                         <div class="bg-info h-full rounded-full transition-all" style="width: {{ $transferPercent }}%"></div>
                         <div class="bg-warning/70 h-full rounded-full transition-all" style="width: {{ $cashPercent }}%"></div>
                     </div>
-                    <div class="flex items-center justify-between text-[11px] text-on-surface-variant/70 mt-1">
-                        <span>Tiền mặt: {{ number_format($totalCash, 0, ',', '.') }}đ ({{ $cashPercent }}%)</span>
+                    <div class="flex items-center justify-between text-xs text-on-surface-subtle mt-1">
+                        <span>Tiền mặt: {{ \App\Support\Money::format($totalCash) }} ({{ $cashPercent }}%)</span>
                     </div>
                 </div>
             </div>
         </div>
 
         {{-- 2. Thanh bộ lọc & Tìm kiếm --}}
-        <div class="bg-surface-container-lowest p-4 rounded-2xl border border-surface-container-highest/80 shadow-xs">
-            <form id="filterForm" method="GET" action="{{ route('finance.expenses.index') }}" class="flex flex-col md:flex-row items-center justify-between gap-4">
-                <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                    {{-- Bộ lọc Kỳ tháng --}}
-                    <x-ui.select id="monthSelect" name="month" inline-label="Kỳ tháng:" onchange="this.form.submit()" :options="$monthOptions" :value="$month" />
+        <x-ui.filter-bar :action="route('finance.expenses.index')" placeholder="Tìm theo nội dung, người lập..." class="!mb-0">
+            <x-slot:quick>
+                <p class="flex items-center gap-xs font-body-small text-body-small text-on-surface-variant">
+                    <span class="material-symbols-outlined text-[16px] text-on-surface-subtle" aria-hidden="true">info</span>
+                    Dòng lương tự động ẩn khi kỳ chưa có bảng lương chốt/trả
+                </p>
+            </x-slot:quick>
+            {{-- Bộ lọc Kỳ tháng --}}
+            <x-ui.select name="month" label="Kỳ tháng" onchange="this.form.submit()" :options="$monthOptions" :value="$month" />
 
-                    {{-- Bộ lọc Chi nhánh --}}
-                    <x-ui.select id="branchSelect" name="branch_id" inline-label="Chi nhánh:" onchange="this.form.submit()">
-                        @unless ($branchScoped ?? false)<option value="all" {{ $branchId === 'all' ? 'selected' : '' }}>Tất cả chi nhánh</option>@endunless
-                        @foreach ($branches as $b)
-                            <option value="{{ $b->id }}" {{ (string)$branchId === (string)$b->id ? 'selected' : '' }}>{{ $b->name }}</option>
-                        @endforeach
-                    </x-ui.select>
-
-                    <div class="hidden lg:flex items-center pl-2 border-l border-surface-container-highest gap-1 text-xs text-on-surface-variant">
-                        <span class="material-symbols-outlined text-[16px] text-on-surface-variant/70">info</span>
-                        <span>Dòng lương tự động ẩn khi kỳ chưa có bảng lương chốt/trả</span>
-                    </div>
-                </div>
-
-                {{-- Tìm kiếm & Xuất Excel --}}
-                <div class="flex items-center gap-2 w-full md:w-auto justify-end">
-                    <div class="w-full sm:w-64">
-                        <x-ui.input name="search" icon="search" :value="$search" placeholder="Tìm theo nội dung, người lập..." />
-                    </div>
-                    <button type="submit" class="hidden"></button>
-                    <x-ui.button variant="secondary" icon="download" :href="route('finance.expenses.export', ['month' => $month, 'branch_id' => $branchId, 'search' => $search])" title="Xuất dữ liệu Excel (CSV)" aria-label="Xuất dữ liệu Excel (CSV)" />
-                </div>
-            </form>
-        </div>
+            {{-- Bộ lọc Chi nhánh --}}
+            <x-ui.select name="branch_id" label="Chi nhánh" onchange="this.form.submit()">
+                @unless ($branchScoped ?? false)<option value="all" {{ $branchId === 'all' ? 'selected' : '' }}>Tất cả chi nhánh</option>@endunless
+                @foreach ($branches as $b)
+                    <option value="{{ $b->id }}" {{ (string)$branchId === (string)$b->id ? 'selected' : '' }}>{{ $b->name }}</option>
+                @endforeach
+            </x-ui.select>
+        </x-ui.filter-bar>
 
         {{-- 3. Bảng dữ liệu các khoản chi --}}
         <x-ui.data-table>
@@ -167,7 +156,7 @@
                                         <span class="material-symbols-outlined text-secondary text-[18px]">event_repeat</span>
                                         {{ $autoSalaryRow->expense_date }}
                                     </div>
-                                    <div class="text-[11px] text-secondary font-normal pl-6">{{ $autoSalaryRow->date_sub }}</div>
+                                    <div class="text-xs text-secondary font-normal pl-6">{{ $autoSalaryRow->date_sub }}</div>
                                 </td>
                                 <td>
                                     <div class="flex items-center gap-2">
@@ -184,7 +173,7 @@
                                 </td>
                                 <td class="text-right whitespace-nowrap">
                                     <x-ui.money :value="$autoSalaryRow->amount" suffix="" tone="secondary" class="font-extrabold" />
-                                    <div class="text-[11px] text-on-surface-variant">{{ $autoSalaryRow->staff_count }} nhân sự đủ điều kiện</div>
+                                    <div class="text-xs text-on-surface-variant">{{ $autoSalaryRow->staff_count }} nhân sự đủ điều kiện</div>
                                 </td>
                                 <td class="text-center">
                                     <x-ui.badge color="info" :pill="true" :dot="false">
@@ -205,7 +194,7 @@
                                 {{-- Thao tác: KHÔNG CÓ NÚT SỬA/XÓA - THAY BẰNG BADGE KHÓA CỐ ĐỊNH --}}
                                 <td class="text-center">
                                     <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-container border border-surface-container-highest text-on-surface-variant text-xs font-medium cursor-help" title="Số liệu tự động từ bảng lương đã chốt — không sửa được tại đây">
-                                        <span class="material-symbols-outlined text-[16px] text-on-surface-variant/70">lock</span>
+                                        <span class="material-symbols-outlined text-[16px] text-on-surface-subtle">lock</span>
                                         <span>Cố định</span>
                                     </div>
                                 </td>
@@ -220,7 +209,7 @@
                                 </td>
                                 <td>
                                     <div class="font-semibold text-on-surface">{{ $exp->title }}</div>
-                                    <div class="text-xs text-on-surface-variant/70">
+                                    <div class="text-xs text-on-surface-subtle">
                                         Người lập: {{ $exp->creator?->name ?? '—' }} • {{ $exp->created_at ? $exp->created_at->format('d/m H:i') : '' }}
                                     </div>
                                 </td>
@@ -249,7 +238,7 @@
                                 <td class="text-center">
                                     <div class="flex items-center justify-center gap-1">
                                         <x-ui.button variant="ghost" size="sm" icon="edit" onclick="openEditModal({{ json_encode($exp) }})" title="Sửa khoản chi" aria-label="Sửa khoản chi" />
-                                        <form method="POST" action="{{ route('finance.expenses.destroy', $exp->id) }}" onsubmit="return confirm('Bạn có chắc chắn muốn xóa khoản chi: \'{{ addslashes($exp->title) }}\' khỏi sổ chi vận hành?')" class="inline">
+                                        <form method="POST" action="{{ route('finance.expenses.destroy', $exp->id) }}" data-confirm="Xóa khoản chi “{{ $exp->title }}” khỏi sổ chi vận hành?" data-confirm-label="Xóa" data-confirm-danger class="inline">
                                             @csrf
                                             @method('DELETE')
                                             <x-ui.button type="submit" variant="ghost" size="sm" icon="delete" title="Xóa khoản chi" aria-label="Xóa khoản chi" />
@@ -275,8 +264,8 @@
                 <div class="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-on-surface-variant">
                     <div class="flex items-center gap-2">
                         <span>Hiển thị toàn bộ <strong>{{ $totalItemsCount }}</strong> bản ghi của tháng</span>
-                        <span class="text-on-surface-variant/70">|</span>
-                        <span class="text-on-surface-variant">Tổng cộng thực chi: <strong class="text-on-surface text-sm">{{ number_format($grandTotalExpense, 0, ',', '.') }} VNĐ</strong></span>
+                        <span class="text-on-surface-subtle">|</span>
+                        <span class="text-on-surface-variant">Tổng cộng thực chi: <strong class="text-on-surface text-sm">{{ \App\Support\Money::format($grandTotalExpense) }}</strong></span>
                     </div>
                 </div>
             </x-slot:footer>

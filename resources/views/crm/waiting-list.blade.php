@@ -1,5 +1,5 @@
 <x-app-layout>
-    @include('crm.partials.header-tabs')
+    @include('crm.partials.header-tabs', ['title' => 'Khách chờ xếp lớp'])
 
     <div class="space-y-4">
         {{-- Trang không có bộ lọc riêng: lọc nhanh đặt trong khung riêng như các tab danh sách khác --}}

@@ -45,12 +45,12 @@
 
     <div class="flex flex-col gap-sm">
         @if ($canComplete && in_array($task->status, ['new', 'in_progress', 'overdue'], true))
-            <x-ui.button :variant="$task->status === 'overdue' ? 'danger' : 'primary'" icon="check_circle" class="w-full"
+            <x-ui.button :variant="$task->status === 'overdue' ? 'danger' : 'secondary'" icon="check_circle" class="w-full"
                          x-on:click="openCompleteModal({{ \Illuminate\Support\Js::from($payload) }})">
                 {{ $task->status === 'overdue' ? 'Hoàn thành gấp' : 'Hoàn thành' }}
             </x-ui.button>
         @elseif ($task->status === 'pending_confirmation')
-            <p class="flex items-center gap-xs font-body-small text-body-small text-orange-700">
+            <p class="flex items-center gap-xs font-body-small text-body-small text-warning">
                 <span class="material-symbols-outlined text-[16px]" aria-hidden="true">hourglass_empty</span>
                 @if ($report && $report->status === \App\Models\ClassReport::STATUS_PENDING)
                     Đang chờ {{ mb_strtolower($report->confirmerRoleLabel()) }} xác nhận báo cáo trực lớp

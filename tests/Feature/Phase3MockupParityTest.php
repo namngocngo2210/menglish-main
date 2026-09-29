@@ -262,7 +262,7 @@ class Phase3MockupParityTest extends TestCase
             ->assertSee('Nhập tên hoặc mã nhân viên...')
             ->assertSee('Lọc theo bước')
             ->assertSee('Đã chốt lỗi')->assertSee('Đã chốt phạt')->assertSee('Đã khắc phục')->assertSee('Đóng - không phạt')
-            ->assertSee('Bộ lọc nâng cao')
+            ->assertSee('Ngày vi phạm')
             ->assertSee('Bước hiện tại')->assertSee('Trạng thái GV')->assertSee('Nguồn')
             ->assertSee('ID: GV-0492')
             ->assertSee('Thủ công')->assertSee('Tự động')
@@ -549,7 +549,7 @@ class Phase3MockupParityTest extends TestCase
             ->assertSeeInOrder(['GV Mockup P3', 'GV Hạng Hai'])
             ->assertSee('900.000')
             ->assertSee('Số liệu tạm tính — kỳ chưa chốt')
-            ->assertDontSee('9,999,000'); // không lộ thực nhận
+            ->assertDontSee('9.999.000'); // không lộ thực nhận
 
         $this->actingAs($this->admin)->get(route('payroll.kpi-leaderboard', ['period' => '2026-09', 'branch_id' => $other->id]))
             ->assertOk()->assertViewHas('retentionPage', fn ($p) => $p->total() === 1 && $p->first()->user_id === $teacherB->id);
@@ -629,7 +629,7 @@ class Phase3MockupParityTest extends TestCase
             ->assertSee('Các khoản trừ')->assertSee('Đi muộn (Quá 15p)')->assertSee('Lớp MP3-01')
             ->assertSee('Chi tiết buổi dạy')->assertSee('18:00 - 19:30')->assertSee('Cover')->assertSee('300.000')
             ->assertSee('PHIẾU LƯƠNG THÁNG 08/2026')
-            ->assertDontSee('9,876,000');
+            ->assertDontSee('9.876.000');
 
         $this->actingAs($this->teacher)->get(route('portal.my-salary', ['period_id' => $september->id]))->assertNotFound();
     }

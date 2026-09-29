@@ -251,7 +251,7 @@ class Phase2MockupClassesTest extends TestCase
 
         $response = $this->actingAs($staff)->get(route('students.index'))->assertOk()
             ->assertSee('Hồ sơ học sinh')->assertSee('Quản lý và tra cứu thông tin học sinh toàn hệ thống.')
-            ->assertSee('Tổng số học sinh')->assertSee('Tìm học sinh hoặc SĐT...')->assertSee('Lọc dữ liệu')
+            ->assertSee('Tổng số học sinh')->assertSee('Tìm học sinh hoặc SĐT...')->assertSee('role="search"', false)
             ->assertSee('Họ tên &amp; Ngày sinh', false)->assertSee('Thông tin liên hệ')->assertSee('Lớp hiện tại')
             ->assertSee('12/05/2008')->assertSee('namanh@example.com')->assertSee('MK2-01')->assertSee('Chưa có lớp')
             ->assertSee('Chi tiết')->assertSee('Liên kết lớp khác')->assertSee('data-testid="list-link-class-form"', false)
@@ -345,7 +345,7 @@ class Phase2MockupClassesTest extends TestCase
             ->assertSee('Ca dạy lúc 10:00 sắp bắt đầu!')->assertSee('Điểm danh ngay')
             ->assertSee('10:00 - 11:30 • Phòng 204, Cầu Giấy')
             ->assertSee('Học sinh cần chú ý')->assertSee('Học sinh Cần Chú Ý')->assertSee('4.5/10')
-            ->assertSee('Lương tạm tính tháng 10')->assertSee('300.000đ')
+            ->assertSee('Lương tạm tính tháng 10')->assertSee('300.000 đ')
             ->assertSee('Báo cáo chấm công')->assertSee('Vi phạm &amp; Khoản trừ', false)
             ->assertSee(route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $session->id]), false)
             ->assertSee('data-testid="teacher-bottom-nav"', false)->assertSee('Bảng công')->assertSee('Cá nhân')

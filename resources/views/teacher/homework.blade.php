@@ -6,7 +6,7 @@
     $picked = old('categories', $editing ? array_keys($editing->items ?? []) : []);
     $picked = array_values(array_unique(array_merge($picked, $locked)));
     $itemTexts = old('items', $editing?->items ?? []);
-    $input = 'w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20';
+    $input = 'w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50';
     $dueDefault = $editing?->due_at?->format('Y-m-d\TH:i') ?? ($editing?->due_date ? $editing->due_date->format('Y-m-d').'T23:59' : now()->addDays(3)->format('Y-m-d').'T20:00');
 @endphp
 <x-app-layout title="Giao bài tập về nhà — {{ $class->name }}">
@@ -142,7 +142,7 @@
                     <div class="flex shrink-0 items-center gap-xs">
                         <x-ui.button variant="ghost" icon="edit" :href="route('teacher.homework', ['classId' => $class->id, 'edit' => $hw->id])" title="Sửa" aria-label="Sửa {{ $hw->title }}" />
                         @if ($hwLocked === [])
-                            <form method="POST" action="{{ route('teacher.homework.destroy', [$class->id, $hw->id]) }}" onsubmit="return confirm('Xoá bài tập này?');">
+                            <form method="POST" action="{{ route('teacher.homework.destroy', [$class->id, $hw->id]) }}" data-confirm="Xóa bài tập này?" data-confirm-label="Xóa" data-confirm-danger>
                                 @csrf @method('DELETE')
                                 <x-ui.button type="submit" variant="danger-text" icon="delete" title="Xoá" aria-label="Xoá {{ $hw->title }}" />
                             </form>

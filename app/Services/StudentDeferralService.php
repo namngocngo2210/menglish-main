@@ -6,6 +6,7 @@ use App\Models\AdminNotification;
 use App\Models\Student;
 use App\Models\StudentTuition;
 use App\Models\User;
+use App\Support\Money;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -80,7 +81,7 @@ class StudentDeferralService
             $tuition->frozen_debt_amount = $tuition->debt_amount;
             $tuition->notes = trim(($tuition->notes ? $tuition->notes."\n" : '').$stamp
                 .'Bắt đầu bảo lưu: đóng băng '.($stats ? $stats['remaining'].' buổi còn lại' : 'số buổi còn lại').' và công nợ '
-                .number_format((float) $tuition->debt_amount, 0, ',', '.').' VNĐ.');
+                .Money::format((float) $tuition->debt_amount).'.');
             $tuition->save();
 
             $locked->update([

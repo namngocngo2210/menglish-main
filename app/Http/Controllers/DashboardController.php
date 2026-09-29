@@ -16,6 +16,7 @@ use App\Models\SyllabusAdjustmentRequest;
 use App\Models\TuitionReceipt;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -116,7 +117,7 @@ class DashboardController extends Controller
             'title' => $branchIds === null ? 'Tổng quan toàn hệ thống' : 'Tổng quan chi nhánh',
             'scope' => $scopeLabel,
             'stats' => [
-                ['label' => 'Doanh thu tháng '.now()->format('m/Y'), 'value' => number_format((float) $revenue, 0, ',', '.').'đ', 'icon' => 'payments', 'tone' => 'success', 'hint' => 'Tổng phiếu thu đã duyệt'],
+                ['label' => 'Doanh thu tháng '.now()->format('m/Y'), 'value' => Money::format((float) $revenue), 'icon' => 'payments', 'tone' => 'success', 'hint' => 'Tổng phiếu thu đã duyệt'],
                 ['label' => 'Học viên đang học', 'value' => number_format($studying), 'icon' => 'school', 'tone' => 'primary', 'hint' => null],
                 ['label' => 'Lead mới trong tháng', 'value' => number_format($newLeads), 'icon' => 'person_add', 'tone' => 'secondary', 'hint' => null],
                 ['label' => 'Lớp đang chạy', 'value' => number_format($runningClasses), 'icon' => 'co_present', 'tone' => 'default', 'hint' => null],

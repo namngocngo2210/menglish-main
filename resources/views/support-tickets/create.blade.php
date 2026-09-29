@@ -8,7 +8,7 @@
     </x-ui.modal-frame>
 @else
 <x-app-layout>
-    <x-ui.page-header title="Tạo Yêu Cầu Hỗ Trợ (Ticket)" icon="add_task" :back="route('tickets.index')" />
+    <x-ui.page-header title="Tạo yêu cầu hỗ trợ" icon="add_task" :back="route('tickets.index')" />
 
     <div class="max-w-3xl">
         @include('support-tickets._form')

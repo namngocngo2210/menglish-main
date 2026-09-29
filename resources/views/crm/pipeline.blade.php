@@ -1,10 +1,10 @@
 <x-app-layout>
-    @include('crm.partials.header-tabs')
+    @include('crm.partials.header-tabs', ['title' => 'Kanban tuyển sinh'])
 
     {{-- Màu cột theo mockup pipeline-tong-quan-giai-doan (CrmCustomer::stageStyle, chuỗi đầy đủ để Tailwind quét):
          bg-secondary text-secondary border-secondary/20 bg-tertiary text-tertiary border-tertiary/20 bg-primary text-primary border-primary/20
-         bg-blue-600 text-blue-600 border-blue-600/20 bg-purple-600 text-purple-600 border-purple-600/20 bg-orange-500 text-orange-500 border-orange-500/20
-         bg-indigo-600 text-indigo-600 border-indigo-600/20 bg-emerald-600 text-emerald-600 border-emerald-600/20
+         bg-info text-info border-info/20 bg-accent text-accent border-accent/20 bg-warning text-warning border-warning/20
+         bg-info text-info border-info/20 bg-tertiary text-tertiary border-tertiary/20
          border-l-error border-l-warning border-l-tertiary border-l-outline-variant --}}
     <div class="space-y-md" x-data="crmKanban(@js($stagePermissions))">
         {{-- Toast Notification --}}
@@ -53,13 +53,14 @@
                         @drop="onDrop($event, @js($stage['id']))"
                     >
                         {{-- Column Header --}}
-                        <div class="flex items-center justify-between border-b px-xs py-xs {{ $stage['header_border'] }}">
-                            <h3 class="flex items-center gap-sm font-label text-label uppercase {{ $stage['text'] }}">
-                                <span class="h-2 w-2 rounded-full {{ $stage['dot'] }}"></span>
-                                {{ $stage['name'] }} (<span id="badge-count-{{ $stage['id'] }}">{{ $stage['count'] }}</span>)
+                        <div class="flex items-center justify-between gap-xs border-b px-xs py-xs {{ $stage['header_border'] }}">
+                            {{-- Tên + số đếm là một khối chữ (flex gap không chen vào giữa "(" và số) --}}
+                            <h3 class="flex min-w-0 items-center gap-sm font-label text-label uppercase {{ $stage['text'] }}">
+                                <span class="h-2 w-2 shrink-0 rounded-full {{ $stage['dot'] }}"></span>
+                                <span>{{ $stage['name'] }} (<span id="badge-count-{{ $stage['id'] }}">{{ $stage['count'] }}</span>)</span>
                             </h3>
                             @if ((float) $stage['amount_raw'] > 0)
-                                <span class="font-code text-caption text-on-surface-variant" title="Tổng giá trị hợp đồng">{{ $stage['amount'] }}</span>
+                                <span class="shrink-0 whitespace-nowrap font-code text-caption text-on-surface-variant" title="Tổng giá trị hợp đồng">{{ $stage['amount'] }}</span>
                             @endif
                         </div>
 
@@ -99,7 +100,7 @@
                                         <button
                                             type="button"
                                             @click.stop="openStageEdit({{ (int) $lead['id'] }}, @js($lead['name']), @js($stage['id']))"
-                                            class="absolute right-2 top-2 rounded bg-surface-container-low px-1 font-caption text-[10px] text-on-surface-variant opacity-100 transition-opacity hover:text-primary md:opacity-0 md:group-hover:opacity-100"
+                                            class="absolute right-2 top-2 rounded bg-surface-container-low px-1 font-caption text-xs text-on-surface-variant opacity-100 transition-opacity hover:text-primary md:opacity-0 md:group-hover:opacity-100"
                                             title="Sửa giai đoạn"
                                         >Sửa giai đoạn</button>
                                     @endif
@@ -109,7 +110,7 @@
                                             <h4 class="line-clamp-2 font-h3 text-[14px] font-bold uppercase leading-tight text-on-surface">{{ $lead['name'] }}</h4>
                                             <p class="mt-1 font-code text-body-small text-on-surface-variant">{{ $lead['phone'] }}</p>
                                         </div>
-                                        <span class="max-w-[96px] shrink-0 truncate rounded px-sm py-[2px] font-caption text-[10px] font-bold {{ $stage['source_badge'] }}" title="Nguồn: {{ $lead['source'] }}">{{ $lead['source'] }}</span>
+                                        <span class="max-w-[96px] shrink-0 truncate rounded px-sm py-[2px] font-caption text-xs font-bold {{ $stage['source_badge'] }}" title="Nguồn: {{ $lead['source'] }}">{{ $lead['source'] }}</span>
                                     </div>
 
                                     <div class="space-y-1.5 text-body-small">
@@ -183,7 +184,7 @@
                                     @endif
                                 </div>
                             @empty
-                                <p class="px-xs py-md text-center font-caption text-caption text-on-surface-variant/70">Chưa có khách</p>
+                                <p class="px-xs py-md text-center font-caption text-caption text-on-surface-subtle">Chưa có khách</p>
                             @endforelse
                         </div>
 

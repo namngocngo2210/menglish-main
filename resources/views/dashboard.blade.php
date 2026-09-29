@@ -1,6 +1,7 @@
 <x-app-layout>
-    {{-- Tiêu đề "…Admin" chỉ cho bảng điều hành; nhân sự khác (GV, TA…) thấy "Tổng quan" như tên menu. --}}
-    <x-ui.page-header :title="auth()->user()?->can('dashboard.operations') ? 'Bảng Điều Khiển Trung Tâm — MEnglish Admin' : 'Tổng quan'" icon="dashboard" />
+    {{-- Tiêu đề trùng tên menu "Tổng quan"; bảng điều hành (Admin / Quản lý) có thêm dòng mô tả. --}}
+    <x-ui.page-header title="Tổng quan" icon="dashboard"
+                      :description="auth()->user()?->can('dashboard.operations') ? 'Bảng điều hành toàn trung tâm' : null" />
 
     @php
         $user = Auth::user();
@@ -178,7 +179,7 @@
                     $linkTo('Nhiệm vụ hôm nay', 'portal.ta-tasks'),
                     $linkTo('Báo cáo trực lớp', 'tasks.class-reports.create'),
                 ]],
-                [$canSyllabus, 'Syllabus &amp; Giáo trình', 'Soạn giáo trình &amp; Big Test', 'auto_stories', 'bg-purple-50 text-purple-600', 'hover:border-purple-500/50', 'hover:bg-purple-50 hover:text-purple-700', fn () => [
+                [$canSyllabus, 'Syllabus &amp; Giáo trình', 'Soạn giáo trình &amp; Big Test', 'auto_stories', 'bg-accent-container text-accent', 'hover:border-accent/50', 'hover:bg-accent-container hover:text-accent', fn () => [
                     $linkTo('Giáo trình tài liệu', 'syllabus.documents'),
                     $linkTo('Soạn Syllabus', 'syllabus.builder'),
                     $linkTo('Phân phối Big Test', 'syllabus.big-tests.distribution'),
@@ -214,7 +215,7 @@
                                 </div>
                                 <div>
                                     <h3 class="font-bold text-sm text-on-surface">{!! $title !!}</h3>
-                                    <span class="text-[11px] text-on-surface-variant/70">{!! $subtitle !!}</span>
+                                    <span class="text-xs text-on-surface-subtle">{!! $subtitle !!}</span>
                                 </div>
                             </div>
                         </div>

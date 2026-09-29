@@ -361,7 +361,7 @@ class UiSweepTest extends TestCase
         $this->assertStringContainsString('action="'.route('search').'"', $topbar);
         $this->assertStringNotContainsString('Tạo mới', $topbar);
         // Nội dung slot header (tiêu đề + nút) nằm trong trang, topbar chỉ còn tiêu đề chữ thuần.
-        $this->assertStringContainsString('data-topbar-title>Bảng Điều Khiển Trung Tâm — MEnglish Admin<', $topbar);
+        $this->assertStringContainsString('data-topbar-title>Tổng quan<', $topbar);
         $this->assertStringContainsString('data-page-header', $html);
     }
 

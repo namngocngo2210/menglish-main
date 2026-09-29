@@ -92,7 +92,7 @@ class AdminNotification extends Model
             'receipt_rejected', 'overdue_report' => 'bg-error/10 text-error border-error/30',
             'test_today' => 'bg-secondary/10 text-secondary border-secondary/30',
             'urgent_ticket', 'ticket_new' => 'bg-error/10 text-error border-error/30',
-            'ticket_assigned' => 'bg-purple-50 text-purple-700 border-purple-200',
+            'ticket_assigned' => 'bg-accent-container text-accent border-accent/30',
             'ticket_message' => 'bg-secondary/10 text-secondary border-secondary/30',
             'ticket_status' => 'bg-tertiary/10 text-tertiary border-tertiary/30',
             'contract_expiring' => 'bg-warning/10 text-warning border-warning/30',

@@ -58,8 +58,8 @@
                     }
                 },
 
-                clearAllEmails() {
-                    if (confirm('Bạn có chắc chắn muốn xóa toàn bộ email nhận thông báo khỏi danh sách?')) {
+                async clearAllEmails() {
+                    if (await window.confirmDialog({ message: 'Xóa toàn bộ email nhận thông báo khỏi danh sách?', confirmLabel: 'Xóa tất cả', danger: true })) {
                         this.emails = [];
                         this.errorMessage = '';
                     }
@@ -104,13 +104,6 @@
         fromAddress: @js($mailConfig['from_address']),
         fromName: @js($mailConfig['from_name'])
     })">
-        {{-- Top Nav Tabs matching System Config --}}
-        <div class="flex items-center gap-2 border-b border-surface-container-highest pb-2 overflow-x-auto">
-            <x-ui.button variant="secondary" size="sm" icon="account_balance_wallet" :href="route('system-config.bank-accounts')">Tài khoản Ngân hàng</x-ui.button>
-            <x-ui.button variant="secondary" size="sm" icon="notifications_active" :href="route('system-config.debt-reminders')">Mẫu nhắc nợ</x-ui.button>
-            <x-ui.button size="sm" icon="mail" :href="route('system-config.ticket-emails')"><span>Email &amp; SMTP Ticket (<span x-text="emails.length"></span>)</span></x-ui.button>
-            <x-ui.button variant="secondary" size="sm" icon="dns" :href="route('system-config.hosting')">Hosting &amp; Máy chủ</x-ui.button>
-        </div>
 
         {{-- Session Status & Alerts --}}
 
@@ -136,7 +129,7 @@
                                 <x-ui.button variant="danger-text" size="sm" x-show="emails.length > 1" x-on:click="clearAllEmails()">
                                     Xóa tất cả
                                 </x-ui.button>
-                                <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-primary-container/10 text-primary border border-primary-container/30" x-text="emails.length + ' email đã cấu hình'"></span>
+                                <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-primary-container/10 text-primary border border-primary-container/30" x-text="emails.length + ' email đã cấu hình'"></span>
                             </div>
                         </div>
 
@@ -152,7 +145,7 @@
                                         <button 
                                             type="button" 
                                             @click.stop.prevent="removeEmail(idx)" 
-                                            class="w-5 h-5 ml-1 rounded-full bg-surface-container group-hover:bg-error/10 text-on-surface-variant/70 group-hover:text-error flex items-center justify-center transition cursor-pointer"
+                                            class="w-5 h-5 ml-1 rounded-full bg-surface-container group-hover:bg-error/10 text-on-surface-subtle group-hover:text-error flex items-center justify-center transition cursor-pointer"
                                             title="Xóa email này khỏi danh sách"
                                         >
                                             <span class="material-symbols-outlined text-[14px]">close</span>
@@ -162,7 +155,7 @@
                                     </div>
                                 </template>
 
-                                <div x-show="emails.length === 0" class="text-xs text-on-surface-variant/70 italic py-2 px-1 flex items-center gap-1.5">
+                                <div x-show="emails.length === 0" class="text-xs text-on-surface-subtle italic py-2 px-1 flex items-center gap-1.5">
                                     <span class="material-symbols-outlined text-[18px]">info</span>
                                     <span>Chưa có email nào trong danh sách. Hãy nhập email bên dưới và nhấn <strong>Thêm</strong>.</span>
                                 </div>
@@ -181,7 +174,7 @@
                             </div>
 
                             {{-- Error feedback for invalid or duplicate email --}}
-                            <div x-show="errorMessage" x-cloak class="text-[11px] text-error font-semibold flex items-center gap-1">
+                            <div x-show="errorMessage" x-cloak class="text-xs text-error font-semibold flex items-center gap-1">
                                 <span class="material-symbols-outlined text-[14px]">warning</span>
                                 <span x-text="errorMessage"></span>
                             </div>
@@ -189,7 +182,7 @@
 
                         {{-- Quick Suggestions / Presets --}}
                         <div class="pt-1">
-                            <span class="text-[11px] text-on-surface-variant font-medium mr-1.5">Gợi ý thêm nhanh:</span>
+                            <span class="text-xs text-on-surface-variant font-medium mr-1.5">Gợi ý thêm nhanh:</span>
                             <div class="inline-flex flex-wrap gap-1.5 mt-1">
                                 @if(auth()->user()?->email)
                                     <x-ui.button variant="secondary" size="sm" icon="person" x-on:click="addPreset('{{ auth()->user()->email }}')">Email của tôi ({{ auth()->user()->email }})</x-ui.button>
@@ -231,14 +224,14 @@
                             {{-- Host --}}
                             <div>
                                 <x-ui.input label="Máy chủ gửi thư (SMTP Host)" name="mail_host" x-model="host" required placeholder="smtp.gmail.com" class="font-mono" />
-                                <span class="text-[10px] text-on-surface-variant/70 mt-1 block">Gmail: <code>smtp.gmail.com</code> | Mail tên miền: <code>mail.meducation.vn</code></span>
+                                <span class="text-xs text-on-surface-subtle mt-1 block">Gmail: <code>smtp.gmail.com</code> | Mail tên miền: <code>mail.meducation.vn</code></span>
                             </div>
 
                             {{-- Port & Encryption --}}
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <x-ui.input type="number" label="Cổng (Port)" name="mail_port" x-model="port" required placeholder="587" class="font-mono" />
-                                    <span class="text-[10px] text-on-surface-variant/70 mt-1 block">TLS: <code>587</code> | SSL: <code>465</code></span>
+                                    <span class="text-xs text-on-surface-subtle mt-1 block">TLS: <code>587</code> | SSL: <code>465</code></span>
                                 </div>
                                 <div>
                                     <x-ui.select label="Mã hóa (Encryption)" name="mail_encryption" x-model="encryption" class="font-mono">
@@ -252,7 +245,7 @@
                             {{-- Username --}}
                             <div>
                                 <x-ui.input type="email" label="Tài khoản / Email đăng nhập SMTP" name="mail_username" x-model="username" required placeholder="tech.vmst@gmail.com" class="font-mono" />
-                                <span class="text-[10px] text-on-surface-variant/70 mt-1 block">Tài khoản email dùng để xác thực với máy chủ SMTP</span>
+                                <span class="text-xs text-on-surface-subtle mt-1 block">Tài khoản email dùng để xác thực với máy chủ SMTP</span>
                             </div>
 
                             {{-- Password / App Password --}}
@@ -262,7 +255,7 @@
                                     <button 
                                         type="button" 
                                         @click="showPassword = !showPassword" 
-                                        class="text-[11px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                                        class="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer"
                                     >
                                         <span class="material-symbols-outlined text-[13px]" x-text="showPassword ? 'visibility_off' : 'visibility'"></span>
                                         <span x-text="showPassword ? 'Ẩn' : 'Hiện'"></span>
@@ -273,25 +266,25 @@
                                         placeholder="{{ $mailConfig['has_password'] ? '•••••••••••••••• (Đã cấu hình mật khẩu, nhập mới nếu muốn đổi)' : 'Nhập 16 ký tự Mật khẩu ứng dụng Gmail...' }}"
                                         class="font-mono pr-8" />
                                 </div>
-                                <span class="text-[10px] text-on-surface-variant/70 mt-1 block">Đối với @gmail.com: dùng <strong>Mật khẩu ứng dụng 16 ký tự</strong> (không dùng mật khẩu đăng nhập cá nhân)</span>
+                                <span class="text-xs text-on-surface-subtle mt-1 block">Đối với @gmail.com: dùng <strong>Mật khẩu ứng dụng 16 ký tự</strong> (không dùng mật khẩu đăng nhập cá nhân)</span>
                             </div>
 
                             {{-- From Address --}}
                             <div>
                                 <x-ui.input type="email" label="Email người gửi hiển thị (From Address)" name="mail_from_address" x-model="fromAddress" placeholder="tech.vmst@gmail.com" class="font-mono" />
-                                <span class="text-[10px] text-on-surface-variant/70 mt-1 block">Thường để trùng với email đăng nhập ở trên</span>
+                                <span class="text-xs text-on-surface-subtle mt-1 block">Thường để trùng với email đăng nhập ở trên</span>
                             </div>
 
                             {{-- From Name --}}
                             <div>
                                 <x-ui.input label="Tên người gửi hiển thị (From Name)" name="mail_from_name" x-model="fromName" placeholder="MEnglish Support" />
-                                <span class="text-[10px] text-on-surface-variant/70 mt-1 block">Tên hiển thị trong hộp thư người nhận (ví dụ: MEnglish Support)</span>
+                                <span class="text-xs text-on-surface-subtle mt-1 block">Tên hiển thị trong hộp thư người nhận (ví dụ: MEnglish Support)</span>
                             </div>
                         </div>
 
                         {{-- Guide on Gmail App Password --}}
                         <x-ui.alert type="warning" title="Hướng dẫn lấy Mật khẩu ứng dụng (App Password) cho tài khoản @gmail.com:" class="text-xs">
-                            <ol class="list-decimal list-inside space-y-1 text-[11px] pl-1 leading-relaxed">
+                            <ol class="list-decimal list-inside space-y-1 text-xs pl-1 leading-relaxed">
                                 <li>Truy cập <a href="https://myaccount.google.com/security" target="_blank" class="text-secondary underline font-semibold">myaccount.google.com/security</a> ➔ Đảm bảo đã bật <strong>Xác minh 2 bước (2-Step Verification)</strong>.</li>
                                 <li>Vào mục <strong>Mật khẩu ứng dụng (App Passwords)</strong> (hoặc gõ tìm kiếm "App Passwords" ở thanh tìm kiếm trên trang Google).</li>
                                 <li>Đặt tên ứng dụng là <code>MEnglish</code> rồi bấm <strong>Tạo (Create)</strong>.</li>
@@ -312,7 +305,7 @@
 
                         {{-- Group 1: Tickets & Support --}}
                         <div class="space-y-3">
-                            <div class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant/70 flex items-center gap-1.5">
+                            <div class="text-xs font-bold uppercase tracking-wider text-on-surface-subtle flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-[16px] text-primary">confirmation_number</span>
                                 <span>1. Hỗ trợ Kỹ thuật &amp; Ticket</span>
                             </div>
@@ -331,7 +324,7 @@
                                         <span>Khi có Ticket mới được tạo</span>
                                         <x-ui.badge color="warning" :pill="true">Khuyên dùng</x-ui.badge>
                                     </div>
-                                    <p class="text-[11px] text-on-surface-variant mt-0.5">Gửi email kèm mã ticket, phân loại, mức độ ưu tiên và mô tả chi tiết ngay khi có ticket mới.</p>
+                                    <p class="text-xs text-on-surface-variant mt-0.5">Gửi email kèm mã ticket, phân loại, mức độ ưu tiên và mô tả chi tiết ngay khi có ticket mới.</p>
                                 </div>
                             </label>
 
@@ -346,7 +339,7 @@
                                 />
                                 <div>
                                     <div class="text-xs font-bold text-on-surface">Khi có phản hồi / tin nhắn trao đổi mới</div>
-                                    <p class="text-[11px] text-on-surface-variant mt-0.5">Gửi email thông báo nội dung trao đổi mới nhất để các bên nắm tiến độ mà không cần mở trang web liên tục.</p>
+                                    <p class="text-xs text-on-surface-variant mt-0.5">Gửi email thông báo nội dung trao đổi mới nhất để các bên nắm tiến độ mà không cần mở trang web liên tục.</p>
                                 </div>
                             </label>
 
@@ -361,14 +354,14 @@
                                 />
                                 <div>
                                     <div class="text-xs font-bold text-on-surface">Khi cập nhật trạng thái Ticket (Đang xử lý, Hoàn thành, Đóng)</div>
-                                    <p class="text-[11px] text-on-surface-variant mt-0.5">Bắn email thông báo người thực hiện và tiến độ giải quyết sự cố đến các bên liên quan.</p>
+                                    <p class="text-xs text-on-surface-variant mt-0.5">Bắn email thông báo người thực hiện và tiến độ giải quyết sự cố đến các bên liên quan.</p>
                                 </div>
                             </label>
                         </div>
 
                         {{-- Group 2: CRM & Leads --}}
                         <div class="space-y-3 pt-2 border-t border-surface-container-highest">
-                            <div class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant/70 flex items-center gap-1.5">
+                            <div class="text-xs font-bold uppercase tracking-wider text-on-surface-subtle flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-[16px] text-secondary">campaign</span>
                                 <span>2. CRM &amp; Tuyển sinh</span>
                             </div>
@@ -387,14 +380,14 @@
                                         <span>Khi có thông báo Lead CRM trễ / sót chăm sóc (&gt;24h)</span>
                                         <x-ui.badge color="error" :pill="true">Cảnh báo</x-ui.badge>
                                     </div>
-                                    <p class="text-[11px] text-on-surface-variant mt-0.5">Bắn email cảnh báo khi khách hàng tiềm năng tiếp nhận quá 24 giờ mà chưa được nhân sự liên hệ chăm sóc.</p>
+                                    <p class="text-xs text-on-surface-variant mt-0.5">Bắn email cảnh báo khi khách hàng tiềm năng tiếp nhận quá 24 giờ mà chưa được nhân sự liên hệ chăm sóc.</p>
                                 </div>
                             </label>
                         </div>
 
                         {{-- Group 3: Financial & Transactions --}}
                         <div class="space-y-3 pt-2 border-t border-surface-container-highest">
-                            <div class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant/70 flex items-center gap-1.5">
+                            <div class="text-xs font-bold uppercase tracking-wider text-on-surface-subtle flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-[16px] text-tertiary">payments</span>
                                 <span>3. Tài chính &amp; Thu chi (Giao dịch)</span>
                             </div>
@@ -413,7 +406,7 @@
                                         <span>Khi có giao dịch thanh toán / phiếu thu mới (SePay, Chuyển khoản, Tiền mặt)</span>
                                         <x-ui.badge color="success" :pill="true">Kế toán</x-ui.badge>
                                     </div>
-                                    <p class="text-[11px] text-on-surface-variant mt-0.5">Bắn email thông báo số tiền, mã phiếu thu và thông tin học viên ngay khi có giao dịch thanh toán được ghi nhận.</p>
+                                    <p class="text-xs text-on-surface-variant mt-0.5">Bắn email thông báo số tiền, mã phiếu thu và thông tin học viên ngay khi có giao dịch thanh toán được ghi nhận.</p>
                                 </div>
                             </label>
 
@@ -431,14 +424,14 @@
                                         <span>Khi có phiếu thu trễ hẹn / học viên quá hạn đóng học phí</span>
                                         <x-ui.badge color="warning" :pill="true">Nhắc nợ</x-ui.badge>
                                     </div>
-                                    <p class="text-[11px] text-on-surface-variant mt-0.5">Bắn email thông báo danh sách học viên và số tiền trễ hạn khi kích hoạt gửi nhắc nợ hoặc quét công nợ quá hạn.</p>
+                                    <p class="text-xs text-on-surface-variant mt-0.5">Bắn email thông báo danh sách học viên và số tiền trễ hạn khi kích hoạt gửi nhắc nợ hoặc quét công nợ quá hạn.</p>
                                 </div>
                             </label>
                         </div>
 
                         {{-- Group 4: Academic & Homework --}}
                         <div class="space-y-3 pt-2 border-t border-surface-container-highest">
-                            <div class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant/70 flex items-center gap-1.5">
+                            <div class="text-xs font-bold uppercase tracking-wider text-on-surface-subtle flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-[16px] text-secondary">school</span>
                                 <span>4. Học vụ &amp; Đào tạo (Học viên &amp; Lớp học)</span>
                             </div>
@@ -457,7 +450,7 @@
                                         <span>Khi có học viên nộp bài / trễ nộp bài tập hoặc kiểm tra</span>
                                         <x-ui.badge color="secondary" :pill="true">Học vụ</x-ui.badge>
                                     </div>
-                                    <p class="text-[11px] text-on-surface-variant mt-0.5">Bắn email thông báo khi học viên nộp bài thi trên Portal, nộp bài tập video/ghi âm hoặc có cảnh báo trễ hạn nộp bài.</p>
+                                    <p class="text-xs text-on-surface-variant mt-0.5">Bắn email thông báo khi học viên nộp bài thi trên Portal, nộp bài tập video/ghi âm hoặc có cảnh báo trễ hạn nộp bài.</p>
                                 </div>
                             </label>
                         </div>
@@ -481,7 +474,7 @@
                         <span class="material-symbols-outlined text-primary text-[22px]">science</span>
                         <div>
                             <h3 class="text-sm font-bold text-on-surface">Gửi Thử Nghiệm (Test Email)</h3>
-                            <p class="text-[11px] text-on-surface-variant">Bắn email thử để kiểm tra kết nối SMTP và tài khoản vừa cấu hình</p>
+                            <p class="text-xs text-on-surface-variant">Bắn email thử để kiểm tra kết nối SMTP và tài khoản vừa cấu hình</p>
                         </div>
                     </div>
 
@@ -495,7 +488,7 @@
                     </form>
 
                     @if (is_array($testResult = session('test_mail_result')))
-                        <x-ui.alert :type="$testResult['ok'] ? 'success' : 'error'" :title="$testResult['ok'] ? 'Kết quả gửi thử: thành công' : 'Kết quả gửi thử: thất bại'" class="text-[11px] leading-relaxed">
+                        <x-ui.alert :type="$testResult['ok'] ? 'success' : 'error'" :title="$testResult['ok'] ? 'Kết quả gửi thử: thành công' : 'Kết quả gửi thử: thất bại'" class="text-xs leading-relaxed">
                             <p>{{ $testResult['message'] }}</p>
                             @if (! empty($testResult['detail']))
                                 <p class="mt-1 font-mono break-all">Chi tiết: {{ $testResult['detail'] }}</p>
@@ -513,18 +506,18 @@
                         <span class="material-symbols-outlined text-primary text-[22px]">dns</span>
                         <div>
                             <h3 class="text-sm font-bold text-on-surface">Trạng Thái Kết Nối SMTP</h3>
-                            <p class="text-[11px] text-on-surface-variant">Thông số gửi thư đang áp dụng</p>
+                            <p class="text-xs text-on-surface-variant">Thông số gửi thư đang áp dụng</p>
                         </div>
                     </div>
 
                     <div class="space-y-2 text-xs">
                         <div class="flex justify-between items-center py-1 border-b border-surface-container-highest">
                             <span class="text-on-surface-variant">Trình gửi (Driver):</span>
-                            <span class="font-mono font-bold text-on-surface uppercase px-2 py-0.5 rounded bg-surface-container text-[10px]">{{ $mailConfig['driver'] }}</span>
+                            <span class="font-mono font-bold text-on-surface uppercase px-2 py-0.5 rounded bg-surface-container text-xs">{{ $mailConfig['driver'] }}</span>
                         </div>
                         <div class="flex justify-between items-center py-1 border-b border-surface-container-highest">
                             <span class="text-on-surface-variant">Máy chủ SMTP (Host):</span>
-                            <span class="font-mono text-on-surface text-[11px] font-bold">{{ $mailConfig['host'] ?? 'smtp.gmail.com' }}</span>
+                            <span class="font-mono text-on-surface text-xs font-bold">{{ $mailConfig['host'] ?? 'smtp.gmail.com' }}</span>
                         </div>
                         <div class="flex justify-between items-center py-1 border-b border-surface-container-highest">
                             <span class="text-on-surface-variant">Cổng kết nối (Port):</span>
@@ -532,11 +525,11 @@
                         </div>
                         <div class="flex justify-between items-center py-1 border-b border-surface-container-highest">
                             <span class="text-on-surface-variant">Giao thức mã hóa:</span>
-                            <span class="font-mono text-on-surface uppercase text-[11px]">{{ $mailConfig['encryption'] ?? 'TLS' }}</span>
+                            <span class="font-mono text-on-surface uppercase text-xs">{{ $mailConfig['encryption'] ?? 'TLS' }}</span>
                         </div>
                         <div class="flex justify-between items-center py-1 border-b border-surface-container-highest">
                             <span class="text-on-surface-variant">Tài khoản SMTP:</span>
-                            <span class="font-mono text-on-surface text-[11px] truncate max-w-[150px]" title="{{ $mailConfig['username'] }}">{{ $mailConfig['username'] ?: 'Chưa cấu hình' }}</span>
+                            <span class="font-mono text-on-surface text-xs truncate max-w-[150px]" title="{{ $mailConfig['username'] }}">{{ $mailConfig['username'] ?: 'Chưa cấu hình' }}</span>
                         </div>
                         <div class="flex justify-between items-center py-1 border-b border-surface-container-highest">
                             <span class="text-on-surface-variant">Mật khẩu ứng dụng:</span>
@@ -544,7 +537,7 @@
                         </div>
                         <div class="flex justify-between items-center py-1 border-b border-surface-container-highest">
                             <span class="text-on-surface-variant">Địa chỉ người gửi:</span>
-                            <span class="font-mono text-on-surface text-[11px] truncate max-w-[150px]" title="{{ $mailConfig['from_address'] }}">{{ $mailConfig['from_address'] ?? 'noreply' }}</span>
+                            <span class="font-mono text-on-surface text-xs truncate max-w-[150px]" title="{{ $mailConfig['from_address'] }}">{{ $mailConfig['from_address'] ?? 'noreply' }}</span>
                         </div>
                         <div class="flex justify-between items-center py-1">
                             <span class="text-on-surface-variant">Tên người gửi:</span>
@@ -552,7 +545,7 @@
                         </div>
                     </div>
 
-                    <x-ui.alert type="info" class="text-[11px] leading-relaxed">
+                    <x-ui.alert type="info" class="text-xs leading-relaxed">
                         <strong>Lưu ý:</strong> Sau khi nhập Mật khẩu ứng dụng Gmail và nhấn <strong>Lưu Cấu Hình</strong>, bạn hãy dùng khung <strong>Gửi Thử Nghiệm</strong> ở trên để xác nhận email gửi đi thành công mà không cần kiểm tra log server.
                     </x-ui.alert>
                 </div>

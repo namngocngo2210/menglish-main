@@ -60,6 +60,14 @@
             <x-ui.stat-card label="Quá hạn" :value="$counts['overdue']" icon="warning" tone="error" />
         </div>
 
+        {{-- Giữ tab + trạng thái đang chọn khi lọc; "Xóa lọc" quay về tab hiện tại --}}
+        <x-ui.filter-bar :action="route('tasks.index')" search="q" placeholder="Tìm công việc, nhân sự..." :reset-url="route('tasks.index', ['tab' => $tab])">
+            <input type="hidden" name="tab" value="{{ $tab }}">
+            <input type="hidden" name="status" value="{{ $status }}">
+            <x-ui.select name="task_type" label="Loại công việc" :options="['one_time' => 'Phát sinh', 'recurring' => 'Lặp đi lặp lại']" :value="$taskType === 'all' ? null : $taskType"
+                         placeholder="Mọi loại" onchange="this.form.submit()" />
+        </x-ui.filter-bar>
+
         <x-ui.data-table min-width="880px">
             <x-slot:header>
                 <div class="flex w-full flex-col gap-sm">
@@ -71,13 +79,6 @@
                                 <x-ui.tab :href="route('tasks.index', array_merge(request()->except('page'), ['tab' => 'all']))" :active="$tab === 'all'" :count="$counts['all']">Tất cả</x-ui.tab>
                             @endif
                         </x-ui.tabs>
-                        <form method="GET" action="{{ route('tasks.index') }}" class="flex flex-wrap items-center gap-sm">
-                            <input type="hidden" name="tab" value="{{ $tab }}">
-                            <input type="hidden" name="status" value="{{ $status }}">
-                            <x-ui.select name="task_type" :options="['one_time' => 'Phát sinh', 'recurring' => 'Lặp đi lặp lại']" :value="$taskType === 'all' ? null : $taskType"
-                                         placeholder="Mọi loại" onchange="this.form.submit()" aria-label="Loại công việc" />
-                            <x-ui.input name="q" :value="$search" icon="search" placeholder="Tìm công việc, nhân sự..." aria-label="Tìm kiếm" />
-                        </form>
                     </div>
                     <div class="flex flex-wrap items-center gap-xs">
                         <span class="mr-xs font-body-small text-body-small text-on-surface-variant">Trạng thái:</span>

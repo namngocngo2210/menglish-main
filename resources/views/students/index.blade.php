@@ -30,29 +30,24 @@
 
 
         {{-- Bộ lọc --}}
-        <form method="GET" action="{{ route('students.index') }}" role="search"
-              class="mb-lg space-y-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
-            <div class="grid grid-cols-1 items-end gap-md md:grid-cols-[2fr_1fr_1fr_auto]">
-                <x-ui.input type="search" name="search" id="st_search" label="Tìm kiếm" icon="search" :value="request('search')" placeholder="Tìm học sinh hoặc SĐT..." />
-                <x-ui.select name="branch_id" label="Chi nhánh" :options="$branches->pluck('name', 'id')" placeholder="Tất cả chi nhánh" />
-                <x-ui.select name="class_id" label="Lớp học" :options="$classes->pluck('name', 'id')" placeholder="Tất cả các lớp" aria-label="Lọc theo lớp" />
-                <x-ui.button type="submit" icon="filter_list">Lọc dữ liệu</x-ui.button>
-            </div>
-            <div class="flex flex-wrap items-center gap-sm">
-                <span class="font-label-caps text-label-caps uppercase text-on-surface-variant">Trạng thái</span>
-                @foreach (\App\Models\Student::STATUSES as $statusKey => $statusLabel)
-                    <label class="cursor-pointer">
-                        <input type="checkbox" name="statuses[]" value="{{ $statusKey }}" @checked(in_array($statusKey, $statuses, true)) class="peer sr-only" onchange="this.form.submit()">
-                        <span class="inline-flex items-center gap-xs rounded-full border border-outline-variant px-md py-xs font-body-small text-body-small text-on-surface-variant transition peer-checked:border-primary-container peer-checked:bg-primary-container/10 peer-checked:font-semibold peer-checked:text-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary-container/40">
-                            {{ $statusLabel }}
-                        </span>
-                    </label>
-                @endforeach
-                @if (collect(request()->only(['search', 'branch_id', 'class_id', 'status', 'statuses']))->filter()->isNotEmpty())
-                    <x-ui.button variant="ghost" size="sm" icon="filter_alt_off" :href="route('students.index')" class="ml-auto">Xóa lọc</x-ui.button>
-                @endif
-            </div>
-        </form>
+        <x-ui.filter-bar :action="route('students.index')" search="search" placeholder="Tìm học sinh hoặc SĐT...">
+            {{-- Lọc nhanh theo 6 trạng thái (chọn là lọc ngay) --}}
+            <x-slot:quick>
+                <div class="flex flex-wrap items-center gap-sm">
+                    <span class="font-label-caps text-label-caps uppercase text-on-surface-variant">Trạng thái</span>
+                    @foreach (\App\Models\Student::STATUSES as $statusKey => $statusLabel)
+                        <label class="cursor-pointer">
+                            <input type="checkbox" name="statuses[]" value="{{ $statusKey }}" @checked(in_array($statusKey, $statuses, true)) class="peer sr-only" onchange="this.form.submit()">
+                            <span class="inline-flex items-center gap-xs rounded-full border border-outline-variant px-md py-xs font-body-small text-body-small text-on-surface-variant transition peer-checked:border-primary-container peer-checked:bg-primary-container/10 peer-checked:font-semibold peer-checked:text-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary-container/40">
+                                {{ $statusLabel }}
+                            </span>
+                        </label>
+                    @endforeach
+                </div>
+            </x-slot:quick>
+            <x-ui.select name="branch_id" label="Chi nhánh" :options="$branches->pluck('name', 'id')" placeholder="Tất cả chi nhánh" />
+            <x-ui.select name="class_id" label="Lớp học" :options="$classes->pluck('name', 'id')" placeholder="Tất cả các lớp" />
+        </x-ui.filter-bar>
 
         <x-ui.data-table min-width="900px">
             <table>
@@ -74,14 +69,14 @@
                                     <span class="min-w-0">
                                         <span class="block font-body-medium text-body-medium font-semibold text-on-surface hover:text-primary">{{ $st->name }}</span>
                                         <span class="block font-caption text-caption text-on-surface-variant">
-                                            {{ $st->dob ? $st->dob->format('d/m/Y') : 'Chưa có ngày sinh' }} · <span class="font-code">{{ $st->code }}</span>
+                                            {{ $st->dob ? $st->dob->format('d/m/Y') : 'Chưa có ngày sinh' }} · <x-ui.code :value="$st->code" class="font-code" />
                                         </span>
                                     </span>
                                 </a>
                             </td>
                             <td>
                                 <p class="font-code text-code text-on-surface">{{ $st->phone ?: '—' }}</p>
-                                <p class="font-caption text-caption text-on-surface-variant">{{ $st->email ?: 'Chưa có email' }}</p>
+                                <p class="font-caption text-caption text-on-surface-variant">{{ $st->email && ! \App\Models\User::isGeneratedStudentEmail($st->email) ? $st->email : 'Chưa có email' }}</p>
                             </td>
                             <td>
                                 @if ($st->currentClass)

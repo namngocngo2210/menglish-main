@@ -424,7 +424,7 @@ class LargeModalFlowsTest extends TestCase
 
         $response = $this->actingAs($this->admin)->post(route('tuition.receipts.store'), $payload, self::HX);
         $receipt = TuitionReceipt::firstOrFail();
-        $this->assertSaved($response, 'tuition-receipts-changed', "Đã gửi duyệt phiếu thu {$receipt->receipt_number} (Số tiền: 4.500.000 VNĐ) lên cấp Quản lý / Kế toán!");
+        $this->assertSaved($response, 'tuition-receipts-changed', "Đã gửi duyệt phiếu thu {$receipt->receipt_number} (Số tiền: 4.500.000 đ) lên cấp Quản lý / Kế toán!");
         $this->assertSame(TuitionReceipt::STATUS_PENDING, $receipt->status);
 
         // Request thường: lỗi nghiệp vụ vẫn redirect back kèm lỗi + dữ liệu cũ.

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
@@ -161,6 +162,25 @@ class User extends Authenticatable
     public function isPortalStudentOnly(): bool
     {
         return $this->can('portal.student') && ! $this->can('portal.staff');
+    }
+
+    /** Domain của email đăng nhập hệ thống tự sinh cho học viên chưa có email thật (mã HV + domain này). */
+    public const STUDENT_EMAIL_DOMAIN = 'student.menglish.edu.vn';
+
+    public static function isGeneratedStudentEmail(?string $email): bool
+    {
+        return str_ends_with(Str::lower((string) $email), '@'.self::STUDENT_EMAIL_DOMAIN);
+    }
+
+    /**
+     * Tên đăng nhập để hiển thị / bàn giao: email tự sinh của học viên không phải email thật và khó gõ,
+     * nên hiển thị mã học viên (màn đăng nhập nhận cả mã, xem LoginRequest). Còn lại là email.
+     */
+    public function loginIdentifier(): string
+    {
+        return self::isGeneratedStudentEmail($this->email) && $this->employee_code
+            ? (string) $this->employee_code
+            : (string) $this->email;
     }
 
     public function isLocked(): bool

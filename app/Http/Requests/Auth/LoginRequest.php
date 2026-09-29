@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -28,7 +29,8 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email'],
+            // Ô "email" nhận email hoặc mã tài khoản (mã học viên HV-… / mã nhân sự ME-…).
+            'email' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
         ];
     }
@@ -42,7 +44,9 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        $credentials = ['email' => $this->loginEmail(), 'password' => $this->string('password')->toString()];
+
+        if (! Auth::attempt($credentials, $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
             activity('auth')
@@ -73,6 +77,21 @@ class LoginRequest extends FormRequest
         activity('auth')->causedBy($user)->log('Đăng nhập thành công');
 
         RateLimiter::clear($this->throttleKey());
+    }
+
+    /**
+     * Email dùng để đăng nhập: nhập email thì dùng nguyên; nhập mã tài khoản (không có "@") thì tra email của
+     * tài khoản có mã đó (không phân biệt hoa thường). Không tìm thấy → trả lại chuỗi đã nhập để đăng nhập thất bại bình thường.
+     */
+    private function loginEmail(): string
+    {
+        $login = trim($this->string('email')->toString());
+
+        if ($login === '' || str_contains($login, '@')) {
+            return $login;
+        }
+
+        return User::query()->whereRaw('UPPER(employee_code) = ?', [Str::upper($login)])->value('email') ?? $login;
     }
 
     /**
