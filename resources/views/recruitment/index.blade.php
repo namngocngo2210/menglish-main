@@ -59,7 +59,7 @@
                         <tbody>
                             @forelse($candidates as $can)
                                 @php $badge = $can->statusBadge(); @endphp
-                                <tr x-data="{ openEdit: false }">
+                                <tr>
                                     <td>
                                         <span class="block text-sm font-bold text-on-surface">{{ $can->full_name }}</span>
                                         <div class="mt-0.5 flex items-center gap-2 text-xs text-on-surface-variant">
@@ -94,20 +94,7 @@
                                         <p class="line-clamp-2 whitespace-pre-line text-xs text-on-surface-variant">{{ $can->notes ?: 'Chưa có ghi chú' }}</p>
                                     </td>
                                     <td class="text-right">
-                                        <x-ui.button variant="secondary" size="sm" x-on:click="openEdit = !openEdit">Cập nhật</x-ui.button>
-
-                                        {{-- Dropdown Update Status Modal/Popover --}}
-                                        <div x-show="openEdit" x-cloak class="absolute right-4 z-20 mt-2 w-64 space-y-2 rounded-xl border border-surface-container-highest bg-surface-container-lowest p-3 text-left shadow-lg">
-                                            <form action="{{ route('recruitment.cv.update-status', $can->id) }}" method="POST" class="space-y-2">
-                                                @csrf
-                                                <x-ui.select name="status" id="cv_status_{{ $can->id }}" label="Trạng thái mới" :value="$can->status" :options="$cvStatusOptions" />
-                                                <x-ui.textarea name="notes" id="cv_notes_{{ $can->id }}" label="Ghi chú" rows="2" placeholder="Ghi chú đánh giá, lịch hẹn PV..." />
-                                                <div class="flex items-center justify-end gap-1.5 pt-1">
-                                                    <x-ui.button variant="ghost" size="sm" x-on:click="openEdit = false">Đóng</x-ui.button>
-                                                    <x-ui.button type="submit" size="sm">Lưu</x-ui.button>
-                                                </div>
-                                            </form>
-                                        </div>
+                                        <x-ui.button variant="secondary" size="sm" x-on:click="$dispatch('open-modal', 'cv-status-{{ $can->id }}')" aria-label="Cập nhật hồ sơ {{ $can->full_name }}">Cập nhật</x-ui.button>
                                     </td>
                                 </tr>
                             @empty
@@ -121,6 +108,22 @@
                         <x-ui.pagination :paginator="$candidates" unit="hồ sơ" />
                     </x-slot:footer>
                 </x-ui.data-table>
+
+                {{-- Cập nhật trạng thái hồ sơ: modal riêng từng ứng viên (không bung popover trong bảng). --}}
+                @foreach($candidates as $can)
+                    <x-ui.modal :name="'cv-status-'.$can->id" :title="'Cập nhật hồ sơ · '.$can->full_name" max-width="md" :show="old('_modal') === 'cv-status-'.$can->id">
+                        <form id="cv-status-form-{{ $can->id }}" action="{{ route('recruitment.cv.update-status', $can->id) }}" method="POST" class="space-y-md">
+                            @csrf
+                            <input type="hidden" name="_modal" value="cv-status-{{ $can->id }}">
+                            <x-ui.select name="status" id="cv_status_{{ $can->id }}" label="Trạng thái mới" :value="$can->status" :options="$cvStatusOptions" />
+                            <x-ui.textarea name="notes" id="cv_notes_{{ $can->id }}" label="Ghi chú" rows="3" placeholder="Ghi chú đánh giá, lịch hẹn PV..." />
+                        </form>
+                        <x-slot:footer>
+                            <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'cv-status-{{ $can->id }}')">Hủy</x-ui.button>
+                            <x-ui.button type="submit" form="cv-status-form-{{ $can->id }}" icon="save">Lưu</x-ui.button>
+                        </x-slot:footer>
+                    </x-ui.modal>
+                @endforeach
             @endif
 
             @if($tab === 'jobs')

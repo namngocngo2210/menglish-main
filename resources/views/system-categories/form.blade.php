@@ -1,4 +1,4 @@
-{{-- Thêm/Sửa danh mục: mở từ danh sách → modal (htmx); mở thẳng URL create → trang thêm riêng (sửa: panel ở trang danh sách). --}}
+{{-- Thêm/Sửa danh mục: mở từ danh sách → modal (htmx); mở thẳng URL create → trang thêm riêng (sửa: modal mở sẵn ở trang danh sách, ?edit=). --}}
 @if ($asModal)
     <x-ui.modal-frame :title="$category->exists ? 'Sửa giá trị danh mục' : 'Thêm danh mục mới'"
                       description="Cấu hình các tham số nền tảng của hệ thống MENGLISH.">

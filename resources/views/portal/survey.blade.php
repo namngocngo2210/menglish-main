@@ -12,14 +12,10 @@
     {{-- Mobile Frame for Survey --}}
     <div class="max-w-[430px] md:max-w-4xl mx-auto bg-surface-container-lowest min-h-[844px] md:min-h-0 shadow-2xl md:shadow-sm rounded-3xl border border-surface-container-highest overflow-hidden flex flex-col relative pb-24 md:pb-6 my-4"
          x-data="{
-            selectedSurvey: 'Đánh giá chất lượng cơ sở vật chất tháng 10',
-            feedbackText: '',
-            isSubmitting: false,
+            selectedSurvey: @js((string) old('survey_title', '')),
             select(title) {
                 this.selectedSurvey = title;
-                $nextTick(() => {
-                    document.getElementById('feedback-textarea')?.focus();
-                });
+                $dispatch('open-modal', 'survey-response');
             }
          }">
 
@@ -57,65 +53,25 @@
             {{-- Section 1: Khảo sát đang mở --}}
             <section class="space-y-2">
                 <h3 class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Khảo sát đang mở</h3>
+                @if (! empty($surveys))<p class="text-xs text-on-surface-variant">Bấm vào một khảo sát để gửi phản hồi.</p>@endif
 
-                @foreach($surveys as $idx => $srv)
-                    <button type="button"
-                            @click="select('{{ $srv['title'] }}')"
-                            class="w-full text-left bg-surface-container-lowest rounded-xl p-3.5 transition-all relative overflow-hidden border shadow-2xs hover:bg-primary-container/10"
-                            :class="selectedSurvey === '{{ $srv['title'] }}' ? 'border-primary-container ring-1 ring-primary-container/20' : 'border-surface-container-highest'">
-                        <div x-show="selectedSurvey === '{{ $srv['title'] }}'" class="absolute left-0 top-0 bottom-0 w-1 bg-primary-container rounded-l-xl"></div>
-                        <div class="flex justify-between items-start gap-2">
+                @forelse($surveys as $srv)
+                    <button type="button" @click="select(@js($srv['title']))"
+                            class="w-full rounded-xl border border-surface-container-highest bg-surface-container-lowest p-3.5 text-left shadow-2xs transition-all hover:bg-primary-container/10">
+                        <div class="flex items-start justify-between gap-2">
                             <div class="pr-2">
-                                <h4 class="text-xs font-bold text-on-surface mb-1 leading-snug">{{ $srv['title'] }}</h4>
-                                <p class="text-xs flex items-center gap-1 {{ !empty($srv['is_urgent']) ? 'text-error font-semibold' : 'text-on-surface-variant' }}">
+                                <h4 class="mb-1 text-xs font-bold leading-snug text-on-surface">{{ $srv['title'] }}</h4>
+                                <p class="flex items-center gap-1 text-xs {{ !empty($srv['is_urgent']) ? 'text-error font-semibold' : 'text-on-surface-variant' }}">
                                     <span class="material-symbols-outlined text-[13px]">event</span>
                                     <span>{{ $srv['status_text'] }}</span>
                                 </p>
                             </div>
-                            <span class="material-symbols-outlined text-lg shrink-0"
-                                  :class="selectedSurvey === '{{ $srv['title'] }}' ? 'text-primary' : 'text-on-surface-subtle'"
-                                  x-text="selectedSurvey === '{{ $srv['title'] }}' ? 'radio_button_checked' : 'radio_button_unchecked'">
-                            </span>
+                            <span class="material-symbols-outlined shrink-0 text-lg text-on-surface-subtle" aria-hidden="true">chevron_right</span>
                         </div>
                     </button>
-                @endforeach
-            </section>
-
-            {{-- Section 2: Form Phản Hồi --}}
-            <section class="bg-surface-container-low/80 border border-surface-container-highest rounded-2xl p-4 shadow-2xs space-y-3">
-                <div class="border-b border-surface-container-highest pb-2.5">
-                    <h3 class="text-xs font-bold text-on-surface">Nội dung phản hồi</h3>
-                    <p class="text-xs text-on-surface-variant mt-0.5">
-                        Đang phản hồi cho: <span class="font-bold text-primary" x-text="selectedSurvey"></span>
-                    </p>
-                </div>
-
-                <form action="{{ route('portal.student.survey.store') }}" method="POST" class="space-y-3">
-                    @csrf
-                    <input type="hidden" name="student_id" value="{{ $student?->id ?? 1 }}">
-                    <input type="hidden" name="survey_title" :value="selectedSurvey">
-
-                    <div>
-                        <label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
-                            MỨC ĐỘ HÀI LÒNG CHUNG
-                        </label>
-                        <div class="flex items-center gap-2 bg-surface-container-lowest p-2.5 rounded-xl border border-surface-container-highest">
-                            @for($s = 1; $s <= 5; $s++)
-                                <label class="flex-1 flex flex-col items-center gap-1 cursor-pointer">
-                                    <input type="radio" name="rating" value="{{ $s }}" {{ $s === 5 ? 'checked' : '' }} class="border-outline-variant text-primary focus:ring-primary-container">
-                                    <span class="text-xs font-bold text-on-surface-variant">{{ $s }} ★</span>
-                                </label>
-                            @endfor
-                        </div>
-                    </div>
-
-                    <x-ui.textarea id="feedback-textarea" name="feedback" label="Ý KIẾN CỦA BẠN" rows="4" required
-                                   placeholder="Vui lòng nhập chi tiết phản hồi của bạn tại đây..." class="resize-none" />
-
-                    <x-ui.button type="submit" icon="send" class="w-full">
-                        <span>Gửi phản hồi khảo sát</span>
-                    </x-ui.button>
-                </form>
+                @empty
+                    <p class="rounded-xl border border-dashed border-surface-container-highest p-3.5 text-center text-xs text-on-surface-variant">Hiện chưa có khảo sát nào đang mở.</p>
+                @endforelse
             </section>
 
             {{-- History of Submissions with Delete CRUD --}}
@@ -144,6 +100,35 @@
                 </section>
             @endif
         </div>
+
+        {{-- Phản hồi khảo sát: bấm một khảo sát ở danh sách → modal (không mở form ngay trong trang). --}}
+        <x-ui.modal name="survey-response" title="Phản hồi khảo sát" max-width="md" :show="$errors->hasAny(['survey_title', 'rating', 'feedback'])">
+            <p class="mb-3 text-xs text-on-surface-variant">Đang phản hồi cho: <span class="font-bold text-primary" x-text="selectedSurvey"></span></p>
+            <form id="survey-response-form" action="{{ route('portal.student.survey.store') }}" method="POST" class="space-y-3">
+                @csrf
+                <input type="hidden" name="student_id" value="{{ $student?->id ?? 1 }}">
+                <input type="hidden" name="survey_title" :value="selectedSurvey">
+
+                <fieldset>
+                    <legend class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Mức độ hài lòng chung</legend>
+                    <div class="flex items-center gap-2 rounded-xl border border-surface-container-highest bg-surface-container-lowest p-2.5">
+                        @for($s = 1; $s <= 5; $s++)
+                            <label class="flex flex-1 cursor-pointer flex-col items-center gap-1">
+                                <input type="radio" name="rating" value="{{ $s }}" {{ $s === 5 ? 'checked' : '' }} class="border-outline-variant text-primary focus:ring-primary-container">
+                                <span class="text-xs font-bold text-on-surface-variant">{{ $s }} ★</span>
+                            </label>
+                        @endfor
+                    </div>
+                </fieldset>
+
+                <x-ui.textarea id="feedback-textarea" name="feedback" label="Ý KIẾN CỦA BẠN" rows="4" required
+                               placeholder="Vui lòng nhập chi tiết phản hồi của bạn tại đây..." class="resize-none" />
+            </form>
+            <x-slot:footer>
+                <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'survey-response')">Hủy</x-ui.button>
+                <x-ui.button type="submit" form="survey-response-form" icon="send">Gửi phản hồi khảo sát</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
 
         {{-- Bottom Navigation Bar Component --}}
         @include('portal.partials.bottom-nav', ['activeTab' => 'survey', 'student' => $student])

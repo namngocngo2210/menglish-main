@@ -13,7 +13,7 @@
                       description="Quản lý và cập nhật định mức lương theo buổi / giờ cho từng giáo viên. Đổi giá = thêm phiên bản mới có ngày hiệu lực, buổi dạy cũ vẫn tính theo giá cũ.">
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="percent" :href="route('payroll.config.commission-tiers')">Cấu hình hoa hồng</x-ui.button>
-            <x-ui.button icon="price_change" x-on:click="$dispatch('open-modal', 'new-rate')">Cập nhật đơn giá{{ $selectedTeacher ? ' — '.$selectedTeacher->name : '' }}</x-ui.button>
+            <x-ui.button icon="price_change" x-on:click="$dispatch('open-modal', 'new-rate')">Cập nhật đơn giá</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -21,190 +21,131 @@
         <x-ui.alert type="error" class="mb-md">{{ $errors->first() }}</x-ui.alert>
     @endif
 
-    <div class="grid grid-cols-1 items-start gap-lg lg:grid-cols-12">
-        {{-- 1. Chọn giáo viên + đơn giá hiện hành --}}
-        <div class="space-y-md lg:col-span-4">
-            <section class="rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm"
-                     x-data="{ q: '', list: @js($teacherList),
-                               match(id) { const q = this.q.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd'); return ! q || this.list.find(t => t.id === id)?.search.includes(q); } }">
-                <h3 class="mb-sm font-h3 text-h3 text-on-surface">1. Chọn giáo viên</h3>
-                <div class="mb-sm">
-                    <x-ui.input type="search" icon="search" x-model="q" placeholder="Tìm tên hoặc mã nhân viên..." aria-label="Tìm giáo viên" />
-                </div>
-                <ul class="custom-scrollbar max-h-72 space-y-xs overflow-y-auto">
-                    @forelse ($teachers as $teacher)
-                        @php $active = $selectedTeacher?->id === $teacher->id; @endphp
-                        <li x-show="match({{ $teacher->id }})">
-                            <a href="{{ route('payroll.config.teacher-rates', ['teacher_id' => $teacher->id]) }}"
-                               class="flex items-center gap-sm rounded-lg border p-sm transition-colors {{ $active ? 'border-primary-container bg-primary-fixed/40' : 'border-transparent hover:bg-surface-container-low' }}">
-                                <x-ui.avatar :name="$teacher->name" size="sm" />
-                                <span class="min-w-0 flex-1">
-                                    <span class="block truncate font-body-medium text-body-medium text-on-surface">{{ $teacher->name }}</span>
-                                    <span class="block font-caption text-caption text-on-surface-variant">Mã NV: {{ $teacher->employee_code ?: '—' }}</span>
-                                </span>
-                                <x-ui.badge :color="$teacher->is_active ? 'success' : 'neutral'" pill>{{ $teacher->is_active ? 'Đang giảng dạy' : 'Ngừng hoạt động' }}</x-ui.badge>
-                            </a>
-                        </li>
-                    @empty
-                        <li><x-ui.empty-state icon="person_off" title="Chưa có nhân sự giảng dạy" /></li>
-                    @endforelse
-                </ul>
-            </section>
-
-            @if ($selectedTeacher)
-                <section class="rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm">
-                    <h3 class="mb-sm font-h3 text-h3 text-on-surface">Đơn giá hiện hành</h3>
-                    <dl class="space-y-sm">
-                        <div>
-                            <dt class="font-body-small text-body-small text-on-surface-variant">Loại giáo viên</dt>
-                            <dd class="mt-xs inline-flex items-center gap-xs font-body-medium text-body-medium text-on-surface">
-                                <span class="material-symbols-outlined text-[18px] text-primary-container" aria-hidden="true">badge</span>
-                                {{ \App\Models\TeacherHourlyRate::TEACHER_TYPES[$selectedType] ?? '—' }}
-                            </dd>
-                        </div>
-                        <div>
-                            <dt class="font-body-small text-body-small text-on-surface-variant">Mức lương đang áp dụng</dt>
-                            <dd class="font-h2 text-h2 text-primary">
-                                @if ($selectedCurrent)
-                                    {{ number_format((float) $selectedCurrent->hourly_rate, 0, ',', '.') }} {{ $unitSuffix[$selectedCurrent->rate_unit] ?? 'VNĐ / giờ' }}
-                                @elseif ((float) $selectedTeacher->hourly_rate > 0)
-                                    {{ \App\Support\Money::format((float) $selectedTeacher->hourly_rate) }} / giờ
-                                    <span class="block font-caption text-caption text-on-surface-variant">theo hồ sơ nhân sự</span>
-                                @else
-                                    <span class="font-body-medium text-body-medium text-on-surface-variant">Chưa có đơn giá riêng (mặc định {{ \App\Support\Money::format(\App\Models\TeacherTimesheet::DEFAULT_HOURLY_RATE) }} / giờ)</span>
-                                @endif
-                            </dd>
-                            @if ($selectedCurrent)
-                                <p class="font-body-small text-body-small text-on-surface-variant">Hiệu lực từ: {{ $selectedCurrent->effective_from->format('d/m/Y') }}</p>
-                            @endif
-                        </div>
-                    </dl>
-                </section>
-            @endif
-        </div>
-
-        <div class="space-y-lg lg:col-span-8">
-            {{-- 2. Lịch sử thay đổi đơn giá (đơn giá mới nhập bằng nút "Cập nhật đơn giá" → modal) --}}
-            <x-ui.data-table min-width="760px" sticky="first">
+    <div class="space-y-lg">
+        {{-- Đơn giá đang hiệu lực của mọi GV — bấm dòng → modal chi tiết GV (?teacher_id=; đóng modal thì bỏ query). --}}
+        <div x-data="{ q: '', list: @js($teacherList),
+                       match(id) { const q = this.q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd'); return ! q || this.list.find(t => t.id === id)?.search.includes(q); } }">
+            <x-ui.data-table min-width="640px">
                 <x-slot:header>
-                    <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
-                        <span class="material-symbols-outlined text-primary-container" aria-hidden="true">history</span>
-                        Lịch sử thay đổi đơn giá{{ $selectedTeacher ? ': '.$selectedTeacher->name : '' }}
-                    </h3>
-                    @if ($selectedTeacher)
-                        <x-ui.button variant="ghost" size="sm" icon="filter_alt_off" :href="route('payroll.config.teacher-rates')">Xem tất cả</x-ui.button>
-                    @endif
+                    <h3 class="font-h3 text-h3 text-on-surface">Đơn giá đang hiệu lực ({{ now()->format('d/m/Y') }})</h3>
+                    <div class="w-full sm:w-72">
+                        <x-ui.input type="search" icon="search" x-model="q" placeholder="Tìm tên hoặc mã nhân viên..." aria-label="Tìm giáo viên" />
+                    </div>
                 </x-slot:header>
                 <table>
-                    <thead>
-                        <tr>
-                            @unless ($selectedTeacher)<th>Giáo viên</th>@endunless
-                            <th>Loại GV</th>
-                            <th class="text-right">Đơn giá</th>
-                            <th>Đơn vị tính</th>
-                            <th>Hiệu lực từ</th>
-                            <th>Đến ngày</th>
-                            <th>Trạng thái</th>
-                            <th>Ghi chú</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>Giáo viên</th><th>Trạng thái</th><th class="text-right">Đơn giá</th><th>Hiệu lực từ</th><th class="text-right"><span class="sr-only">Thao tác</span></th></tr></thead>
                     <tbody>
-                        @forelse ($history as $row)
+                        @forelse ($teachers as $teacher)
                             @php
-                                $end = $endDates[$row->id] ?? null;
-                                [$stateLabel, $stateColor] = $row->effective_from->isFuture()
-                                    ? ['Chưa hiệu lực', 'info']
-                                    : ($end && $end->lt(today()) ? ['Đã hết hạn', 'neutral'] : ['Đang áp dụng', 'success']);
+                                $current = $currentRates->get($teacher->id);
+                                $detailUrl = route('payroll.config.teacher-rates', ['teacher_id' => $teacher->id]);
                             @endphp
-                            <tr>
-                                @unless ($selectedTeacher)
-                                    <td class="font-semibold"><a href="{{ route('payroll.config.teacher-rates', ['teacher_id' => $row->user_id]) }}" class="hover:text-primary">{{ $row->user?->name ?? '—' }}</a></td>
-                                @endunless
-                                <td>{{ $row->teacher_type_label }}</td>
-                                <td><x-ui.money :value="$row->hourly_rate" suffix="" /></td>
-                                <td>{{ $unitSuffix[$row->rate_unit] ?? 'VNĐ / giờ' }} <span class="sr-only">{{ $row->unit_label }}</span></td>
-                                <td class="font-code text-code">{{ $row->effective_from->format('d/m/Y') }}</td>
-                                <td class="font-code text-code">{{ $end ? $end->format('d/m/Y') : 'Hiện tại' }}</td>
-                                <td><x-ui.badge :color="$stateColor">{{ $stateLabel }}</x-ui.badge></td>
+                            <tr x-show="match({{ $teacher->id }})" data-href="{{ $detailUrl }}" @class(['cursor-pointer', 'bg-primary-fixed/40' => $selectedTeacher?->id === $teacher->id])>
                                 <td>
-                                    {{ $row->note ?? '—' }}
-                                    <span class="block font-caption text-caption text-on-surface-variant">{{ $row->creator?->name ?? 'Hệ thống' }} · {{ $row->created_at?->format('d/m/Y H:i') }}</span>
+                                    <a href="{{ $detailUrl }}" class="flex items-center gap-sm hover:text-primary">
+                                        <x-ui.avatar :name="$teacher->name" size="sm" />
+                                        <span>
+                                            <span class="block font-semibold">{{ $teacher->name }}</span>
+                                            <span class="block font-caption text-caption text-on-surface-variant">Mã NV: {{ $teacher->employee_code ?: '—' }}</span>
+                                        </span>
+                                    </a>
                                 </td>
+                                <td><x-ui.badge :color="$teacher->is_active ? 'success' : 'neutral'" pill>{{ $teacher->is_active ? 'Đang giảng dạy' : 'Ngừng hoạt động' }}</x-ui.badge></td>
+                                <td>
+                                    @if ($current)
+                                        <x-ui.money :value="$current->hourly_rate" :suffix="$current->unit_label" />
+                                    @elseif ((float) $teacher->hourly_rate > 0)
+                                        <x-ui.money :value="$teacher->hourly_rate" suffix="đ/giờ" />
+                                        <span class="block text-right font-caption text-caption text-on-surface-variant">theo hồ sơ nhân sự</span>
+                                    @else
+                                        <span class="block text-right font-caption text-caption text-on-surface-variant">Mặc định</span>
+                                    @endif
+                                </td>
+                                <td class="font-code text-code">{{ $current?->effective_from?->format('d/m/Y') ?? '—' }}</td>
+                                <td class="text-right"><x-ui.button variant="secondary" size="sm" icon="visibility" :href="$detailUrl">Xem</x-ui.button></td>
                             </tr>
                         @empty
-                            <tr><td colspan="8"><x-ui.empty-state icon="history" title="Chưa có lịch sử đơn giá" description="Chọn giáo viên và cập nhật đơn giá mới ở khung trên." /></td></tr>
+                            <tr><td colspan="5"><x-ui.empty-state icon="person_off" title="Chưa có nhân sự giảng dạy" /></td></tr>
                         @endforelse
                     </tbody>
                 </table>
-                <x-slot:footer><x-ui.pagination :paginator="$history" /></x-slot:footer>
             </x-ui.data-table>
+        </div>
 
-            @unless ($selectedTeacher)
-                {{-- Tổng quan đơn giá đang hiệu lực của mọi GV --}}
-                <x-ui.data-table min-width="560px">
-                    <x-slot:header>
-                        <h3 class="font-h3 text-h3 text-on-surface">Đơn giá đang hiệu lực ({{ now()->format('d/m/Y') }})</h3>
-                    </x-slot:header>
+        {{-- Lịch sử thay đổi đơn giá của mọi GV (đơn giá mới nhập bằng nút "Cập nhật đơn giá" → modal) --}}
+        @include('payroll.partials.rate-history-table', ['rows' => $history, 'withTeacher' => true, 'title' => 'Lịch sử thay đổi đơn giá', 'paginator' => $history])
+
+        {{-- Khung đơn giá theo cấp bậc (tham khảo khi đặt giá cho GV) --}}
+        <details class="rounded-xl border border-outline-variant bg-surface-container-lowest" @if (old('_modal') === 'new-rank') open @endif>
+            <summary class="cursor-pointer px-lg py-md font-body-medium text-body-medium text-on-surface">
+                Khung đơn giá tham khảo theo cấp bậc ({{ $rates->count() }} bậc)
+            </summary>
+            <div class="space-y-md border-t border-surface-container p-lg">
+                <x-ui.data-table>
                     <table>
-                        <thead><tr><th>Giáo viên</th><th class="text-right">Đơn giá</th><th>Hiệu lực từ</th><th class="text-right">Lịch sử</th></tr></thead>
+                        <thead><tr><th>Cấp bậc</th><th>Yêu cầu</th><th class="text-right">Lớp Giao tiếp</th><th class="text-right">Lớp IELTS / Cambridge</th></tr></thead>
                         <tbody>
-                            @foreach ($teachers as $teacher)
-                                @php $current = $currentRates->get($teacher->id); @endphp
+                            @forelse ($rates as $r)
                                 <tr>
-                                    <td>
-                                        <p class="font-semibold">{{ $teacher->name }}</p>
-                                        <p class="font-caption text-caption text-on-surface-variant">{{ $teacher->employee_code ?: '—' }}</p>
-                                    </td>
-                                    <td>
-                                        @if ($current)
-                                            <x-ui.money :value="$current->hourly_rate" :suffix="$current->unit_label" />
-                                        @elseif ((float) $teacher->hourly_rate > 0)
-                                            <x-ui.money :value="$teacher->hourly_rate" suffix="đ/giờ" />
-                                            <span class="block text-right font-caption text-caption text-on-surface-variant">theo hồ sơ nhân sự</span>
-                                        @else
-                                            <span class="block text-right font-caption text-caption text-on-surface-variant">Mặc định</span>
-                                        @endif
-                                    </td>
-                                    <td class="font-code text-code">{{ $current?->effective_from?->format('d/m/Y') ?? '—' }}</td>
-                                    <td class="text-right"><x-ui.button variant="ghost" size="sm" icon="history" :href="route('payroll.config.teacher-rates', ['teacher_id' => $teacher->id])">Xem</x-ui.button></td>
+                                    <td class="font-semibold">{{ $r->rank_title }}</td>
+                                    <td>{{ $r->criteria }}</td>
+                                    <td><x-ui.money :value="$r->communication_rate" suffix="đ" /></td>
+                                    <td><x-ui.money :value="$r->ielts_rate" suffix="đ" /></td>
                                 </tr>
-                            @endforeach
+                            @empty
+                                <tr><td colspan="4"><x-ui.empty-state title="Chưa có khung đơn giá" /></td></tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </x-ui.data-table>
-            @endunless
 
-            {{-- Khung đơn giá theo cấp bậc (tham khảo khi đặt giá cho GV) --}}
-            <details class="rounded-xl border border-outline-variant bg-surface-container-lowest" @if (old('_modal') === 'new-rank') open @endif>
-                <summary class="cursor-pointer px-lg py-md font-body-medium text-body-medium text-on-surface">
-                    Khung đơn giá tham khảo theo cấp bậc ({{ $rates->count() }} bậc)
-                </summary>
-                <div class="space-y-md border-t border-surface-container p-lg">
-                    <x-ui.data-table>
-                        <table>
-                            <thead><tr><th>Cấp bậc</th><th>Yêu cầu</th><th class="text-right">Lớp Giao tiếp</th><th class="text-right">Lớp IELTS / Cambridge</th></tr></thead>
-                            <tbody>
-                                @forelse ($rates as $r)
-                                    <tr>
-                                        <td class="font-semibold">{{ $r->rank_title }}</td>
-                                        <td>{{ $r->criteria }}</td>
-                                        <td><x-ui.money :value="$r->communication_rate" suffix="đ" /></td>
-                                        <td><x-ui.money :value="$r->ielts_rate" suffix="đ" /></td>
-                                    </tr>
-                                @empty
-                                    <tr><td colspan="4"><x-ui.empty-state title="Chưa có khung đơn giá" /></td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </x-ui.data-table>
-
-                    <div class="flex justify-end">
-                        <x-ui.button variant="secondary" icon="add" x-on:click="$dispatch('open-modal', 'new-rank')">Thêm cấp bậc tham khảo</x-ui.button>
-                    </div>
+                <div class="flex justify-end">
+                    <x-ui.button variant="secondary" icon="add" x-on:click="$dispatch('open-modal', 'new-rank')">Thêm cấp bậc tham khảo</x-ui.button>
                 </div>
-            </details>
-        </div>
+            </div>
+        </details>
     </div>
+
+    @if ($selectedTeacher)
+        {{-- Chi tiết đơn giá 1 GV: mở sẵn khi URL có ?teacher_id=; đóng → bỏ teacher_id khỏi thanh địa chỉ. --}}
+        <x-ui.modal name="teacher-rate-detail" :title="'Đơn giá — '.$selectedTeacher->name" max-width="4xl" show
+                    :dismiss-url="route('payroll.config.teacher-rates', request()->except('teacher_id'))">
+            <div class="space-y-lg" data-teacher-rate="{{ $selectedTeacher->id }}">
+                <dl class="grid grid-cols-1 gap-md rounded-lg border border-outline-variant bg-surface-container-low p-md sm:grid-cols-3">
+                    <div>
+                        <dt class="font-body-small text-body-small text-on-surface-variant">Mã nhân viên</dt>
+                        <dd class="mt-xs font-code text-on-surface">{{ $selectedTeacher->employee_code ?: '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="font-body-small text-body-small text-on-surface-variant">Loại giáo viên</dt>
+                        <dd class="mt-xs inline-flex items-center gap-xs font-body-medium text-body-medium text-on-surface">
+                            <span class="material-symbols-outlined text-[18px] text-primary-container" aria-hidden="true">badge</span>
+                            {{ \App\Models\TeacherHourlyRate::TEACHER_TYPES[$selectedType] ?? '—' }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="font-body-small text-body-small text-on-surface-variant">Mức lương đang áp dụng</dt>
+                        <dd class="font-h3 text-h3 text-primary">
+                            @if ($selectedCurrent)
+                                {{ number_format((float) $selectedCurrent->hourly_rate, 0, ',', '.') }} {{ $unitSuffix[$selectedCurrent->rate_unit] ?? 'VNĐ / giờ' }}
+                                <span class="block font-body-small text-body-small text-on-surface-variant">Hiệu lực từ: {{ $selectedCurrent->effective_from->format('d/m/Y') }}</span>
+                            @elseif ((float) $selectedTeacher->hourly_rate > 0)
+                                {{ \App\Support\Money::format((float) $selectedTeacher->hourly_rate) }} / giờ
+                                <span class="block font-caption text-caption text-on-surface-variant">theo hồ sơ nhân sự</span>
+                            @else
+                                <span class="font-body-medium text-body-medium text-on-surface-variant">Chưa có đơn giá riêng (mặc định {{ \App\Support\Money::format(\App\Models\TeacherTimesheet::DEFAULT_HOURLY_RATE) }} / giờ)</span>
+                            @endif
+                        </dd>
+                    </div>
+                </dl>
+
+                @include('payroll.partials.rate-history-table', ['rows' => $teacherHistory, 'withTeacher' => false, 'title' => 'Lịch sử thay đổi đơn giá'])
+            </div>
+            <x-slot:footer>
+                <x-ui.button icon="price_change" x-on:click="$dispatch('open-modal', 'new-rate')">Cập nhật đơn giá</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
+    @endif
 
     <x-ui.modal name="new-rate" :title="'Cập nhật đơn giá mới'.($selectedTeacher ? ' — '.$selectedTeacher->name : '')" max-width="2xl" :show="old('_modal') === 'new-rate'">
         <form id="new-rate-form" action="{{ route('payroll.config.teacher-rates.personal.store') }}" method="POST" class="space-y-md"
@@ -215,7 +156,7 @@
             @if ($selectedTeacher)
                 <input type="hidden" name="user_id" value="{{ $selectedTeacher->id }}">
             @else
-                <x-ui.select name="user_id" label="Giáo viên" required placeholder="-- Chọn giáo viên ở khung bên trái hoặc tại đây --"
+                <x-ui.select name="user_id" label="Giáo viên" required placeholder="-- Chọn giáo viên --"
                              :value="old('user_id')"
                              :options="$teachers->mapWithKeys(fn ($t) => [$t->id => $t->name.($t->employee_code ? ' — '.$t->employee_code : '')])" />
             @endif

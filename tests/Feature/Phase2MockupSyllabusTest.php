@@ -177,6 +177,9 @@ class Phase2MockupSyllabusTest extends TestCase
         // Màn GV: tab, nhóm theo chặng, watermark bảo mật, đánh dấu đã xem, tìm kiếm
         $this->openStage();
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-view'))->assertOk()
+            ->assertSee('Giáo trình Starter - Bài 3')->assertSee('Chỉ xem')
+            ->assertDontSee('MENGLISH INTERNAL ONLY');
+        $this->actingAs($this->teacher)->get(route('syllabus.teacher-view', ['document' => $doc->id]))->assertOk()
             ->assertSee('Xem tài liệu giáo trình')
             ->assertSee('Tổng quan syllabus')
             ->assertSee('Nội dung buổi học')
@@ -191,7 +194,7 @@ class Phase2MockupSyllabusTest extends TestCase
 
         $this->actingAs($this->teacher)->post(route('syllabus.documents.viewed', $doc->id))->assertRedirect();
         $this->assertDatabaseHas('syllabus_document_views', ['document_id' => $doc->id, 'user_id' => $this->teacher->id]);
-        $this->actingAs($this->teacher)->get(route('syllabus.teacher-view'))->assertOk()->assertDontSee('Đánh dấu đã xem');
+        $this->actingAs($this->teacher)->get(route('syllabus.teacher-view', ['document' => $doc->id]))->assertOk()->assertDontSee('Đánh dấu đã xem');
 
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-view', ['q' => 'không-có']))->assertOk()
             ->assertSee('Không tìm thấy tài liệu phù hợp');
@@ -401,6 +404,9 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Yêu cầu chờ duyệt')
             ->assertSee('Tìm tên lớp...')
             ->assertSee('Cảnh báo SLA')
+            ->assertSee(e(route('syllabus.big-tests.distribution', ['order' => $order->id, 'order_status' => 'pending'])), false)
+            ->assertDontSee('CLASS ID: MK-01');
+        $this->actingAs($this->academic)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))->assertOk()
             ->assertSee('CLASS ID: MK-01')
             ->assertSee('Yêu cầu từ Giáo viên')
             ->assertSee('Nhờ chuẩn bị đề tập trung Speaking')
@@ -512,7 +518,8 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Người duyệt (Hiện tại)')
             ->assertSee('Duyệt &amp; Gửi phụ huynh', false)
             ->assertSee('Hợp lệ');
-        $this->actingAs($this->academic)->get(route('syllabus.big-tests.results', $test->id))->assertOk()->assertSee('Xem &amp; duyệt', false);
+        $this->actingAs($this->academic)->get(route('syllabus.big-tests.results', $test->id))->assertOk()->assertSee('Xem &amp; duyệt', false)
+            ->assertDontSee('Người gửi kết quả'); // chi tiết chỉ mở trong modal khi chọn ?result=
 
         // Giáo viên không duyệt / gửi được
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.approve-send', $scored->id))->assertForbidden();

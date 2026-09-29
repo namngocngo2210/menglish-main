@@ -1,13 +1,14 @@
 {{--
-    Form Thêm/Sửa danh mục — dùng chung cho panel bên phải trang danh sách, trang thêm riêng và modal (system-categories/form, $asModal).
+    Form Thêm/Sửa danh mục — dùng chung cho modal sửa mở thẳng URL (?edit=), trang thêm riêng và modal htmx (system-categories/form, $asModal).
     Biến: $category (SystemCategory, có thể chưa lưu), $typeLabels, $asModal (bool), $typeSelect (bool — cho chọn nhóm, mặc định khi thêm mới),
-          $nextOrder (tuỳ chọn — thứ tự gợi ý khi thêm mới).
-    Trong modal: id có tiền tố "modal-" (tránh trùng form ở panel), nút Lưu nằm ở footer của x-ui.modal-frame.
+          $nextOrder (tuỳ chọn — thứ tự gợi ý khi thêm mới), $actions (bool — nút Lưu/Hủy ngay dưới form; mặc định khi không phải modal htmx).
+    Modal htmx: id có tiền tố "modal-" (tránh trùng form sửa ?edit=), nút Lưu nằm ở footer của x-ui.modal-frame.
 --}}
 @php
     $asModal = $asModal ?? false;
     $typeSelect = $typeSelect ?? ! $category->exists;
     $nextOrder = $nextOrder ?? null;
+    $actions = $actions ?? ! $asModal;
     $id = fn (string $field) => $asModal ? 'modal-category-'.$field : null;
 @endphp
 <form id="{{ $asModal ? 'modal-' : '' }}category-form" method="POST" class="space-y-md"
@@ -34,10 +35,10 @@
         Đang sử dụng
     </label>
 
-    @unless ($asModal)
+    @if ($actions)
         <div class="flex gap-sm">
             <x-ui.button type="submit" icon="save" class="flex-1">Lưu thông tin</x-ui.button>
             <x-ui.button variant="secondary" :href="route('system-categories.index', ['type' => $category->type])">Hủy bỏ</x-ui.button>
         </div>
-    @endunless
+    @endif
 </form>

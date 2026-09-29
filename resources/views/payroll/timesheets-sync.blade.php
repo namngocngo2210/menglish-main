@@ -32,7 +32,7 @@
         <x-ui.select name="status" label="Trạng thái" :options="\App\Models\TimesheetSyncLog::STATUS_LABELS" placeholder="Tất cả trạng thái" />
     </x-ui.filter-bar>
 
-    <x-ui.data-table min-width="900px" x-data="{ open: null }">
+    <x-ui.data-table min-width="900px">
         <table>
             <thead>
                 <tr>
@@ -75,52 +75,12 @@
                         </td>
                         <td class="text-right">
                             @if ($log->hasErrorDetails())
-                                <x-ui.button variant="ghost" size="sm" x-on:click="open = open === {{ $log->id }} ? null : {{ $log->id }}">
-                                    Xem chi tiết lỗi
-                                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true" x-text="open === {{ $log->id }} ? 'expand_less' : 'expand_more'">expand_more</span>
-                                </x-ui.button>
+                                <x-ui.button variant="ghost" size="sm" icon="visibility" x-on:click="$dispatch('open-modal', 'sync-errors-{{ $log->id }}')">Xem chi tiết lỗi</x-ui.button>
                             @else
                                 <span class="font-body-small text-body-small text-on-surface-variant">Không có lỗi</span>
                             @endif
                         </td>
                     </tr>
-                    @if ($log->hasErrorDetails())
-                        <tr x-show="open === {{ $log->id }}" x-cloak>
-                            <td colspan="8" class="bg-surface-container-low/60">
-                                @if (! empty($log->error_rows))
-                                    <div class="space-y-sm p-sm">
-                                        <p class="flex items-center gap-xs font-h3 text-h3 text-warning">
-                                            <span class="material-symbols-outlined" aria-hidden="true">warning</span>Chi tiết {{ count($log->error_rows) }} dòng lỗi
-                                        </p>
-                                        <table class="w-full">
-                                            <thead><tr><th>Mã NV</th><th>Tên nhân viên</th><th>Mã lỗi</th><th>Nội dung chi tiết</th></tr></thead>
-                                            <tbody>
-                                                @foreach ($log->error_rows as $row)
-                                                    <tr>
-                                                        <td class="font-mono">{{ $row['employee_code'] ?? '—' }}</td>
-                                                        <td>{{ $row['employee_name'] ?? '—' }}</td>
-                                                        <td><x-ui.badge color="error">{{ $row['code'] ?? 'ERROR' }}</x-ui.badge></td>
-                                                        <td>{{ $row['message'] ?? '' }}</td>
-                                                    </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                        <div class="flex justify-end">
-                                            <x-ui.button variant="secondary" size="sm" icon="download" :href="route('payroll.timesheets.sync-history.errors', $log->id)">Xuất file Excel lỗi</x-ui.button>
-                                        </div>
-                                    </div>
-                                @else
-                                    <div class="flex items-start gap-sm p-sm">
-                                        <span class="material-symbols-outlined text-error" aria-hidden="true">error</span>
-                                        <div>
-                                            <p class="font-body-semibold text-body-semibold text-on-surface">{{ $log->error_code ?: 'Lỗi hệ thống' }}</p>
-                                            <p class="font-body-small text-body-small text-on-surface-variant">{{ $log->error_message }}</p>
-                                        </div>
-                                    </div>
-                                @endif
-                            </td>
-                        </tr>
-                    @endif
                 @empty
                     <tr>
                         <td colspan="8">
@@ -133,4 +93,39 @@
         </table>
         <x-slot:footer><x-ui.pagination :paginator="$syncLogs" unit="đợt đồng bộ" /></x-slot:footer>
     </x-ui.data-table>
+
+    {{-- Chi tiết lỗi từng đợt đồng bộ: mở trong modal thay vì bung dòng ngay dưới bảng. --}}
+    @foreach ($syncLogs as $log)
+        @continue(! $log->hasErrorDetails())
+        <x-ui.modal :name="'sync-errors-'.$log->id" :title="'Chi tiết lỗi đồng bộ lúc '.$log->created_at->format('H:i d/m/Y')" max-width="3xl">
+            @if (! empty($log->error_rows))
+                <p class="mb-sm flex items-center gap-xs font-body-semibold text-body-semibold text-warning">
+                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">warning</span>{{ count($log->error_rows) }} dòng lỗi · {{ $log->device_name }}
+                </p>
+                <x-ui.data-table min-width="560px">
+                    <table>
+                        <thead><tr><th>Mã NV</th><th>Tên nhân viên</th><th>Mã lỗi</th><th>Nội dung chi tiết</th></tr></thead>
+                        <tbody>
+                            @foreach ($log->error_rows as $row)
+                                <tr>
+                                    <td class="font-mono">{{ $row['employee_code'] ?? '—' }}</td>
+                                    <td>{{ $row['employee_name'] ?? '—' }}</td>
+                                    <td><x-ui.badge color="error">{{ $row['code'] ?? 'ERROR' }}</x-ui.badge></td>
+                                    <td>{{ $row['message'] ?? '' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </x-ui.data-table>
+                <x-slot:footer>
+                    <x-ui.button variant="secondary" icon="download" :href="route('payroll.timesheets.sync-history.errors', $log->id)">Xuất file Excel lỗi</x-ui.button>
+                </x-slot:footer>
+            @else
+                <x-ui.alert type="error">
+                    <p class="font-semibold">{{ $log->error_code ?: 'Lỗi hệ thống' }}</p>
+                    <p class="mt-1">{{ $log->error_message }}</p>
+                </x-ui.alert>
+            @endif
+        </x-ui.modal>
+    @endforeach
 </x-app-layout>

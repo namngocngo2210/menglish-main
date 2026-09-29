@@ -308,13 +308,19 @@ class Phase3MockupParityTest extends TestCase
         ])->assertSessionHasNoErrors();
         $this->assertSame('parttime', \App\Models\TeacherHourlyRate::latest('id')->first()->teacher_type); // mặc định theo vai trò
 
+        // Danh sách GV: bấm dòng → modal chi tiết (?teacher_id=), không mở sẵn chi tiết GV nào.
+        $this->actingAs($this->admin)->get(route('payroll.config.teacher-rates'))
+            ->assertOk()
+            ->assertSee('Đơn giá đang hiệu lực')
+            ->assertSee('data-href="'.e(route('payroll.config.teacher-rates', ['teacher_id' => $this->teacher->id])).'"', false)
+            ->assertDontSee('data-teacher-rate=', false);
+
         $this->actingAs($this->admin)->get(route('payroll.config.teacher-rates', ['teacher_id' => $this->teacher->id]))
             ->assertOk()
-            ->assertSee('1. Chọn giáo viên')
+            ->assertSee('data-teacher-rate="'.$this->teacher->id.'"', false)
             ->assertSee('Tìm tên hoặc mã nhân viên...')
             ->assertSee('Mã NV: GV-0492')
             ->assertSee('Đang giảng dạy')
-            ->assertSee('Đơn giá hiện hành')
             ->assertSee('Mức lương đang áp dụng')
             ->assertSee('300.000 VNĐ / buổi')
             ->assertSee('Hiệu lực từ: 15/06/2026')
