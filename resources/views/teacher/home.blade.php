@@ -77,6 +77,7 @@
                                         </p>
                                         <p class="font-caption text-caption text-on-surface-variant">
                                             {{ $class?->code }} · {{ $shift['student_count'] }} HV
+                                            @if ($shift['trial_count']) · <span class="font-semibold text-secondary">+{{ $shift['trial_count'] }} khách học thử</span> @endif
                                             @if ($session->type === \App\Models\ClassSession::TYPE_SUPPORT && $session->supportSession?->student) · {{ $session->supportSession->student->name }} @endif
                                             @if ($shift['checked_in']) · <span class="font-semibold text-tertiary">Đã check-in {{ $shift['checkin_time'] }}</span> @endif
                                         </p>

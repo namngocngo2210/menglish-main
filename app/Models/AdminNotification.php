@@ -76,6 +76,8 @@ class AdminNotification extends Model
             'contract_expiring' => 'contract',
             'task_assigned' => 'assignment',
             'class_report_pending' => 'fact_check',
+            'trial_booked' => 'person_search',
+            'trial_feedback' => 'rate_review',
             default => 'notifications',
         };
     }
@@ -95,6 +97,7 @@ class AdminNotification extends Model
             'contract_expiring' => 'bg-warning/10 text-warning border-warning/30',
             'task_assigned' => 'bg-tertiary/10 text-tertiary border-tertiary/30',
             'class_report_pending' => 'bg-primary-container/10 text-primary border-primary-container/30',
+            'trial_booked', 'trial_feedback' => 'bg-secondary/10 text-secondary border-secondary/30',
             default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
     }
@@ -116,6 +119,8 @@ class AdminNotification extends Model
             'contract_expiring' => 'Hợp đồng sắp hết hạn',
             'task_assigned' => 'Được giao việc',
             'class_report_pending' => 'Báo cáo trực lớp chờ duyệt',
+            'trial_booked' => 'Khách học thử',
+            'trial_feedback' => 'Nhận xét học thử',
             default => 'Thông báo hệ thống',
         };
     }
