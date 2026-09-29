@@ -73,6 +73,41 @@ class CrmImportController extends Controller
         );
     }
 
+    /**
+     * Tải các dòng lỗi của lần xem trước (cùng cột với file mẫu + cột "Lỗi") để sửa ngay trong Excel
+     * rồi tải lại — cột "Lỗi" không thuộc cột nhận diện nên được bỏ qua khi nhập.
+     */
+    public function errors(Request $request)
+    {
+        $preview = $request->session()->get(self::SESSION_KEY);
+        $errorRows = collect($preview['rows'] ?? [])->filter(fn (array $row) => ! empty($row['errors']));
+        if ($errorRows->isEmpty()) {
+            return redirect()->route('crm.import');
+        }
+
+        $rows = $errorRows->map(fn (array $row) => [
+            $row['data']['name'] ?? null,
+            $row['data']['phone'] ?? null,
+            $row['data']['parent_name'] ?? null,
+            $row['data']['parent_phone'] ?? null,
+            $row['data']['email'] ?? null,
+            ($row['data']['dob_error'] ?? null) ?: (filled($row['data']['dob'] ?? null) ? Carbon::parse($row['data']['dob'])->format('d/m/Y') : null),
+            $row['data']['gender'] ?? null,
+            $row['data']['address'] ?? null,
+            $row['data']['source'] ?? null,
+            $row['data']['course_interest'] ?? null,
+            $row['data']['notes'] ?? null,
+            $row['data']['owner'] ?? null,
+            'Dòng '.$row['line'].': '.implode('; ', $row['errors']),
+        ])->values()->all();
+
+        return Excel::download(
+            new ArrayExport([...self::TEMPLATE_HEADINGS, 'Lỗi'], $rows),
+            'dong-loi-nhap-khach-'.now()->format('Ymd-His').'.xlsx',
+            ExcelFormat::XLSX
+        );
+    }
+
     public function preview(Request $request)
     {
         $user = $request->user();

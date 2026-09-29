@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\TransferMemo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -98,6 +99,38 @@ class StudentTuition extends Model
         return $query->where(function ($q) use ($day) {
             $q->whereNull('reminder_paused_until')->orWhereDate('reminder_paused_until', '<=', $day);
         });
+    }
+
+    protected static function booted(): void
+    {
+        // Mọi luồng tạo khoản học phí (chốt khách, import, ...) đều có sẵn nội dung CK để SePay đối soát.
+        static::saving(function (StudentTuition $tuition) {
+            if (blank($tuition->transfer_memo) && $tuition->student_id) {
+                $tuition->transfer_memo = $tuition->currentTransferMemo() ?: null;
+            }
+        });
+    }
+
+    /** Nội dung CK theo mẫu chung: tên + mã học sinh + lớp của khoản học phí (hoặc lớp đang học). */
+    public function currentTransferMemo(): string
+    {
+        $student = $this->student;
+        if (! $student) {
+            return (string) $this->transfer_memo;
+        }
+
+        return TransferMemo::build($student->code, $student->name, ($this->classModel ?? $student->currentClass)?->name);
+    }
+
+    /** Cập nhật nội dung CK đã lưu theo mẫu hiện hành (đổi lớp / dữ liệu cũ) và trả về nội dung. */
+    public function syncTransferMemo(): string
+    {
+        $memo = $this->currentTransferMemo();
+        if ($memo !== '' && $this->transfer_memo !== $memo) {
+            $this->forceFill(['transfer_memo' => $memo])->saveQuietly();
+        }
+
+        return $memo;
     }
 
     public function student(): BelongsTo

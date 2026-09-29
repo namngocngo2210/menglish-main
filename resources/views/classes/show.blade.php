@@ -11,7 +11,10 @@
             @if ($canManage)
                 <x-ui.button variant="secondary" icon="edit" :href="route('classes.edit', $class->id)">Sửa thông tin</x-ui.button>
             @endif
-            @if ($nextAction && $nextAction['tab'] !== $tab)
+            {{-- Lớp chờ lịch: nút chính mở thẳng màn Lịch & TKB lớp (lọc sẵn lớp), không qua tab Lịch & buổi học rồi bấm lần nữa. --}}
+            @if ($nextAction && $class->status === 'pending_schedule' && $tab !== 'schedule' && $canManage && auth()->user()->can('work_task.view'))
+                <x-ui.button icon="edit_calendar" :href="route('tasks.schedule-config', ['class_id' => $class->id])">{{ $nextAction['label'] }}</x-ui.button>
+            @elseif ($nextAction && $nextAction['tab'] !== $tab)
                 <x-ui.button icon="arrow_forward" :href="route('classes.show', ['id' => $class->id, 'tab' => $nextAction['tab']])">{{ $nextAction['label'] }}</x-ui.button>
             @endif
             {{-- Xóa lớp là thao tác hiếm và nguy hiểm: để trong menu "⋯", có hộp xác nhận, không đặt cạnh nút chính. --}}

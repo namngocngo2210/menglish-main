@@ -268,7 +268,7 @@ class ModalFlowsTest extends TestCase
             ->assertDontSee('data-sidebar', false)
             ->assertSee('Xem trước dữ liệu nhập')->assertSee('SĐT sai định dạng')
             ->assertSee("size = '4xl'", false)
-            ->assertSee('form="modal-crm-import-confirm"', false)->assertSee('Nhập 1 khách hợp lệ');
+            ->assertSee('form="modal-crm-import-confirm"', false)->assertSee('Bỏ qua 1 dòng lỗi, nhập 1 khách');
 
         $response = $this->actingAs($this->admin)->post(route('crm.import.store'), [], self::HX);
         $response->assertNoContent()->assertHeader('HX-Redirect', route('crm.customers.index'));

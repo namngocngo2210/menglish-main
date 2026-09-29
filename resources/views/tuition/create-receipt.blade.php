@@ -30,6 +30,8 @@
             'class_changed' => $t->class_id && $t->student?->current_class_id && (int) $t->class_id !== (int) $t->student->current_class_id,
             'current_class_name' => $t->student?->currentClass?->name,
             'receipt_count' => $t->receipts ? $t->receipts->count() : 0,
+            // Nội dung CK theo mẫu chung (App\Support\TransferMemo) — không tự ghép ở JS.
+            'transfer_memo' => $t->currentTransferMemo(),
         ];
     });
 
@@ -44,6 +46,7 @@
             'class_name' => $s->currentClass?->name ?? 'Chưa xếp lớp',
             'branch_name' => $s->branch?->name ?? 'Trụ sở chính',
             'status_label' => $s->status_label,
+            'transfer_memo' => \App\Support\TransferMemo::build($s->code, $s->name, $s->currentClass?->name),
         ];
     });
 

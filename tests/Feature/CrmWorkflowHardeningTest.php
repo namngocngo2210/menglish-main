@@ -163,6 +163,26 @@ class CrmWorkflowHardeningTest extends TestCase
         $this->assertStringStartsWith(strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', Str::ascii($student->name))).' ', $tuition->transfer_memo);
     }
 
+    public function test_closing_keeps_precomputed_student_code_so_preview_memo_matches(): void
+    {
+        $page = $this->actingAs($this->salesA)->get(route('crm.closing-wizard'))->assertOk();
+        preg_match('/name="student_code" value="(HV-[0-9A-Z]{26})"/', $page->getContent(), $m);
+        $this->assertNotEmpty($m, 'Màn chốt phải cấp sẵn mã học viên.');
+
+        $lead = $this->leadFor($this->salesA);
+        $this->actingAs($this->salesA)->post(route('crm.closing-wizard.store'), $this->closingPayload($lead) + ['student_code' => $m[1]])
+            ->assertSessionHasNoErrors();
+        $student = Student::findOrFail($lead->fresh()->converted_student_id);
+        $this->assertSame($m[1], $student->code);
+        $this->assertStringContainsString(str_replace('-', '', $m[1]), StudentTuition::where('student_id', $student->id)->value('transfer_memo'));
+
+        // Mã sai định dạng / đã dùng → hệ thống tự cấp mã mới.
+        $lead2 = $this->leadFor($this->salesA);
+        $this->actingAs($this->salesA)->post(route('crm.closing-wizard.store'), $this->closingPayload($lead2) + ['student_code' => $m[1]])
+            ->assertSessionHasNoErrors();
+        $this->assertNotSame($m[1], Student::findOrFail($lead2->fresh()->converted_student_id)->code);
+    }
+
     public function test_cash_payment_requires_paper_invoice_number_and_stores_it_on_receipt(): void
     {
         $lead = $this->leadFor($this->salesA);

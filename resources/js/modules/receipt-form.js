@@ -137,13 +137,9 @@ export default function createReceiptManager(tuitions, students, initialTuitionI
                 .replace(/[^a-zA-Z0-9]/g, '');
         },
 
-        // Nội dung CK: tên học sinh + mã học sinh + lớp (không dấu). Chưa xếp lớp thì bỏ phần lớp.
+        // Nội dung CK do server sinh theo mẫu chung (tên + mã học sinh + lớp), xem App\Support\TransferMemo.
         get transferMemo() {
-            const clean = (v) => this.removeVietnameseTones(v || '').toUpperCase();
-            const className = [this.currentTuition?.class_name, this.currentTuition?.current_class_name, this.currentStudent?.class_name]
-                .find((n) => n && n !== 'Chưa xếp lớp');
-            return [clean(this.currentStudent?.name || 'HOCVIEN'), clean(this.currentStudent?.code || 'HS000001'), clean(className)]
-                .filter(Boolean).join(' ');
+            return this.currentTuition?.transfer_memo || this.currentStudent?.transfer_memo || '';
         },
 
         get vietQrUrl() {

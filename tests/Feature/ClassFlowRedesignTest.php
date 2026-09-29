@@ -124,6 +124,21 @@ class ClassFlowRedesignTest extends TestCase
         $this->assertSame('current', $steps['running']);
     }
 
+    public function test_schedule_is_configured_only_on_the_tkb_screen(): void
+    {
+        // Tạo lớp không còn khối "Lên lịch học tự động" riêng (trùng màn Lịch & TKB lớp).
+        $this->actingAs($this->admin)->get(route('classes.create'))
+            ->assertOk()->assertDontSee('Lên lịch học tự động')->assertDontSee('schedule_sessions_json');
+
+        // Lớp chờ lịch: nút chính mở thẳng màn TKB lọc sẵn lớp; tab Lịch & buổi học chỉ còn một nút Cấu hình lịch.
+        $pending = $this->makeClass(['status' => 'pending_schedule']);
+        $tkbUrl = e(route('tasks.schedule-config', ['class_id' => $pending->id]));
+        $overview = $this->actingAs($this->admin)->get(route('classes.show', $pending->id))->assertOk()->getContent();
+        $this->assertStringContainsString($tkbUrl, $overview);
+        $schedule = $this->actingAs($this->admin)->get(route('classes.show', ['id' => $pending->id, 'tab' => 'schedule']))->assertOk()->getContent();
+        $this->assertSame(1, substr_count($schedule, $tkbUrl));
+    }
+
     public function test_class_page_tabs_render_real_data(): void
     {
         $class = $this->makeClass(['name' => 'Lớp Trang Lớp']);
