@@ -1,7 +1,9 @@
 <x-app-layout :title="'Chi tiết khách — '.$customer->name">
     @php
         $sub = $latestSubmission ?? $customer->latestSubmission ?? $customer->submissions->first();
-        $hasTested = $sub || ! empty($customer->test_score) || in_array($customer->stage, ['tested', 'won'], true);
+        // Chỉ báo "Đã làm bài test" khi có bài / điểm thật: khách chốt thẳng (không test) không hiện huy hiệu rỗng.
+        $testSummary = $sub?->scoreSummary() ?? $customer->test_score;
+        $hasTested = $sub || filled($customer->test_score) || $customer->stage === 'tested';
         $words = preg_split('/\s+/u', trim($customer->name)) ?: ['?'];
         $initials = mb_strtoupper(mb_substr($words[0], 0, 1).(count($words) > 1 ? mb_substr(end($words), 0, 1) : ''));
     @endphp
@@ -285,7 +287,7 @@
                         <div class="mt-xs flex flex-wrap items-center gap-xs">
                             @if ($hasTested)
                                 <span class="inline-flex items-center gap-xs rounded-full bg-tertiary/10 px-sm py-0.5 font-caption text-caption font-bold text-tertiary">
-                                    <span class="material-symbols-outlined text-[14px]">task_alt</span>Đã làm bài test ({{ $sub?->scoreSummary() ?? $customer->test_score }})
+                                    <span class="material-symbols-outlined text-[14px]">task_alt</span>{{ $sub?->isPending() ? 'Đã làm bài test, chờ chấm' : 'Đã làm bài test' }}@if (filled($testSummary)) ({{ $testSummary }})@endif
                                 </span>
                             @endif
                         </div>
@@ -542,6 +544,34 @@
                             <span class="flex items-center gap-sm"><span class="material-symbols-outlined text-[20px]" aria-hidden="true">assignment_turned_in</span>Kết quả &amp; Đánh giá</span>
                             <span class="font-caption text-caption">Chưa có kết quả test đầu vào</span>
                         </div>
+                        @if (($unlinkedSubmissions ?? collect())->isNotEmpty())
+                            {{-- Bài nộp qua link công khai chưa tự khớp được khách (SĐT gõ khác...): Học vụ gắn tay --}}
+                            <div class="space-y-sm rounded-lg border border-warning/40 bg-warning-container/40 p-md" data-testid="unlinked-submissions">
+                                <p class="font-body-small text-body-small font-semibold text-on-surface">Có bài test chưa gắn với khách nào, trùng SĐT hoặc tên của khách này:</p>
+                                @foreach ($unlinkedSubmissions as $candidate)
+                                    <div class="flex flex-wrap items-center justify-between gap-sm rounded-lg bg-surface-container-lowest px-md py-sm font-body-small text-body-small">
+                                        <div class="min-w-0">
+                                            <div class="font-semibold text-on-surface">{{ $candidate->candidate_name }} · {{ $candidate->candidate_phone }}</div>
+                                            <div class="text-on-surface-variant">
+                                                {{ $candidate->test?->title ?? 'Đề đã xoá' }} · nộp {{ $candidate->created_at?->format('H:i d/m/Y') }}
+                                                · {{ $candidate->isPending() ? 'Chờ chấm' : ($candidate->scoreSummary() ?? 'Đã chấm') }}
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-xs">
+                                            @can('placement_test.grade')
+                                                <x-ui.button variant="ghost" size="sm" icon="visibility" :href="route('placement-tests.results.show', $candidate->id)">Xem bài</x-ui.button>
+                                            @endcan
+                                            <form method="POST" action="{{ route('crm.customers.link-submission', $customer->id) }}">
+                                                @csrf
+                                                <input type="hidden" name="submission_id" value="{{ $candidate->id }}">
+                                                <x-ui.button type="submit" variant="secondary" size="sm" icon="link">Gắn vào khách này</x-ui.button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                @endforeach
+                                @error('submission_id')<p class="text-error">{{ $message }}</p>@enderror
+                            </div>
+                        @endif
                     @else
                     <section class="space-y-md border-t border-surface-container-highest pt-lg">
                         <div class="flex flex-wrap items-center justify-between gap-sm">

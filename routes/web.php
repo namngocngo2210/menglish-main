@@ -145,6 +145,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/customers/{id}/notes', [CrmController::class, 'addNote'])->middleware('can:lead.update')->name('customers.notes.store');
         Route::post('/customers/{id}/schedule-test', [CrmController::class, 'schedulePlacementTest'])->middleware('can:entrance_test.send')->name('customers.schedule-test');
         Route::post('/customers/{id}/test-score', [CrmController::class, 'saveTestScore'])->middleware('can:entrance_test.grade')->name('customers.save-test-score');
+        Route::post('/customers/{id}/link-submission', [CrmController::class, 'linkSubmission'])->middleware('can:entrance_test.grade')->name('customers.link-submission');
         Route::post('/customers/{id}/trial-bookings', [CrmController::class, 'storeTrialBooking'])->name('customers.trial-bookings.store');
         Route::post('/customers/{id}/trial-bookings/{booking}/cancel', [CrmController::class, 'cancelTrialBooking'])->name('customers.trial-bookings.cancel');
         Route::post('/customers/{id}/assign-class', [CrmController::class, 'assignClass'])->middleware('can:student.assign_class')->name('customers.assign-class');
