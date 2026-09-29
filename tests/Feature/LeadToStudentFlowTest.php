@@ -12,10 +12,12 @@ use App\Models\CrmCustomerHistory;
 use App\Models\Student;
 use App\Models\StudentTuition;
 use App\Models\User;
+use App\Services\Crm\WaitingLeadPlacement;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 /**
@@ -79,6 +81,41 @@ class LeadToStudentFlowTest extends TestCase
             ->assertSessionHasErrors('class_id');
         $this->assertSame('waiting_class', $lead->fresh()->stage);
         $this->assertSame(0, ClassEnrollment::where('student_id', $student->id)->count());
+    }
+
+    public function test_enrollment_screen_offers_only_classes_of_the_closed_branch(): void
+    {
+        [$lead, $student] = $this->closeWithoutClass();
+        $otherBranch = Branch::create(['name' => 'Cơ sở B', 'code' => 'CSB', 'is_active' => true]);
+        $this->academic->branches()->attach($otherBranch->id);
+        $this->makeClass('F1A');
+        $wrongBranch = $this->makeClass('F1B', ['branch_id' => $otherBranch->id]);
+
+        $rules = $this->actingAs($this->academic)->get(route('students.enrollments', ['student_id' => $student->id]))
+            ->assertOk()->viewData('placementRules');
+        $this->assertSame($this->branch->id, (int) $rules[$student->id]['branch_id']);
+        $this->assertSame($this->course->id, (int) $rules[$student->id]['course_id']);
+
+        $this->actingAs($this->academic)->post(route('students.enrollments.store'), ['student_id' => $student->id, 'class_id' => $wrongBranch->id])
+            ->assertSessionHasErrors('class_id');
+        $this->assertSame('waiting_class', $lead->fresh()->stage);
+        $this->assertSame(0, ClassEnrollment::where('student_id', $student->id)->count());
+    }
+
+    public function test_placement_requires_the_closed_branch(): void
+    {
+        [$lead] = $this->closeWithoutClass();
+        $otherBranch = Branch::create(['name' => 'Cơ sở B', 'code' => 'CSB', 'is_active' => true]);
+        $placement = app(WaitingLeadPlacement::class);
+
+        $placement->assertMatchesClosedBranch($lead, $this->makeClass('F1A'));
+
+        try {
+            $placement->assertMatchesClosedBranch($lead, $this->makeClass('F1B', ['branch_id' => $otherBranch->id]));
+            $this->fail('Lớp khác chi nhánh đã chốt phải bị chặn.');
+        } catch (ValidationException $e) {
+            $this->assertSame('Lớp phải thuộc chi nhánh đã chốt (Cơ sở A).', $e->errors()['class_id'][0]);
+        }
     }
 
     public function test_crm_assign_rejects_class_the_student_is_already_in(): void
