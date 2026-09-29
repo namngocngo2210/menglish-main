@@ -351,6 +351,8 @@ class Phase1StudentsTest extends TestCase
         $this->assertSame(1, StudentAttendance::where('student_id', $student->id)->count());
 
         // Không còn trong lọc theo lớp, vẫn tìm thấy hồ sơ.
+        // Bỏ toast flash của bước đổi trạng thái (có tên học viên) để chỉ kiểm tra danh sách.
+        $this->flushSession();
         $this->actingAs($staff)->get(route('students.index', ['class_id' => $this->classHn->id]))->assertDontSee('Học viên HV-DROP');
         $this->actingAs($staff)->get(route('students.index', ['status' => 'dropped']))->assertSee('Học viên HV-DROP');
 

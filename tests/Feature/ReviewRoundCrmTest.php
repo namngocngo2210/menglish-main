@@ -91,6 +91,7 @@ class ReviewRoundCrmTest extends TestCase
         $this->lead('won', ['converted_at' => now()]);
         $this->lead('consulting');
 
+        $this->academic->givePermissionTo('report.view');
         $response = $this->actingAs($this->academic)->get(route('crm.reports'))->assertOk();
         $this->assertSame(2, $response->viewData('metricWonDeals'));
     }
