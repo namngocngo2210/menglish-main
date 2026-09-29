@@ -671,12 +671,11 @@ class SyllabusController extends Controller
             ->paginate($request->perPage(15))
             ->withQueryString();
 
+        // Chi tiết mở trong modal khi URL chọn 1 đề xuất (?proposal=); không chọn → chỉ danh sách.
         $selected = null;
         if ($request->filled('proposal')) {
             $selected = SyllabusChangeProposal::with(['curriculum', 'unit', 'lesson', 'proposer.roles', 'reviewer'])->findOrFail($request->integer('proposal'));
             abort_unless($selected->isVisibleTo($user), 404);
-        } else {
-            $selected = $proposals->first()?->load(['reviewer', 'proposer.roles']);
         }
 
         $pendingCount = SyllabusChangeProposal::visibleTo($user)->where('status', 'pending')->count();
@@ -878,9 +877,10 @@ class SyllabusController extends Controller
             ->latest()
             ->paginate($request->perPage(15))
             ->withQueryString();
+        // Chi tiết mở trong modal khi URL chọn 1 yêu cầu (?request=); không chọn → chỉ danh sách.
         $selected = $request->filled('request')
             ? SyllabusAdjustmentRequest::with(['classModel', 'teacher', 'approver', 'assignment'])->findOrFail($request->integer('request'))
-            : $requests->first();
+            : null;
         abort_if($selected && ! $canReview && (int) $selected->user_id !== (int) $user->id, 404);
 
         return view('syllabus.adjustment-requests', compact('requests', 'selected', 'status', 'pendingCount'));

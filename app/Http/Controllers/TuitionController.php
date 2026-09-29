@@ -797,21 +797,6 @@ class TuitionController extends Controller
             }
         }
 
-        if (! $selectedReceipt && $pendingReceipts->isNotEmpty()) {
-            $selectedReceipt = $pendingReceipts->first();
-        }
-
-        if (! $selectedReceipt) {
-            $selectedReceipt = $scoped()->with([
-                'tuition.student.branch',
-                'tuition.classModel',
-                'student.branch',
-                'student.currentClass',
-                'creator',
-                'approver',
-            ])->latest()->first();
-        }
-
         // Cảnh báo trùng với giao dịch SePay đã tự động gạch nợ (chỉ phiếu chuyển khoản đang chờ duyệt).
         $sepayWarnings = collect();
         if ($selectedReceipt && $selectedReceipt->status === TuitionReceipt::STATUS_PENDING) {
@@ -1258,10 +1243,6 @@ class TuitionController extends Controller
 
         if ($selectedCancellation && $scope !== null && ! $scoped()->whereKey($selectedCancellation->id)->exists()) {
             $selectedCancellation = null;
-        }
-
-        if (! $selectedCancellation && $cancellations->isNotEmpty()) {
-            $selectedCancellation = $cancellations->first();
         }
 
         return view('tuition.invoices-cancellations', compact(

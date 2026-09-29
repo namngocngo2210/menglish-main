@@ -6,8 +6,11 @@
       maxWidth: sm | md | lg (mặc định) | xl | 2xl | 3xl | 4xl | full — từ 2xl trở lên: toàn màn trên điện thoại (< sm)
       show:     true => mở sẵn (vd. khi có lỗi validate của form trong modal)
       bare:     true => không render header/thân/footer, slot tự dựng khung (dùng cho x-ui.remote-modal + x-ui.modal-frame)
+      dismissUrl: URL đặt lại lên thanh địa chỉ khi đóng (không tải lại trang). Dùng cho modal chi tiết mở sẵn theo query
+                (vd. ?selected_id=5): đóng xong F5 / tự làm mới không bật lại modal.
     Slots: nội dung chính (slot, tự cuộn khi dài — header/footer đứng yên), footer (nút hành động)
     Hành vi: giữ focus trong modal (x-trap), đóng thì trả focus về nút mở, khoá cuộn trang nền.
+      Mở chồng modal (vd. "Xác nhận duyệt" trên modal chi tiết): Esc chỉ đóng modal trên cùng (1 lần bấm = 1 modal). window.openModals = các modal đang mở.
       Form bên trong đã sửa mà bấm nền / Esc / X → hỏi "Bỏ các thay đổi chưa lưu?". Đóng bằng event close-modal thì không hỏi.
     Mở/đóng:
       <x-ui.button @click="$dispatch('open-modal', 'confirm-delete')">Xoá</x-ui.button>
@@ -22,7 +25,7 @@
           </x-slot:footer>
       </x-ui.modal>
 --}}
-@props(['name', 'title' => null, 'maxWidth' => 'lg', 'show' => false, 'bare' => false])
+@props(['name', 'title' => null, 'maxWidth' => 'lg', 'show' => false, 'bare' => false, 'dismissUrl' => null])
 
 @php
     $widths = [
@@ -39,6 +42,12 @@
         dirty: false,
         confirming: false,
         widths: @js($widths),
+        uid: Math.random().toString(36).slice(2),
+        get isTop() { return (window.openModals ?? []).at(-1) === this.uid },
+        track(open) {
+            window.openModals = (window.openModals ?? []).filter((id) => id !== this.uid);
+            if (open) window.openModals.push(this.uid);
+        },
         get large() { return ['2xl', '3xl', '4xl', 'full'].includes(this.size) },
         matches(d) { return d === @js($name) || d === '*' || d?.name === @js($name) },
         open(size) { this.size = this.widths[size] ? size : @js($maxWidth); this.dirty = false; this.show = true },
@@ -54,10 +63,15 @@
             this.dirty = false;
         },
      }"
-     x-init="$watch('show', v => v || $dispatch('modal-closed', @js($name)))"
+     x-init="track(show); $watch('show', v => {
+        track(v);
+        if (v) return;
+        $dispatch('modal-closed', @js($name));
+        @if ($dismissUrl) history.replaceState(history.state, '', @js($dismissUrl)); @endif
+     })"
      x-on:open-modal.window="matches($event.detail) && open($event.detail?.size)"
      x-on:close-modal.window="matches($event.detail) && close(true)"
-     x-on:keydown.escape.window="close()"
+     x-on:keydown.escape.window="if (isTop && ! $event.modalHandled) { $event.modalHandled = true; close() }"
      x-show="show" x-cloak
      data-modal="{{ $name }}"
      class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:px-md sm:py-lg"

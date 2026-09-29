@@ -337,13 +337,17 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Số buổi thêm')
             ->assertSee('Lớp Mockup 01 - Chặng 1: Nền tảng');
 
-        // Màn duyệt: thẻ có SLA còn hạn / quá hạn, lớp - chặng, xin thêm N buổi, luồng từ chối có xác nhận
+        // Màn duyệt: danh sách có SLA còn hạn / quá hạn, lớp - chặng, xin thêm N buổi; bấm dòng → modal chi tiết (?request=),
+        // luồng từ chối có xác nhận
         $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests'))->assertOk()
             ->assertSee('Duyệt yêu cầu xin điều chỉnh tiến độ')
             ->assertSee('Danh sách chờ duyệt')
-            ->assertSee('1 Yêu cầu')
+            ->assertSee('1 yêu cầu')
             ->assertSee('Còn hạn')
-            ->assertSee('Xin thêm:')
+            ->assertSee('Xin thêm')
+            ->assertSee(route('syllabus.adjustment-requests', ['status' => 'pending', 'request' => $req->id]))
+            ->assertDontSee('Lý do xin giãn tiến độ');
+        $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests', ['request' => $req->id]))->assertOk()
             ->assertSee('Chi tiết yêu cầu')
             ->assertSee('Lý do xin giãn tiến độ')
             ->assertSee('Lý do từ chối (Bắt buộc)')
@@ -355,8 +359,8 @@ class Phase2MockupSyllabusTest extends TestCase
 
         $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.reject', $req->id), ['rejection_reason' => 'Chưa đủ căn cứ'])->assertRedirect();
         // Mặc định lọc "chờ duyệt"; "Tất cả" vẫn thấy yêu cầu đã xử lý
-        $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests'))->assertOk()->assertSee('0 Yêu cầu');
-        $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests', ['status' => 'all']))->assertOk()->assertSee('Chưa đủ căn cứ');
+        $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests'))->assertOk()->assertSee('0 yêu cầu');
+        $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests', ['status' => 'all', 'request' => $req->id]))->assertOk()->assertSee('Chưa đủ căn cứ');
     }
 
     // ---- 03_Cong_Giao_Vien/07 — Chặng đang dạy & Order Test; 01_Web_Admin/06 — Duyệt & phân phối đề Big Test ----

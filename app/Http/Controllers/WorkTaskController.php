@@ -875,13 +875,11 @@ class WorkTaskController extends Controller
             ->filter(fn (ClassReport $report) => $this->canReviewClassReport($report, $user))
             ->values();
 
+        // Chi tiết mở trong modal khi URL chọn 1 mục (?selected_id= việc / ?report= báo cáo); không chọn → chỉ danh sách.
         $selectedReport = isset($validated['report']) ? $pendingReports->firstWhere('id', (int) $validated['report']) : null;
-        $selectedTask = $selectedReport ? null : (isset($validated['selected_id'])
+        $selectedTask = ! $selectedReport && isset($validated['selected_id'])
             ? $pendingTasks->firstWhere('id', (int) $validated['selected_id'])
-            : $pendingTasks->first());
-        if (! $selectedTask && ! $selectedReport) {
-            $selectedReport = $pendingReports->first();
-        }
+            : null;
 
         $assigneeOptions = $pendingTasks->pluck('assignee')->merge($pendingReports->pluck('reporter'))
             ->filter()->unique('id')->sortBy('name')->pluck('name', 'id');

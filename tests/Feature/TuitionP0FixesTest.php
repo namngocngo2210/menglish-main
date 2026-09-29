@@ -639,12 +639,13 @@ class TuitionP0FixesTest extends TestCase
 
     public function test_approve_page_does_not_fake_bank_proof(): void
     {
-        TuitionReceipt::create([
+        $receipt = TuitionReceipt::create([
             'receipt_number' => 'PT-NO-PROOF', 'student_tuition_id' => $this->tuition->id,
             'amount' => 1000000, 'payment_method' => 'transfer', 'creator_id' => $this->staff->id, 'status' => 'pending',
         ]);
 
-        $response = $this->actingAs($this->accountant)->get(route('tuition.receipts.approve'));
+        // Chi tiết phiếu mở trong modal khi chọn phiếu (?selected_id=).
+        $response = $this->actingAs($this->accountant)->get(route('tuition.receipts.approve', ['selected_id' => $receipt->id]));
         $response->assertOk();
         $response->assertSee('Chưa có minh chứng');
         $response->assertDontSee('1029384756');

@@ -361,7 +361,7 @@ class Phase4FinanceParityTest extends TestCase
             'amount' => 3000000, 'reason' => 'Viết sai tên phụ huynh', 'requester_id' => $this->accountant->id, 'status' => 'pending',
         ]);
 
-        $this->actingAs($this->accountant)->get(route('tuition.invoices.cancellations'))
+        $this->actingAs($this->accountant)->get(route('tuition.invoices.cancellations', ['selected_id' => $cancellation->id]))
             ->assertOk()
             ->assertSee('Admin phê duyệt (theo phân quyền)')
             ->assertSee('Xuất danh sách')
