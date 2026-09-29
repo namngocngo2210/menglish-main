@@ -341,8 +341,8 @@ class CrmBusinessTest extends TestCase
             'assigned_user_id' => $this->salesUser->id,
         ]);
 
-        $responseDelete = $this->actingAs($this->salesUser)->delete(route('crm.customers.destroy', $customer->id));
-        $responseDelete->assertForbidden();
+        $responseDelete = $this->actingAs($this->salesUser)->delete('/crm/customers/'.$customer->id);
+        $responseDelete->assertMethodNotAllowed();
         $this->assertNotSoftDeleted('crm_customers', ['id' => $customer->id]);
 
         $responseReports = $this->actingAs($this->salesUser)->get(route('crm.reports'));

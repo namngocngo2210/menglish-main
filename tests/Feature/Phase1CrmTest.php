@@ -90,7 +90,8 @@ class Phase1CrmTest extends TestCase
             ->assertSessionHasNoErrors();
         $original = CrmCustomer::firstOrFail();
 
-        $this->actingAs($this->manager)->delete(route('crm.customers.destroy', $original))->assertRedirect();
+        // Khách đã xoá trước khi bỏ chức năng xoá (không còn nút / route xoá).
+        $original->delete();
         $this->assertSoftDeleted('crm_customers', ['id' => $original->id]);
         $trashed = CrmCustomer::withTrashed()->find($original->id);
         $this->assertNull($trashed->phone_normalized);
@@ -115,7 +116,7 @@ class Phase1CrmTest extends TestCase
     {
         $this->actingAs($this->manager)->post(route('crm.customers.store'), $this->customerPayload(['phone' => '0911 222 333']));
         $original = CrmCustomer::firstOrFail();
-        $this->actingAs($this->manager)->delete(route('crm.customers.destroy', $original));
+        $original->delete();
 
         // Trước đây lỗi "SĐT đã tồn tại" dù khách đã xóa.
         $this->actingAs($this->manager)->post(route('crm.customers.store'), $this->customerPayload(['phone' => '0911222333', 'name' => 'Khách tạo lại']))

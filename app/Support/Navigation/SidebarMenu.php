@@ -125,7 +125,7 @@ final class SidebarMenu
                     ['label' => 'Chờ xếp lớp', 'route' => 'crm.waiting-list', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'waiting_class'],
                     ['label' => 'Đã nhập học', 'route' => 'crm.customers.won', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'won'],
                     ['label' => 'Thất bại', 'route' => 'crm.lost-deals', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'lost'],
-                    ['label' => 'Đã xóa', 'route' => 'crm.customers.deleted', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'deleted'],
+                    ['label' => 'Đã xóa', 'route' => 'crm.customers.deleted', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'deleted', 'hide_empty' => true],
                 ]),
                 // Không đặt nút "Xếp lớp" ở header: Chốt & Xếp lớp mở từ thẻ Kanban / hồ sơ khách / Dashboard,
                 // khách Chờ xếp lớp xếp từ cột Hành động của bảng Chờ xếp lớp.

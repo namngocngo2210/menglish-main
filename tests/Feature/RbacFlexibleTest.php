@@ -166,7 +166,7 @@ class RbacFlexibleTest extends TestCase
         $this->assertSame($online->id, $mine->fresh()->assigned_user_id);
         $this->assertNotNull($sales);
         // Không có quyền xóa.
-        $this->actingAs($online)->delete(route('crm.customers.destroy', $mine->id))->assertForbidden();
+        $this->actingAs($online)->delete('/crm/customers/'.$mine->id)->assertMethodNotAllowed();
     }
 
     public function test_clone_rename_and_delete_role(): void

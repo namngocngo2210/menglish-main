@@ -406,7 +406,7 @@ class Phase1AcceptanceTest extends TestCase
         $this->actingAs($this->manager)->post(route('crm.closing-wizard.store'), [
             'customer_id' => $lead->id, 'class_id' => $this->activeClass->id, 'fee_paid_at_closing' => 0,
         ])->assertSessionHasErrors('customer_id');
-        $this->actingAs($this->admin)->delete(route('crm.customers.destroy', $lead->id))->assertSessionHasErrors('customer');
+        $this->actingAs($this->admin)->delete('/crm/customers/'.$lead->id)->assertMethodNotAllowed();
         $this->assertSame('lost', $lead->fresh()->stage);
         $this->assertNull($lead->fresh()->deleted_at);
         $this->actingAs($this->manager)->get(route('crm.lost-deals'))->assertOk()->assertSee($lead->name)->assertSee('Học phí vượt ngân sách');

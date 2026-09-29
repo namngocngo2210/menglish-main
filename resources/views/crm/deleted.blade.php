@@ -3,7 +3,7 @@
 
     <div class="space-y-4">
         <x-ui.alert type="info">
-            Khách bị xóa không còn chiếm số điện thoại: có thể tạo lại khách mới cùng SĐT. Khôi phục sẽ bị chặn nếu SĐT đã thuộc khách khác đang hoạt động.
+            CRM không còn chức năng xóa khách (khách không theo nữa thì đánh "Thất bại" kèm lý do). Đây là các khách đã xóa trước đó: khôi phục sẽ bị chặn nếu SĐT đã thuộc khách khác đang hoạt động.
         </x-ui.alert>
 
         <x-ui.filter-bar placeholder="Tìm tên, mã KH, SĐT khách đã xóa...">

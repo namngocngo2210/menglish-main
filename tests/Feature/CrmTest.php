@@ -199,7 +199,7 @@ class CrmTest extends TestCase
         ]);
     }
 
-    public function test_can_delete_customer_from_database(): void
+    public function test_customer_cannot_be_deleted_only_marked_lost(): void
     {
         $user = $this->admin();
         $customer = CrmCustomer::create([
@@ -209,12 +209,15 @@ class CrmTest extends TestCase
             'stage' => 'new',
         ]);
 
-        $response = $this->actingAs($user)->delete(route('crm.customers.destroy', $customer->id));
-
-        $response->assertRedirect(route('crm.customers.index'));
-        $this->assertSoftDeleted('crm_customers', [
-            'id' => $customer->id,
-        ]);
+        // Không có chức năng xoá khách, kể cả Admin (bỏ khách = đánh Thất bại).
+        $this->actingAs($user)->delete('/crm/customers/'.$customer->id)->assertMethodNotAllowed();
+        $this->assertNotSoftDeleted('crm_customers', ['id' => $customer->id]);
+        $this->actingAs($user)->get(route('crm.customers.show', $customer->id))->assertOk()->assertDontSee('Xóa khách');
+        $this->actingAs($user)->get(route('crm.customers.index'))->assertOk()->assertDontSee('aria-label="Xóa khách"', false);
+        // Chip "Đã xóa" chỉ hiện khi còn khách đã xoá từ trước.
+        $this->actingAs($user)->get(route('crm.customers.index'))->assertDontSee(route('crm.customers.deleted'), false);
+        $customer->delete();
+        $this->actingAs($user)->get(route('crm.customers.index'))->assertSee(route('crm.customers.deleted'), false);
     }
 
     public function test_can_save_and_view_placement_test_score_in_crm_customer_page(): void
