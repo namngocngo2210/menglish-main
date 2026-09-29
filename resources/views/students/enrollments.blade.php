@@ -29,7 +29,26 @@
         @endif
 
         {{-- Xếp lớp cho học viên (cùng động từ "Xếp lớp" với CRM) --}}
-        <form action="{{ route('students.enrollments.store') }}" method="POST" class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-5 space-y-4">
+        @php
+            $classOptions = $classes->map(fn ($cl) => [
+                'id' => $cl->id, 'label' => "{$cl->name} ({$cl->code})", 'branch_id' => $cl->branch_id, 'course_id' => $cl->course_id,
+            ])->values();
+            $selectedClassId = (string) old('class_id', '');
+        @endphp
+        <form action="{{ route('students.enrollments.store') }}" method="POST"
+              x-data="{
+                  studentId: @js($preselectedId !== '' ? $preselectedId : (string) ($students->first()?->id ?? '')),
+                  classId: @js($selectedClassId),
+                  classes: @js($classOptions),
+                  rules: @js($placementRules),
+                  get rule() { return this.rules[this.studentId] || {}; },
+                  get options() {
+                      const r = this.rule;
+                      return this.classes.filter(c => (! r.branch_id || Number(c.branch_id) === Number(r.branch_id)) && (! r.course_id || Number(c.course_id) === Number(r.course_id)));
+                  },
+              }"
+              x-effect="if (! options.some(c => String(c.id) === String(classId))) classId = options.length ? String(options[0].id) : ''"
+              class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-5 space-y-4">
             @csrf
             <h2 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5 pb-2 border-b border-surface-container-highest">
                 <span class="material-symbols-outlined text-primary text-base">person_add</span>
@@ -48,16 +67,25 @@
                 </div>
             @endif
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <x-ui.select name="student_id" label="Chọn Học viên" required>
+                <x-ui.select name="student_id" label="Chọn Học viên" required x-model="studentId">
                     @foreach ($students as $st)
                         <option value="{{ $st->id }}" @selected((string) $st->id === $preselectedId)>{{ $st->name }} ({{ $st->code }})</option>
                     @endforeach
                 </x-ui.select>
-                <x-ui.select name="class_id" label="Chọn Lớp học mục tiêu" required class="font-semibold text-primary">
-                    @foreach ($classes as $cl)
-                        <option value="{{ $cl->id }}">{{ $cl->name }} ({{ $cl->code }})</option>
-                    @endforeach
-                </x-ui.select>
+                {{-- Chỉ hiện lớp cùng chi nhánh của học viên (chi nhánh + khóa đã chốt nếu đang Chờ xếp lớp); server kiểm tra lại. --}}
+                <div>
+                    <x-ui.select name="class_id" label="Chọn Lớp học mục tiêu" required class="font-semibold text-primary" x-model="classId">
+                        <template x-if="! options.length">
+                            <option value="">Chưa có lớp phù hợp</option>
+                        </template>
+                        <template x-for="c in options" :key="c.id">
+                            <option :value="String(c.id)" x-text="c.label" :selected="String(c.id) === String(classId)"></option>
+                        </template>
+                    </x-ui.select>
+                    <p class="mt-1 font-body-small text-body-small text-on-surface-variant" x-show="rule.branch_name" x-cloak>
+                        Lớp tại <strong x-text="rule.branch_name"></strong><span x-show="rule.course_id">, đúng khóa đã chốt</span>.
+                    </p>
+                </div>
                 <div class="flex items-end">
                     <x-ui.button type="submit" icon="assignment_turned_in" class="w-full">Xếp lớp</x-ui.button>
                 </div>
