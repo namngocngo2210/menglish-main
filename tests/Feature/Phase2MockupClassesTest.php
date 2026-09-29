@@ -136,13 +136,18 @@ class Phase2MockupClassesTest extends TestCase
             'room' => 'Phòng 204', 'status' => 'active', 'start_date' => '2026-09-01', 'end_date' => '2026-12-31',
         ]);
 
+        // Không còn hàng tab "Cấu hình lịch lớp" / "Báo cáo phòng / nhân sự": báo cáo mở riêng qua nút trên đầu trang.
         $this->actingAs($this->admin)->get(route('tasks.schedule-config'))->assertOk()
-            ->assertSee('Lịch & TKB lớp')->assertSee('Xuất Excel')->assertSee('Tạo lớp mới')
+            ->assertSee('Lịch & TKB lớp')->assertSee('Tạo lớp mới')
             ->assertSee('Năm học 2026 - 2027')
             ->assertSee('Slot 1')->assertSee('Slot 2')->assertSee('Hủy thay đổi')
             ->assertSee('Danh sách lớp hiện tại')->assertSee('GV: Nguyễn Văn Giáo')
-            ->assertSee('Báo cáo phòng / nhân sự')->assertSee('Giá trị tự động tính toán từ số ca')
-            ->assertSee('Lưu báo cáo nhân sự');
+            ->assertDontSee('role="tablist"', false)->assertSee(route('tasks.schedule-config', ['view' => 'report']), false)
+            ->assertDontSee('Lưu báo cáo nhân sự');
+
+        $this->actingAs($this->admin)->get(route('tasks.schedule-config', ['view' => 'report']))->assertOk()
+            ->assertSee('Báo cáo phòng / nhân sự')->assertSee('Xuất Excel')->assertSee('Giá trị tự động tính toán từ số ca')
+            ->assertSee('Lưu báo cáo nhân sự')->assertDontSee('Danh sách lớp hiện tại');
 
         // Tìm lớp chạy phía server.
         $this->actingAs($this->admin)->get(route('tasks.schedule-config', ['class_q' => 'toeic']))->assertOk()
