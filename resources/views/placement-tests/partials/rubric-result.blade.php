@@ -50,6 +50,11 @@
                         Đề xuất xếp lớp: <span class="text-primary-container font-bold">{{ $suggestedClass }}</span>
                     </p>
                 @endif
+                @if ($rubric && ($rubric['draft'] ?? false))
+                    <p class="mt-0.5 inline-flex items-center gap-1 rounded-md bg-warning-container px-2 py-0.5 text-[11px] font-semibold text-on-warning-container" data-testid="rubric-draft">
+                        <span class="material-symbols-outlined text-[14px]">auto_awesome</span>Hệ thống đã tự chấm Nghe, Đọc &amp; Viết — tổng tạm tính, chờ Học vụ nhập điểm Nói và xác nhận
+                    </p>
+                @endif
                 @if ($rubric && $rubric['overridden'])
                     <p class="text-[11px] text-on-surface-variant">Lớp đề xuất theo thang điểm: <strong>{{ $rubric['suggested_class'] }}</strong> (Học vụ đã chọn lại)</p>
                 @elseif ($rubric && ! $rubric['legacy'] && ! $rubric['has_rubric'])
